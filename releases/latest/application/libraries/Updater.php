@@ -446,15 +446,20 @@ class Updater {
     /* ================================================================ */
 
     protected function getUpdateChannelUrl(): string {
-        $row = $this->CI->db->select('update_channel_url')
-            ->from('db_sitesettings')
-            ->where('id', 1)
-            ->get()
-            ->row();
-        $url = $row->update_channel_url ?? '';
+        try {
+            $row = $this->CI->db->select('update_channel_url')
+                ->from('db_sitesettings')
+                ->where('id', 1)
+                ->get()
+                ->row();
+            $url = $row ? ($row->update_channel_url ?? '') : '';
+        } catch (Exception $e) {
+            // Column may not exist yet (pre-migration)
+            $url = '';
+        }
         if (empty($url)) {
-            // Fallback placeholder — user MUST set this in Super Admin UI
-            return 'https://raw.githubusercontent.com/YOUR_USERNAME/martpoint-retail-releases/main/releases/latest';
+            // Fallback — avariodigitals/martpoint-retail-releases
+            return 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest';
         }
         return $url;
     }

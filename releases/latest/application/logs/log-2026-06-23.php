@@ -339,3 +339,15 @@ ERROR - 2026-06-23 15:23:16 --> Query error: Unknown column 'update_channel_url'
 FROM `db_sitesettings`
 WHERE `id` = 1
 ERROR - 2026-06-23 15:23:16 --> Severity: error --> Exception: Call to a member function row() on bool /Users/ralphmore/Sites/localhost/martpoint retail/application/libraries/Updater.php 453
+ERROR - 2026-06-23 16:32:10 --> Query error: Unknown column 'update_channel_url' in 'field list' - Invalid query: UPDATE `db_sitesettings` SET `update_channel_url` = 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/'
+WHERE `id` = 1
+ERROR - 2026-06-23 16:32:39 --> Query error: Unknown column 'update_channel_url' in 'field list' - Invalid query: SELECT `update_channel_url`
+FROM `db_sitesettings`
+WHERE `id` = 1
+ERROR - 2026-06-23 16:32:39 --> Severity: error --> Exception: Call to a member function row() on bool /Users/ralphmore/Sites/localhost/martpoint retail/application/libraries/Updater.php 453
+ERROR - 2026-06-23 16:32:43 --> Query error: Unknown column 'update_channel_url' in 'field list' - Invalid query: UPDATE `db_sitesettings` SET `update_channel_url` = 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/'
+WHERE `id` = 1
+ERROR - 2026-06-23 16:32:48 --> Query error: Unknown column 'update_channel_url' in 'field list' - Invalid query: SELECT `update_channel_url`
+FROM `db_sitesettings`
+WHERE `id` = 1
+ERROR - 2026-06-23 16:32:48 --> Severity: error --> Exception: Call to a member function row() on bool /Users/ralphmore/Sites/localhost/martpoint retail/application/libraries/Updater.php 453

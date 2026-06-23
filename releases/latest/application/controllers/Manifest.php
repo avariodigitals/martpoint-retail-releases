@@ -42,8 +42,9 @@ class Manifest extends MY_Controller {
         $scanDirs = [
             'application' => ['php'],
             'theme' => ['php', 'css', 'js', 'html'],
-            'system' => ['php'],
-            'vendor' => ['php'],
+            // system/ and vendor/ are excluded — they are CI core and
+            // third-party libraries that don't change between MartPoint releases.
+            // Existing installations already have them.
             'index.php' => ['php'],
         ];
 

@@ -190,7 +190,13 @@
           log('No update available.');
           showActions('idle');
         }
-      }, 'json');
+      }, 'json').fail(function(xhr) {
+        var msg = 'Server error. Check console / Network tab.';
+        if (xhr.status === 500) msg = 'Server error (500). Is update_channel_url column missing? Run migration first.';
+        setStatus('danger', msg);
+        log(msg);
+        showActions('idle');
+      });
     }
 
     function previewChanges() {
@@ -222,7 +228,10 @@
         document.getElementById('previewArea').style.display = 'block';
         setStatus('info', 'Ready to update. Review the changes above, then click Start Update.');
         log('Diff calculated. ' + res.preview.total_operations + ' operations pending.');
-      }, 'json');
+      }, 'json').fail(function(xhr) {
+        setStatus('danger', 'Preview failed: ' + (xhr.status === 500 ? 'Server error (500)' : 'Network error'));
+        log('Preview failed.');
+      });
     }
 
     function runStep(step) {
@@ -301,7 +310,10 @@
             setStepIcon(res.current_step, 'running');
             updateProgress(res.current_step);
           }
-        }, 'json');
+        }, 'json').fail(function(xhr) {
+          setStatus('danger', 'Progress poll failed: ' + xhr.status);
+          clearInterval(pollInterval);
+        });
       }, 3000);
     }
 
@@ -317,7 +329,10 @@
           log('Restore failed: ' + res.message);
         }
         showActions('idle');
-      }, 'json');
+      }, 'json').fail(function(xhr) {
+        setStatus('danger', 'Restore failed: ' + (xhr.status === 500 ? 'Server error (500)' : 'Network error'));
+        log('Restore failed.');
+      });
     }
 
     function saveChannel() {
@@ -330,7 +345,7 @@
         } else {
           toastr.error(res.message || 'Failed to save');
         }
-      }, 'json');
+      }, 'json').fail(function() { toastr.error('Failed to save channel.'); });
     }
 
     function loadChannel() {
@@ -338,7 +353,7 @@
         if (res.status === 'ok' && res.url) {
           document.getElementById('channelUrl').value = res.url;
         }
-      }, 'json');
+      }, 'json').fail(function() { /* silent */ });
     }
 
     function loadRecentJobs() {
@@ -355,7 +370,7 @@
           html = '<em>No recent update jobs.</em>';
         }
         document.getElementById('recentJobs').innerHTML = html;
-      }, 'json');
+      }, 'json').fail(function() { /* silent */ });
     }
 
     // Event bindings

@@ -124,9 +124,19 @@ class System_updates extends MY_Controller {
             echo json_encode(['status' => 'error', 'message' => 'Invalid URL']);
             return;
         }
-        $this->db->where('id', 1)->update('db_sitesettings', [
-            'update_channel_url' => $url,
-        ]);
+
+        // Ensure column exists (MySQL 5.7 safe)
+        try {
+            $this->db->where('id', 1)->update('db_sitesettings', [
+                'update_channel_url' => $url,
+            ]);
+        } catch (Exception $e) {
+            $this->ensureUpdateChannelColumn();
+            $this->db->where('id', 1)->update('db_sitesettings', [
+                'update_channel_url' => $url,
+            ]);
+        }
+
         echo json_encode(['status' => 'ok', 'message' => 'Update channel saved.']);
     }
 
@@ -134,14 +144,27 @@ class System_updates extends MY_Controller {
      * AJAX: Get current update channel URL
      */
     public function get_channel() {
-        $row = $this->db->select('update_channel_url')
-            ->from('db_sitesettings')
-            ->where('id', 1)
-            ->get()
-            ->row();
+        try {
+            $row = $this->db->select('update_channel_url')
+                ->from('db_sitesettings')
+                ->where('id', 1)
+                ->get()
+                ->row();
+            $url = $row ? ($row->update_channel_url ?? '') : '';
+        } catch (Exception $e) {
+            $url = '';
+        }
         echo json_encode([
             'status' => 'ok',
-            'url' => $row->update_channel_url ?? '',
+            'url' => $url,
         ]);
+    }
+
+    protected function ensureUpdateChannelColumn() {
+        $db = $this->db->database;
+        $exists = $this->db->query("SELECT COUNT(*) AS c FROM information_schema.columns WHERE table_schema = ? AND table_name = 'db_sitesettings' AND column_name = 'update_channel_url'", [$db])->row()->c;
+        if ($exists == 0) {
+            $this->db->query("ALTER TABLE `db_sitesettings` ADD COLUMN `update_channel_url` VARCHAR(500) DEFAULT NULL");
+        }
     }
 }
