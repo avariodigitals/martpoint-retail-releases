@@ -1,0 +1,99 @@
+.select2-container--default .select2-selection--single{
+      border-radius: 0px;
+    }
+    /*LEFT SIDE: ITEMS TABLE*/
+    . > tbody > tr:nth-of-type(2n+1) {
+      background-color: #ede3e3;
+    }
+    . > tbody > tr {
+      background-color: #ddc8c8;
+    }
+
+    /*SET TOTAL FONT*/
+    .tot_qty, .tot_amt, .tot_disc, .tot_grand {
+      font-size: 19px;
+      color: #023763 ;
+    }
+    /*CURSOR POINTER CLASS*/
+    .pointer{
+      cursor:pointer;
+    }
+    .navbar-nav > .user-menu > .dropdown-width-lg{
+      width: 350px;
+    }
+    .header-custom{
+      background-image: -webkit-gradient(linear, left top, right top, from(#20b9ae), to(#006fd6)); color: white;
+
+    }
+    .border-custom-bottom{
+      border-bottom: 1px solid;
+      padding-top: 10px;
+      padding-bottom: 5px;
+    }
+    .custom-font-size{
+      font-size: 22px;
+    }
+    .search_item{
+      text-transform: uppercase;
+      font-size: 10px;
+      color: #000000;
+      text-align: center;
+      text-overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+    .item_image{
+      min-width: 70px;
+      min-height:  70px;
+      max-width: 70px;
+      max-height:  70px;
+    }
+    .item_box{
+      border-top:none;
+    }
+    /*.text-primary {
+    color: #605ca8;
+    font-weight: bold;
+}*/
+    .min_width{
+      min-width: 70px;
+    }
+    .skin-blue-light .main-header .navbar {
+        /*background: linear-gradient(45deg,#6200ea,#1976d2)!important;*/
+    }
+    .bg-primary {
+    color: #fff;
+    background-color: #1b3585!important;
+}
+.skin-blue .main-header .navbar {
+    background-color: #1b3585;
+}
+    .box {
+        position: relative;
+        border-radius: 3px;
+        background: #ffffff;
+        border-top: 3px solid #ffffff00;
+        margin-bottom: 20px;
+        margin-top: 20px;
+        width: 100%;
+        box-shadow: 0 2px 2px 0 rgba(0,0,0,.14), 0 3px 1px -2px rgba(0,0,0,.12), 0 1px 5px 0 rgba(0,0,0,.2);
+    }
+    
+
+  
+          .box {
+    position: relative;
+    border-radius: 3px;
+    background: #ffffff;
+    border-top: 3px solid #ffffff00;
+    margin-bottom: 20px;
+    margin-top: 20px;
+    width: 100%;
+    box-shadow: 0 6px 20px 0 rgba(123,31,162,.5)!important;
+}
+    .skin-blue-light .main-header .navbar .nav>li>a {
+    color: #fff;
+}     
+
+
