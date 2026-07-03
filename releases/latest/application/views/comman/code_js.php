@@ -50,6 +50,10 @@
 <script src="<?php echo $theme_link; ?>toastr/toastr.js"></script>
 <script src="<?php echo $theme_link; ?>toastr/toastr_custom.js"></script>
 <!--Toastr notification end-->
+<script>
+function success_show(msg){ toastr.success(msg); }
+function error_show(msg){ toastr.error(msg); }
+</script>
 <!-- bootstrap datepicker -->
 <script src="<?php echo $theme_link; ?>plugins/daterangepicker/moment.min.js"></script>
 <script src="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.js"></script>

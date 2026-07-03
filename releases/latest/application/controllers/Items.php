@@ -22,6 +22,16 @@ class Items extends MY_Controller {
 		$this->permission_check('items_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('items');
+		$data['recipes_list'] = [];
+		if (recipe_module() && $this->db->table_exists('db_recipes')) {
+			$this->load->model('recipe_model');
+			$store_id = get_current_store_id();
+			$recipes = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_recipes')->result();
+			foreach ($recipes as $r) {
+				$r->cost_per_unit = $this->recipe_model->calculate_cost_per_unit($r->id);
+			}
+			$data['recipes_list'] = $recipes;
+		}
 		$this->load->view('items',$data);
 	}
 
@@ -42,10 +52,9 @@ class Items extends MY_Controller {
 			}
 		}		
 		if ($this->form_validation->run() == TRUE) {
-			$product_used = get_product_usage();
-			$product_limit = get_subscription_limit('product_limit');
-			if($product_limit > 0 && $product_used >= $product_limit){
-				echo "Product limit reached (".$product_used."/".$product_limit."). Contact admin to upgrade subscription.";
+			$product_check = check_subscription_limit('product_limit');
+			if($product_check !== true){
+				echo $product_check;
 				return;
 			}
 			if(!empty($_FILES['item_image']['name'])){
@@ -138,6 +147,26 @@ class Items extends MY_Controller {
 		$result=$this->items_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('items');
+		$data['recipes_list'] = [];
+		if (recipe_module() && $this->db->table_exists('db_recipes')) {
+			$this->load->model('recipe_model');
+			$store_id = get_current_store_id();
+			$recipes = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_recipes')->result();
+			foreach ($recipes as $r) {
+				$r->cost_per_unit = $this->recipe_model->calculate_cost_per_unit($r->id);
+			}
+			$data['recipes_list'] = $recipes;
+			// If this item is the final product of a recipe but recipe_id is not set, auto-link it
+			if (empty($data['recipe_id'])) {
+				$linked_recipe = $this->db->where('product_item_id', $id)->get('db_recipes')->row();
+				if ($linked_recipe) {
+					$data['recipe_id'] = $linked_recipe->id;
+					if (empty($data['recipe_margin_pct'])) {
+						$data['recipe_margin_pct'] = 30;
+					}
+				}
+			}
+		}
 		//$data['variant_tbody']=$this->items_model->get_variants_list_in_row($id);
 		$this->load->view('items', $data);
 	}
@@ -214,8 +243,9 @@ class Items extends MY_Controller {
 			$row[] = $items->brand_name;
 
 			$service_or_item_name = ($items->service_bit) ? 'SERVICE' : "ITEM";
+			$not_for_sale_badge = ($items->not_for_sale ?? 0) ? " <span class='label label-default'>CONSUMABLE</span>" : "";
 
-			$row[] = $items->category_name."<br>[<label class='text-orange'>".$service_or_item_name."</label>]";
+			$row[] = $items->category_name."<br>[<label class='text-orange'>".$service_or_item_name."</label>]".$not_for_sale_badge;
 
 			$item_group = '';// (!empty($items->item_group)) ? "<br>[<label class='text-green'>".$items->item_group."</label>]" : '';
 			$row[] = $items->unit_name.$item_group;
@@ -260,10 +290,16 @@ class Items extends MY_Controller {
 			$row[] = $str;		
 
 			 		$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
+										<a class="btn btn-xs btn-primary dropdown-toggle" data-toggle="dropdown" href="#">
 											Action <span class="caret"></span>
 										</a>
 										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
+
+											$str2.='<li>
+												<a style="cursor:pointer" title="View Product History" onclick="view_item_history('.$items->id.')">
+													<i class="fa fa-fw fa-eye text-navy"></i>View
+												</a>
+											</li>';
 
 											if($this->permissions('items_edit') || $this->permissions('services_edit'))
 											$str2.='<li>
@@ -347,6 +383,10 @@ class Items extends MY_Controller {
 			
 			$this->db->where("a.status",1);
 			$this->db->where("a.store_id",$store_id);
+			// Exclude consumables / raw materials from POS sales
+			if(isset($search_for) && $search_for=='sales'){
+				$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
+			}
 			$this->db->where("(LOWER(a.custom_barcode) LIKE '%$name%' or LOWER(a.item_name) LIKE '%$name%' or LOWER(a.item_code) LIKE '%$name%')");
 
 			$this->db->group_by("a.id");
@@ -370,6 +410,11 @@ class Items extends MY_Controller {
 				  $json_arr["stock"] = (isset($search_for) && $search_for=='sales') ? total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res->id) : $res->stock;
 				  $json_arr["purchase_price"] = ($show_purchase_price) ? store_number_format($res->purchase_price) : '';
 				  $json_arr["service_bit"] = $res->service_bit;
+				  $json_arr["package_bit"] = $res->package_bit ?? 0;
+				  $json_arr["accept_custom_order"] = $res->accept_custom_order ?? 0;
+				  $json_arr["custom_order_fields_json"] = $res->custom_order_fields_json ?? null;
+				  $json_arr["commission_type"] = $res->commission_type ?? 'none';
+				  $json_arr["commission_value"] = $res->commission_value ?? 0;
 
 				  // Check expiry for sales search
 				  if(isset($search_for) && $search_for=='sales'){
@@ -385,31 +430,48 @@ class Items extends MY_Controller {
 				}
 			}
 
-			// Also search db_item_barcodes for barcode-specific matches
+			// Also search db_item_barcodes for barcode, serial, or imei matches
 			if(!empty($name)){
-				$this->db->select('b.id as barcode_id, b.item_id, b.barcode, b.batch_lot, b.purchase_price as bc_purchase_price, b.sales_price as bc_sales_price, b.mrp as bc_mrp, b.qty as bc_qty, a.item_name, a.item_code, a.service_bit, a.tax_id, a.tax_type, a.discount_type, a.discount');
+				$this->db->select('b.id as barcode_id, b.item_id, b.barcode, b.batch_lot, b.serial_number, b.imei_number, b.warranty_months, b.purchase_price as bc_purchase_price, b.sales_price as bc_sales_price, b.mrp as bc_mrp, b.qty as bc_qty, a.item_name, a.item_code, a.service_bit, a.tax_id, a.tax_type, a.discount_type, a.discount, a.stock as item_stock, a.commission_type, a.commission_value');
 				$this->db->from('db_item_barcodes b');
 				$this->db->join('db_items a', 'a.id = b.item_id', 'left');
 				$this->db->where('a.status', 1);
 				$this->db->where('a.store_id', $store_id);
+				if(isset($search_for) && $search_for=='sales'){
+					$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
+				}
 				$this->db->where('b.status', 1);
-				$this->db->where("LOWER(b.barcode) LIKE '%$name%'");
+				$this->db->where("(LOWER(b.barcode) LIKE '%$name%' OR LOWER(b.serial_number) LIKE '%$name%' OR LOWER(b.imei_number) LIKE '%$name%')", null, false);
 				$this->db->limit(20);
 				$bc_sql = $this->db->get();
 				foreach ($bc_sql->result() as $bres) {
 					$json_arr = array();
 					$json_arr["id"] = $bres->item_id;
 					$json_arr["value"] = $bres->item_name;
-					$json_arr["label"] = $bres->item_name . ' [' . $bres->barcode . ($bres->batch_lot ? ' / '.$bres->batch_lot : '') . ']';
+					$label_extra = '';
+					if($bres->barcode) $label_extra .= $bres->barcode;
+					if($bres->batch_lot) $label_extra .= ($label_extra ? ' / ' : '') . $bres->batch_lot;
+					if($bres->serial_number) $label_extra .= ($label_extra ? ' / ' : '') . 'S/N:' . $bres->serial_number;
+					if($bres->imei_number) $label_extra .= ($label_extra ? ' / ' : '') . 'IMEI:' . $bres->imei_number;
+					$json_arr["label"] = $bres->item_name . ($label_extra ? ' [' . $label_extra . ']' : '');
 					$json_arr["item_code"] = $bres->item_code;
-					$json_arr["stock"] = $bres->bc_qty;
+					$json_arr["stock"] = ($bres->bc_qty > 0) ? $bres->bc_qty : $bres->item_stock;
 					$json_arr["purchase_price"] = ($show_purchase_price) ? store_number_format($bres->bc_purchase_price) : '';
 					$json_arr["service_bit"] = $bres->service_bit;
+					$json_arr["package_bit"] = $bres->package_bit ?? 0;
+					$json_arr["accept_custom_order"] = $bres->accept_custom_order ?? 0;
+					$json_arr["custom_order_fields_json"] = $bres->custom_order_fields_json ?? null;
 					$json_arr["barcode"] = $bres->barcode;
 					$json_arr["batch_lot"] = $bres->batch_lot;
 					$json_arr["barcode_price"] = store_number_format($bres->bc_sales_price);
 					$json_arr["barcode_mrp"] = store_number_format($bres->bc_mrp);
 					$json_arr["barcode_pprice"] = store_number_format($bres->bc_purchase_price);
+					$json_arr["barcode_id"] = $bres->barcode_id;
+					$json_arr["serial_number"] = $bres->serial_number;
+					$json_arr["imei_number"] = $bres->imei_number;
+					$json_arr["warranty_months"] = $bres->warranty_months;
+					$json_arr["commission_type"] = $bres->commission_type ?? 'none';
+					$json_arr["commission_value"] = $bres->commission_value ?? 0;
 					if(isset($search_for) && $search_for=='sales'){
 						$json_arr["expired"] = false;
 					}
@@ -417,6 +479,43 @@ class Items extends MY_Controller {
 				}
 			}
 
+		echo json_encode($display_json);exit;
+	}
+
+	/* Returns all items for offline sync (IndexedDB caching) */
+	public function sync_items_for_offline(){
+		$store_id=$this->input->get('store_id');
+		$warehouse_id=$this->input->get('warehouse_id');
+		$show_purchase_price = $this->permissions('show_purchase_price');
+		$display_json = array();
+		
+		$this->db->select("a.service_bit,a.purchase_price,a.id,a.item_name,a.item_code,COALESCE(SUM(a.stock),0) as stock,item_group");
+		$this->db->from("db_items as a");
+		$this->db->where("a.status",1);
+		$this->db->where("a.store_id",$store_id);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
+		$this->db->group_by("a.id");
+		$this->db->limit(5000);
+		$sql = $this->db->get();
+		
+		foreach ($sql->result() as $res) {
+			if($res->item_group!='Variants'){
+			  $json_arr = array();
+			  $json_arr["id"] = $res->id;
+			  $json_arr["value"] = $res->item_name;
+			  $json_arr["label"] = $res->item_name;
+			  $json_arr["item_code"] = $res->item_code;
+			  $json_arr["stock"] = total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res->id);
+			  $json_arr["purchase_price"] = ($show_purchase_price) ? store_number_format($res->purchase_price) : '';
+			  $json_arr["service_bit"] = $res->service_bit;
+			  $json_arr["barcode"] = '';
+			  $json_arr["batch_lot"] = '';
+			  $json_arr["barcode_price"] = '';
+			  $json_arr["barcode_mrp"] = '';
+			  $json_arr["barcode_pprice"] = '';
+			  array_push($display_json, $json_arr);
+			}
+		}
 		echo json_encode($display_json);exit;
 	}
 
@@ -482,4 +581,172 @@ class Items extends MY_Controller {
 		echo $this->items->getItemsJson($id);
 	}
 
+	public function get_item_history($item_id){
+		$this->belong_to('db_items',$item_id);
+		$item = $this->db->where('id',$item_id)->get('db_items')->row();
+		if(!$item){
+			echo json_encode(['status'=>'error','message'=>'Item not found']);exit;
+		}
+
+		$html = '<div class="row">';
+		
+		// Item Basic Info
+		$html .= '<div class="col-md-12">';
+		$html .= '<div class="box box-default">';
+		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-tag"></i> '.$item->item_name.'</h3></div>';
+		$html .= '<div class="box-body">';
+		$html .= '<div class="row">';
+		$html .= '<div class="col-md-3"><b>Code:</b> '.$item->item_code.'</div>';
+		$html .= '<div class="col-md-3"><b>Barcode:</b> '.($item->custom_barcode ?: '-').'</div>';
+		$html .= '<div class="col-md-3"><b>Stock:</b> '.$item->stock.'</div>';
+		$html .= '<div class="col-md-3"><b>Price:</b> '.store_number_format($item->sales_price).'</div>';
+		$html .= '</div>';
+		$html .= '</div></div></div>';
+
+		// Barcode / Batch / Unit Stock
+		$barcodes = $this->db->where('item_id',$item_id)->where('status',1)->get('db_item_barcodes')->result();
+		$html .= '<div class="col-md-12">';
+		$html .= '<div class="box box-info">';
+		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-cubes"></i> Unit / Batch Stock</h3></div>';
+		$html .= '<div class="box-body table-responsive no-padding">';
+		if(!empty($barcodes)){
+			$html .= '<table class="table table-bordered table-striped table-condensed">';
+			$html .= '<thead><tr><th>Barcode</th><th>Batch</th><th>Serial</th><th>IMEI</th><th>Purchase</th><th>Wholesale</th><th>Retail</th><th>Qty</th><th>Warranty</th></tr></thead>';
+			$html .= '<tbody>';
+			foreach($barcodes as $bc){
+				$html .= '<tr>';
+				$html .= '<td>'.($bc->barcode ?: '-').'</td>';
+				$html .= '<td>'.($bc->batch_lot ?: '-').'</td>';
+				$html .= '<td>'.($bc->serial_number ?: '-').'</td>';
+				$html .= '<td>'.($bc->imei_number ?: '-').'</td>';
+				$html .= '<td>'.store_number_format($bc->purchase_price).'</td>';
+				$html .= '<td>'.store_number_format($bc->sales_price).'</td>';
+				$html .= '<td>'.store_number_format($bc->mrp).'</td>';
+				$html .= '<td>'.$bc->qty.'</td>';
+				$html .= '<td>'.($bc->warranty_months ? $bc->warranty_months.' mo' : '-').'</td>';
+				$html .= '</tr>';
+			}
+			$html .= '</tbody></table>';
+		} else {
+			$html .= '<div class="alert alert-info">No batch / unit records found.</div>';
+		}
+		$html .= '</div></div></div>';
+
+		// Sales History
+		$this->db->select('s.sales_code, s.sales_date, c.customer_name, si.sales_qty, si.unit_total_cost, si.sold_serial_number, si.sold_imei_number');
+		$this->db->from('db_salesitems si');
+		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
+		$this->db->join('db_customers c', 'c.id = s.customer_id', 'left');
+		$this->db->where('si.item_id', $item_id);
+		$this->db->order_by('s.sales_date', 'DESC');
+		$this->db->limit(20);
+		$sales = $this->db->get()->result();
+
+		$html .= '<div class="col-md-12">';
+		$html .= '<div class="box box-success">';
+		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-shopping-cart"></i> Recent Sales (last 20)</h3></div>';
+		$html .= '<div class="box-body table-responsive no-padding">';
+		if(!empty($sales)){
+			$html .= '<table class="table table-bordered table-striped table-condensed">';
+			$html .= '<thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Qty</th><th>Unit Price</th><th>Serial</th><th>IMEI</th></tr></thead>';
+			$html .= '<tbody>';
+			foreach($sales as $sale){
+				$html .= '<tr>';
+				$html .= '<td>'.$sale->sales_code.'</td>';
+				$html .= '<td>'.$sale->sales_date.'</td>';
+				$html .= '<td>'.($sale->customer_name ?: 'Walk-in').'</td>';
+				$html .= '<td>'.$sale->sales_qty.'</td>';
+				$html .= '<td>'.store_number_format($sale->unit_total_cost).'</td>';
+				$html .= '<td>'.($sale->sold_serial_number ?: '-').'</td>';
+				$html .= '<td>'.($sale->sold_imei_number ?: '-').'</td>';
+				$html .= '</tr>';
+			}
+			$html .= '</tbody></table>';
+		} else {
+			$html .= '<div class="alert alert-info">No sales records found.</div>';
+		}
+		$html .= '</div></div></div>';
+
+		// Production History
+		if (mp_feature_enabled('production_workflow')) {
+			$this->db->select('pr.*, r.name as recipe_name, b.batch_code, b.scheduled_date, u.first_name, u.last_name');
+			$this->db->from('db_recipe_production_runs pr');
+			$this->db->join('db_recipes r', 'r.id = pr.recipe_id', 'left');
+			$this->db->join('db_production_batches b', 'b.id = pr.batch_id', 'left');
+			$this->db->join('db_users u', 'u.id = pr.staff_id', 'left');
+			$this->db->where('b.status', 'completed');
+			$this->db->where('r.product_item_id', $item_id);
+			$this->db->order_by('pr.run_date', 'DESC');
+			$this->db->limit(20);
+			$production_runs = $this->db->get()->result();
+
+			// Also show where this item was used as an ingredient
+			$this->db->select('ri.*, r.name as recipe_name, pr.run_date, pr.actual_yield, pr.actual_cost, b.batch_code, b.scheduled_date');
+			$this->db->from('db_recipe_ingredients ri');
+			$this->db->join('db_recipes r', 'r.id = ri.recipe_id', 'left');
+			$this->db->join('db_recipe_production_runs pr', 'pr.recipe_id = r.id', 'left');
+			$this->db->join('db_production_batches b', 'b.id = pr.batch_id', 'left');
+			$this->db->where('b.status', 'completed');
+			$this->db->where('ri.item_id', $item_id);
+			$this->db->order_by('pr.run_date', 'DESC');
+			$this->db->limit(20);
+			$ingredient_runs = $this->db->get()->result();
+
+			$html .= '<div class="col-md-12">';
+			$html .= '<div class="box box-warning">';
+			$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-industry"></i> Production History</h3></div>';
+			$html .= '<div class="box-body">';
+
+			// Produced as final product
+			if (!empty($production_runs)) {
+				$html .= '<h5><b>Produced as Final Product</b></h5>';
+				$html .= '<table class="table table-bordered table-striped table-condensed">';
+				$html .= '<thead><tr><th>Date</th><th>Batch #</th><th>Recipe</th><th>Planned Qty</th><th>Actual Yield</th><th>Actual Cost</th><th>Staff</th></tr></thead>';
+				$html .= '<tbody>';
+				foreach ($production_runs as $pr) {
+					$html .= '<tr>';
+					$html .= '<td>'.$pr->run_date.'</td>';
+					$html .= '<td>'.($pr->batch_code ?: '-').'</td>';
+					$html .= '<td>'.($pr->recipe_name ?: '-').'</td>';
+					$html .= '<td>'.$pr->planned_qty.'</td>';
+					$html .= '<td>'.$pr->actual_yield.'</td>';
+					$html .= '<td>'.store_number_format($pr->actual_cost).'</td>';
+					$html .= '<td>'.($pr->first_name ? $pr->first_name.' '.$pr->last_name : '-').'</td>';
+					$html .= '</tr>';
+				}
+				$html .= '</tbody></table>';
+			}
+
+			// Used as ingredient
+			if (!empty($ingredient_runs)) {
+				$html .= '<h5><b>Used as Ingredient</b></h5>';
+				$html .= '<table class="table table-bordered table-striped table-condensed">';
+				$html .= '<thead><tr><th>Date</th><th>Batch #</th><th>Recipe</th><th>Qty Used</th><th>Cost/Unit</th><th>Recipe Yield</th></tr></thead>';
+				$html .= '<tbody>';
+				foreach ($ingredient_runs as $ir) {
+					$scale = ($ir->actual_yield > 0 && $ir->yield_qty > 0) ? ($ir->actual_yield / $ir->yield_qty) : 0;
+					$qty_used = $scale * $ir->qty;
+					$html .= '<tr>';
+					$html .= '<td>'.($ir->run_date ?: ($ir->scheduled_date ?: '-')).'</td>';
+					$html .= '<td>'.($ir->batch_code ?: '-').'</td>';
+					$html .= '<td>'.($ir->recipe_name ?: '-').'</td>';
+					$html .= '<td>'.round($qty_used, 3).'</td>';
+					$html .= '<td>'.store_number_format($ir->cost_per_unit).'</td>';
+					$html .= '<td>'.($ir->actual_yield ?: '-').'</td>';
+					$html .= '</tr>';
+				}
+				$html .= '</tbody></table>';
+			}
+
+			if (empty($production_runs) && empty($ingredient_runs)) {
+				$html .= '<div class="alert alert-info">No production records found.</div>';
+			}
+
+			$html .= '</div></div></div>';
+		}
+
+		$html .= '</div>';
+
+		echo json_encode(['status'=>'success','html'=>$html]);exit;
+	}
 }

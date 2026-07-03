@@ -470,6 +470,16 @@ class Sales_model extends CI_Model {
 				
 				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 				$q2 = $this->db->insert('db_salesitems', $salesitems_entry);
+				$sale_items_id = $this->db->insert_id();
+
+				// If this is a package, create customer package record
+				if ($item_details->package_bit == 1) {
+					$this->load->model('service_package_model');
+					$pkg = $this->service_package_model->get_by_item_id($item_id);
+					if ($pkg) {
+						$this->service_package_model->create_customer_package($sales_id, $sale_items_id, $pkg->id, $customer_id);
+					}
+				}
 				
 				//UPDATE itemS QUANTITY IN itemS TABLE
 				$this->load->model('pos_model');				
@@ -636,6 +646,19 @@ class Sales_model extends CI_Model {
 		}*/
 
 		/*$this->db->set("due_date",null)->where("due_date",'1970-01-01')->or_where("due_date","0000-00-00")->update("db_sales");*/
+
+		//Record Loyalty Points
+		if($customer_id != 1 && $tot_total_amt > 0){
+			$this->load->model('loyalty_model');
+			$settings = $this->loyalty_model->get_settings();
+			if($settings && $settings->loyalty_enabled){
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_total_amt);
+				if($points > 0){
+					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from sale');
+				}
+			}
+		}
+		//end
 
 		$this->db->trans_commit();
 
@@ -898,6 +921,24 @@ class Sales_model extends CI_Model {
             	$json_array[]=['id'=>(int)$value->id, 'text'=>$value->item_name];
             }
         }
+
+        // Also search db_item_barcodes by barcode, serial, or imei
+        $this->db->select('b.item_id, a.item_name, b.barcode, b.serial_number, b.imei_number');
+        $this->db->from('db_item_barcodes b');
+        $this->db->join('db_items a', 'a.id = b.item_id', 'left');
+        $this->db->where('b.status', 1);
+        $this->db->where("(LOWER(b.barcode) LIKE '%$q%' OR LOWER(b.serial_number) LIKE '%$q%' OR LOWER(b.imei_number) LIKE '%$q%')", null, false);
+        $this->db->group_by('b.item_id');
+        $q2 = $this->db->get();
+        if($q2->num_rows()>0){
+            foreach ($q2->result() as $value) {
+                $label = $value->item_name;
+                if($value->barcode) $label .= ' [BC:'.$value->barcode.']';
+                if($value->serial_number) $label .= ' [S/N:'.$value->serial_number.']';
+                if($value->imei_number) $label .= ' [IMEI:'.$value->imei_number.']';
+                $json_array[]=['id'=>(int)$value->item_id, 'text'=>$label];
+            }
+        }
         return json_encode($json_array);
 	}
 	
@@ -1102,6 +1143,9 @@ class Sales_model extends CI_Model {
 							'item_discount_type' 		=> $res1->discount_type, 
 							'item_discount_input' 		=> $res1->discount_input, 
 							'service_bit' 				=> $res2->service_bit, 
+							'sold_serial_number' 		=> $res1->sold_serial_number, 
+							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'barcode_id' 				=> $res1->barcode_id, 
 						);
 
 			$result = $this->return_row_with_data($rowcount++,$info);
@@ -1473,6 +1517,11 @@ class Sales_model extends CI_Model {
 			// Look up payment_mode_id
 			$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
 			$payment_mode_id = $pm_row ? $pm_row->id : null;
+
+			// Auto-link cash payments to Cash Account
+			if(empty($account_id) && strtolower($payment_type) === 'cash'){
+				$account_id = get_cash_account_id();
+			}
 
 			$payment_code=get_init_code('sales_payment');
 			$salespayments_entry = array(

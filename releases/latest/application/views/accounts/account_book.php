@@ -284,22 +284,16 @@ $("#from_date,#to_date,#users").on("change",function(){
 function delete_transaction(q_id,entry_of)
 {   
     var base_url = $("#base_url").val();
-    //entry_of=(entry_of==1) ? 'transfer' : 'deposit';
 
-   if(typeof swal === 'undefined'){
-     if(!confirm("Are you Sure ?\nIt will Delete Real Payments entry as well!!")) return;
-     doDeleteTransaction(q_id, entry_of);
-     return;
-   }
-   swal({
-     title: "Delete Transaction?",
-     text: "Are you sure? It will delete the real payments entry as well!!",
-     icon: "warning",
-     buttons: true,
-     dangerMode: true
-   }).then(function(willDelete){
-     if(willDelete) doDeleteTransaction(q_id, entry_of);
-   });
+    swal({
+      title: "Delete Transaction?",
+      text: "This will permanently delete the payment record. Continue?",
+      icon: "warning",
+      buttons: ["Cancel", "Delete"],
+      dangerMode: true
+    }).then(function(willDelete){
+      if(willDelete) doDeleteTransaction(q_id, entry_of);
+    });
 }
 function doDeleteTransaction(q_id, entry_of){
     $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');

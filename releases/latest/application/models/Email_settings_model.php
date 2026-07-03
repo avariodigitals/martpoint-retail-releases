@@ -10,6 +10,30 @@ class Email_settings_model extends CI_Model {
 
 	public function __construct(){
 		parent::__construct();
+		$this->ensureTable();
+	}
+
+	/**
+	 * db_store has hit MySQL's InnoDB row-size ceiling (too many VARCHAR
+	 * columns accumulated over years of feature additions), so email
+	 * provider settings live in their own dedicated table instead of
+	 * being bolted onto db_store.
+	 */
+	private function ensureTable(){
+		if(!$this->db->table_exists('db_email_settings')){
+			$this->db->query("CREATE TABLE IF NOT EXISTS db_email_settings (
+				store_id INT NOT NULL PRIMARY KEY,
+				email_provider VARCHAR(50) DEFAULT 'smtp',
+				email_from_name VARCHAR(255) NULL DEFAULT NULL,
+				email_from_email VARCHAR(255) NULL DEFAULT NULL,
+				email_reply_to VARCHAR(255) NULL DEFAULT NULL,
+				smtp_crypto VARCHAR(50) NULL DEFAULT NULL,
+				resend_api_key VARCHAR(255) NULL DEFAULT NULL,
+				resend_from_email VARCHAR(255) NULL DEFAULT NULL,
+				resend_from_name VARCHAR(255) NULL DEFAULT NULL,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		}
 	}
 
 	/**
@@ -27,20 +51,22 @@ class Email_settings_model extends CI_Model {
 			return $this->defaultSettings();
 		}
 
+		$cfg = $this->db->where('store_id', $storeId)->get('db_email_settings')->row();
+
 		return [
-			'provider'        => !empty($row->email_provider) ? $row->email_provider : 'smtp',
-			'from_name'       => !empty($row->email_from_name) ? $row->email_from_name : ($row->store_name ?? 'MartPoint Retail'),
-			'from_email'      => !empty($row->email_from_email) ? $row->email_from_email : ($row->smtp_user ?? ''),
-			'reply_to'        => !empty($row->email_reply_to) ? $row->email_reply_to : ($row->smtp_user ?? ''),
+			'provider'        => !empty($cfg->email_provider) ? $cfg->email_provider : 'smtp',
+			'from_name'       => !empty($cfg->email_from_name) ? $cfg->email_from_name : ($row->store_name ?? 'MartPoint Retail'),
+			'from_email'      => !empty($cfg->email_from_email) ? $cfg->email_from_email : ($row->smtp_user ?? ''),
+			'reply_to'        => !empty($cfg->email_reply_to) ? $cfg->email_reply_to : ($row->smtp_user ?? ''),
 			'smtp_status'     => (int)($row->smtp_status ?? 0),
 			'smtp_host'       => $row->smtp_host ?? '',
 			'smtp_port'       => $row->smtp_port ?? '',
 			'smtp_user'       => $row->smtp_user ?? '',
 			'smtp_pass'       => $row->smtp_pass ?? '',
-			'smtp_crypto'     => !empty($row->smtp_crypto) ? $row->smtp_crypto : '',
-			'resend_api_key'  => $row->resend_api_key ?? '',
-			'resend_from_email'=> $row->resend_from_email ?? '',
-			'resend_from_name'=> $row->resend_from_name ?? '',
+			'smtp_crypto'     => !empty($cfg->smtp_crypto) ? $cfg->smtp_crypto : '',
+			'resend_api_key'  => $cfg->resend_api_key ?? '',
+			'resend_from_email'=> $cfg->resend_from_email ?? '',
+			'resend_from_name'=> $cfg->resend_from_name ?? '',
 		];
 	}
 
@@ -101,24 +127,42 @@ class Email_settings_model extends CI_Model {
 	 * @return bool
 	 */
 	public function saveSettings($storeId, array $data){
-		$allowed = [
+		$storeFields = ['smtp_status','smtp_host','smtp_port','smtp_user','smtp_pass'];
+		$emailFields = [
 			'email_provider','email_from_name','email_from_email','email_reply_to',
-			'smtp_status','smtp_host','smtp_port','smtp_user','smtp_pass','smtp_crypto',
-			'resend_api_key','resend_from_email','resend_from_name'
+			'smtp_crypto','resend_api_key','resend_from_email','resend_from_name'
 		];
 
-		$update = [];
-		foreach($allowed as $key){
+		$storeUpdate = [];
+		foreach($storeFields as $key){
 			if(array_key_exists($key, $data)){
-				$update[$key] = $data[$key];
+				$storeUpdate[$key] = $data[$key];
 			}
 		}
 
-		if(empty($update)){
-			return FALSE;
+		$emailUpdate = [];
+		foreach($emailFields as $key){
+			if(array_key_exists($key, $data)){
+				$emailUpdate[$key] = $data[$key];
+			}
 		}
 
-		return $this->db->where('id', $storeId)->update('db_store', $update);
+		$ok = TRUE;
+		if(!empty($storeUpdate)){
+			$ok = $this->db->where('id', $storeId)->update('db_store', $storeUpdate);
+		}
+
+		if(!empty($emailUpdate)){
+			$exists = $this->db->where('store_id', $storeId)->get('db_email_settings')->row();
+			if($exists){
+				$ok = $this->db->where('store_id', $storeId)->update('db_email_settings', $emailUpdate) && $ok;
+			} else {
+				$emailUpdate['store_id'] = $storeId;
+				$ok = $this->db->insert('db_email_settings', $emailUpdate) && $ok;
+			}
+		}
+
+		return $ok;
 	}
 
 	/**

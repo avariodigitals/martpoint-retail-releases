@@ -11,8 +11,8 @@ class Login extends MY_Controller {
 
 	public function php_verification(){
 		$phpversion = phpversion();
-		if($phpversion!=required_php_version()){
-			 echo 'Application required PHP Version 7.4.*, Your server loaded with PHP Version '.$phpversion;exit;
+		if(version_compare($phpversion, '7.4', '<')){
+			 echo 'Application requires PHP Version 7.4 or higher, Your server loaded with PHP Version '.$phpversion;exit;
 		}
 	}
 
@@ -25,9 +25,9 @@ class Login extends MY_Controller {
 	public function index()
 	{	
 		//Verify PHP version
-		if(phpversion()>required_php_version()){
+		if(version_compare(phpversion(), '7.4', '<')){
 			$heading = "Invalid Server Configuration!";
-			$message = "Application need PHP Version <b>7.4</b>, Your server loaded with PHP Version <b>".phpversion()."</b>";
+			$message = "Application requires PHP Version <b>7.4 or higher</b>, Your server loaded with PHP Version <b>".phpversion()."</b>";
 			$message .= "<br><a href=".base_url().">Refresh</a>";
 
 			show_error($message, null, $heading);

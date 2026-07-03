@@ -65,10 +65,69 @@
             </div>
             </div>
 
+            <?php if(mp_feature_enabled('loyalty') || mp_feature_enabled('store_credit') || mp_feature_enabled('gift_cards')) { ?>
+            <!-- Loyalty Redemption -->
+            <div class="box box-solid bg-default">
+              <div class="box-header">
+                <h4 class="box-title"><i class="fa fa-heart text-red"></i> Loyalty & Rewards</h4>
+              </div>
+              <div class="box-body">
+                <div class="row">
+                  <?php if(mp_feature_enabled('loyalty')) { ?>
+                  <div class="col-md-4">
+                    <label>Redeem Points</label>
+                    <div class="input-group">
+                      <input type="number" class="form-control" id="points_redeem_amount" placeholder="Points">
+                      <span class="input-group-btn">
+                        <button type="button" class="btn btn-success" onclick="redeemPoints()"><i class="fa fa-star"></i></button>
+                      </span>
+                    </div>
+                  </div>
+                  <?php } ?>
+                  <?php if(mp_feature_enabled('store_credit')) { ?>
+                  <div class="col-md-4">
+                    <label>Store Credit</label>
+                    <div class="input-group">
+                      <input type="number" class="form-control" id="store_credit_redeem_amount" placeholder="Amount">
+                      <span class="input-group-btn">
+                        <button type="button" class="btn btn-warning" onclick="applyStoreCredit()"><i class="fa fa-credit-card"></i></button>
+                      </span>
+                    </div>
+                  </div>
+                  <?php } ?>
+                  <?php if(mp_feature_enabled('gift_cards')) { ?>
+                  <div class="col-md-4">
+                    <label>Gift Card</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="gift_card_number" placeholder="Card #" style="margin-bottom:4px;">
+                      <input type="number" class="form-control" id="gift_card_redeem_amount" placeholder="Amount">
+                      <span class="input-group-btn">
+                        <button type="button" class="btn btn-maroon" onclick="applyGiftCard()" style="margin-top:4px;"><i class="fa fa-ticket"></i></button>
+                      </span>
+                    </div>
+                  </div>
+                  <?php } ?>
+                </div>
+              </div>
+            </div>
+            <!-- End Loyalty -->
+            <?php } ?>
+
+            <?php if(mp_feature_enabled('staff_commission')) { ?>
+            <!-- Service Staff Assignment -->
+            <div class="box box-solid bg-green" id="staff-assignment-box" style="display:none;">
+              <div class="box-header">
+                <h4 class="box-title"><i class="fa fa-user-plus text-white"></i> Assign Staff to Services</h4>
+              </div>
+              <div class="box-body" id="staff-assignment-body">
+                <!-- Populated dynamically by JS -->
+              </div>
+            </div>
+            <?php } ?>
 
         <div>
 
-        <?php 
+        <?php
           $atleast_one_payments = 'true';
           if(isset($sales_id) && $sales_id!='') { //For Save Operation or for new entry
 
@@ -277,6 +336,68 @@
               </div>
             </div>
             </div>
+
+            <?php if(mp_feature_enabled('payplan')) { ?>
+            <!-- PayPlan / Installment Section -->
+            <div class="row" id="bnpl_section" style="display:none;margin-top:15px;">
+              <div class="col-md-12">
+                <div class="box box-solid bg-purple">
+                  <div class="box-header with-border">
+                    <h3 class="box-title"><i class="fa fa-calendar-check-o"></i> Buy Now Pay Later</h3>
+                  </div>
+                  <div class="box-body">
+                    <div class="row">
+                      <div class="col-md-4">
+                        <label>Down Payment (%)</label>
+                        <input type="number" class="form-control" id="bnpl_down_pct" name="bnpl_down_pct" value="30" min="0" max="100" onchange="calculateBnpl()">
+                      </div>
+                      <div class="col-md-4">
+                        <label>Installments</label>
+                        <select class="form-control" id="bnpl_count" name="bnpl_count" onchange="calculateBnpl()">
+                          <option value="2">2</option>
+                          <option value="3" selected>3</option>
+                          <option value="4">4</option>
+                          <option value="6">6</option>
+                          <option value="8">8</option>
+                          <option value="12">12</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <label>Frequency</label>
+                        <select class="form-control" id="bnpl_frequency" name="bnpl_frequency" onchange="calculateBnpl()">
+                          <option value="weekly">Weekly</option>
+                          <option value="biweekly" selected>Bi-Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="row" style="margin-top:10px;">
+                      <div class="col-md-4">
+                        <label>Down Payment Amount</label>
+                        <input type="text" class="form-control text-right only_currency" id="bnpl_down_amt" name="bnpl_down_amt" readonly>
+                      </div>
+                      <div class="col-md-4">
+                        <label>Each Installment</label>
+                        <input type="text" class="form-control text-right only_currency" id="bnpl_each_amt" name="bnpl_each_amt" readonly>
+                      </div>
+                      <div class="col-md-4">
+                        <label>First Due Date</label>
+                        <input type="text" class="form-control datepicker" id="bnpl_first_due" name="bnpl_first_due" value="<?= show_date(date('d-m-Y', strtotime('+7 days'))); ?>">
+                      </div>
+                    </div>
+                    <div class="row" style="margin-top:10px;">
+                      <div class="col-md-12">
+                        <label>Late Fee / Day</label>
+                        <input type="number" class="form-control" id="bnpl_late_fee" name="bnpl_late_fee" value="0" min="0" step="0.01">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- /PayPlan Section -->
+            <?php } ?>
+
       </div><!-- col-md-9 -->
 
 
@@ -359,6 +480,12 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
+
+        <?php if(mp_feature_enabled('payplan')) { ?>
+        <button type="button" id="btn-toggle-bnpl" class="btn btn-purple btn-lg" onclick="toggleBnplSection()" title="Pay with Installments">
+          <i class="fa fa-calendar-check-o"></i> PayPlan
+        </button>
+        <?php } ?>
 
         <!-- Paystack Link Generation -->
         <button type="button" id="btn-generate-paystack" class="btn btn-info btn-lg hide" onclick="generatePaystackLink()">

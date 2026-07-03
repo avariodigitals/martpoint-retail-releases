@@ -31,6 +31,10 @@ class Online_store extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		if(!mp_feature_enabled('online_store')){
+			$this->show_access_denied_page();
+			return;
+		}
 		if(!$this->permissions('online_store_view') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
 			$this->show_access_denied_page();
 			return;
@@ -250,6 +254,8 @@ class Online_store extends MY_Controller {
 			'requires_note' => $this->input->post('requires_note') ? 1 : 0,
 			'location_type' => $this->input->post('location_type') ?: 'in-store',
 			'sort_order' => (int)$this->input->post('sort_order'),
+			'deposit_required' => $this->input->post('deposit_required') ? 1 : 0,
+			'deposit_percent' => (float)$this->input->post('deposit_percent'),
 			'status' => $this->input->post('status') ? 1 : 0
 		];
 		if($serviceId){
@@ -274,6 +280,10 @@ class Online_store extends MY_Controller {
 	// ============== QR CODES ==============
 
 	public function qr_codes(){
+		if(!mp_feature_enabled('qr_ordering')){
+			$this->show_access_denied_page();
+			return;
+		}
 		$data = array_merge($this->data, [
 			'page_title' => 'QR Codes',
 			'qr_codes' => $this->storefront_model->getQrCodes(),
@@ -285,6 +295,10 @@ class Online_store extends MY_Controller {
 	}
 
 	public function generate_qr(){
+		if(!mp_feature_enabled('qr_ordering')){
+			echo json_encode(['status' => 'error', 'message' => 'Feature disabled']);
+			return;
+		}
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;

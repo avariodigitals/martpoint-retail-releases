@@ -71,7 +71,6 @@
       <!-- Actions & Date -->
       <div class="ds-header">
         <div>
-          <h1>MartPoint Daily Business Summary</h1>
           <div class="meta"><?=htmlspecialchars($store_name);?> &mdash; <?=($selected_date !== $selected_date_to) ? show_date($selected_date).' — '.show_date($selected_date_to) : show_date($selected_date);?></div>
         </div>
         <div class="ds-date-form">

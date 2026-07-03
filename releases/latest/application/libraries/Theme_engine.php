@@ -31,6 +31,12 @@ class Theme_engine {
         // Determine active theme
         $themeId = $previewTheme ?: $this->settings->theme_id;
         $this->theme = $this->getTheme($themeId);
+
+        // Fallback: if no theme_id in storefront settings, check db_store.storefront_theme_key
+        if(!$this->theme && $this->store && !empty($this->store->storefront_theme_key)){
+            $this->theme = $this->getThemeByKey($this->store->storefront_theme_key);
+        }
+
         if(!$this->theme){
             $this->theme = $this->getDefaultTheme();
         }

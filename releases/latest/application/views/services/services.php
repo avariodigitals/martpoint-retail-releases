@@ -18,8 +18,13 @@
          $seller_points =0;
          $custom_barcode ='';
          $description ='';
+         $laundry_service_type ='';
+         $commission_type ='none';
+         $commission_value ='0';
          $hsn ='';
          $discount='';
+         $deposit_required='0';
+         $deposit_percent='0';
 
          $tax_id ="";
          $discount_type='Percentage';
@@ -119,6 +124,41 @@
                                  <textarea type="text" class="form-control" id="description" name="description" placeholder=""><?php print $description; ?></textarea>
                                  <span id="description_msg" style="display:none" class="text-danger"></span>
                               </div>
+
+                              <?php
+                              $profile = mp_get_store_profile();
+                              $is_laundry = ($profile['industry_type'] ?? '') === 'laundry' || mp_feature_enabled('laundry_workflow');
+                              ?>
+                              <?php if ($is_laundry): ?>
+                              <div class="form-group col-md-4">
+                                 <label for="laundry_service_type">Laundry Service Type <span class="text-danger">*</span></label>
+                                 <select class="form-control select2" id="laundry_service_type" name="laundry_service_type" style="width: 100%;">
+                                    <option value="">-Select-</option>
+                                    <option value="wash_iron" <?= (isset($laundry_service_type) && $laundry_service_type == 'wash_iron') ? 'selected' : ''; ?>>Wash + Iron</option>
+                                    <option value="wash_only" <?= (isset($laundry_service_type) && $laundry_service_type == 'wash_only') ? 'selected' : ''; ?>>Wash Only</option>
+                                    <option value="iron_only" <?= (isset($laundry_service_type) && $laundry_service_type == 'iron_only') ? 'selected' : ''; ?>>Iron Only</option>
+                                    <option value="dry_clean" <?= (isset($laundry_service_type) && $laundry_service_type == 'dry_clean') ? 'selected' : ''; ?>>Dry Clean</option>
+                                 </select>
+                                 <span id="laundry_service_type_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <?php endif; ?>
+
+                              <?php if (mp_feature_enabled('staff_commission')): ?>
+                              <div class="form-group col-md-4">
+                                 <label for="commission_type">Commission Type</label>
+                                 <select class="form-control select2" id="commission_type" name="commission_type" style="width: 100%;" onchange="toggleCommissionValue()">
+                                    <option value="none" <?= (isset($commission_type) && $commission_type == 'none') ? 'selected' : ''; ?>>No Commission</option>
+                                    <option value="flat" <?= (isset($commission_type) && $commission_type == 'flat') ? 'selected' : ''; ?>>Flat Amount</option>
+                                    <option value="percent" <?= (isset($commission_type) && $commission_type == 'percent') ? 'selected' : ''; ?>>Percentage (%)</option>
+                                 </select>
+                              </div>
+                              <div class="form-group col-md-4" id="commission_value_wrap" style="<?= (isset($commission_type) && $commission_type != 'none') ? '' : 'display:none;' ?>">
+                                 <label for="commission_value">Commission Value</label>
+                                 <input type="number" step="0.01" min="0" class="form-control" id="commission_value" name="commission_value" value="<?= isset($commission_value) ? $commission_value : '0'; ?>">
+                                 <span id="commission_value_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <?php endif; ?>
+
                               <div class="form-group col-md-4">
                                  <label for="item_image"><?= $this->lang->line('select_image'); ?></label>
                                  <input type="file" name="item_image" id="item_image">
@@ -188,6 +228,22 @@
                               </div>
                            </div>
                            <!-- /row -->
+                           <div class="row">
+                              <div class="form-group col-md-4">
+                                 <label for="deposit_required">Deposit Required</label>
+                                 <select class="form-control" id="deposit_required" name="deposit_required" style="width: 100%;">
+                                    <option value="0" <?= $deposit_required == '0' ? 'selected' : ''; ?>>No</option>
+                                    <option value="1" <?= $deposit_required == '1' ? 'selected' : ''; ?>>Yes</option>
+                                 </select>
+                                 <span id="deposit_required_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <div class="form-group col-md-4">
+                                 <label for="deposit_percent">Deposit %</label>
+                                 <input type="text" class="form-control only_currency" id="deposit_percent" name="deposit_percent" placeholder="e.g. 50" value="<?php print $deposit_percent; ?>" >
+                                 <span id="deposit_percent_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                           </div>
+                           <!-- /row -->
                            
                            
                            
@@ -249,6 +305,18 @@
         <?php if(isset($q_id)){ ?>
           $("#store_id").attr('readonly',true);
         <?php }?>
+         function toggleCommissionValue() {
+            var type = $('#commission_type').val();
+            if (type === 'none' || type === '') {
+               $('#commission_value_wrap').hide();
+               $('#commission_value').val('0');
+            } else {
+               $('#commission_value_wrap').show();
+            }
+         }
+         $(document).ready(function(){
+            toggleCommissionValue();
+         });
       </script>
       <!-- Make sidebar menu hughlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>

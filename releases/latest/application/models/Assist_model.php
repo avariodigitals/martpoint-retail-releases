@@ -150,7 +150,7 @@ class Assist_model extends CI_Model {
 		$intent = $this->_detectIntent($message);
 		switch($intent){
 			case 'SEARCH_CUSTOMER': return $this->_searchCustomer($message);
-			case 'CREATE_CUSTOMER': return $this->_createCustomerDraft($message);
+			case 'CREATE_CUSTOMER': return $this->_startFlow('create_customer', $sessionId);
 			case 'SEARCH_PRODUCT':
 			case 'CHECK_STOCK': return $this->_checkStock($message);
 			case 'LOW_STOCK': return $this->_lowStock();
@@ -301,6 +301,9 @@ class Assist_model extends CI_Model {
 
 		if($flow === 'create_sale'){
 			return $this->_flowCreateSale($step, $message, $conversation, $sessionId);
+		}
+		if($flow === 'create_customer'){
+			return $this->_flowCreateCustomer($step, $message, $conversation, $sessionId);
 		}
 		if($flow === 'create_account'){
 			return $this->_flowCreateAccount($step, $message, $conversation, $sessionId);
@@ -866,6 +869,81 @@ class Assist_model extends CI_Model {
 
 				$this->_clearConversation($sessionId);
 				return $this->_response('html', 'All done! Payment recorded successfully.', ['html'=>$html, 'quick_tasks'=>$this->_getFilteredQuickTasks()]);
+
+			default:
+				$this->_clearConversation($sessionId);
+				return $this->_fallbackResponse();
+		}
+	}
+
+	// =================== CREATE CUSTOMER FLOW ===================
+
+	private function _flowCreateCustomer($step, $message, $conversation, $sessionId){
+		$msg = strtolower(trim($message));
+		$data = $conversation['data'] ?? [];
+
+		switch($step){
+			case 'init':
+				$this->_advanceStep('collect_name', [], $sessionId);
+				return $this->_conversational("Let's create a new customer. What is the customer's full name?", ['step'=>'collect_name']);
+
+			case 'collect_name':
+				if(empty($msg) || strlen($msg) < 2){
+					return $this->_conversational('I need a valid name. Please enter the customer\'s full name:', ['step'=>'collect_name']);
+				}
+				$this->_advanceStep('collect_email', ['new_customer_name'=>ucwords(trim($message))], $sessionId);
+				return $this->_conversational('Got it. What is the email address? (Type "skip" if none)', ['step'=>'collect_email']);
+
+			case 'collect_email':
+				$email = (in_array($msg, ['skip','none','no','n/a'])) ? '' : trim($message);
+				$this->_advanceStep('collect_phone', ['new_customer_email'=>$email], $sessionId);
+				return $this->_conversational('What is the phone number? (Type "skip" if none)', ['step'=>'collect_phone']);
+
+			case 'collect_phone':
+				$phone = (in_array($msg, ['skip','none','no','n/a'])) ? '' : trim($message);
+				$this->_advanceStep('collect_credit', ['new_customer_phone'=>$phone], $sessionId);
+				return $this->_conversational('What is the credit limit? (Type "0" or "skip" for none)', ['step'=>'collect_credit']);
+
+			case 'collect_credit':
+				$credit = (in_array($msg, ['skip','none','no','n/a'])) ? 0 : floatval(str_replace([',',' '], '', $message));
+				$conv = $this->_getConversation($sessionId);
+				$d = $conv['data'];
+				$store_id = get_current_store_id();
+				$mobile = $d['new_customer_phone'] ?? '';
+
+				// Check for duplicate mobile
+				if(!empty($mobile)){
+					$this->db->where('mobile', $mobile);
+					$this->db->where('store_id', $store_id);
+					$existing = $this->db->get('db_customers')->row();
+					if($existing){
+						$this->_clearConversation($sessionId);
+						return $this->_response('text', 'That customer already exists: <strong>'.htmlspecialchars($existing->customer_name).'</strong> (ID: '.$existing->id.').', ['quick_tasks'=>$this->_getFilteredQuickTasks()]);
+					}
+				}
+
+				$this->db->query("ALTER TABLE db_customers AUTO_INCREMENT = 1");
+				$customerData = [
+					'store_id'       => $store_id,
+					'count_id'       => get_count_id('db_customers'),
+					'customer_code'  => get_init_code('customer'),
+					'customer_name'  => $d['new_customer_name'] ?? 'Unknown',
+					'email'          => $d['new_customer_email'] ?? '',
+					'mobile'         => $mobile,
+					'credit_limit'   => $credit,
+					'created_date'   => date('Y-m-d'),
+					'created_time'   => date('H:i:s'),
+					'created_by'     => $this->session->userdata('inv_username') ?? 'system',
+					'system_ip'      => $_SERVER['REMOTE_ADDR'] ?? '',
+					'system_name'    => gethostname() ?: '',
+					'status'         => 1
+				];
+				$this->db->insert('db_customers', $customerData);
+				$customerId = $this->db->insert_id();
+				$this->_clearConversation($sessionId);
+				return $this->_response('success', 'Customer "'.($d['new_customer_name'] ?? 'Unknown').'" created successfully! <strong>Customer ID: '.$customerId.'</strong>', [
+					'quick_tasks' => $this->_getFilteredQuickTasks()
+				]);
 
 			default:
 				$this->_clearConversation($sessionId);

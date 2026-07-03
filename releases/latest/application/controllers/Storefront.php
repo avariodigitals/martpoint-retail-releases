@@ -290,6 +290,8 @@ class Storefront extends CI_Controller {
 			'seo_description' => 'Your cart at ' . ($store->store_name ?? 'our store'),
 			'seo_canonical' => base_url('store/' . $settings->store_slug . '/cart'),
 			'seo_type' => 'website',
+			'csrf_name' => $this->security->get_csrf_token_name(),
+			'csrf_hash' => $this->security->get_csrf_hash(),
 		];
 		if($data['paystack_enabled']){
 			$ps = $this->paystack->get_settings();
@@ -369,20 +371,20 @@ class Storefront extends CI_Controller {
 	public function place_order(){
 		$storeId = (int)$this->input->post('store_id');
 		if(!$storeId){
-			echo json_encode(['status' => false, 'message' => 'Invalid store']);
+			echo json_encode(['status' => false, 'message' => 'Invalid store', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
 		$settings = $this->storefront_model->getSettings($storeId);
 		if(!$settings || $settings->store_status != 'active'){
 			$msg = ($settings && $settings->store_status == 'maintenance') ? 'Store under maintenance' : 'Store not active';
-			echo json_encode(['status' => false, 'message' => $msg]);
+			echo json_encode(['status' => false, 'message' => $msg, 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
 		$cart = json_decode($this->input->post('cart'), true);
 		if(empty($cart) || !is_array($cart)){
-			echo json_encode(['status' => false, 'message' => 'Cart is empty']);
+			echo json_encode(['status' => false, 'message' => 'Cart is empty', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
@@ -396,7 +398,7 @@ class Storefront extends CI_Controller {
 		$serviceNote = $this->input->post('service_note');
 
 		if(!$customerName || !$customerPhone){
-			echo json_encode(['status' => false, 'message' => 'Name and phone are required']);
+			echo json_encode(['status' => false, 'message' => 'Name and phone are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
@@ -408,7 +410,7 @@ class Storefront extends CI_Controller {
 			$paymentMethod = 'pay_on_delivery';
 		}
 		if($paymentMethod == 'pay_on_delivery' && !$settings->allow_pay_on_delivery){
-			echo json_encode(['status' => false, 'message' => 'Selected payment method is not available']);
+			echo json_encode(['status' => false, 'message' => 'Selected payment method is not available', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
@@ -426,7 +428,7 @@ class Storefront extends CI_Controller {
 				$product = $this->storefront_model->getOnlineProduct($id, $storeId);
 				if(!$product) continue;
 				if($product->stock < $qty && !$settings->allow_backorder){
-					echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock']);
+					echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock', 'csrf_hash' => $this->security->get_csrf_hash()]);
 					return;
 				}
 				$price = $this->storefront_model->getProductEffectivePrice($product);
@@ -462,7 +464,7 @@ class Storefront extends CI_Controller {
 		}
 
 		if(empty($itemsToInsert)){
-			echo json_encode(['status' => false, 'message' => 'No valid items in cart']);
+			echo json_encode(['status' => false, 'message' => 'No valid items in cart', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
@@ -520,7 +522,8 @@ class Storefront extends CI_Controller {
 					'amount_kobo' => (int)($grandTotal * 100),
 					'public_key' => $ps->public_key,
 					'email' => $customerEmail ?: 'customer@' . ($settings->store_slug ?: 'store') . '.com',
-					'reference' => $order->order_code
+					'reference' => $order->order_code,
+					'csrf_hash' => $this->security->get_csrf_hash(),
 				]);
 				return;
 			}
@@ -532,7 +535,8 @@ class Storefront extends CI_Controller {
 			'payment_required' => false,
 			'order_id' => $orderId,
 			'order_code' => $order->order_code,
-			'message' => 'Order placed successfully!'
+			'message' => 'Order placed successfully!',
+			'csrf_hash' => $this->security->get_csrf_hash(),
 		]);
 	}
 

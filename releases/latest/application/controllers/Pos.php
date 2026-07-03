@@ -42,6 +42,18 @@ class Pos extends MY_Controller {
 		$data['result'] = $this->get_hold_invoice_list();
 		$data['tot_count'] = $this->get_hold_invoice_count();
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		$data['is_restaurant'] = mp_feature_enabled('kitchen_workflow');
+		$data['is_laundry'] = mp_feature_enabled('laundry_workflow');
+		$data['manager_approvals_enabled'] = mp_feature_enabled('manager_approvals');
+		// Staff list for commission assignment
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		// Service-to-staff mapping for POS staff assignment dropdown filtering
+		$service_staff = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_service_staff')->result();
+		$service_staff_map = [];
+		foreach ($service_staff as $ss) {
+			$service_staff_map[$ss->service_id][] = $ss->staff_id;
+		}
+		$data['service_staff_map'] = $service_staff_map;
 		$this->load->view('pos',$data);
 	}
 
@@ -53,6 +65,15 @@ class Pos extends MY_Controller {
 		if ($this->form_validation->run() == TRUE) {
 			$this->load->model('customers_model');
 			$result=$this->customers_model->verify_and_save();
+			if($result === 'success'){
+				$customer_id = $this->db->insert_id();
+				$nin_bvn = $this->input->post('nin_bvn', TRUE);
+				$nin_verified = $this->input->post('nin_verified', TRUE);
+				$this->db->where('id', $customer_id)->update('db_customers', array(
+					'nin_bvn' => $nin_bvn,
+					'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+				));
+			}
 			//fetch latest item details
 			$res=array();
 			$query=$this->db->query("select id,customer_name from db_customers order by id desc limit 1");
@@ -110,6 +131,11 @@ class Pos extends MY_Controller {
 	    $data['result'] = $this->get_hold_invoice_list();
 		$data['tot_count'] = $this->get_hold_invoice_count();
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		$data['is_restaurant'] = mp_feature_enabled('kitchen_workflow');
+		$data['is_laundry'] = mp_feature_enabled('laundry_workflow');
+		$data['manager_approvals_enabled'] = mp_feature_enabled('manager_approvals');
+		// Staff list for commission assignment
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
 		$this->load->view('pos',$data);
 	}
 	public function fetch_sales($sales_id){

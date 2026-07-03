@@ -80,6 +80,8 @@
   const CURRENCY = '<?= $CURRENCY ?? '&#8358;'; ?>';
   const PAYSTACK_ENABLED = <?= $paystack_enabled ? 'true' : 'false'; ?>;
   const PAYSTACK_KEY = '<?= $paystack_public_key ?? ''; ?>';
+  let CSRF_NAME = '<?= $csrf_name ?? ''; ?>';
+  let CSRF_HASH = '<?= $csrf_hash ?? ''; ?>';
   let cart = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
   let selectedPayment = 'pay_on_delivery';
   let hasServiceAppointment = false;
@@ -278,14 +280,19 @@
     data.append('service_time', serviceTime);
     data.append('service_note', serviceNote);
     data.append('cart', JSON.stringify(cartPayload));
+    if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
 
     fetch('<?= base_url('storefront/place_order'); ?>', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: data.toString()
     })
-    .then(r => r.json())
+    .then(r => {
+      if(!r.ok) return r.text().then(text => { throw new Error('Server error ' + r.status + (text?': '+text.substring(0,200):'')); });
+      return r.json();
+    })
     .then(res => {
+      if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
       if(res.status){
         if(res.payment_required && res.public_key){
           payWithPaystack(res.public_key, res.email, res.amount_kobo, res.reference, res.order_id);
@@ -302,7 +309,7 @@
       }
     })
     .catch(err => {
-      showToast('Network error. Please try again.');
+      showToast(err.message || 'Network error. Please try again.');
       btn.disabled = false;
       btn.textContent = 'Place Order';
     });

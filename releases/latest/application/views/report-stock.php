@@ -73,7 +73,21 @@
                                     </select>
                                     <span id="category_id_msg" style="display:none" class="text-danger"></span>
                                  </div>
-                                 
+                              </div>
+
+                              <!-- Date Range for audit context -->
+                              <div class="form-group">
+                                 <label for="from_date" class="col-sm-2 control-label">From Date</label>
+                                 <div class="col-sm-3">
+                                    <input type="text" class="form-control datepicker" id="from_date" name="from_date" value="<?= show_date(date('Y-m-d', strtotime('-30 days'))); ?>" readonly>
+                                 </div>
+                                 <label for="to_date" class="col-sm-2 control-label">To Date</label>
+                                 <div class="col-sm-3">
+                                    <input type="text" class="form-control datepicker" id="to_date" name="to_date" value="<?= show_date(date('Y-m-d')); ?>" readonly>
+                                 </div>
+                                 <div class="col-sm-2">
+                                    <span class="text-muted"><small>For audit / traceback reference</small></span>
+                                 </div>
                               </div>
                            </div>
                            <!-- /.box-body -->
@@ -231,8 +245,10 @@
    var brand_id=$("#brand_id").val();
    var category_id=$("#category_id").val();
    var warehouse_id=$("#warehouse_id").val();
+   var from_date=$("#from_date").val();
+   var to_date=$("#to_date").val();
    $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-        $.post(base_url+"reports/get_stock_report",{warehouse_id:warehouse_id,store_id:store_id,brand_id:brand_id,category_id:category_id},function(result){
+        $.post(base_url+"reports/get_stock_report",{warehouse_id:warehouse_id,store_id:store_id,brand_id:brand_id,category_id:category_id,from_date:from_date,to_date:to_date},function(result){
             result = $.parseJSON(result);
 
               $.each( result, function( key, val ) {

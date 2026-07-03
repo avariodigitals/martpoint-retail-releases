@@ -23,6 +23,10 @@
           top: -106px;
       }
     }
+    /* Fix oval/round checkbox backgrounds */
+    .icheckbox_square-orange, .iradio_square-orange {
+        border-radius: 2px !important;
+    }
   </style>
 
   <!-- Content Wrapper. Contains page content -->
@@ -43,6 +47,24 @@
     <div class="view_warehouse_wise_stock_item">
     </div>
     <!-- Warehouse wise stock view end-->
+
+    <!-- Item History Modal -->
+    <div class="modal fade" id="item_history_modal" tabindex="-1" role="dialog" aria-labelledby="itemHistoryLabel">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header bg-navy" style="color:#fff;">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;opacity:1;"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title" id="itemHistoryLabel" style="color:#fff;"><i class="fa fa-history"></i> Product History</h4>
+          </div>
+          <div class="modal-body" id="item_history_content">
+            <div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading...</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Main content -->
     <?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
@@ -215,9 +237,7 @@
             complete: function (data) {
              $('.column_checkbox').iCheck({
                 checkboxClass: 'icheckbox_square-orange',
-                /*uncheckedClass: 'bg-white',*/
-                radioClass: 'iradio_square-orange',
-                increaseArea: '10%' // optional
+                radioClass: 'iradio_square-orange'
               });
              call_code();
               //$(".delete_btn").hide();
@@ -244,6 +264,26 @@ $(document).ready(function() {
     //datatables
    load_datatable();
 });
+
+function view_item_history(item_id){
+    $('#item_history_content').html('<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading...</div>');
+    $('#item_history_modal').modal('show');
+    $.ajax({
+        url: base_url + 'items/get_item_history/' + item_id,
+        type: 'GET',
+        dataType: 'json',
+        success: function(res){
+            if(res.status == 'success'){
+                $('#item_history_content').html(res.html);
+            } else {
+                $('#item_history_content').html('<div class="alert alert-danger">'+res.message+'</div>');
+            }
+        },
+        error: function(){
+            $('#item_history_content').html('<div class="alert alert-danger">Failed to load history.</div>');
+        }
+    });
+}
 $("#warehouse_id,#item_type").on("change",function(){
     $('#example2').DataTable().destroy();
     load_datatable();

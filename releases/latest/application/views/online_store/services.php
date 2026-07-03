@@ -94,6 +94,34 @@
             <div class="form-group"><label>Sort Order</label><input type="number" class="form-control" id="sort_order" value="0"></div>
           </div>
         </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group"><label>Deposit Required</label>
+              <select class="form-control" id="deposit_required"><option value="0">No</option><option value="1">Yes</option></select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group"><label>Deposit %</label><input type="number" class="form-control" id="deposit_percent" step="0.01" value="0"></div>
+          </div>
+        </div>
+        <?php if(mp_feature_enabled('staff_assignment')) { ?>
+        <div class="form-group">
+          <label>Assigned Staff</label>
+          <select class="form-control" id="assigned_staff_id"><option value="">-- Select Staff --</option></select>
+        </div>
+        <?php } ?>
+        <?php if(mp_feature_enabled('staff_commission')) { ?>
+        <div class="form-group">
+          <label>Staff Commission (%)</label>
+          <input type="number" class="form-control" id="staff_commission_percent" step="0.01" value="0" placeholder="e.g. 10">
+        </div>
+        <?php } ?>
+        <?php if(mp_feature_enabled('treatment_notes')) { ?>
+        <div class="form-group">
+          <label>Treatment Notes Template</label>
+          <textarea class="form-control" id="treatment_notes_template" rows="2" placeholder="Default notes for this service"></textarea>
+        </div>
+        <?php } ?>
         <div class="form-group">
           <div class="checkbox icheck"><label><input type="checkbox" id="available_online" checked> Available Online</label></div>
           <div class="checkbox icheck"><label><input type="checkbox" id="requires_appointment"> Requires Appointment</label></div>
@@ -131,6 +159,11 @@ function editService(id){
   $('#requires_appointment').prop('checked', s.requires_appointment == 1);
   $('#requires_note').prop('checked', s.requires_note == 1);
   $('#status').prop('checked', s.status == 1);
+  $('#deposit_required').val(s.deposit_required || 0);
+  $('#deposit_percent').val(s.deposit_percent || 0);
+  <?php if(mp_feature_enabled('staff_assignment')) { ?>$('#assigned_staff_id').val(s.assigned_staff_id || '');<?php } ?>
+  <?php if(mp_feature_enabled('staff_commission')) { ?>$('#staff_commission_percent').val(s.staff_commission_percent || 0);<?php } ?>
+  <?php if(mp_feature_enabled('treatment_notes')) { ?>$('#treatment_notes_template').val(s.treatment_notes_template || '');<?php } ?>
   $('#modal-service').modal('show');
 }
 
@@ -170,10 +203,15 @@ $('#btn-save-service').click(function(){
     description: $('#description').val(),
     location_type: $('#location_type').val(),
     sort_order: $('#sort_order').val(),
+    deposit_required: $('#deposit_required').val(),
+    deposit_percent: $('#deposit_percent').val(),
     available_online: $('#available_online').is(':checked') ? 1 : 0,
     requires_appointment: $('#requires_appointment').is(':checked') ? 1 : 0,
     requires_note: $('#requires_note').is(':checked') ? 1 : 0,
     status: $('#status').is(':checked') ? 1 : 0,
+    <?php if(mp_feature_enabled('staff_assignment')) { ?>assigned_staff_id: $('#assigned_staff_id').val(),<?php } ?>
+    <?php if(mp_feature_enabled('staff_commission')) { ?>staff_commission_percent: $('#staff_commission_percent').val() || 0,<?php } ?>
+    <?php if(mp_feature_enabled('treatment_notes')) { ?>treatment_notes_template: $('#treatment_notes_template').val(),<?php } ?>
     <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
   };
   $.post('<?=base_url("online_store/save_service");?>', data, function(res){

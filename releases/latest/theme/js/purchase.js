@@ -75,14 +75,45 @@ $('#save,#update').on("click",function (e) {
 			//if(confirm("Do You Wants to Save Record ?")){
 				e.preventDefault();
 				data = new FormData($('#purchase-form')[0]);//form name
+				data.append('command', this_id);
+				data.append('rowcount', rowcount);
+				data.append('tot_subtotal_amt', tot_subtotal_amt);
+				data.append('tot_discount_to_all_amt', tot_discount_to_all_amt);
+				data.append('tot_round_off_amt', tot_round_off_amt);
+				data.append('tot_total_amt', tot_total_amt);
+				data.append('other_charges_amt', other_charges_amt);
         /*Check XSS Code*/
         if(!xss_validation(data)){ return false; }
         
         $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
         $("#"+this_id).attr('disabled',true);  //Enable Save or Update button
+
+        // OFFLINE: queue the purchase instead of sending
+        if (!navigator.onLine && typeof MPOfflineDB !== 'undefined') {
+          var purchaseData = {
+            formData: Object.fromEntries(data),
+            url: base_url + 'purchase/purchase_save_and_update',
+            command: this_id,
+            supplier_id: $('#supplier_id').val(),
+            tot_total_amt: tot_total_amt
+          };
+          MPOfflineDB.queuePurchase(purchaseData).then(function(queueId){
+            toastr.warning('Purchase order queued (' + queueId + '). Will sync when online.', 'Offline Mode');
+            // Simulate success redirect
+            setTimeout(function(){
+              location.href = base_url + "purchase";
+            }, 1500);
+          }).catch(function(err){
+            toastr.error('Failed to queue purchase: ' + err.message);
+            $("#"+this_id).attr('disabled',false);
+            $(".overlay").remove();
+          });
+          return;
+        }
+
 				$.ajax({
 				type: 'POST',
-				url: base_url+'purchase/purchase_save_and_update?command='+this_id+'&rowcount='+rowcount+'&tot_subtotal_amt='+tot_subtotal_amt+'&tot_discount_to_all_amt='+tot_discount_to_all_amt+'&tot_round_off_amt='+tot_round_off_amt+'&tot_total_amt='+tot_total_amt+"&other_charges_amt="+other_charges_amt,
+				url: base_url+'purchase/purchase_save_and_update',
 				data: data,
 				cache: false,
 				contentType: false,
@@ -100,7 +131,7 @@ $('#save,#update').on("click",function (e) {
 					}
 					else
 					{
-						alert(result);
+						toastr.error(result);
 					}
 					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 					$(".overlay").remove();
@@ -212,7 +243,7 @@ $("#item_search").autocomplete({
 
 function check_same_item(item_id){
 
-  if($("#purchase_table tr").length>1){
+  if($("#purchase_items_container .purchase-item-card").length>=1){
     var rowcount=$("#hidden_rowcount").val();
     for(i=0;i<=rowcount;i++){
             if($("#tr_item_id_"+i).val()==item_id){
@@ -237,7 +268,16 @@ function return_row_with_data(item_id){
 	var rowcount=$("#hidden_rowcount").val();
 	$.post(base_url+"purchase/return_row_with_data/"+rowcount+"/"+item_id,{},function(result){
         //alert(result);
-        $('#purchase_table tbody').append(result);
+        $("#purchase_items_empty").hide();
+        $('#purchase_items_container').append(result);
+        // Initialize datepickers on new batch date fields
+        $('#purchase_items_container .purchase-item-card:last .datepicker').datepicker({
+            autoclose: true,
+            format: 'dd-mm-yyyy',
+            todayHighlight: true
+        });
+        // Show/hide batch columns based on current status
+        toggle_batch_fields();
        	$("#hidden_rowcount").val(parseInt(rowcount)+1);
         success.currentTime = 0;
         success.play();
@@ -559,4 +599,25 @@ function delete_purchase_payment(payment_id){
  if(key == 13){
     $("#item_search").autocomplete('search');
   }
-});  
+});
+
+function toggle_batch_fields(){
+    var status = $("#purchase_status").val();
+    if(status == 'Partially Received' || status == 'Received'){
+        $(".card-advanced").addClass('expanded');
+        $(".btn-expand").addClass('expanded').html('<i class="fa fa-chevron-down"></i> Hide Details');
+    } else {
+        $(".card-advanced").removeClass('expanded');
+        $(".btn-expand").removeClass('expanded').html('<i class="fa fa-chevron-down"></i> Additional Details');
+    }
+    if(status == 'Partially Received'){
+        $("[id^='received_qty_']").closest('.field-group').show();
+    } else {
+        $("[id^='received_qty_']").closest('.field-group').hide();
+    }
+}
+
+// Initialize on page load
+$(document).ready(function(){
+    toggle_batch_fields();
+});

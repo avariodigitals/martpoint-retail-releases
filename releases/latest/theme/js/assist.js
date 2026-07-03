@@ -414,7 +414,7 @@
       div.className = 'mp-msg mp-msg-bot';
       var html = '<div class="mp-msg-bubble"><div>'+this._escapeHtml(text)+'</div><div class="mp-choice-list">';
       for(var i = 0; i < options.length; i++){
-        html += '<button class="mp-choice-btn" onclick="MPAssist.resolveChoice(\''+this._escapeHtml(options[i].value)+'\', \''+this._escapeHtml(options[i].value)+'\')">'+this._escapeHtml(options[i].label)+'</button>';
+        html += '<button class="mp-choice-btn" onclick="MPAssist.resolveChoice(\''+this._escapeJs(options[i].value)+'\', \''+this._escapeJs(options[i].value)+'\')">'+this._escapeHtml(options[i].label)+'</button>';
       }
       html += '</div></div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
       div.innerHTML = html;
@@ -446,7 +446,7 @@
       var html = '<div class="mp-msg-bubble"><div>'+text+'</div><div class="mp-task-label">Quick Tasks</div><div class="mp-quick-actions">';
       for(var i = 0; i < quickTasks.length; i++){
         var icon = quickTasks[i].icon ? '<i class="fa '+this._escapeHtml(quickTasks[i].icon)+'"></i> ' : '';
-        html += '<button class="mp-quick-btn" onclick="MPAssist.quickAction(\''+this._escapeHtml(quickTasks[i].action)+'\')">'+icon+this._escapeHtml(quickTasks[i].label)+'</button>';
+        html += '<button class="mp-quick-btn" onclick="MPAssist.quickAction(\''+this._escapeJs(quickTasks[i].action)+'\')">'+icon+this._escapeHtml(quickTasks[i].label)+'</button>';
       }
       html += '</div><div style="margin-top:10px;font-size:0.9em;color:#555;border-top:1px dashed #ddd;padding-top:6px;">Anything missing? Send me a request.</div></div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
       div.innerHTML = html;
@@ -467,7 +467,7 @@
       if(res.options && res.options.length){
         inner += '<div class="mp-choice-list">';
         for(var i = 0; i < res.options.length; i++){
-          inner += '<button class="mp-choice-btn" onclick="MPAssist._sendChoice(\''+this._escapeHtml(res.options[i].value)+'\',\''+this._escapeHtml(res.options[i].label)+'\')">'+this._escapeHtml(res.options[i].label)+'</button>';
+          inner += '<button class="mp-choice-btn" onclick="MPAssist._sendChoice(\''+this._escapeJs(res.options[i].value)+'\',\''+this._escapeJs(res.options[i].label)+'\')">'+this._escapeHtml(res.options[i].label)+'</button>';
         }
         inner += '</div>';
       }
@@ -487,7 +487,7 @@
         html += '<div class="mp-quick-actions mp-follow-up-actions">';
         for(var i = 0; i < tasks.length; i++){
           var icon = tasks[i].icon ? '<i class="fa '+tasks[i].icon+'"></i> ' : '';
-          html += '<button class="mp-quick-btn mp-follow-up-btn" onclick="MPAssist.quickAction(\''+tasks[i].action+'\')">'+icon+this._escapeHtml(tasks[i].label)+'</button>';
+          html += '<button class="mp-quick-btn mp-follow-up-btn" onclick="MPAssist.quickAction(\''+this._escapeJs(tasks[i].action)+'\')">'+icon+this._escapeHtml(tasks[i].label)+'</button>';
         }
         html += '</div>';
       }
@@ -505,7 +505,7 @@
       var html = '<div class="mp-msg-bubble"><div class="mp-task-label">Quick Tasks</div><div class="mp-quick-actions">';
       for(var i = 0; i < tasks.length; i++){
         var icon = tasks[i].icon ? '<i class="fa '+tasks[i].icon+'"></i> ' : '';
-        html += '<button class="mp-quick-btn" onclick="MPAssist.quickAction(\''+tasks[i].action+'\')">'+icon+this._escapeHtml(tasks[i].label)+'</button>';
+        html += '<button class="mp-quick-btn" onclick="MPAssist.quickAction(\''+this._escapeJs(tasks[i].action)+'\')">'+icon+this._escapeHtml(tasks[i].label)+'</button>';
       }
       html += '</div></div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
       div.innerHTML = html;
@@ -570,6 +570,16 @@
       var div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    },
+
+    _escapeJs: function(text){
+      if(!text) return '';
+      return String(text)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
     },
 
     _formatTime: function(){

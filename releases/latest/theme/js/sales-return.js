@@ -112,7 +112,7 @@ $('#save,#update,#create').on("click",function (e) {
 					}
 					else
 					{
-						alert(result);
+						toastr.error(result);
 					}
 					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 					$(".overlay").remove();

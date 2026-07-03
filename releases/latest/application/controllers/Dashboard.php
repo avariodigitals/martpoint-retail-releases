@@ -5,7 +5,9 @@ class Dashboard extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
-		if($this->get_current_version_of_db()!=app_version()){ redirect(base_url('updates/update_db'),'refresh'); }
+		if($this->get_current_version_of_db()!=app_version() && special_access()){
+			$this->session->set_flashdata('warning', 'Database update available. Please use Settings &rarr; System Update.');
+		}
 	}
 	public function dashboard_values(){
 		$this->load->model('dashboard_model');//Model
@@ -21,9 +23,24 @@ class Dashboard extends MY_Controller {
 		$selected_branch = '';
 		if($this->input->get('branch_id') !== NULL){
 			$selected_branch = $this->input->get('branch_id');
+			// Validate branch belongs to current store
+			if(!empty($selected_branch)){
+				$branch_exists = $this->db->where('id', $selected_branch)->where('store_id', get_current_store_id())->count_all_results('db_warehouse') > 0;
+				if(!$branch_exists){
+					$selected_branch = '';
+				}
+			}
 			$this->session->set_userdata('selected_branch_id', $selected_branch);
 		} else if($this->session->userdata('selected_branch_id') !== NULL){
 			$selected_branch = $this->session->userdata('selected_branch_id');
+			// Validate stale session branch belongs to current store
+			if(!empty($selected_branch)){
+				$branch_exists = $this->db->where('id', $selected_branch)->where('store_id', get_current_store_id())->count_all_results('db_warehouse') > 0;
+				if(!$branch_exists){
+					$selected_branch = '';
+					$this->session->set_userdata('selected_branch_id', '');
+				}
+			}
 		}
 
 		// Date range filter
@@ -33,10 +50,11 @@ class Dashboard extends MY_Controller {
 			$range = $this->input->get('range');
 		}
 		$range_info = $this->dashboard_model->get_range_info($range);
-		$data['range'] = $range;
-		$data['range_label'] = $range_info['label'];
+		$range_label = $range_info['label'];
 
 		$data=array_merge($this->data,$this->dashboard_model->get_bar_chart(),$this->dashboard_model->get_pie_chart($selected_branch));
+		$data['range'] = $range;
+		$data['range_label'] = $range_label;
 		if(is_admin()){
 			$data = array_merge($data,$this->dashboard_model->get_subscription_chart());
 		}
@@ -55,6 +73,14 @@ class Dashboard extends MY_Controller {
 		$data['insights']        = $this->dashboard_model->get_insights($selected_branch);
 		$data['branch_performance'] = $this->dashboard_model->get_branch_performance($range);
 		$data['page_title']=$this->lang->line('dashboard');
+
+		// Clock-in status for dashboard (all non-admin staff)
+		$data['needs_clock_in'] = false;
+		if(!is_admin()){
+			$this->load->model('attendance_model');
+			$data['needs_clock_in'] = !$this->attendance_model->needsClockOut($this->session->userdata('inv_userid'));
+		}
+
 		if(isset($_POST['store_id'])){
 			$data['store_id'] =$_POST['store_id'];
 		}

@@ -4,6 +4,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Variants extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
+		if(!mp_feature_enabled('bundles')){
+			$this->show_access_denied_page();
+			return;
+		}
 		$this->load_global();
 		$this->load->model('variants_model','variant');
 	}

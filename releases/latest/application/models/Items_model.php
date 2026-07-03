@@ -27,6 +27,8 @@ class Items_model extends CI_Model {
 								'a.item_group',
 								'a.expire_date',
 								'a.mfg_date',
+								'a.not_for_sale',
+								'a.consumable_unit',
 								); //set column field database for datatable orderable
 	var $column_search = array( 
 								'a.id',
@@ -50,12 +52,24 @@ class Items_model extends CI_Model {
 								'a.item_group',
 								'a.expire_date',
 								'a.mfg_date',
+								'a.not_for_sale',
+								'a.consumable_unit',
 								); //set column field database for datatable searchable 
 	var $order = array('a.id' => 'desc'); // default order 
 
 	public function __construct()
 	{
 		parent::__construct();
+		$this->_ensure_columns();
+	}
+
+	private function _ensure_columns(){
+		if(!$this->db->field_exists('not_for_sale', 'db_items')){
+			$this->db->query("ALTER TABLE db_items ADD COLUMN not_for_sale TINYINT(1) NOT NULL DEFAULT 0 AFTER warranty_months");
+		}
+		if(!$this->db->field_exists('consumable_unit', 'db_items')){
+			$this->db->query("ALTER TABLE db_items ADD COLUMN consumable_unit VARCHAR(50) NULL AFTER not_for_sale");
+		}
 	}
 	
 	private function _get_datatables_query()
@@ -167,6 +181,11 @@ class Items_model extends CI_Model {
 	
 	//Save Record
 	public function save_record($modal_post=array()){
+		// Ensure recipe columns exist
+		$colExists = $this->db->query("SHOW COLUMNS FROM `db_items` LIKE 'recipe_id'")->num_rows();
+		if($colExists == 0){
+			$this->db->query("ALTER TABLE `db_items` ADD COLUMN `recipe_id` INT NULL, ADD COLUMN `recipe_margin_pct` DECIMAL(10,2) NULL");
+		}
 		$item_code = $this->input->post('item_code', TRUE);
 		$item_name = $this->input->post('item_name', TRUE);
 		$brand_id = $this->input->post('brand_id', TRUE);
@@ -184,6 +203,7 @@ class Items_model extends CI_Model {
 		$seller_points = $this->input->post('seller_points', TRUE);
 		$custom_barcode = $this->input->post('custom_barcode', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$laundry_service_type = $this->input->post('laundry_service_type', TRUE);
 		$item_group = $this->input->post('item_group', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$discount = $this->input->post('discount', TRUE);
@@ -191,6 +211,58 @@ class Items_model extends CI_Model {
 		$batch_lot = $this->input->post('batch_lot', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
 		$mfg_date = $this->input->post('mfg_date', TRUE);
+		$serial_number = $this->input->post('serial_number', TRUE);
+		$imei_number = $this->input->post('imei_number', TRUE);
+		$warranty_months = $this->input->post('warranty_months', TRUE);
+		$not_for_sale = $this->input->post('not_for_sale', TRUE) ? 1 : 0;
+		$consumable_unit = $this->input->post('consumable_unit', TRUE);
+		$accept_custom_order = $this->input->post('accept_custom_order', TRUE) ? 1 : 0;
+		$requires_quote = $this->input->post('requires_quote', TRUE) ? 1 : 0;
+		$requires_deposit = $this->input->post('requires_deposit', TRUE) ? 1 : 0;
+		$workflow_template_key = $this->input->post('workflow_template_key', TRUE) ?: 'standard';
+		// Only update recipe fields if the Recipe & Costing section was visible (key exists in POST)
+		// This preserves existing links when the feature is disabled for the business
+		$recipe_id = null;
+		$recipe_margin_pct = null;
+		if ($this->input->post('recipe_id') !== false) {
+			$recipe_id = $this->input->post('recipe_id', TRUE) ? (int)$this->input->post('recipe_id', TRUE) : null;
+		}
+		if ($this->input->post('recipe_margin_pct') !== false) {
+			$recipe_margin_pct = $this->input->post('recipe_margin_pct', TRUE) !== '' ? (float)$this->input->post('recipe_margin_pct', TRUE) : null;
+		}
+
+		// If recipe is linked, auto-calculate purchase/sales price from recipe cost + margin
+		if ($recipe_id && $this->db->table_exists('db_recipes')) {
+			$this->load->model('recipe_model');
+			$recipe = $this->recipe_model->get($recipe_id);
+			if ($recipe) {
+				$cost_per_unit = $this->recipe_model->calculate_cost_per_unit($recipe_id);
+				if ($cost_per_unit > 0) {
+					$purchase_price = $cost_per_unit;
+					$price = $cost_per_unit;
+					if ($recipe_margin_pct !== null && $recipe_margin_pct > 0) {
+						$sales_price = round($cost_per_unit * (1 + $recipe_margin_pct / 100), 2);
+					}
+				}
+			}
+		}
+		// Build custom order fields JSON
+		$cf_labels = $this->input->post('cf_label', TRUE) ?: [];
+		$cf_types = $this->input->post('cf_type', TRUE) ?: [];
+		$cf_options = $this->input->post('cf_options', TRUE) ?: [];
+		$cf_required = $this->input->post('cf_required', TRUE) ?: [];
+		$custom_fields = [];
+		for($i=0; $i<count($cf_labels); $i++){
+			if(!empty($cf_labels[$i])){
+				$custom_fields[] = [
+					'label' => $cf_labels[$i],
+					'type' => $cf_types[$i] ?? 'text',
+					'options' => $cf_options[$i] ?? '',
+					'required' => isset($cf_required[$i]) ? 1 : 0,
+				];
+			}
+		}
+		$custom_order_fields_json = !empty($custom_fields) ? json_encode($custom_fields) : null;
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$adjustment_qty = $this->input->post('adjustment_qty', TRUE);
 		$command = $this->input->post('command', TRUE);
@@ -294,6 +366,7 @@ class Items_model extends CI_Model {
 			    				'seller_points'				=> $seller_points,
 			    				'custom_barcode'			=> $custom_barcode,
 			    				'description'				=> $description,
+			    				'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
 			    				'item_group'				=> $item_group,
 			    				'discount_type'				=> $discount_type,
 			    				'discount'					=> $discount,
@@ -302,11 +375,26 @@ class Items_model extends CI_Model {
 								'expire_date'				=> (!empty($expire_date) ? $expire_date : null),
 
 								'mfg_date'				=> (!empty($mfg_date) ? $mfg_date : null),
+								'serial_number'				=> !empty($serial_number) ? $serial_number : null,
+								'imei_number'				=> !empty($imei_number) ? $imei_number : null,
+								'warranty_months'			=> is_numeric($warranty_months) ? (int)$warranty_months : 0,
+								'not_for_sale'				=> $not_for_sale,
+								'consumable_unit'			=> !empty($consumable_unit) ? $consumable_unit : null,
+								'accept_custom_order'		=> $accept_custom_order,
+								'custom_order_fields_json'	=> $custom_order_fields_json,
+								'requires_quote'			=> $requires_quote,
+								'requires_deposit'			=> $requires_deposit,
+								'workflow_template_key'		=> $workflow_template_key,
 			    				'item_code' 				=> $item_code,
 			    				
 			    			);
 			if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
+							}
+							// Only include recipe fields if the Recipe & Costing section was visible
+							if ($this->input->post('recipe_id') !== false) {
+								$info['recipe_id'] = $recipe_id;
+								$info['recipe_margin_pct'] = $recipe_margin_pct;
 							}
 							
 			if ( $command == 'save' ){
@@ -319,39 +407,67 @@ class Items_model extends CI_Model {
 			}
 			
 			if(!$query1){
+				$this->db->trans_rollback();
 				return "failed";
 			}
 
-			// Save barcode / batch / lot records
+			// Save barcode / batch / lot records (also unit tracking for electronics)
+			$barcode_save_ok = true;
 			$this->db->where('item_id', $item_id)->delete('db_item_barcodes');
 			$barcode_barcodes = $this->input->post('barcode_barcode', TRUE) ?? [];
 			$barcode_batches  = $this->input->post('barcode_batch', TRUE) ?? [];
+			$barcode_serials  = $this->input->post('barcode_serial', TRUE) ?? [];
+			$barcode_imeis    = $this->input->post('barcode_imei', TRUE) ?? [];
 			$barcode_pprices  = $this->input->post('barcode_pprice', TRUE) ?? [];
 			$barcode_sprices  = $this->input->post('barcode_sprice', TRUE) ?? [];
 			$barcode_mrps     = $this->input->post('barcode_mrp', TRUE) ?? [];
 			$barcode_qtys     = $this->input->post('barcode_qty', TRUE) ?? [];
 			$barcode_expires  = $this->input->post('barcode_expire_date', TRUE) ?? [];
 			$barcode_mfgs     = $this->input->post('barcode_mfg_date', TRUE) ?? [];
+			$barcode_warranties = $this->input->post('barcode_warranty', TRUE) ?? [];
 			$bc_count = count($barcode_barcodes);
 			for($bc = 0; $bc < $bc_count; $bc++){
 				$bc_barcode = trim($barcode_barcodes[$bc] ?? '');
-				if($bc_barcode === '') continue;
+				$bc_batch   = trim($barcode_batches[$bc] ?? '');
+				$bc_serial  = trim($barcode_serials[$bc] ?? '');
+				$bc_imei    = trim($barcode_imeis[$bc] ?? '');
+				// Skip completely empty rows (no barcode, no batch, no serial, no imei)
+				if($bc_barcode === '' && $bc_batch === '' && $bc_serial === '' && $bc_imei === '') continue;
 				$bc_data = array(
 					'item_id'        => $item_id,
 					'barcode'        => $bc_barcode,
-					'batch_lot'      => trim($barcode_batches[$bc] ?? ''),
+					'batch_lot'      => $bc_batch,
+					'serial_number'  => $bc_serial,
+					'imei_number'    => $bc_imei,
 					'purchase_price' => store_number_format($barcode_pprices[$bc] ?? 0,0),
 					'sales_price'    => store_number_format($barcode_sprices[$bc] ?? 0,0),
 					'mrp'            => store_number_format($barcode_mrps[$bc] ?? 0,0),
 					'qty'            => store_number_format($barcode_qtys[$bc] ?? 0,0),
-					'expire_date'    => !empty($barcode_expires[$bc]) ? $barcode_expires[$bc] : null,
-					'mfg_date'       => !empty($barcode_mfgs[$bc]) ? $barcode_mfgs[$bc] : null,
 					'warehouse_id'   => $warehouse_id,
 					'status'         => 1,
 					'created_date'   => date('Y-m-d'),
 					'created_time'   => date('H:i:s'),
 				);
-				$this->db->insert('db_item_barcodes', $bc_data);
+				if(!empty($barcode_expires[$bc])) $bc_data['expire_date'] = $barcode_expires[$bc];
+				if(!empty($barcode_mfgs[$bc]))    $bc_data['mfg_date']    = $barcode_mfgs[$bc];
+				if(!empty($barcode_warranties[$bc])) $bc_data['warranty_months'] = (int)$barcode_warranties[$bc];
+				$bc_insert = $this->db->insert('db_item_barcodes', $bc_data);
+				if(!$bc_insert){
+					$barcode_save_ok = false;
+					$error = $this->db->error();
+					$barcode_error_msg = "Barcode save failed: " . $error['message'];
+					break;
+				}
+			}
+
+			// Sync first barcode row's serial/imei/warranty back to db_items for backward compatibility
+			$first_bc = $this->db->where('item_id', $item_id)->where('status', 1)->order_by('id', 'asc')->get('db_item_barcodes')->row();
+			if($first_bc){
+				$this->db->where('id', $item_id)->update('db_items', array(
+					'serial_number'   => !empty($first_bc->serial_number) ? $first_bc->serial_number : null,
+					'imei_number'     => !empty($first_bc->imei_number) ? $first_bc->imei_number : null,
+					'warranty_months' => !empty($first_bc->warranty_months) ? (int)$first_bc->warranty_months : 0,
+				));
 			}
 
 			//Opening Stock Exist
@@ -363,6 +479,7 @@ class Items_model extends CI_Model {
                                    	);
                 $q2 = $this->add_opening_stock($array_params); 
                 if(!$q2){
+                    $this->db->trans_rollback();
                     return "failed";
                 }
             }
@@ -437,11 +554,18 @@ class Items_model extends CI_Model {
 			    				'variant_id'				=> $variant_id,
 			    				'discount_type'				=> $discount_type,
 			    				'discount'					=> $discount,
+								'not_for_sale'				=> $not_for_sale,
+								'consumable_unit'			=> $consumable_unit,
 			    			
 			    			);
 							
 							if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
+							}
+							// Only include recipe fields if the Recipe & Costing section was visible
+							if ($this->input->post('recipe_id') !== false) {
+								$info['recipe_id'] = $recipe_id;
+								$info['recipe_margin_pct'] = $recipe_margin_pct;
 							}
 							/*echo "<pre>";
 							print_r($info);
@@ -463,6 +587,7 @@ class Items_model extends CI_Model {
 							}
 							#------------------------------------
 							if(!$query1){
+								$this->db->trans_rollback();
 								return "failed";
 							}
 							$variant_item_id = $this->db->insert_id();
@@ -476,6 +601,7 @@ class Items_model extends CI_Model {
 		                                           	);
 		                        $q2 = $this->add_opening_stock($array_params); 
 		                        if(!$q2){
+		                            $this->db->trans_rollback();
 		                            return "failed";
 		                        }
 		                    }
@@ -487,8 +613,7 @@ class Items_model extends CI_Model {
 			}//existing_row_count END
 		}//Variant END
 
-		
-		if ($query1){
+		if ($query1 && $barcode_save_ok){
 				$this->db->trans_commit();
 				if ($command=='save') {
 					$this->session->set_flashdata('success', 'Success!! New Item Added Successfully!');
@@ -502,7 +627,7 @@ class Items_model extends CI_Model {
 		else{
 				$this->db->trans_rollback();
 				//unlink('uploads/items/'.$file_name);
-		        return "failed";
+		        return isset($barcode_error_msg) ? $barcode_error_msg : "failed";
 		}
 		
 	}
@@ -538,14 +663,21 @@ class Items_model extends CI_Model {
 			$data['seller_points']=$query->seller_points;
 			$data['custom_barcode']=$query->custom_barcode;
 			$data['description']=$query->description;
+			$data['laundry_service_type']=$query->laundry_service_type;
 			$data['item_group']=$query->item_group;
 			$data['discount']=$query->discount;
 			$data['discount_type']=$query->discount_type;
+			$data['commission_type']=$query->commission_type ?? 'none';
+			$data['commission_value']=$query->commission_value ?? 0;
 			$data['child_bit']=$query->child_bit;
 			$data['mrp']=store_number_format($query->mrp,0);
 			$data['batch_lot']=$query->batch_lot;
 			$data['expire_date']=$query->expire_date;
 			$data['mfg_date']=$query->mfg_date;
+			$data['not_for_sale']=$query->not_for_sale ?? 0;
+			$data['consumable_unit']=$query->consumable_unit ?? '';
+			$data['recipe_id']=$query->recipe_id ?? null;
+			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
 
 			// Load barcode / batch records
 			$data['item_barcodes'] = $this->db->where('item_id', $id)->where('status', 1)->get('db_item_barcodes')->result();

@@ -178,4 +178,27 @@ class Suppliers extends MY_Controller {
 	public function getSuppliers($id=''){
 		echo $this->suppliers->getSuppliersJson($id);
 	}
+
+	/* ─── Offline Sync: return all active suppliers for IndexedDB caching ─── */
+	public function sync_suppliers_for_offline(){
+		$store_id = $this->input->get('store_id') ?? get_current_store_id();
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->select('id, supplier_name, mobile, email, address, opening_balance, purchase_due');
+		$query = $this->db->get('db_suppliers');
+		$suppliers = array();
+		foreach($query->result() as $row){
+			$suppliers[] = array(
+				'id'             => $row->id,
+				'supplier_name'  => $row->supplier_name,
+				'mobile'         => $row->mobile,
+				'email'          => $row->email,
+				'address'        => $row->address,
+				'opening_balance'=> $row->opening_balance,
+				'purchase_due'   => $row->purchase_due
+			);
+		}
+		header('Content-Type: application/json');
+		echo json_encode($suppliers);
+	}
 }

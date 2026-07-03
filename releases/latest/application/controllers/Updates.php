@@ -43,8 +43,7 @@ class Updates extends MY_Controller {
 	public function update_db(){
 		$current_app_version = $this->get_current_version_of_db();
 		if($current_app_version==$this->source_version){
-			echo "Database Already Updated!";
-			exit();
+			return; // already up to date, let page load normally
 		}
 
 		//Update database
@@ -528,6 +527,95 @@ class Updates extends MY_Controller {
 				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 			");if(!$q1){ echo "failed"; exit();}
 		}//end 3.9
+
+		if($current_app_version=='3.9'){
+			// v4.0.0 — Auto-Update System, AI Assist, UI Reskin, Approvals
+			$migrationFile = FCPATH . 'updates/migrations/3.0_to_4.0.0.sql';
+			if (file_exists($migrationFile)) {
+				$sql = file_get_contents($migrationFile);
+				$conn = $this->db->conn_id;
+				if (mysqli_multi_query($conn, $sql)) {
+					do {
+						if ($result = mysqli_store_result($conn)) {
+							mysqli_free_result($result);
+						}
+					} while (mysqli_more_results($conn) && mysqli_next_result($conn));
+				}
+			}
+			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.0' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		}//end 4.0.0
+
+		if($current_app_version=='4.0.0'){
+			// v4.0.1 — Purchase batch tracking, partial receipt, 4-stage purchase workflow
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'received_qty'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `received_qty` DOUBLE(20,4) NULL AFTER `purchase_qty`");if(!$q1){ echo "failed"; exit();}
+			}
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'barcode'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `barcode` VARCHAR(100) NULL AFTER `batch_lot`");if(!$q1){ echo "failed"; exit();}
+			}
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'expire_date'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `expire_date` DATE NULL AFTER `barcode`");if(!$q1){ echo "failed"; exit();}
+			}
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'mfg_date'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `mfg_date` DATE NULL AFTER `expire_date`");if(!$q1){ echo "failed"; exit();}
+			}
+			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.1' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		}//end 4.0.1
+
+		if($current_app_version=='4.0.1'){
+			// v4.0.2 — Industry Adaptation Engine: Business Profile & Feature Flags
+			$cols = [
+				'industry_type'           => "VARCHAR(50) DEFAULT 'general_retail' NULL",
+				'business_model'            => "VARCHAR(50) DEFAULT 'product_based' NULL",
+				'feature_flags_json'        => "JSON NULL",
+				'workflow_template_key'     => "VARCHAR(50) DEFAULT 'retail_standard' NULL",
+				'dashboard_template_key'    => "VARCHAR(50) DEFAULT 'general_retail' NULL",
+				'storefront_theme_key'      => "VARCHAR(50) DEFAULT 'general_retail' NULL",
+				'label_overrides_json'      => "JSON NULL",
+				'industry_settings_json'    => "JSON NULL",
+			];
+			foreach($cols as $col => $def){
+				$colExists = $this->db->query("SHOW COLUMNS FROM `db_store` LIKE '$col'")->num_rows();
+				if($colExists == 0){
+					$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `$col` $def");if(!$q1){ echo "failed"; exit();}
+				}
+			}
+			// db_services custom fields foundation
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_services` LIKE 'industry_fields_json'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_services` ADD COLUMN `industry_fields_json` JSON NULL");if(!$q1){ echo "failed"; exit();}
+			}
+			// db_items custom order foundation
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_items` LIKE 'accept_custom_order'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_items` ADD COLUMN `accept_custom_order` TINYINT(1) DEFAULT 0 NULL, ADD COLUMN `custom_order_fields_json` JSON NULL, ADD COLUMN `requires_quote` TINYINT(1) DEFAULT 0 NULL, ADD COLUMN `requires_deposit` TINYINT(1) DEFAULT 0 NULL, ADD COLUMN `workflow_template_key` VARCHAR(50) DEFAULT NULL NULL");if(!$q1){ echo "failed"; exit();}
+			}
+			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.2' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		}//end 4.0.2
+
+		// 4.0.3 Recipe costing columns on items + recipe categories table
+		$catExists = $this->db->query("SHOW TABLES LIKE 'db_recipe_categories'")->num_rows();
+		if($catExists == 0){
+			$q1 = $this->db->query("CREATE TABLE IF NOT EXISTS db_recipe_categories (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				store_id INT NOT NULL DEFAULT 1,
+				name VARCHAR(100) NOT NULL,
+				status TINYINT NOT NULL DEFAULT 1,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				INDEX idx_store_id (store_id),
+				INDEX idx_status (status)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");if(!$q1){ echo "failed"; exit();}
+		}
+		$colExists = $this->db->query("SHOW COLUMNS FROM `db_items` LIKE 'recipe_id'")->num_rows();
+		if($colExists == 0){
+			$q1 = $this->db->query("ALTER TABLE `db_items` ADD COLUMN `recipe_id` INT NULL, ADD COLUMN `recipe_margin_pct` DECIMAL(10,2) NULL");if(!$q1){ echo "failed"; exit();}
+		}
+		$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.3' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		//end 4.0.3
 
 		$this->db->trans_commit();
 		redirect(base_url('login'),'refresh');

@@ -14,21 +14,30 @@ class Pos_model extends CI_Model {
 	      $this->db->join("db_tax b","b.id=a.tax_id","left");
 	      $this->db->where("a.status=1");
 	      $this->db->where("a.id",$item_id);
+	      $this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 		  //echo $this->db->get_compiled_select();exit();
 		  $res1=$this->db->get()->row();
+		  if(!$res1){
+		      return json_encode(array('error' => 'Item not available for sale.'));
+		  }
 
 	      $price_type = $this->input->post('price_type', TRUE) ?? 'retail';
       $barcode = $this->input->post('barcode', TRUE) ?? '';
+      $barcode_id = $this->input->post('barcode_id', TRUE) ?? 0;
 
-      // Barcode-specific lookup
-      if(!empty($barcode)){
-        $this->db->select('b.*, a.item_name, t.tax, t.tax_name');
+      // Barcode / Unit-specific lookup (by barcode_id, barcode, serial, or imei)
+      if(!empty($barcode_id) || !empty($barcode)){
+        $this->db->select('b.*, a.item_name, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
         $this->db->from('db_item_barcodes b');
         $this->db->join('db_items a', 'a.id = b.item_id', 'left');
         $this->db->join('db_tax t', 't.id = a.tax_id', 'left');
-        $this->db->where('b.barcode', $barcode);
         $this->db->where('b.item_id', $item_id);
         $this->db->where('b.status', 1);
+        if(!empty($barcode_id)){
+          $this->db->where('b.id', $barcode_id);
+        } else {
+          $this->db->where('b.barcode', $barcode);
+        }
         $bc_data = $this->db->get()->row();
         if($bc_data){
           $sales_price = ($price_type == 'retail' && !empty($bc_data->mrp)) ? $bc_data->mrp : $bc_data->sales_price;
@@ -40,7 +49,11 @@ class Pos_model extends CI_Model {
             'tax_id' => $bc_data->tax_id, 'tax_type' => $bc_data->tax_type, 'tax' => $bc_data->tax,
             'tax_name' => $bc_data->tax_name, 'item_tax_amt' => $item_tax_amt,
             'discount_type' => $bc_data->discount_type, 'discount' => $bc_data->discount,
-            'service_bit' => $bc_data->service_bit, 'barcode' => $barcode,
+            'service_bit' => $bc_data->service_bit, 'barcode' => $bc_data->barcode,
+            'barcode_id' => $bc_data->id,
+            'serial_number' => $bc_data->serial_number,
+            'imei_number' => $bc_data->imei_number,
+            'warranty_months' => $bc_data->warranty_months,
           ));
         }
       }
@@ -77,6 +90,11 @@ class Pos_model extends CI_Model {
 	      				'discount_type' 		=> $res1->discount_type,
 	      				'discount' 				=> $res1->discount,
 	      				'service_bit' 			=> $res1->service_bit,
+	      				'package_bit' 			=> $res1->package_bit ?? 0,
+	      				'barcode_id' 			=> 0,
+	      				'serial_number' 		=> $res1->serial_number ?? '',
+	      				'imei_number' 			=> $res1->imei_number ?? '',
+	      				'warranty_months' 		=> $res1->warranty_months ?? 0,
 	      );
 
 	      return json_encode($item_array);
@@ -114,6 +132,7 @@ class Pos_model extends CI_Model {
 		  $this->db->from("db_items as a");
 		  $this->db->where("a.store_id",$store_id);
 		  $this->db->where("a.status",1);
+		  $this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 		  if(!empty($item_name)){
 		  	$this->db->where("upper(a.item_name) like upper('%".$item_name."%')");
 		  }
@@ -208,8 +227,14 @@ class Pos_model extends CI_Model {
 	          				data-item-tax-name="'.$item_tax_name.'"
 	          				data-item-tax-amt="'.$item_tax_amt.'"
 	          				data-service_bit="'.$service_bit.'"
+																												data-package-bit="'.($res2->package_bit ?? 0).'"
+	          													data-commission-type="'.($res2->commission_type ?? 'none').'"
+	          													data-commission-value="'.($res2->commission_value ?? 0).'"
 	          				data-discount_type="'.$discount_type.'"
 	          				data-discount="'.$discount.'"
+								data-item-serial-number="'.($res2->serial_number ?? '').'"
+								data-item-imei-number="'.($res2->imei_number ?? '').'"
+								data-item-warranty-months="'.($res2->warranty_months ?? 0).'"
 	           				style="max-height: 150px;min-height: 150px;cursor: pointer;'.$bg_color.'">
 	           	<span class="label label-danger push-right" style="font-weight: bold;font-family: sans-serif;" data-toggle="tooltip" title="'.$label_title.'">'.$label.'</span>
 	          
@@ -226,7 +251,14 @@ class Pos_model extends CI_Model {
 
 	          </div>
 	        </div>';
-	          $i++;
+          // Clearfix every 4 items to prevent scattered layout in Bootstrap float grid
+          if(($i + 1) % 4 == 0){
+            $table .= '<div class="clearfix visible-md-block visible-lg-block"></div>';
+          }
+          if(($i + 1) % 2 == 0){
+            $table .= '<div class="clearfix visible-sm-block visible-xs-block"></div>';
+          }
+          $i++;
 	          }//for end
 	          return $table;
 	      }//if num_rows() end
@@ -239,8 +271,21 @@ class Pos_model extends CI_Model {
 	
 	//Save Sales
 	public function pos_save_update(){//Save or update sales
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = 'localhost';
+
 		$this->db->trans_begin();
 		$by_cash = $this->input->post('by_cash', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+
+		// Laundry / service businesses require real customer data
+		if (mp_feature_enabled('laundry_workflow') && is_walk_in_customer($customer_id)) {
+			$this->db->trans_rollback();
+			echo "Please select or create a registered customer before creating a laundry invoice. Walk-in is not allowed for service orders."; exit;
+		}
 		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$count_id = $this->input->post('count_id', TRUE);
@@ -251,9 +296,10 @@ class Pos_model extends CI_Model {
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$coupon_code = $this->input->post('coupon_code', TRUE);
 		$discount_input = $this->input->post('discount_input', TRUE);
-		$tot_disc = $this->input->post('tot_disc', TRUE);
-		$tot_grand = $this->input->post('tot_grand', TRUE);
-		$tot_amt = $this->input->post('tot_amt', TRUE);
+		$tot_disc = $this->input->get_post('tot_disc', TRUE);
+		$tot_grand = $this->input->get_post('tot_grand', TRUE);
+		$tot_amt = $this->input->get_post('tot_amt', TRUE);
+		$pay_all = $this->input->get_post('pay_all', TRUE);
 		$points_use = $this->input->post('points_use', TRUE);
 		$sales_note = $this->input->post('sales_note', TRUE);
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
@@ -271,6 +317,8 @@ class Pos_model extends CI_Model {
 			$payment_row_count=1;
 		}else{ //by multiple payments
 			$by_cash=false;
+			$payment_row_count = $this->input->post('payment_row_count', TRUE);
+			$payment_row_count = (empty($payment_row_count)) ? 0 : intval($payment_row_count);
 		}
 		//end 
 
@@ -436,6 +484,11 @@ class Pos_model extends CI_Model {
 				$discount_type =$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
 				$discount_input =$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt =$this->xss_html_filter(trim($_REQUEST['item_discount_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_'.$i] ?? 0);
+								$staff_id = intval($_REQUEST['staff_id_' . $i] ?? 0);
+								$commission_amount = floatval($_REQUEST['commission_amount_' . $i] ?? 0);
 
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($tax_value * $price_per_unit / 100);
@@ -484,6 +537,11 @@ class Pos_model extends CI_Model {
 		    				'purchase_price' 	=> $purchase_price,
 		    				'status'	 		=> 1,
 		    				'seller_points'		=> get_seller_points($item_id) * $sales_qty,
+		    				'sold_serial_number'=> $sold_serial_number,
+		    				'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
+		    											'staff_id'          => $staff_id ? $staff_id : null,
+		    											'commission_amount' => $commission_amount,
 		    			);
 				$q4 = $this->db->insert('db_salesitems', $salesitems_entry);
 
@@ -703,8 +761,23 @@ class Pos_model extends CI_Model {
 		}
 
 		
+		//Record Loyalty Points
+		if(!is_walk_in_customer($customer_id) && $tot_grand > 0){
+			$this->load->model('loyalty_model');
+			$settings = $this->loyalty_model->get_settings();
+			if($settings && $settings->loyalty_enabled){
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_grand);
+				if($points > 0){
+					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from POS sale');
+				}
+			}
+		}
+		//end
+
 		//COMMIT RECORD
 		$this->db->trans_commit();
+
+		log_message('error', "[POS SAVE] sales_id=$sales_id date=$sales_date status=Final store=$store_id grand_total=$tot_grand");
 		
 		$this->session->set_flashdata('success', 'Success!! Sales Created Successfully!'.$sms_info);
         return "success<<<###>>>$sales_id";
@@ -714,8 +787,8 @@ class Pos_model extends CI_Model {
 
 	public function update_items_quantity($item_id){
 		//FIND IS IS SERVICE OR NOT
-		$service_bit=$this->db->query("select service_bit from db_items where id='$item_id'")->row()->service_bit;
-		if($service_bit==1){
+		$item = $this->db->query("select service_bit, package_bit from db_items where id='$item_id'")->row();
+		if($item->service_bit==1 || $item->package_bit==1){
 			return true;
 		}
 		
@@ -723,7 +796,7 @@ class Pos_model extends CI_Model {
 		$q7=$this->db->query("select COALESCE(SUM(adjustment_qty),0) as stock_qty from db_stockadjustmentitems where item_id='$item_id'");
 		$stock_qty=$q7->row()->stock_qty;
 
-		$q8=$this->db->query("select COALESCE(SUM(purchase_qty),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status='Received'");
+		$q8=$this->db->query("select COALESCE(SUM(CASE WHEN received_qty IS NOT NULL THEN received_qty ELSE purchase_qty END),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status IN ('Received','Partially Received')");
 		$pu_tot_qty=$q8->row()->pu_tot_qty;
 		
 		$q9=$this->db->query("select coalesce(SUM(sales_qty),0) as sl_tot_qty from db_salesitems where item_id='$item_id' and sales_status='Final'");
@@ -773,6 +846,10 @@ class Pos_model extends CI_Model {
 		  		$price_per_unit = $res3->price_per_unit;
 		  		$description = $res3->description;
 		  		$service_bit = $q5->row()->service_bit;
+		  		$item_commission_type = $q5->row()->commission_type ?? 'none';
+		  		$item_commission_value = $q5->row()->commission_value ?? 0;
+		  		$staff_id = $res3->staff_id ?? 0;
+		  		$commission_amount = $res3->commission_amount ?? 0;
 
 		  		$stock = total_available_qty_items_of_warehouse($warehouse_id,$store_id,$q5->row()->id);
 		  		$stock+=$res3->sales_qty;
@@ -839,6 +916,10 @@ class Pos_model extends CI_Model {
         		echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_per_unit == $q5->row()->mrp ? 'retail' : 'wholesale').'">';
 		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
         		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
+        		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
+        		echo '<input type="hidden" id="commission_value_'.$i.'" name="commission_value_'.$i.'" value="'.$item_commission_value.'">';
+        		echo '<input type="hidden" id="commission_amount_'.$i.'" name="commission_amount_'.$i.'" value="'.$commission_amount.'">';
+        		echo '<input type="hidden" id="staff_id_'.$i.'" name="staff_id_'.$i.'" value="'.$staff_id.'">';
 		  		$i++;
 		  	}//foreach() end
 
@@ -892,6 +973,8 @@ class Pos_model extends CI_Model {
 		if(!$q1){
 			return "failed";
 		}
+		// Also delete related hold items
+		$this->db->query("DELETE from db_holditems where hold_id='$id'");
 		//COMMIT RECORD
 		$this->db->trans_commit();
         return "success";
@@ -924,6 +1007,10 @@ class Pos_model extends CI_Model {
 		  		$price_per_unit = $res3->price_per_unit;
 		  		$description = $res3->description;
 		  		$service_bit = $q5->row()->service_bit;
+		  		$item_commission_type = $q5->row()->commission_type ?? 'none';
+		  		$item_commission_value = $q5->row()->commission_value ?? 0;
+		  		$staff_id = $res3->staff_id ?? 0;
+		  		$commission_amount = $res3->commission_amount ?? 0;
 
 		  		$warehouse_stock = total_available_qty_items_of_warehouse($warehouse_id,null,$res3->item_id);
 		  		$stock=$warehouse_stock;//$q5->row()->stock + $res3->sales_qty;
@@ -984,6 +1071,10 @@ class Pos_model extends CI_Model {
         		echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_per_unit == $q5->row()->mrp ? 'retail' : 'wholesale').'">';
 		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
         		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
+        		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
+        		echo '<input type="hidden" id="commission_value_'.$i.'" name="commission_value_'.$i.'" value="'.$item_commission_value.'">';
+        		echo '<input type="hidden" id="commission_amount_'.$i.'" name="commission_amount_'.$i.'" value="'.$commission_amount.'">';
+        		echo '<input type="hidden" id="staff_id_'.$i.'" name="staff_id_'.$i.'" value="'.$staff_id.'">';
 		  		$i++;
 		  	}//foreach() end
 
@@ -1000,14 +1091,20 @@ class Pos_model extends CI_Model {
 
 
 	public function hold_list_save_update(){//Save or update sales
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = 'localhost';
+
 		$this->db->trans_begin();
 		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
 		$reference_id = $this->input->post('reference_id', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$discount_input = $this->input->post('discount_input', TRUE);
-		$tot_disc = $this->input->post('tot_disc', TRUE);
-		$tot_grand = $this->input->post('tot_grand', TRUE);
-		$tot_amt = $this->input->post('tot_amt', TRUE);
+		$tot_disc = $this->input->get_post('tot_disc', TRUE);
+		$tot_grand = $this->input->get_post('tot_grand', TRUE);
+		$tot_amt = $this->input->get_post('tot_amt', TRUE);
 		$sales_note = $this->input->post('sales_note', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
@@ -1080,6 +1177,11 @@ class Pos_model extends CI_Model {
 				$discount_type =$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
 				$discount_input =$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt =$this->xss_html_filter(trim($_REQUEST['item_discount_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_'.$i] ?? 0);
+				$staff_id = intval($_REQUEST['staff_id_' . $i] ?? 0);
+				$commission_amount = floatval($_REQUEST['commission_amount_' . $i] ?? 0);
 
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($tax_value * $price_per_unit / 100);
@@ -1121,6 +1223,11 @@ class Pos_model extends CI_Model {
 		    				'discount_amt' 		=> $discount_amt,
 		    				'unit_total_cost' 	=> $single_unit_total_cost,
 		    				'total_cost' 		=> $total_cost,
+		    			'sold_serial_number'=> $sold_serial_number,
+		    			'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
+		    											'staff_id'          => $staff_id ? $staff_id : null,
+		    											'commission_amount' => $commission_amount,
 		    			);
 				$q4 = $this->db->insert('db_holditems', $salesitems_entry);
 

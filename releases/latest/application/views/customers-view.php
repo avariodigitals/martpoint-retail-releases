@@ -10,6 +10,74 @@
     color: #190b0b;
     background-color: #c2c2c2;
 }
+/* Fix action dropdown white oval background */
+.btn-group .dropdown-menu {
+    background-color: #f8f9fa !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+.btn-group .dropdown-menu > li > a {
+    color: #333 !important;
+    padding: 6px 15px;
+}
+.btn-group .dropdown-menu > li > a:hover {
+    background-color: #e9ecef !important;
+    color: #000 !important;
+}
+.btn-group .btn.dropdown-toggle {
+    border-radius: 4px !important;
+    background-color: #337ab7 !important;
+    color: #fff !important;
+    border: 1px solid #2e6da4 !important;
+}
+.btn-group .btn.dropdown-toggle:hover,
+.btn-group .btn.dropdown-toggle:focus {
+    background-color: #286090 !important;
+    border-color: #204d74 !important;
+}
+
+/* Remove pill / rounded background from DataTables responsive child rows */
+table.dataTable > tbody > tr.child {
+    background: transparent !important;
+}
+table.dataTable > tbody > tr.child td.child {
+    background: #f5f5f5 !important;
+    border-radius: 0 !important;
+    border-left: 3px solid #337ab7;
+    padding: 8px 12px !important;
+}
+table.dataTable > tbody > tr.child ul.dtr-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+table.dataTable > tbody > tr.child ul.dtr-details li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: none !important;
+    padding: 4px 0 !important;
+    white-space: nowrap;
+}
+table.dataTable > tbody > tr.child ul.dtr-details li .dtr-title {
+    font-weight: 600;
+    color: #555;
+}
+table.dataTable > tbody > tr.child ul.dtr-details li .dtr-data {
+    color: #333;
+}
+table.dataTable > tbody > tr.child span.dtr-title {
+    display: inline;
+}
+table.dataTable > tbody > tr.child span.dtr-data {
+    display: inline;
+    margin-left: 4px;
+}
 </style>
 </head>
 
@@ -92,12 +160,16 @@
                   <th><?= $this->lang->line('sales_return_due'); ?>(+)</th>
                   <!-- <th><?= $this->lang->line('total'); ?>(+)</th> -->
                   <th><?= $this->lang->line('advance'); ?></th>
+                  <th>Points</th>
+                  <th>Tier</th>
+                  <th>Store Credit</th>
+                  <th>Gift Card</th>
                   <th><?= $this->lang->line('status'); ?></th>
-                  <th><?= $this->lang->line('action'); ?></th> 
+                  <th><?= $this->lang->line('action'); ?></th>
                 </tr>
                 </thead>
                 <tbody>
-        
+
                 </tbody>
                 <tfoot>
                   <tr class="bg-gray">
@@ -107,6 +179,10 @@
                       <th></th>
                       <th></th>
                       <th style="text-align:right">Total</th>
+                      <th></th>
+                      <th></th>
+                      <th></th>
+                      <th></th>
                       <th></th>
                       <th></th>
                       <th></th>

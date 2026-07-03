@@ -133,7 +133,7 @@
                                  <select class="form-control select2" id="item_group" name="item_group"  style="width: 100%;" >
                                   
                                     <option  value="Single">Single</option>
-                                    <option  value="Variants">Variants</option>
+                                    <?php if(mp_feature_enabled('bundles')) { ?><option  value="Variants">Variants</option><?php } ?>
                                  </select>
                                  <span id="item_group_msg" style="display:none" class="text-danger"></span>
                                  
@@ -144,7 +144,9 @@
                                  <select class="form-control select2" id="unit_id" name="unit_id"  style="width: 100%;"  >
                                     <?= get_units_select_list($unit_id);  ?>
                                  </select>
+                                 <?php if(mp_feature_enabled('multi_unit_inventory')) { ?>
                                  <span class="input-group-addon pointer" data-toggle="modal" data-target="#unit_modal" title="Add Customer"><i class="fa fa-plus-square-o text-primary fa-lg"></i></span>
+                                 <?php } ?>
                                     </div>
                                  <span id="unit_id_msg" style="display:none" class="text-danger"></span>
                               </div>
@@ -179,31 +181,182 @@
                                  <textarea type="text" class="form-control" id="description" name="description" placeholder=""><?php print $description; ?></textarea>
                                  <span id="description_msg" style="display:none" class="text-danger"></span>
                               </div>
+
                               <div class="form-group col-md-4">
                                  <label for="item_image"><?= $this->lang->line('select_image'); ?></label>
                                  <input type="file" name="item_image" id="item_image">
                                  <span id="item_image_msg" style="display:block;" class="text-danger">Max Width/Height: 1000px * 1000px & Size: 1MB </span>
                               </div>
 
-                              <!-- Barcode / Batch / Lot Section -->
+                              <?php
+                              // Show barcode table when batch tracking OR any unit tracking is enabled
+                              $show_unit_table = mp_feature_enabled('batch_tracking') || mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking') || mp_feature_enabled('warranty_tracking');
+                              ?>
+
+                              <?php if(!$show_unit_table && mp_feature_enabled('serial_number_tracking')) { ?>
+                              <div class="form-group col-md-4">
+                                 <label for="serial_number">Serial Number</label>
+                                 <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Enter serial number" value="<?= isset($serial_number) ? $serial_number : ''; ?>" >
+                                 <span id="serial_number_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <?php } ?>
+
+                              <?php if(!$show_unit_table && mp_feature_enabled('imei_tracking')) { ?>
+                              <div class="form-group col-md-4">
+                                 <label for="imei_number">IMEI Number</label>
+                                 <input type="text" class="form-control" id="imei_number" name="imei_number" placeholder="Enter IMEI" value="<?= isset($imei_number) ? $imei_number : ''; ?>" >
+                                 <span id="imei_number_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <?php } ?>
+
+                              <?php if(!$show_unit_table && mp_feature_enabled('warranty_tracking')) { ?>
+                              <div class="form-group col-md-4">
+                                 <label for="warranty_months">Warranty (Months)</label>
+                                 <input type="number" class="form-control" id="warranty_months" name="warranty_months" placeholder="e.g. 12" min="0" value="<?= isset($warranty_months) ? $warranty_months : ''; ?>" >
+                                 <span id="warranty_months_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <?php } ?>
+
+                              <div class="form-group col-md-4">
+                                 <label for="not_for_sale">
+                                    <input type="checkbox" id="not_for_sale" name="not_for_sale" value="1" <?= (isset($not_for_sale) && $not_for_sale==1) ? 'checked' : ''; ?>>
+                                    Not for Sale <small class="text-muted">(Consumable / Raw Material)</small>
+                                 </label>
+                                 <p class="text-muted" style="font-size:11px;margin-top:4px;">Hide from POS. Use in treatments, production, etc.</p>
+                              </div>
+                              <div class="form-group col-md-4">
+                                 <label for="consumable_unit">Unit Label <small class="text-muted">(for consumables)</small></label>
+                                 <input type="text" class="form-control" id="consumable_unit" name="consumable_unit" placeholder="e.g. ml, bottle, pump, sachet" value="<?= isset($consumable_unit) ? htmlspecialchars($consumable_unit) : ''; ?>">
+                                 <span id="consumable_unit_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <div class="form-group col-md-4">
+                                 <label for="accept_custom_order">
+                                    <input type="checkbox" id="accept_custom_order" name="accept_custom_order" value="1" <?= (isset($accept_custom_order) && $accept_custom_order==1) ? 'checked' : ''; ?>>
+                                    Accept Custom Orders <small class="text-muted">(Made to Order)</small>
+                                 </label>
+                                 <p class="text-muted" style="font-size:11px;margin-top:4px;">Furniture, cakes, tailored items. Capture specs at POS.</p>
+                              </div>
+                              <div id="custom-order-options" class="col-md-12" style="<?= (isset($accept_custom_order) && $accept_custom_order==1) ? '' : 'display:none;'; ?>">
+                                <div class="box box-default" style="border-top:3px solid #F39C12;">
+                                  <div class="box-header"><h3 class="box-title" style="font-size:14px;"><i class="fa fa-pencil-square-o"></i> Custom Order Settings</h3></div>
+                                  <div class="box-body">
+                                    <div class="row">
+                                      <div class="form-group col-md-3">
+                                        <label><input type="checkbox" id="requires_quote" name="requires_quote" value="1" <?= (isset($requires_quote) && $requires_quote==1) ? 'checked' : ''; ?>> Requires Quote</label>
+                                        <p class="text-muted" style="font-size:10px;">Price set by staff after taking order</p>
+                                      </div>
+                                      <div class="form-group col-md-3">
+                                        <label><input type="checkbox" id="requires_deposit" name="requires_deposit" value="1" <?= (isset($requires_deposit) && $requires_deposit==1) ? 'checked' : ''; ?>> Requires Deposit</label>
+                                        <p class="text-muted" style="font-size:10px;">Customer pays deposit before production starts</p>
+                                      </div>
+                                      <div class="form-group col-md-3">
+                                        <label for="workflow_template_key">Workflow</label>
+                                        <select class="form-control" id="workflow_template_key" name="workflow_template_key">
+                                          <option value="standard" <?= (isset($workflow_template_key) && $workflow_template_key=='standard') ? 'selected' : ''; ?>>Standard (New → Production → Ready → Delivered)</option>
+                                          <option value="food" <?= (isset($workflow_template_key) && $workflow_template_key=='food') ? 'selected' : ''; ?>>Food / Bakery (New → Confirmed → Baking → Ready → Picked Up)</option>
+                                          <option value="furniture" <?= (isset($workflow_template_key) && $workflow_template_key=='furniture') ? 'selected' : ''; ?>>Furniture (Quote → Deposit → Build → QC → Delivery)</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                    <hr style="margin:10px 0;">
+                                    <label>Custom Fields to Capture <small class="text-muted">(what the customer must specify)</small></label>
+                                    <table class="table table-bordered table-condensed" id="custom-fields-table">
+                                      <thead class="bg-gray"><tr><th>Field Label</th><th>Type</th><th>Options</th><th>Required?</th><th style="width:40px;"></th></tr></thead>
+                                      <tbody>
+                                        <?php
+                                        $custom_fields = [];
+                                        if(isset($custom_order_fields_json) && !empty($custom_order_fields_json)){
+                                            $custom_fields = json_decode($custom_order_fields_json, true) ?: [];
+                                        }
+                                        foreach($custom_fields as $fi => $f):
+                                        ?>
+                                        <tr class="cf-row">
+                                          <td><input type="text" class="form-control input-sm" name="cf_label[]" value="<?= htmlspecialchars($f['label'] ?? ''); ?>" placeholder="e.g. Size, Flavor"></td>
+                                          <td>
+                                            <select class="form-control input-sm" name="cf_type[]">
+                                              <option value="text" <?= ($f['type']??'')=='text'?'selected':''; ?>>Text</option>
+                                              <option value="textarea" <?= ($f['type']??'')=='textarea'?'selected':''; ?>>Long Text</option>
+                                              <option value="number" <?= ($f['type']??'')=='number'?'selected':''; ?>>Number</option>
+                                              <option value="select" <?= ($f['type']??'')=='select'?'selected':''; ?>>Dropdown</option>
+                                              <option value="date" <?= ($f['type']??'')=='date'?'selected':''; ?>>Date</option>
+                                              <option value="color" <?= ($f['type']??'')=='color'?'selected':''; ?>>Color</option>
+                                            </select>
+                                          </td>
+                                          <td><input type="text" class="form-control input-sm" name="cf_options[]" value="<?= htmlspecialchars($f['options'] ?? ''); ?>" placeholder="For dropdown: Red, Blue, Green"></td>
+                                          <td class="text-center" style="padding-top:8px;"><input type="checkbox" name="cf_required[]" value="1" <?= ($f['required']??0)==1?'checked':''; ?>></td>
+                                          <td><button type="button" class="btn btn-xs btn-danger" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                      </tbody>
+                                    </table>
+                                    <button type="button" class="btn btn-xs btn-success" id="btn-add-cf"><i class="fa fa-plus"></i> Add Field</button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <?php if(recipe_module()): ?>
+                              <!-- RECIPE LINKING -->
+                              <div class="col-md-12">
+                                <div class="box box-default" style="border-top:3px solid #00C851;">
+                                  <div class="box-header"><h3 class="box-title" style="font-size:14px;"><i class="fa fa-book"></i> Recipe & Costing</h3></div>
+                                  <div class="box-body">
+                                    <div class="row">
+                                      <div class="form-group col-md-4">
+                                        <label for="recipe_id">Recipe / BOM</label>
+                                        <select class="form-control select2" id="recipe_id" name="recipe_id">
+                                          <option value="">-- No Recipe (Manual Costing) --</option>
+                                          <?php foreach(($recipes_list ?? []) as $r): ?>
+                                          <option value="<?= $r->id; ?>" data-cost="<?= $r->cost_per_unit ?? 0; ?>" data-yield="<?= $r->yield_qty; ?>" data-unit="<?= htmlspecialchars($r->yield_unit ?? ''); ?>" <?= (isset($recipe_id) && $recipe_id==$r->id)?'selected':''; ?>><?= htmlspecialchars($r->name); ?> (<?= number_format($r->yield_qty ?? 1,0); ?> <?= htmlspecialchars($r->yield_unit ?? 'piece'); ?>)</option>
+                                          <?php endforeach; ?>
+                                        </select>
+                                        <p class="text-muted" style="font-size:10px;margin-top:4px;">Select a recipe to auto-calculate cost price from ingredients</p>
+                                      </div>
+                                      <div class="form-group col-md-3">
+                                        <label for="recipe_margin_pct">Recipe Margin (%)</label>
+                                        <input type="number" step="0.01" class="form-control" id="recipe_margin_pct" name="recipe_margin_pct" value="<?= isset($recipe_margin_pct) ? $recipe_margin_pct : '30'; ?>">
+                                        <p class="text-muted" style="font-size:10px;margin-top:4px;">Markup on top of recipe ingredient cost</p>
+                                      </div>
+                                      <div class="form-group col-md-5">
+                                        <div class="row">
+                                          <div class="col-xs-6 text-center" style="padding-top:8px;">
+                                            <small class="text-muted">Recipe Cost</small>
+                                            <div style="font-size:18px;font-weight:600;" id="recipe-cost-display">0.00</div>
+                                          </div>
+                                          <div class="col-xs-6 text-center" style="padding-top:8px;">
+                                            <small class="text-muted">Suggested Sale Price</small>
+                                            <div style="font-size:18px;font-weight:600;color:#00C851;" id="recipe-sale-display">0.00</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <?php endif; ?>
+
+                              <?php if($show_unit_table) { ?>
+                              <!-- Unit / Variant Details Table -->
                               <div class="col-md-12" id="barcode_section">
                                 <div class="box box-info">
                                   <div class="box-header with-border">
-                                    <h3 class="box-title">Barcode / Batch / Lot Details <small class="text-muted">(Controls pricing & stock for this item)</small></h3>
-                                    <button type="button" class="btn btn-xs btn-primary pull-right" onclick="addBarcodeRow()"><i class="fa fa-plus"></i> Add Barcode/Batch</button>
+                                    <h3 class="box-title">Unit / Variant Details <small class="text-muted">(Each row = one physical unit or variant. Prices & stock are set here.)</small></h3>
+                                    <button type="button" class="btn btn-xs btn-primary pull-right" onclick="addBarcodeRow()"><i class="fa fa-plus"></i> Add Unit</button>
                                   </div>
                                   <div class="box-body">
                                     <table class="table table-bordered table-condensed" id="barcode_table">
                                       <thead>
                                         <tr>
                                           <th>Barcode</th>
-                                          <th>Batch / Lot</th>
+                                          <?php if(mp_feature_enabled('batch_tracking')) { ?><th>Batch / Lot</th><?php } ?>
+                                          <?php if(mp_feature_enabled('serial_number_tracking')) { ?><th>Serial Number</th><?php } ?>
+                                          <?php if(mp_feature_enabled('imei_tracking')) { ?><th>IMEI Number</th><?php } ?>
                                           <th>Purchase Price</th>
                                           <th>Wholesale Price</th>
                                           <th>Retail Price (MRP)</th>
                                           <th>Qty in Stock</th>
-                                          <th>Expiry</th>
-                                          <th>MFG Date</th>
+                                          <?php if(mp_feature_enabled('expiry_tracking')) { ?><th>Expiry</th>
+                                          <th>MFG Date</th><?php } ?>
+                                          <?php if(mp_feature_enabled('warranty_tracking')) { ?><th>Warranty (Mo)</th><?php } ?>
                                           <th style="width:40px;"></th>
                                         </tr>
                                       </thead>
@@ -213,33 +366,43 @@
                                           foreach($item_barcodes as $brow){ $bi++; ?>
                                         <tr id="barcode_row_<?=$bi;?>">
                                           <td><input type="text" class="form-control" name="barcode_barcode[]" value="<?=htmlspecialchars($brow->barcode);?>" placeholder="Scan or enter barcode"></td>
-                                          <td><input type="text" class="form-control" name="barcode_batch[]" value="<?=htmlspecialchars($brow->batch_lot);?>" placeholder="Batch / Lot"></td>
+                                          <?php if(mp_feature_enabled('batch_tracking')) { ?><td><input type="text" class="form-control" name="barcode_batch[]" value="<?=htmlspecialchars($brow->batch_lot);?>" placeholder="Batch / Lot"></td><?php } ?>
+                                          <?php if(mp_feature_enabled('serial_number_tracking')) { ?><td><input type="text" class="form-control" name="barcode_serial[]" value="<?=htmlspecialchars($brow->serial_number ?? '');?>" placeholder="Serial"></td><?php } ?>
+                                          <?php if(mp_feature_enabled('imei_tracking')) { ?><td><input type="text" class="form-control" name="barcode_imei[]" value="<?=htmlspecialchars($brow->imei_number ?? '');?>" placeholder="IMEI"></td><?php } ?>
                                           <td><input type="text" class="form-control only_currency" name="barcode_pprice[]" value="<?=store_number_format($brow->purchase_price,0);?>" placeholder="0.00"></td>
                                           <td><input type="text" class="form-control only_currency" name="barcode_sprice[]" value="<?=store_number_format($brow->sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
                                           <td><input type="text" class="form-control only_currency" name="barcode_mrp[]" value="<?=store_number_format($brow->mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
                                           <td><input type="text" class="form-control only_currency" name="barcode_qty[]" value="<?=store_number_format($brow->qty,0);?>" placeholder="0"></td>
-                                          <td><input type="date" class="form-control" name="barcode_expire_date[]" value="<?=htmlspecialchars($brow->expire_date ?? '');?>"></td>
-                                          <td><input type="date" class="form-control" name="barcode_mfg_date[]" value="<?=htmlspecialchars($brow->mfg_date ?? '');?>"></td>
+                                          <?php if(mp_feature_enabled('expiry_tracking')) { ?><td><input type="date" class="form-control" name="barcode_expire_date[]" value="<?=htmlspecialchars($brow->expire_date ?? '');?>"></td>
+                                          <td><input type="date" class="form-control" name="barcode_mfg_date[]" value="<?=htmlspecialchars($brow->mfg_date ?? '');?>"></td><?php } ?>
+                                          <?php if(mp_feature_enabled('warranty_tracking')) { ?><td><input type="text" class="form-control" name="barcode_warranty[]" value="<?=htmlspecialchars($brow->warranty_months ?? '');?>" placeholder="Months" style="min-width:60px;"></td><?php } ?>
                                           <td><button type="button" class="btn btn-xs btn-danger" onclick="removeBarcodeRow('<?=$bi;?>')"><i class="fa fa-trash"></i></button></td>
                                         </tr>
                                         <?php } }else{ ?>
                                         <tr id="barcode_row_1">
                                           <td><input type="text" class="form-control" name="barcode_barcode[]" value="<?=htmlspecialchars($custom_barcode);?>" placeholder="Scan or enter barcode"></td>
-                                          <td><input type="text" class="form-control" name="barcode_batch[]" value="<?=htmlspecialchars($batch_lot);?>" placeholder="Batch / Lot"></td>
+                                          <?php if(mp_feature_enabled('batch_tracking')) { ?><td><input type="text" class="form-control" name="barcode_batch[]" value="<?=htmlspecialchars($batch_lot);?>" placeholder="Batch / Lot"></td><?php } ?>
+                                          <?php if(mp_feature_enabled('serial_number_tracking')) { ?><td><input type="text" class="form-control" name="barcode_serial[]" value="<?=htmlspecialchars($serial_number);?>" placeholder="Serial"></td><?php } ?>
+                                          <?php if(mp_feature_enabled('imei_tracking')) { ?><td><input type="text" class="form-control" name="barcode_imei[]" value="<?=htmlspecialchars($imei_number);?>" placeholder="IMEI"></td><?php } ?>
                                           <td><input type="text" class="form-control only_currency" name="barcode_pprice[]" value="<?=$purchase_price;?>" placeholder="0.00"></td>
                                           <td><input type="text" class="form-control only_currency" name="barcode_sprice[]" value="<?=$sales_price;?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
                                           <td><input type="text" class="form-control only_currency" name="barcode_mrp[]" value="<?=$mrp;?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
                                           <td><input type="text" class="form-control only_currency" name="barcode_qty[]" value="<?=$opening_stock;?>" placeholder="0"></td>
-                                          <td><input type="date" class="form-control" name="barcode_expire_date[]" value="<?=htmlspecialchars($expire_date);?>"></td>
-                                          <td><input type="date" class="form-control" name="barcode_mfg_date[]" value="<?=htmlspecialchars($mfg_date);?>"></td>
+                                          <?php if(mp_feature_enabled('expiry_tracking')) { ?><td><input type="date" class="form-control" name="barcode_expire_date[]" value="<?=htmlspecialchars($expire_date);?>"></td>
+                                          <td><input type="date" class="form-control" name="barcode_mfg_date[]" value="<?=htmlspecialchars($mfg_date);?>"></td><?php } ?>
+                                          <?php if(mp_feature_enabled('warranty_tracking')) { ?><td><input type="text" class="form-control" name="barcode_warranty[]" value="<?=htmlspecialchars($warranty_months);?>" placeholder="Months" style="min-width:60px;"></td><?php } ?>
                                           <td><button type="button" class="btn btn-xs btn-danger" onclick="removeBarcodeRow('1')"><i class="fa fa-trash"></i></button></td>
                                         </tr>
                                         <?php } ?>
                                       </tbody>
                                     </table>
+                                    <div id="barcode_table_msg" style="display:none; margin-top:10px;" class="alert alert-warning">
+                                      <i class="fa fa-exclamation-circle"></i> <span id="barcode_table_msg_text">Please fill Purchase Price, Wholesale Price, and Retail Price for at least the first unit row.</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
+                              <?php } ?>
                               
                               
                            </div>
@@ -261,13 +424,46 @@
                               
                            </div>
                            <hr>
+                           <?php if(!$show_unit_table) { ?>
+                           <!-- Pricing fields for simple items (no batch/serial tracking) -->
+                           <div class="row" id="simple-pricing-section">
+                              <div class="form-group col-md-3">
+                                 <label for="price">Base Price <small class="text-muted">(before tax)</small></label>
+                                 <input type="text" class="form-control only_currency" id="price" name="price" value="<?php print $price; ?>" placeholder="0.00">
+                                 <span id="price_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <div class="form-group col-md-3">
+                                 <label for="purchase_price">Purchase Price <small class="text-muted">(Cost with tax)</small></label>
+                                 <input type="text" class="form-control only_currency" id="purchase_price" name="purchase_price" value="<?php print $purchase_price; ?>" placeholder="0.00" readonly>
+                                 <span id="purchase_price_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <div class="form-group col-md-3">
+                                 <label for="sales_price">Sale Price <small class="text-muted">(if you sell it later)</small></label>
+                                 <input type="text" class="form-control only_currency" id="sales_price" name="sales_price" value="<?php print $sales_price; ?>" placeholder="0.00">
+                                 <span id="sales_price_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <div class="form-group col-md-2">
+                                 <label for="profit_margin">Margin (%)</label>
+                                 <input type="text" class="form-control" id="profit_margin" name="profit_margin" value="<?php print $profit_margin; ?>" placeholder="e.g. 20">
+                                 <span id="profit_margin_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                              <div class="form-group col-md-1">
+                                 <label for="mrp">MRP</label>
+                                 <input type="text" class="form-control only_currency" id="mrp" name="mrp" value="<?php print $mrp; ?>" placeholder="0.00">
+                                 <span id="mrp_msg" style="display:none" class="text-danger"></span>
+                              </div>
+                           </div>
+                           <hr>
+                           <?php } ?>
                            <!-- Hidden fields synced from first Barcode / Batch row -->
                            <div style="display:none;">
+                              <?php if($show_unit_table) { ?>
                               <input type="hidden" id="price" name="price" value="<?php print $price; ?>">
                               <input type="hidden" id="purchase_price" name="purchase_price" value="<?php print $purchase_price; ?>">
                               <input type="hidden" id="sales_price" name="sales_price" value="<?php print $sales_price; ?>">
                               <input type="hidden" id="profit_margin" name="profit_margin" value="<?php print $profit_margin; ?>">
                               <input type="hidden" id="mrp" name="mrp" value="<?php print $mrp; ?>">
+                              <?php } ?>
                               <input type="hidden" id="batch_lot" name="batch_lot" value="<?php print $batch_lot; ?>">
                               <input type="hidden" id="adjustment_qty" name="adjustment_qty" value="<?php print $opening_stock; ?>">
                               <input type="hidden" id="expire_date" name="expire_date" value="<?php print $expire_date; ?>">
@@ -309,6 +505,7 @@
                               </div>
                            </div>
 
+                           <?php if(mp_feature_enabled('bundles')) { ?>
                            <div class="row variant_div">
                              <div class="col-md-12">
                                   <div class="box box-info ">
@@ -355,6 +552,7 @@
                               
                            </div>
                            <!-- /row -->
+                           <?php } ?>
                            <!-- /.box-body -->
                            <div class="box-footer">
                               <div class="col-sm-8 col-sm-offset-2 text-center">
@@ -431,20 +629,70 @@
           barcodeRowIndex++;
           var html = '<tr id="barcode_row_'+barcodeRowIndex+'">'+
             '<td><input type="text" class="form-control" name="barcode_barcode[]" placeholder="Scan or enter barcode"></td>'+
-            '<td><input type="text" class="form-control" name="barcode_batch[]" placeholder="Batch / Lot"></td>'+
-            '<td><input type="text" class="form-control only_currency" name="barcode_pprice[]" placeholder="0.00"></td>'+
+            <?php if(mp_feature_enabled('batch_tracking')) { ?>'<td><input type="text" class="form-control" name="barcode_batch[]" placeholder="Batch / Lot"></td>'+
+            <?php } ?><?php if(mp_feature_enabled('serial_number_tracking')) { ?>'<td><input type="text" class="form-control" name="barcode_serial[]" placeholder="Serial"></td>'+
+            <?php } ?><?php if(mp_feature_enabled('imei_tracking')) { ?>'<td><input type="text" class="form-control" name="barcode_imei[]" placeholder="IMEI"></td>'+
+            <?php } ?>'<td><input type="text" class="form-control only_currency" name="barcode_pprice[]" placeholder="0.00"></td>'+
             '<td><input type="text" class="form-control only_currency" name="barcode_sprice[]" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>'+
             '<td><input type="text" class="form-control only_currency" name="barcode_mrp[]" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>'+
             '<td><input type="text" class="form-control only_currency" name="barcode_qty[]" placeholder="0"></td>'+
-            '<td><input type="date" class="form-control" name="barcode_expire_date[]"></td>'+
+            <?php if(mp_feature_enabled('expiry_tracking')) { ?>'<td><input type="date" class="form-control" name="barcode_expire_date[]"></td>'+
             '<td><input type="date" class="form-control" name="barcode_mfg_date[]"></td>'+
-            '<td><button type="button" class="btn btn-xs btn-danger" onclick="removeBarcodeRow('+barcodeRowIndex+')\"><i class="fa fa-trash\"><\/i><\/button><\/td>'+
+            <?php } ?><?php if(mp_feature_enabled('warranty_tracking')) { ?>'<td><input type="text" class="form-control" name="barcode_warranty[]" placeholder="Months" style="min-width:60px;"></td>'+
+            <?php } ?>'<td><button type="button" class="btn btn-xs btn-danger" onclick="removeBarcodeRow('+barcodeRowIndex+')\"><i class="fa fa-trash\"><\/i><\/button><\/td>'+
             '<\/tr>';
           $('#barcode_table tbody').append(html);
         }
         function removeBarcodeRow(id){
           $('#barcode_row_'+id).remove();
         }
+
+        // Custom Order field builder
+        $('#accept_custom_order').on('change', function(){
+          if($(this).is(':checked')){
+            $('#custom-order-options').slideDown(200);
+          } else {
+            $('#custom-order-options').slideUp(200);
+          }
+        });
+        $('#btn-add-cf').on('click', function(){
+          var html = '<tr class="cf-row">'+
+            '<td><input type="text" class="form-control input-sm" name="cf_label[]" placeholder="e.g. Size, Flavor"></td>'+
+            '<td><select class="form-control input-sm" name="cf_type[]"><option value="text">Text</option><option value="textarea">Long Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="date">Date</option><option value="color">Color</option></select></td>'+
+            '<td><input type="text" class="form-control input-sm" name="cf_options[]" placeholder="For dropdown: Red, Blue, Green"></td>'+
+            '<td class="text-center" style="padding-top:8px;"><input type="checkbox" name="cf_required[]" value="1"></td>'+
+            '<td><button type="button" class="btn btn-xs btn-danger" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></td>'+
+            '</tr>';
+          $('#custom-fields-table tbody').append(html);
+        });
+
+        <?php if(recipe_module()): ?>
+        // Recipe cost calculator
+        function updateRecipeCost(){
+          var $opt = $('#recipe_id option:selected');
+          var cost = parseFloat($opt.data('cost')) || 0;
+          var margin = parseFloat($('#recipe_margin_pct').val()) || 0;
+          var sale = cost > 0 ? (cost * (1 + margin / 100)) : 0;
+
+          $('#recipe-cost-display').text(cost.toFixed(2));
+          $('#recipe-sale-display').text(sale.toFixed(2));
+
+          // If simple pricing section is visible, auto-fill purchase_price and price
+          if($('#simple-pricing-section').is(':visible') && cost > 0){
+            $('#purchase_price').val(cost.toFixed(2));
+            $('#price').val(cost.toFixed(2));
+            if(sale > 0){
+              $('#sales_price').val(sale.toFixed(2));
+            }
+            // Trigger price calculations in items.js
+            $('#price').trigger('change');
+            $('#sales_price').trigger('change');
+          }
+        }
+        $('#recipe_id').on('change', updateRecipeCost);
+        $('#recipe_margin_pct').on('input', updateRecipeCost);
+        updateRecipeCost();
+        <?php endif; ?>
       </script>
       <!-- Make sidebar menu hughlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>

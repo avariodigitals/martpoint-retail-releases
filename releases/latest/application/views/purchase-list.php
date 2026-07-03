@@ -75,7 +75,7 @@
                 $this->db->where("upper(created_by)", strtoupper($this->session->userdata('inv_username')));
               }
             }
-            $pur_total = $this->db->select("COALESCE(sum(grand_total),0) AS tot_pur_grand_total")->from("db_purchase")->where("purchase_status", 'Received')->where("store_id", get_current_store_id())->get()->row()->tot_pur_grand_total;
+            $pur_total = $this->db->select("COALESCE(sum(grand_total),0) AS tot_pur_grand_total")->from("db_purchase")->where_in("purchase_status", array('Received','Partially Received'))->where("store_id", get_current_store_id())->get()->row()->tot_pur_grand_total;
             /*Total Invoices Return Total*/
             if (!is_admin()) {
               if ($this->session->userdata('role_id') != '2') {
@@ -397,8 +397,36 @@
           load_datatable();
       });
       </script>
+      <!-- Change Status Modal Container -->
+      <div class="change_status_modal"></div>
+
       <script src="<?php echo $theme_link; ?>js/purchase.js"></script>
       <!-- Make sidebar menu hughlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+      <script type="text/javascript">
+        function show_change_status_modal(purchase_id){
+          var base_url = $("#base_url").val();
+          $.post(base_url+'purchase/show_change_status_modal', {purchase_id: purchase_id}, function(result) {
+            $(".change_status_modal").html('').html(result);
+            $('#change_status_modal').modal('toggle');
+          });
+        }
+
+        $(document).on('click', '#btn_change_status_save', function(){
+          var base_url = $("#base_url").val();
+          var formData = $("#change-status-form").serialize();
+          $("#btn_change_status_save").attr('disabled', true).html('<i class="fa fa-refresh fa-spin"></i> Updating...');
+          $.post(base_url+'purchase/change_status', formData, function(result) {
+            if(result == 'success'){
+              toastr["success"]("Status updated successfully!");
+              $('#change_status_modal').modal('toggle');
+              $('#example2').DataTable().ajax.reload();
+            } else {
+              toastr["error"]("Failed to update status. Please try again.");
+            }
+            $("#btn_change_status_save").attr('disabled', false).html('Update Status');
+          });
+        });
+      </script>
    </body>
 </html>

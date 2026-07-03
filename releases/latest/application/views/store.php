@@ -14,6 +14,7 @@
       <div class="wrapper">
          <?php $this->load->view('sidebar');?>
           <?php
+              $CI =& get_instance();
               if(!isset($q_id)){
                 
                 $store_name=$logo=$currency_id=$currency_placement=$timezone=
@@ -29,6 +30,15 @@
                 $qty_decimals=2;
                 $invoice_terms = '';
                 $default_account_id='';
+                $nin_api_enabled=0;
+                $nin_api_url='';
+                $nin_api_key='';
+                $nin_api_provider='ninbvnportal';
+                $nin_api_cost=50.00;
+                $nin_provider='ninbvnportal';
+                $bvn_provider='ninbvnportal';
+                $interswitch_client_id='';
+                $interswitch_client_secret='';
                 
                
                 
@@ -65,6 +75,9 @@
                            <?php if(!is_user()){?>
                            <li><a href="#tab_2" id='tab_2_btn' data-toggle="tab"><?= $this->lang->line('sales'); ?></a></li>
                            <li><a href="#tab_3" id='tab_3_btn' data-toggle="tab"><?= $this->lang->line('prefixes'); ?></a></li>
+                           <?php if($CI->permissions('nin_settings')){ ?>
+                           <li><a href="#tab_nin" id='tab_nin_btn' data-toggle="tab">NIN/BVN API</a></li>
+                           <?php } ?>
                          <?php }?>
                            
                         </ul>
@@ -875,6 +888,104 @@
                                  <!--/.col (right) -->
                               </div>
                               <!-- /.row -->
+                           </div>
+                           <!-- /.tab-pane -->
+                           <!-- NIN/BVN API Settings Tab -->
+                           <div class="tab-pane" id="tab_nin">
+                              <div class="row">
+                                 <div class="col-md-12">
+                                    <h4 class="text-info"><i class="fa fa-id-card"></i> NIN / BVN Verification API Settings</h4>
+                                    <hr>
+                                    <?php $can_edit_nin = $CI->permissions('nin_settings'); ?>
+                                    <div class="form-group">
+                                       <label for="nin_api_enabled" class="col-sm-3 control-label">Enable NIN API</label>
+                                       <div class="col-sm-6">
+                                          <div class="checkbox icheck">
+                                             <label>
+                                                <input type="checkbox" id="nin_api_enabled" name="nin_api_enabled" <?php if(isset($nin_api_enabled) && $nin_api_enabled==1){ ?> checked <?php }?> <?php if(!$can_edit_nin){ echo 'disabled'; } ?> > Enable Real-time NIN/BVN Verification
+                                             </label>
+                                          </div>
+                                          <?php if(!$can_edit_nin){ ?>
+                                          <input type="hidden" name="nin_api_enabled" value="<?php echo (isset($nin_api_enabled) && $nin_api_enabled==1) ? 1 : 0; ?>">
+                                          <span class="text-muted text-danger"><i class="fa fa-lock"></i> Only users with NIN Settings permission can enable/disable this feature.</span>
+                                          <?php } else { ?>
+                                          <span class="text-muted"><i class="fa fa-unlock"></i> NIN Settings permission required</span>
+                                          <?php } ?>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_api_cost" class="col-sm-3 control-label">Cost Per Verification <span class="text-danger">*</span></label>
+                                       <div class="col-sm-6">
+                                          <div class="input-group">
+                                             <span class="input-group-addon">NGN</span>
+                                             <input type="number" step="0.01" class="form-control" id="nin_api_cost" name="nin_api_cost" placeholder="50.00" value="<?php echo isset($nin_api_cost) ? $nin_api_cost : '50.00'; ?>" <?php if(!$can_edit_nin){ echo 'readonly'; } ?>>
+                                          </div>
+                                          <?php if(!$can_edit_nin){ ?>
+                                             <span class="text-muted text-danger"><i class="fa fa-lock"></i> Cost is locked. NIN Settings permission required.</span>
+                                          <?php } else { ?>
+                                             <span class="text-muted">Set the cost charged per successful NIN/BVN verification. This is used for billing transparency in the usage log.</span>
+                                          <?php } ?>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_provider" class="col-sm-3 control-label">NIN Provider</label>
+                                       <div class="col-sm-6">
+                                          <select class="form-control" id="nin_provider" name="nin_provider">
+                                             <option value="ninbvnportal" <?php if(isset($nin_provider) && $nin_provider=='ninbvnportal') echo 'selected'; ?>>ninbvnportal.com.ng</option>
+                                             <option value="interswitch" <?php if(isset($nin_provider) && $nin_provider=='interswitch') echo 'selected'; ?>>Interswitch API Marketplace</option>
+                                             <option value="custom" <?php if(isset($nin_provider) && $nin_provider=='custom') echo 'selected'; ?>>Custom API</option>
+                                          </select>
+                                          <span class="text-muted">Select the provider for NIN (11-digit) verification.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="bvn_provider" class="col-sm-3 control-label">BVN Provider</label>
+                                       <div class="col-sm-6">
+                                          <select class="form-control" id="bvn_provider" name="bvn_provider">
+                                             <option value="ninbvnportal" <?php if(isset($bvn_provider) && $bvn_provider=='ninbvnportal') echo 'selected'; ?>>ninbvnportal.com.ng</option>
+                                             <option value="interswitch" <?php if(isset($bvn_provider) && $bvn_provider=='interswitch') echo 'selected'; ?>>Interswitch API Marketplace</option>
+                                             <option value="custom" <?php if(isset($bvn_provider) && $bvn_provider=='custom') echo 'selected'; ?>>Custom API</option>
+                                          </select>
+                                          <span class="text-muted">Select the provider for BVN (10-11 digit) verification.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_api_url" class="col-sm-3 control-label">Custom API URL</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="nin_api_url" name="nin_api_url" placeholder="https://api.example.com/v1/verify" value="<?php echo isset($nin_api_url) ? $nin_api_url : ''; ?>">
+                                          <span class="text-muted">For Custom API: enter full endpoint URL. For Interswitch: enter base URL (e.g. https://api-marketplace-routing.k8.isw.la) if different from default.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_api_key" class="col-sm-3 control-label">API Token / Key</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="nin_api_key" name="nin_api_key" placeholder="Your API Key or Bearer Token" value="<?php echo isset($nin_api_key) ? $nin_api_key : ''; ?>">
+                                          <span class="text-muted">Used for ninbvnportal (API key) or Custom API (Bearer token). For Interswitch, use Client ID / Secret below.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="interswitch_client_id" class="col-sm-3 control-label">Interswitch Client ID</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="interswitch_client_id" name="interswitch_client_id" placeholder="Interswitch Client ID" value="<?php echo isset($interswitch_client_id) ? $interswitch_client_id : ''; ?>">
+                                          <span class="text-muted">Required when Interswitch is selected as provider. Used to obtain an access token.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="interswitch_client_secret" class="col-sm-3 control-label">Interswitch Client Secret</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="interswitch_client_secret" name="interswitch_client_secret" placeholder="Interswitch Client Secret" value="<?php echo isset($interswitch_client_secret) ? $interswitch_client_secret : ''; ?>">
+                                          <span class="text-muted">Required when Interswitch is selected as provider. Keep this confidential.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <div class="col-sm-6 col-sm-offset-3">
+                                          <div class="alert alert-info">
+                                             <i class="fa fa-info-circle"></i> <strong>Note:</strong> If API is not configured, the system will use demo/mock verification mode for testing. All verification settings are stored per-store. Staff cannot see or change these settings.
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
                            </div>
                            <!-- /.tab-pane -->
                         </div>

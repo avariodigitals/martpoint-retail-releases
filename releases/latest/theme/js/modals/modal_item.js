@@ -174,7 +174,7 @@ $(".show_item_service").on("click", function(){
 //end
 /* items modal start*/
 $(".add_service").click(function(e){
-	alert("Add service");
+	toastr.info('Add service');
 	var base_url=$("#base_url").val().trim();
     //Initially flag set true
     var flag=true;

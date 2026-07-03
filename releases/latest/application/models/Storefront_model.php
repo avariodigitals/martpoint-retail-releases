@@ -122,6 +122,8 @@ class Storefront_model extends CI_Model {
 			requires_note TINYINT(1) DEFAULT 0,
 			location_type ENUM('in-store','customer-location','online') DEFAULT 'in-store',
 			sort_order INT DEFAULT 0,
+			deposit_required TINYINT(1) DEFAULT 0,
+			deposit_percent DECIMAL(10,2) DEFAULT 0,
 			status TINYINT(1) DEFAULT 1,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

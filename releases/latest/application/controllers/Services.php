@@ -25,12 +25,17 @@ class Services extends MY_Controller {
 		$this->form_validation->set_rules('purchase_price', 'Purchase Price', 'trim|required');
 		$this->form_validation->set_rules('sales_price', 'Sales Price', 'trim|required');
 
-		
+		// Laundry businesses must specify service type
+		$profile = mp_get_store_profile();
+		$is_laundry = ($profile['industry_type'] ?? '') === 'laundry' || mp_feature_enabled('laundry_workflow');
+		if ($is_laundry) {
+			$this->form_validation->set_rules('laundry_service_type', 'Laundry Service Type', 'trim|required');
+		}
+
 		if ($this->form_validation->run() == TRUE) {
-			$service_used = get_service_usage();
-			$service_limit = get_subscription_limit('service_limit');
-			if($service_limit > 0 && $service_used >= $service_limit){
-				echo "Service limit reached (".$service_used."/".$service_limit."). Contact admin to upgrade subscription.";
+			$service_check = check_subscription_limit('service_limit');
+			if($service_check !== true){
+				echo $service_check;
 				return;
 			}
 			if(!empty($_FILES['item_image']['name'])){
@@ -63,6 +68,13 @@ class Services extends MY_Controller {
 		$this->form_validation->set_rules('tax_id', 'Tax', 'trim|required');
 		$this->form_validation->set_rules('purchase_price', 'Purchase Price', 'trim|required');
 		$this->form_validation->set_rules('sales_price', 'Sales Price', 'trim|required');
+
+		// Laundry businesses must specify service type
+		$profile = mp_get_store_profile();
+		$is_laundry = ($profile['industry_type'] ?? '') === 'laundry' || mp_feature_enabled('laundry_workflow');
+		if ($is_laundry) {
+			$this->form_validation->set_rules('laundry_service_type', 'Laundry Service Type', 'trim|required');
+		}
 
 		if ($this->form_validation->run() == TRUE) {
 			$result=$this->services->update_services();

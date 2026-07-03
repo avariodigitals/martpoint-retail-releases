@@ -47,7 +47,7 @@
   <!--Custom Css File-->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/custom.css">
   <!-- MartPoint Retail Reskin -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=4">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=5">
   <!-- <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/sidebar.css"> -->
 
   <!-- Autocomplete -->

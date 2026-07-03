@@ -48,7 +48,34 @@
       </div>
 
       <!-- ====== MARTPOINT RETAIL DASHBOARD V2 ====== -->
+      <?php
+      $is_product_business = true;
+      try {
+        $bp_profile = mp_get_store_profile();
+        $is_product_business = empty($bp_profile['business_model']) || in_array($bp_profile['business_model'], ['product_based','product_and_service']);
+      } catch (Exception $e) { /* fallback to product-based if helper fails */ }
+      ?>
       <div class="mp-dashboard-wrapper">
+
+      <?php if(!is_user()): ?>
+      <!-- Clock Status -->
+      <div class="mp-section">
+        <div id="dashClockStatusCard" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;background:<?= (!empty($needs_clock_in)) ? '#FFF3CD' : '#D1FAE5'; ?>;border:1px solid <?= (!empty($needs_clock_in)) ? '#F59E0B' : '#10B981'; ?>;">
+          <i class="fa <?= (!empty($needs_clock_in)) ? 'fa-clock-o text-warning' : 'fa-check-circle text-success'; ?>" style="font-size:20px;"></i>
+          <div style="flex:1;">
+            <strong style="font-size:14px;color:<?= (!empty($needs_clock_in)) ? '#92400E' : '#065F46'; ?>;">
+              <?= (!empty($needs_clock_in)) ? 'You are not clocked in.' : 'You are clocked in.'; ?>
+            </strong>
+            <span style="font-size:13px;color:#666;display:block;margin-top:2px;">
+              <?= (!empty($needs_clock_in)) ? 'Clock in before processing sales.' : 'Remember to clock out at the end of your shift.'; ?>
+            </span>
+          </div>
+          <button type="button" class="btn btn-sm <?= (!empty($needs_clock_in)) ? 'btn-warning' : 'btn-success'; ?>" onclick="$('#appClockInBtn').trigger('click');">
+            <i class="fa <?= (!empty($needs_clock_in)) ? 'fa-sign-in' : 'fa-sign-out'; ?>"></i> <?= (!empty($needs_clock_in)) ? 'Clock In' : 'Clock Out'; ?>
+          </button>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <!-- SECTION: QUICK ACTIONS + BRANCH SELECTOR -->
       <div class="mp-section">
@@ -58,9 +85,15 @@
             <a href="<?=base_url('pos');?>" class="mp-quick-btn green"><i class="fa fa-shopping-cart"></i> New Sale</a>
             <a href="<?=base_url('customers/add');?>" class="mp-quick-btn blue"><i class="fa fa-user-plus"></i> Add Customer</a>
             <a href="<?=base_url('expense/add');?>" class="mp-quick-btn orange"><i class="fa fa-minus-square"></i> Add Expense</a>
+            <?php if($is_product_business): ?>
             <a href="<?=base_url('purchase/add');?>" class="mp-quick-btn purple"><i class="fa fa-plus-square"></i> Purchase Stock</a>
+            <?php endif; ?>
             <a href="<?=base_url('sales/add');?>" class="mp-quick-btn red"><i class="fa fa-file-text-o"></i> New Invoice</a>
             <a href="<?=base_url('dashboard/daily_summary');?>" class="mp-quick-btn teal"><i class="fa fa-file-text"></i> Today's Summary</a>
+            <a href="<?= base_url('accounts/cash_ledger'); ?>" class="mp-cash-inline" title="Click to view cash ledger" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#fff;padding:6px 14px;border-radius:8px;font-size:13px;white-space:nowrap;box-shadow:0 2px 6px rgba(16,185,129,0.25);margin-left:4px;text-decoration:none;">
+              <i class="fa fa-money" style="opacity:0.85;"></i>
+              <span>Cash: <strong><?= $CI->currency($cash_in_hand); ?></strong></span>
+            </a>
           </div>
 
           <!-- BRANCH / WAREHOUSE SELECTOR -->
@@ -119,13 +152,15 @@
           <div class="mp-kpi-card debt">
             <div class="mp-kpi-label">Outstanding Debts</div>
             <div class="mp-kpi-value"><?= $CI->currency($outstanding['total']); ?></div>
-            <div class="mp-kpi-sub"><?= number_format($outstanding['count']) ?> Customer<?= $outstanding['count'] != 1 ? 's' : '' ?> Owing</div>
+            <div class="mp-kpi-sub"><?= number_format($outstanding['count']) ?> <?= mp_label('customer','Customer'); ?><?= $outstanding['count'] != 1 ? 's' : '' ?> Owing</div>
           </div>
+          <?php if($is_product_business): ?>
           <div class="mp-kpi-card stock">
             <div class="mp-kpi-label">Low Stock Items</div>
             <div class="mp-kpi-value"><?= $low_stock_count ?></div>
             <div class="mp-kpi-sub <?= $low_stock_count > 0 ? 'down' : 'up' ?>"><?= $low_stock_count > 0 ? 'Need Attention' : 'Stock is Healthy' ?></div>
           </div>
+          <?php endif; ?>
           <div class="mp-kpi-card summary">
             <div class="mp-kpi-label"><?= $range_label; ?> Summary</div>
             <div style="display:flex;gap:12px;align-items:center;margin-top:6px;">
@@ -148,7 +183,7 @@
       <div class="mp-section">
         <div class="mp-card" style="border:1px solid #E2E8F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
           <div class="mp-card-header">
-            <div class="mp-card-title"><i class="fa fa-building-o"></i> Branch Performance</div>
+            <div class="mp-card-title"><i class="fa fa-building-o"></i> <?= mp_label('branch','Branch'); ?> Performance</div>
             <div class="mp-chart-tabs"><small class="text-muted"><?= $range_label; ?> Sales</small></div>
           </div>
           <div class="mp-card-body">
@@ -175,6 +210,7 @@
       <!-- SECTION 2: ATTENTION REQUIRED -->
       <div class="mp-section">
         <div class="mp-content-grid equal">
+          <?php if($is_product_business): ?>
           <div class="mp-card">
             <div class="mp-card-header">
               <div class="mp-card-title"><i class="fa fa-exclamation-triangle text-orange" style="margin-right:6px;"></i> Low Stock Alert</div>
@@ -190,6 +226,7 @@
               <?php } else { ?><div class="mp-empty-state"><i class="fa fa-check-circle" style="font-size:32px;color:#10B981;margin-bottom:8px;display:block;"></i>All stock levels are healthy</div><?php } ?>
             </div>
           </div>
+          <?php endif; ?>
           <div class="mp-card">
             <div class="mp-card-header">
               <div class="mp-card-title"><i class="fa fa-money text-red" style="margin-right:6px;"></i> Outstanding Payments</div>
@@ -209,6 +246,7 @@
       </div>
 
       <!-- TOP SELLING PRODUCTS -->
+      <?php if($is_product_business): ?>
       <div class="mp-section">
         <div class="mp-card" style="border:1px solid #E2E8F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
           <div class="mp-card-header">
@@ -226,10 +264,12 @@
           </div>
         </div>
       </div>
+      <?php endif; ?>
 
       <!-- EXPIRY ALERTS WIDGET -->
       <?php
       try {
+        if (mp_feature_enabled('expiry_tracking')):
         $CI->load->model('expiry_settings_model');
         $expired_count = $CI->expiry_settings_model->count_expired();
         $expiring_count = $CI->expiry_settings_model->count_expiring();
@@ -284,7 +324,8 @@
         </div>
       </div>
       <?php
-        endif;
+        endif; // total_alerted > 0
+        endif; // mp_feature_enabled('expiry_tracking')
       } catch (Exception $e) { /* Expiry table not ready yet */ }
       ?>
 
@@ -304,7 +345,6 @@
             </div>
           </div>
           <div>
-            <div class="mp-cash-card" style="margin-bottom:16px;"><div class="mp-cash-label">Cash In Hand</div><div class="mp-cash-value"><?= $CI->currency($cash_in_hand); ?></div></div>
             <div class="mp-card">
               <div class="mp-card-header"><div class="mp-card-title">Recent Activities</div></div>
               <div class="mp-card-body">
@@ -329,7 +369,7 @@
       </div>
 
       <!-- Original Stock Alert Table (preserved) -->
-      <?php if($CI->permissions('dashboard_stock_alert') && !is_user()) { ?>
+      <?php if($is_product_business && $CI->permissions('dashboard_stock_alert') && !is_user()) { ?>
       <div class="mp-section">
         <div class="mp-card">
           <div class="mp-card-header"><div class="mp-card-title"><?= $this->lang->line('stock_alert'); ?></div></div>

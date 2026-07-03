@@ -111,7 +111,7 @@
                                 <span id="m_item_group_msg" class="text-danger text-right pull-right"></span>
                                 <select class="form-control " id="m_item_group" name="m_item_group"  style="width: 100%;">
                                     <option  value="Single">Single</option>
-                                    <option  value="Variants">Variants</option>
+                                    <?php if(mp_feature_enabled('bundles')) { ?><option  value="Variants">Variants</option><?php } ?>
                                  </select>
                               </div>
                             </div>

@@ -210,12 +210,9 @@ select[readonly].select2 + .select2-container {
   background-color: #4c25e3;color: white;
 }
 
-/*TABLE ROW DESIGN*/
+/*TABLE ROW DESIGN - hover removed per request*/
 .custom_hover > tbody>tr:hover {
-    -moz-box-shadow: 0px 2px 4px #e06547;
-    box-shadow: 0 0 26px 0 #d0d0d0;
-    background-color: white;
-    border-radius: 90px;
+    /* no hover background */
 }
 .table-striped>tbody>tr:nth-of-type(odd) {
     background-color: #ffffff;

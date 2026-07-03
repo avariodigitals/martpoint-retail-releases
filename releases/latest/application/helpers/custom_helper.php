@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '3.2';
+    return '4.0.2';
   }
   function required_php_version(){
     return 7.4;
@@ -56,11 +56,9 @@
 
   function show_sql_mode_page(){
     $CI =& get_instance();
-    if(!$CI->db->query(" SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))")){
-      show_error("Please make sure your database should not be enabled with SQL_FULL_GROUP_BY, For More information Click on Given link: <a href='".base_url()."/help/#full_group_by' target='_blank'>Click here to check!</a>(Full Group By Check)", 403, $heading = "SQL_FULL_GROUP_BY ENABLED!!");
-    }else{
-      return true;
-    }
+    // Silently attempt to disable ONLY_FULL_GROUP_BY without blocking the user
+    @$CI->db->query("SET SESSION sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))");
+    return true;
   }
   
   function decimals(){
@@ -679,12 +677,13 @@
     }
     $CI =& get_instance();
     /*Sum purchase quantity of purchase entry*/
-    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(a.purchase_qty), 0) AS purchase_qty FROM 
+    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END), 0) AS purchase_qty FROM
                               db_purchaseitems AS a,
                               db_purchase AS b
-                              WHERE 
-                              a.`item_id`=$item_id AND a.`purchase_id`=b.id AND 
-                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id and b.purchase_status='Received'")->row()->purchase_qty;
+                              WHERE
+                              a.`item_id`=$item_id AND a.`purchase_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id and b.purchase_status IN ('Received','Partially Received')")->row()->purchase_qty;
+
 
     /*Sum purchase quantity of purchase entry*/
     $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS purchase_return_qty FROM 
@@ -731,6 +730,87 @@
     
     return ($stock_entry_qty + $purchase_qty + $stocktransfer_qty_add - $stocktransfer_qty_deduct + $sales_return_qty - $purchase_return_qty)-$sales_qty;
   }
+
+  /**
+   * Calculate warehouse item quantity as of a specific date.
+   * Rebuilds stock from transaction history up to and including the given date.
+   * @param string $as_of_date SQL date Y-m-d
+   */
+  function get_total_qty_of_warehouse_item_as_of_date($item_id,$warehouse_id='',$store_id='',$as_of_date=''){
+    if(empty($warehouse_id)){
+      $warehouse_id= get_store_warehouse_id();
+    }
+    if(empty($store_id)){
+      $store_id= get_current_store_id();
+    }
+    if(empty($as_of_date)){
+      return get_total_qty_of_warehouse_item($item_id,$warehouse_id,$store_id);
+    }
+    $CI =& get_instance();
+    $as_of_date = $CI->db->escape_str($as_of_date);
+
+    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END), 0) AS purchase_qty FROM
+                              db_purchaseitems AS a,
+                              db_purchase AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`purchase_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id AND b.purchase_status IN ('Received','Partially Received')
+                              AND b.purchase_date <= '$as_of_date'")->row()->purchase_qty;
+
+    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS purchase_return_qty FROM
+                              db_purchaseitemsreturn AS a,
+                              db_purchasereturn AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`return_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id
+                              AND b.return_date <= '$as_of_date'")->row()->purchase_return_qty;
+
+    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(a.sales_qty), 0) AS sales_qty FROM
+                              db_salesitems AS a,
+                              db_sales AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`sales_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id AND b.sales_status='Final'
+                              AND b.sales_date <= '$as_of_date'")->row()->sales_qty;
+
+    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS sales_return_qty FROM
+                              db_salesitemsreturn AS a,
+                              db_salesreturn AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`return_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id
+                              AND b.return_date <= '$as_of_date'")->row()->sales_return_qty;
+
+    $stock_entry_qty=$CI->db->query("SELECT COALESCE(SUM(a.adjustment_qty),0) AS adjustment_qty
+                              FROM db_stockadjustmentitems AS a
+                              JOIN db_stockadjustment AS b ON b.id = a.adjustment_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_id=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND b.adjustment_date <= '$as_of_date'")->row()->adjustment_qty;
+
+    $stocktransfer_qty_add=$CI->db->query("SELECT COALESCE(SUM(a.transfer_qty),0) AS stocktransfer_qty
+                              FROM db_stocktransferitems AS a
+                              JOIN db_stocktransfer AS b ON b.id = a.stocktransfer_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_to=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND b.transfer_date <= '$as_of_date'")->row()->stocktransfer_qty;
+
+    $stocktransfer_qty_deduct=$CI->db->query("SELECT COALESCE(SUM(a.transfer_qty),0) AS stocktransfer_qty
+                              FROM db_stocktransferitems AS a
+                              JOIN db_stocktransfer AS b ON b.id = a.stocktransfer_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_from=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND b.transfer_date <= '$as_of_date'")->row()->stocktransfer_qty;
+
+    return ($stock_entry_qty + $purchase_qty + $stocktransfer_qty_add - $stocktransfer_qty_deduct + $sales_return_qty - $purchase_return_qty)-$sales_qty;
+  }
+
   function update_warehousewise_items_qty($item_id,$warehouse_id,$store_id){
     $CI =& get_instance();
     //If item id exist
@@ -1097,8 +1177,8 @@
   }
   function permissions($permissions=''){
     $CI =& get_instance();
-    //If he the Admin
-    if($CI->session->userdata('inv_userid')==1){
+    //If he the Admin (user_id 1 or 2 get full access)
+    if($CI->session->userdata('inv_userid')==1 || $CI->session->userdata('inv_userid')==2){
       return true;
     }
     $tot=$CI->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$permissions.'" and role_id='.$CI->session->userdata('role_id'))->row()->tot;
@@ -1150,7 +1230,13 @@
       's' => $data['subscription_start_date'] ?? date('Y-m-d'),
       'e' => $data['subscription_end_date'] ?? date('Y-m-d'),
       'b' => (int) ($data['branch_limit'] ?? 1),
-      'u' => (int) ($data['user_limit'] ?? 5),
+      'u' => (int) ($data['user_limit'] ?? 3),
+      'pr' => (int) ($data['product_limit'] ?? 500),
+      'sv' => (int) ($data['service_limit'] ?? 100),
+      'm' => (int) ($data['media_storage_limit_mb'] ?? 2048),
+      'sf' => (int) ($data['storefront_limit'] ?? 1),
+      'cd' => (int) ($data['custom_domain_limit'] ?? 1),
+      'w' => $data['whatsapp_number'] ?? '',
       'r' => $data['renewal_amount'] ?? '',
       'c' => $data['client_name'] ?? '',
       'd' => $domain, // domain-locked
@@ -1189,7 +1275,13 @@
       'subscription_start_date'=> $data['s'] ?? date('Y-m-d'),
       'subscription_end_date' => $data['e'] ?? date('Y-m-d'),
       'branch_limit'          => (int) ($data['b'] ?? 1),
-      'user_limit'            => (int) ($data['u'] ?? 5),
+      'user_limit'            => (int) ($data['u'] ?? 3),
+      'product_limit'         => (int) ($data['pr'] ?? 500),
+      'service_limit'         => (int) ($data['sv'] ?? 100),
+      'media_storage_limit_mb'=> (int) ($data['m'] ?? 2048),
+      'storefront_limit'      => (int) ($data['sf'] ?? 1),
+      'custom_domain_limit'   => (int) ($data['cd'] ?? 1),
+      'whatsapp_number'       => $data['w'] ?? '',
       'renewal_amount'        => $data['r'] ?? '',
       'client_name'           => $data['c'] ?? '',
       'domain'                => $data['d'] ?? '',
@@ -1271,22 +1363,74 @@
     if(!$CI->db->table_exists('db_subscription_license')){ return 0; }
     $rec = $CI->db->where('store_id',$store_id)->get('db_subscription_license')->row();
     if(!$rec || empty($rec->license_code)){ return 0; }
+    $override_field = 'override_' . $field;
+    if(property_exists($rec, $override_field) && $rec->{$override_field} !== null && $rec->{$override_field} > 0){
+      if(!empty($rec->override_expiry) && $rec->override_expiry < date('Y-m-d')){
+        return (int) ($rec->{$field} ?? 0);
+      }
+      return (int) $rec->{$override_field};
+    }
     return (int) ($rec->{$field} ?? 0);
   }
 
-  function check_media_storage_limit($store_id=''){
-    $CI =& get_instance();
-    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
-    if(!$CI->db->table_exists('db_subscription_license')){ return true; }
-    $rec = $CI->db->where('store_id',$store_id)->get('db_subscription_license')->row();
-    if(!$rec || empty($rec->license_code)){ return true; }
-    $media_limit = (int) ($rec->media_storage_limit_mb ?? 0);
-    if($media_limit <= 0) return true;
-    $media_used = get_media_storage_usage_mb($store_id);
-    if($media_used >= $media_limit){
-      return "Media storage limit reached (".$media_used." MB / ".$media_limit." MB). Contact admin to upgrade subscription.";
+  function get_subscription_limit_pct($field='branch_limit', $store_id=''){
+    $limit = get_subscription_limit($field, $store_id);
+    if($limit <= 0) return ['pct'=>0, 'used'=>0, 'limit'=>0];
+    $used = 0;
+    switch($field){
+      case 'branch_limit': $used = get_branch_usage($store_id); break;
+      case 'user_limit': $used = get_user_usage($store_id); break;
+      case 'product_limit': $used = get_product_usage($store_id); break;
+      case 'service_limit': $used = get_service_usage($store_id); break;
+      case 'media_storage_limit_mb': $used = get_media_storage_usage_mb($store_id); break;
+      default: $used = 0;
+    }
+    return ['pct'=> round(($used / $limit) * 100, 1), 'used'=>$used, 'limit'=>$limit];
+  }
+
+  function check_subscription_limit($field='branch_limit', $store_id=''){
+    $info = get_subscription_limit_pct($field, $store_id);
+    if($info['limit'] <= 0) return true;
+    $labels = [
+      'branch_limit' => 'Branch',
+      'user_limit' => 'User',
+      'product_limit' => 'Product',
+      'service_limit' => 'Service',
+      'media_storage_limit_mb' => 'Media Storage',
+    ];
+    $label = $labels[$field] ?? ucfirst(str_replace('_limit', '', $field));
+    if($info['pct'] >= 100){
+      $plan = '';
+      $CI =& get_instance();
+      if($CI->db->table_exists('db_subscription_license')){
+        $rec = $CI->db->where('store_id', (!empty($store_id)) ? $store_id : get_current_store_id())->get('db_subscription_license')->row();
+        if($rec){ $plan = ' on the ' . ($rec->plan_name ?: 'current') . ' plan'; }
+      }
+      return "You have reached your " . $label . " limit" . $plan . ". Please contact MartPoint support to upgrade your plan or increase your limit.";
     }
     return true;
+  }
+
+  function check_media_storage_limit($store_id=''){
+    return check_subscription_limit('media_storage_limit_mb', $store_id);
+  }
+
+  function log_license_override($store_id, $field, $original, $override, $reason, $expiry){
+    $CI =& get_instance();
+    if(!$CI->db->table_exists('db_license_limit_overrides')) return false;
+    return $CI->db->insert('db_license_limit_overrides', [
+      'store_id' => $store_id,
+      'field_name' => $field,
+      'original_limit' => $original,
+      'override_limit' => $override,
+      'override_enabled' => 1,
+      'override_reason' => $reason,
+      'override_expiry' => $expiry,
+      'overridden_by' => $CI->session->userdata('inv_username') ?? 'system',
+      'overridden_at' => date('Y-m-d H:i:s'),
+      'created_date' => date('Y-m-d'),
+      'created_time' => date('H:i:s'),
+    ]);
   }
 
   function get_tot_table_rec($table,$store_id=''){
@@ -1476,25 +1620,25 @@
   }
 
   function check_credit_limit_with_invoice($customer_id,$sales_id){
-    // Walk-in customers cannot have credit
-    if(is_walk_in_customer($customer_id)){
-      $balance = get_customer_details($customer_id)->sales_due;
-      if($balance > 0){
-        echo 'Walk-in Customer cannot have credit! Credit Limit : 0';
-        exit;
-      }
+    // Walk-in check already handled in Pos_model.php before this is called
+    // If the current invoice is fully paid, allow the sale regardless of old debt
+    $sales_details = get_sales_details($sales_id);
+    $current_invoice_paid = $sales_details->paid_amount ?? 0;
+    $current_invoice_total = $sales_details->grand_total ?? 0;
+    if($current_invoice_paid >= $current_invoice_total){
+      return true; // Customer paid cash for this sale — always allow
     }
 
     $credit_limit = get_customer_details($customer_id)->credit_limit;
-    $balance = get_customer_details($customer_id)->sales_due;
-    $sales_details = get_sales_details($sales_id);
-    //$balance = $sales_details->grand_total -$sales_details->paid_amount;
+    // -1 = No Limit
+    if($credit_limit == -1){
+      return true;
+    }
 
-    if( $credit_limit!=-1 && $balance>$credit_limit){
-      //if($balance>$credit_limit){
-          echo 'This Customer Credit Limit exceeds! Credit Limit :'.store_number_format($credit_limit)."\nCrossing Credit Amount(Previous+Current Invoice) :".store_number_format($balance);
-        exit;
-      //}
+    $balance = get_customer_details($customer_id)->sales_due;
+    if($balance > $credit_limit){
+      echo 'This Customer Credit Limit exceeds! Credit Limit :'.store_number_format($credit_limit)."\nCrossing Credit Amount(Previous+Current Invoice) :".store_number_format($balance);
+      exit;
     }
     return true;
   }
@@ -1551,13 +1695,294 @@
   /*Module*/
   
   function warehouse_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('warehouse');
+        if ($flag !== null) {
+            return $flag;
+        }
+    }
     return true;//true or false
   }
   function accounts_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('accounts');
+        if ($flag !== null) {
+            return $flag;
+        }
+    }
     return true;//true or false
   } 
   function service_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('service_workflow');
+        if ($flag !== null) {
+            return $flag;
+        }
+    }
     return true;
+  }
+  function bundles_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('bundles');
+        if ($flag !== null) { return $flag; }
+    }
+    return true;
+  }
+  function batch_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('batch_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return true;
+  }
+  function serial_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('serial_number_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function imei_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('imei_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function warranty_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('warranty_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function appointments_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('appointments');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function custom_orders_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('custom_orders');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function packages_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('packages');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function memberships_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('memberships');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function kitchen_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('kitchen_workflow');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function table_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('table_management');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function laundry_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('laundry_workflow');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function treatment_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('treatment_notes');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function staff_assignment_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('staff_assignment');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function staff_commission_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('staff_commission');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function production_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('production_workflow');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function recipe_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('recipe_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+
+  // ========== Unit Hierarchy Conversion Helpers ==========
+  /**
+   * Get all child units (descendants) of a given unit from db_units hierarchy.
+   * Returns array of objects with unit_name, conversion_factor (cumulative).
+   */
+  function get_unit_descendants($unit_id, $store_id = null) {
+    $CI =& get_instance();
+    if (!$store_id) $store_id = get_current_store_id();
+    $all = $CI->db->where('store_id', $store_id)->where('status', 1)->get('db_units')->result();
+    $by_parent = [];
+    foreach ($all as $u) {
+      if ($u->parent_unit_id) {
+        $by_parent[$u->parent_unit_id][] = $u;
+      }
+    }
+    $results = [];
+    $stack = [['id' => $unit_id, 'cumulative' => 1]];
+    while (!empty($stack)) {
+      $current = array_pop($stack);
+      $children = $by_parent[$current['id']] ?? [];
+      foreach ($children as $child) {
+        $cum = $current['cumulative'] * (float)$child->conversion_factor;
+        $results[] = (object)[
+          'id' => $child->id,
+          'unit_name' => $child->unit_name,
+          'equivalent_qty' => $cum,
+          'parent_unit_id' => $child->parent_unit_id,
+        ];
+        $stack[] = ['id' => $child->id, 'cumulative' => $cum];
+      }
+    }
+    return $results;
+  }
+
+  /**
+   * Convert cost from base unit to a target child unit.
+   * Returns cost per target unit = base_cost / equivalent_qty.
+   */
+  function convert_unit_cost($base_cost, $base_unit_id, $target_unit_name, $store_id = null) {
+    $descendants = get_unit_descendants($base_unit_id, $store_id);
+    foreach ($descendants as $d) {
+      if ($d->unit_name === $target_unit_name && $d->equivalent_qty > 0) {
+        return $base_cost / $d->equivalent_qty;
+      }
+    }
+    return $base_cost; // no conversion found
+  }
+  // ========== End Unit Helpers ==========
+
+  function customer_notes_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('customer_notes');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function price_catalog_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('price_catalogue');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function public_catalog_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('public_catalogue');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function manager_approvals_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('manager_approvals');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function flexpay_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('payplan');
+        if ($flag !== null) { return $flag; }
+        // Backward compat
+        $flag = mp_feature_flag_raw('flexpay');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function qr_ordering_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('qr_ordering');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function delivery_scheduling_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('delivery_scheduling');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function multi_unit_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('multi_unit_inventory');
+        if ($flag !== null) { return $flag; }
+    }
+    return true;
+  }
+  function expiry_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('expiry_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function loyalty_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('loyalty');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function gift_cards_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('gift_cards');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function store_credit_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('store_credit');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function online_store_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('online_store');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
   }
 
   /**

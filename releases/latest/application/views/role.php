@@ -577,6 +577,156 @@
                                               </label></div>
                                           </td>
                                         </tr>
+                                        <!-- SERVICE PACKAGES -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Service Packages</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="service_packages"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[service_packages]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_packages_all" id='service_packages_add' name="permission[service_packages_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_packages_all" id='service_packages_edit' name="permission[service_packages_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_packages_all" id='service_packages_delete' name="permission[service_packages_delete]"> <?= $this->lang->line('delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_packages_all" id='service_packages_view' name="permission[service_packages_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- MEMBERSHIPS -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Memberships</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="memberships"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[memberships]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="memberships_all" id='memberships_add' name="permission[memberships_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="memberships_all" id='memberships_edit' name="permission[memberships_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="memberships_all" id='memberships_delete' name="permission[memberships_delete]"> <?= $this->lang->line('delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="memberships_all" id='memberships_view' name="permission[memberships_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- TREATMENT NOTES -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Treatment Notes</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="treatment_notes"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[treatment_notes]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="treatment_notes_all" id='treatment_notes_add' name="permission[treatment_notes_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="treatment_notes_all" id='treatment_notes_edit' name="permission[treatment_notes_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="treatment_notes_all" id='treatment_notes_delete' name="permission[treatment_notes_delete]"> <?= $this->lang->line('delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="treatment_notes_all" id='treatment_notes_view' name="permission[treatment_notes_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- CUSTOM ORDERS -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Custom Orders</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="custom_orders"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[custom_orders]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="custom_orders_all" id='custom_orders_add' name="permission[custom_orders_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="custom_orders_all" id='custom_orders_edit' name="permission[custom_orders_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="custom_orders_all" id='custom_orders_delete' name="permission[custom_orders_delete]"> <?= $this->lang->line('delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="custom_orders_all" id='custom_orders_view' name="permission[custom_orders_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- PRODUCTION BATCHES -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Production Batches</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="production_batches"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[production_batches]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="production_batches_all" id='production_batches_add' name="permission[production_batches_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="production_batches_all" id='production_batches_edit' name="permission[production_batches_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="production_batches_all" id='production_batches_delete' name="permission[production_batches_delete]"> <?= $this->lang->line('delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="production_batches_all" id='production_batches_view' name="permission[production_batches_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- RECIPES -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Recipes</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="recipes"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[recipes]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="recipes_all" id='recipes_add' name="permission[recipes_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="recipes_all" id='recipes_edit' name="permission[recipes_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="recipes_all" id='recipes_delete' name="permission[recipes_delete]"> <?= $this->lang->line('delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="recipes_all" id='recipes_view' name="permission[recipes_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
                                         <!-- STOCK TRANSFER -->
                                         <tr>
                                           <td><?= $i++;?></td>
@@ -654,6 +804,7 @@
                                               </label></div>
                                           </td>
                                         </tr>
+                                        <?php if(mp_feature_enabled('bundles')) { ?>
                                         <!-- variants -->
                                         <tr>
                                           <td><?= $i++;?></td>
@@ -679,6 +830,7 @@
                                               </label></div>
                                           </td>
                                         </tr>
+                                        <?php } ?>
                                         <!-- Suppliers -->
                                         <tr>
                                           <td><?= $i++;?></td>
@@ -879,6 +1031,53 @@
                                                 <input type="checkbox" class="sales_all" id='show_purchase_price' name="permission[show_purchase_price]"> <?= $this->lang->line('show_purchase_price')."(".$this->lang->line('while_making_invoice').")"; ?>
                                               </label></div>
                                
+                                          </td>
+                                        </tr>
+                                        <!-- Installments (PayPlan) -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Installments</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="installments" > <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[installments]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="installments_all" id='installment_plans' name="permission[installment_plans]"> Plans List
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="installments_all" id='installment_payment' name="permission[installment_payment]"> Record Payment
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="installments_all" id='installment_report' name="permission[installment_report]"> Reports
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- NIN/BVN Verification -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>NIN/BVN Verification</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="ninverify" > <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[ninverify]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="ninverify_all" id='nin_verify' name="permission[nin_verify]"> Verify NIN/BVN
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="ninverify_all" id='nin_settings' name="permission[nin_settings]"> API Settings
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="ninverify_all" id='nin_usage' name="permission[nin_usage]"> Usage Summary
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="ninverify_all" id='nin_logs' name="permission[nin_logs]"> Verification Logs
+                                              </label></div>
                                           </td>
                                         </tr>
                                         <!-- Discount Coupon -->
@@ -1190,6 +1389,7 @@
                                         </tr>
 
                                         <!-- APPROVALS -->
+                                        <?php if(mp_feature_enabled('manager_approvals')) { ?>
                                         <tr>
                                           <td><?= $i++;?></td>
                                           <td>Security &amp; Approvals</td>
@@ -1208,6 +1408,53 @@
                                               </label></div>
                                               <div class="checkbox icheck"><label>
                                                 <input type="checkbox" class="approvals_all" id='can_approve' name="permission[can_approve]"> Can Approve Actions (Manager Override)
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <?php } ?>
+                                        <!-- Loyalty & Rewards -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Loyalty & Rewards</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="loyalty"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[loyalty]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='loyalty_view' name="permission[loyalty_view]"> View
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='loyalty_edit' name="permission[loyalty_edit]"> Edit
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='loyalty_delete' name="permission[loyalty_delete]"> Delete
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='gift_cards_view' name="permission[gift_cards_view]"> Gift Cards View
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='gift_cards_add' name="permission[gift_cards_add]"> Gift Cards Add
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='gift_cards_edit' name="permission[gift_cards_edit]"> Gift Cards Edit
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='gift_cards_delete' name="permission[gift_cards_delete]"> Gift Cards Delete
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='store_credit_view' name="permission[store_credit_view]"> Store Credit View
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='store_credit_add' name="permission[store_credit_add]"> Store Credit Add
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='store_credit_edit' name="permission[store_credit_edit]"> Store Credit Edit
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="loyalty_all" id='store_credit_delete' name="permission[store_credit_delete]"> Store Credit Delete
                                               </label></div>
                                           </td>
                                         </tr>

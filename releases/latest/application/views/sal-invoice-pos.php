@@ -216,7 +216,8 @@
 			              $this->db->select(" a.description,c.mrp,c.item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
-                                  a.total_cost , d.unit_name,c.sku,c.hsn
+                                  a.total_cost , d.unit_name,c.sku,c.hsn,
+                                  a.sold_serial_number, a.sold_imei_number
                               ");
 			              $this->db->where("a.sales_id",$sales_id);
 			              $this->db->from("db_salesitems a");
@@ -227,7 +228,14 @@
 			              foreach ($q2->result() as $res2) {
 			                  echo "<tr>";  
 			                  echo "<td style='padding-left: 2px; padding-right: 2px;' valign='top'>".++$i."</td>";
-			                  echo "<td style='padding-left: 2px; padding-right: 2px;'>".$res2->item_name."</td>";
+			                  echo "<td style='padding-left: 2px; padding-right: 2px;'>".$res2->item_name;
+			                  if(!empty($res2->sold_serial_number)){
+			                    echo "<br><small style='font-size:10px;'>S/N: ".htmlspecialchars($res2->sold_serial_number)."</small>";
+			                  }
+			                  if(!empty($res2->sold_imei_number)){
+			                    echo "<br><small style='font-size:10px;'>IMEI: ".htmlspecialchars($res2->sold_imei_number)."</small>";
+			                  }
+			                  echo "</td>";
 			                  
 			                  echo "<td style='text-align: center;padding-left: 2px; padding-right: 2px;'>".format_qty($res2->sales_qty)."</td>";
 			                  if($mrp_column){

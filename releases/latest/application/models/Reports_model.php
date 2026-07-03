@@ -360,7 +360,7 @@ class Reports_model extends CI_Model {
 		}
 		$this->db->where("b.`id`= a.`supplier_id`");
 		$this->db->from("db_purchase as a");
-		$this->db->where("a.`purchase_status`= 'Received'");
+		$this->db->where("a.`purchase_status` IN ('Received','Partially Received')");
 		$this->db->from("db_suppliers as b");
 		
 		
@@ -661,6 +661,10 @@ class Reports_model extends CI_Model {
 		$to_warehouse = $this->input->post('to_warehouse', TRUE);
 		$item_type = $this->input->post('item_type', TRUE);
 		
+		$as_of_date = '';
+		if(!empty($to_date)){
+			$as_of_date = system_fromatted_date($to_date);
+		}
 
 		if(!empty($store_id)){
 			$this->db->where("a.store_id",$store_id);
@@ -702,9 +706,11 @@ class Reports_model extends CI_Model {
 
 				if($res1->item_group=='Variants'){continue;}
 
-					$available_qty_wh = total_available_qty_items_of_warehouse($warehouse_id,$res1->store_id,$res1->item_id);
-
-					
+					if(!empty($as_of_date)){
+						$available_qty_wh = get_total_qty_of_warehouse_item_as_of_date($res1->item_id,$warehouse_id,$res1->store_id,$as_of_date);
+					}else{
+						$available_qty_wh = total_available_qty_items_of_warehouse($warehouse_id,$res1->store_id,$res1->item_id);
+					}
 
 					$value = $available_qty_wh * $res1->sales_price;
 
@@ -740,8 +746,9 @@ class Reports_model extends CI_Model {
 			if(store_module() && is_admin()){
 				$total_columns_count ++;
 			}
+			$date_note = (!empty($as_of_date)) ? " <span style='font-size:12px;color:#666;'>[Stock as of ".show_date($as_of_date)."]</span>" : "";
 			$str .= "<tr>
-					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
+					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b>".$date_note."</td>
 					  <td class='text-left text-bold'>".format_qty($tot_stock)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_value)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_stock_value_by_purchase_price)."</td>
@@ -1012,7 +1019,7 @@ class Reports_model extends CI_Model {
 		$this->db->from("db_purchasepayments as a");
 		$this->db->from("db_suppliers as b");
 		$this->db->from("db_purchase as c");
-		$this->db->where("c.`purchase_status`= 'Received'");
+		$this->db->where("c.`purchase_status` IN ('Received','Partially Received')");
 		if(!empty($store_id)){
 			$this->db->where("a.store_id",$store_id);
 		}
@@ -1354,7 +1361,7 @@ class Reports_model extends CI_Model {
 		$ids = array();
 
 		if($table_column=='db_purchase'){
-			$this->db->where("purchase_status='Received'");
+			$this->db->where("purchase_status IN ('Received','Partially Received')");
 		}
 		else if($table_column=='db_sales'){
 			$this->db->where("sales_status='Final'");
@@ -4042,5 +4049,193 @@ class Reports_model extends CI_Model {
 	    exit;
 	}
 
+	/* ===================== PRODUCTION REPORTS ===================== */
+	public function show_production_summary_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$from_date = get_date_format($this->input->post('from_date'),'Y-m-d');
+		$to_date = get_date_format($this->input->post('to_date'),'Y-m-d');
+		$status = $this->input->post('status', TRUE);
+
+		$this->db->select('a.*, COUNT(b.id) as item_count');
+		$this->db->from('db_production_batches a');
+		$this->db->join('db_production_batch_items b', 'b.batch_id = a.id', 'left');
+		if(!empty($store_id)){ $this->db->where('a.store_id', $store_id); }
+		if(!empty($from_date)){ $this->db->where('a.scheduled_date >=', $from_date); }
+		if(!empty($to_date)){ $this->db->where('a.scheduled_date <=', $to_date); }
+		if(!empty($status)){ $this->db->where('a.status', $status); }
+		$this->db->group_by('a.id');
+		$this->db->order_by('a.scheduled_date', 'DESC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		$tot_qty=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$tot_qty += (float)$res1->quantity;
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($res1->store_id)."</td>"; }
+				echo "<td>".htmlspecialchars($res1->batch_code)."</td>";
+				echo "<td>".htmlspecialchars($res1->batch_name)."</td>";
+				echo "<td><span class='label label-".Production_batches_model::status_badge($res1->status)."'>".Production_batches_model::status_label($res1->status)."</span></td>";
+				echo "<td>".show_date($res1->scheduled_date)."</td>";
+				echo "<td>".($res1->scheduled_time ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($res1->quantity)."</td>";
+				echo "<td>".htmlspecialchars($res1->equipment ?: '-')."</td>";
+				echo "<td>".htmlspecialchars($res1->staff_name ?: '-')."</td>";
+				echo "</tr>";
+			}
+			echo "<tr><td class='text-right text-bold' colspan='".((store_module() && is_admin())?9:8)."'><b>Total Quantity:</b></td><td class='text-left text-bold'>".format_qty($tot_qty)."</td><td></td></tr>";
+		} else {
+			$colspan = (store_module() && is_admin()) ? 10 : 9;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	public function show_ingredient_usage_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$from_date = get_date_format($this->input->post('from_date'),'Y-m-d');
+		$to_date = get_date_format($this->input->post('to_date'),'Y-m-d');
+		$item_id = $this->input->post('item_id', TRUE);
+
+		$this->db->select('b.item_name as ingredient_name, b.item_code, ri.qty as recipe_qty, ri.cost_per_unit, ri.wastage_pct, r.name as recipe_name, r.yield_qty, r.yield_unit, pb.batch_code, pb.scheduled_date, pbi.quantity as produce_qty, pbi.item_name as product_name');
+		$this->db->from('db_production_batches pb');
+		$this->db->join('db_production_batch_items pbi', 'pbi.batch_id = pb.id');
+		$this->db->join('db_recipes r', 'r.id = pbi.item_id AND pbi.item_type = "recipe_product"');
+		$this->db->join('db_recipe_ingredients ri', 'ri.recipe_id = r.id');
+		$this->db->join('db_items b', 'b.id = ri.item_id');
+		$this->db->where('pb.status', 'completed');
+		if(!empty($store_id)){ $this->db->where('pb.store_id', $store_id); }
+		if(!empty($from_date)){ $this->db->where('pb.scheduled_date >=', $from_date); }
+		if(!empty($to_date)){ $this->db->where('pb.scheduled_date <=', $to_date); }
+		if(!empty($item_id)){ $this->db->where('ri.item_id', $item_id); }
+		$this->db->order_by('pb.scheduled_date', 'DESC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		$tot_used=0;
+		$tot_cost=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$scale = (float)$res1->produce_qty / (float)$res1->yield_qty;
+				$used_qty = (float)$res1->recipe_qty * $scale;
+				$line_cost = $used_qty * (float)$res1->cost_per_unit;
+				$tot_used += $used_qty;
+				$tot_cost += $line_cost;
+
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($this->input->post('store_id', TRUE) ?: get_current_store_id())."</td>"; }
+				echo "<td>".htmlspecialchars($res1->ingredient_name)."</td>";
+				echo "<td>".htmlspecialchars($res1->item_code ?: '-')."</td>";
+				echo "<td>".htmlspecialchars($res1->recipe_name)."</td>";
+				echo "<td>".htmlspecialchars($res1->batch_code)."</td>";
+				echo "<td>".show_date($res1->scheduled_date)."</td>";
+				echo "<td class='text-right'>".format_qty($used_qty)."</td>";
+				echo "<td class='text-right'>".store_number_format($res1->cost_per_unit)."</td>";
+				echo "<td class='text-right'>".store_number_format($line_cost)."</td>";
+				echo "</tr>";
+			}
+			$colspan = (store_module() && is_admin()) ? 9 : 8;
+			echo "<tr><td class='text-right text-bold' colspan='$colspan'><b>Total:</b></td><td class='text-left text-bold'>".format_qty($tot_used)."</td><td></td><td class='text-left text-bold'>".store_number_format($tot_cost)."</td></tr>";
+		} else {
+			$colspan = (store_module() && is_admin()) ? 10 : 9;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	public function show_recipe_costing_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$recipe_id = $this->input->post('recipe_id', TRUE);
+
+		$this->db->select('r.*, i.item_name as product_name, i.item_code as product_code, i.sales_price');
+		$this->db->from('db_recipes r');
+		$this->db->join('db_items i', 'i.id = r.product_item_id', 'left');
+		if(!empty($store_id)){ $this->db->where('r.store_id', $store_id); }
+		if(!empty($recipe_id)){ $this->db->where('r.id', $recipe_id); }
+		$this->db->where('r.status', 1);
+		$this->db->order_by('r.name', 'ASC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$ings = $this->db->where('recipe_id', $res1->id)->get('db_recipe_ingredients')->result();
+				$total_cost = 0;
+				foreach($ings as $ing){
+					$total_cost += (float)$ing->qty * (float)$ing->cost_per_unit;
+				}
+				$cost_per_unit = $res1->yield_qty > 0 ? $total_cost / (float)$res1->yield_qty : 0;
+				$margin = ((float)$res1->sales_price - $cost_per_unit);
+				$margin_pct = $cost_per_unit > 0 ? ($margin / $cost_per_unit) * 100 : 0;
+
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($res1->store_id)."</td>"; }
+				echo "<td>".htmlspecialchars($res1->name)."</td>";
+				echo "<td>".htmlspecialchars($res1->category ?: '-')."</td>";
+				echo "<td>".htmlspecialchars($res1->product_name ?: '-')." <small class='text-muted'>".htmlspecialchars($res1->product_code ?: '')."</small></td>";
+				echo "<td class='text-right'>".format_qty($res1->yield_qty).' '.htmlspecialchars($res1->yield_unit)."</td>";
+				echo "<td class='text-right'>".store_number_format($total_cost)."</td>";
+				echo "<td class='text-right'>".store_number_format($cost_per_unit)."</td>";
+				echo "<td class='text-right'>".store_number_format($res1->sales_price)."</td>";
+				echo "<td class='text-right'>".store_number_format($margin)." <small class='text-muted'>(".number_format($margin_pct,1)."%)</small></td>";
+				echo "</tr>";
+			}
+		} else {
+			$colspan = (store_module() && is_admin()) ? 10 : 9;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	public function show_production_runs_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$from_date = get_date_format($this->input->post('from_date'),'Y-m-d');
+		$to_date = get_date_format($this->input->post('to_date'),'Y-m-d');
+		$recipe_id = $this->input->post('recipe_id', TRUE);
+
+		$this->db->select('pr.*, r.name as recipe_name, r.yield_unit, u.first_name, u.last_name');
+		$this->db->from('db_recipe_production_runs pr');
+		$this->db->join('db_recipes r', 'r.id = pr.recipe_id', 'left');
+		$this->db->join('db_users u', 'u.id = pr.staff_id', 'left');
+		if(!empty($store_id)){ $this->db->where('pr.store_id', $store_id); }
+		if(!empty($from_date)){ $this->db->where('pr.run_date >=', $from_date); }
+		if(!empty($to_date)){ $this->db->where('pr.run_date <=', $to_date); }
+		if(!empty($recipe_id)){ $this->db->where('pr.recipe_id', $recipe_id); }
+		$this->db->order_by('pr.run_date', 'DESC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		$tot_planned=0;
+		$tot_actual=0;
+		$tot_cost=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$tot_planned += (float)$res1->planned_qty;
+				$tot_actual += (float)$res1->actual_yield;
+				$tot_cost += (float)$res1->actual_cost;
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($res1->store_id)."</td>"; }
+				echo "<td>".show_date($res1->run_date)."</td>";
+				echo "<td>".htmlspecialchars($res1->recipe_name ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($res1->planned_qty).' '.htmlspecialchars($res1->yield_unit ?: '')."</td>";
+				echo "<td class='text-right'>".format_qty($res1->actual_yield).' '.htmlspecialchars($res1->yield_unit ?: '')."</td>";
+				echo "<td class='text-right'>".store_number_format($res1->actual_cost)."</td>";
+				echo "<td>".htmlspecialchars(($res1->first_name ? $res1->first_name.' '.$res1->last_name : '-'))."</td>";
+				echo "<td>".htmlspecialchars($res1->notes ?: '-')."</td>";
+				echo "</tr>";
+			}
+			$colspan = (store_module() && is_admin()) ? 8 : 7;
+			echo "<tr><td class='text-right text-bold' colspan='$colspan'><b>Total:</b></td><td class='text-left text-bold'>".format_qty($tot_actual)."</td><td class='text-left text-bold'>".store_number_format($tot_cost)."</td><td></td><td></td></tr>";
+		} else {
+			$colspan = (store_module() && is_admin()) ? 9 : 8;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
 
 }

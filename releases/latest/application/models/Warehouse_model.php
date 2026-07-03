@@ -98,8 +98,22 @@ class Warehouse_model extends CI_Model {
 
 	}
 	public function status_update($id,$status){
-		
-        $query1="update db_warehouse set status='$status' where id=$id and warehouse_type='Custom' and store_id=".get_current_store_id();
+
+		$store_id = get_current_store_id();
+
+		// If reactivating (status=1), check branch subscription limit first
+		if($status == 1 || $status == '1'){
+			$current = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_warehouse')->row();
+			if($current && $current->status == 0){
+				$branch_check = check_subscription_limit('branch_limit');
+				if($branch_check !== true){
+					echo $branch_check;
+					return;
+				}
+			}
+		}
+
+        $query1="update db_warehouse set status='$status' where id=$id and warehouse_type='Custom' and store_id=".$store_id;
         if ($this->db->simple_query($query1)){
             echo "success";
         }
@@ -130,35 +144,84 @@ class Warehouse_model extends CI_Model {
 	public function delete_warehouse($id){
 		$this->db->trans_begin();
 
-		// Check if this warehouse has items or transactions tied to it
-		$sales = $this->db->where('warehouse_id', $id)->where('store_id', get_current_store_id())->count_all_results('db_sales');
-		$purchase = $this->db->where('warehouse_id', $id)->where('store_id', get_current_store_id())->count_all_results('db_purchase');
-		if($sales > 0 || $purchase > 0){
+		$storeId = get_current_store_id();
+
+		// Helper to count rows safely
+		$countRef = function($table, $where) use ($storeId) {
+			$where['store_id'] = $storeId;
+			return (int) $this->db->get_where($table, $where)->num_rows();
+		};
+
+		// Check transactions tied to this warehouse
+		if($countRef('db_sales', ['warehouse_id'=>$id]) > 0){
 			$this->db->trans_rollback();
-			return "Cannot delete! This warehouse has existing sales or purchase transactions.";
+			return "Cannot delete! This warehouse has existing sales transactions.";
+		}
+		if($countRef('db_purchase', ['warehouse_id'=>$id]) > 0){
+			$this->db->trans_rollback();
+			return "Cannot delete! This warehouse has existing purchase transactions.";
+		}
+		if($countRef('db_stockadjustment', ['warehouse_id'=>$id]) > 0){
+			$this->db->trans_rollback();
+			return "Cannot delete! This warehouse has existing stock adjustment transactions.";
+		}
+		if($countRef('db_hold', ['warehouse_id'=>$id]) > 0){
+			$this->db->trans_rollback();
+			return "Cannot delete! This warehouse has existing hold transactions.";
+		}
+		if($countRef('db_quotation', ['warehouse_id'=>$id]) > 0){
+			$this->db->trans_rollback();
+			return "Cannot delete! This warehouse has existing quotation records.";
+		}
+		if($countRef('db_stocktransfer', ['warehouse_from'=>$id]) > 0 || $countRef('db_stocktransfer', ['warehouse_to'=>$id]) > 0){
+			$this->db->trans_rollback();
+			return "Cannot delete! This warehouse is referenced in stock transfer records.";
 		}
 
-		// Clear warehouse stock records first
-		$this->db->where('warehouse_id', $id);
-		$this->db->where('store_id', get_current_store_id());
-		$this->db->delete('db_warehouse_stock');
+		// Check if any user has this as default warehouse
+		if($countRef('db_users', ['default_warehouse_id'=>$id]) > 0){
+			$this->db->trans_rollback();
+			return "Cannot delete! This warehouse is set as default for one or more users.";
+		}
 
-		// Clear any barcode records tied to this warehouse
-		$this->db->where('warehouse_id', $id);
-		$this->db->delete('db_item_barcodes');
+		// Clear warehouse-item stock records
+		$this->db->where('warehouse_id', $id)->where('store_id', $storeId)->delete('db_warehouseitems');
+
+		// Clear user-warehouse mappings
+		$this->db->where('warehouse_id', $id)->delete('db_userswarehouses');
+
+		// Clear barcode records tied to this warehouse
+		$this->db->where('warehouse_id', $id)->delete('db_item_barcodes');
+
+		// Clear hold records tied to this warehouse
+		$this->db->where('warehouse_id', $id)->where('store_id', $storeId)->delete('db_hold');
+
+		// Clear quotation records tied to this warehouse
+		$this->db->where('warehouse_id', $id)->where('store_id', $storeId)->delete('db_quotation');
 
 		// Now delete the warehouse
 		$this->db->where('id', $id);
 		$this->db->where('warehouse_type', 'Custom');
-		$this->db->where('store_id', get_current_store_id());
+		$this->db->where('store_id', $storeId);
 		$this->db->delete('db_warehouse');
 
 		if($this->db->affected_rows() > 0){
 			$this->db->trans_commit();
 			return "success";
 		}
+
+		// Check why deletion failed
+		$wh = $this->db->where('id', $id)->where('store_id', $storeId)->get('db_warehouse')->row();
+		if(!$wh){
+			$this->db->trans_rollback();
+			return "Warehouse not found.";
+		}
+		if($wh->warehouse_type !== 'Custom'){
+			$this->db->trans_rollback();
+			return "System warehouses cannot be deleted.";
+		}
 		$this->db->trans_rollback();
-		return "Warehouse not found or you do not have permission to delete it.";
+		return "Failed to delete warehouse. Please try again.";
 	}
 
 	public function view_warehouse_wise_stock_item($item_id){

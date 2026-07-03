@@ -6,6 +6,10 @@ class Approvals extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		if(!mp_feature_enabled('manager_approvals')){
+			$this->show_access_denied_page();
+			return;
+		}
 		$this->load->model('approval_settings_model');
 		$this->load->model('approval_logs_model');
 		$this->load->helper('approval');

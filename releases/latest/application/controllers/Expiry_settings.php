@@ -6,6 +6,10 @@ class Expiry_settings extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		if(!mp_feature_enabled('expiry_tracking')){
+			$this->show_access_denied_page();
+			return;
+		}
 		$this->load->model('expiry_settings_model','expiry');
 	}
 

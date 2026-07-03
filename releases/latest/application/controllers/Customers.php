@@ -29,6 +29,15 @@ class Customers extends MY_Controller {
 		
 		if ($this->form_validation->run() == TRUE) {
 			$result=$this->customers->verify_and_save();
+			if($result === 'success'){
+				$customer_id = $this->db->insert_id();
+				$nin_bvn = $this->input->post('nin_bvn', TRUE);
+				$nin_verified = $this->input->post('nin_verified', TRUE);
+				$this->db->where('id', $customer_id)->update('db_customers', array(
+					'nin_bvn' => $nin_bvn,
+					'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+				));
+			}
 			echo $result;
 		} else {
 			echo "Please Fill Compulsory(* marked) Fields.";
@@ -49,6 +58,15 @@ class Customers extends MY_Controller {
 		
 		if ($this->form_validation->run() == TRUE) {			
 			$result=$this->customers->update_customers();
+			if($result === 'success'){
+				$q_id = $this->input->post('q_id', TRUE);
+				$nin_bvn = $this->input->post('nin_bvn', TRUE);
+				$nin_verified = $this->input->post('nin_verified', TRUE);
+				$this->db->where('id', $q_id)->update('db_customers', array(
+					'nin_bvn' => $nin_bvn,
+					'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+				));
+			}
 			echo $result;
 		} else {
 			echo "Please Fill Compulsory(* marked) Fields.";
@@ -81,13 +99,22 @@ class Customers extends MY_Controller {
 			$row[] = $customers->customer_name;
 			$row[] = $customers->mobile;
 			$row[] = $customers->email;
-			$row[] = (!empty($customers->location_link)) ? '<a target="_blank" title="Click to View Location!" href="'.$customers->location_link.'"><i class="fa fa-fw fa-map-marker"></i> Link</a>' : '';
+			$store_name = get_store_name($customers->store_id);
+			$location_display = (!empty($store_name)) ? '<span class="label label-default"><i class="fa fa-building"></i> '.$store_name.'</span>' : '-';
+			if(!empty($customers->location_link)){
+				$location_display .= ' <a target="_blank" title="View on Map" href="'.$customers->location_link.'"><i class="fa fa-fw fa-map-marker text-red"></i></a>';
+			}
+			$row[] = $location_display;
 			$row[] = ($customers->credit_limit==-1) ? "<span class='badge'>No Limit</span>" :store_number_format($customers->credit_limit);
 			$row[] = store_number_format($opening_balance+$sales_due);
 			
 			$row[] = store_number_format($sales_return_due);
 			$row[] = store_number_format($customers->tot_advance);
-			
+			$row[] = number_format($customers->loyalty_points ?? 0, 0);
+			$row[] = '<span class="label label-info">' . (($customers->loyalty_tier ?? '') ?: 'Bronze') . '</span>';
+			$row[] = store_number_format($customers->store_credit_balance ?? 0);
+			$row[] = store_number_format($customers->gift_card_balance ?? 0);
+
 
 			 		if($customers->status==1){ 
 			 			$str= "<span onclick='update_status(".$customers->id.",0)' id='span_".$customers->id."'  class='label label-success' style='cursor:pointer'>Active </span>";}
@@ -105,6 +132,13 @@ class Customers extends MY_Controller {
 											$str2.='<li>
 												<a title="Discount Coupon" href="'.base_url().'customer_coupon/generate/'.$customers->id.'">
 													<i class="fa fa-fw fa-tags text-blue"></i>Generate Discount Coupon
+												</a>
+											</li>';
+
+											if($this->permissions('customers_view')&& $customers->delete_bit!=1)
+											$str2.='<li>
+												<a title="View Profile" href="'.base_url().'customers/profile/'.$customers->id.'">
+													<i class="fa fa-fw fa-user-circle text-blue"></i>Profile
 												</a>
 											</li>';
 
@@ -157,7 +191,7 @@ class Customers extends MY_Controller {
 		}
 
 		$output = array(
-						"draw" => $_POST['draw'],
+						"draw" => $_POST['draw'] ?? 1,
 						"recordsTotal" => $this->customers->count_all(),
 						"recordsFiltered" => $this->customers->count_filtered(),
 						"data" => $data,
@@ -229,8 +263,226 @@ class Customers extends MY_Controller {
 		echo get_customers_select_list($this->input->post('customer_id'),get_current_store_id());
 	}
 
+	public function profile($id){
+		$this->belong_to('db_customers', $id);
+		$this->permission_check('customers_view');
+		$data = $this->data;
+		$store_id = get_current_store_id();
+
+		// Customer details
+		$customer = $this->db->where('id', $id)->get('db_customers')->row();
+		if(!$customer) redirect('customers');
+		$data['customer'] = $customer;
+
+		// Calculate total due
+		$opening_balance = $customer->opening_balance ?? 0;
+		$opening_balance -= get_paid_cob($id);
+		$sales_due = $customer->sales_due ?? 0;
+		$sales_return_due = $customer->sales_return_due ?? 0;
+		$data['total_due'] = $opening_balance + $sales_due - $sales_return_due;
+
+		// Purchase history
+		$data['purchases'] = $this->db->where('customer_id', $id)
+								  ->where('store_id', $store_id)
+								  ->order_by('id', 'desc')
+								  ->get('db_sales')
+								  ->result();
+
+		// Payments / statements
+		$data['payments'] = $this->db->where('customer_id', $id)
+								 ->order_by('id', 'desc')
+								 ->get('db_customer_payments')
+								 ->result();
+
+		// Gift cards
+		if($this->db->table_exists('db_gift_cards')){
+			$data['gift_cards'] = $this->db->where('customer_id', $id)
+									  ->where('store_id', $store_id)
+									  ->order_by('id', 'desc')
+									  ->get('db_gift_cards')
+									  ->result();
+		} else { $data['gift_cards'] = array(); }
+
+		// Store credit
+		if($this->db->table_exists('db_store_credit')){
+			$data['store_credits'] = $this->db->where('customer_id', $id)
+									   ->where('store_id', $store_id)
+									   ->order_by('id', 'desc')
+									   ->get('db_store_credit')
+									   ->result();
+		} else { $data['store_credits'] = array(); }
+
+		// Coupons
+		if($this->db->table_exists('db_customer_coupons')){
+			$data['coupons'] = $this->db->where('customer_id', $id)
+									->where('store_id', $store_id)
+									->order_by('id', 'desc')
+									->get('db_customer_coupons')
+									->result();
+		} else { $data['coupons'] = array(); }
+
+		// Memberships
+		if($this->db->table_exists('db_customer_memberships')){
+			$this->load->model('membership_model', 'membership');
+			$data['memberships'] = $this->membership->get_customer_memberships($id);
+			$data['active_membership'] = $this->membership->get_customer_discount($id);
+		} else {
+			$data['memberships'] = array();
+			$data['active_membership'] = null;
+		}
+
+		// Treatment Notes
+		if($this->db->table_exists('db_treatment_notes')){
+			$this->load->model('treatment_notes_model', 'notes');
+			$data['treatment_notes'] = $this->notes->get_by_customer($id);
+		} else {
+			$data['treatment_notes'] = array();
+		}
+
+		// Custom Orders
+		if($this->db->table_exists('db_custom_orders')){
+			$this->load->model('custom_orders_model', 'custom_orders');
+			$data['custom_orders'] = $this->custom_orders->get_by_customer($id);
+		} else {
+			$data['custom_orders'] = array();
+		}
+
+		// Service / Laundry History
+		if ($this->db->table_exists('db_laundry_orders')) {
+			$data['service_history'] = $this->db->query(
+				"SELECT lo.id, lo.sales_id, lo.status, lo.tag_number, lo.created_at, lo.updated_at,
+						s.sales_code, s.sales_date, s.grand_total, s.paid_amount,
+						(SELECT GROUP_CONCAT(DISTINCT i.item_name SEPARATOR ', ')
+						 FROM db_salesitems si
+						 JOIN db_items i ON i.id = si.item_id
+						 WHERE si.sales_id = lo.sales_id) as items_list
+				 FROM db_laundry_orders lo
+				 JOIN db_sales s ON s.id = lo.sales_id
+				 WHERE s.customer_id = ? AND lo.store_id = ?
+				 ORDER BY lo.created_at DESC",
+				[$id, $store_id]
+			)->result();
+		} else {
+			$data['service_history'] = array();
+		}
+
+		$data['page_title'] = 'Customer Profile';
+		$this->load->view('customers/profile', $data);
+	}
+
+	public function get_customer_by_barcode(){
+		$barcode = $this->input->post('barcode', TRUE);
+		if(empty($barcode)) { echo json_encode(array()); return; }
+
+		$store_id = get_current_store_id();
+		$customer = null;
+
+		// Try C{numeric_id} format (e.g. C123)
+		if(preg_match('/^C(\d+)$/', $barcode, $m)){
+			$customer = $this->db->where('id', (int)$m[1])->where('store_id', $store_id)->get('db_customers')->row_array();
+		}
+
+		// Fallback: search by customer_code, mobile, or id directly
+		if(!$customer){
+			$this->db->where('store_id', $store_id);
+			$this->db->group_start();
+			$this->db->where('customer_code', $barcode);
+			$this->db->or_where('mobile', $barcode);
+			$this->db->or_where('id', (int)$barcode);
+			$this->db->group_end();
+			$customer = $this->db->get('db_customers')->row_array();
+		}
+
+		if(!$customer) { echo json_encode(array()); return; }
+
+		$customer_id = $customer['id'];
+		$customer['previous_due'] = store_number_format(($customer['sales_due'] + $customer['opening_balance']) - get_paid_cob($customer_id), false);
+		$customer['tot_advance'] = store_number_format($customer['tot_advance'], 0);
+
+		// Get available benefits
+		$benefits = array();
+
+		// Gift cards
+		if($this->db->table_exists('db_gift_cards')){
+			$gcs = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->where('status', 'active')
+							->get('db_gift_cards')
+							->result_array();
+			foreach($gcs as $g){
+				$g['type'] = 'gift_card';
+				$g['label'] = 'Gift Card: '.$g['card_number'];
+				$g['value'] = $g['current_balance'];
+				$g['eligible'] = true;
+				$benefits[] = $g;
+			}
+		}
+
+		// Store credit
+		if($this->db->table_exists('db_store_credit')){
+			$scs = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->where('status', 'active')
+							->get('db_store_credit')
+							->result_array();
+			foreach($scs as $s){
+				$s['type'] = 'store_credit';
+				$s['label'] = 'Store Credit: '.$s['credit_code'];
+				$s['value'] = $s['balance'];
+				$s['eligible'] = true;
+				$benefits[] = $s;
+			}
+		}
+
+		// Coupons
+		if($this->db->table_exists('db_customer_coupons')){
+			$cps = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->where('status', 1)
+							->get('db_customer_coupons')
+							->result_array();
+			foreach($cps as $c){
+				$c['type'] = 'coupon';
+				$c['label'] = 'Coupon: '.$c['code'];
+				$c['value'] = $c['value'];
+				$expired = !empty($c['expire_date']) && strtotime($c['expire_date']) < strtotime(date('Y-m-d'));
+				$c['eligible'] = !$expired;
+				$c['status_text'] = $expired ? 'Expired' : 'Active';
+				$benefits[] = $c;
+			}
+		}
+
+		$customer['benefits'] = $benefits;
+		echo json_encode($customer);
+	}
+
 	public function getCustomers($id=''){
 		echo $this->customers->getCustomersJson($id);
+	}
+
+	/* Returns all customers for offline sync (IndexedDB caching) */
+	public function sync_customers_for_offline(){
+		$store_id = $this->input->get('store_id');
+		$this->db->select("id, customer_name, mobile, sales_due, opening_balance, tot_advance, delete_bit")
+				->from('db_customers')
+				->where('store_id', $store_id)
+				->where('status', 1)
+				->limit(5000);
+		$query = $this->db->get();
+		$display_json = array();
+		foreach($query->result() as $res){
+			$customer_previous_due = $res->sales_due + $res->opening_balance;
+			$customer_previous_due -= get_paid_cob($res->id);
+			$json_arr = array();
+			$json_arr["id"] = $res->id;
+			$json_arr["text"] = $res->customer_name;
+			$json_arr["mobile"] = $res->mobile;
+			$json_arr["previous_due"] = store_number_format($customer_previous_due, false);
+			$json_arr["tot_advance"] = store_number_format($res->tot_advance, 0);
+			$json_arr["delete_bit"] = $res->delete_bit;
+			array_push($display_json, $json_arr);
+		}
+		echo json_encode($display_json);exit;
 	}
 
 	public function get_customer_details(){
@@ -239,7 +491,7 @@ class Customers extends MY_Controller {
 			echo json_encode(array());
 			return;
 		}
-		$row = $this->db->select('id, customer_name, mobile, email, phone, address')
+		$row = $this->db->select('id, customer_name, mobile, email, phone, address, nin_bvn, nin_verified, nin_verified_at, nin_waived')
 						->where('id', $customer_id)
 						->get('db_customers')
 						->row_array();

@@ -156,7 +156,7 @@ class Dashboard_model extends CI_Model
               $this->db->where("store_id",get_current_store_id());
               $this->db->select("COALESCE(SUM(grand_total),0) AS pur_total");
               $this->db->from("db_purchase");
-              $this->db->where("purchase_status='Received'");
+              $this->db->where("purchase_status IN ('Received','Partially Received')");
               $this->db->where("month(purchase_date)",date("m",strtotime($bar_chart['date'][$i])));
               $this->db->where("year(purchase_date)",date("Y",strtotime($bar_chart['date'][$i])));
               $q1=$this->db->get()->row();
@@ -254,7 +254,7 @@ class Dashboard_model extends CI_Model
 		$this->get_by_date('purchase_date');//DATES FUNCTION
 		$this->db->select("coalesce(count(*),0) as tot_pur");
 		$this->db->from("db_purchase");
-		$this->db->where("purchase_status='Received'");
+		$this->db->where("purchase_status IN ('Received','Partially Received')");
 		//echo $this->db->get_compiled_select();exit();
 		$tot_pur=$this->db->get()->row()->tot_pur;	
 		$info['tot_pur']=$tot_pur;
@@ -335,7 +335,7 @@ class Dashboard_model extends CI_Model
 		$this->get_by_date('purchase_date');//DATES FUNCTION
 		$this->db->select("(COALESCE(sum(grand_total),0)-COALESCE(sum(paid_amount),0)) as purchase_due");
 		$this->db->from("db_purchase");
-		$this->db->where("`purchase_status`= 'Received'");
+		$this->db->where("`purchase_status` IN ('Received','Partially Received')");
 		$purchase_due=$this->db->get()->row()->purchase_due;
 		$info['purchase_due']=$CI->currency(kmb($purchase_due));
 
@@ -450,15 +450,29 @@ class Dashboard_model extends CI_Model
 	public function get_low_stock_items($warehouse_id = ''){
 		$store_id = get_current_store_id();
 
-		$this->db->select("a.item_name, a.stock, a.alert_qty");
-		$this->db->from("db_items a");
-		$this->db->where("a.store_id", $store_id);
-		$this->db->where("a.stock <= a.alert_qty");
-		$this->db->where("a.status", 1);
-		$this->db->where("a.alert_qty >", 0);
-		$this->db->order_by("a.stock", "asc");
-		$this->db->limit(10);
-		// Note: db_items master table does not have warehouse_id column
+		if(!empty($warehouse_id)){
+			// Per-warehouse stock from db_warehouseitems
+			$this->db->select("a.item_name, b.available_qty as stock, a.alert_qty");
+			$this->db->from("db_items a");
+			$this->db->join("db_warehouseitems b", "b.item_id = a.id", "inner");
+			$this->db->where("a.store_id", $store_id);
+			$this->db->where("b.store_id", $store_id);
+			$this->db->where("b.warehouse_id", $warehouse_id);
+			$this->db->where("b.available_qty <= a.alert_qty");
+			$this->db->where("a.status", 1);
+			$this->db->where("a.alert_qty >", 0);
+			$this->db->order_by("b.available_qty", "asc");
+			$this->db->limit(10);
+		} else {
+			$this->db->select("a.item_name, a.stock, a.alert_qty");
+			$this->db->from("db_items a");
+			$this->db->where("a.store_id", $store_id);
+			$this->db->where("a.stock <= a.alert_qty");
+			$this->db->where("a.status", 1);
+			$this->db->where("a.alert_qty >", 0);
+			$this->db->order_by("a.stock", "asc");
+			$this->db->limit(10);
+		}
 		$query = $this->db->get();
 
 		$items = array();
@@ -476,11 +490,25 @@ class Dashboard_model extends CI_Model
 
 	public function get_low_stock_count($warehouse_id = ''){
 		$store_id = get_current_store_id();
+
+		if(!empty($warehouse_id)){
+			// Per-warehouse stock from db_warehouseitems
+			$this->db->select("a.item_name, b.available_qty as stock, a.alert_qty");
+			$this->db->from("db_items a");
+			$this->db->join("db_warehouseitems b", "b.item_id = a.id", "inner");
+			$this->db->where("a.store_id", $store_id);
+			$this->db->where("b.store_id", $store_id);
+			$this->db->where("b.warehouse_id", $warehouse_id);
+			$this->db->where("b.available_qty <= a.alert_qty");
+			$this->db->where("a.status", 1);
+			$this->db->where("a.alert_qty >", 0);
+			return $this->db->count_all_results();
+		}
+
 		$this->db->where("store_id", $store_id);
 		$this->db->where("stock <= alert_qty");
 		$this->db->where("status", 1);
 		$this->db->where("alert_qty >", 0);
-		// Note: db_items master table does not have warehouse_id column
 		return $this->db->count_all_results("db_items");
 	}
 
@@ -547,35 +575,209 @@ class Dashboard_model extends CI_Model
 	}
 
 	/**
-	 * Get cash in hand (sum of all cash-affecting sales payments)
+	 * Get cash in hand — NET cash remaining in the till after all cash movements.
+	 *
+	 * Calculation:
+	 *   Cash IN  = cash sales + cash received from purchase returns
+	 *   Cash OUT = cash expenses + cash purchase payments + cash sales return refunds + cash deposited to bank
+	 *   Net Cash = Cash IN - Cash OUT
+	 *
 	 * Uses db_payment_modes.affects_cash_in_hand so any mode marked as cash is counted.
 	 */
 	public function get_cash_in_hand($warehouse_id = ''){
 		$store_id = get_current_store_id();
+		$cash_account_id = get_cash_account_id();
 
-		// Sum all sales payments whose payment_mode has affects_cash_in_hand = 1
-		// Filter via db_sales join since db_salespayments has no warehouse_id column
+		// ── 1. Cash Account balance from ledger (ac_transactions) ──
+		// This reflects all properly-posted cash movements
+		$ledger_balance = get_account_balance($cash_account_id);
+
+		// ── 2. Cash IN from sales payments (payment_type = 'cash' ONLY) ──
 		$this->db->select("COALESCE(SUM(sp.payment),0) as cash");
 		$this->db->from("db_salespayments sp");
-		$this->db->join("db_payment_modes pm", "pm.code = sp.payment_type AND pm.store_id = sp.store_id", "left");
 		$this->db->join("db_sales s", "s.id = sp.sales_id", "left");
 		$this->db->where("sp.store_id", $store_id);
-		$this->db->where("pm.affects_cash_in_hand", 1);
+		$this->db->where("sp.payment_type", 'cash');
 		if(!empty($warehouse_id)){ $this->db->where("s.warehouse_id", $warehouse_id); }
-		$cash = $this->db->get()->row()->cash;
+		$cash_in_sales = $this->db->get()->row()->cash;
 
-		// Fallback: if payment_modes join yields nothing, try raw CASH type
-		if($cash == 0){
-			$this->db->select("COALESCE(SUM(sp.payment),0) as cash");
-			$this->db->from("db_salespayments sp");
-			$this->db->join("db_sales s", "s.id = sp.sales_id", "left");
-			$this->db->where("UPPER(sp.payment_type)", "CASH");
-			$this->db->where("sp.store_id", $store_id);
-			if(!empty($warehouse_id)){ $this->db->where("s.warehouse_id", $warehouse_id); }
-			$cash = $this->db->get()->row()->cash;
+		// ── 3. Cash IN from purchase return payments ──
+		$this->db->select("COALESCE(SUM(prp.payment),0) as cash");
+		$this->db->from("db_purchasepaymentsreturn prp");
+		$this->db->join("db_purchasereturn pr", "pr.id = prp.return_id", "left");
+		$this->db->where("prp.store_id", $store_id);
+		$this->db->where("prp.payment_type", 'cash');
+		if(!empty($warehouse_id)){ $this->db->where("pr.warehouse_id", $warehouse_id); }
+		$cash_in_purchase_returns = $this->db->get()->row()->cash;
+
+		// ── 4. Cash OUT from expenses ──
+		$this->db->select("COALESCE(SUM(expense_amt),0) as cash");
+		$this->db->from("db_expense");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("payment_type", 'cash');
+		$cash_out_expenses = $this->db->get()->row()->cash;
+
+		// ── 5. Cash OUT from purchase payments ──
+		$this->db->select("COALESCE(SUM(pp.payment),0) as cash");
+		$this->db->from("db_purchasepayments pp");
+		$this->db->join("db_purchase p", "p.id = pp.purchase_id", "left");
+		$this->db->where("pp.store_id", $store_id);
+		$this->db->where("pp.payment_type", 'cash');
+		if(!empty($warehouse_id)){ $this->db->where("p.warehouse_id", $warehouse_id); }
+		$cash_out_purchases = $this->db->get()->row()->cash;
+
+		// ── 6. Cash OUT from sales return payments ──
+		$this->db->select("COALESCE(SUM(srp.payment),0) as cash");
+		$this->db->from("db_salespaymentsreturn srp");
+		$this->db->join("db_salesreturn sr", "sr.id = srp.return_id", "left");
+		$this->db->where("srp.store_id", $store_id);
+		$this->db->where("srp.payment_type", 'cash');
+		if(!empty($warehouse_id)){ $this->db->where("sr.warehouse_id", $warehouse_id); }
+		$cash_out_sales_returns = $this->db->get()->row()->cash;
+
+		// ── 7. Cash OUT from money deposits ──
+		$this->db->select("COALESCE(SUM(amount),0) as cash");
+		$this->db->from("ac_moneydeposits");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("debit_account_id", $cash_account_id);
+		$cash_out_deposits = $this->db->get()->row()->cash;
+
+		// ── 8. Net Cash In Hand ──
+		$net_cash = floatval($cash_in_sales)
+				  + floatval($cash_in_purchase_returns)
+				  - floatval($cash_out_expenses)
+				  - floatval($cash_out_purchases)
+				  - floatval($cash_out_sales_returns)
+				  - floatval($cash_out_deposits);
+
+		// Use ledger balance if it exists and is close to the computed value,
+		// otherwise trust the computed value (catches unlinked transactions)
+		if(abs($ledger_balance) > 0.01 && abs($ledger_balance - $net_cash) < $net_cash * 0.5){
+			$net_cash = $ledger_balance;
 		}
 
-		return $cash;
+		// Never show negative
+		$net_cash = max(0, $net_cash);
+
+		return number_format($net_cash, 2, '.', '');
+	}
+
+	/**
+	 * Get cash balance BEFORE a given date (opening balance)
+	 */
+	public function get_cash_balance_before($before_date){
+		$store_id = get_current_store_id();
+		$cash_account_id = get_cash_account_id();
+
+		// Cash IN before date (payment_type = 'cash' ONLY)
+		$q1 = $this->db->query("
+			SELECT COALESCE(SUM(payment),0) as cash FROM db_salespayments
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date < '$before_date'
+		")->row()->cash;
+
+		$q2 = $this->db->query("
+			SELECT COALESCE(SUM(payment),0) as cash FROM db_purchasepaymentsreturn
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date < '$before_date'
+		")->row()->cash;
+
+		// Cash OUT before date
+		$q3 = $this->db->query("
+			SELECT COALESCE(SUM(expense_amt),0) as cash FROM db_expense
+			WHERE store_id = $store_id AND payment_type = 'cash' AND expense_date < '$before_date'
+		")->row()->cash;
+
+		$q4 = $this->db->query("
+			SELECT COALESCE(SUM(payment),0) as cash FROM db_purchasepayments
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date < '$before_date'
+		")->row()->cash;
+
+		$q5 = $this->db->query("
+			SELECT COALESCE(SUM(payment),0) as cash FROM db_salespaymentsreturn
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date < '$before_date'
+		")->row()->cash;
+
+		// Deposits before date (from Cash Account only)
+		$q6 = $this->db->query("
+			SELECT COALESCE(SUM(amount),0) as cash FROM ac_moneydeposits
+			WHERE store_id = $store_id AND debit_account_id = $cash_account_id AND deposit_date < '$before_date'
+		")->row()->cash;
+
+		$balance = floatval($q1) + floatval($q2) - floatval($q3) - floatval($q4) - floatval($q5) - floatval($q6);
+		return max(0, $balance);
+	}
+
+	/**
+	 * Get cash ledger entries between two dates
+	 */
+	public function get_cash_ledger($from_date, $to_date){
+		$store_id = get_current_store_id();
+		$cash_account_id = get_cash_account_id();
+
+		// Build unified query of all CASH-ONLY movements
+		$sql = "
+			SELECT payment_date as txn_date, created_time as txn_time, 'Cash Sale' as description,
+				   payment_type as mode, payment as amount_in, 0 as amount_out, 'IN' as direction,
+				   payment_note as note, created_by, account_id
+			FROM db_salespayments
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date BETWEEN '$from_date' AND '$to_date'
+
+			UNION ALL
+
+			SELECT payment_date as txn_date, created_time as txn_time, 'Purchase Return Received' as description,
+				   payment_type as mode, payment as amount_in, 0 as amount_out, 'IN' as direction,
+				   payment_note as note, created_by, account_id
+			FROM db_purchasepaymentsreturn
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date BETWEEN '$from_date' AND '$to_date'
+
+			UNION ALL
+
+			SELECT expense_date as txn_date, created_time as txn_time, 'Expense' as description,
+				   payment_type as mode, 0 as amount_in, expense_amt as amount_out, 'OUT' as direction,
+				   note as note, created_by, account_id
+			FROM db_expense
+			WHERE store_id = $store_id AND payment_type = 'cash' AND expense_date BETWEEN '$from_date' AND '$to_date'
+
+			UNION ALL
+
+			SELECT payment_date as txn_date, created_time as txn_time, 'Purchase Payment' as description,
+				   payment_type as mode, 0 as amount_in, payment as amount_out, 'OUT' as direction,
+				   payment_note as note, created_by, account_id
+			FROM db_purchasepayments
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date BETWEEN '$from_date' AND '$to_date'
+
+			UNION ALL
+
+			SELECT payment_date as txn_date, created_time as txn_time, 'Sales Return Refund' as description,
+				   payment_type as mode, 0 as amount_in, payment as amount_out, 'OUT' as direction,
+				   payment_note as note, created_by, account_id
+			FROM db_salespaymentsreturn
+			WHERE store_id = $store_id AND payment_type = 'cash' AND payment_date BETWEEN '$from_date' AND '$to_date'
+
+			ORDER BY txn_date ASC, txn_time ASC
+		";
+
+		$result = $this->db->query($sql)->result_array();
+
+		// Add deposits as OUT entries (from Cash Account only)
+		$this->db->select("deposit_date as txn_date, created_time as txn_time, 'Bank Deposit' as description,
+						   '' as mode, 0 as amount_in, amount as amount_out, 'OUT' as direction,
+						   note as note, created_by, debit_account_id as account_id");
+		$this->db->from("ac_moneydeposits");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("debit_account_id", $cash_account_id);
+		$this->db->where("deposit_date >=", $from_date);
+		$this->db->where("deposit_date <=", $to_date);
+		$deposits = $this->db->get()->result_array();
+		$result = array_merge($result, $deposits);
+
+		// Sort combined result by date/time
+		usort($result, function($a, $b){
+			$cmp = strcmp($a['txn_date'], $b['txn_date']);
+			if($cmp !== 0) return $cmp;
+			return strcmp($a['txn_time'], $b['txn_time']);
+		});
+
+		return $result;
 	}
 
 	/**
@@ -1038,6 +1240,9 @@ class Dashboard_model extends CI_Model
 			$change = round((($current - $previous) / $previous) * 100, 1);
 		}
 
+		// TEMP DEBUG
+		log_message('error', "[SALES DEBUG] range=$range current=$current previous=$previous");
+
 		return array('today'=>$current, 'yesterday'=>$previous, 'change'=>$change);
 	}
 
@@ -1070,6 +1275,9 @@ class Dashboard_model extends CI_Model
 
 		$profit = $revenue - $cost;
 		$margin = ($revenue > 0) ? round(($profit / $revenue) * 100, 1) : 0;
+
+		// TEMP DEBUG: log profit calc
+		log_message('error', "[PROFIT DEBUG] range=$range revenue=$revenue cost=$cost profit=$profit");
 
 		return array('profit'=>$profit, 'margin'=>$margin, 'revenue'=>$revenue);
 	}

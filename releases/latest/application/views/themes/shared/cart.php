@@ -10,6 +10,8 @@
 
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
+let CSRF_NAME = '<?= $csrf_name ?? ''; ?>';
+let CSRF_HASH = '<?= $csrf_hash ?? ''; ?>';
 let cartData = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
 let selectedPayment = 'pay_on_delivery';
 
@@ -100,8 +102,13 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   data.append('customer_email',email); data.append('customer_address',address); data.append('payment_method',pm);
   data.append('service_date',sDate); data.append('service_time',sTime); data.append('service_note',sNote);
   data.append('cart',JSON.stringify(payload));
+  if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
   fetch('<?= base_url('storefront/place_order'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data.toString()})
-  .then(r=>r.json()).then(res=>{
+  .then(r=>{
+    if(!r.ok) return r.text().then(text=>{ throw new Error('Server error ' + r.status + (text?': '+text.substring(0,200):'')); });
+    return r.json();
+  }).then(res=>{
+    if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
     if(res.status){
       if(res.payment_required&&res.public_key){
         payWithPaystack(res.public_key,res.email,res.amount_kobo,res.reference,res.order_id);
@@ -111,7 +118,7 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
         setTimeout(()=>{window.location.href='<?= base_url('store/' . ($settings->store_slug ?? '')); ?>';},2000);
       }
     } else { showToast(res.message||'Failed to place order'); btn.disabled=false; btn.textContent='Place Order'; }
-  }).catch(err=>{ showToast('Network error. Please try again.'); btn.disabled=false; btn.textContent='Place Order'; });
+  }).catch(err=>{ showToast(err.message || 'Network error. Please try again.'); btn.disabled=false; btn.textContent='Place Order'; });
 }
 
 function payWithPaystack(key,email,amount,reference,orderId){

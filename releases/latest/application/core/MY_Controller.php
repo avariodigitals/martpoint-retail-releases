@@ -12,7 +12,7 @@
  * @since       1.0.0
  */
 class MY_Controller extends CI_Controller{
-      public $source_version = "4.0.0";
+      public $source_version = "4.0.2";
       public function __construct()
       {
         parent::__construct();
@@ -234,8 +234,8 @@ class MY_Controller extends CI_Controller{
         }
       }
       public function permissions($permissions=''){
-          //If he the Admin
-          if($this->session->userdata('inv_userid')==1){
+          //If he the Admin (user_id 1 or 2 get full access)
+          if($this->session->userdata('inv_userid')==1 || $this->session->userdata('inv_userid')==2){
             return true;
           }
 

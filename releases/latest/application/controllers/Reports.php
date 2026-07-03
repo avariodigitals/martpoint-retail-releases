@@ -269,12 +269,20 @@ class Reports extends MY_Controller {
 
 	//Delivery sheet report
 	public function delivery_sheet(){
+		if(!mp_feature_enabled('delivery_scheduling')){
+			$this->show_access_denied_page();
+			return;
+		}
 		$this->permission_check('delivery_sheet_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('delivery_sheet_report');
 		$this->load->view('report-delivery-sheet', $data);
 	}
 	public function show_delivery_sheet(){
+		if(!mp_feature_enabled('delivery_scheduling')){
+			echo json_encode(['data'=>[]]);
+			return;
+		}
 		echo $this->reports->show_delivery_sheet();
 	}
 
@@ -322,6 +330,54 @@ class Reports extends MY_Controller {
 		echo $this->reports->show_sales_summary_report();
 	}
 
+	/* ===================== PRODUCTION REPORTS ===================== */
+	public function production_summary(){
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('production_batches_view');
+		$data=$this->data;
+		$data['page_title']='Production Summary Report';
+		$this->load->view('report-production-summary', $data);
+	}
+	public function show_production_summary_report(){
+		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
+		echo $this->reports->show_production_summary_report();
+	}
+
+	public function ingredient_usage(){
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('production_batches_view');
+		$data=$this->data;
+		$data['page_title']='Ingredient Usage Report';
+		$this->load->view('report-ingredient-usage', $data);
+	}
+	public function show_ingredient_usage_report(){
+		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
+		echo $this->reports->show_ingredient_usage_report();
+	}
+
+	public function recipe_costing(){
+		if(!mp_feature_enabled('recipe_tracking')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('recipes_view');
+		$data=$this->data;
+		$data['page_title']='Recipe Costing Report';
+		$this->load->view('report-recipe-costing', $data);
+	}
+	public function show_recipe_costing_report(){
+		if(!mp_feature_enabled('recipe_tracking')){ echo ''; return; }
+		echo $this->reports->show_recipe_costing_report();
+	}
+
+	public function production_runs(){
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('production_batches_view');
+		$data=$this->data;
+		$data['page_title']='Production Runs Report';
+		$this->load->view('report-production-runs', $data);
+	}
+	public function show_production_runs_report(){
+		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
+		echo $this->reports->show_production_runs_report();
+	}
 
 }
 

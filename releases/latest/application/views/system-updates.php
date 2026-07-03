@@ -337,7 +337,7 @@
 
     function saveChannel() {
       var url = document.getElementById('channelUrl').value.trim();
-      if (!url) { alert('Enter a URL'); return; }
+      if (!url) { toastr.error('Enter a URL'); return; }
       $.post('<?= base_url('system_updates/save_channel'); ?>', { url: url }, function(res) {
         if (res.status === 'ok') {
           toastr.success('Channel URL saved');

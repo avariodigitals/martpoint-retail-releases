@@ -60,6 +60,20 @@ class Store_profile_model extends CI_Model {
 		$gst_no = $this->input->post('gst_no', TRUE);
 		$vat_no = $this->input->post('vat_no', TRUE);
 		$pan_no = $this->input->post('pan_no', TRUE);
+		$nin_api_enabled = $this->input->post('nin_api_enabled', TRUE);
+		$nin_api_url = $this->input->post('nin_api_url', TRUE);
+		$nin_api_key = $this->input->post('nin_api_key', TRUE);
+		$nin_api_provider = $this->input->post('nin_api_provider', TRUE);
+
+		// Business Profile fields (Phase 2)
+		$industry_type = $this->input->post('industry_type', TRUE);
+		$business_model = $this->input->post('business_model', TRUE);
+		$feature_flags_json = $this->input->post('feature_flags_json', TRUE);
+		$workflow_template_key = $this->input->post('workflow_template_key', TRUE);
+		$dashboard_template_key = $this->input->post('dashboard_template_key', TRUE);
+		$storefront_theme_key = $this->input->post('storefront_theme_key', TRUE);
+		$label_overrides_json = $this->input->post('label_overrides_json', TRUE);
+		$industry_settings_json = $this->input->post('industry_settings_json', TRUE);
 		 	//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST))));exit();
 
 		//if not admin
@@ -212,12 +226,12 @@ class Store_profile_model extends CI_Model {
 				$this->db->trans_commit();
 				$this->session->unset_userdata('currency');
 				//$this->session->set_flashdata('success', 'Success!! Record Updated Successfully! ');
-				echo "success";
+				return "success";
 			}
 
 		
 
-		exit();
+		return "failed";
 	}
 
 	//Get store_details

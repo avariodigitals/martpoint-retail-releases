@@ -351,3 +351,1760 @@ ERROR - 2026-06-23 16:32:48 --> Query error: Unknown column 'update_channel_url'
 FROM `db_sitesettings`
 WHERE `id` = 1
 ERROR - 2026-06-23 16:32:48 --> Severity: error --> Exception: Call to a member function row() on bool /Users/ralphmore/Sites/localhost/martpoint retail/application/libraries/Updater.php 453
+ERROR - 2026-06-23 17:09:27 --> Query error: Duplicate entry '4.0.0-3.0_to_4.0.0.sql' for key 'db_schema_migrations.unique_version_file' - Invalid query: INSERT INTO `db_schema_migrations` (`version`, `filename`) VALUES ('4.0.0', '3.0_to_4.0.0.sql')
+ERROR - 2026-06-23 17:13:17 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:17 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:17 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:17 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:13:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:13:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:38:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:38:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:38:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:38:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:38:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:38:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:38:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:38:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:38:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:38:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:38:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:38:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:39:00 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:39:00 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:58 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:58 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:58 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:58 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:43:58 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:43:58 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:44:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:44:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:50 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:50 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:53 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:54 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:54 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:56 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:57 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:57 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:57 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:57 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:45:57 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:45:57 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:51 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:46:52 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:46:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:01 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:01 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:01 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:01 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:01 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:01 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:01 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:01 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:01 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:01 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:03 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:03 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:05 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:15 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:15 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:15 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:15 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:16 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:16 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:18 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:18 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:18 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:18 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:18 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:18 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:19 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:19 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:19 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:19 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:21 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:21 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:47:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:47:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:48:51 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 17:48:51 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:48:58 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 17:48:58 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:12 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 17:49:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:22 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:22 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:24 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:25 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:25 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:26 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:26 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:28 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:29 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:29 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:30 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:30 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:31 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:32 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:33 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:35 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:35 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:36 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:38 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:39 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:39 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:40 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:40 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:41 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:41 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:42 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:42 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:43 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:43 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:45 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:45 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:47 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:48 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:48 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:49 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:49 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:55 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:57 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:57 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:49:57 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:49:57 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:01 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:01 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:07 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:07 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:07 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:07 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:12 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:50:14 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:50:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:04 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:51:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:15 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:51:15 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:19 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:51:19 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:27 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 17:51:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:37 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 17:51:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:37 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 17:51:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:51:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:51:46 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:51:46 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:53:34 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:53:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:02 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:02 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:10 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:10 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:10 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:10 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:10 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:10 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:54:23 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:54:23 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:55:44 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:55:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:57:27 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:57:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:58:07 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:58:07 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 17:59:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 17:59:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 18:14:52 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 18:14:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 18:23:10 --> Severity: error --> Exception: Too few arguments to function Purchase::invoice(), 0 passed in /Users/ralphmore/Sites/localhost/martpoint retail/system/core/CodeIgniter.php on line 532 and exactly 1 expected /Users/ralphmore/Sites/localhost/martpoint retail/application/controllers/Purchase.php 215
+ERROR - 2026-06-23 18:23:10 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 18:23:10 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:02:06 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 21:02:06 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:02:08 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 21:02:08 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:02:31 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:02:31 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:02:56 --> Query error: Unknown column 'a.received_qty' in 'field list' - Invalid query: SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END), 0) AS purchase_qty FROM
+                              db_purchaseitems AS a,
+                              db_purchase AS b
+                              WHERE
+                              a.`item_id`=1 AND a.`purchase_id`=b.id AND
+                              b.`store_id`=2 AND b.`warehouse_id`=2 and b.purchase_status IN ('Received','Partially Received')
+ERROR - 2026-06-23 21:02:56 --> Severity: error --> Exception: Call to a member function row() on bool /Users/ralphmore/Sites/localhost/martpoint retail/application/helpers/custom_helper.php 687
+ERROR - 2026-06-23 21:05:24 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:05:24 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:17:53 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:17:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:18:44 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:18:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:18:44 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:18:44 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:20:08 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:20:08 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:20:08 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:20:08 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:20:11 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:20:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:20:11 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:20:11 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:20:12 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:20:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:20:12 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:20:12 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:04 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:21:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:04 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:21:04 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:07 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:21:07 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:07 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:21:07 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:14 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:21:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:21 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:21:21 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:21 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:21:21 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:37 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:21:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:21:37 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:21:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:24:33 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:24:33 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:24:34 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:24:34 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:30:47 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 21:30:47 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:38:38 --> 404 Page Not Found: Uploads/site
+ERROR - 2026-06-23 21:38:38 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:51:06 --> 404 Page Not Found: Debug_warehouse_delete/index
+ERROR - 2026-06-23 21:51:06 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:51:07 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 21:51:07 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:51:13 --> 404 Page Not Found: Debug_warehouse_delete/index
+ERROR - 2026-06-23 21:51:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:51:13 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 21:51:13 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:51:18 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-06-23 21:51:18 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:55:27 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:55:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:55:27 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:55:27 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:55:52 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:55:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:55:53 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:55:53 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:55:55 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:55:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:55:56 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:55:56 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:56:05 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 21:56:05 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 21:56:05 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 21:56:06 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:00:37 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 22:00:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:00:37 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 22:00:37 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:00:55 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 22:00:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:00:55 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 22:00:55 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:02:28 --> 404 Page Not Found: Well-known/appspecific
+ERROR - 2026-06-23 22:02:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:02:28 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 22:02:28 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:02:32 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 22:02:32 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 22:45:14 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 22:45:14 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 23:07:36 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 23:07:36 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 23:26:56 --> Could not find the language line "branch"
+ERROR - 2026-06-23 23:41:52 --> 404 Page Not Found: Theme/plugins
+ERROR - 2026-06-23 23:41:52 --> Severity: error --> Exception: Call to undefined function base_url() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/errors/html/error_404.php 87
+ERROR - 2026-06-23 23:58:12 --> Severity: error --> Exception: Call to undefined function get_store_warehouse_name() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/purchase.php 149
+ERROR - 2026-06-23 23:58:18 --> Severity: error --> Exception: Call to undefined function get_store_warehouse_name() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/purchase.php 149
+ERROR - 2026-06-23 23:58:19 --> Severity: error --> Exception: Call to undefined function get_store_warehouse_name() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/purchase.php 149
+ERROR - 2026-06-23 23:58:20 --> Severity: error --> Exception: Call to undefined function get_store_warehouse_name() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/purchase.php 149
+ERROR - 2026-06-23 23:58:20 --> Severity: error --> Exception: Call to undefined function get_store_warehouse_name() /Users/ralphmore/Sites/localhost/martpoint retail/application/views/purchase.php 149

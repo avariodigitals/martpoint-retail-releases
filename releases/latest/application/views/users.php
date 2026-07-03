@@ -165,6 +165,7 @@
                                     <span id="confirm_msg" style="display:none" class="text-danger"></span>
                                  </div>
                               </div>
+                              <?php if(mp_feature_enabled('manager_approvals')) { ?>
                               <div class="form-group">
                                  <label for="approval_pin" class="col-sm-4 control-label">Approval PIN <i class="fa fa-info-circle text-info" title="4-6 digit PIN for manager/owner approval overrides. Leave blank to disable." data-toggle="tooltip"></i></label>
                                  <div class="col-sm-8">
@@ -172,6 +173,7 @@
                                     <span id="approval_pin_msg" style="display:none" class="text-danger"></span>
                                  </div>
                               </div>
+                              <?php } ?>
 
                               <!-- Warehouse Code -->
                               <?php 

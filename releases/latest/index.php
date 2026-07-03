@@ -1,16 +1,5 @@
 <?php
 
-/**
- * MartPoint Retail
- *
- * Enhanced, maintained and owned by Rapheal Ogundiran (Avario)
- * Copyright (c) 2019 - 2026. All rights reserved.
- *
- * @author      Rapheal Ogundiran (MartPoint Retail by Avario)
- * @copyright   Copyright (c) 2019 - 2026, Avario / MartPoint Retail
- * @license     Private — All rights reserved
- */
-
 /*
  *---------------------------------------------------------------
  * APPLICATION ENVIRONMENT
@@ -28,22 +17,34 @@
  *
  * NOTE: If you change these, also change the error_reporting() code below
  */
-/*############################INSTALL#########################*/
+/*############################INSTALL CHECK#########################*/
 
-// define('ENVIRONMENT', 'SETUP');
-// if (ENVIRONMENT === 'SETUP') {
-//     $sitelink = $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'];
-//     $sitelink = preg_replace('/index.php.*/', '', $sitelink); 
-//     if (!empty($_SERVER['HTTPS'])) {
-//         $sitelink = 'https://' . $sitelink;
-//     } else {
-//         $sitelink = 'http://' . $sitelink;
-//     }
-//     header("Location: $sitelink./setup/");
-//     exit;
-// }
+// Detect if application needs installation
+// If database.php still contains placeholder values, redirect to setup
+$db_config_path = __DIR__ . '/application/config/database.php';
+$needs_install = false;
+if (file_exists($db_config_path)) {
+    $db_config_content = file_get_contents($db_config_path);
+    if (strpos($db_config_content, "'hostname' => '%HOSTNAME%'") !== false ||
+        strpos($db_config_content, "'username' => '%USERNAME%'") !== false ||
+        strpos($db_config_content, "'password' => '%PASSWORD%'") !== false ||
+        strpos($db_config_content, "'database' => '%DATABASE%'") !== false) {
+        $needs_install = true;
+    }
+}
+if ($needs_install) {
+    $sitelink = $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'];
+    $sitelink = preg_replace('/index.php.*/', '', $sitelink);
+    if (!empty($_SERVER['HTTPS'])) {
+        $sitelink = 'https://' . $sitelink;
+    } else {
+        $sitelink = 'http://' . $sitelink;
+    }
+    header("Location: $sitelink./setup/");
+    exit;
+}
 
-/*############################INSTALL END#########################*/
+/*############################INSTALL CHECK END#########################*/
 
 /*############################REAL#########################*/
 define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'production');
@@ -72,11 +73,10 @@ switch (ENVIRONMENT)
 
 	case 'testing':
 	case 'production':
-		ini_set('display_errors', 1);
-		ini_set('display_startup_errors', 1);
+		ini_set('display_errors', 0);
 		if (version_compare(PHP_VERSION, '5.3', '>='))
 		{
-			error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
+			error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
 		}
 		else
 		{

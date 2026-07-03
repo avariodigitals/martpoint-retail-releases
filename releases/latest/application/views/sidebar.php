@@ -92,7 +92,7 @@
       <div class="navbar-custom-menu">
        
         <ul class="nav navbar-nav">
-          
+
           <!-- User Account Menu -->
             
             <li class="dropdown tasks-menu">
@@ -122,12 +122,33 @@
           
           <?php if(!is_user()) { ?>
           <li class="text-center" id="appClockInWrap">
-            <a id="appClockInBtn" title="Clock In" href="#"><i class="fa fa-clock-o" ></i> <span class="clock-label">Clock In</span></a>
+            <a id="appClockInBtn" title="Clock In" href="#" onclick="if(typeof jQuery!=='undefined'&&typeof jQuery.fn!=='undefined'&&typeof jQuery.fn.modal!=='undefined'){jQuery('#appClockInModal').modal('show');}else{alert('Page loading... please wait.');}return false;"><i class="fa fa-clock-o" ></i> <span class="clock-label">Clock In</span></a>
           </li>
           <?php } ?>
           <?php if(!is_user() && $CI->permissions('pos')) { ?>
           <li class="text-center" id="">
             <a title="POS [Shift+P]" href="<?php echo $base_url; ?>pos"><i class="fa fa-plus-square " ></i> POS </a>   
+          </li>
+          <?php } ?>
+
+          <!-- Offline Sync Controls -->
+          <?php if($CI->permissions('pos')) { ?>
+          <li class="text-center">
+            <a id="syncOfflineBtn" title="Sync Items for Offline Use" href="#" style="position:relative;">
+              <i class="fa fa-refresh"></i><span class="hidden-xs"> Sync</span>
+              <span id="pendingSalesBadge" style="display:none;position:absolute;top:4px;right:4px;background:#e74c3c;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;">0</span>
+            </a>
+          </li>
+          <li class="text-center" id="retrySalesLi" style="display:none;">
+            <a id="retrySalesBtn" title="Retry Queued Sales Now" href="#"><i class="fa fa-cloud-upload"></i><span class="hidden-xs"> Retry</span></a>
+          </li>
+          <li class="text-center">
+            <a id="clearCacheBtn" title="Clear Offline Cache" href="#"><i class="fa fa-trash-o"></i><span class="hidden-xs"> Clear</span></a>
+          </li>
+          <li class="text-center" id="offlineBadgeLi" style="display:none;">
+            <a href="#" style="background:linear-gradient(135deg,#ff6b6b 0%,#ee5a5a 100%) !important;color:#fff !important;cursor:default;border-radius:20px;padding:6px 14px;margin:8px 2px;box-shadow:0 2px 8px rgba(238,90,90,0.35);font-size:12px;letter-spacing:0.5px;">
+              <i class="fa fa-wifi" style="color:#fff;margin-right:4px;"></i><span class="hidden-xs" style="font-weight:600;">OFFLINE</span>
+            </a>
           </li>
           <?php } ?>
 
@@ -200,7 +221,7 @@
 
     </nav>
   </header>
- 
+
   <!-- Left side column. contains the logo and sidebar -->
   <aside class="main-sidebar">
     <!-- sidebar: style can be found in sidebar.less -->
@@ -248,6 +269,10 @@
 
         <?php if($CI->permissions('sales_payment_view')) { ?>
         <li class="sales-payments-list-active-li"><a href="<?php echo $base_url; ?>sales_payments/"><i class="fa fa-list "></i> <span><?= $this->lang->line('sales_payments'); ?></span></a></li>
+        <?php } ?>
+
+        <?php if($CI->permissions('installment_plans') && mp_feature_enabled('payplan')) { ?>
+        <li class="installments-active-li"><a href="<?php echo $base_url; ?>installments"><i class="fa fa-calendar-check-o text-purple"></i> <span>Installments</span></a></li>
         <?php } ?>
 
         <?php if($CI->permissions('sales_return_view')) { ?>
@@ -357,16 +382,47 @@
                <?php } ?>
 
           </ul>
-        </li>    
+        </li>
+    <?php } ?>
+    <?php } ?><!-- is_user() -->
+
+    <?php if(!is_user()){?>
+    <?php if(($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit'))) { ?>
+    <li class="loyalty-active-li gift-cards-active-li store-credit-active-li treeview">
+          <a href="#">
+            <i class="fa fa-heart text-red"></i> <span>Loyalty & Rewards</span>
+            <span class="pull-right-container">
+              <i class="fa fa-angle-left pull-right"></i>
+            </span>
+          </a>
+          <ul class="treeview-menu">
+        <?php if($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) { ?>
+        <li class="loyalty-active-li"><a href="<?php echo $base_url; ?>loyalty"><i class="fa fa-dashboard"></i> <span>Dashboard</span></a></li>
+        <li><a href="<?php echo $base_url; ?>loyalty/settings"><i class="fa fa-cog"></i> <span>Settings</span></a></li>
+        <li><a href="<?php echo $base_url; ?>loyalty/tiers"><i class="fa fa-sitemap"></i> <span>Customer Tiers</span></a></li>
+        <li><a href="<?php echo $base_url; ?>loyalty/points_history"><i class="fa fa-history"></i> <span>Points History</span></a></li>
+        <li><a href="<?php echo $base_url; ?>loyalty/referral_program"><i class="fa fa-share-alt"></i> <span>Referral Program</span></a></li>
+         <?php } ?>
+
+        <?php if($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) { ?>
+        <li class="gift-cards-active-li"><a href="<?php echo $base_url; ?>gift_cards"><i class="fa fa-ticket"></i> <span>Gift Cards</span></a></li>
+        <?php } ?>
+
+        <?php if($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')) { ?>
+        <li class="store-credit-active-li"><a href="<?php echo $base_url; ?>store_credit"><i class="fa fa-credit-card"></i> <span>Store Credit</span></a></li>
+        <?php } ?>
+
+          </ul>
+        </li>
     <?php } ?>
     <?php } ?><!-- is_user() -->
 
         <?php if(!is_user()){?>
-        <?php if($CI->permissions('services_add') || $CI->permissions('services_view') || $CI->permissions('items_add') || $CI->permissions('items_view') || $CI->permissions('items_category_add') || $CI->permissions('items_category_view') || $CI->permissions('brand_add') || $CI->permissions('brand_view') || $CI->permissions('print_labels') || $CI->permissions('import_items') || $CI->permissions('import_services') || $CI->permissions('variant_view') || $CI->permissions('services_view') ) { ?>
+        <?php if($CI->permissions('services_add') || $CI->permissions('services_view') || $CI->permissions('items_add') || $CI->permissions('items_view') || $CI->permissions('items_category_add') || $CI->permissions('items_category_view') || $CI->permissions('brand_add') || $CI->permissions('brand_view') || $CI->permissions('print_labels') || $CI->permissions('import_items') || $CI->permissions('import_services') || $CI->permissions('variant_view') || $CI->permissions('services_view') || $CI->permissions('service_packages_view') ) { ?>
           <!-- <li class="header">MAIN</li> -->
-        <li class="items-list-active-li items-active-li  category-view-active-li category-active-li brand-active-li brand-view-active-li labels-active-li import_items-active-li services-active-li import_services-active-li variants-active-li variants_list-active-li services-active-li treeview">
+        <li class="items-list-active-li items-active-li  category-view-active-li category-active-li brand-active-li brand-view-active-li labels-active-li import_items-active-li services-active-li import_services-active-li variants-active-li variants_list-active-li services-active-li service-packages-active-li treeview">
           <a href="#">
-            <i class="fa fa-cubes text-navy"></i> <span><?= (service_module()) ? $this->lang->line('items') : $this->lang->line('items'); ?></span>
+            <i class="fa fa-cubes text-navy"></i> <span><?= (service_module()) ? $this->lang->line('items_and_services') : $this->lang->line('items'); ?></span>
             <span class="pull-right-container">
               <i class="fa fa-angle-left pull-right"></i>
             </span>
@@ -377,8 +433,12 @@
             <li class="items-active-li"><a href="<?php echo $base_url; ?>items/add"><i class="fa fa-plus-square-o "></i> <span><?= $this->lang->line('add_item'); ?></span></a></li>
             <?php } ?>
 
-            <?php if($CI->permissions('services_add')) { ?>
+            <?php if($CI->permissions('services_add') && service_module()) { ?>
             <li class="services-active-li"><a href="<?php echo $base_url; ?>services/add"><i class="fa fa-plus-square-o "></i> <span><?= $this->lang->line('add_service'); ?></span></a></li>
+            <?php } ?>
+
+            <?php if($CI->permissions('service_packages_view') && service_module()) { ?>
+            <li class="service-packages-active-li"><a href="<?php echo $base_url; ?>service_packages"><i class="fa fa-gift "></i> <span>Service Packages</span></a></li>
             <?php } ?>
 
             <?php if($CI->permissions('items_view') ||$CI->permissions('services_view') || $CI->permissions('services_add')) { ?>
@@ -396,7 +456,7 @@
             <?php } ?>
 
             
-            <?php if($CI->permissions('variant_view')) { ?>
+            <?php if($CI->permissions('variant_view') && mp_feature_enabled('bundles')) { ?>
             <li class="variants_list-active-li"><a href="<?php echo $base_url; ?>variants/view"><i class="fa fa-list "></i> <span><?= $this->lang->line('variants_list'); ?></span></a></li>
             <?php } ?>
 
@@ -407,7 +467,7 @@
                <li class="import_items-active-li"><a href="<?php echo $base_url; ?>import/items"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_items'); ?></span>
               </a></li>
                <?php } ?>
-              <?php if($CI->permissions('import_services')) { ?>
+              <?php if($CI->permissions('import_services') && service_module()) { ?>
                <li class="import_services-active-li"><a href="<?php echo $base_url; ?>import/services"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_services'); ?></span>
               </a></li>
                <?php } ?>
@@ -568,6 +628,63 @@
         </li>
     <?php } ?>
 
+    <!-- OPERATIONS & WORKFLOWS -->
+    <?php if(!is_user()){ ?>
+    <?php
+      $ops_flags = ['custom_orders','packages','memberships','treatment_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','price_catalogue','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking'];
+      $has_ops = false;
+      foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
+    ?>
+    <?php if($has_ops && (is_admin() || is_store_admin())) { ?>
+    <li class="custom-orders-active-li production-schedule-active-li recipes-active-li recipe-categories-active-li packages-active-li memberships-active-li treatment-notes-active-li kitchen-active-li laundry-active-li production-active-li price-catalogue-active-li public-catalogue-active-li warranty-lookup-active-li treeview">
+      <a href="#">
+        <i class="fa fa-cogs text-orange"></i> <span>Operations</span>
+        <span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span>
+      </a>
+      <ul class="treeview-menu">
+        <?php if(mp_feature_enabled('custom_orders')) { ?>
+        <li class="custom-orders-active-li"><a href="<?= $base_url; ?>operations/custom_orders"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('production_workflow')) { ?>
+        <li class="production-schedule-active-li"><a href="<?= $base_url; ?>operations/production_schedule"><i class="fa fa-fire"></i> Production Schedule</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('recipe_tracking')) { ?>
+        <li class="recipes-active-li"><a href="<?= $base_url; ?>operations/recipes"><i class="fa fa-book"></i> Recipe Book</a></li>
+        <li class="recipe-categories-active-li"><a href="<?= $base_url; ?>operations/recipe_categories"><i class="fa fa-cogs"></i> Recipe Categories</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('packages')) { ?>
+        <li class="packages-active-li"><a href="<?= $base_url; ?>operations/packages"><i class="fa fa-gift"></i> Packages</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('memberships')) { ?>
+        <li class="memberships-active-li"><a href="<?= $base_url; ?>operations/memberships"><i class="fa fa-id-card"></i> Memberships</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('treatment_notes')) { ?>
+        <li class="treatment-notes-active-li"><a href="<?= $base_url; ?>operations/treatment_notes"><i class="fa fa-file-text-o"></i> Treatment Notes</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('kitchen_workflow')) { ?>
+        <li class="kitchen-active-li"><a href="<?= $base_url; ?>operations/kitchen"><i class="fa fa-fire"></i> Kitchen Display</a></li>
+        <li class="kitchen-active-li"><a href="<?= $base_url; ?>operations/menu_items"><i class="fa fa-plus-circle"></i> Menu Items</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('laundry_workflow')) { ?>
+        <li class="laundry-active-li"><a href="<?= $base_url; ?>operations/laundry"><i class="fa fa-tint"></i> Laundry Workflow</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('price_catalogue')) { ?>
+        <li class="price-catalogue-active-li"><a href="<?= $base_url; ?>operations/price_catalogue"><i class="fa fa-tags"></i> Price Catalogue</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('public_catalogue')) { ?>
+        <li class="public-catalogue-active-li"><a href="<?= $base_url; ?>operations/public_catalogue_settings"><i class="fa fa-globe"></i> Public Catalogue Settings</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('delivery_scheduling')) { ?>
+        <li class="delivery-scheduling-active-li"><a href="<?= $base_url; ?>operations/delivery_scheduling"><i class="fa fa-truck"></i> Delivery Scheduling</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking') || mp_feature_enabled('warranty_tracking')) { ?>
+        <li class="warranty-lookup-active-li"><a href="<?= $base_url; ?>operations/warranty_lookup"><i class="fa fa-shield"></i> Warranty Lookup</a></li>
+        <?php } ?>
+      </ul>
+    </li>
+    <?php } ?>
+    <?php } ?>
+
     <!--<li class="header">REPORTS</li>-->
     <?php if($CI->permissions('supplier_items_report') || $CI->permissions('sales_report') || $CI->permissions('item_sales_report') || $CI->permissions('purchase_report') || $CI->permissions('purchase_return_report') || $CI->permissions('expense_report') || $CI->permissions('profit_report') || $CI->permissions('stock_report') || $CI->permissions('purchase_payments_report') || $CI->permissions('sales_payments_report') || $CI->permissions('expired_items_report') || $CI->permissions('seller_points_report') || $CI->permissions('customer_orders_report') || $CI->permissions('stock_transfer_report') || $CI->permissions('sales_summary_report') || $CI->permissions('sales_return_payments') ) { ?>
     <li class="report-sales-active-li report-sales-return-active-li report-purchase-active-li report-purchase-return-active-li report-expense-active-li report-stock-active-li report-purchase-payments-active-li report-sales-item-active-li report-sales-payments-active-li report-expired-items-active-li report-supplier_items-active-li report-seller-points-active-li report-sales-tax-active-li report-purchase-tax-active-li  report-delivery-sheet-active-li report-load-sheet-active-li report-return-item-active-li report-sales-active-li report-stock-transfer-active-li reports-menu report-sales-summary-active-li report-sales-return-payments-active-li treeview">
@@ -681,7 +798,7 @@
             <?php if($CI->permissions('sales_payments_report')) { ?>
             <li class="report-sales-payments-active-li"><a href="<?php echo $base_url; ?>reports/sales_payments" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('sales_payments_report'); ?></span></a></li>  
             <?php } ?>
-            <?php if($CI->permissions('approval_logs_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
+            <?php if(($CI->permissions('approval_logs_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('manager_approvals')) { ?>
             <li class="approval-logs-active-li"><a href="<?php echo $base_url; ?>approvals/logs" ><i class="fa fa-check-circle-o"></i> <span>Approval Logs</span></a></li>
             <?php } ?>
 
@@ -706,6 +823,17 @@
             <?php if($CI->permissions('expired_items_report')) { ?>
             <li class="report-expired-items-active-li"><a href="<?php echo $base_url; ?>expired_items_report" ><i class="fa fa-files-o "></i> <span>Expired Items Report</span></a></li>
             <?php } ?>
+
+            <?php if(mp_feature_enabled('production_workflow') && $CI->permissions('production_batches_view')) { ?>
+            <li class="report-production-summary-active-li"><a href="<?php echo $base_url; ?>reports/production_summary" ><i class="fa fa-industry "></i> <span>Production Summary</span></a></li>
+            <li class="report-ingredient-usage-active-li"><a href="<?php echo $base_url; ?>reports/ingredient_usage" ><i class="fa fa-leaf "></i> <span>Ingredient Usage</span></a></li>
+            <?php } ?>
+            <?php if(mp_feature_enabled('recipe_tracking') && $CI->permissions('recipes_view')) { ?>
+            <li class="report-recipe-costing-active-li"><a href="<?php echo $base_url; ?>reports/recipe_costing" ><i class="fa fa-calculator "></i> <span>Recipe Costing</span></a></li>
+            <?php } ?>
+            <?php if(mp_feature_enabled('production_workflow') && $CI->permissions('production_batches_view')) { ?>
+            <li class="report-production-runs-active-li"><a href="<?php echo $base_url; ?>reports/production_runs" ><i class="fa fa-flask "></i> <span>Production Runs</span></a></li>
+            <?php } ?>
          </ul>
       </li>
       <?php } ?>
@@ -715,7 +843,7 @@
     
 
     <!-- ONLINE STORE -->
-    <?php if($CI->permissions('online_store_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
+    <?php if(($CI->permissions('online_store_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')) { ?>
     <li class="online-store-active-li online-store-settings-active-li online-store-orders-active-li online-store-services-active-li online-store-qr-active-li online-store-products-active-li treeview">
       <a href="#">
         <i class="fa fa-globe text-green"></i> <span>Online Store</span>
@@ -726,7 +854,9 @@
         <li class="online-store-orders-active-li"><a href="<?php echo $base_url; ?>online_store/orders"><i class="fa fa-shopping-cart"></i> Orders</a></li>
         <li class="online-store-products-active-li"><a href="<?php echo $base_url; ?>online_store/products_online"><i class="fa fa-cube"></i> Online Products</a></li>
         <li class="online-store-services-active-li"><a href="<?php echo $base_url; ?>online_store/services"><i class="fa fa-wrench"></i> Services</a></li>
+        <?php if(mp_feature_enabled('qr_ordering')) { ?>
         <li class="online-store-qr-active-li"><a href="<?php echo $base_url; ?>online_store/qr_codes"><i class="fa fa-qrcode"></i> QR Codes</a></li>
+        <?php } ?>
         <li><a href="<?php echo $base_url; ?>online_store/appearance"><i class="fa fa-paint-brush"></i> Appearance</a></li>
         <li><a href="<?php echo $base_url; ?>online_store/banners"><i class="fa fa-image"></i> Banners</a></li>
         <li><a href="<?php echo $base_url; ?>online_store/homepage_builder"><i class="fa fa-th-large"></i> Homepage Builder</a></li>
@@ -741,24 +871,58 @@
     </li>
     <?php } ?>
 
+    <!-- STAFF MANAGEMENT -->
+    <?php if(!is_user() && (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin())) { ?>
+    <li class="staff-active-li staff-commission-active-li treeview">
+      <a href="#">
+        <i class="fa fa-users text-purple"></i> <span>Staff</span>
+        <span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span>
+      </a>
+      <ul class="treeview-menu">
+        <?php if(mp_feature_enabled('staff_assignment')) { ?>
+        <li class="staff-active-li"><a href="<?= $base_url; ?>operations/staff_assignment"><i class="fa fa-user-plus"></i> Staff Assignment</a></li>
+        <?php } ?>
+        <?php if(mp_feature_enabled('staff_commission')) { ?>
+        <li class="staff-commission-active-li"><a href="<?= $base_url; ?>operations/staff_commission"><i class="fa fa-percent"></i> Staff Commission</a></li>
+        <?php } ?>
+      </ul>
+    </li>
+    <?php } ?>
+
+    <!-- TABLE MANAGEMENT (Restaurants) -->
+    <?php if(!is_user() && mp_feature_enabled('table_management') && (is_admin() || is_store_admin())) { ?>
+    <li class="table-management-active-li">
+      <a href="<?= $base_url; ?>operations/table_management">
+        <i class="fa fa-table text-teal"></i> <span>Table Management</span>
+      </a>
+    </li>
+    <?php } ?>
+
         <?php if(!is_user()){?>
     <!-- BRANCH MANAGEMENT (Warehouses) -->
     <?php if(($CI->permissions('warehouse_view') || $CI->permissions('warehouse_add')) && warehouse_module()) { ?>
+    <?php
+      try {
+        $branch_label = mp_label('branch','Branch');
+      } catch (Exception $e) {
+        $branch_label = 'Branch';
+      }
+    ?>
 
         <li class="warehouse-active-li warehouse-list-active-li  treeview">
           <a href="#">
-            <i class="fa fa-sitemap text-blue"></i> <span>Branch</span>
+            <i class="fa fa-sitemap text-blue"></i> <span><?= $branch_label; ?></span>
             <span class="pull-right-container">
               <i class="fa fa-angle-left pull-right"></i>
             </span>
           </a>
           <ul class="treeview-menu">
            <?php if($CI->permissions('warehouse_add')) { ?>
-            <li class="warehouse-active-li"><a href="<?php echo $base_url; ?>warehouse/add"><i class="fa fa-plus-square-o "></i> <span>Add Branch</span>
+            <li class="warehouse-active-li"><a href="<?php echo $base_url; ?>warehouse/add"><i class="fa fa-plus-square-o "></i> <span>Add <?= $branch_label; ?></span>
               </a></li>
              <?php } ?>
             <?php if($CI->permissions('warehouse_view')) { ?>
-            <li class="warehouse-list-active-li"><a href="<?php echo $base_url; ?>warehouse"><i class="fa fa-list "></i> <span>Branch List</span></a></li>
+            <li class="warehouse-list-active-li"><a href="<?php echo $base_url; ?>warehouse"><i class="fa fa-list "></i> <span><?= $branch_label; ?> List</span></a></li>
            <?php } ?>
           </ul>
         </li>
@@ -869,7 +1033,7 @@
 
     <!--<li class="header">SETTINGS</li>-->
     <?php if($change_password=true) { ?>
-    <li class=" site-settings-active-li  change-pass-active-li dbbackup-active-li  tax-active-li currency-view-active-li  store_profile-active-li currency-active-li  database_updater-active-li tax-list-active-li units-list-active-li unit-active-li payment_types_list-active-li payment_types-active-li gateways-active-li package-active-li subscription-active-li  subscription-list-active-li  package-list-active-li sms-api-active-li smtp-active-li expiry_settings-active-li debt-reminder-active-li online-store-active-li online-store-settings-active-li online-store-orders-active-li online-store-services-active-li online-store-qr-active-li online-store-products-active-li treeview">
+    <li class=" site-settings-active-li  change-pass-active-li dbbackup-active-li  tax-active-li currency-view-active-li  store_profile-active-li business-profile-active-li currency-active-li  database_updater-active-li tax-list-active-li units-list-active-li unit-active-li payment_types_list-active-li payment_types-active-li gateways-active-li package-active-li subscription-active-li  subscription-list-active-li  package-list-active-li sms-api-active-li smtp-active-li expiry_settings-active-li debt-reminder-active-li online-store-active-li online-store-settings-active-li online-store-orders-active-li online-store-services-active-li online-store-qr-active-li online-store-products-active-li treeview">
           <a href="#">
             <i class="fa fa-cogs text-gray"></i> <span><?= $this->lang->line('settings'); ?></span>
             <span class="pull-right-container">
@@ -881,13 +1045,27 @@
             <?php if($CI->permissions('store_edit')) { ?>
             <li class="store_profile-active-li"><a href="<?php echo $base_url; ?>store_profile/update/<?= $this->session->userdata('store_id'); ?>"><i class="fa fa-suitcase "></i> <span><?= $this->lang->line('store'); ?></span></a></li>
             <?php } ?>
+            <?php if($CI->permissions('store_edit')) { ?>
+            <li class="business-profile-active-li"><a href="<?php echo $base_url; ?>business_profile"><i class="fa fa-industry"></i> <span>Business Profile</span></a></li>
+            <?php } ?>
             <?php } ?><!-- is_user() -->
             <?php if(special_access()) { ?>
             <li class="site-settings-active-li"><a href="<?php echo $base_url; ?>site"><i class="fa fa-shield  "></i> <span><?= $this->lang->line('site_settings'); ?></span></a></li>
             <?php } ?>
 
             <?php if(special_access()) { ?>
-            <li class="subscription-license-active-li"><a href="<?php echo $base_url; ?>subscription_license"><i class="fa fa-key"></i> <span>License Management</span></a></li>
+            <li class="treeview subscription-license-active-li">
+              <a href="#"><i class="fa fa-key"></i> <span>License Management</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li class="subscription-license-active-li"><a href="<?php echo $base_url; ?>subscription_license"><i class="fa fa-cogs"></i> Subscription Control</a></li>
+                <li class="subscription-plans-active-li"><a href="<?php echo $base_url; ?>subscription_plans"><i class="fa fa-list-alt"></i> Plans</a></li>
+                <li class="subscription-usage-active-li"><a href="<?php echo $base_url; ?>subscription_license/usage"><i class="fa fa-chart-pie"></i> Usage</a></li>
+              </ul>
+            </li>
             <?php } ?>
 
             <?php if($CI->permissions('sms_api_view')) { ?>
@@ -936,7 +1114,7 @@
                 <?php if($CI->permissions('paystack_settings')) { ?>
                 <li class="paystack_settings-active-li"><a href="<?php echo $base_url; ?>paystack/settings"><i class="fa fa-link"></i> <span>Paystack Settings</span></a></li>
                 <?php } ?>
-                <?php if($CI->permissions('expiry_settings')) { ?>
+                <?php if($CI->permissions('expiry_settings') && mp_feature_enabled('expiry_tracking')) { ?>
                 <li class="expiry_settings-active-li"><a href="<?php echo $base_url; ?>expiry_settings"><i class="fa fa-calendar-times-o"></i> <span>Expiry Settings</span></a></li>
                 <?php } ?>
             <?php } ?><!-- is_user() -->
@@ -952,8 +1130,14 @@
 
             
 
-            <?php if($CI->permissions('approval_settings_edit') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
+            <?php if(($CI->permissions('approval_settings_edit') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('manager_approvals')) { ?>
             <li class="approval-settings-active-li"><a href="<?php echo $base_url; ?>approvals/settings"><i class="fa fa-shield"></i> <span>Security & Approvals</span></a></li>
+            <?php } ?>
+            <?php if($CI->permissions('nin_usage')) { ?>
+            <li class="ninverify_usage-active-li"><a href="<?php echo $base_url; ?>ninverify/usage"><i class="fa fa-bar-chart"></i> <span>NIN Usage Summary</span></a></li>
+            <?php } ?>
+            <?php if($CI->permissions('nin_logs')) { ?>
+            <li class="ninverify_log-active-li"><a href="<?php echo $base_url; ?>ninverify/log"><i class="fa fa-id-card"></i> <span>NIN Verification Log</span></a></li>
             <?php } ?>
             <?php if(special_access()) { ?>
             <li class="dbbackup-active-li"><a href="<?php echo $base_url; ?>users/dbbackup"><i class="fa fa-database "></i> <span><?= $this->lang->line('database_backup'); ?></span></a></li>
@@ -999,7 +1183,7 @@
   </aside>
 
 <!-- Clock In Modal (App-wide) -->
-<div class="modal fade" id="appClockInModal" tabindex="-1" role="dialog">
+<div class="modal" id="appClockInModal" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -1023,21 +1207,32 @@
   var clockImage = null;
   var isClockedIn = false;
 
+  function updateClockButton(clockedIn){
+    isClockedIn = clockedIn;
+    $('#appClockInBtn .clock-label').text(isClockedIn ? 'Clock Out' : 'Clock In');
+    $('#appClockInBtn i').attr('class', isClockedIn ? 'fa fa-sign-out text-red' : 'fa fa-clock-o');
+    $('#appClockInBtn').attr('title', isClockedIn ? 'Clock Out' : 'Clock In');
+    $('#appClockTitle').text(isClockedIn ? 'Clock Out' : 'Clock In');
+    $('#appConfirmClockBtn').html(isClockedIn ? '<i class="fa fa-check"></i> Confirm Clock Out' : '<i class="fa fa-check"></i> Confirm Clock In');
+  }
+
   function checkStatus(){
-    $.getJSON('<?= base_url('attendance/status_ajax'); ?>', function(res){
-      isClockedIn = res.clocked_in;
-      $('#appClockInBtn .clock-label').text(isClockedIn ? 'Clock Out' : 'Clock In');
-      $('#appClockInBtn i').attr('class', isClockedIn ? 'fa fa-sign-out text-red' : 'fa fa-clock-o');
-      $('#appClockTitle').text(isClockedIn ? 'Clock Out' : 'Clock In');
-      $('#appConfirmClockBtn').html(isClockedIn ? '<i class="fa fa-check"></i> Confirm Clock Out' : '<i class="fa fa-check"></i> Confirm Clock In');
+    $.getJSON('<?php echo base_url('attendance/status_ajax'); ?>', function(res){
+      updateClockButton(res.clocked_in);
     });
   }
+
   checkStatus();
+  setInterval(checkStatus, 30000);
 
   $('#appClockInBtn').click(function(e){
     e.preventDefault();
+    $('#appCaptureBtn').show();
+    $('#appConfirmClockBtn').hide();
+    $('#appClockStatus').text('Click the button below to capture your face.');
+    clockImage = null;
     $('#appClockInModal').modal('show');
-    startCamera();
+    setTimeout(startCamera, 100);
   });
 
   function startCamera(){
@@ -1070,7 +1265,7 @@
   });
 
   $('#appConfirmClockBtn').click(function(){
-    if(!clockImage){ toastr.warning('Please capture your face first.'); return; }
+    if(!clockImage){ alert('Please capture your face first.'); return; }
     $('#appClockStatus').text('Getting location...');
     var payload = {face_image: clockImage};
     if(navigator.geolocation){
@@ -1087,21 +1282,25 @@
   });
 
   function sendClock(payload){
-    var url = isClockedIn ? '<?= base_url('attendance/clock_out'); ?>' : '<?= base_url('attendance/clock_in'); ?>';
+    var wasClockedIn = isClockedIn;
+    var url = isClockedIn ? '<?php echo base_url('attendance/clock_out'); ?>' : '<?php echo base_url('attendance/clock_in'); ?>';
     $.post(url, payload, function(res){
       if(res.status === 'success'){
-        toastr['success'](res.message);
+        if(typeof toastr !== 'undefined') toastr['success'](res.message);
         $('#appClockInModal').modal('hide');
-        checkStatus();
+        updateClockButton(!wasClockedIn);
+        setTimeout(checkStatus, 500);
       } else {
-        toastr['error'](res.message);
+        if(typeof toastr !== 'undefined') toastr['error'](res.message || 'Clock action failed');
       }
     }, 'json');
   }
 
   $('#appClockInModal').on('hidden.bs.modal', function(){ stopCamera(); });
 })();
+</script>
 
+<script>
 // Logout enforcement: alert user if they haven't clocked out
 $(function(){
   var logoutLink = $('a[href$="logout"]');
@@ -1116,8 +1315,8 @@ $(function(){
     var $self = $(this);
     $self.data('processing', true);
 
-    $.post('<?= base_url('attendance/needs_clock_out_ajax'); ?>', {
-      '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>'
+    $.post('<?php echo base_url('attendance/needs_clock_out_ajax'); ?>', {
+      '<?php echo $this->security->get_csrf_token_name(); ?>':'<?php echo $this->security->get_csrf_hash(); ?>'
     }, function(res){
       $self.data('processing', false);
       if(res.needs_clock_out){
@@ -1155,9 +1354,9 @@ $(function(){
   });
 
   function doClockOutThenLogout(href){
-    $.post('<?= base_url('attendance/clock_out_ajax'); ?>', {
-      user_id: <?= (int)$this->session->userdata('inv_userid'); ?>,
-      '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>'
+    $.post('<?php echo base_url('attendance/clock_out_ajax'); ?>', {
+      user_id: <?php echo (int)$this->session->userdata('inv_userid'); ?>,
+      '<?php echo $this->security->get_csrf_token_name(); ?>':'<?php echo $this->security->get_csrf_hash(); ?>'
     }, function(res){
       if(res.status === 'success'){
         toastr['success']('Clocked out successfully. Signing out...');
@@ -1177,4 +1376,178 @@ $(function(){
     });
   }
 });
+</script>
+
+<script src="<?php echo base_url('theme/js/mp-offline-db.js'); ?>?v=3"></script>
+<script>
+/* ─── Offline Support (shared for all pages) ─── */
+(function(){
+  function updateNetworkStatus(){
+    var badgeLi = document.getElementById('offlineBadgeLi');
+    if (!badgeLi) return;
+    if (navigator.onLine) {
+      badgeLi.style.display = 'none';
+    } else {
+      badgeLi.style.display = '';
+    }
+  }
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+  updateNetworkStatus();
+
+  function updatePendingSalesBadge(){
+    if (typeof MPOfflineDB === 'undefined') return;
+    Promise.all([MPOfflineDB.countPendingSales(), MPOfflineDB.countPendingPurchases()]).then(function(results){
+      var count = results[0] + results[1];
+      var badge = document.getElementById('pendingSalesBadge');
+      if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'inline-block' : 'none';
+      }
+      var retryLi = document.getElementById('retrySalesLi');
+      if (retryLi) {
+        retryLi.style.display = (count > 0 && navigator.onLine) ? '' : 'none';
+      }
+    }).catch(function(){});
+  }
+  function checkCacheAge(){
+    if (typeof MPOfflineDB === 'undefined') return;
+    MPOfflineDB.getMeta('lastSync').then(function(ts){
+      if (ts) {
+        var d = new Date(ts);
+        var hoursAgo = Math.round((Date.now() - d) / 3600000);
+        var label = hoursAgo < 1 ? 'just now' : hoursAgo + 'h ago';
+        $('#syncOfflineBtn').attr('title', 'Last synced: ' + d.toLocaleString() + ' (' + label + ')');
+        if (hoursAgo >= 24) {
+          toastr.warning('Your offline cache is ' + hoursAgo + ' hours old. Please sync for latest data.', 'Cache Stale');
+          $('#syncOfflineBtn').find('i').addClass('text-red');
+        }
+      } else {
+        $('#syncOfflineBtn').attr('title', 'Never synced — click to cache offline data');
+      }
+    }).catch(function(){});
+  }
+
+  $(document).ready(function(){
+    setTimeout(updatePendingSalesBadge, 1000);
+    checkCacheAge();
+
+    // Retry button
+    $('#retrySalesBtn').on('click', function(e){
+      e.preventDefault();
+      if (!navigator.onLine) { toastr.warning('Cannot retry while offline.'); return; }
+      if (typeof MPOfflineDB === 'undefined') return;
+
+      // Retry queued sales
+      MPOfflineDB.getPendingSales().then(function(sales){
+        if (sales.length) {
+          toastr.info('Syncing ' + sales.length + ' queued sale(s)...', 'Retry');
+          sales.forEach(function(sale){
+            if (!sale || !sale.formData) return;
+            var data = new FormData();
+            for (var key in sale.formData) {
+              if (sale.formData.hasOwnProperty(key)) {
+                data.append(key, sale.formData[key]);
+              }
+            }
+            $.ajax({ type: 'POST', url: sale.url, data: data, cache: false, contentType: false, processData: false,
+              success: function(result){
+                if (typeof MPOfflineDB !== 'undefined') {
+                  MPOfflineDB.removeQueuedSale(sale.queueId).then(function(){ updatePendingSalesBadge(); });
+                }
+                toastr.success('Sale synced successfully.', 'Sync');
+              },
+              error: function(){ toastr.error('Failed to sync sale #' + sale.queueId); }
+            });
+          });
+        }
+      }).catch(function(){});
+
+      // Retry queued purchases
+      MPOfflineDB.getPendingPurchases().then(function(purchases){
+        if (purchases.length) {
+          toastr.info('Syncing ' + purchases.length + ' queued purchase(s)...', 'Retry');
+          purchases.forEach(function(purchase){
+            if (!purchase || !purchase.formData) return;
+            var data = new FormData();
+            for (var key in purchase.formData) {
+              if (purchase.formData.hasOwnProperty(key)) {
+                data.append(key, purchase.formData[key]);
+              }
+            }
+            $.ajax({ type: 'POST', url: purchase.url, data: data, cache: false, contentType: false, processData: false,
+              success: function(result){
+                if (typeof MPOfflineDB !== 'undefined') {
+                  MPOfflineDB.removeQueuedPurchase(purchase.queueId).then(function(){ updatePendingSalesBadge(); });
+                }
+                toastr.success('Purchase synced successfully.', 'Sync');
+              },
+              error: function(){ toastr.error('Failed to sync purchase #' + purchase.queueId); }
+            });
+          });
+        }
+      }).catch(function(){});
+    });
+
+    // Sync button
+    $('#syncOfflineBtn').on('click', function(e){
+      e.preventDefault();
+      if (!navigator.onLine) { toastr.warning('Cannot sync while offline. Please connect to network first.'); return; }
+      if (typeof MPOfflineDB === 'undefined') { toastr.error('Offline database not available.'); return; }
+      var $btn = $(this);
+      var originalHtml = $btn.html();
+      $btn.html('<i class="fa fa-refresh fa-spin"></i><span class="hidden-xs"> Syncing...</span>');
+      toastr.info('Syncing data for offline use...', 'Offline Sync');
+      var currentStoreId = <?= json_encode((int)$this->session->userdata('store_id') ?: 1); ?>;
+      $.ajax({ url: '<?= base_url('items/sync_items_for_offline'); ?>', method: 'GET', dataType: 'json', data: { store_id: currentStoreId } }).then(function(itemRes){
+        return MPOfflineDB.saveItems(itemRes);
+      }).then(function(itemCount){
+        toastr.info(itemCount + ' items cached. Syncing customers...', 'Offline Sync');
+        return $.ajax({ url: '<?= base_url('customers/sync_customers_for_offline'); ?>', method: 'GET', dataType: 'json', data: { store_id: currentStoreId } });
+      }).then(function(custRes){
+        return MPOfflineDB.saveCustomers(custRes);
+      }).then(function(custCount){
+        toastr.info(custCount + ' customers cached. Syncing suppliers...', 'Offline Sync');
+        return $.ajax({ url: '<?= base_url('suppliers/sync_suppliers_for_offline'); ?>', method: 'GET', dataType: 'json', data: { store_id: currentStoreId } });
+      }).then(function(supRes){
+        return MPOfflineDB.saveSuppliers(supRes);
+      }).then(function(supCount){
+        var now = new Date();
+        MPOfflineDB.setMeta('lastSync', now.toISOString()).catch(function(){});
+        toastr.success('Offline sync complete.', 'Sync Complete');
+        $('#syncOfflineBtn').attr('title', 'Last synced: ' + now.toLocaleTimeString()).find('i').removeClass('text-red');
+      }).catch(function(err){
+        toastr.error('Sync failed.');
+      }).finally(function(){ $btn.html(originalHtml); });
+    });
+
+    // Clear Cache button
+    $('#clearCacheBtn').on('click', function(e){
+      e.preventDefault();
+      if (typeof MPOfflineDB === 'undefined') { toastr.error('Offline database not available.'); return; }
+      if(typeof swal !== 'undefined'){
+        swal({ title: "Clear Offline Cache?", text: "This will remove all cached items, customers, suppliers and hold invoices. Queued transactions will NOT be deleted.", icon: "warning", buttons: ["Cancel", "Clear Cache"], dangerMode: true }).then(function(willClear){
+          if (willClear) {
+            MPOfflineDB.open().then(function(db){
+              var tx = db.transaction(['items', 'itemDetails', 'customers', 'suppliers', 'holdInvoices'], 'readwrite');
+              tx.objectStore('items').clear();
+              tx.objectStore('itemDetails').clear();
+              tx.objectStore('customers').clear();
+              tx.objectStore('suppliers').clear();
+              tx.objectStore('holdInvoices').clear();
+              tx.oncomplete = function(){
+                toastr.success('Offline cache cleared. Queued transactions preserved.', 'Cache Cleared');
+                $('#syncOfflineBtn').attr('title', 'Never synced — click to cache offline data');
+                $('#syncOfflineBtn').find('i').removeClass('text-red');
+              };
+            }).catch(function(){ toastr.error('Failed to clear cache.'); });
+          }
+        });
+      } else {
+        if(!confirm('Clear offline cache? Queued transactions will NOT be deleted.')) return;
+        MPOfflineDB.clearAll().then(function(){ toastr.success('Cache cleared.'); }).catch(function(){ toastr.error('Failed.'); });
+      }
+    });
+  });
+})();
 </script>

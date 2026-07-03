@@ -8,16 +8,26 @@
    1. CSS VARIABLES & BASE
    --------------------------------------------------------- */
 :root {
-  --mp-primary: #111827;
+  /* Primary Brand */
+  --mp-primary: #0A0F1C;
   --mp-primary-light: #1F2937;
-  --mp-accent: #F97316;
-  --mp-accent-hover: #EA580C;
-  --mp-success: #16A34A;
+  --mp-accent: #0057FF;
+  --mp-accent-hover: #0047D9;
+  --mp-accent-pressed: #0038B5;
+  /* Semantic */
+  --mp-success: #10B981;
+  --mp-warning: #F59E0B;
+  --mp-danger: #EF4444;
+  --mp-info: #0EA5E9;
+  --mp-mint: #14C38E;
+  /* Surfaces */
   --mp-bg: #F8FAFC;
   --mp-card: #FFFFFF;
   --mp-border: #E5E7EB;
+  /* Text */
   --mp-text: #111827;
   --mp-muted: #6B7280;
+  /* Utility */
   --mp-radius: 10px;
   --mp-radius-sm: 6px;
   --mp-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
@@ -35,7 +45,7 @@ html, body {
    2. LOGIN PAGE
    --------------------------------------------------------- */
 .login-page {
-  background: linear-gradient(135deg, #111827 0%, #1F2937 100%) !important;
+  background: linear-gradient(135deg, #0A0F1C 0%, #1F2937 100%) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,7 +100,7 @@ html, body {
 
 .login-page .form-control:focus {
   border-color: var(--mp-accent);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 87, 255, 0.15);
 }
 
 .login-page .btn-primary {
@@ -148,8 +158,8 @@ html, body {
   color: var(--mp-text) !important;
 }
 
-.skin-blue .main-header .logo,
-.skin-blue-light .main-header .logo,
+body.skin-blue .main-header .logo,
+body.skin-blue-light .main-header .logo,
 .main-header .logo {
   background-color: var(--mp-primary) !important;
   color: #ffffff !important;
@@ -158,8 +168,8 @@ html, body {
   font-size: 18px;
 }
 
-.skin-blue .main-header .logo:hover,
-.skin-blue-light .main-header .logo:hover {
+body.skin-blue .main-header .logo:hover,
+body.skin-blue-light .main-header .logo:hover {
   background-color: var(--mp-primary-light) !important;
 }
 
@@ -245,9 +255,10 @@ html, body {
   color: #0F172A !important;
 }
 
-.sidebar-menu > li.active > a {
+body.skin-blue .sidebar-menu > li.active > a,
+body.skin-blue-light .sidebar-menu > li.active > a {
   background-color: #EFF6FF !important;
-  color: #2563EB !important;
+  color: #0057FF !important;
   box-shadow: none;
   font-weight: 600;
 }
@@ -271,7 +282,7 @@ html, body {
 }
 
 .sidebar-menu .treeview-menu > li.active > a {
-  color: #2563EB !important;
+  color: #0057FF !important;
   font-weight: 600;
 }
 
@@ -281,10 +292,13 @@ html, body {
   color: #64748B !important;
 }
 
-.sidebar-menu > li.active > a > .fa,
-.sidebar-menu > li.active > a > .glyphicon,
-.sidebar-menu > li.active > a > .ion {
-  color: #2563EB !important;
+body.skin-blue .sidebar-menu > li.active > a > .fa,
+body.skin-blue .sidebar-menu > li.active > a > .glyphicon,
+body.skin-blue .sidebar-menu > li.active > a > .ion,
+body.skin-blue-light .sidebar-menu > li.active > a > .fa,
+body.skin-blue-light .sidebar-menu > li.active > a > .glyphicon,
+body.skin-blue-light .sidebar-menu > li.active > a > .ion {
+  color: #0057FF !important;
 }
 
 .sidebar-menu .treeview-menu > li > a > .fa,
@@ -314,7 +328,7 @@ html, body {
 .sidebar-menu > li.active > a .text-aqua,
 .sidebar-menu > li.active > a .text-blue,
 .sidebar-menu > li.active > a .text-green {
-  color: #2563EB !important;
+  color: #0057FF !important;
 }
 
 .sidebar-menu .treeview-menu > li > a .text-aqua,
@@ -480,9 +494,9 @@ html, body {
   color: var(--mp-text) !important;
 }
 
-.small-box.bg-1 .icon { background: #EFF6FF; color: #2563EB !important; }
+.small-box.bg-1 .icon { background: #EFF6FF; color: #0057FF !important; }
 .small-box.bg-2 .icon { background: #FEF2F2; color: #DC2626 !important; }
-.small-box.bg-3 .icon { background: #ECFDF5; color: #16A34A !important; }
+.small-box.bg-3 .icon { background: #ECFDF5; color: #10B981 !important; }
 .small-box.bg-4 .icon { background: #FFFBEB; color: #D97706 !important; }
 .small-box.bg-5 .icon { background: #F3E8FF; color: #7C3AED !important; }
 .small-box.bg-6 .icon { background: #FCE7F3; color: #DB2777 !important; }
@@ -527,13 +541,13 @@ html, body {
 .info-box-icon.bg-5 {
   background: #EFF6FF !important;
   background-image: none !important;
-  color: #2563EB !important;
+  color: #0057FF !important;
 }
 
 .info-box-icon.bg-6 {
   background: #FFF7ED !important;
   background-image: none !important;
-  color: #F97316 !important;
+  color: #0057FF !important;
 }
 
 /* Dashboard2.php colored info-box overrides */
@@ -574,14 +588,14 @@ html, body {
 .info-box.bg-green .info-box-icon {
   background: #ECFDF5 !important;
   background-image: none !important;
-  color: #16A34A !important;
+  color: #10B981 !important;
 }
 
 .info-box.bg-aqua .info-box-icon,
 .info-box.bg-blue .info-box-icon {
   background: #EFF6FF !important;
   background-image: none !important;
-  color: #2563EB !important;
+  color: #0057FF !important;
 }
 
 /* dashboard2.php uses correct .info-box-text=label / .info-box-number=value for bg-yellow boxes */
@@ -690,17 +704,20 @@ table.dataTable tbody tr:hover {
   border-width: 1px;
 }
 
-.btn-primary {
+body .btn-primary,
+body .btn-primary.btn {
   background-color: var(--mp-accent) !important;
   border-color: var(--mp-accent) !important;
   color: #fff !important;
 }
 
-.btn-primary:hover,
-.btn-primary:focus {
+body .btn-primary:hover,
+body .btn-primary:focus,
+body .btn-primary.btn:hover,
+body .btn-primary.btn:focus {
   background-color: var(--mp-accent-hover) !important;
   border-color: var(--mp-accent-hover) !important;
-  box-shadow: 0 4px 10px rgba(249, 115, 22, 0.25);
+  box-shadow: 0 4px 10px rgba(0, 87, 255, 0.25) !important;
 }
 
 .btn-success {
@@ -722,8 +739,8 @@ table.dataTable tbody tr:hover {
 
 .btn-info:hover,
 .btn-info:focus {
-  background-color: #2563EB !important;
-  border-color: #2563EB !important;
+  background-color: #0057FF !important;
+  border-color: #0057FF !important;
 }
 
 .btn-danger {
@@ -766,33 +783,33 @@ table.dataTable tbody tr:hover {
 }
 
 /* Utility color overrides */
-.bg-primary {
+body .bg-primary {
   background-color: var(--mp-primary) !important;
   color: #fff !important;
 }
 
-.text-primary {
+body .text-primary {
   color: var(--mp-accent) !important;
 }
 
-.text-success {
+body .text-success {
   color: var(--mp-success) !important;
 }
 
-.text-danger {
+body .text-danger {
   color: #EF4444 !important;
 }
 
-.text-warning {
+body .text-warning {
   color: #F59E0B !important;
 }
 
-.text-info {
-  color: #3B82F6 !important;
+body .text-info {
+  color: #0EA5E9 !important;
 }
 
-.text-blue {
-  color: #3B82F6 !important;
+body .text-blue {
+  color: #0057FF !important;
 }
 
 /* ---------------------------------------------------------
@@ -811,7 +828,7 @@ table.dataTable tbody tr:hover {
 
 .form-control:focus {
   border-color: var(--mp-accent);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+  box-shadow: 0 0 0 3px rgba(0, 87, 255, 0.12);
 }
 
 .input-group-addon {
@@ -854,9 +871,9 @@ label {
    11. POS SCREEN
    --------------------------------------------------------- */
 
-/* TOP BAR: Navy modern */
+/* TOP BAR: Mart Blue */
 .layout-top-nav .main-header .navbar {
-  background-color: #2563EB !important;
+  background-color: #0057FF !important;
   border-bottom: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   min-height: 52px;
@@ -952,8 +969,8 @@ body.layout-top-nav .form-control {
 }
 
 body.layout-top-nav .form-control:focus {
-  border-color: #F97316;
-  box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
+  border-color: #0057FF;
+  box-shadow: 0 0 0 3px rgba(0,87,255,0.1);
 }
 
 body.layout-top-nav .select2-container--default .select2-selection--single {
@@ -1173,7 +1190,7 @@ body.layout-top-nav .item_box .label-info {
   font-size: 10px;
   font-weight: 600;
   background: #ECFDF5 !important;
-  color: #16A34A !important;
+  color: #10B981 !important;
   border: 1px solid #A7F3D0;
   z-index: 2;
 }
@@ -1222,7 +1239,7 @@ body.layout-top-nav .box-footer .tot_grand {
 }
 
 body.layout-top-nav .box-footer .tot_grand {
-  color: #2563EB;
+  color: #0057FF;
   font-size: 26px;
 }
 
@@ -1251,28 +1268,28 @@ body.layout-top-nav #hold_invoice:hover {
 }
 
 body.layout-top-nav .show_payments_modal {
-  background: #F97316 !important;
+  background: #0057FF !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 10px;
   font-weight: 600;
   height: 52px;
-  box-shadow: 0 4px 12px rgba(249,115,22,0.25) !important;
+  box-shadow: 0 4px 12px rgba(0,87,255,0.25) !important;
 }
 
 body.layout-top-nav .show_payments_modal:hover {
-  background: #EA580C !important;
+  background: #0047D9 !important;
 }
 
 body.layout-top-nav #show_cash_modal,
 body.layout-top-nav .Alt_c {
-  background: #16A34A !important;
+  background: #10B981 !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 10px;
   font-weight: 600;
   height: 52px;
-  box-shadow: 0 4px 12px rgba(22,163,74,0.25) !important;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.25) !important;
 }
 
 body.layout-top-nav #show_cash_modal:hover,
@@ -1282,18 +1299,18 @@ body.layout-top-nav .Alt_c:hover {
 
 body.layout-top-nav #pay_all,
 body.layout-top-nav .Alt_a {
-  background: #2563EB !important;
+  background: #0057FF !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 10px;
   font-weight: 600;
   height: 52px;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.25) !important;
+  box-shadow: 0 4px 12px rgba(0,87,255,0.25) !important;
 }
 
 body.layout-top-nav #pay_all:hover,
 body.layout-top-nav .Alt_a:hover {
-  background: #1D4ED8 !important;
+  background: #0047D9 !important;
 }
 
 /* POS Footer */
@@ -1369,8 +1386,8 @@ body.layout-top-nav .main-footer {
 
 .btn-info.active,
 .btn-info:active {
-  background-color: #2563EB !important;
-  border-color: #2563EB !important;
+  background-color: #0057FF !important;
+  border-color: #0057FF !important;
 }
 
 .btn-danger.active,
@@ -1427,7 +1444,7 @@ body.layout-top-nav .main-footer {
 }
 
 .modal-header.header-custom {
-  background: #2563EB !important;
+  background: #0057FF !important;
   background-image: none !important;
   color: #ffffff !important;
   border-bottom: none;
@@ -1522,8 +1539,8 @@ body.layout-top-nav .main-footer {
 }
 
 #multiple-payments-modal .form-control:focus {
-  border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  border-color: #0057FF;
+  box-shadow: 0 0 0 3px rgba(0,87,255,0.1);
 }
 
 #multiple-payments-modal textarea.form-control {
@@ -1543,29 +1560,29 @@ body.layout-top-nav .main-footer {
 
 /* Add Payment Row button */
 #multiple-payments-modal #add_payment_row {
-  background: #2563EB !important;
+  background: #0057FF !important;
   border: none !important;
   color: #ffffff !important;
   border-radius: 8px;
   font-weight: 600;
   font-size: 14px;
   height: 44px;
-  box-shadow: 0 2px 8px rgba(37,99,235,0.2);
+  box-shadow: 0 2px 8px rgba(0,87,255,0.2);
   margin-bottom: 14px;
   letter-spacing: 0.3px;
 }
 
 #multiple-payments-modal #add_payment_row:hover {
-  background: #1D4ED8 !important;
+  background: #0047D9 !important;
 }
 
 /* RIGHT SUMMARY PANEL */
 #multiple-payments-modal .box.box-solid.bg-blue {
-  background: #2563EB !important;
+  background: #0057FF !important;
   border: none !important;
   border-radius: 12px;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(37,99,235,0.3) !important;
+  box-shadow: 0 4px 16px rgba(0,87,255,0.3) !important;
   overflow: hidden;
 }
 
@@ -1664,9 +1681,9 @@ body.layout-top-nav .main-footer {
 }
 
 #multiple-payments-modal .modal-footer .btn-success {
-  background: #16A34A !important;
+  background: #10B981 !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(22,163,74,0.25);
+  box-shadow: 0 4px 12px rgba(16,185,129,0.25);
 }
 
 #multiple-payments-modal .modal-footer .btn-success:hover {
@@ -2061,7 +2078,7 @@ body.layout-top-nav .main-footer {
   color: #fff !important;
 }
 .mp-kpi-card.profit {
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+  background: linear-gradient(135deg, #3B82F6 0%, #0057FF 100%) !important;
   color: #fff !important;
 }
 .mp-kpi-card.debt {
@@ -2260,7 +2277,7 @@ body.layout-top-nav .main-footer {
 
 .mp-product-rank.top {
   background: #DBEAFE;
-  color: #2563EB;
+  color: #0057FF;
 }
 
 .mp-product-name {
@@ -2309,7 +2326,7 @@ body.layout-top-nav .main-footer {
 }
 
 .mp-activity-icon.sale { background: #D1FAE5; color: #059669; }
-.mp-activity-icon.customer { background: #DBEAFE; color: #2563EB; }
+.mp-activity-icon.customer { background: #DBEAFE; color: #0057FF; }
 .mp-activity-icon.stock { background: #FEF3C7; color: #D97706; }
 
 .mp-activity-text {
@@ -2468,7 +2485,7 @@ body.layout-top-nav .main-footer {
 }
 
 .mp-chart-tabs .tab.active:hover {
-  background: #2563EB;
+  background: #0057FF;
   color: #FFFFFF;
 }
 

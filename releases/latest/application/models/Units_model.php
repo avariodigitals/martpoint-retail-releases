@@ -4,6 +4,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Units_model extends CI_Model {
 
 	var $table = 'db_units';
+
+	public function __construct() {
+		parent::__construct();
+		// Ensure unit hierarchy columns exist
+		if ($this->db->table_exists('db_units')) {
+			$cols = $this->db->query("SHOW COLUMNS FROM `db_units` LIKE 'parent_unit_id'")->num_rows();
+			if ($cols == 0) {
+				$this->db->query("ALTER TABLE `db_units` ADD COLUMN `parent_unit_id` INT NULL, ADD COLUMN `conversion_factor` DECIMAL(15,6) NOT NULL DEFAULT 1");
+			}
+		}
+	}
 	var $column_order = array('unit_name','description','status','store_id'); //set column field database for datatable orderable
 	var $column_search = array('unit_name','description','status','store_id'); //set column field database for datatable searchable 
 	var $order = array('id' => 'desc'); // default order 
@@ -78,6 +89,8 @@ class Units_model extends CI_Model {
 	public function verify_and_save(){
 		$unit_name = $this->input->post('unit_name', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
+		$conversion_factor = $this->input->post('conversion_factor', TRUE);
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		//Validate This units already exist or not
 		$this->db->where("upper(unit_name)", strtoupper($unit_name));
@@ -92,7 +105,9 @@ class Units_model extends CI_Model {
 		    				'store_id' 				=> $store_id, 
 		    				'unit_name' 				=> $unit_name, 
 		    				'description' 				=> $description,
-		    				'status' 				=> 1,
+																				'parent_unit_id' 								=> $parent_unit_id,
+																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
+																				'status' 										=> 1,
 		    			);
 			
 			$q1 = $this->db->insert('db_units', $info);
@@ -118,6 +133,8 @@ class Units_model extends CI_Model {
 			$data['q_id']=$query->id;
 			$data['unit_name']=$query->unit_name;
 			$data['description']=$query->description;
+			$data['parent_unit_id']=$query->parent_unit_id;
+			$data['conversion_factor']=$query->conversion_factor;
 			$data['store_id']=$query->store_id;
 			return $data;
 		}
@@ -126,6 +143,8 @@ class Units_model extends CI_Model {
 		$q_id = $this->input->post('q_id', TRUE);
 		$unit_name = $this->input->post('unit_name', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
+		$conversion_factor = $this->input->post('conversion_factor', TRUE);
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		//Validate This units already exist or not
 		$this->db->where("upper(unit_name)", strtoupper($unit_name));
@@ -138,9 +157,12 @@ class Units_model extends CI_Model {
 		}
 		else{
 			$info = array(
-		    				'unit_name' 				=> $unit_name, 
-		    				'description' 				=> $description,
-		    			);
+	    																				'unit_name' 								=> $unit_name, 
+	    																				'description' 								=> $description,
+	    																				'parent_unit_id' 								=> $parent_unit_id,
+	    																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
+	    																				'status' 										=> 1,
+	    																				);
 			
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 

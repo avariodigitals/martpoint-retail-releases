@@ -98,20 +98,31 @@ function withCsrf(data){
   data[csrfName] = csrfHash;
   return data;
 }
+var actOtpPending = false;
 function requestActOTP(){
+  if(actOtpPending) return;
+  actOtpPending = true;
+  var btn = $("button[onclick='requestActOTP()']");
+  btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Sending...');
   $.post('<?=base_url("subscription_license/request_otp");?>', withCsrf({otp_type: 'activate'}), function(res){
     try {
       var r = JSON.parse(res);
       if(r.status === 'success'){
         toastr.success(r.message);
+      } else if(r.status === 'warning'){
+        toastr.warning(r.message);
       } else {
         toastr.error(r.message || 'Failed to send OTP');
       }
     } catch(e) {
       toastr.error('Unexpected response. Please try again.');
     }
+    actOtpPending = false;
+    btn.prop('disabled', false).html('Request OTP');
   }).fail(function(){
     toastr.error('Request failed. Please check your connection.');
+    actOtpPending = false;
+    btn.prop('disabled', false).html('Request OTP');
   });
 }
 $(function(){

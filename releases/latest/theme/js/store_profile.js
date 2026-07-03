@@ -49,7 +49,6 @@ $('#update').on("click",function (e) {
     var this_id=this.id;
 
    
-			if(confirm("Do You Wants to "+this_id+" Record ?")){
 				e.preventDefault();
 				data = new FormData($('#store-form')[0]);//form name
 				/*Check XSS Code*/
@@ -84,7 +83,6 @@ $('#update').on("click",function (e) {
 					$(".overlay").remove();
 			   }
 			   });
-		}
 
 				//e.preventDefault
 

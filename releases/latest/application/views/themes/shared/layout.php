@@ -100,7 +100,7 @@
     .mp-hero-overlay { position:absolute; inset:0; background:linear-gradient(to right, rgba(0,0,0,0.6), rgba(0,0,0,0.1)); display:flex; align-items:center; }
     .mp-hero-content { max-width:1280px; margin:0 auto; padding:0 24px; width:100%; color:#fff; }
     .mp-hero-title { font-size:42px; font-weight:800; line-height:1.15; margin-bottom:12px; max-width:600px; }
-    .mp-hero-subtitle { font-size:18px; opacity:0.9; margin-bottom:24px; max-width:500px; }
+    .mp-hero-subtitle { font-size:18px; font-weight:400; opacity:0.9; margin-bottom:24px; max-width:500px; }
     .mp-hero-btn { display:inline-block; padding:14px 32px; background:var(--mp-primary); color:#fff; font-weight:700; border-radius:var(--mp-radius); font-size:15px; border:none; cursor:pointer; }
     .mp-hero-btn:hover { background:var(--mp-primary-dark); }
 

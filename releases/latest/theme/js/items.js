@@ -63,21 +63,33 @@ $('#save,#update').on("click",function (e) {
 	check_field("tax_type");
 	//check_field("profit_margin");
 	if(item_group=='Single'){
-		check_field("price");
-		check_field("purchase_price");
-		check_field("sales_price");
-		//Also validate barcode row 1 has prices
-		var bc_pprice = parseFloat($('input[name="barcode_pprice[]"]').first().val()) || 0;
-		var bc_sprice = parseFloat($('input[name="barcode_sprice[]"]').first().val()) || 0;
-		if(bc_pprice <= 0){
-			$('input[name="barcode_pprice[]"]').first().focus();
-			toastr["warning"]("Purchase Price in Barcode / Batch row is required!");
-			flag = false;
-		}
-		if(bc_sprice <= 0){
-			$('input[name="barcode_sprice[]"]').first().focus();
-			toastr["warning"]("Wholesale Price in Barcode / Batch row is required!");
-			flag = false;
+		// Validate barcode table prices (primary price entry point)
+		var $bc_pprice = $('input[name="barcode_pprice[]"]').first();
+		var $bc_sprice = $('input[name="barcode_sprice[]"]').first();
+		var $bc_mrp    = $('input[name="barcode_mrp[]"]').first();
+		var bc_pprice_val = parseFloat($bc_pprice.val()) || 0;
+		var bc_sprice_val = parseFloat($bc_sprice.val()) || 0;
+		var bc_mrp_val    = parseFloat($bc_mrp.val()) || 0;
+
+		var bc_has_data = ($bc_pprice.length > 0); // table exists if first pprice input exists
+		if(bc_has_data){
+			// Barcode table is visible — prices MUST be entered in the first row
+			if(bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0){
+				$('#barcode_table_msg').fadeIn(200).show();
+				$('#barcode_table_msg_text').html('Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.');
+				if(bc_pprice_val <= 0) $bc_pprice.focus();
+				else if(bc_sprice_val <= 0) $bc_sprice.focus();
+				else $bc_mrp.focus();
+				flag = false;
+			} else {
+				$('#barcode_table_msg').fadeOut(200).hide();
+			}
+		} else {
+			// No barcode table visible — fall back to hidden fields
+			if(!$('#purchase_price').val() || !$('#sales_price').val() || !$('#price').val()){
+				toastr["warning"]("Please fill Purchase Price, Sales Price and Item Price.");
+				flag = false;
+			}
 		}
 	}
 	else{
@@ -559,10 +571,11 @@ function return_variant_data_in_row(variant_id){
     }); 
 }
 
-function removerow(id){//id=Rowid 
- 	$("#row_"+id).remove();
- 	//final_total();
- 	failed.currentTime = 0;
+function removerow(id){//id=Rowid
+	$("#row_"+id).remove();
+	$("#row_"+id+"_batch").remove();
+	//final_total();
+	failed.currentTime = 0;
 	failed.play();
 }
 

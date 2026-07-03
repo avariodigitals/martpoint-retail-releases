@@ -78,6 +78,24 @@
                             </div>
                           </div>
 
+                          <!-- NIN/BVN Verification -->
+                          <div class="col-md-4">
+                            <div class="box-body">
+                              <div class="form-group">
+                                <label for="nin_bvn">NIN / BVN <small class="text-muted">(Nigeria)</small></label>
+                                <label id="nin_bvn_msg" class="text-danger text-right pull-right"></label>
+                                <div class="input-group">
+                                  <input type="text" class="form-control" id="nin_bvn" name="nin_bvn" placeholder="Enter NIN or BVN" maxlength="11" >
+                                  <span class="input-group-btn">
+                                    <button type="button" class="btn btn-info" id="btn_verify_nin" title="Verify NIN/BVN"><i class="fa fa-search"></i> Verify</button>
+                                  </span>
+                                </div>
+                                <div id="nin_status" style="margin-top:4px;"></div>
+                                <input type="hidden" id="nin_verified" name="nin_verified" value="0">
+                              </div>
+                            </div>
+                          </div>
+
                           <div class="col-md-4">
                             <div class="box-body">
                               <div class="form-group">

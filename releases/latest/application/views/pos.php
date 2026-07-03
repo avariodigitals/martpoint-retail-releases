@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/iCheck/square/blue.css">
   <link rel="stylesheet" href="<?= base_url('theme/css/pos.css') ?>">
   <!-- MartPoint Retail Reskin -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=5">
 </head>
 
 <!-- ADD THE CLASS layout-top-nav TO REMOVE THE SIDEBAR. -->
@@ -32,13 +32,6 @@
           <ul class="nav navbar-nav">
             <?php if($CI->permissions('sales_view')) { ?>
             <li class=""><a href="<?php echo $base_url; ?>sales" title="View Sales List!"><i class="fa fa-list text-yellow" ></i> <span><?= $this->lang->line('sales_list'); ?></span></a></li>
-            <?php } ?>
-            
-            <?php if($CI->permissions('customers_view')) { ?>
-            <li class=""><a href="<?php echo $base_url; ?>customers/" title="View Customers List"><i class="fa  fa-group  text-yellow " ></i> <span><?= $this->lang->line('customers_list'); ?></span></a></li>
-            <?php } ?>
-            <?php if($CI->permissions('items_view')) { ?>
-            <li class=""><a href="<?php echo $base_url; ?>items/" title="View Items List"><i class="fa  fa-cubes text-yellow " ></i> <span><?= $this->lang->line('items_list'); ?></span></a></li>
             <?php } ?>
             <?php if($CI->permissions('sales_add')) { ?>
             <li class=""><a href="<?php echo $base_url; ?>pos" title="Create New POS Invoice"><i class="fa fa-calculator text-yellow " ></i> <span><?= $this->lang->line('new_invoice'); ?></span></a></li>
@@ -88,6 +81,23 @@
             <li class="hidden-xs" id="fullscreen"><a title="Fullscreen On/Off"><i class="fa fa-tv text-white" ></i> </a></li>
             <li class="text-center" id="clockInBtnWrap">
               <a id="clockInBtn" title="Clock In" href="#"><i class="fa fa-clock-o text-yellow"></i><b class="hidden-xs"> Clock In</b></a>
+            </li>
+            <li class="text-center">
+              <a id="syncOfflineBtn" title="Sync Items for Offline Use" href="#" style="position:relative;">
+                <i class="fa fa-refresh text-yellow"></i><b class="hidden-xs"> Sync</b>
+                <span id="pendingSalesBadge" style="display:none;position:absolute;top:4px;right:4px;background:#e74c3c;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;">0</span>
+              </a>
+            </li>
+            <li class="text-center" id="retrySalesLi" style="display:none;">
+              <a id="retrySalesBtn" title="Retry Queued Sales Now" href="#"><i class="fa fa-cloud-upload text-yellow"></i><b class="hidden-xs"> Retry</b></a>
+            </li>
+            <li class="text-center">
+              <a id="clearCacheBtn" title="Clear Offline Cache" href="#"><i class="fa fa-trash-o text-yellow"></i><b class="hidden-xs"> Clear</b></a>
+            </li>
+            <li class="text-center" id="offlineBadgeLi" style="display:none;">
+              <a href="#" style="background:linear-gradient(135deg,#ff6b6b 0%,#ee5a5a 100%) !important;color:#fff !important;cursor:default;border-radius:20px;padding:6px 14px;margin:8px 2px;box-shadow:0 2px 8px rgba(238,90,90,0.35);font-size:12px;letter-spacing:0.5px;">
+                <i class="fa fa-wifi" style="color:#fff;margin-right:4px;"></i><b class="hidden-xs" style="font-weight:600;">OFFLINE</b>
+              </a>
             </li>
             <li class="text-center" id="">
             <a title="Dashboard" href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard text-yellow" ></i><b class="hidden-xs"><?= $this->lang->line('dashboard'); ?></b></a>
@@ -202,6 +212,11 @@
               <input type="hidden" value='' id="hidden_invoice_id" name="hidden_invoice_id">
               <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
               <input type="hidden" class="scroll_or_not" value="true">
+<script>
+var mp_staff_list = <?= json_encode(array_map(function($s){ return ['id'=>$s->id, 'name'=>$s->username]; }, $staff_list ?? [])); ?>;
+var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
+</script>
+
 
               
               <input type="hidden" value='' id="walk_in_customer_name" value="<?=get_walk_in_customer_name();?>">
@@ -286,8 +301,23 @@
                   <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
                     <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in Customer:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
                   </div>
+                  <div id="membership-badge" class="alert alert-success" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
+                    <i class="fa fa-id-card"></i> <strong>Member:</strong> <span id="membership-plan-name"></span> — <span class="text-bold" id="membership-discount"></span>
+                  </div>
+                  <div class="input-group" style="margin-top:4px;" data-toggle="tooltip" title="Scan Customer ID Card">
+                    <span class="input-group-addon"><i class="fa fa-id-card-o text-primary"></i></span>
+                    <input type="text" class="form-control" placeholder="Scan customer barcode or type ID" id="customer_barcode_scan" onkeydown="if(event.keyCode==13){event.preventDefault();fetchCustomerByBarcode();}">
+                    <span class="input-group-addon pointer" onclick="fetchCustomerByBarcode()" title="Fetch Customer"><i class="fa fa-search text-primary"></i></span>
+                  </div>
                     <span class="customer_points text-success" style="display: none;"></span>
                     <lable><?= $this->lang->line('previous_due'); ?> :<label class="customer_previous_due text-red" style="font-size: 18px;"><?=store_number_format(0)?></label></lable>
+                    <div id="loyalty_customer_info" style="margin-top:6px;font-size:12px;display:none;">
+                      <span class="label label-info" id="customer_tier_display">Bronze</span>
+                      <span class="text-success"><i class="fa fa-star"></i> <span id="customer_points_display">0</span> pts</span>
+                      <span class="text-warning"><i class="fa fa-credit-card"></i> <span id="customer_store_credit_display">0</span> Credit</span>
+                      <span class="text-maroon"><i class="fa fa-ticket"></i> <span id="customer_gift_card_display">0</span> Gift</span>
+                      <button type="button" class="btn btn-xs btn-info" id="btnViewBenefits" style="display:none;margin-left:6px;" onclick="showCustomerBenefits()">Benefits</button>
+                    </div>
                 </div>
                 <div class="mp-col-middle">
                   <div class="input-group" data-toggle="tooltip" title="Invoice Initial Code">
@@ -296,14 +326,20 @@
                   </div>
                   <div class="input-group" data-toggle="tooltip" title="Select Items">
                     <span class="input-group-addon"><i class="fa fa-barcode"></i></span>
-                     <input type="text" class="form-control" placeholder="Item name / Barcode / Itemcode" id="item_search">
+                     <input type="text" class="form-control" placeholder="Item name / Barcode / IMEI / Serial / Itemcode" id="item_search">
                      <span class="input-group-addon pointer show_item_service" title="New Item?"><i class="fa fa-plus text-primary fa-lg"></i></span>
                   </div>
                   <div class="input-group" style="margin-top:4px;" data-toggle="tooltip" title="Price Type">
                     <span class="input-group-addon"><i class="fa fa-tag"></i></span>
                     <select class="form-control" id="price_type" name="price_type" style="width:100%;">
+                      <?php if(!empty($is_restaurant)): ?>
+                      <option value="retail" selected>Menu Price</option>
+                      <?php elseif(!empty($is_laundry)): ?>
+                      <option value="retail" selected>Service Price</option>
+                      <?php else: ?>
                       <option value="retail" selected>Retail (MRP)</option>
                       <option value="wholesale">Wholesale</option>
+                      <?php endif; ?>
                     </select>
                   </div>
                 </div>
@@ -564,7 +600,7 @@
 <script src="<?php echo $theme_link; ?>plugins/iCheck/icheck.min.js"></script>
 
 <script src="<?php echo $theme_link; ?>js/fullscreen.js"></script>
-<script src="<?php echo $theme_link; ?>js/modals.js"></script>
+<script src="<?php echo $theme_link; ?>js/modals.js?v=2"></script>
 <script src="<?php echo $theme_link; ?>js/modals/modal_item.js"></script>
 <script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
 
@@ -585,13 +621,16 @@
   <?php } ?>
   var walkin_customer_id = <?=json_encode($walkin_customer_id ?? null);?>;
 </script>
-<script src="<?php echo $theme_link; ?>js/pos.js?v=12"></script>
+<script src="<?php echo $theme_link; ?>js/mp-offline-db.js?v=3"></script>
+<script src="<?php echo $theme_link; ?>js/pos.js?v=16"></script>
+<script src="<?php echo $theme_link; ?>js/pos-custom-orders.js?v=1"></script>
 <script src="<?php echo $theme_link; ?>js/approval-modal.js?v=4"></script>
 <script>
   window.base_url = "<?php echo $base_url; ?>";
   window.csrfName = "<?php echo $this->security->get_csrf_token_name(); ?>";
   window.csrfHash = "<?php echo $this->security->get_csrf_hash(); ?>";
   window.currentUserId = "<?php echo $this->session->userdata('inv_userid') ?? '0'; ?>";
+  window.managerApprovalsEnabled = <?= ($manager_approvals_enabled ?? false) ? 'true' : 'false'; ?>;
 
         //Customer Selection Box Search
          function getCustomerSelectionId() {
@@ -698,7 +737,7 @@ function addrow(id='',item_obj=''){
     var price_type = (item_obj=='') ? $('#price_type').val() || 'retail' : (item_obj.price_type || 'retail');
 
     //CHECK SAME ITEM ALREADY EXIST IN ITEMS TABLE
-    var item_check=check_same_item(item_id, price_type);
+    var item_check=check_same_item(item_id, price_type, barcode_id);
     if(!item_check){return false;}
     var rowcount        =$("#hidden_rowcount").val();//0,1,2...
     var item_name = (item_obj=='') ? $('#div_'+id).attr('data-item-name') : item_obj.item_name; 
@@ -717,13 +756,20 @@ function addrow(id='',item_obj=''){
     var discount   =(item_obj=='') ? $('#div_'+id).attr('data-discount') : item_obj.discount; 
  
     
-    var service_bit   =(item_obj=='') ? $('#div_'+id).attr('data-service_bit') : item_obj.service_bit; 
+    var service_bit   =(item_obj=='') ? $('#div_'+id).attr('data-service_bit') : item_obj.service_bit;
+    var package_bit   =(item_obj=='') ? ($('#div_'+id).attr('data-package-bit')||0) : (item_obj.package_bit||0);
+    var commission_type =(item_obj=='') ? ($('#div_'+id).attr('data-commission-type')||'none') : (item_obj.commission_type||'none');
+    var commission_value=(item_obj=='') ? parseFloat($('#div_'+id).attr('data-commission-value')||0) : parseFloat(item_obj.commission_value||0); 
     //var gst_per         =$('#div_'+id).attr('data-item-tax-per');
     //var gst_amt         =$('#div_'+id).attr('data-item-gst-amt');
 
     var item_cost     =(item_obj=='') ? $('#div_'+id).attr('data-item-cost') : item_obj.purchase_price;
     var batch_lot     =(item_obj=='') ? '' : (item_obj.batch_lot || '');
     var barcode       =(item_obj=='') ? '' : (item_obj.barcode || '');
+    var barcode_id    =(item_obj=='') ? 0 : (item_obj.barcode_id || 0);
+    var serial_number =(item_obj=='') ? ($('#div_'+id).attr('data-item-serial-number')||'') : (item_obj.serial_number || '');
+    var imei_number   =(item_obj=='') ? ($('#div_'+id).attr('data-item-imei-number')||'') : (item_obj.imei_number || '');
+    var warranty_months =(item_obj=='') ? (parseInt($('#div_'+id).attr('data-item-warranty-months'))||0) : (parseInt(item_obj.warranty_months)||0);
     var sales_price;
     if(item_obj==''){
       sales_price = (price_type=='retail') ? $('#div_'+id).attr('data-item-mrp') : $('#div_'+id).attr('data-item-sales-price');
@@ -766,15 +812,54 @@ function addrow(id='',item_obj=''){
         str+='<input type="hidden" id="tr_tax_value_'+rowcount+'" name="tr_tax_value_'+rowcount+'" value="'+tax_value+'">';
         str+='<input type="hidden" id="description_'+rowcount+'" name="description_'+rowcount+'" value="">';
         str+='<input type="hidden" id="service_bit_'+rowcount+'" name="service_bit_'+rowcount+'" value="'+service_bit+'">';
+        str+='<input type="hidden" id="package_bit_'+rowcount+'" name="package_bit_'+rowcount+'" value="'+package_bit+'">';
         str+='<input type="hidden" id="price_type_'+rowcount+'" name="price_type_'+rowcount+'" value="'+price_type+'">';
         str+='<input type="hidden" id="batch_lot_'+rowcount+'" name="batch_lot_'+rowcount+'" value="'+batch_lot+'">';
         str+='<input type="hidden" id="barcode_'+rowcount+'" name="barcode_'+rowcount+'" value="'+barcode+'">';
+        str+='<input type="hidden" id="barcode_id_'+rowcount+'" name="barcode_id_'+rowcount+'" value="'+barcode_id+'">';
+        str+='<input type="hidden" id="sold_serial_number_'+rowcount+'" name="sold_serial_number_'+rowcount+'" value="">';
+        str+='<input type="hidden" id="sold_imei_number_'+rowcount+'" name="sold_imei_number_'+rowcount+'" value="">';
         str+='<input id="item_discount_type_'+rowcount+'" name="item_discount_type_'+rowcount+'" type="hidden" value="'+discount_type+'">';
          str+='<input id="item_discount_input_'+rowcount+'" name="item_discount_input_'+rowcount+'" type="hidden" value="'+discount+'">';
+        str+='<input type="hidden" id="commission_type_'+rowcount+'" name="commission_type_'+rowcount+'" value="'+commission_type+'">';
+        str+='<input type="hidden" id="commission_value_'+rowcount+'" name="commission_value_'+rowcount+'" value="'+commission_value+'">';
+        str+='<input type="hidden" id="commission_amount_'+rowcount+'" name="commission_amount_'+rowcount+'" value="0">';
+        str+='<input type="hidden" id="staff_id_'+rowcount+'" name="staff_id_'+rowcount+'" value="0">';
         str+='</tr>';   
 
     //LEFT SIDE: ADD OR APPEND TO SALES INVOICE TERMINAL
     $('#pos-form-tbody').append(str);
+
+    //Prompt for Serial / IMEI if item requires tracking
+    <?php if(mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking')) { ?>
+    if(serial_number || imei_number || warranty_months > 0){
+      setTimeout(function(){
+        // If exact unit was found via barcode/IMEI/serial search, auto-fill without prompt
+        if(barcode_id > 0){
+          <?php if(mp_feature_enabled('serial_number_tracking')) { ?>
+          if(serial_number){ $('#sold_serial_number_'+rowcount).val(serial_number); }
+          <?php } ?>
+          <?php if(mp_feature_enabled('imei_tracking')) { ?>
+          if(imei_number){ $('#sold_imei_number_'+rowcount).val(imei_number); }
+          <?php } ?>
+        } else {
+          // Grid click: prompt cashier to enter serial/IMEI
+          <?php if(mp_feature_enabled('serial_number_tracking')) { ?>
+          if(serial_number || warranty_months > 0){
+            var serialVal = prompt('Enter Serial Number for: ' + item_name, serial_number);
+            if(serialVal){ $('#sold_serial_number_'+rowcount).val(serialVal); }
+          }
+          <?php } ?>
+          <?php if(mp_feature_enabled('imei_tracking')) { ?>
+          if(imei_number){
+            var imeiVal = prompt('Enter IMEI for: ' + item_name, imei_number);
+            if(imeiVal){ $('#sold_imei_number_'+rowcount).val(imeiVal); }
+          }
+          <?php } ?>
+        }
+      }, 100);
+    }
+    <?php } ?>
 
     //LEFT SIDE: INCREMANT ROW COUNT
     $("#hidden_rowcount").val(parseFloat($("#hidden_rowcount").val())+1);
@@ -800,6 +885,7 @@ function update_price(row_id,item_cost){
   }*/
 
   make_subtotal($("#tr_item_id_"+row_id).val(),row_id);
+  calculateCommission(row_id);
 }
 
 function set_to_original(row_id,item_cost) {
@@ -811,6 +897,7 @@ function set_to_original(row_id,item_cost) {
     // (update_price already changed it on every keystroke)
     $("#sales_price_"+row_id).val(originalPrice);
     make_subtotal($("#tr_item_id_"+row_id).val(),row_id);
+    calculateCommission(row_id);
 
     MPApproval.request('price_override', {
       original_price: originalPrice,
@@ -824,6 +911,7 @@ function set_to_original(row_id,item_cost) {
         toastr['warning']('Price change cancelled — reverted to original');
       }
       make_subtotal($("#tr_item_id_"+row_id).val(),row_id);
+      calculateCommission(row_id);
     });
     return;
   }
@@ -835,13 +923,15 @@ function set_to_original(row_id,item_cost) {
 //INCREMENT ITEM
 function increment_qty(item_id,rowcount){
   var service_bit=$("#service_bit_"+rowcount).val();
+  var package_bit=$("#package_bit_"+rowcount).val();
   var item_qty=$("#item_qty_"+rowcount).val();
   var stock=$("#td_"+rowcount+"_1").html();
-  if(service_bit==1 || parseFloat(item_qty)<parseFloat(stock)){
+  if(service_bit==1 || package_bit==1 || parseFloat(item_qty)<parseFloat(stock)){
     item_qty=parseFloat(item_qty)+1;
     $("#item_qty_"+rowcount).val(format_qty(item_qty));
   }
   make_subtotal(item_id,rowcount);
+  calculateCommission(rowcount);
 }
 //DECREMENT ITEM
 function decrement_qty(item_id,rowcount){
@@ -852,14 +942,16 @@ function decrement_qty(item_id,rowcount){
   }
   $("#item_qty_"+rowcount).val(format_qty(parseFloat(item_qty)-1));
   make_subtotal(item_id,rowcount);
+  calculateCommission(rowcount);
 }
 //LEFT SIDE: IF ITEM QTY CHANGED MANUALLY
 function item_qty_input(item_id,rowcount){
   var item_qty=$("#item_qty_"+rowcount).val();
   var service_bit=$("#service_bit_"+rowcount).val();
+  var package_bit=$("#package_bit_"+rowcount).val();
   var stock=$("#td_"+rowcount+"_1").html();
 
-  if(service_bit!=1){
+  if(service_bit!=1 && package_bit!=1){
     if(stock==0){
       toastr["warning"]("item Not Available in stock!");
     }
@@ -874,6 +966,7 @@ function item_qty_input(item_id,rowcount){
   }
 
   make_subtotal(item_id,rowcount);
+  calculateCommission(rowcount);
 }
 
 function zero_stock(){
@@ -935,6 +1028,78 @@ function calulate_discount(discount_input,discount_type,total){
 }
 //LEFT SIDE: FINAL TOTAL
 
+
+
+function calculateCommission(rowcount){
+    var staff_id = parseInt($('#staff_id_'+rowcount).val()) || 0;
+    var commission_type = $('#commission_type_'+rowcount).val();
+    var commission_value = parseFloat($('#commission_value_'+rowcount).val()) || 0;
+    var sales_price = parseFloat($('#sales_price_'+rowcount).val()) || 0;
+    var qty = parseFloat($('#item_qty_'+rowcount).val()) || 1;
+    var commission_amount = 0;
+    if(staff_id > 0 && commission_type != 'none' && commission_value > 0){
+        if(commission_type == 'flat'){
+            commission_amount = commission_value * qty;
+        } else if(commission_type == 'percent'){
+            commission_amount = (sales_price * qty) * (commission_value / 100);
+        }
+    }
+    $('#commission_amount_'+rowcount).val(to_Fixed(commission_amount));
+}
+
+<?php if(mp_feature_enabled('staff_commission')): ?>
+function populateStaffAssignment(){
+    var html = '';
+    var hasService = false;
+    var rowcount = parseInt($('#hidden_rowcount').val()) || 0;
+    for(var i=0; i<rowcount; i++){
+        if(document.getElementById('tr_item_id_'+i) && document.getElementById('service_bit_'+i)){
+            var service_bit = parseInt($('#service_bit_'+i).val()) || 0;
+            if(service_bit === 1){
+                hasService = true;
+                var itemName = $('#td_data_'+i+'_0').text() || 'Service Item';
+                var currentStaff = parseInt($('#staff_id_'+i).val()) || 0;
+                var itemId = parseInt($('#tr_item_id_'+i).val()) || 0;
+                // Get assigned staff for this service, or fall back to all staff if none assigned
+                var assignedStaffIds = (typeof mp_service_staff_map !== 'undefined' && mp_service_staff_map[itemId]) ? mp_service_staff_map[itemId] : [];
+                html += '<div class="row" style="margin-bottom:8px;">';
+                html += '<div class="col-md-6"><label style="font-weight:normal;margin-top:6px;">' + itemName + '</label></div>';
+                html += '<div class="col-md-6">';
+                html += '<select class="form-control input-sm" id="payment_staff_id_'+i+'" onchange="onPaymentStaffSelect('+i+')" style="min-width:120px;">';
+                html += '<option value="">-- Assign Staff --</option>';
+                if(typeof mp_staff_list !== 'undefined'){
+                    var staffShown = 0;
+                    for(var s=0; s<mp_staff_list.length; s++){
+                        // Show only assigned staff; if no assignments for this service, show all staff
+                        var isAssigned = assignedStaffIds.indexOf(mp_staff_list[s].id) !== -1;
+                        if(assignedStaffIds.length === 0 || isAssigned){
+                            var selected = (currentStaff == mp_staff_list[s].id) ? ' selected' : '';
+                            html += '<option value="'+mp_staff_list[s].id+'"'+selected+'>'+mp_staff_list[s].name+'</option>';
+                            staffShown++;
+                        }
+                    }
+                    if(staffShown === 0 && assignedStaffIds.length > 0){
+                        html += '<option value="" disabled>No staff assigned to this service</option>';
+                    }
+                }
+                html += '</select></div></div>';
+            }
+        }
+    }
+    if(hasService){
+        $('#staff-assignment-body').html(html);
+        $('#staff-assignment-box').show();
+    } else {
+        $('#staff-assignment-body').html('');
+        $('#staff-assignment-box').hide();
+    }
+}
+function onPaymentStaffSelect(rowcount){
+    var staffId = parseInt($('#payment_staff_id_'+rowcount).val()) || 0;
+    $('#staff_id_'+rowcount).val(staffId);
+    calculateCommission(rowcount);
+}
+<?php endif; ?>
 
 function final_total(){
   var total=0;
@@ -1054,12 +1219,24 @@ function adjust_payments(){
 $(document).ready(function(){
   get_coupon_details();
 });
-function check_same_item(item_id, price_type){
+function check_same_item(item_id, price_type, barcode_id){
   price_type = price_type || 'retail';
+  barcode_id = barcode_id || 0;
   if($(".items_table tr").length>1){
     var rowcount=$("#hidden_rowcount").val();
     for(i=0;i<=rowcount;i++){
-      if($("#tr_item_id_"+i).val()==item_id && $("#price_type_"+i).val()==price_type){
+      var existing_item_id = $("#tr_item_id_"+i).val();
+      var existing_price_type = $("#price_type_"+i).val();
+      var existing_barcode_id = parseInt($("#barcode_id_"+i).val()) || 0;
+      if(existing_item_id == item_id && existing_price_type == price_type){
+        // Exact same unit already in cart? Block it for unique items
+        if(barcode_id > 0 && existing_barcode_id === barcode_id){
+          toastr['warning']('This unit is already in the cart!');
+          failed.currentTime = 0;
+          failed.play();
+          return false;
+        }
+        // Regular item: just increment qty
         increment_qty(item_id,i);
         failed.currentTime = 0;
         failed.play();
@@ -1081,14 +1258,51 @@ $(document).ready(function(){
 
   autoLoadFirstCustomer(customer_id);
 
-  // Toggle walk-in warning on customer change
+  // Toggle walk-in warning on customer change + load membership discount
   $("#customer_id").on('change', function(){
+    var cid = $(this).val();
     if(isWalkInCustomer()){
       $("#walkin-warning").show();
+      $("#membership-badge").hide();
+      // Clear any auto-applied membership discount for walk-in
+      if(window._membershipDiscountApplied){
+        $("#discount_input").val(0);
+        $("#discount_type").val('in_percentage');
+        final_total();
+        window._membershipDiscountApplied = false;
+      }
     } else {
       $("#walkin-warning").hide();
+      if(cid) { loadCustomerMembershipDiscount(cid); }
     }
   });
+
+  function loadCustomerMembershipDiscount(customer_id) {
+    if(!customer_id || customer_id == walkin_customer_id) return;
+    $.get(base_url + 'operations/ajax_get_customer_membership', { customer_id: customer_id }, function(res){
+      if(res && res.discount_percent > 0){
+        $("#membership-plan-name").text(res.plan_name);
+        $("#membership-discount").text(res.discount_percent + '% OFF');
+        $("#membership-badge").show();
+        // Auto-apply discount
+        $("#discount_input").val(res.discount_percent);
+        $("#discount_type").val('in_percentage');
+        window._membershipDiscountApplied = true;
+        final_total();
+        toastr.info('Member discount applied: ' + res.discount_percent + '% OFF');
+      } else {
+        $("#membership-badge").hide();
+        if(window._membershipDiscountApplied){
+          $("#discount_input").val(0);
+          $("#discount_type").val('in_percentage');
+          final_total();
+          window._membershipDiscountApplied = false;
+        }
+      }
+    }, 'json').fail(function(){
+      // Network error — silently ignore
+    });
+  }
 
   //FIRST TIME: LOAD
   //get_details();
@@ -1775,6 +1989,358 @@ function copyPaystackLink(){
   $('#clockInModal').on('hidden.bs.modal', function(){ stopCamera(); });
 })();
 </script>
+
+<script>
+/* ─── Network Status Indicator ─── */
+function updateNetworkStatus() {
+  var badgeLi = document.getElementById('offlineBadgeLi');
+  if (!badgeLi) return;
+  if (navigator.onLine) {
+    badgeLi.style.display = 'none';
+  } else {
+    badgeLi.style.display = '';
+    toastr.warning('You are offline. Some features may be limited.', 'Network Status');
+  }
+}
+
+window.addEventListener('online', updateNetworkStatus);
+window.addEventListener('offline', updateNetworkStatus);
+updateNetworkStatus();
+
+/* ─── Offline Sync & Retry Buttons ─── */
+function checkCacheAge(){
+  if (typeof MPOfflineDB === 'undefined') return;
+  MPOfflineDB.getMeta('lastSync').then(function(ts){
+    if (ts) {
+      var d = new Date(ts);
+      var hoursAgo = Math.round((Date.now() - d) / 3600000);
+      var label = hoursAgo < 1 ? 'just now' : hoursAgo + 'h ago';
+      $('#syncOfflineBtn').attr('title', 'Last synced: ' + d.toLocaleString() + ' (' + label + ')');
+      if (hoursAgo >= 24) {
+        toastr.warning('Your offline cache is ' + hoursAgo + ' hours old. Please sync for latest data.', 'Cache Stale');
+        $('#syncOfflineBtn').find('i').addClass('text-red').removeClass('text-yellow');
+      }
+    } else {
+      $('#syncOfflineBtn').attr('title', 'Never synced — click to cache offline data');
+    }
+  }).catch(function(){});
+}
+function checkRetryButton(){
+  if (typeof MPOfflineDB === 'undefined') return;
+  MPOfflineDB.countPendingSales().then(function(count){
+    $('#retrySalesLi').toggle(count > 0 && navigator.onLine);
+  }).catch(function(){});
+}
+
+$(document).ready(function(){
+  // Check for any pending sales on load
+  if (typeof updatePendingSalesBadge === 'function') {
+    setTimeout(updatePendingSalesBadge, 1000);
+  }
+  checkCacheAge();
+  checkRetryButton();
+  window.addEventListener('online', checkRetryButton);
+  window.addEventListener('offline', function(){$('#retrySalesLi').hide();});
+
+  // Retry button
+  $('#retrySalesBtn').on('click', function(e){
+    e.preventDefault();
+    if (!navigator.onLine) {
+      toastr.warning('Cannot retry while offline.');
+      return;
+    }
+    if (typeof retryQueuedSales === 'function') {
+      retryQueuedSales();
+    }
+  });
+
+  // Clear Cache button
+  $('#clearCacheBtn').on('click', function(e){
+    e.preventDefault();
+    if (typeof MPOfflineDB === 'undefined') {
+      toastr.error('Offline database not available.');
+      return;
+    }
+    swal({
+      title: "Clear Offline Cache?",
+      text: "This will remove all cached items, customers and hold invoices. Queued sales will NOT be deleted.",
+      icon: "warning",
+      buttons: ["Cancel", "Clear Cache"],
+      dangerMode: true
+    }).then(function(willClear){
+      if (willClear) {
+        // Preserve queued sales by selectively clearing stores
+        MPOfflineDB.open().then(function(db){
+          var tx = db.transaction(['items', 'itemDetails', 'customers', 'holdInvoices'], 'readwrite');
+          tx.objectStore('items').clear();
+          tx.objectStore('itemDetails').clear();
+          tx.objectStore('customers').clear();
+          tx.objectStore('holdInvoices').clear();
+          tx.oncomplete = function(){
+            toastr.success('Offline cache cleared. Queued sales preserved.', 'Cache Cleared');
+            $('#syncOfflineBtn').attr('title', 'Never synced — click to cache offline data');
+            $('#syncOfflineBtn').find('i').removeClass('text-red').addClass('text-yellow');
+          };
+        }).catch(function(){
+          toastr.error('Failed to clear cache.');
+        });
+      }
+    });
+  });
+
+  $('#syncOfflineBtn').on('click', function(e){
+    e.preventDefault();
+    if (!navigator.onLine) {
+      toastr.warning('Cannot sync while offline. Please connect to network first.');
+      return;
+    }
+    if (typeof MPOfflineDB === 'undefined') {
+      toastr.error('Offline database not available.');
+      return;
+    }
+    var $btn = $(this);
+    var originalHtml = $btn.html();
+    $btn.html('<i class="fa fa-refresh fa-spin text-yellow"></i><b class="hidden-xs"> Syncing...</b>');
+    toastr.info('Syncing data for offline use...', 'Offline Sync');
+
+    // Sync items
+    $.ajax({
+      url: window.base_url + 'items/sync_items_for_offline',
+      method: 'GET',
+      dataType: 'json',
+      data: { store_id: $('#store_id').val(), warehouse_id: $('#warehouse_id').val() }
+    }).then(function(itemRes){
+      return MPOfflineDB.saveItems(itemRes);
+    }).then(function(itemCount){
+      toastr.info(itemCount + ' items cached. Syncing customers...', 'Offline Sync');
+      // Sync customers next
+      return $.ajax({
+        url: window.base_url + 'customers/sync_customers_for_offline',
+        method: 'GET',
+        dataType: 'json',
+        data: { store_id: $('#store_id').val() }
+      });
+    }).then(function(custRes){
+      return MPOfflineDB.saveCustomers(custRes);
+    }).then(function(custCount){
+      var now = new Date();
+      var timeStr = now.toLocaleTimeString();
+      MPOfflineDB.setMeta('lastSync', now.toISOString()).catch(function(){});
+      toastr.success('Offline sync complete: ' + custCount + ' customers cached.', 'Sync Complete');
+      $('#syncOfflineBtn').attr('title', 'Last synced: ' + timeStr).find('i').removeClass('text-red').addClass('text-yellow');
+    }).catch(function(err){
+      toastr.error('Sync failed. Some data may not be available offline.');
+      console.error('Offline sync error:', err);
+    }).finally(function(){
+      $btn.html(originalHtml);
+    });
+  });
+});
+
+/* ─── PayPlan / Installment Functions ─── */
+var bnplActive = false;
+function toggleBnplSection(){
+  bnplActive = !bnplActive;
+  $('#bnpl_section').toggle(bnplActive);
+  $('#btn-toggle-bnpl').toggleClass('btn-purple btn-warning');
+  if(bnplActive){
+    calculateBnpl();
+    toastr.info('PayPlan mode active. Set down payment and installments, then save.');
+  } else {
+    $('#amount_1').val('');
+    calculate_payments();
+  }
+}
+function calculateBnpl(){
+  if(!bnplActive) return;
+  var totGrand = parseFloat($('.tot_grand').text()) || 0;
+  var downPct  = parseFloat($('#bnpl_down_pct').val()) || 0;
+  var count    = parseInt($('#bnpl_count').val()) || 3;
+  var downAmt  = Math.round((totGrand * downPct / 100) * 100) / 100;
+  var remain   = Math.round((totGrand - downAmt) * 100) / 100;
+  var eachAmt  = count > 0 ? (Math.round((remain / count) * 100) / 100) : 0;
+  $('#bnpl_down_amt').val(downAmt.toFixed(2));
+  $('#bnpl_each_amt').val(eachAmt.toFixed(2));
+  // Auto-fill payment amount 1 with down payment
+  $('#amount_1').val(downAmt.toFixed(2));
+  calculate_payments();
+}
+function createInstallmentPlan(salesId, customerId){
+  if(!bnplActive) return;
+  var totGrand = parseFloat($('.tot_grand').text()) || 0;
+  var downAmt  = parseFloat($('#bnpl_down_amt').val()) || 0;
+  var count    = parseInt($('#bnpl_count').val()) || 3;
+  var eachAmt  = parseFloat($('#bnpl_each_amt').val()) || 0;
+  var freq     = $('#bnpl_frequency').val();
+  var firstDue = $('#bnpl_first_due').val();
+  var lateFee  = parseFloat($('#bnpl_late_fee').val()) || 0;
+  var downPaid = downAmt > 0;
+  var paymentType = $('#payment_type_1').val() || 'Cash';
+
+  $.ajax({
+    url: window.base_url + 'installments/create_from_pos',
+    type: 'POST',
+    dataType: 'json',
+    data: {
+      sales_id: salesId,
+      customer_id: customerId,
+      total_amount: totGrand,
+      down_payment_amount: downAmt,
+      down_payment_paid: downPaid ? 1 : 0,
+      down_payment_type: paymentType,
+      installment_count: count,
+      installment_amount: eachAmt,
+      frequency: freq,
+      first_due_date: firstDue,
+      late_fee_per_day: lateFee,
+      [window.csrfName]: window.csrfHash
+    },
+    success: function(res){
+      if(res.status === 'success'){
+        toastr.success('Installment plan created: ' + res.plan_code, 'PayPlan');
+      } else {
+        toastr.warning('Sale saved but installment plan could not be created: ' + res.message);
+      }
+      bnplActive = false;
+      $('#bnpl_section').hide();
+      $('#btn-toggle-bnpl').removeClass('btn-warning').addClass('btn-purple');
+    },
+    error: function(){
+      toastr.warning('Sale saved but PayPlan plan creation failed. Please create it manually from Installments.');
+      bnplActive = false;
+      $('#bnpl_section').hide();
+      $('#btn-toggle-bnpl').removeClass('btn-warning').addClass('btn-purple');
+    }
+  });
+}
+</script>
+
+<!-- Customer Benefits Modal -->
+<div class="modal fade" id="customerBenefitsModal" tabindex="-1">
+<div class="modal-dialog modal-md">
+<div class="modal-content">
+<div class="modal-header">
+<button type="button" class="close" data-dismiss="modal">&times;</button>
+<h4 class="modal-title"><i class="fa fa-gift"></i> Customer Benefits</h4>
+</div>
+<div class="modal-body" style="max-height:400px;overflow-y:auto;">
+<div id="benefitsLoading" class="text-center text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+<table class="table table-bordered table-striped" id="benefitsTable" style="display:none;">
+<thead class="bg-gray"><tr><th>Type</th><th>Detail</th><th>Value</th><th>Status</th><th>Action</th></tr></thead>
+<tbody id="benefitsBody"></tbody>
+</table>
+<div id="benefitsEmpty" class="text-center text-muted" style="display:none;padding:20px;">No benefits available</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+</div>
+</div>
+</div>
+</div>
+
+<script src="<?=base_url();?>theme/js/pos_loyalty.js"></script>
+<script>
+var currentCustomerBenefits = [];
+function fetchCustomerByBarcode(){
+    var barcode = $('#customer_barcode_scan').val().trim();
+    if(!barcode) return;
+    var postData = { barcode: barcode };
+    postData[window.csrfName] = window.csrfHash;
+    $.post(base_url + 'customers/get_customer_by_barcode', postData, function(data){
+        if(data && data.id){
+            // Select customer in dropdown
+            var option = new Option(data.customer_name + ' (' + data.mobile + ')', data.id, true, true);
+            $('#customer_id').append(option).trigger('change');
+            $('#customer_id').trigger({type:'select2:select', params:{data:{id:data.id, text:data.customer_name, mobile:data.mobile, previous_due:data.previous_due||0, tot_advance:data.tot_advance||0}}});
+            set_the_previous_due(data.previous_due||0, data.tot_advance||0);
+            loadLoyaltyData(data.id);
+            currentCustomerBenefits = data.benefits || [];
+            if(currentCustomerBenefits.length > 0){
+                $('#btnViewBenefits').show();
+                toastr.info('Customer has ' + currentCustomerBenefits.length + ' benefit(s)');
+            } else {
+                $('#btnViewBenefits').hide();
+            }
+            $('#customer_barcode_scan').val('');
+        } else {
+            toastr.error('Customer not found');
+        }
+    }, 'json').fail(function(){ toastr.error('Failed to fetch customer'); });
+}
+function showCustomerBenefits(){
+    $('#customerBenefitsModal').modal('show');
+    $('#benefitsLoading').hide();
+    $('#benefitsTable').hide();
+    $('#benefitsEmpty').hide();
+    if(!currentCustomerBenefits || currentCustomerBenefits.length === 0){
+        $('#benefitsEmpty').show();
+        return;
+    }
+    var html = '';
+    currentCustomerBenefits.forEach(function(b){
+        var statusLabel = b.eligible ? '<span class="label label-success">Active</span>' : '<span class="label label-danger">Expired</span>';
+        var actionBtn = '';
+        if(b.type === 'gift_card' && b.eligible){
+            actionBtn = '<button class="btn btn-xs btn-warning" onclick="applyGiftCard(\''+b.card_number+'\')">Apply</button>';
+        } else if(b.type === 'store_credit' && b.eligible){
+            actionBtn = '<button class="btn btn-xs btn-info" onclick="applyStoreCredit('+b.id+','+b.value+')">Apply</button>';
+        } else if(b.type === 'coupon' && b.eligible){
+            actionBtn = '<button class="btn btn-xs btn-primary" onclick="applyCoupon(\''+b.code+'\')">Apply</button>';
+        }
+        html += '<tr>';
+        html += '<td><span class="label label-default">'+b.type.replace('_',' ').toUpperCase()+'</span></td>';
+        html += '<td>'+b.label+'</td>';
+        html += '<td>'+(b.type=='coupon' && b.type_ ? (b.type_=='percentage'?b.value+'%':store_number_format(b.value)) : store_number_format(b.value))+'</td>';
+        html += '<td>'+statusLabel+'</td>';
+        html += '<td>'+actionBtn+'</td>';
+        html += '</tr>';
+    });
+    $('#benefitsBody').html(html);
+    $('#benefitsTable').show();
+}
+</script>
+
+<!-- Custom Order Capture Modal -->
+<div class="modal fade" id="customOrderModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#F39C12;color:#fff;">
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        <h4 class="modal-title"><i class="fa fa-pencil-square-o"></i> Custom Order Specs</h4>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:12px;">This is a made-to-order item. Capture what the customer wants before adding to the cart.</p>
+        <div id="customOrderModalBody"></div>
+        <hr>
+        <div class="form-group">
+          <label>Sale Price <span class="text-danger">*</span></label>
+          <input type="text" class="form-control only_currency" id="co_price" value="0.00">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <input type="hidden" id="co_item_id">
+        <input type="hidden" id="co_item_name">
+        <input type="hidden" id="co_tax_id">
+        <input type="hidden" id="co_tax_type">
+        <input type="hidden" id="co_tax">
+        <input type="hidden" id="co_tax_name">
+        <input type="hidden" id="co_item_tax_amt">
+        <input type="hidden" id="co_discount_type">
+        <input type="hidden" id="co_discount">
+        <input type="hidden" id="co_batch_lot">
+        <input type="hidden" id="co_barcode">
+        <input type="hidden" id="co_barcode_id">
+        <input type="hidden" id="co_serial">
+        <input type="hidden" id="co_imei">
+        <input type="hidden" id="co_warranty">
+        <input type="hidden" id="co_service_bit">
+        <input type="hidden" id="co_purchase_price">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" onclick="submitCustomOrderToCart()"><i class="fa fa-plus"></i> Add to Cart</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

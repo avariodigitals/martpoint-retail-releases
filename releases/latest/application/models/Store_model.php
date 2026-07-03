@@ -137,6 +137,7 @@ class Store_model extends CI_Model {
         $data['qty_decimals'] =2;
         $data['number_to_words'] ='Default';
         $data['default_account_id'] ='';
+        $data['cash_account_id'] ='';
         return $data;
 	}
 
