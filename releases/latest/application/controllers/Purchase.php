@@ -88,19 +88,7 @@ class Purchase extends MY_Controller {
 			$info = (!empty($purchase->return_bit)) ? "<br><span class='label label-danger' style='cursor:pointer'><i class='fa fa-fw fa-undo'></i>Return Raised</span>" : '';
 
 			$row[] = $purchase->purchase_code.$info;
-			$status_badge = '';
-			if($purchase->purchase_status == 'Draft'){
-				$status_badge = '<span class="label label-default">Draft</span>';
-			} else if($purchase->purchase_status == 'Ordered'){
-				$status_badge = '<span class="label label-info">Ordered</span>';
-			} else if($purchase->purchase_status == 'Partially Received'){
-				$status_badge = '<span class="label label-warning">Partially Received</span>';
-			} else if($purchase->purchase_status == 'Received'){
-				$status_badge = '<span class="label label-success">Received</span>';
-			} else {
-				$status_badge = '<span class="label label-default">'.$purchase->purchase_status.'</span>';
-			}
-			$row[] = $status_badge;
+			$row[] = $purchase->purchase_status;
 			$row[] = $purchase->reference_no;
 			$row[] = $purchase->supplier_name;
 			
@@ -131,13 +119,6 @@ class Purchase extends MY_Controller {
 											$str2.='<li>
 												<a title="Update Record ?" href="'.base_url().'purchase/update/'.$purchase->id.'">
 													<i class="fa fa-fw fa-edit text-blue"></i>Edit
-												</a>
-											</li>';
-
-											if($this->permissions('purchase_edit'))
-											$str2.='<li>
-												<a title="Change Status" class="pointer" onclick="show_change_status_modal('.$purchase->id.')" >
-													<i class="fa fa-fw fa-exchange text-orange"></i>Change Status
 												</a>
 											</li>';
 
@@ -231,12 +212,8 @@ class Purchase extends MY_Controller {
 	}
 
 	//Purchase invoice form
-	public function invoice($id='')
+	public function invoice($id)
 	{
-		if(empty($id)){
-			$this->session->set_flashdata('exception', 'Purchase ID is required');
-			redirect('purchase');
-		}
 		$this->belong_to('db_purchase',$id);
 		if(!$this->permissions('purchase_add') && !$this->permissions('purchase_edit')){
 			$this->show_access_denied_page();
@@ -330,18 +307,6 @@ class Purchase extends MY_Controller {
 		$purchase_id=$this->input->post('purchase_id');
 		echo $this->purchase->view_payments_modal($purchase_id);
 	}
-
-	public function show_change_status_modal(){
-		$this->permission_check_with_msg('purchase_edit');
-		$purchase_id=$this->input->post('purchase_id');
-		echo $this->purchase->show_change_status_modal($purchase_id);
-	}
-
-	public function change_status(){
-		$this->permission_check_with_msg('purchase_edit');
-		echo $this->purchase->change_status();
-	}
-
 	public function get_suppliers_select_list(){
 		echo get_suppliers_select_list(null,$_POST['store_id']);
 	}

@@ -1,12 +1,6 @@
 <?php
 
 function store_module(){
-    if (function_exists('mp_feature_flag_raw')) {
-        $flag = mp_feature_flag_raw('multi_store');
-        if ($flag !== null) {
-            return $flag;
-        }
-    }
     return false;
   }
 

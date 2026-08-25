@@ -95,7 +95,7 @@ $('#save,#update').on("click",function (e) {
 					}
 					else
 					{
-						toastr.error(result);
+						alert(result);
 					}
 					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 					$(".overlay").remove();

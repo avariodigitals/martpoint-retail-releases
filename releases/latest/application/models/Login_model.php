@@ -101,8 +101,9 @@ class Login_model extends CI_Model
 			}
 			if($needs_activation){
 				if($query->row()->role_id == 2 || $query->row()->id == 1){
-					// Admin/Owner can still use the store; SAAS activation is available from Settings → License
-					$this->session->set_flashdata('warning', 'Please activate your MartPoint Retail subscription from Settings → License.');
+					// Admin/Owner can access activation
+					$this->session->set_flashdata('warning', 'Please activate your MartPoint Retail subscription.');
+					redirect(base_url().'subscription_license/activate_form');
 				} else {
 					// Normal users blocked
 					$this->session->unset_userdata(array_keys($logdata));
