@@ -1970,8 +1970,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "1f62d31e48829734913d96c2d976f381c5f85b8c1827e6af374c17ef8e97aa3a",
-            "size": 34634
+            "hash": "477a846d29115ac459da8f19e860f0cec2909eaa68a6b5c0a1da2e6b496a1ac3",
+            "size": 35548
         },
         {
             "path": "application/libraries/Resend_provider.php",

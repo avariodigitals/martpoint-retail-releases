@@ -915,11 +915,12 @@ class Updater {
         $quoteChar = '';
         $inLineComment = false;
         $inBlockComment = false;
+        $delimiter = ';';
+        $delimLen = strlen($delimiter);
 
         for ($i = 0; $i < $len; $i++) {
             $char = $sql[$i];
             $nextChar = ($i + 1 < $len) ? $sql[$i + 1] : '';
-            $nextNextChar = ($i + 2 < $len) ? $sql[$i + 2] : '';
 
             // End of line comment
             if ($inLineComment) {
@@ -967,14 +968,32 @@ class Updater {
                 $quoteChar = '';
             }
 
-            // Statement split
-            if (!$inQuote && !$inLineComment && !$inBlockComment && $char === ';') {
-                $statements[] = $current;
-                $current = '';
-                continue;
+            $current .= $char;
+
+            // DELIMITER is a mysql client command (not a server statement).
+            // When a complete DELIMITER line is seen, switch terminator and discard.
+            if (!$inQuote && !$inLineComment && !$inBlockComment && $char === "\n") {
+                $line = trim(substr($current, 0, -1)); // drop the newline
+                if (preg_match('/^\s*DELIMITER\s+(\S+)\s*$/i', $line, $m)) {
+                    $delimiter = $m[1];
+                    $delimLen = strlen($delimiter);
+                    $current = '';
+                    continue;
+                }
             }
 
-            $current .= $char;
+            // Statement split when the current delimiter is found outside quotes/comments
+            if (!$inQuote && !$inLineComment && !$inBlockComment && $delimLen > 0) {
+                if (substr($current, -$delimLen) === $delimiter) {
+                    $stmt = substr($current, 0, -$delimLen);
+                    $stmt = trim($stmt);
+                    if ($stmt !== '') {
+                        $statements[] = $stmt;
+                    }
+                    $current = '';
+                    continue;
+                }
+            }
         }
 
         if (trim($current) !== '') {
