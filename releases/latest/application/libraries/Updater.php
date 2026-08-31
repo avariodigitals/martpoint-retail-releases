@@ -909,27 +909,74 @@ class Updater {
     protected function splitSql(string $sql): array {
         $statements = [];
         $current = '';
+        $len = strlen($sql);
+
         $inQuote = false;
         $quoteChar = '';
-        $len = strlen($sql);
+        $inLineComment = false;
+        $inBlockComment = false;
+
         for ($i = 0; $i < $len; $i++) {
             $char = $sql[$i];
+            $nextChar = ($i + 1 < $len) ? $sql[$i + 1] : '';
+            $nextNextChar = ($i + 2 < $len) ? $sql[$i + 2] : '';
+
+            // End of line comment
+            if ($inLineComment) {
+                if ($char === "\n") {
+                    $inLineComment = false;
+                }
+                continue;
+            }
+
+            // End of block comment
+            if ($inBlockComment) {
+                if ($char === '*' && $nextChar === '/') {
+                    $inBlockComment = false;
+                    $i++; // skip the '/'
+                }
+                continue;
+            }
+
+            // Start of comments (not inside a quote)
+            if (!$inQuote) {
+                if ($char === '-' && $nextChar === '-') {
+                    $inLineComment = true;
+                    $i++; // skip second '-'
+                    continue;
+                }
+                if ($char === '/' && $nextChar === '*') {
+                    $inBlockComment = true;
+                    $i++; // skip the '*'
+                    continue;
+                }
+            }
+
+            // Quote handling
             if (!$inQuote && ($char === "'" || $char === '`' || $char === '"')) {
                 $inQuote = true;
                 $quoteChar = $char;
             } elseif ($inQuote && $char === $quoteChar) {
-                if ($i > 0 && $sql[$i - 1] === '\\') {
-                    // escaped
-                } else {
-                    $inQuote = false;
+                // SQL escapes quotes by doubling them (e.g. '' inside '' or `` inside ``)
+                if ($nextChar === $quoteChar) {
+                    $current .= $char . $nextChar;
+                    $i++; // skip doubled quote
+                    continue;
                 }
-            } elseif (!$inQuote && $char === ';') {
+                $inQuote = false;
+                $quoteChar = '';
+            }
+
+            // Statement split
+            if (!$inQuote && !$inLineComment && !$inBlockComment && $char === ';') {
                 $statements[] = $current;
                 $current = '';
                 continue;
             }
+
             $current .= $char;
         }
+
         if (trim($current) !== '') {
             $statements[] = $current;
         }
