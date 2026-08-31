@@ -56,7 +56,7 @@ th, td {
     $sales_invoice_footer_text=$res4->sales_invoice_footer_text;
     
 
-    $q3=$this->db->query("SELECT b.customer_previous_due,b.customer_total_due,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+    $q3=$this->db->query("SELECT b.customer_previous_due,b.customer_total_due,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,a.created_by,
                            a.postcode,a.address,b.sales_date,b.created_time,b.reference_no,
                            b.sales_code,b.sales_note,b.sales_status,
@@ -72,10 +72,9 @@ th, td {
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status
 
-                           FROM db_customers a,
-                           db_sales b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_sales b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
                            b.`id`='$sales_id' 
                            ");
                            
@@ -199,8 +198,7 @@ th, td {
     
   <tr style=''>
     <th style='border-right: 1px solid;border-top: 1px solid;' rowspan='2' style=''>#</th>
-    <th style='border-right: 1px solid;border-top: 1px solid;' rowspan='2' colspan='4'><?= $this->lang->line('description'); ?></th>
-    <th style='border-right: 1px solid;border-top: 1px solid;' rowspan='2'><?= $this->lang->line('hsn'); ?></th>
+    <th style='border-right: 1px solid;border-top: 1px solid;' rowspan='2' colspan='5'><?= $this->lang->line('description'); ?></th>
     <th style='border-right: 1px solid;border-top: 1px solid;' rowspan='2'><?= $this->lang->line('quantity'); ?></th>
     <!-- <th rowspan='2'><?= $this->lang->line('tax'); ?></th>
     <th rowspan='2'><?= $this->lang->line('tax_amount'); ?></th> -->
@@ -237,12 +235,12 @@ th, td {
                   echo "<tr>";  
                   echo "<td style='border-right: 1px solid;border-top: 1px solid;'>".++$i."</td>";
                  
-                  echo "<td style='border-right: 1px solid;border-top: 1px solid;' colspan='4'>";
+                  echo "<td style='border-right: 1px solid;border-top: 1px solid;' colspan='5'>";
                     echo $res2->item_name;
                     echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
                   echo "</td>";
                   
-                  echo "<td style='border-right: 1px solid;border-top: 1px solid;'>".$res2->hsn."</td>";
+
                   echo "<td style='border-right: 1px solid;border-top: 1px solid;'>".$res2->sales_qty."</td>";
                   
                   echo "<td style='text-align: right;border-right: 1px solid;border-top: 1px solid;'>".store_number_format($unit_price_with_tax)."</td>";
@@ -263,7 +261,7 @@ th, td {
   </tbody>
 <tfoot>
   <tr>
-    <td colspan="10" style="text-align: right;"><b><?= $this->lang->line('subtotal'); ?></b></td>
+    <td colspan="9" style="text-align: right;"><b><?= $this->lang->line('subtotal'); ?></b></td>
     <td colspan="1" style="text-align: right;" ><b><?php echo store_number_format($tot_total_cost); ?></b></td>
   </tr>
   

@@ -29,8 +29,57 @@ class Theme_engine {
         $this->store = get_store_details($storeId);
 
         // Determine active theme
-        $themeId = $previewTheme ?: $this->settings->theme_id;
-        $this->theme = $this->getTheme($themeId);
+        // 1. Preview mode takes precedence
+        if($previewTheme){
+            $this->theme = $this->getTheme($previewTheme);
+        }
+
+        // 2. Business Profile is the source of truth for the active theme
+        if(!$this->theme){
+            $businessProfile = mp_get_store_profile($storeId);
+            $businessIndustry = $businessProfile['industry_type'] ?? 'general_retail';
+            $businessThemeKey = !empty($businessProfile['theme_key']) ? $businessProfile['theme_key'] : null;
+            if($businessThemeKey){
+                $businessTheme = $this->getThemeByKey($businessThemeKey);
+                if($businessTheme){
+                    // Validate the chosen theme still matches the current industry;
+                    // a stale laundry theme for a retail profile should fall back to the retail preset.
+                    $themeIndustry = isset($businessTheme->industry) ? $businessTheme->industry : '';
+                    $match = empty($themeIndustry)
+                        || strtolower($themeIndustry) === 'general'
+                        || stripos(strtolower($themeIndustry), strtolower($businessIndustry)) !== false
+                        || stripos(strtolower($businessIndustry), strtolower($themeIndustry)) !== false;
+                    if($match){
+                        $this->theme = $businessTheme;
+                    }
+                }
+            }
+            // If the stored theme does not match the industry, use the industry preset
+            if(!$this->theme && !empty($businessIndustry)){
+                $presets = mp_get_business_presets();
+                $preset = $presets[$businessIndustry] ?? $presets['general_retail'];
+                $fallbackThemeKey = $preset['theme_key'] ?? 'general_retail';
+                $this->theme = $this->getThemeByKey($fallbackThemeKey);
+            }
+            if($this->theme){
+                // Keep db_storefront_settings in sync so Appearance and public preview stay consistent
+                if($this->settings->theme_id != $this->theme->id){
+                    $this->CI->storefront_model->saveSettings($storeId, ['theme_id' => $this->theme->id]);
+                    $this->settings = $this->CI->storefront_model->getSettings($storeId);
+                }
+            }
+        }
+
+        // 3. Legacy: explicit theme_id in storefront settings
+        if(!$this->theme && $this->settings->theme_id){
+            $this->theme = $this->getTheme($this->settings->theme_id);
+        }
+
+        // 4. Fallback: if no theme_id in storefront settings, check db_store.storefront_theme_key
+        if(!$this->theme && $this->store && !empty($this->store->storefront_theme_key)){
+            $this->theme = $this->getThemeByKey($this->store->storefront_theme_key);
+        }
+
         if(!$this->theme){
             $this->theme = $this->getDefaultTheme();
         }
@@ -328,6 +377,28 @@ class Theme_engine {
      */
     public function storefrontFaqs(){
         return $this->CI->storefront_model->getStorefrontFaqs($this->settings->store_id ?? 0);
+    }
+
+    /**
+     * Get categories that have online services
+     */
+    public function serviceCategories($storeId = null){
+        $storeId = $storeId ?: ($this->settings->store_id ?? get_current_store_id());
+        return $this->CI->storefront_model->getServiceCategories($storeId);
+    }
+
+    /**
+     * Get active branches/warehouses for this store
+     */
+    public function branches($storeId = null){
+        $storeId = $storeId ?: ($this->settings->store_id ?? get_current_store_id());
+        return $this->CI->db
+            ->where('store_id', $storeId)
+            ->where('status', 1)
+            ->where('warehouse_type', 'Custom')
+            ->order_by('warehouse_name', 'asc')
+            ->get('db_warehouse')
+            ->result();
     }
 
     // Helper: darken hex color

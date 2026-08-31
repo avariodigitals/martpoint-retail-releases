@@ -15,27 +15,9 @@ class Report_schedule_model extends CI_Model {
 	}
 
 	protected function ensureTable(){
-		if($this->db->table_exists($this->table)){ return; }
-		$this->db->query("CREATE TABLE IF NOT EXISTS `{$this->table}` (
-			`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-			`store_id` int(11) unsigned NOT NULL DEFAULT 1,
-			`report_type` varchar(64) NOT NULL COMMENT 'daily_summary, low_stock, overdue_debt',
-			`template_name` varchar(128) DEFAULT NULL,
-			`frequency` varchar(16) NOT NULL DEFAULT 'daily' COMMENT 'daily, weekly',
-			`send_time` varchar(8) NOT NULL DEFAULT '18:00' COMMENT 'HH:MM 24h format',
-			`email_enabled` tinyint(1) NOT NULL DEFAULT 1,
-			`email_recipients` varchar(500) DEFAULT NULL COMMENT 'comma-separated emails',
-			`email_template_key` varchar(64) DEFAULT 'daily_business_summary',
-			`whatsapp_enabled` tinyint(1) NOT NULL DEFAULT 0,
-			`whatsapp_numbers` varchar(500) DEFAULT NULL COMMENT 'comma-separated with country code',
-			`whatsapp_message_template` text DEFAULT NULL,
-			`last_run_at` datetime DEFAULT NULL,
-			`status` tinyint(1) NOT NULL DEFAULT 1,
-			`created_at` datetime DEFAULT NULL,
-			`updated_at` datetime DEFAULT NULL,
-			PRIMARY KEY (`id`),
-			UNIQUE KEY `uk_report_type_store` (`report_type`,`store_id`)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		if(!$this->db->table_exists($this->table)){
+			log_message('error', 'Missing required table: ' . $this->table . '. Run the 4.0.2 migration via login.');
+		}
 	}
 
 	public function getByType($type, $storeId = NULL){

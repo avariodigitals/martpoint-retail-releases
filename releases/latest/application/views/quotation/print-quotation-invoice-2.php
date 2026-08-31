@@ -78,7 +78,7 @@ body { margin: 5px; }
     $terms_and_conditions="";//$res1->sales_terms_and_conditions;
     $image_file=($res1->show_signature && !empty($res1->signature)) ? $res1->signature : '';
     
-    $q3=$this->db->query("SELECT b.expire_date,b.customer_previous_due,b.customer_total_due,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,
+    $q3=$this->db->query("SELECT b.expire_date,b.customer_previous_due,b.customer_total_due,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,
                            a.opening_balance,a.country_id,a.state_id,a.created_by,
                            a.postcode,a.address,b.quotation_date,b.created_time,b.reference_no,
                            b.quotation_code,b.quotation_note,b.quotation_status,
@@ -94,10 +94,10 @@ body { margin: 5px; }
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status
 
-                           FROM db_customers a,
-                           db_quotation b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_quotation b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
+ 
                            b.`id`='$quotation_id' 
                            ");
                          
@@ -334,8 +334,7 @@ body { margin: 5px; }
       </tr>
       <tr class="bg-sky"><!-- Colspan 10 -->
         <th colspan='2' class="text-center"><?= $this->lang->line('sl_no'); ?></th>
-        <th colspan='4' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
-        <th colspan='2' class="text-center"><?= $this->lang->line('hsn'); ?></th>
+        <th colspan='6' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
         <th colspan='2' class="text-center"><?= $this->lang->line('unit_cost'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('qty'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('tax'); ?></th>
@@ -391,11 +390,11 @@ body { margin: 5px; }
                   
                   echo "<tr>";  
                   echo "<td colspan='2' class='text-center'>".$i++."</td>";
-                  echo "<td colspan='4'>";
+                  echo "<td colspan='6'>";
                   echo $res2->item_name;
                   echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
                   echo "</td>";
-                  echo "<td colspan='2' class='text-left'>".$res2->hsn."</td>";
+
                   echo "<td colspan='2' class='text-right'>".store_number_format($res2->price_per_unit)."</td>";
                   
                   echo "<td class='text-center'>".format_qty($res2->quotation_qty)."</td>";

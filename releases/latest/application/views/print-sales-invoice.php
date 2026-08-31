@@ -25,7 +25,7 @@ th, td {
 
     
     
-    $q3=$this->db->query("SELECT b.store_id,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+    $q3=$this->db->query("SELECT b.store_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,a.city,
                            a.postcode,a.address,b.sales_date,b.created_time,b.reference_no,
                            b.sales_code,b.sales_note,b.sales_status,
@@ -41,10 +41,9 @@ th, td {
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status
 
-                           FROM db_customers a,
-                           db_sales b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_sales b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
                            b.`id`='$sales_id' AND b.store_id=".get_current_store_id());
                          
      if($q3->num_rows()==0){

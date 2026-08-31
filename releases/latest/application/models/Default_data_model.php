@@ -141,6 +141,62 @@ class Default_data_model extends CI_Model {
         return 0;
     }
 
+    /**
+     * Re-seed missing default permissions for existing standard roles.
+     * For each standard role (Business Owner, Manager, Cashier, Accountant),
+     * adds any permissions from the default set that are not already in db_permissions.
+     * This fixes roles that were created before new permissions were added.
+     *
+     * @param int $store_id
+     * @return int Number of permissions added
+     */
+    public function reseed_missing_permissions($store_id = null) {
+        if (empty($store_id)) {
+            $store_id = get_current_store_id();
+        }
+        if (empty($store_id)) {
+            return 0;
+        }
+
+        $added = 0;
+
+        // Get all roles for this store (except Super Admin role id 1)
+        $roles = $this->db->where('store_id', $store_id)->where('id !=', 1)->get('db_roles')->result();
+
+        foreach ($roles as $role) {
+            $default_perms = $this->get_role_default_permissions($role->role_name);
+            if (empty($default_perms)) {
+                continue; // Not a standard role
+            }
+
+            // Get existing permissions for this role
+            $existing = $this->db->where('role_id', $role->id)->get('db_permissions')->result_array();
+            $existing_keys = array_column($existing, 'permissions');
+
+            // Find missing permissions
+            $missing = array_diff($default_perms, $existing_keys);
+            if (empty($missing)) {
+                continue;
+            }
+
+            // Insert missing permissions
+            $batch = array();
+            foreach ($missing as $perm) {
+                $batch[] = array(
+                    'store_id'    => $store_id,
+                    'role_id'     => $role->id,
+                    'permissions' => $perm
+                );
+            }
+            if (!empty($batch)) {
+                $this->db->insert_batch('db_permissions', $batch);
+                $added += count($batch);
+            }
+        }
+
+        return $added;
+    }
+
     // ============================================================
     // PERMISSION MAPPINGS
     // ============================================================
@@ -171,6 +227,7 @@ class Default_data_model extends CI_Model {
             'items_add','items_edit','items_delete','items_view',
             'items_category_add','items_category_edit','items_category_delete','items_category_view',
             'brand_add','brand_edit','brand_delete','brand_view',
+            'attributes_add','attributes_edit','attributes_delete','attributes_view',
             'variant_add','variant_edit','variant_delete','variant_view',
             'print_labels',
             'import_items',
@@ -206,6 +263,8 @@ class Default_data_model extends CI_Model {
             'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
             'money_deposit_add','money_deposit_edit','money_deposit_delete','money_deposit_view',
             'cash_transactions',
+            'tills_view','tills_add','tills_edit','tills_delete',
+            'cashier_shifts_manage','z_report',
             // Services
             'services_add','services_edit','services_delete','services_view',
             'import_services',
@@ -230,13 +289,18 @@ class Default_data_model extends CI_Model {
             'purchase_return_report','sales_return_report',
             'customer_orders_report',
             'gstr_1_report','gstr_2_report',
+            // Fashion Intelligence reports
+            'variant_attribute_report','sell_through_report','reorder_suggestion_report',
+            'promotions_manage',
             // Advanced
             'cust_adv_payments_add','cust_adv_payments_edit','cust_adv_payments_delete','cust_adv_payments_view',
             'show_all_users_sales_invoices','show_all_users_sales_return_invoices',
             'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
             'show_purchase_price',
             // Settings
-            'subscription','smtp_settings','sms_settings','sms_api_view','sms_api_edit'
+            'subscription','sms_settings','sms_api_view','sms_api_edit',
+            // Online Store (Business Owner can manage online store)
+            'online_store_view','online_store_edit',
         );
     }
 
@@ -260,6 +324,7 @@ class Default_data_model extends CI_Model {
             'items_add','items_edit','items_delete','items_view',
             'items_category_add','items_category_edit','items_category_delete','items_category_view',
             'brand_add','brand_edit','brand_delete','brand_view',
+            'attributes_add','attributes_edit','attributes_delete','attributes_view',
             'variant_add','variant_edit','variant_delete','variant_view',
             'print_labels',
             'import_items',
@@ -295,6 +360,8 @@ class Default_data_model extends CI_Model {
             'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
             'money_deposit_add','money_deposit_edit','money_deposit_delete','money_deposit_view',
             'cash_transactions',
+            'tills_view','tills_add','tills_edit','tills_delete',
+            'cashier_shifts_manage','z_report',
             // Services
             'services_add','services_edit','services_delete','services_view',
             'import_services',
@@ -317,11 +384,16 @@ class Default_data_model extends CI_Model {
             'sales_summary_report','sales_return_payments',
             'purchase_return_report','sales_return_report',
             'customer_orders_report',
+            // Fashion Intelligence reports
+            'variant_attribute_report','sell_through_report','reorder_suggestion_report',
+            'promotions_manage',
             // Advanced
             'cust_adv_payments_view',
             'show_all_users_sales_invoices','show_all_users_sales_return_invoices',
             'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
-            'show_purchase_price'
+            'show_purchase_price',
+            // Online Store (Manager can view and fulfill orders, but not edit store settings)
+            'online_store_orders',
         );
     }
 
@@ -346,6 +418,7 @@ class Default_data_model extends CI_Model {
             'sales_return_payment_view','sales_return_payment_add',
             // POS
             'pos',
+            'cashier_shifts_manage',
             // Quotations (view only)
             'quotation_view',
             // Messaging (view only)
@@ -416,6 +489,33 @@ class Default_data_model extends CI_Model {
             'show_all_users_expenses','show_all_users_quotations',
             'show_purchase_price'
         );
+    }
+
+    /**
+     * Return the default permission list for a standard role name.
+     * Used as a fallback when db_permissions is empty for a role.
+     */
+    public function get_role_default_permissions($role_name) {
+        if (empty($role_name)) {
+            return array();
+        }
+
+        $role_name = trim($role_name);
+        $maps = array(
+            'Business Owner' => $this->get_business_owner_permissions(),
+            'Manager'        => $this->get_manager_permissions(),
+            'Cashier'        => $this->get_cashier_permissions(),
+            'Accountant'     => $this->get_accountant_permissions(),
+            'Admin'          => $this->get_business_owner_permissions(),
+        );
+
+        foreach ($maps as $name => $perms) {
+            if (stripos($role_name, $name) !== false) {
+                return $perms;
+            }
+        }
+
+        return array();
     }
 
     // ============================================================

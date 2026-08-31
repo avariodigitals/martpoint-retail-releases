@@ -80,10 +80,15 @@
   const CURRENCY = '<?= $CURRENCY ?? '&#8358;'; ?>';
   const PAYSTACK_ENABLED = <?= $paystack_enabled ? 'true' : 'false'; ?>;
   const PAYSTACK_KEY = '<?= $paystack_public_key ?? ''; ?>';
+  let CSRF_NAME = '<?= $csrf_name ?? ''; ?>';
+  let CSRF_HASH = '<?= $csrf_hash ?? ''; ?>';
   let cart = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
   let selectedPayment = 'pay_on_delivery';
+  let selectedShippingMethod = '';
   let hasServiceAppointment = false;
   let hasServiceNote = false;
+  const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
+  const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
 
   function formatMoney(amount){
     return CURRENCY + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -110,6 +115,7 @@
     let html = '<div id="cart-items"></div>';
     html += '<div class="sf-summary">';
     html += '<div class="sf-row"><span>Subtotal</span><span id="summary-subtotal"></span></div>';
+    html += '<div class="sf-row" id="summary-shipping-row" style="display:none;"><span>Shipping</span><span id="summary-shipping"></span></div>';
     html += '<div class="sf-row total"><span>Total</span><span id="summary-total"></span></div>';
     html += '</div>';
 
@@ -122,6 +128,29 @@
     html += '<input type="email" class="sf-input" id="cust-email" placeholder="john@example.com">';
     html += '<label class="sf-label">Delivery / Service Address</label>';
     html += '<textarea class="sf-input sf-textarea" id="cust-address" placeholder="Enter your address..."></textarea>';
+
+    // Shipping notice
+    if(SHIPPING_NOTICE){
+      html += '<div class="sf-shipping-notice" style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:13px;color:#92400E;">';
+      html += '<i class="fa fa-info-circle" style="margin-right:6px;"></i>' + SHIPPING_NOTICE.replace(/</g,'&lt;') + '</div>';
+    }
+
+    // Shipping method selector
+    if(SHIPPING_METHODS.length > 0){
+      html += '<label class="sf-label" style="margin-top:8px;">Shipping Method</label>';
+      html += '<div class="sf-pay-options">';
+      SHIPPING_METHODS.forEach((m, idx) => {
+        const feeLabel = m.fee > 0 ? formatMoney(m.fee) : 'Free';
+        const active = idx === 0 ? ' active' : '';
+        const checked = idx === 0 ? ' checked' : '';
+        html += '<div class="sf-pay-opt' + active + '" onclick="selectShipping(this,\'' + m.name.replace(/'/g,"\\'") + '\')">';
+        html += '<input type="radio" name="shipmethod" value="' + m.name.replace(/"/g,'&quot;') + '"' + checked + '>';
+        html += '<div><div class="sf-pay-label">' + m.name.replace(/</g,'&lt;') + ' &mdash; ' + feeLabel + '</div>';
+        if(m.description) html += '<div class="sf-pay-desc">' + m.description.replace(/</g,'&lt;') + '</div>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+    }
 
     // Service fields (dynamic)
     hasServiceAppointment = false;
@@ -193,14 +222,46 @@
     });
     document.getElementById('cart-items').innerHTML = itemsHtml;
     document.getElementById('summary-subtotal').textContent = formatMoney(subtotal);
-    document.getElementById('summary-total').textContent = formatMoney(subtotal);
+
+    // Set default shipping method (first one)
+    selectedShippingMethod = document.querySelector('input[name="shipmethod"]:checked')?.value || (SHIPPING_METHODS.length > 0 ? SHIPPING_METHODS[0].name : '');
+    updateShippingSummary(subtotal);
 
     // Set default payment
     selectedPayment = document.querySelector('input[name="paymethod"]:checked')?.value || 'pay_on_delivery';
   }
 
+  function getShippingFee(){
+    if(!selectedShippingMethod) return 0;
+    const sm = SHIPPING_METHODS.find(m => m.name === selectedShippingMethod);
+    return sm ? (parseFloat(sm.fee) || 0) : 0;
+  }
+
+  function updateShippingSummary(subtotal){
+    const fee = getShippingFee();
+    const row = document.getElementById('summary-shipping-row');
+    if(row){
+      if(fee > 0 || selectedShippingMethod){
+        row.style.display = 'flex';
+        document.getElementById('summary-shipping').textContent = fee > 0 ? formatMoney(fee) : 'Free';
+      } else {
+        row.style.display = 'none';
+      }
+    }
+    document.getElementById('summary-total').textContent = formatMoney(subtotal + fee);
+  }
+
+  function selectShipping(el, method){
+    document.querySelectorAll('input[name="shipmethod"]').forEach(o => o.closest('.sf-pay-opt').classList.remove('active'));
+    el.classList.add('active');
+    el.querySelector('input').checked = true;
+    selectedShippingMethod = method;
+    const subtotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+    updateShippingSummary(subtotal);
+  }
+
   function selectPayment(el, method){
-    document.querySelectorAll('.sf-pay-opt').forEach(o => o.classList.remove('active'));
+    document.querySelectorAll('input[name="paymethod"]').forEach(o => o.closest('.sf-pay-opt').classList.remove('active'));
     el.classList.add('active');
     el.querySelector('input').checked = true;
     selectedPayment = method;
@@ -245,11 +306,17 @@
       msg += '\n\nItems:\n';
       let total = 0;
       cart.forEach(i => { msg += i.qty + ' x ' + i.name + ' — ' + formatMoney(i.price * i.qty) + '\n'; total += i.price * i.qty; });
-      msg += '\nTotal: ' + formatMoney(total);
+      const shipFee = getShippingFee();
+      msg += '\nSubtotal: ' + formatMoney(total);
+      if(selectedShippingMethod){
+        msg += '\nShipping: ' + selectedShippingMethod + (shipFee > 0 ? ' (' + formatMoney(shipFee) + ')' : ' (Free)');
+      }
+      msg += '\nTotal: ' + formatMoney(total + shipFee);
       msg += '\n\nName: ' + name;
       msg += '\nPhone: ' + phone;
       if(email) msg += '\nEmail: ' + email;
       if(address) msg += '\nAddress: ' + address;
+      if(selectedShippingMethod) msg += '\nShipping Method: ' + selectedShippingMethod;
       if(serviceDate) msg += '\nService Date: ' + serviceDate;
       if(serviceTime) msg += '\nService Time: ' + serviceTime;
       if(serviceNote) msg += '\nService Note: ' + serviceNote;
@@ -274,26 +341,36 @@
     data.append('customer_email', email);
     data.append('customer_address', address);
     data.append('payment_method', paymentMethod);
+    data.append('shipping_method', selectedShippingMethod || '');
     data.append('service_date', serviceDate);
     data.append('service_time', serviceTime);
     data.append('service_note', serviceNote);
     data.append('cart', JSON.stringify(cartPayload));
+    if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
 
     fetch('<?= base_url('storefront/place_order'); ?>', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: data.toString()
     })
-    .then(r => r.json())
+    .then(r => {
+      if(!r.ok) return r.text().then(text => { throw new Error('Server error ' + r.status + (text?': '+text.substring(0,200):'')); });
+      return r.json();
+    })
     .then(res => {
+      if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
       if(res.status){
         if(res.payment_required && res.public_key){
           payWithPaystack(res.public_key, res.email, res.amount_kobo, res.reference, res.order_id);
         } else {
-          showToast('Order placed! Order #' + res.order_code);
           cart = [];
           localStorage.removeItem('sf_cart_' + STORE_ID);
-          setTimeout(() => { window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '')); ?>'; }, 2000);
+          if(res.redirect_url){
+            window.location.href = res.redirect_url;
+          } else {
+            showToast('Order placed! Order #' + res.order_code);
+            setTimeout(() => { window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '')); ?>'; }, 2000);
+          }
         }
       } else {
         showToast(res.message || 'Failed to place order');
@@ -302,7 +379,7 @@
       }
     })
     .catch(err => {
-      showToast('Network error. Please try again.');
+      showToast(err.message || 'Network error. Please try again.');
       btn.disabled = false;
       btn.textContent = 'Place Order';
     });
@@ -316,10 +393,9 @@
       currency: 'NGN',
       ref: reference,
       callback: function(response){
-        showToast('Payment successful!');
         cart = [];
         localStorage.removeItem('sf_cart_' + STORE_ID);
-        setTimeout(() => { window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '')); ?>'; }, 1500);
+        window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '') . '/order_received/'); ?>' + reference;
       },
       onClose: function(){
         showToast('Payment cancelled');

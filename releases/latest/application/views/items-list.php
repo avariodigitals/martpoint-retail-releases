@@ -16,12 +16,20 @@
   
   <?php include"sidebar.php"; ?>
   <style>
-    @media(max-width: 480px){
+    @media(max-width: 767px){
       .box-header>.box-tools {
-          position: absolute;
-          right: -13px;
-          top: -106px;
+          position: static;
+          margin-top: 10px;
+          width: 100%;
       }
+      .box-header>.box-tools .btn {
+          width: 100%;
+          margin-bottom: 6px;
+      }
+    }
+    /* Fix oval/round checkbox backgrounds */
+    .icheckbox_square-orange, .iradio_square-orange {
+        border-radius: 2px !important;
     }
   </style>
 
@@ -43,6 +51,24 @@
     <div class="view_warehouse_wise_stock_item">
     </div>
     <!-- Warehouse wise stock view end-->
+
+    <!-- Item History Modal -->
+    <div class="modal fade" id="item_history_modal" tabindex="-1" role="dialog" aria-labelledby="itemHistoryLabel">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header bg-navy" style="color:#fff;">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;opacity:1;"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title" id="itemHistoryLabel" style="color:#fff;"><i class="fa fa-history"></i> Product History</h4>
+          </div>
+          <div class="modal-body" id="item_history_content">
+            <div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading...</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Main content -->
     <?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
@@ -88,22 +114,25 @@
                   <?php }else{ ?>
                     <input type="hidden" id="item_type" value="Items">
                     <?php } ?>
-                    
+
+                    <?php if($CI->permissions('items_add') || $CI->permissions('services_add')) { ?>
+                    <div class="col-md-3 pull-right text-right" style="margin-top:24px;">
+                      <a class="btn btn-success" href="<?php echo $base_url; ?>items/export_items_csv" style="margin-right:6px;">
+                        <i class="fa fa-download"></i> Export CSV</a>
+                      <?php if($CI->permissions('items_add')){ ?>
+                      <a class="btn btn-info" href="<?php echo $base_url; ?>items/add" style="margin-right:6px;">
+                        <i class="fa fa-plus"></i> <?= $this->lang->line('create_item'); ?></a>
+                      <?php } ?>
+                      <?php if(service_module() && $CI->permissions('services_add')){ ?>
+                      <a class="btn btn-success" href="<?php echo $base_url; ?>services/add">
+                        <i class="fa fa-plus"></i> <?= $this->lang->line('create_service'); ?></a>
+                      <?php } ?>
+                    </div>
+                    <?php } ?>
+
                   </div>
                 </div>
 
-              <?php if($CI->permissions('items_add') || $CI->permissions('services_add')) { ?>
-              <div class="box-tools">      
-                <?php if($CI->permissions('items_add')){ ?>          
-                <a class="btn btn-info margin" href="<?php echo $base_url; ?>items/add">
-                <i class="fa fa-plus " ></i> <?= $this->lang->line('create_item'); ?></a>
-                <?php } ?>
-                <?php if(service_module() && $CI->permissions('services_add')){ ?>
-                <a class="btn btn-success margin" href="<?php echo $base_url; ?>services/add">
-                <i class="fa fa-plus " ></i> <?= $this->lang->line('create_service'); ?></a>
-              <?php } ?>
-              </div>
-             <?php } ?>
             </div>
             <!-- /.box-header -->
             <div class="box-body">
@@ -115,8 +144,8 @@
                   </th>
                   <th><?= $this->lang->line('image'); ?></th>
                   <!-- <th><?= $this->lang->line('store_name'); ?></th> -->
-                  <th><?= $this->lang->line('item_code'); ?></th>
-                  <th><?= $this->lang->line('item_name'); ?></th>
+                  <th><?= mp_label('item'); ?> Code</th>
+                  <th><?= mp_label('item'); ?> Name</th>
                   <th><?= $this->lang->line('brand'); ?></th>
                   <th><?= $this->lang->line('category'); ?>/<br><?= $this->lang->line('item_type'); ?></th>
                   <th><?= $this->lang->line('unit'); ?></th>
@@ -167,83 +196,104 @@
             $(this).ekkoLightbox();
         });
 </script>
+<?php
+$expiry_enabled = mp_feature_enabled('expiry_tracking');
+$mfg_enabled = mp_feature_enabled('mfg_tracking');
+$export_columns = [2,3,4,5,6,7,8,9,10];
+$col = 11;
+if ($expiry_enabled) { $export_columns[] = $col; $col++; }
+if ($mfg_enabled) { $export_columns[] = $col; $col++; }
+$export_columns[] = $col; // status
+$export_columns_json = json_encode($export_columns);
+$hidden_targets = [];
+if (!$expiry_enabled) $hidden_targets[] = 11;
+if (!$mfg_enabled) $hidden_targets[] = 12;
+$hidden_targets_json = json_encode($hidden_targets);
+?>
 <script type="text/javascript">
   function load_datatable(){
 
-    
-
-    var table = $('#example2').DataTable({ 
+    var table = $('#example2').DataTable({
         "aLengthMenu": [[10, 25, 50, 100, 500], [10, 25, 50, 100, 500]],
-      /* FOR EXPORT BUTTONS START*/
-  dom:'<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr><"pull-right margin-left-10 "B>>>tip',
- /* dom:'<"row"<"col-sm-12"<"pull-left"B><"pull-right">>> <"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr>>>tip',*/
-      buttons: {
-        buttons: [
-            {
-                className: 'btn bg-red color-palette btn-flat hidden delete_btn pull-left',
-                text: 'Delete',
-                action: function ( e, dt, node, config ) {
-                    multi_delete();
-                }
-            },
-            { extend: 'copy', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: [2,3,4,5,6,7,8,9,10,11,13]} },
-            { extend: 'excel', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: [2,3,4,5,6,7,8,9,10,11,12]} },
-            { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: [2,3,4,5,6,7,8,9,10,11,12]} },
-            { extend: 'print', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: [2,3,4,5,6,7,8,9,10,11,12]} },
-            { extend: 'csv', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: [2,3,4,5,6,7,8,9,10,11,12]} },
-            { extend: 'colvis', className: 'btn bg-teal color-palette btn-flat',text:'Columns' },  
-
+        dom:'<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr><"pull-right margin-left-10 "B>>>tip',
+        buttons: {
+            buttons: [
+                {
+                    className: 'btn bg-red color-palette btn-flat hidden delete_btn pull-left',
+                    text: 'Delete',
+                    action: function ( e, dt, node, config ) {
+                        multi_delete();
+                    }
+                },
+                { extend: 'copy', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'excel', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'print', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'csv', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'colvis', className: 'btn bg-teal color-palette btn-flat',text:'Columns' },
             ]
         },
-        /* FOR EXPORT BUTTONS END */
-
-        "processing": true, //Feature control the processing indicator.
-        "serverSide": true, //Feature control DataTables' server-side processing mode.
-        "order": [], //Initial no order.
+        "processing": true,
+        "serverSide": true,
+        "order": [],
         "responsive": true,
-        language: {
-            processing: '<div class="text-primary bg-primary" style="position: relative;z-index:100;overflow: visible;">Processing...</div>'
-        },
-        // Load data for the table's content from an Ajax source
         "ajax": {
             "url": "<?php echo site_url('items/ajax_list')?>",
             "type": "POST",
-            "data": {
-                      warehouse_id: $("#warehouse_id").val(),
-                      item_type: $("#item_type").val(),
-                    },
+            "data": function(d) {
+                d.warehouse_id = $("#warehouse_id").val();
+                d.item_type = $("#item_type").val();
+            },
             complete: function (data) {
-             $('.column_checkbox').iCheck({
-                checkboxClass: 'icheckbox_square-orange',
-                /*uncheckedClass: 'bg-white',*/
-                radioClass: 'iradio_square-orange',
-                increaseArea: '10%' // optional
-              });
-             call_code();
-              //$(".delete_btn").hide();
-             },
-
+                $('.column_checkbox').iCheck({
+                    checkboxClass: 'icheckbox_square-orange',
+                    radioClass: 'iradio_square-orange'
+                });
+                call_code();
+            },
         },
-
-        //Set column definition initialisation properties.
         "columnDefs": [
-        { 
-            "targets": [ 0,14 ], //first column / numbering column
-            "orderable": false, //set not orderable
-        },
-        {
-            "targets" :[0],
-            "className": "text-center",
-        },
-        
+            {
+                "targets": [ 0,14 ],
+                "orderable": false,
+            },
+            {
+                "targets" :[0],
+                "className": "text-center",
+            },
+            <?php if (!empty($hidden_targets)): ?>
+            {
+                "targets": <?= $hidden_targets_json; ?>,
+                "visible": false,
+            },
+            <?php endif; ?>
         ],
     });
-    new $.fn.dataTable.FixedHeader( table );
   }
 $(document).ready(function() {
     //datatables
    load_datatable();
 });
+
+function view_item_history(item_id){
+    $('#item_history_content').html('<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading...</div>');
+    $('#item_history_modal').modal('show');
+    $.ajax({
+        url: base_url + 'items/get_item_history/' + item_id,
+        type: 'GET',
+        dataType: 'json',
+        success: function(res){
+            if(res.status == 'success'){
+                $('#item_history_content').html(res.html);
+            } else {
+                $('#item_history_content').html('<div class="alert alert-danger">'+res.message+'</div>');
+            }
+        },
+        error: function(){
+            $('#item_history_content').html('<div class="alert alert-danger">Failed to load history.</div>');
+        }
+    });
+}
 $("#warehouse_id,#item_type").on("change",function(){
     $('#example2').DataTable().destroy();
     load_datatable();

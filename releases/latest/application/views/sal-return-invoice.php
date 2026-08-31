@@ -30,7 +30,7 @@
     
 
     
-    $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt,b.store_id,b.sales_id,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+    $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt,b.store_id,b.sales_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,a.city,
                            a.postcode,a.address,b.return_date,b.created_time,b.reference_no,
                            b.return_code,b.return_status,b.return_note,
@@ -46,10 +46,10 @@
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status,b.pos
 
-                           FROM db_customers a,
-                           db_salesreturn b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_salesreturn b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
+ 
                            b.`id`='$return_id' AND b.store_id=".get_current_store_id());
                         
     

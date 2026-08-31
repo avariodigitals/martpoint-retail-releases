@@ -27,8 +27,8 @@ class Smtp extends MY_Controller {
 	
 	//Open SMS API Form 
 	public function api(){
-		if(!is_admin()){
-			show_error("Access Denied", 403, $heading = "Unauthorized Access!!");exit();	
+		if(!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
+			show_error("Access Denied", 403, $heading = "Unauthorized Access!!");exit();
 		}
 		$this->permission_check('sms_api_view');
 		$data=$this->data;

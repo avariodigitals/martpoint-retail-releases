@@ -36,7 +36,7 @@
     
 
     
-    $q3=$this->db->query("SELECT b.expire_date, b.sales_status, b.store_id,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+    $q3=$this->db->query("SELECT b.expire_date, b.sales_status, b.store_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,a.city,
                            a.postcode,a.address,b.quotation_date,b.created_time,b.reference_no,
                            b.quotation_code,b.quotation_status,b.quotation_note,
@@ -52,10 +52,10 @@
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status,b.pos
 
-                           FROM db_customers a,
-                           db_quotation b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_quotation b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
+ 
                            b.`id`='$quotation_id' AND b.store_id=".get_current_store_id());
                         
     

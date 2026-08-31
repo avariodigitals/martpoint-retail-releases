@@ -1,16 +1,5 @@
 <?php
 
-/**
- * MartPoint Retail
- *
- * Enhanced, maintained and owned by Rapheal Ogundiran (Avario)
- * Copyright (c) 2019 - 2026. All rights reserved.
- *
- * @author      Rapheal Ogundiran (MartPoint Retail by Avario)
- * @copyright   Copyright (c) 2019 - 2026, Avario / MartPoint Retail
- * @license     Private — All rights reserved
- */
-
 /*
  *---------------------------------------------------------------
  * APPLICATION ENVIRONMENT
@@ -28,22 +17,42 @@
  *
  * NOTE: If you change these, also change the error_reporting() code below
  */
-/*############################INSTALL#########################*/
+/*############################INSTALL CHECK#########################*/
 
-// define('ENVIRONMENT', 'SETUP');
-// if (ENVIRONMENT === 'SETUP') {
-//     $sitelink = $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'];
-//     $sitelink = preg_replace('/index.php.*/', '', $sitelink); 
-//     if (!empty($_SERVER['HTTPS'])) {
-//         $sitelink = 'https://' . $sitelink;
-//     } else {
-//         $sitelink = 'http://' . $sitelink;
-//     }
-//     header("Location: $sitelink./setup/");
-//     exit;
-// }
+// Detect if application needs installation
+// Redirect to setup if the install lock is missing OR if database.php still has placeholder values.
+// Skip this check when running from CLI (e.g. cron jobs) or when the request
+// is for the install_seed controller, which creates the lock file as its final step.
+$needs_install = false;
+$lock_file = __DIR__ . '/application/config/installed.lock';
+$db_config_path = __DIR__ . '/application/config/database.php';
+$request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+$is_install_seed = (strpos($request_uri, 'install_seed') !== false);
 
-/*############################INSTALL END#########################*/
+if (PHP_SAPI !== 'cli' && !$is_install_seed && !file_exists($lock_file)) {
+    $needs_install = true;
+}
+
+if (!$needs_install && file_exists($db_config_path)) {
+    $db_config_content = file_get_contents($db_config_path);
+    if (strpos($db_config_content, "'hostname' => '%HOSTNAME%'") !== false ||
+        strpos($db_config_content, "'username' => '%USERNAME%'") !== false ||
+        strpos($db_config_content, "'password' => '%PASSWORD%'") !== false ||
+        strpos($db_config_content, "'database' => '%DATABASE%'") !== false) {
+        $needs_install = true;
+    }
+}
+
+if ($needs_install) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $path = dirname($_SERVER['SCRIPT_NAME']);
+    $path = ($path === '/' || $path === '\\') ? '' : rtrim($path, '/\\');
+    header("Location: $protocol://$host$path/setup/");
+    exit;
+}
+
+/*############################INSTALL CHECK END#########################*/
 
 /*############################REAL#########################*/
 define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'production');
@@ -72,15 +81,24 @@ switch (ENVIRONMENT)
 
 	case 'testing':
 	case 'production':
-		ini_set('display_errors', 1);
-		ini_set('display_startup_errors', 1);
+		ini_set('display_errors', 0);
 		if (version_compare(PHP_VERSION, '5.3', '>='))
 		{
-			error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
+			$_error_reporting = E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_USER_NOTICE & ~E_USER_DEPRECATED;
+			if (defined('E_STRICT'))
+			{
+				$_error_reporting &= ~E_STRICT;
+			}
+			error_reporting($_error_reporting);
 		}
 		else
 		{
-			error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
+			$_error_reporting = E_ALL & ~E_NOTICE & ~E_USER_NOTICE;
+			if (defined('E_STRICT'))
+			{
+				$_error_reporting &= ~E_STRICT;
+			}
+			error_reporting($_error_reporting);
 		}
 	break;
 

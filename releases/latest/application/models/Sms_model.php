@@ -15,7 +15,6 @@ class Sms_model extends CI_Model {
 		$this->db->trans_begin();
 		if($hidden_rowcount>0){
 		$this->db->query("delete from db_smsapi where store_id=".$store_id);
-		$this->db->query("ALTER TABLE db_smsapi AUTO_INCREMENT = 1");
 			for($i=1; $i<=$hidden_rowcount; $i++){
 				if(isset($_POST['info_'.$i])){
 					$info 	 	= $_POST['info_'.$i];
@@ -99,8 +98,11 @@ class Sms_model extends CI_Model {
 
 		$store_id = get_current_store_id();
 
-		$store_rec = get_store_details();
-		$sms_status=$store_rec->sms_status;
+		// Use modular notification settings first; fallback to db_store for legacy installs
+		$sms_status = mp_get_store_notification_setting($store_id, 'sms_status', 0);
+		if (empty($sms_status) && isset($store_rec->sms_status)) {
+			$sms_status = $store_rec->sms_status;
+		}
 
 		if($sms_status==0){
 			return "Sorry! Can't Send.Please Enable SMS";

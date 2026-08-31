@@ -17,9 +17,7 @@ $(document).ready(function(){
 
          var selectionBoxId = $(getCustomerSelectionId());
 
-         
-
-         selectionBoxId.select2({
+         var select2Options = {
             allowClear: true,
             ajax: {
                   url: url_,
@@ -33,11 +31,29 @@ $(document).ready(function(){
                      };
                   },
                   processResults: function (response) {
-
-                  return {
-                     results: response
-                  };
-
+                     // Cache successful results for offline use
+                     if (typeof MPOfflineDB !== 'undefined' && response && response.length) {
+                        MPOfflineDB.saveCustomers(response).catch(function(e){ /* silent */ });
+                     }
+                     return { results: response };
+                  },
+                  transport: function(params, success, failure) {
+                     var $request = $.ajax(params);
+                     $request.then(success);
+                     $request.fail(function() {
+                        // Network failed — try offline cache
+                        if (typeof MPOfflineDB !== 'undefined') {
+                           var term = (params.data && params.data.searchTerm) ? params.data.searchTerm : '';
+                           MPOfflineDB.searchCustomers(term, 10).then(function(items) {
+                              success(items);
+                           }).catch(function() {
+                              failure();
+                           });
+                        } else {
+                           failure();
+                        }
+                     });
+                     return $request;
                   },
                   cache: false
             },
@@ -47,7 +63,19 @@ $(document).ready(function(){
               templateSelection: formatRepoSelection,
               current : testFun,
 
-         });
+         };
+
+         function initCustomerSelect2() {
+            try {
+               selectionBoxId.select2(select2Options);
+            } catch (e) {
+               // Never leave a broken native select on the POS screen — fall back to a basic styled select2
+               if (window.console) console.warn('customer select2 init failed, using fallback:', e);
+               try { selectionBoxId.select2({ placeholder: searchFor, allowClear: true }); } catch (e2) { /* native select remains usable */ }
+            }
+         }
+
+         initCustomerSelect2();
 
          function testFun(element, callback){
             var data = [];
@@ -111,43 +139,37 @@ function autoLoadFirstCustomer(customer_id='') {
 
       var selectionBoxId = $(getCustomerSelectionId());
 
+      function loadCustomerData(customer) {
+         var option = new Option(customer.text, customer.id, true, true);
+         selectionBoxId.append(option).trigger('change');
+         selectionBoxId.trigger({
+             type: 'select2:select',
+             params: { data: [customer] }
+         });
+         set_the_previous_due(customer.previous_due, customer.tot_advance);
+      }
+
       $.ajax({
           type: 'POST',
           url: url_+customer_id,
           dataType: 'json',
           delay: 250,
-          async: false, // Make the request synchronous
-          data:{
-            store_id : $("#store_id").val(),
-          },
-          
+          async: false,
+          data:{ store_id : $("#store_id").val() }
       }).then(function (serverResponse) {
-
+         // Cache for offline
+         if (typeof MPOfflineDB !== 'undefined' && serverResponse && serverResponse.length) {
+            MPOfflineDB.saveCustomers(serverResponse).catch(function(e){ /* silent */ });
+         }
          $.each(serverResponse, function(index, customer) {
-
-            if(index == 0){
-               
-                  /**
-                   * Pre-Selection of Customer
-                   * create the option and append to Select2
-                   * */
-                   var option = new Option(customer.text, customer.id, true, true);
-                   selectionBoxId.append(option).trigger('change');
-
-                   // manually trigger the `select2:select` event
-                   selectionBoxId.trigger({
-                       type: 'select2:select',
-                       params: {
-                           data: serverResponse
-                       }
-                   });
-
-                   set_the_previous_due(customer.previous_due, customer.tot_advance);
-
-          
-            }//if
-
-        });//each
-
-      });//then
+            if(index == 0){ loadCustomerData(customer); }
+         });
+      }).fail(function(){
+         // Network failed — try offline cache
+         if (typeof MPOfflineDB !== 'undefined' && customer_id) {
+            MPOfflineDB.getCustomerById(parseInt(customer_id)).then(function(cached){
+               if (cached) { loadCustomerData(cached); }
+            }).catch(function(){});
+         }
+      });
 }

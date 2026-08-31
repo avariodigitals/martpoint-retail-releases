@@ -11,6 +11,31 @@ class Online_store extends MY_Controller {
 		return $this->permissions('online_store_edit') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
 	}
 
+	/**
+	 * Can view online store (dashboard, products, services, settings page).
+	 * Requires online_store_view permission or admin/store_admin.
+	 */
+	private function _can_view(){
+		return $this->permissions('online_store_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
+	}
+
+	/**
+	 * Can view/manage online orders.
+	 * Requires online_store_orders OR online_store_view OR online_store_edit OR admin/store_admin.
+	 * This lets Managers see orders without giving them full store editing.
+	 */
+	private function _can_view_orders(){
+		return $this->permissions('online_store_orders') || $this->permissions('online_store_view') || $this->permissions('online_store_edit') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
+	}
+
+	/**
+	 * Can update order status / payment status.
+	 * Requires online_store_orders OR online_store_edit OR admin/store_admin.
+	 */
+	private function _can_edit_orders(){
+		return $this->permissions('online_store_orders') || $this->permissions('online_store_edit') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
+	}
+
 	public function seed_permissions(){
 		if(!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
@@ -31,7 +56,11 @@ class Online_store extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
-		if(!$this->permissions('online_store_view') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
+		if(!mp_feature_enabled('online_store')){
+			$this->show_feature_not_activated('online_store');
+			return;
+		}
+		if(!$this->permissions('online_store_view') && !$this->permissions('online_store_orders') && !$this->permissions('online_store_edit') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
 			$this->show_access_denied_page();
 			return;
 		}
@@ -42,6 +71,7 @@ class Online_store extends MY_Controller {
 	// ============== DASHBOARD ==============
 
 	public function index(){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$data = array_merge($this->data, [
 			'page_title' => 'Online Store Dashboard',
 			'stats' => $this->storefront_model->getTodaysOrderStats(),
@@ -112,6 +142,8 @@ class Online_store extends MY_Controller {
 				'allow_paystack' => $this->input->post('allow_paystack') ? 1 : 0,
 				'allow_whatsapp' => $this->input->post('allow_whatsapp') ? 1 : 0,
 				'allow_pay_on_delivery' => $this->input->post('allow_pay_on_delivery') ? 1 : 0,
+				'shipping_notice' => trim($this->input->post('shipping_notice')),
+				'shipping_methods_json' => $this->_build_shipping_methods_json(),
 				'allow_services' => $this->input->post('allow_services') ? 1 : 0,
 				'allow_backorder' => $this->input->post('allow_backorder') ? 1 : 0,
 				'show_search' => $this->input->post('show_search') ? 1 : 0,
@@ -144,6 +176,26 @@ class Online_store extends MY_Controller {
 		}
 	}
 
+
+	private function _build_shipping_methods_json(){
+		$names = $this->input->post('sm_name');
+		$fees = $this->input->post('sm_fee');
+		$descs = $this->input->post('sm_desc');
+		$enabled = $this->input->post('sm_enabled');
+		if(!is_array($names)) return json_encode([]);
+		$methods = [];
+		foreach($names as $i => $name){
+			$name = trim($name);
+			if($name === '') continue;
+			$methods[] = [
+				'name' => $name,
+				'fee' => (float)($fees[$i] ?? 0),
+				'description' => trim($descs[$i] ?? ''),
+				'enabled' => isset($enabled[$i]) ? 1 : 0
+			];
+		}
+		return json_encode($methods);
+	}
 	public function debug_storefront(){
 		if(!$this->_can_edit()){ echo json_encode(['status' => 'error', 'message' => 'Access denied']); return; }
 		$storeId = get_current_store_id();
@@ -164,6 +216,7 @@ class Online_store extends MY_Controller {
 	// ============== ONLINE ORDERS ==============
 
 	public function orders(){
+		if(!$this->_can_view_orders()){ $this->show_access_denied_page(); return; }
 		$status = $this->input->get('status');
 		$data = array_merge($this->data, [
 			'page_title' => 'Online Orders',
@@ -175,6 +228,7 @@ class Online_store extends MY_Controller {
 	}
 
 	public function order_detail($orderId = 0){
+		if(!$this->_can_view_orders()){ $this->show_access_denied_page(); return; }
 		$order = $this->storefront_model->getOrder($orderId);
 		if(!$order){
 			show_404();
@@ -189,7 +243,7 @@ class Online_store extends MY_Controller {
 	}
 
 	public function update_order_status(){
-		if(!$this->_can_edit()){
+		if(!$this->_can_edit_orders()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;
 		}
@@ -200,12 +254,21 @@ class Online_store extends MY_Controller {
 			echo json_encode(['status' => 'error', 'message' => 'Invalid status']);
 			return;
 		}
+		// Get current order to check previous status
+		$order = $this->storefront_model->getOrder($orderId);
+		$previousStatus = $order ? $order->order_status : '';
 		$this->storefront_model->updateOrderStatus($orderId, $status);
+		// Stock logic: decrement when marked paid, restore when cancelled
+		if($status === 'paid' && $previousStatus !== 'paid'){
+			$this->storefront_model->adjustStock($orderId);
+		} elseif($status === 'cancelled' && $previousStatus !== 'cancelled'){
+			$this->storefront_model->restoreStock($orderId);
+		}
 		echo json_encode(['status' => 'success', 'message' => 'Order status updated']);
 	}
 
 	public function update_payment_status(){
-		if(!$this->_can_edit()){
+		if(!$this->_can_edit_orders()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;
 		}
@@ -216,13 +279,23 @@ class Online_store extends MY_Controller {
 			echo json_encode(['status' => 'error', 'message' => 'Invalid status']);
 			return;
 		}
+		// Get current order to check previous payment status
+		$order = $this->storefront_model->getOrder($orderId);
+		$previousStatus = $order ? $order->payment_status : '';
 		$this->storefront_model->updatePaymentStatus($orderId, $status);
+		// Stock logic: decrement when marked paid, restore when leaving paid status
+		if($status === 'paid' && $previousStatus !== 'paid'){
+			$this->storefront_model->adjustStock($orderId);
+		} elseif($status === 'refunded' && $previousStatus === 'paid'){
+			$this->storefront_model->restoreStock($orderId);
+		}
 		echo json_encode(['status' => 'success', 'message' => 'Payment status updated']);
 	}
 
 	// ============== SERVICES ==============
 
 	public function services(){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$data = array_merge($this->data, [
 			'page_title' => 'Services',
 			'services' => $this->storefront_model->getOnlineServices(null, null, '', 100, 0),
@@ -250,6 +323,8 @@ class Online_store extends MY_Controller {
 			'requires_note' => $this->input->post('requires_note') ? 1 : 0,
 			'location_type' => $this->input->post('location_type') ?: 'in-store',
 			'sort_order' => (int)$this->input->post('sort_order'),
+			'deposit_required' => $this->input->post('deposit_required') ? 1 : 0,
+			'deposit_percent' => (float)$this->input->post('deposit_percent'),
 			'status' => $this->input->post('status') ? 1 : 0
 		];
 		if($serviceId){
@@ -274,6 +349,11 @@ class Online_store extends MY_Controller {
 	// ============== QR CODES ==============
 
 	public function qr_codes(){
+		if(!mp_feature_enabled('qr_ordering')){
+			$this->show_access_denied_page();
+			return;
+		}
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$data = array_merge($this->data, [
 			'page_title' => 'QR Codes',
 			'qr_codes' => $this->storefront_model->getQrCodes(),
@@ -285,6 +365,10 @@ class Online_store extends MY_Controller {
 	}
 
 	public function generate_qr(){
+		if(!mp_feature_enabled('qr_ordering')){
+			echo json_encode(['status' => 'error', 'message' => 'Feature disabled']);
+			return;
+		}
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;
@@ -362,8 +446,9 @@ class Online_store extends MY_Controller {
 	// ============== PRODUCTS ONLINE STATUS ==============
 
 	public function products_online(){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$search = trim($this->input->get('search'));
-		$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.status, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.is_featured, a.status, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', get_current_store_id());
@@ -402,6 +487,23 @@ class Online_store extends MY_Controller {
 		$newVal = $product->publish_online ? 0 : 1;
 		$this->db->where('id', $productId)->update('db_items', ['publish_online' => $newVal]);
 		echo json_encode(['status' => 'success', 'publish_online' => $newVal]);
+	}
+
+	public function save_featured(){
+		if(!$this->_can_edit()){
+			$this->session->set_flashdata('error', 'Access denied');
+			redirect('online_store/products_online');
+			return;
+		}
+		$storeId = get_current_store_id();
+		$featured = $this->input->post('featured') ?: [];
+		foreach($featured as $productId => $value){
+			$productId = (int)$productId;
+			$value = (int)$value;
+			$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['is_featured' => $value]);
+		}
+		$this->session->set_flashdata('success', 'Featured products saved');
+		redirect('online_store/products_online');
 	}
 
 	public function update_online_price(){
@@ -627,7 +729,7 @@ class Online_store extends MY_Controller {
 	// ============== ANALYTICS ==============
 
 	public function analytics(){
-		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$storeId = get_current_store_id();
 		$filter = $this->input->get('filter') ?: 'month';
 		$customStart = $this->input->get('start');
@@ -730,7 +832,7 @@ class Online_store extends MY_Controller {
 	}
 
 	public function export_analytics(){
-		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$storeId = get_current_store_id();
 		$filter = $this->input->get('filter') ?: 'month';
 		$customStart = $this->input->get('start');

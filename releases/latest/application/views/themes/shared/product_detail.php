@@ -42,6 +42,27 @@
   </div>
 </div>
 
+<?php if(!empty($product_variants)): ?>
+<div class="mp-section">
+  <div class="mp-section-title">Available Variants</div>
+  <div class="mp-grid">
+    <?php foreach($product_variants as $v): ?>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/product/' . $v->id); ?>" class="mp-card">
+      <?php if($v->item_image && file_exists($v->item_image)): ?>
+        <img src="<?= base_url($v->item_image); ?>" class="mp-card-img" alt="" loading="lazy">
+      <?php else: ?>
+        <div class="mp-card-img" style="display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:10px;">No Image</div>
+      <?php endif; ?>
+      <div class="mp-card-body">
+        <div class="mp-card-name"><?= htmlspecialchars($v->item_name); ?></div>
+        <div class="mp-card-price"><?= sf_currency($v->effective_price, $store_currency ?? null); ?></div>
+      </div>
+    </a>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
+
 <?php if(!empty($related_products)): ?>
 <div class="mp-section" style="padding-top:0;">
   <div class="mp-section-title">Related Products</div>
@@ -49,7 +70,7 @@
     <?php foreach($related_products as $p): ?>
     <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/product/' . $p->id); ?>" class="mp-card">
       <?php if($p->item_image && file_exists($p->item_image)): ?>
-        <img src="<?= base_url($p->item_image); ?>" class="mp-card-img" alt="">
+        <img src="<?= base_url($p->item_image); ?>" class="mp-card-img" alt="" loading="lazy">
       <?php else: ?>
         <div class="mp-card-img" style="display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:10px;">No Image</div>
       <?php endif; ?>

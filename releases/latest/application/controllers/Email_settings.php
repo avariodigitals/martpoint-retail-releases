@@ -10,6 +10,12 @@ class Email_settings extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		// Email settings are admin/store-admin only — contains SMTP credentials
+		$role_id = (int)$this->session->userdata('role_id');
+		if($role_id !== 1 && !is_store_admin()){
+			$this->show_access_denied_page();
+			return;
+		}
 	}
 
 	/* ---------- Main Settings Page ---------- */

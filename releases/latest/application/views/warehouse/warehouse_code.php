@@ -1,6 +1,6 @@
 
 <?php
-$defaultWarehouseId = getDefaultWarehouseId();
+$defaultBranchId = getDefaultWarehouseId();
 ?>
 
 <!-- Used in Purchase.php -->
@@ -34,13 +34,13 @@ $defaultWarehouseId = getDefaultWarehouseId();
 		   	<span class="text-danger">*</span> </label>
 			<?php }?>
 		   <div class="<?= $div_length;?>">
-		      <select class="form-control select2" id="<?=$selection_box_id;?>" <?=$multiple;?> <?=$data_placeholder;?> title="Select Warehouse" name="<?=$selection_box_name;?>"  style="width: 100%;">
+		      <select class="form-control select2" id="<?=$selection_box_id;?>" <?=$multiple;?> <?=$data_placeholder;?> title="Select Branch" name="<?=$selection_box_name;?>"  style="width: 100%;">
 		         <?php
 		         	$store_id = !empty($store_id) ? $store_id : get_current_store_id();
-		         	//Only Allowed Warehouse show to loged in user
+		         	//Only Allowed Branch show to loged in user
 		         	if(!is_admin() && !is_store_admin()){
 		         		//Find the previllaged wareshouses to the user
-		         		$arrayOfWarehouseIds = getArrayOfWarehouseIds();
+		         		$arrayOfBranchIds = getArrayOfBranchIds();
 		         		
 		         		$privileged_warehouses = get_privileged_warehouses_ids();
 		         		if(!empty($privileged_warehouses)){
@@ -59,7 +59,7 @@ $defaultWarehouseId = getDefaultWarehouseId();
 		             		echo "<option value=''>-Select-</option>";
 		             	}
 		             	if(isset($show_all_option)){
-		             		echo "<option value=''>-All Warehouses-</option>";
+		             		echo "<option value=''>-All Branches-</option>";
 		             	}
 		             	
 		              foreach($q2->result() as $res1)
@@ -68,7 +68,7 @@ $defaultWarehouseId = getDefaultWarehouseId();
 		                 	$selected='selected';
 		                 }else{
 		                 	
-		                 	if($res1->id == $defaultWarehouseId){
+		                 	if($res1->id == $defaultBranchId){
 		                 		$selected='selected';
 		                 	}
 		                 	else{
@@ -77,8 +77,8 @@ $defaultWarehouseId = getDefaultWarehouseId();
 
 		                 }
 
-		                 /*if(isset($arrayOfWarehouseIds)){
-		                 	if(in_array($res1->id, $arrayOfWarehouseIds)){
+		                 /*if(isset($arrayOfBranchIds)){
+		                 	if(in_array($res1->id, $arrayOfBranchIds)){
 		                 		$selected = "selected";
 		                 	}
 		                 	else{
@@ -124,7 +124,7 @@ $defaultWarehouseId = getDefaultWarehouseId();
          <label for="warehouse_id"><?= $this->lang->line('warehouse'); ?></label>
          <select class="form-control select2" id="warehouse_id" name="warehouse_id"  style="width: 100%;" >
             <?php
-		            //Only Allowed Warehouse show to loged in user
+		            //Only Allowed Branch show to loged in user
 		         	if(!is_admin() && !is_store_admin()){
 		         		//Find the previllaged wareshouses to the user
 		         		$privileged_warehouses = get_privileged_warehouses_ids();
@@ -141,7 +141,7 @@ $defaultWarehouseId = getDefaultWarehouseId();
 		            if($q2->num_rows()>0)
 		             {
 		             	if(isset($show_all_option)){
-		             		echo "<option value=''>-All Warehouses-</option>";
+		             		echo "<option value=''>-All Branches-</option>";
 		             	}
 		             	else{
 		             		echo "<option value=''>-Select-</option>";	
@@ -173,10 +173,10 @@ $defaultWarehouseId = getDefaultWarehouseId();
 		<div class="row">
                 <div class="col-md-6">
                   <div class="input-group">
-                    <span class="input-group-addon" title="Warehouse"><i class="fa fa-building text-red"></i></span>
+                    <span class="input-group-addon" title="Branch"><i class="fa fa-building text-red"></i></span>
                     <select class="form-control select2" id="warehouse_id" name="warehouse_id"  style="width: 100%;" >
 		            <?php
-				            //Only Allowed Warehouse show to loged in user
+				            //Only Allowed Branch show to loged in user
 				         	if(!is_admin() && !is_store_admin()){
 				         		//Find the previllaged wareshouses to the user
 				         		$privileged_warehouses = get_privileged_warehouses_ids();
@@ -188,7 +188,7 @@ $defaultWarehouseId = getDefaultWarehouseId();
 				            if($q2->num_rows()>0)
 				             {
 				             	if(isset($show_all_option)){
-				             		echo "<option value=''>-All Warehouses-</option>";
+				             		echo "<option value=''>-All Branches-</option>";
 				             	}
 				              foreach($q2->result() as $res1)
 				               {

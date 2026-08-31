@@ -60,6 +60,20 @@ class Store_profile_model extends CI_Model {
 		$gst_no = $this->input->post('gst_no', TRUE);
 		$vat_no = $this->input->post('vat_no', TRUE);
 		$pan_no = $this->input->post('pan_no', TRUE);
+		$nin_api_enabled = $this->input->post('nin_api_enabled', TRUE);
+		$nin_api_url = $this->input->post('nin_api_url', TRUE);
+		$nin_api_key = $this->input->post('nin_api_key', TRUE);
+		$nin_api_provider = $this->input->post('nin_api_provider', TRUE);
+
+		// Business Profile fields (Phase 2)
+		$industry_type = $this->input->post('industry_type', TRUE);
+		$business_model = $this->input->post('business_model', TRUE);
+		$feature_flags_json = $this->input->post('feature_flags_json', TRUE);
+		$workflow_template_key = $this->input->post('workflow_template_key', TRUE);
+		$dashboard_template_key = $this->input->post('dashboard_template_key', TRUE);
+		$storefront_theme_key = $this->input->post('storefront_theme_key', TRUE);
+		$label_overrides_json = $this->input->post('label_overrides_json', TRUE);
+		$industry_settings_json = $this->input->post('industry_settings_json', TRUE);
 		 	//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST))));exit();
 
 		//if not admin
@@ -70,6 +84,7 @@ class Store_profile_model extends CI_Model {
 		}
 
 		$this->db->trans_begin();
+		// Modular refactor: core db_store fields only
 		
 		$store_logo='';
 		if(!empty($_FILES['store_logo']['name'])){
@@ -124,81 +139,131 @@ class Store_profile_model extends CI_Model {
 
 		
 
+		// Core db_store fields only
 		$data = array(
-		    				'store_code'				=> $store_code,
-		    				'store_name'				=> $store_name,
-		    				'store_website'				=> $store_website,
-		    				'mobile'					=> $mobile,
-		    				'phone'						=> $phone,
-		    				'email'						=> $email,
-		    				'country'					=> $country,
-		    				'state'						=> $state,
-		    				'city'						=> $city,
-		    				'address'					=> $address,
-		    				'postcode'					=> $postcode,
-		    				'bank_details'				=> $bank_details,
-		    				'category_init'				=> $category_init,
-		    				'item_init'					=> $item_init,
-		    				'supplier_init'				=> $supplier_init,
-		    				'purchase_init'				=> $purchase_init,
-		    				'purchase_return_init'		=> $purchase_return_init,
-		    				'customer_init'				=> $customer_init,
-		    				'sales_init'				=> $sales_init,
-		    				'sales_return_init'			=> $sales_return_init,
-		    				'expense_init'				=> $expense_init,
-		    				'quotation_init'			=> $quotation_init,
-		    				'money_transfer_init'		=> $money_transfer_init,
-		    				'accounts_init'				=> $accounts_init,
-		    				'currency_id'				=> $currency,
-		    				'currency_placement'		=> $currency_placement,
-		    				'timezone'					=> $timezone,
-		    				'date_format'				=> $date_format,
-		    				'time_format'				=> $time_format,
-		    				'sales_discount'			=> $sales_discount,
-		    				'sales_discount'			=> $sales_discount,
-		    				'change_return'				=> $change_return,
-		    				'sales_invoice_format_id'	=> $sales_invoice_format_id,
-		    				'pos_invoice_format_id'		=> $pos_invoice_format_id,
-		    				'sales_invoice_footer_text'	=> $sales_invoice_footer_text,
-		    				'invoice_terms'				=> $invoice_terms,
-		    				'round_off'					=> $round_off,
-		    				'language_id'				=> $language_id,
-		    				'decimals'					=> $decimals,
-		    				'qty_decimals'					=> $qty_decimals,
-		    				'sales_payment_init'		=> $sales_payment_init,
-		    				'sales_return_payment_init'	=> $sales_return_payment_init,
-		    				'purchase_payment_init'		=> $purchase_payment_init,
-		    				'purchase_return_payment_init'	=> $purchase_return_payment_init,
-		    				'expense_payment_init'	=> $expense_payment_init,
-		    				'cust_advance_init'	=> $cust_advance_init,
-		    				'mrp_column'	=> $mrp_column,
-		    				'show_signature'	=> $show_signature,
-		    				'previous_balance_bit'	=> $previous_balance_bit,
-		    				't_and_c_status'	=> $t_and_c_status,
-		    				't_and_c_status_pos'	=> $t_and_c_status_pos,
-		    				'number_to_words'	=> $number_to_words,
-		    				'default_account_id'	=> (isset($default_account_id) && !empty($default_account_id))?$default_account_id:null,
-		    			);
+			'store_code'				=> $store_code,
+			'store_name'				=> $store_name,
+			'mobile'					=> $mobile,
+			'phone'						=> $phone,
+			'email'						=> $email,
+			'country'					=> $country,
+			'state'						=> $state,
+			'city'						=> $city,
+			'address'					=> $address,
+			'postcode'					=> $postcode,
+			'currency_id'				=> $currency,
+			'currency_placement'		=> $currency_placement,
+			'timezone'					=> $timezone,
+			'date_format'				=> $date_format,
+			'time_format'				=> $time_format,
+			'decimals'					=> $decimals,
+			'qty_decimals'				=> $qty_decimals,
+		);
 
-		if(!empty($store_logo)){
-			$data['store_logo']=$store_logo;
-		}
-		if(!empty($signature)){
-			$data['signature']=$signature;
-		}
-		/*custom helper*/
+		// Modular inventory settings
+		$inventory_data = array(
+			'category_init'				=> $category_init,
+			'item_init'					=> $item_init,
+			'supplier_init'				=> $supplier_init,
+			'purchase_init'				=> $purchase_init,
+			'purchase_return_init'	=> $purchase_return_init,
+			'customer_init'				=> $customer_init,
+			'sales_init'				=> $sales_init,
+			'sales_return_init'		=> $sales_return_init,
+			'expense_init'				=> $expense_init,
+			'quotation_init'			=> $quotation_init,
+			'money_transfer_init'		=> $money_transfer_init,
+			'accounts_init'				=> $accounts_init,
+			'sales_payment_init'		=> $sales_payment_init,
+			'sales_return_payment_init'	=> $sales_return_payment_init,
+			'purchase_payment_init'		=> $purchase_payment_init,
+			'purchase_return_payment_init'	=> $purchase_return_payment_init,
+			'expense_payment_init'		=> $expense_payment_init,
+			'cust_advance_init'			=> $cust_advance_init,
+		);
+
+		// Modular receipt settings
+		$receipt_data = array(
+			'sales_invoice_format_id'		=> $sales_invoice_format_id,
+			'pos_invoice_format_id'			=> $pos_invoice_format_id,
+			'sales_invoice_footer_text'	=> $sales_invoice_footer_text,
+			'invoice_terms'				=> $invoice_terms,
+			'previous_balance_bit'		=> $previous_balance_bit,
+			'round_off'					=> $round_off,
+			'change_return'				=> $change_return,
+			'decimals'					=> $decimals,
+			'qty_decimals'				=> $qty_decimals,
+			't_and_c_status'			=> $t_and_c_status,
+			't_and_c_status_pos'		=> $t_and_c_status_pos,
+			'number_to_words'			=> $number_to_words,
+		);
+
+		// Modular POS settings
+		$pos_data = array(
+			'sales_discount'			=> $sales_discount,
+			'mrp_column'				=> $mrp_column,
+			'show_signature'			=> $show_signature,
+			'previous_balance_bit'		=> $previous_balance_bit,
+			'default_account_id'		=> (isset($default_account_id) && !empty($default_account_id))?$default_account_id:null,
+		);
+
+		// Modular industry settings — only include fields actually submitted
+		// so that saving the Store Profile does NOT wipe Business Profile data.
+		// Business Profile fields (industry_type, feature_flags_json, etc.) are
+		// managed exclusively by the Business Profile controller/model.
+		$industry_data = array();
+		if($industry_type !== null)             $industry_data['industry_type']             = $industry_type;
+		if($business_model !== null)            $industry_data['business_model']            = $business_model;
+		if($workflow_template_key !== null)     $industry_data['workflow_template_key']     = $workflow_template_key;
+		if($dashboard_template_key !== null)    $industry_data['dashboard_template_key']    = $dashboard_template_key;
+		if($storefront_theme_key !== null)      $industry_data['storefront_theme_key']      = $storefront_theme_key;
+		if($feature_flags_json !== null)        $industry_data['feature_flags_json']        = $feature_flags_json;
+		if($label_overrides_json !== null)      $industry_data['label_overrides_json']      = $label_overrides_json;
+		if($industry_settings_json !== null)    $industry_data['industry_settings_json']    = $industry_settings_json;
+
+		// Modular tax settings
+		$tax_data = array();
 		if(gst_number()){
-			$data['gst_no']=$gst_no;
+			$tax_data['gst_no'] = $gst_no;
 		}
 		if(vat_number()){
-			$data['vat_no']=$vat_no;
+			$tax_data['vat_no'] = $vat_no;
 		}
 		if(pan_number()){
-			$data['pan_no']=$pan_no;
+			$tax_data['pan_no'] = $pan_no;
 		}
-		/*end*/
 
-		
+		// Modular theme settings
+		$theme_data = array();
+		if(!empty($store_logo)){
+			$theme_data['store_logo'] = $store_logo;
+		}
+		if(!empty($signature)){
+			$theme_data['signature'] = $signature;
+		}
+
+		// Modular storefront settings
+		$storefront_data = array(
+			'store_website' => $store_website,
+		);
+		if(!empty($storefront_theme_key)){
+			$storefront_data['storefront_theme_key'] = $storefront_theme_key;
+		}
+
+		// Modular payment settings
+		$payment_data = array(
+			'bank_details' => $bank_details,
+		);
+
+		// NIN API key/value settings
+		$nin_data = array(
+			'nin_api_enabled' => $nin_api_enabled,
+			'nin_api_url' => $nin_api_url,
+			'nin_api_key' => $nin_api_key,
+			'nin_api_provider' => $nin_api_provider,
+		);
+
+		// Store code uniqueness check
 			$this->db->select("count(*) as store_code_count");
 			$this->db->where("upper(store_code)", strtoupper($store_code));
 			$this->db->where("id !=", $q_id);
@@ -208,16 +273,46 @@ class Store_profile_model extends CI_Model {
 			}
 
 			$q1 = $this->db->where('id',$q_id)->update('db_store', $data);
-			if($q1){
-				$this->db->trans_commit();
-				$this->session->unset_userdata('currency');
-				//$this->session->set_flashdata('success', 'Success!! Record Updated Successfully! ');
-				echo "success";
+			if(!$q1){
+				$this->db->trans_rollback();
+				return "failed";
 			}
 
-		
+			// Write to modular tables
+			if($this->db->table_exists('db_store_inventory_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_inventory_settings', $inventory_data);
+			}
+			if($this->db->table_exists('db_store_receipt_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_receipt_settings', $receipt_data);
+			}
+			if($this->db->table_exists('db_store_pos_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_pos_settings', $pos_data);
+			}
+			if($this->db->table_exists('db_store_industry_settings') && !empty($industry_data)){
+				_mp_set_structured_setting($q_id, 'db_store_industry_settings', $industry_data);
+			}
+			if($this->db->table_exists('db_store_tax_settings') && !empty($tax_data)){
+				_mp_set_structured_setting($q_id, 'db_store_tax_settings', $tax_data);
+			}
+			if($this->db->table_exists('db_store_theme_settings') && !empty($theme_data)){
+				_mp_set_structured_setting($q_id, 'db_store_theme_settings', $theme_data);
+			}
+			if($this->db->table_exists('db_store_storefront_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_storefront_settings', $storefront_data);
+			}
+			if($this->db->table_exists('db_store_payment_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_payment_settings', $payment_data);
+			}
+			if($this->db->table_exists('db_store_settings')){
+				mp_set_store_setting($q_id, 'general', 'language_id', $language_id, 'int');
+				foreach($nin_data as $k => $v){
+					mp_set_store_setting($q_id, 'nin_api', $k, $v, 'string');
+				}
+			}
 
-		exit();
+			$this->db->trans_commit();
+			$this->session->unset_userdata('currency');
+			return "success";
 	}
 
 	//Get store_details
@@ -231,8 +326,12 @@ class Store_profile_model extends CI_Model {
 		else{
 			/* QUERY 1*/
 			$data['q_id']=$query1->row()->id;
-			return array_merge($data,$query1->row_array());
-			return $data;
+			$all = function_exists('mp_get_store_all_settings') ? mp_get_store_all_settings($id) : [];
+			// sales_target lives in db_sitesettings (global), not db_store
+			$site = $this->db->select('sales_target')->where('id', 1)->get('db_sitesettings')->row();
+			$data['sales_target'] = ($site && isset($site->sales_target)) ? $site->sales_target : 0;
+			// Modular settings are the source of truth; they override the legacy db_store row
+			return array_merge($data, $query1->row_array(), $all);
 		}
 	}
 

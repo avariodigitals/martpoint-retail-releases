@@ -22,6 +22,9 @@ class Debt_reminder extends MY_Controller {
 	 * Store settings page
 	 */
 	public function index(){
+		$this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0');
+		$this->output->set_header('Pragma: no-cache');
+		$this->output->set_header('Expires: Thu, 19 Nov 1981 08:52:00 GMT');
 		$data = array_merge($this->data, [
 			'page_title' => 'Debt Reminder Settings',
 			'settings' => $this->debt_reminder_model->getStoreSettings(),
@@ -41,16 +44,39 @@ class Debt_reminder extends MY_Controller {
 		}
 
 		$storeId = get_current_store_id();
+		$enabled = $this->input->post('enabled') ? 1 : 0;
+		$frequency = $this->input->post('frequency') ?: 'weekly';
+		$maxReminders = (int)($this->input->post('max_reminders') ?: 0);
+		$sendEmail = $this->input->post('send_email') ? 1 : 0;
+		$sendSms = $this->input->post('send_sms') ? 1 : 0;
+
+		// Server-side validation: at least one channel
+		if(!$sendEmail && !$sendSms){
+			echo json_encode(['status' => 'error', 'message' => 'At least one channel (Email or SMS) must be selected.']);
+			return;
+		}
+
+		// Validate frequency
+		$validFreqs = ['daily', '3days', 'weekly', 'biweekly', 'monthly'];
+		if(!in_array($frequency, $validFreqs)){
+			$frequency = 'weekly';
+		}
+
 		$data = [
-			'enabled' => $this->input->post('enabled') ? 1 : 0,
-			'frequency' => $this->input->post('frequency') ?: 'weekly',
-			'max_reminders' => (int)($this->input->post('max_reminders') ?: 0),
-			'send_email' => $this->input->post('send_email') ? 1 : 0,
-			'send_sms' => $this->input->post('send_sms') ? 1 : 0
+			'enabled' => $enabled,
+			'frequency' => $frequency,
+			'max_reminders' => $maxReminders,
+			'send_email' => $sendEmail,
+			'send_sms' => $sendSms
 		];
 
-		$this->debt_reminder_model->updateStoreSettings($storeId, $data);
-		echo json_encode(['status' => 'success', 'message' => 'Settings saved successfully']);
+		$result = $this->debt_reminder_model->updateStoreSettings($storeId, $data);
+		if($result){
+			echo json_encode(['status' => 'success', 'message' => 'Settings saved successfully']);
+		} else {
+			$error = $this->db->error();
+			echo json_encode(['status' => 'error', 'message' => 'Failed to save settings: ' . ($error['message'] ?? 'Unknown error')]);
+		}
 	}
 
 	/**
@@ -114,13 +140,18 @@ class Debt_reminder extends MY_Controller {
 
 		$storeId = get_current_store_id();
 		$storeDefaults = $this->debt_reminder_model->getStoreSettings($storeId);
-		if(!$storeDefaults || !$storeDefaults->enabled){
-			echo json_encode(['status' => 'error', 'message' => 'Debt reminders are not enabled for this store.']);
-			return;
-		}
 
 		$customers = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
 		$results['customers_checked'] = count($customers);
+
+		if(empty($customers)){
+			echo json_encode([
+				'status' => 'success',
+				'message' => 'No customers are due for a reminder at this time.',
+				'details' => $results
+			]);
+			return;
+		}
 
 		foreach($customers as $customer){
 			$amountDue = $customer->amount_due;

@@ -24,6 +24,216 @@ padding-right: 2px;
 
 }
 
+/* ===== MOBILE RESPONSIVE (below 992px) ===== */
+@media (max-width: 991px) {
+  /* Stack all form columns vertically */
+  #sales-form .form-group > [class*="col-"],
+  #sales-form .row > [class*="col-"],
+  #sales-form [class*="col-sm-"],
+  #sales-form [class*="col-md-"] {
+    width: 100% !important;
+    float: none !important;
+    display: block !important;
+    padding-left: 8px;
+    padding-right: 8px;
+    box-sizing: border-box;
+  }
+  /* Left-align labels */
+  #sales-form .control-label {
+    text-align: left !important;
+    padding-top: 8px;
+    padding-bottom: 4px;
+    font-size: 13px;
+    margin-bottom: 0;
+    display: block;
+  }
+  /* Touch-friendly inputs */
+  #sales-form .form-control,
+  #sales-form .select2-container--default .select2-selection--single {
+    min-height: 44px;
+    font-size: 15px;
+    width: 100% !important;
+  }
+  #sales-form .input-group {
+    display: flex;
+    width: 100%;
+  }
+  #sales-form .input-group .form-control {
+    min-height: 44px;
+    flex: 1;
+  }
+  #sales-form .btn {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  /* Item search header: stack */
+  #sales-form .col-md-8.col-md-offset-2 {
+    width: 100% !important;
+    margin-left: 0 !important;
+    float: none !important;
+  }
+  #sales-form .col-md-8.col-md-offset-2 .input-group {
+    margin-bottom: 8px;
+  }
+  /* Item table: horizontal scroll, no min-width */
+  #sales-form .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    display: block !important;
+  }
+  /* Make the box containing the table not overflow */
+  #sales-form .box .box-body {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+  }
+  #sales_table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  #sales_table th,
+  #sales_table td {
+    min-width: 0 !important;
+    white-space: nowrap;
+    padding: 4px 4px;
+    font-size: 12px;
+  }
+  #sales_table th { white-space: normal; }
+  #sales_table input,
+  #sales_table select,
+  #sales_table .form-control {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 12px;
+    min-height: 34px;
+  }
+  #sales_table .input-group {
+    width: 100%;
+  }
+  /* Customer input group: make room for addon */
+  #sales-form #customer_id + .input-group-addon,
+  #sales-form .input-group-addon {
+    width: auto;
+    min-width: 38px;
+    text-align: center;
+  }
+  #sales-form .input-group .select2-container {
+    flex: 1;
+  }
+  /* Coupon row: stack */
+  #sales-form .coupon_type,
+  #sales-form .coupon_value {
+    display: block;
+    width: 100%;
+    float: none !important;
+    text-align: left;
+  }
+  /* Item table cell inputs */
+  #sales_table .input-group {
+    width: 100%;
+    min-width: 0 !important;
+  }
+  #sales_table .input-group .form-control,
+  #sales_table .input-group .input-group-addon,
+  #sales_table .input-group .btn {
+    min-width: 0 !important;
+    padding-left: 4px;
+    padding-right: 4px;
+    height: 34px;
+  }
+  /* Fix the price_type select min-width */
+  #price_type {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  /* Totals table: full width, no float */
+  #sales-form table.col-md-9 {
+    width: 100% !important;
+    float: none !important;
+    display: table;
+  }
+  #sales-form table.col-md-9 th {
+    padding-left: 10px !important;
+  }
+  /* Payment section: stack all columns */
+  #sales-form .payments_div .col-md-4,
+  #sales-form .payments_div .col-md-6,
+  #sales-form .payments_div .col-md-8,
+  #sales-form .payments_div .col-md-12 {
+    width: 100% !important;
+    float: none !important;
+    display: block !important;
+    margin-bottom: 10px;
+  }
+  #sales-form .payments_div .row {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  #sales-form .payments_div .select2-container {
+    width: 100% !important;
+  }
+  /* Payments table: horizontal scroll */
+  #payments_table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  #payments_table th,
+  #payments_table td {
+    white-space: nowrap;
+    padding: 8px 6px;
+  }
+  /* Box footer buttons: stack */
+  #sales-form .box-footer .btn,
+  #sales-form .box-footer .btn-group .btn {
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+    min-height: 48px;
+    font-size: 15px;
+  }
+  #sales-form .box-footer .btn:last-child,
+  #sales-form .box-footer .btn-group .btn:last-child {
+    margin-bottom: 0;
+  }
+}
+
+  #sales-form { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  #sales_table { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  #sales_table thead.custom_thead .bg-primary { background: #F1F5F9 !important; color: #334155 !important; border-bottom: 2px solid #E2E8F0; }
+  #sales_table thead th { font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748B; }
+  #sales_table tbody td { color: #334155; }
+
+/* ===== Extra mobile fixes ===== */
+@media (max-width: 767px) {
+  #sales-form .control-label.pull-left,
+  #sales-form .control-label.pull-right {
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  #sales-form .form-group > .col-sm-4,
+  #sales-form .form-group > .col-md-4,
+  #sales-form .form-group > .col-xs-4,
+  #sales-form .form-group > .col-sm-3,
+  #sales-form .form-group > .col-md-3,
+  #sales-form .form-group > .col-xs-3 {
+    width: 100% !important;
+    float: none !important;
+    display: block !important;
+  }
+  .mp-fab-wrapper {
+    display: none !important;
+  }
+}
 </style>
 </head>
 
@@ -144,7 +354,7 @@ padding-right: 2px;
                
                <!-- ********** ALERT MESSAGE END******* -->
                   <!-- right column -->
-                  <div class="col-md-12">
+                  <div class="col-xs-12 col-md-12">
                      <!-- Horizontal Form -->
                      <div class="box box-primary " >
                         <!-- style="background: #68deac;" -->
@@ -169,29 +379,29 @@ padding-right: 2px;
                               /*}*/
                               ?>
                               <!-- Store Code end -->
-                              <!-- Warehouse Code -->
+                              <!-- Branch Code -->
                               
-                              <!-- Warehouse Code end -->
+                              <!-- Branch Code end -->
                               <div class="form-group">
-                                 <label for="warehouse_id" class="col-sm-2 control-label"><?= $this->lang->line('branch'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                 <label for="warehouse_id" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('branch'); ?><label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <select class="form-control select2 " id="warehouse_id" name="warehouse_id" >
                                        <?= get_warehouse_select_list($warehouse_id,get_current_store_id());?>
                                     </select>
                                     <span id="warehouse_id_msg" style="display:none" class="text-danger"></span>
                                  </div>
-                                 <label for="init_code" class="col-sm-2 control-label"><?= $this->lang->line('sales_code'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-2" style="padding-right:0;">
-                                    <input type="text" value="<?= $init_code; ?>" class="form-control  no-padding" style='font-size:20px;' id="init_code" name="init_code" placeholder="" <?= !is_admin() ? 'readonly' : ''; ?>>
+                                 <label for="init_code" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('sales_code'); ?><label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-2" style="padding-right:0;">
+                                    <input type="text" value="<?= $init_code; ?>" class="form-control" style='font-size:18px; padding:6px 8px;' id="init_code" name="init_code" placeholder="" <?= !is_admin() ? 'readonly' : ''; ?>>
                                        <span id="init_code_msg" style="display:none" class="text-danger"></span>
                                  </div>
-                                 <div class="col-sm-1" style="padding-left:1;">
-                                    <input type="text" style='font-size:20px;' value="<?php echo  $count_id; ?>" class="form-control no_special_char" id="count_id" name="count_id" placeholder="" <?= !is_admin() ? 'readonly' : ''; ?>>
+                                 <div class="col-xs-12 col-sm-1" style="padding-left:1;">
+                                    <input type="text" style='font-size:18px; padding:6px 8px;' value="<?php echo  $count_id; ?>" class="form-control no_special_char" id="count_id" name="count_id" placeholder="" <?= !is_admin() ? 'readonly' : ''; ?>>
                                        <span id="count_id_msg" style="display:none" class="text-danger"></span>
                                  </div>
 
                                  
-                            <!-- <div class="col-sm-2">
+                            <!-- <div class="col-xs-12 col-sm-2">
                                 <div class="checkbox">
                                     <label toggle='tooltip' title="Check for Non GST Bill Creation">
                                         <input type="checkbox" name="" checked="" />
@@ -205,21 +415,21 @@ padding-right: 2px;
                                  
                               </div>
                               <div class="form-group">
-                                 <label for="customer_id" class="col-sm-2 control-label"><?= $this->lang->line('customer_name'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                 <label for="customer_id" class="col-xs-12 col-sm-2 control-label"><?= mp_label('customer'); ?> Name<label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <div class="input-group">
                                        <select class="form-control select2" id="customer_id" name="customer_id"  style="width: 100%;">
                                        </select>
-                                       <span class="input-group-addon pointer" data-toggle="modal" data-target="#customer-modal" title="New Customer?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
+                                       <span class="input-group-addon pointer" data-toggle="modal" data-target="#customer-modal" title="New <?= mp_label('customer'); ?>?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
                                     </div>
                                     <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
-                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in Customer:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
+                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
                                     </div>
                                     <span id="customer_id_msg" style="display:none" class="text-danger"></span>
                                     <lable><?= $this->lang->line('previous_due'); ?> :<label class="customer_previous_due text-red" style="font-size: 18px;">0.00</label></lable>
                                  </div>
-                                 <label for="sales_date" class="col-sm-2 control-label"><?= $this->lang->line('sales_date'); ?> <label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                 <label for="sales_date" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('sales_date'); ?> <label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <div class="input-group date">
                                        <div class="input-group-addon">
                                           <i class="fa fa-calendar"></i>
@@ -230,13 +440,13 @@ padding-right: 2px;
                                  </div>
                               </div>
                               <div class="form-group">
-                                 <label for="reference_no" class="col-sm-2 control-label"><?= $this->lang->line('reference_no'); ?> </label>
-                                 <div class="col-sm-3">
+                                 <label for="reference_no" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('reference_no'); ?> </label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <input type="text" value="<?php echo  $reference_no; ?>" class="form-control " id="reference_no" name="reference_no" placeholder="" >
                   <span id="reference_no_msg" style="display:none" class="text-danger"></span>
                                  </div>
-                                <label for="due_date" class="col-sm-2 control-label"><?= $this->lang->line('due_date'); ?></label>
-                                 <div class="col-sm-3">
+                                <label for="due_date" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('due_date'); ?></label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <div class="input-group date">
                                        <div class="input-group-addon">
                                           <i class="fa fa-calendar"></i>
@@ -251,12 +461,12 @@ padding-right: 2px;
                            <!-- /.box-body -->
                            
                            <div class="row">
-                              <div class="col-md-12">
-                                <div class="col-md-12">
+                              <div class="col-xs-12 col-md-12">
+                                <div class="col-xs-12 col-md-12">
                                   <div class="box">
                                     <div class="box-info">
                                       <div class="box-header">
-                                        <div class="col-md-8 col-md-offset-2 d-flex justify-content" >
+                                        <div class="col-xs-12 col-md-8 col-md-offset-2 d-flex justify-content" >
                                           <div class="input-group">
                                                 <span class="input-group-addon" title="Price Type"><i class="fa fa-tag"></i></span>
                                                 <select class="form-control" id="price_type" name="price_type" style="min-width:120px;">
@@ -282,7 +492,7 @@ padding-right: 2px;
                                                 <tr class="bg-primary" >
                                                    <th rowspan='2' style="width:15%"><?= $this->lang->line('item_name'); ?></th>
                                                  
-                                                   <th rowspan='2' style="width:10%;min-width: 180px;"><?= $this->lang->line('quantity'); ?></th>
+                                                   <th rowspan='2' style="width:10%;"><?= $this->lang->line('quantity'); ?></th>
                                                    <th rowspan='2' style="width:10%"><?= $this->lang->line('unit_price'); ?></th> 
                                                    <th rowspan='2' style="width:10%"><?= $this->lang->line('discount'); ?>(<?= $CI->currency() ?>)</th>
                                                    <th rowspan='2' style="width:10%"><?= $this->lang->line('tax_amount'); ?></th>
@@ -304,12 +514,12 @@ padding-right: 2px;
                                 </div>
                               </div>
                               
-                              <div class="col-md-6">
+                              <div class="col-xs-12 col-md-6">
                                 <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="" class="col-sm-4 control-label"><?= $this->lang->line('quantity'); ?></label>    
-                                          <div class="col-sm-4">
+                                          <label for="" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('quantity'); ?></label>    
+                                          <div class="col-xs-12 col-sm-4">
                                              <label class="control-label total_quantity text-success" style="font-size: 15pt;">0</label>
                                           </div>
                                        </div>
@@ -319,13 +529,13 @@ padding-right: 2px;
                                  
 
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="other_charges_input" class="col-sm-4 control-label"><?= $this->lang->line('other_charges'); ?></label>    
-                                          <div class="col-sm-4">
+                                          <label for="other_charges_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('other_charges'); ?></label>    
+                                          <div class="col-xs-12 col-sm-4">
                                              <input type="text" class="form-control text-right only_currency" id="other_charges_input" name="other_charges_input" onkeyup="final_total();" value="<?php echo  $other_charges_input; ?>">
                                           </div>
-                                          <div class="col-sm-4">
+                                          <div class="col-xs-12 col-sm-4">
                                              <select class="form-control " id="other_charges_tax_id" name="other_charges_tax_id" onchange="final_total();" style="width: 100%;">
                                                 <?= get_tax_select_list($other_charges_tax_id,get_current_store_id());?>
                                              </select>
@@ -334,10 +544,10 @@ padding-right: 2px;
                                     </div>
                                  </div>
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="other_charges_input" class="col-sm-4 control-label"><?= $this->lang->line('discountCouponCode'); ?></label>    
-                                          <div class="col-sm-8">
+                                          <label for="other_charges_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('discountCouponCode'); ?></label>    
+                                          <div class="col-xs-12 col-sm-8">
                                              <input type="text" class="form-control" id="coupon_code" name="coupon_code" value="<?=$coupon_code; ?>">
 
                                              <label class="control-label pull-left"><?= $this->lang->line('couponType'); ?>:<span class="coupon_type">---</span></label>
@@ -345,9 +555,9 @@ padding-right: 2px;
                                           </div>
                                        </div>
                                     </div>
-                                    <div class="col-md-12 div1 hide">
+                                    <div class="col-xs-12 col-md-12 div1 hide">
                                        <div class="form-group">    
-                                          <div class="col-sm-8 col-sm-offset-4">
+                                          <div class="col-xs-12 col-sm-8 col-sm-offset-4">
                                              <div class="alert text-left msg_color">
                                               <strong id="coupon_code_msg">
                                               </strong>
@@ -360,13 +570,13 @@ padding-right: 2px;
 
                                  
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="discount_to_all_input" class="col-sm-4 control-label"><?= $this->lang->line('discount_on_all'); ?></label>    
-                                          <div class="col-sm-4">
+                                          <label for="discount_to_all_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('discount_on_all'); ?></label>    
+                                          <div class="col-xs-12 col-sm-4">
                                              <input type="text" class="form-control  text-right only_currency" id="discount_to_all_input" name="discount_to_all_input" onkeyup="enable_or_disable_item_discount();" value="<?= store_number_format($discount_input,0); ?>">
                                           </div>
-                                          <div class="col-sm-4">
+                                          <div class="col-xs-12 col-sm-4">
                                              <select class="form-control" onchange="final_total();" id='discount_to_all_type' name="discount_to_all_type">
                                                 <option value='in_percentage'>Per%</option>
                                                 <option value='in_fixed'>Fixed</option>
@@ -383,10 +593,10 @@ padding-right: 2px;
                                     </div>
                                  </div>
                                 <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="sales_note" class="col-sm-4 control-label"><?= $this->lang->line('note'); ?></label>    
-                                          <div class="col-sm-8">
+                                          <label for="sales_note" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('note'); ?></label>    
+                                          <div class="col-xs-12 col-sm-8">
                                              <textarea class="form-control text-left" id='sales_note' name="sales_note"><?= $sales_note; ?></textarea>
                                             <span id="sales_note_msg" style="display:none" class="text-danger"></span>
                                           </div>
@@ -398,33 +608,33 @@ padding-right: 2px;
                               </div>
                               
 
-                              <div class="col-md-6">
+                              <div class="col-xs-12 col-md-6">
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
                                            
-                                          <table  class="col-md-9">
+                                          <table  class="col-xs-12 col-md-9">
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('subtotal'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4><b id="subtotal_amt" name="subtotal_amt">0.00</b></h4>
                                                 </th>
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('other_charges'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4><b id="other_charges_amt" name="other_charges_amt">0.00</b></h4>
                                                 </th>
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('couponDiscount'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4><b id="coupon_discount_amt" name="coupon_discount_amt">0.00</b></h4>
                                                 </th>
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('discount_on_all'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4><b id="discount_to_all_amt" name="discount_to_all_amt">0.00</b></h4>
                                                 </th>
                                              </tr>
@@ -435,13 +645,13 @@ padding-right: 2px;
                                                     </i>
                                                   
                                                 </th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4><b id="round_off_amt" name="tot_round_off_amt">0.00</b></h4>
                                                 </th>
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('grand_total'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4><b id="total_amt" name="total_amt">0.00</b></h4>
                                                 </th>
                                              </tr>
@@ -452,9 +662,10 @@ padding-right: 2px;
                               </div>
 
                               <div class="col-xs-12 ">
-                                 <div class="col-sm-12">
+                                 <div class="col-xs-12 col-sm-12">
                                        <div class="box-body ">
-                                        <div class="col-md-12">
+                                        <div class="col-xs-12 col-md-12">
+                                          <div class="table-responsive" style="width:100%;">
                                           <table class="table table-hover table-bordered" style="width:100%" id="payments_table"><h4 class="box-title text-info"><?= $this->lang->line('previous_payments_information'); ?> : </h4>
                                              <thead>
                                                 <tr class="bg-gray " >
@@ -498,6 +709,7 @@ padding-right: 2px;
                                                 ?>
                                              </tbody>
                                           </table>
+                                          </div>
                                         </div>
                                        </div>
                                        <!-- /.box-body -->
@@ -508,11 +720,11 @@ padding-right: 2px;
 
                               <div class="col-xs-12 ">
 
-                                 <div class="col-sm-12">
+                                 <div class="col-xs-12 col-sm-12">
 
 
 
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        
                                        <!-- /.box-header -->
                                        <div class="box-body">
@@ -545,11 +757,11 @@ padding-right: 2px;
 
                                        <div class="box-body ">
 
-                                          <div class="col-md-12 payments_div payments_div_">
+                                          <div class="col-xs-12 col-md-12 payments_div payments_div_">
                                             <h4 class="box-title text-info"><?= $this->lang->line('payment'); ?> : </h4>
 
                                             <div class="row">
-                                                 <div class="col-md-4">
+                                                 <div class="col-xs-12 col-md-4">
 
                                                   <span for="">
                                                     <label>
@@ -573,14 +785,14 @@ padding-right: 2px;
                                                
                                               <div class="row">
                                          
-                                                <div class="col-md-4">
+                                                <div class="col-xs-12 col-md-4">
                                                   <div class="">
                                                   <label for="amount"><?= $this->lang->line('amount'); ?></label>
                                                     <input type="text" class="form-control text-right paid_amt only_currency" id="amount" name="amount" placeholder="" >
                                                       <span id="amount_msg" style="display:none" class="text-danger"></span>
                                                 </div>
                                                </div>
-                                                <div class="col-md-4">
+                                                <div class="col-xs-12 col-md-4">
                                                   <div class="">
                                                     <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
                                                     <select class="form-control select2 payment-mode-select" id='payment_type' name="payment_type">
@@ -590,7 +802,7 @@ padding-right: 2px;
                                                     <span id="payment_type_msg" style="display:none" class="text-danger"></span>
                                                   </div>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-xs-12 col-md-4">
                                                     <label for="account_id"><?= $this->lang->line('account'); ?></label>
                                                     <select class="form-control select2" id='account_id' name="account_id">
                                                       <option value="">-None-</option>
@@ -601,14 +813,14 @@ padding-right: 2px;
                                             <div class="clearfix"></div>
                                         </div>
                                         <div class="row payment-reference-row" style="display: none;">
-                                            <div class="col-md-6">
+                                            <div class="col-xs-12 col-md-6">
                                                 <div class="">
                                                     <label for="payment_reference">Reference</label>
                                                     <input type="text" class="form-control" id="payment_reference" name="payment_reference" placeholder="Enter reference number...">
                                                     <span id="payment_reference_msg" style="display:none" class="text-danger"></span>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-xs-12 col-md-6">
                                                 <div class="">
                                                     <label for="confirmation_status">Confirmation Status</label>
                                                     <select class="form-control" id="confirmation_status" name="confirmation_status">
@@ -623,7 +835,7 @@ padding-right: 2px;
 
                                         <div class="row cheque_div" style="display: none;">
                                          
-                                                <div class="col-md-8">
+                                                <div class="col-xs-12 col-md-8">
                                                   <div class="">
                                                   <label for="cheque_number"><?= $this->lang->line('cheque_number'); ?></label>
                                                     <input type="text" class="form-control" id="cheque_number" name="cheque_number" placeholder="" >
@@ -631,7 +843,7 @@ padding-right: 2px;
                                                 </div>
                                                </div>
                                                 
-                                               <div class="col-md-4">
+                                               <div class="col-xs-12 col-md-4">
                                                   <div class="">
                                                   <label for="cheque_period"><?= $this->lang->line('cheque_period_days'); ?></label>
                                                     <input type="text" class="form-control only_currency" id="cheque_period" name="cheque_period" placeholder="" >
@@ -643,7 +855,7 @@ padding-right: 2px;
                                         </div> 
 
                                         <div class="row">
-                                               <div class="col-md-12">
+                                               <div class="col-xs-12 col-md-12">
                                                   <div class="">
                                                     <label for="payment_note"><?= $this->lang->line('payment_note'); ?></label>
                                                     <textarea type="text" class="form-control" id="payment_note" name="payment_note" placeholder="" ></textarea>
@@ -677,9 +889,9 @@ padding-right: 2px;
                               ?>
                              
                               <div class="col-xs-12 ">
-                                 <div class="col-sm-12">
+                                 <div class="col-xs-12 col-sm-12">
                                        <div class="box-body ">
-                                          <div class="col-md-12">
+                                          <div class="col-xs-12 col-md-12">
                                             <div class="checkbox icheck">
                                       <label>
                                         <input type="checkbox" <?=$send_sms_checkbox;?> class="form-control" id="send_sms" name="send_sms" > <label for="sales_discount" class=" control-label"><?= $this->lang->line('send_sms_to_customer'); ?>
@@ -712,10 +924,10 @@ padding-right: 2px;
                                 }
 
                                 ?>
-                                 <div class="col-md-3 col-md-offset-3">
+                                 <div class="col-xs-12 col-md-3 col-md-offset-3">
                                     <button type="button" id="<?php echo $btn_id;?>" class="btn btn-block btn-success payments_modal" title="Save Data"><?php echo $btn_name;?></button>
                                  </div>
-                                 <div class="col-sm-3"><a href="<?= base_url()?>dashboard">
+                                 <div class="col-xs-12 col-sm-3"><a href="<?= base_url()?>dashboard">
                                     <button type="button" class="btn btn-block btn-warning" title="Go Dashboard">Close</button>
                                   </a>
                                 </div>
@@ -844,13 +1056,13 @@ padding-right: 2px;
           });
         });
 
-        /*Warehouse*/
+        /*Branch*/
         $("#warehouse_id").on("change",function(){
           var warehouse_id=$(this).val();
           $("#sales_table > tbody").empty();
           final_total();
         });
-        /*Warehouse end*/
+        /*Branch end*/
 
          $(".close_btn").on("click",function(){
            if(typeof swal === 'undefined'){
@@ -881,7 +1093,7 @@ padding-right: 2px;
           $("#item_search").attr({
             disabled: true,
           });
-          toastr["warning"]("Please Select Warehouse!!");
+          toastr["warning"]("Please Select Branch!!");
           failed.currentTime = 0; 
           failed.play();
          

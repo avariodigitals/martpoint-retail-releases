@@ -174,8 +174,9 @@
         $.each(states, function(i, s) {
           if (String(s.state) === String(stateName)) { stateId = s.id; }
         });
+        // If state not found, try loading all cities as fallback
         if (!stateId) {
-          $(citySelect).html('<option value="">No Records Found</option>');
+          loadAllCities(citySelect, selectedCityName);
           return;
         }
         $.ajax({
@@ -184,6 +185,11 @@
           dataType: 'json',
           data: { state_id: stateId },
           success: function(data) {
+            // Fallback: if no cities for this state, load all cities
+            if (!data || data.length === 0) {
+              loadAllCities(citySelect, selectedCityName);
+              return;
+            }
             var options = '<option value="">Select City</option>';
             $.each(data, function(i, item) {
               var selected = (selectedCityName && String(selectedCityName) === String(item.city)) ? ' selected' : '';
@@ -195,9 +201,36 @@
             }
           },
           error: function() {
-            $(citySelect).html('<option value="">No Records Found</option>');
+            loadAllCities(citySelect, selectedCityName);
           }
         });
+      },
+      error: function() {
+        loadAllCities(citySelect, selectedCityName);
+      }
+    });
+  }
+
+  function loadAllCities(citySelect, selectedCityName) {
+    $.ajax({
+      url: base_url + 'site/get_cities_by_state',
+      type: 'POST',
+      dataType: 'json',
+      data: { state_id: 0 },
+      success: function(data) {
+        if (!data || data.length === 0) {
+          $(citySelect).html('<option value="">No Records Found</option>');
+          return;
+        }
+        var options = '<option value="">Select City</option>';
+        $.each(data, function(i, item) {
+          var selected = (selectedCityName && String(selectedCityName) === String(item.city)) ? ' selected' : '';
+          options += '<option value="' + item.city + '"' + selected + '>' + item.city + '</option>';
+        });
+        $(citySelect).html(options);
+        if (selectedCityName) {
+          $(citySelect).val(selectedCityName).trigger('change');
+        }
       },
       error: function() {
         $(citySelect).html('<option value="">No Records Found</option>');

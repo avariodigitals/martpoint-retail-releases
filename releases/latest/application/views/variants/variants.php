@@ -57,6 +57,26 @@
                                  </div>
                               </div>
                               <div class="form-group">
+                                 <label for="attribute_type" class="col-sm-2 control-label"><?= $this->lang->line('attribute_type'); ?></label>
+                                 <div class="col-sm-4">
+                                    <select class="form-control select2" id="attribute_type" name="attribute_type">
+                                       <option value="">-None-</option>
+                                       <option value="size" <?=($attribute_type ?? '')=='size'?'selected':'';?>>Size</option>
+                                       <option value="colour" <?=($attribute_type ?? '')=='colour'?'selected':'';?>>Colour</option>
+                                       <option value="material" <?=($attribute_type ?? '')=='material'?'selected':'';?>>Material</option>
+                                       <option value="pattern" <?=($attribute_type ?? '')=='pattern'?'selected':'';?>>Pattern</option>
+                                       <option value="fit" <?=($attribute_type ?? '')=='fit'?'selected':'';?>>Fit</option>
+                                    </select>
+                                    <span class="help-block text-muted" style="font-size:12px;">Tag this variant with an attribute type for size/colour reporting.</span>
+                                 </div>
+                              </div>
+                              <div class="form-group">
+                                 <label for="attribute_value" class="col-sm-2 control-label"><?= $this->lang->line('attribute_value'); ?></label>
+                                 <div class="col-sm-4">
+                                    <input type="text" class="form-control input-sm" id="attribute_value" name="attribute_value" value="<?php print $attribute_value ?? ''; ?>" placeholder="e.g. Medium, Red, Cotton">
+                                 </div>
+                              </div>
+                              <div class="form-group">
                                  <label for="description" class="col-sm-2 control-label"><?= $this->lang->line('description'); ?></label>
                                  <div class="col-sm-4">
                                     <textarea type="text" class="form-control" id="description" name="description" placeholder=""><?php print $description; ?></textarea>

@@ -42,6 +42,15 @@ class Suppliers extends MY_Controller {
 		$data['page_title']=$this->lang->line('suppliers');
 		$this->load->view('suppliers', $data);
 	}
+	public function view($id){
+		$this->belong_to('db_suppliers',$id);
+		$this->permission_check('suppliers_view');
+		$data=$this->data;
+		$result=$this->suppliers->get_details($id,$data);
+		$data=array_merge($data,$result);
+		$data['page_title']=$this->lang->line('suppliers');
+		$this->load->view('suppliers', $data);
+	}
 	public function update_suppliers(){
 		$this->form_validation->set_rules('supplier_name', 'Customer Name', 'trim|required');
 		
@@ -177,5 +186,28 @@ class Suppliers extends MY_Controller {
 	}
 	public function getSuppliers($id=''){
 		echo $this->suppliers->getSuppliersJson($id);
+	}
+
+	/* ─── Offline Sync: return all active suppliers for IndexedDB caching ─── */
+	public function sync_suppliers_for_offline(){
+		$store_id = $this->input->get('store_id') ?? get_current_store_id();
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->select('id, supplier_name, mobile, email, address, opening_balance, purchase_due');
+		$query = $this->db->get('db_suppliers');
+		$suppliers = array();
+		foreach($query->result() as $row){
+			$suppliers[] = array(
+				'id'             => $row->id,
+				'supplier_name'  => $row->supplier_name,
+				'mobile'         => $row->mobile,
+				'email'          => $row->email,
+				'address'        => $row->address,
+				'opening_balance'=> $row->opening_balance,
+				'purchase_due'   => $row->purchase_due
+			);
+		}
+		header('Content-Type: application/json');
+		echo json_encode($suppliers);
 	}
 }

@@ -9,8 +9,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MartPoint">
   <link rel="apple-touch-icon" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
-  <!-- Tell the browser to be responsive to screen width -->
-  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Bootstrap 3.3.6 -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>bootstrap/css/bootstrap.min.css">
    <!-- Font Awesome -->
@@ -20,7 +22,6 @@
   <!-- Select2 -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/select2/select2.min.css">
     <!-- DataTables -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/css/dataTables.bootstrap.min.css">
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/css/dataTables.bootstrap.min.css">
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/css/fixedHeader.dataTables.min.css">
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/css/fixedHeader.bootstrap.min.css">
@@ -47,8 +48,9 @@
   <!--Custom Css File-->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/custom.css">
   <!-- MartPoint Retail Reskin -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=4">
-  <!-- <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/sidebar.css"> -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=32">
+  <!-- Prototype-matching overrides -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-prototype.css?v=24">
 
   <!-- Autocomplete -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">

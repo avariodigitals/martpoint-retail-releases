@@ -13,64 +13,14 @@ class Attendance_model extends CI_Model {
 	}
 
 	/**
-	 * Auto-create necessary tables if they don't exist
+	 * Verify attendance tables exist; log a warning if they don't.
 	 */
 	private function ensureTables(){
-		// Shifts table
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_shifts (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL DEFAULT 0,
-			shift_name VARCHAR(100) NOT NULL DEFAULT '',
-			start_time TIME NOT NULL,
-			end_time TIME NOT NULL,
-			grace_minutes INT NOT NULL DEFAULT 0,
-			location_lat DECIMAL(10,8) DEFAULT NULL,
-			location_lng DECIMAL(11,8) DEFAULT NULL,
-			location_radius_meters INT NOT NULL DEFAULT 100,
-			status TINYINT(1) NOT NULL DEFAULT 1,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// User-Shifts mapping
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_user_shifts (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			user_id INT NOT NULL,
-			shift_id INT NOT NULL,
-			store_id INT NOT NULL DEFAULT 0,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// Attendance records
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_attendance (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL DEFAULT 0,
-			user_id INT NOT NULL,
-			shift_id INT DEFAULT NULL,
-			attendance_date DATE NOT NULL,
-			clock_in TIME DEFAULT NULL,
-			clock_out TIME DEFAULT NULL,
-			clock_in_lat DECIMAL(10,8) DEFAULT NULL,
-			clock_in_lng DECIMAL(11,8) DEFAULT NULL,
-			clock_out_lat DECIMAL(10,8) DEFAULT NULL,
-			clock_out_lng DECIMAL(11,8) DEFAULT NULL,
-			face_image VARCHAR(255) DEFAULT NULL,
-			face_image_out VARCHAR(255) DEFAULT NULL,
-			status VARCHAR(20) NOT NULL DEFAULT 'present',
-			notes TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_date (attendance_date),
-			INDEX idx_user (user_id),
-			INDEX idx_store (store_id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// Add store location fields to db_store if not exists
-		if(!$this->db->field_exists('location_lat','db_store')){
-			$this->db->query("ALTER TABLE db_store ADD COLUMN location_lat DECIMAL(10,8) DEFAULT NULL AFTER address");
-		}
-		if(!$this->db->field_exists('location_lng','db_store')){
-			$this->db->query("ALTER TABLE db_store ADD COLUMN location_lng DECIMAL(11,8) DEFAULT NULL AFTER location_lat");
+		$tables = ['db_shifts', 'db_user_shifts', 'db_attendance'];
+		foreach ($tables as $table) {
+			if (!$this->db->table_exists($table)) {
+				log_message('error', 'Missing required table: ' . $table . '. Run the 4.0.2 migration via login.');
+			}
 		}
 	}
 

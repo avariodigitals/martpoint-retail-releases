@@ -64,7 +64,7 @@ class Money_deposit_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -83,7 +83,7 @@ class Money_deposit_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -97,7 +97,7 @@ class Money_deposit_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -132,7 +132,6 @@ class Money_deposit_model extends CI_Model {
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
 
-		$this->db->query("ALTER TABLE ac_moneydeposits AUTO_INCREMENT = 1");
 
 		$info = array(  
 	    				'store_id' 					=> $store_id,

@@ -18,12 +18,21 @@ class Subscription_license_model extends CI_Model {
 		if($existing){
 			$data['updated_date'] = date('Y-m-d');
 			$data['updated_time'] = date('H:i:s');
-			return $this->db->where('id', $existing->id)->update($this->table, $data);
+			$save_ok = $this->db->where('id', $existing->id)->update($this->table, $data);
+			$license_id = $existing->id;
 		} else {
 			$data['created_date'] = date('Y-m-d');
 			$data['created_time'] = date('H:i:s');
-			return $this->db->insert($this->table, $data);
+			$save_ok = $this->db->insert($this->table, $data);
+			$license_id = $this->db->insert_id();
 		}
+
+		// Keep db_store in sync so get_current_subcription_id() can find the active license
+		if($save_ok && $this->db->table_exists('db_store') && !empty($license_id)){
+			$this->db->where('id', $store_id)->update('db_store', ['current_subscriptionlist_id' => $license_id]);
+		}
+
+		return $save_ok;
 	}
 
 	public function activate($store_id, $license_data){

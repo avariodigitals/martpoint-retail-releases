@@ -16,42 +16,41 @@ class Debt_reminder_model extends CI_Model {
 	}
 
 	protected function ensureTables(){
-		// Main settings table
 		if(!$this->db->table_exists($this->table)){
 			$this->db->query("CREATE TABLE IF NOT EXISTS `{$this->table}` (
-				`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-				`store_id` int(11) unsigned NOT NULL DEFAULT 1,
-				`customer_id` int(11) unsigned NOT NULL,
-				`enabled` tinyint(1) NOT NULL DEFAULT 1,
-				`frequency` varchar(16) NOT NULL DEFAULT 'weekly' COMMENT 'daily,3days,weekly,biweekly,monthly',
-				`max_reminders` int(11) NOT NULL DEFAULT 0 COMMENT '0 = unlimited',
-				`reminder_count` int(11) NOT NULL DEFAULT 0,
-				`last_reminder_sent` datetime DEFAULT NULL,
-				`send_email` tinyint(1) NOT NULL DEFAULT 1,
-				`send_sms` tinyint(1) NOT NULL DEFAULT 0,
-				`created_at` datetime DEFAULT NULL,
-				`updated_at` datetime DEFAULT NULL,
+				`id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
+				`store_id` INT(11) unsigned NOT NULL DEFAULT 1,
+				`customer_id` INT(11) unsigned NOT NULL,
+				`enabled` TINYINT(1) NOT NULL DEFAULT 1,
+				`frequency` VARCHAR(16) NOT NULL DEFAULT 'weekly',
+				`max_reminders` INT(11) NOT NULL DEFAULT 0,
+				`reminder_count` INT(11) NOT NULL DEFAULT 0,
+				`last_reminder_sent` DATETIME DEFAULT NULL,
+				`send_email` TINYINT(1) NOT NULL DEFAULT 1,
+				`send_sms` TINYINT(1) NOT NULL DEFAULT 0,
+				`created_at` DATETIME DEFAULT NULL,
+				`updated_at` DATETIME DEFAULT NULL,
 				PRIMARY KEY (`id`),
-				UNIQUE KEY `uk_customer_store` (`customer_id`,`store_id`)
+				UNIQUE KEY `uk_customer_store` (`customer_id`, `store_id`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+			log_message('info', 'Created missing table: ' . $this->table);
 		}
-
-		// History log table
 		if(!$this->db->table_exists($this->historyTable)){
 			$this->db->query("CREATE TABLE IF NOT EXISTS `{$this->historyTable}` (
-				`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-				`store_id` int(11) unsigned NOT NULL DEFAULT 1,
-				`customer_id` int(11) unsigned NOT NULL,
-				`customer_name` varchar(255) DEFAULT NULL,
-				`amount_due` decimal(18,2) NOT NULL DEFAULT 0.00,
-				`channel` varchar(16) NOT NULL DEFAULT 'email' COMMENT 'email,sms,whatsapp',
-				`status` varchar(16) NOT NULL DEFAULT 'sent' COMMENT 'sent,failed',
-				`error_message` text DEFAULT NULL,
-				`sent_at` datetime DEFAULT NULL,
+				`id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
+				`store_id` INT(11) unsigned NOT NULL DEFAULT 1,
+				`customer_id` INT(11) unsigned NOT NULL,
+				`customer_name` VARCHAR(255) DEFAULT NULL,
+				`amount_due` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+				`channel` VARCHAR(16) NOT NULL DEFAULT 'email',
+				`status` VARCHAR(16) NOT NULL DEFAULT 'sent',
+				`error_message` TEXT DEFAULT NULL,
+				`sent_at` DATETIME DEFAULT NULL,
 				PRIMARY KEY (`id`),
 				KEY `idx_customer` (`customer_id`),
 				KEY `idx_sent_at` (`sent_at`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+			log_message('info', 'Created missing table: ' . $this->historyTable);
 		}
 	}
 
@@ -169,22 +168,30 @@ class Debt_reminder_model extends CI_Model {
 	public function getCustomersDueForReminder($storeId = NULL){
 		if(empty($storeId)){ $storeId = get_current_store_id(); }
 		$storeDefaults = $this->getStoreSettings($storeId);
-		if(!$storeDefaults || !$storeDefaults->enabled){
-			return [];
-		}
-
 		$customers = $this->getCustomersWithDebt($storeId);
 		$due = [];
 		foreach($customers as $c){
-			// Skip if explicitly disabled for this customer
-			if($c->enabled === 0) continue;
+			// Determine effective enabled: customer override takes precedence, then store default
+			$customerEnabled = $c->enabled;
+			if($customerEnabled === NULL){
+				$effectiveEnabled = (int)$storeDefaults->enabled;
+			} else {
+				$effectiveEnabled = (int)$customerEnabled;
+			}
+			if(!$effectiveEnabled) continue;
 
-			// Skip if max reminders reached
-			$max = (int)$c->max_reminders;
+			// Determine effective max reminders
+			$max = (int)($c->max_reminders !== NULL ? $c->max_reminders : $storeDefaults->max_reminders);
 			if($max > 0 && (int)$c->reminder_count >= $max) continue;
 
+			// Determine effective frequency and channels
+			$freq = $c->frequency !== NULL ? $c->frequency : $storeDefaults->frequency;
+			$c->frequency = $freq;
+			$c->max_reminders = $max;
+			$c->send_email = $c->send_email !== NULL ? $c->send_email : $storeDefaults->send_email;
+			$c->send_sms = $c->send_sms !== NULL ? $c->send_sms : $storeDefaults->send_sms;
+
 			// Check frequency
-			$freq = $c->frequency ?: $storeDefaults->frequency;
 			$lastSent = $c->last_reminder_sent;
 			if($this->isDue($lastSent, $freq)){
 				$due[] = $c;

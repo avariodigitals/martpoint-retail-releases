@@ -19,321 +19,23 @@ class Storefront_model extends CI_Model {
 	private function _expiredWhere($tableAlias = 'a', $storeId = null){
 		// Always exclude expired items from the online storefront.
 		// If you need to allow expired items online, manually unpublish them.
-		return "($tableAlias.expire_date IS NULL OR $tableAlias.expire_date = '0000-00-00' OR $tableAlias.expire_date >= '".date('Y-m-d')."')";
+		return "($tableAlias.expire_date IS NULL OR $tableAlias.expire_date NOT LIKE '0000%' OR $tableAlias.expire_date >= '".date('Y-m-d')."')";
 	}
 
 	/**
-	 * Auto-create necessary tables if they don't exist
+	 * Verify storefront tables exist; log a warning if they don't.
 	 */
 	private function ensureTables(){
-		// Add publish_online to db_items if not exists
-		if(!$this->db->field_exists('publish_online','db_items')){
-			$this->db->query("ALTER TABLE db_items ADD COLUMN publish_online TINYINT(1) NOT NULL DEFAULT 1 AFTER status");
-		}
-
-		// Add online_price to db_items for storefront-specific pricing
-		if(!$this->db->field_exists('online_price','db_items')){
-			$this->db->query("ALTER TABLE db_items ADD COLUMN online_price DECIMAL(12,2) NULL AFTER sales_price");
-		}
-
-		// Storefront Settings
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_settings (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL DEFAULT 0,
-			store_slug VARCHAR(100) NOT NULL DEFAULT '',
-			store_description TEXT,
-			store_banner VARCHAR(255),
-			store_logo VARCHAR(255),
-			whatsapp_number VARCHAR(20) DEFAULT '',
-			store_email VARCHAR(100) DEFAULT '',
-			store_phone VARCHAR(20) DEFAULT '',
-			store_address TEXT,
-			default_branch_id INT DEFAULT 0,
-			store_status ENUM('active','maintenance') DEFAULT 'active',
-			allow_paystack TINYINT(1) DEFAULT 1,
-			allow_whatsapp TINYINT(1) DEFAULT 1,
-			allow_pay_on_delivery TINYINT(1) DEFAULT 1,
-			allow_services TINYINT(1) DEFAULT 1,
-			allow_backorder TINYINT(1) DEFAULT 0,
-			show_search TINYINT(1) DEFAULT 1,
-			show_categories TINYINT(1) DEFAULT 1,
-			show_whatsapp_cta TINYINT(1) DEFAULT 1,
-			featured_products_limit INT DEFAULT 8,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			UNIQUE KEY uk_storefront_store (store_id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// Add theme-related columns if they don't exist
-		$cols = [
-			'theme_id' => 'INT DEFAULT NULL AFTER store_id',
-			'primary_color' => "VARCHAR(20) DEFAULT '#3B82F6'",
-			'secondary_color' => "VARCHAR(20) DEFAULT '#10B981'",
-			'font_family' => "VARCHAR(100) DEFAULT 'Inter'",
-			'button_style' => "VARCHAR(50) DEFAULT 'rounded'",
-			'store_headline' => 'VARCHAR(255) DEFAULT NULL',
-			'store_subheadline' => 'VARCHAR(500) DEFAULT NULL',
-			'favicon' => 'VARCHAR(255) DEFAULT NULL',
-			'desktop_banner' => 'VARCHAR(255) DEFAULT NULL',
-			'mobile_banner' => 'VARCHAR(255) DEFAULT NULL',
-			'instagram_url' => 'VARCHAR(500) DEFAULT NULL',
-			'facebook_url' => 'VARCHAR(500) DEFAULT NULL',
-			'tiktok_url' => 'VARCHAR(500) DEFAULT NULL',
-			'x_url' => 'VARCHAR(500) DEFAULT NULL',
-			'youtube_url' => 'VARCHAR(500) DEFAULT NULL',
-			'business_hours' => 'TEXT DEFAULT NULL',
-			'announcement_bar' => 'VARCHAR(500) DEFAULT NULL',
-			'announcement_bar_color' => "VARCHAR(20) DEFAULT '#0F172A'",
-			'preview_mode' => 'TINYINT(1) DEFAULT 0',
-			'preview_theme_id' => 'INT DEFAULT NULL',
-			'meta_title' => 'VARCHAR(255) DEFAULT NULL',
-			'meta_description' => 'VARCHAR(500) DEFAULT NULL',
-			'footer_bg_color' => "VARCHAR(20) DEFAULT '#0F172A'",
-			'header_text_color' => "VARCHAR(20) DEFAULT ''",
-			'footer_style' => "VARCHAR(50) DEFAULT 'standard'",
-			'footer_about_us' => 'TEXT DEFAULT NULL',
-			'footer_text_color' => "VARCHAR(20) DEFAULT '#94A3B8'",
-			'footer_address_url' => 'VARCHAR(500) DEFAULT NULL',
-			'button_color' => "VARCHAR(20) DEFAULT '#3B82F6'",
-			'meta_keywords' => 'VARCHAR(255) DEFAULT NULL',
-			'google_analytics_id' => 'VARCHAR(50) DEFAULT NULL',
-			'facebook_pixel_id' => 'VARCHAR(50) DEFAULT NULL',
-			'robots_index' => 'TINYINT(1) DEFAULT 1',
-			'custom_head_scripts' => 'TEXT DEFAULT NULL',
+		$tables = [
+			'db_storefront_settings', 'db_services', 'db_online_orders', 'db_online_order_items',
+			'db_storefront_themes', 'db_storefront_banners', 'db_storefront_homepage_sections',
+			'db_storefront_domains', 'db_qr_codes', 'db_storefront_brands', 'db_storefront_testimonials',
+			'db_storefront_instagram', 'db_storefront_faqs', 'db_storefront_analytics'
 		];
-		foreach($cols as $col => $def){
-			if(!$this->db->field_exists($col, 'db_storefront_settings')){
-				$this->db->query("ALTER TABLE db_storefront_settings ADD COLUMN {$col} {$def}");
+		foreach($tables as $table){
+			if(!$this->db->table_exists($table)){
+				log_message('error', 'Missing required table: ' . $table . '. Run the 4.0.2 migration via login.');
 			}
-		}
-
-		// Services (separate from items for richer service fields)
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_services (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL DEFAULT 0,
-			service_name VARCHAR(200) NOT NULL,
-			service_image VARCHAR(255),
-			category_id INT DEFAULT 0,
-			price DECIMAL(12,2) NOT NULL DEFAULT 0,
-			discount_price DECIMAL(12,2) DEFAULT NULL,
-			service_duration VARCHAR(50),
-			description TEXT,
-			available_online TINYINT(1) DEFAULT 1,
-			requires_appointment TINYINT(1) DEFAULT 0,
-			requires_note TINYINT(1) DEFAULT 0,
-			location_type ENUM('in-store','customer-location','online') DEFAULT 'in-store',
-			sort_order INT DEFAULT 0,
-			status TINYINT(1) DEFAULT 1,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_store_status (store_id, status, available_online)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// Online Orders
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_online_orders (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL DEFAULT 0,
-			order_code VARCHAR(50) NOT NULL,
-			customer_name VARCHAR(200),
-			customer_email VARCHAR(100),
-			customer_phone VARCHAR(20),
-			customer_address TEXT,
-			order_type ENUM('product','service','mixed') DEFAULT 'product',
-			order_status ENUM('pending','paid','processing','ready','completed','cancelled') DEFAULT 'pending',
-			payment_status ENUM('unpaid','paid','partially_paid','failed','refunded') DEFAULT 'unpaid',
-			payment_method ENUM('paystack','whatsapp','pay_on_delivery') DEFAULT 'pay_on_delivery',
-			paystack_reference VARCHAR(100),
-			paystack_amount DECIMAL(12,2) DEFAULT 0,
-			subtotal DECIMAL(12,2) DEFAULT 0,
-			delivery_fee DECIMAL(12,2) DEFAULT 0,
-			tax_amount DECIMAL(12,2) DEFAULT 0,
-			grand_total DECIMAL(12,2) DEFAULT 0,
-			service_date DATE,
-			service_time VARCHAR(20),
-			service_note TEXT,
-			table_number VARCHAR(20),
-			qr_code_id INT DEFAULT 0,
-			whatsapp_sent TINYINT(1) DEFAULT 0,
-			ip_address VARCHAR(45),
-			user_agent TEXT,
-			status TINYINT(1) DEFAULT 1,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_store_status (store_id, order_status),
-			INDEX idx_created (created_at),
-			INDEX idx_paystack (paystack_reference)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// Online Order Items
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_online_order_items (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			order_id INT NOT NULL,
-			item_type ENUM('product','service') DEFAULT 'product',
-			item_id INT NOT NULL,
-			item_name VARCHAR(200),
-			item_image VARCHAR(255),
-			qty INT DEFAULT 1,
-			unit_price DECIMAL(12,2) DEFAULT 0,
-			total_price DECIMAL(12,2) DEFAULT 0,
-			service_note TEXT,
-			status TINYINT(1) DEFAULT 1,
-			INDEX idx_order (order_id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// Theme Engine Tables
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_themes (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			theme_key VARCHAR(50) NOT NULL UNIQUE,
-			theme_name VARCHAR(100) NOT NULL,
-			industry VARCHAR(50) NOT NULL,
-			description TEXT,
-			default_primary_color VARCHAR(20) DEFAULT '#3B82F6',
-			default_secondary_color VARCHAR(20) DEFAULT '#10B981',
-			default_font_family VARCHAR(100) DEFAULT 'Inter',
-			preview_image VARCHAR(255),
-			status TINYINT(1) DEFAULT 1,
-			sort_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_banners (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			banner_type ENUM('hero','promo') DEFAULT 'hero',
-			banner_title VARCHAR(255),
-			banner_subtitle VARCHAR(500),
-			desktop_image VARCHAR(255),
-			mobile_image VARCHAR(255),
-			button_text VARCHAR(100),
-			button_url VARCHAR(500),
-			display_order INT DEFAULT 0,
-			status TINYINT(1) DEFAULT 1,
-			start_date DATE DEFAULT NULL,
-			end_date DATE DEFAULT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_store_status (store_id, status)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// Add banner_type if it doesn't exist
-		if(!$this->db->field_exists('banner_type', 'db_storefront_banners')){
-			$this->db->query("ALTER TABLE db_storefront_banners ADD COLUMN banner_type ENUM('hero','promo') DEFAULT 'hero'");
-		}
-
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_homepage_sections (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			section_key VARCHAR(50) NOT NULL,
-			section_label VARCHAR(100),
-			is_enabled TINYINT(1) DEFAULT 1,
-			display_order INT DEFAULT 0,
-			config_json TEXT,
-			UNIQUE KEY uk_store_section (store_id, section_key)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_domains (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			domain_type ENUM('subdomain','custom') DEFAULT 'subdomain',
-			domain_value VARCHAR(255) NOT NULL,
-			verification_status ENUM('pending','verified','failed') DEFAULT 'pending',
-			ssl_status ENUM('pending','active','expired') DEFAULT 'pending',
-			connection_status ENUM('pending','connected','disconnected') DEFAULT 'pending',
-			dns_instructions TEXT,
-			verified_at TIMESTAMP NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE KEY uk_domain (domain_value),
-			INDEX idx_store (store_id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// QR Codes
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_qr_codes (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL DEFAULT 0,
-			qr_name VARCHAR(200),
-			qr_type ENUM('store','product','service','category','table') DEFAULT 'store',
-			related_id INT DEFAULT 0,
-			table_number VARCHAR(20),
-			qr_image VARCHAR(255),
-			qr_data TEXT,
-			download_count INT DEFAULT 0,
-			status TINYINT(1) DEFAULT 1,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_store_type (store_id, qr_type)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-		// Storefront Brands
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_brands (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			brand_name VARCHAR(100) NOT NULL,
-			brand_logo VARCHAR(255) DEFAULT NULL,
-			brand_url VARCHAR(500) DEFAULT NULL,
-			is_enabled TINYINT(1) DEFAULT 1,
-			sort_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_store_sort (store_id, sort_order)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// Storefront Testimonials
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_testimonials (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			customer_name VARCHAR(100) NOT NULL,
-			customer_photo VARCHAR(255) DEFAULT NULL,
-			testimonial_text TEXT NOT NULL,
-			rating INT DEFAULT 5,
-			is_enabled TINYINT(1) DEFAULT 1,
-			sort_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_store_sort (store_id, sort_order)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// Storefront Instagram Gallery
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_instagram (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			image_url VARCHAR(255) NOT NULL,
-			caption VARCHAR(255) DEFAULT NULL,
-			link_url VARCHAR(500) DEFAULT NULL,
-			is_enabled TINYINT(1) DEFAULT 1,
-			sort_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_store_sort (store_id, sort_order)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// Storefront FAQs
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_faqs (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			question VARCHAR(255) NOT NULL,
-			answer TEXT NOT NULL,
-			is_enabled TINYINT(1) DEFAULT 1,
-			sort_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_store_sort (store_id, sort_order)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-		// Storefront Analytics
-		$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_analytics (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			store_id INT NOT NULL,
-			page_url VARCHAR(500) NOT NULL,
-			source VARCHAR(100) DEFAULT NULL,
-			referrer VARCHAR(500) DEFAULT NULL,
-			ip_address VARCHAR(45) DEFAULT NULL,
-			user_agent VARCHAR(255) DEFAULT NULL,
-			search_term VARCHAR(255) DEFAULT NULL,
-			session_id VARCHAR(100) DEFAULT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_store_created (store_id, created_at)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-		// Add search_term if table already exists without it
-		if(!$this->db->field_exists('search_term','db_storefront_analytics')){
-			$this->db->query("ALTER TABLE db_storefront_analytics ADD COLUMN search_term VARCHAR(255) DEFAULT NULL AFTER user_agent");
-		}
-		// Add is_new_user if table already exists without it
-		if(!$this->db->field_exists('is_new_user','db_storefront_analytics')){
-			$this->db->query("ALTER TABLE db_storefront_analytics ADD COLUMN is_new_user TINYINT(1) NOT NULL DEFAULT 1 AFTER search_term");
 		}
 	}
 
@@ -360,6 +62,8 @@ class Storefront_model extends CI_Model {
 				'allow_paystack' => 1,
 				'allow_whatsapp' => 1,
 				'allow_pay_on_delivery' => 1,
+			'shipping_notice' => '',
+			'shipping_methods_json' => '',
 				'allow_services' => 1,
 				'allow_backorder' => 0,
 				'show_search' => 1,
@@ -409,6 +113,14 @@ class Storefront_model extends CI_Model {
 			'robots_index' => 1,
 			'custom_head_scripts' => ''
 			];
+		}
+		// Ensure a store slug is always set so public links never generate double slashes
+		if(empty($row->store_slug)){
+			$store = get_store_details($storeId);
+			$expectedSlug = $store ? strtolower(preg_replace('/[^a-z0-9-]/', '-', $store->store_name)) : 'store';
+			$expectedSlug = trim($expectedSlug, '-');
+			$row->store_slug = !empty($expectedSlug) ? $expectedSlug : 'store';
+			$this->saveSettings($storeId, ['store_slug' => $row->store_slug]);
 		}
 		return $row;
 	}
@@ -526,6 +238,23 @@ class Storefront_model extends CI_Model {
 		return $this->db->get()->result();
 	}
 
+	public function getFeaturedProducts($storeId = null, $limit = 8){
+		$storeId = $storeId ?: get_current_store_id();
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, b.category_name');
+		$this->db->from('db_items a');
+		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
+		$this->db->where('a.store_id', $storeId);
+		$this->db->where('a.is_featured', 1);
+		$this->db->where('a.publish_online', 1);
+		$this->db->where('a.status', 1);
+		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
+		$this->db->order_by('a.id', 'desc');
+		$this->db->limit($limit);
+		return $this->db->get()->result();
+	}
+
 	public function getOnlineProduct($productId, $storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.*, b.category_name');
@@ -535,8 +264,24 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
+		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		return $this->db->get()->row();
+	}
+
+	public function getProductVariants($productId, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		$this->db->select('a.*, b.category_name');
+		$this->db->from('db_items a');
+		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
+		$this->db->where('a.parent_id', $productId);
+		$this->db->where('a.store_id', $storeId);
+		$this->db->where('a.publish_online', 1);
+		$this->db->where('a.status', 1);
+		$this->db->where('a.service_bit', 0);
+		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
+		$this->db->order_by('a.id', 'asc');
+		return $this->db->get()->result();
 	}
 
 	public function countOnlineProducts($storeId = null, $categoryId = null, $search = ''){
@@ -622,11 +367,23 @@ class Storefront_model extends CI_Model {
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.id, a.category_name, a.category_image');
 		$this->db->from('db_category a');
-		$this->db->join('db_items b', 'b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0', 'inner');
+		$this->db->join('db_items b', "b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.item_group IS NULL OR b.item_group='Single')", 'inner');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.status', 1);
 		$this->db->where($this->_expiredWhere('b', $storeId), NULL, FALSE);
 		$this->db->group_by('a.id');
+		return $this->db->get()->result();
+	}
+
+	public function getServiceCategories($storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		$this->db->select('a.id, a.category_name, a.category_image');
+		$this->db->from('db_category a');
+		$this->db->join('db_services b', 'b.category_id=a.id AND b.available_online=1 AND b.status=1', 'inner');
+		$this->db->where('a.store_id', $storeId);
+		$this->db->where('a.status', 1);
+		$this->db->group_by('a.id');
+		$this->db->order_by('a.category_name', 'asc');
 		return $this->db->get()->result();
 	}
 
@@ -650,6 +407,11 @@ class Storefront_model extends CI_Model {
 		return $this->db->where('paystack_reference', $ref)->get('db_online_orders')->row();
 	}
 
+	public function getOrderByCode($orderCode, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		return $this->db->where('order_code', $orderCode)->where('store_id', $storeId)->get('db_online_orders')->row();
+	}
+
 	public function getOrderItems($orderId){
 		return $this->db->where('order_id', $orderId)->get('db_online_order_items')->result();
 	}
@@ -662,6 +424,51 @@ class Storefront_model extends CI_Model {
 		$data['payment_status'] = $status;
 		$data['updated_at'] = date('Y-m-d H:i:s');
 		return $this->db->where('id', $orderId)->update('db_online_orders', $data);
+	}
+
+	/**
+	 * Decrement stock for all product items in an order.
+	 * Only runs once per order (guarded by stock_adjusted flag).
+	 * Services are skipped (they don't have stock).
+	 */
+	public function adjustStock($orderId){
+		$order = $this->getOrder($orderId);
+		if(!$order || $order->stock_adjusted){
+			return false; // already adjusted or not found
+		}
+		$items = $this->getOrderItems($orderId);
+		foreach($items as $item){
+			if($item->item_type !== 'product') continue; // skip services
+			$qty = (int)$item->qty;
+			if($qty <= 0) continue;
+			$this->db->set('stock', 'stock - ' . $qty, false);
+			$this->db->where('id', $item->item_id);
+			$this->db->update('db_items');
+		}
+		$this->db->where('id', $orderId)->update('db_online_orders', ['stock_adjusted' => 1]);
+		return true;
+	}
+
+	/**
+	 * Restore stock for all product items in an order.
+	 * Only runs if stock was previously adjusted (stock_adjusted = 1).
+	 */
+	public function restoreStock($orderId){
+		$order = $this->getOrder($orderId);
+		if(!$order || !$order->stock_adjusted){
+			return false; // nothing to restore
+		}
+		$items = $this->getOrderItems($orderId);
+		foreach($items as $item){
+			if($item->item_type !== 'product') continue;
+			$qty = (int)$item->qty;
+			if($qty <= 0) continue;
+			$this->db->set('stock', 'stock + ' . $qty, false);
+			$this->db->where('id', $item->item_id);
+			$this->db->update('db_items');
+		}
+		$this->db->where('id', $orderId)->update('db_online_orders', ['stock_adjusted' => 0]);
+		return true;
 	}
 
 	public function getOrders($storeId = null, $status = null, $limit = 50, $offset = 0){
@@ -801,8 +608,6 @@ class Storefront_model extends CI_Model {
 	 */
 	public function seedThemesIfEmpty(){
 		if(!$this->db->table_exists('db_storefront_themes')) return;
-		$count = $this->db->count_all('db_storefront_themes');
-		if($count > 0) return;
 
 		$themes = [
 			['theme_key' => 'general_retail', 'theme_name' => 'General Retail', 'industry' => 'general', 'description' => 'Clean, modern default theme for any retail store.', 'default_primary_color' => '#3B82F6', 'default_secondary_color' => '#10B981', 'default_font_family' => 'Inter', 'sort_order' => 1],
@@ -813,9 +618,13 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'fresh_market', 'theme_name' => 'Fresh Market', 'industry' => 'grocery', 'description' => 'Warm supermarket and grocery theme with organic feel.', 'default_primary_color' => '#2E7D32', 'default_secondary_color' => '#FF6F00', 'default_font_family' => 'Inter', 'sort_order' => 6],
 			['theme_key' => 'food_express', 'theme_name' => 'Food Express', 'industry' => 'restaurant', 'description' => 'Appetizing restaurant and food ordering theme.', 'default_primary_color' => '#D32F2F', 'default_secondary_color' => '#FBC02D', 'default_font_family' => 'Inter', 'sort_order' => 7],
 			['theme_key' => 'service_pro', 'theme_name' => 'Service Pro', 'industry' => 'services', 'description' => 'Professional services theme for agencies and consultancies.', 'default_primary_color' => '#1A237E', 'default_secondary_color' => '#00BCD4', 'default_font_family' => 'Inter', 'sort_order' => 8],
+			['theme_key' => 'laundry', 'theme_name' => 'Sparkle Laundry', 'industry' => 'laundry', 'description' => 'Clean, fresh laundry and dry cleaning theme for pickup, delivery and wash services.', 'default_primary_color' => '#0EA5E9', 'default_secondary_color' => '#22C55E', 'default_font_family' => 'Inter', 'sort_order' => 9],
+			['theme_key' => 'laundry_fresh', 'theme_name' => 'Fresh', 'industry' => 'Laundry & Dry Cleaning', 'description' => 'A clean, modern storefront designed for laundries, dry cleaners and garment-care businesses.', 'default_primary_color' => '#102A43', 'default_secondary_color' => '#2F80ED', 'default_font_family' => 'Inter', 'sort_order' => 10],
 		];
 		foreach($themes as $t){
-			$this->db->insert('db_storefront_themes', $t);
+			$sql = $this->db->insert_string('db_storefront_themes', $t);
+			$sql = preg_replace('/^INSERT INTO/i', 'INSERT IGNORE INTO', $sql);
+			$this->db->query($sql);
 		}
 	}
 
@@ -991,7 +800,7 @@ class Storefront_model extends CI_Model {
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
-			WHERE o.store_id=? AND oi.item_type='product' AND o.status=1 AND i.publish_online=1 AND $expiryClause
+			WHERE o.store_id=? AND oi.item_type='product' AND o.status=1 AND i.publish_online=1 AND (i.item_group IS NULL OR i.item_group='Single') AND $expiryClause
 			GROUP BY oi.item_id
 			ORDER BY sold_count DESC
 			LIMIT ?", [$storeId, $limit])->result();
@@ -1006,6 +815,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'desc');
 		$this->db->limit($limit);
@@ -1029,8 +839,8 @@ class Storefront_model extends CI_Model {
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
 		$total = $this->db->where('store_id', $storeId)->where('created_at >=', $startDate)->where('created_at <=', $endDate)->count_all_results('db_storefront_analytics');
 		$unique = $this->db->query("SELECT COUNT(DISTINCT session_id) as cnt FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ?", [$storeId, $startDate, $endDate])->row()->cnt;
-		$today = $this->db->where('store_id', $storeId)->where('DATE(created_at)', date('Y-m-d'))->count_all_results('db_storefront_analytics');
-		$yesterday = $this->db->where('store_id', $storeId)->where('DATE(created_at)', date('Y-m-d', strtotime('-1 day')))->count_all_results('db_storefront_analytics');
+		$today = (int)$this->db->query("SELECT COUNT(*) as cnt FROM db_storefront_analytics WHERE store_id=? AND DATE(created_at)=?", [$storeId, date('Y-m-d')])->row()->cnt;
+		$yesterday = (int)$this->db->query("SELECT COUNT(*) as cnt FROM db_storefront_analytics WHERE store_id=? AND DATE(created_at)=?", [$storeId, date('Y-m-d', strtotime('-1 day'))])->row()->cnt;
 		$newUsers = $this->db->query("SELECT COUNT(DISTINCT session_id) as cnt FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND is_new_user = 1", [$storeId, $startDate, $endDate])->row()->cnt;
 		$returningUsers = $unique - $newUsers;
 		return ['total' => $total, 'unique' => $unique, 'today' => $today, 'yesterday' => $yesterday, 'new_users' => $newUsers, 'returning_users' => max(0, $returningUsers)];
@@ -1051,19 +861,19 @@ class Storefront_model extends CI_Model {
 	public function getDailyVisits($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT DATE(created_at) as date, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DATE(created_at) ORDER BY date ASC", [$storeId, $startDate, $endDate])->result();
+		return $this->db->query("SELECT DATE(created_at) as `date`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DATE(created_at) ORDER BY `date` ASC", [$storeId, $startDate, $endDate])->result();
 	}
 
 	public function getVisitsByHour($storeId, $date){
 		$start = $date . ' 00:00:00';
 		$end = $date . ' 23:59:59';
-		return $this->db->query("SELECT HOUR(created_at) as hour, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY HOUR(created_at) ORDER BY hour ASC", [$storeId, $start, $end])->result();
+		return $this->db->query("SELECT HOUR(created_at) as `hour`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY HOUR(created_at) ORDER BY `hour` ASC", [$storeId, $start, $end])->result();
 	}
 
 	public function getVisitsByMonth($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-365 days'));
-		return $this->db->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month ASC", [$storeId, $startDate, $endDate])->result();
+		return $this->db->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as `month`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY `month` ASC", [$storeId, $startDate, $endDate])->result();
 	}
 
 	public function getHeatmapData($storeId, $startDate = null, $endDate = null){

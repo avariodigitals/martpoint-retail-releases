@@ -21,7 +21,7 @@
 	$CI =& get_instance();
 	
     
-  	$q3=$this->db->query("SELECT b.customer_previous_due,b.customer_total_due,b.store_id,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+  	$q3=$this->db->query("SELECT b.customer_previous_due,b.customer_total_due,b.store_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,
                            a.postcode,a.address,c.payment_date,c.created_time,b.reference_no,
                            b.sales_code,b.sales_note,
@@ -37,12 +37,10 @@
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status
 
-                           FROM db_customers a,
-                           db_sales b,
-                           db_salespayments c
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
-                           b.`id`=c.sales_id and
+                           FROM db_salespayments c
+                           INNER JOIN db_sales b ON b.`id`=c.sales_id
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
                            c.id=$payment_id
                            ");
                          
@@ -108,14 +106,15 @@
     $company_gst_no		=$res1->gst_no;//Goods and Service Tax Number (issued by govt.)
     $company_vat_number		=$res1->vat_no;//Goods and Service Tax Number (issued by govt.)
     
-    $store_logo=(!empty($res1->store_logo)) ? $res1->store_logo : store_demo_logo();
+    $store_logo_path = mp_get_store_theme_setting($res1->id, 'store_logo');
+    $store_logo= !empty($store_logo_path) ? $store_logo_path : store_demo_logo();
 
 
     ?>
 	<table width="95%" align="center">
 		<tr>
 			<td align="center" width="30%">
-				<img src="<?= base_url($store_logo);?>" width="30%" height="auto">
+				<img src="<?= mp_store_logo_round_base64($store_logo, 120); ?>" width="80" height="80" alt="store logo">
 			</td>
 		</tr>
 		<tr>

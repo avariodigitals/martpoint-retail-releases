@@ -17,6 +17,7 @@ class Site_model extends CI_Model {
 			$data['q_id']=$query->id;
             $data['site_name']=$query->site_name;
             $data['logo']=$query->logo;
+            $data['sales_target']=$query->sales_target ?? 0;
 			return $data;
 		}
 	}
@@ -25,6 +26,8 @@ class Site_model extends CI_Model {
 		$change_return = $this->input->post('change_return', TRUE);
 		$round_off = $this->input->post('round_off', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
+
+		$sales_target = (float)$this->input->post('sales_target', TRUE);
 		//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST))));exit();
 				
 		
@@ -54,6 +57,7 @@ class Site_model extends CI_Model {
 		$change_return = (isset($change_return)) ? 1 : 0;
 		$round_off = (isset($round_off)) ? 1 : 0;
         $info = array('site_name' => $site_name);
+        $info['sales_target'] = $sales_target;
         if(!empty($logo_name)){
             $info['logo'] = '/uploads/site/'.$logo_name;
         }

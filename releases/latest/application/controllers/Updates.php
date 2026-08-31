@@ -43,8 +43,7 @@ class Updates extends MY_Controller {
 	public function update_db(){
 		$current_app_version = $this->get_current_version_of_db();
 		if($current_app_version==$this->source_version){
-			echo "Database Already Updated!";
-			exit();
+			return; // already up to date, let page load normally
 		}
 
 		//Update database
@@ -75,10 +74,14 @@ class Updates extends MY_Controller {
 			$q1 = $this->db->query("ALTER TABLE `db_salespayments` CHANGE `cheque_status` `cheque_status` VARCHAR(100) NULL");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_customers` CHANGE `credit_limit` `credit_limit` DOUBLE(20,4) DEFAULT -1 NULL");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("UPDATE `db_customers` SET `credit_limit`='-1'");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("CREATE TABLE `db_shippingaddress`( `id` INT(10), `store_id` INT(10), `country_id` INT(10), `state_id` INT(10), `city` VARCHAR(100), `postcode` VARCHAR(20), `address` TEXT, `status` INT(1), `customer_id` INT(10), FOREIGN KEY (`customer_id`) REFERENCES `db_customers`(`id`) ON UPDATE CASCADE ON DELETE CASCADE, FOREIGN KEY (`store_id`) REFERENCES `db_store`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_customers` ADD COLUMN `shippingaddress_id` INT(10) NULL ");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_shippingaddress` CHANGE `id` `id` INT(10) NULL AUTO_INCREMENT, ADD KEY(`id`)");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_shippingaddress` ADD COLUMN `location_link` TEXT NULL AFTER `customer_id`; ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: CREATE TABLE `db_shippingaddress`
+			// $q1 = $this->db->query("CREATE TABLE `db_shippingaddress`( `id` INT(10), `store_id` INT(10), `country_id` INT(10), `state_id` INT(10), `city` VARCHAR(100), `postcode` VARCHAR(20), `address` TEXT, `status` INT(1), `customer_id` INT(10), FOREIGN KEY (`customer_id`) REFERENCES `db_customers`(`id`) ON UPDATE CASCADE ON DELETE CASCADE, FOREIGN KEY (`store_id`) REFERENCES `db_store`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_customers` ADD COLUMN `shippingaddress_id` INT(10) NULL
+			// $q1 = $this->db->query("ALTER TABLE `db_customers` ADD COLUMN `shippingaddress_id` INT(10) NULL ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_shippingaddress` CHANGE `id` `id` INT(10) NULL AUTO_INCREMENT, ADD KEY(`id`)
+			// $q1 = $this->db->query("ALTER TABLE `db_shippingaddress` CHANGE `id` `id` INT(10) NULL AUTO_INCREMENT, ADD KEY(`id`)");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_shippingaddress` ADD COLUMN `location_link` TEXT NULL AFTER `customer_id`;
+			// $q1 = $this->db->query("ALTER TABLE `db_shippingaddress` ADD COLUMN `location_link` TEXT NULL AFTER `customer_id`; ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("UPDATE `db_users` SET `status` = '0' WHERE `id` = '1';");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->update_shipping_address();
 			if(!$q1){ echo "failed"; exit();}
@@ -143,7 +146,8 @@ class Updates extends MY_Controller {
 			$q1 = $this->update_mrp_if_items();
 			if(!$q1){ echo "failed"; exit();}
 
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `mrp_column` INT(1) DEFAULT 0 NULL");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `mrp_column` INT(1) DEFAULT 0 NULL
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `mrp_column` INT(1) DEFAULT 0 NULL");if(!$q1){ echo "failed"; exit();}
 
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'show_purchase_price')");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'customer_orders_report')");if(!$q1){ echo "failed"; exit();}
@@ -165,29 +169,31 @@ class Updates extends MY_Controller {
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'discountCouponDelete'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'discountCouponView'); ");if(!$q1){ echo "failed"; exit();}
 			
-			$q1 = $this->db->query("CREATE TABLE `db_coupons` (
-						  `id` int(5) NOT NULL AUTO_INCREMENT,
-						  `store_id` int(11) DEFAULT NULL,
-						  `code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  `description` text COLLATE utf8mb4_unicode_ci,
-						  `value` double(20,2) DEFAULT NULL,
-						  `type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  `expire_date` date DEFAULT NULL,
-						  `status` int(1) DEFAULT NULL,
-						  `create_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  `created_date` date DEFAULT NULL,
-						  `created_time` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  `system_name` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  `system_ip` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-						  PRIMARY KEY (`id`),
-						  KEY `store_id` (`store_id`),
-						  CONSTRAINT `db_coupons_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-						  CONSTRAINT `db_coupons_ibfk_2` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-						) ENGINE=InnoDB AUTO_INCREMENT=343 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-						");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: CREATE TABLE `db_coupons`
+			// $q1 = $this->db->query("CREATE TABLE `db_coupons` (
+			// 			  `id` int(5) NOT NULL AUTO_INCREMENT,
+			// 			  `store_id` int(11) DEFAULT NULL,
+			// 			  `code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  `description` text COLLATE utf8mb4_unicode_ci,
+			// 			  `value` double(20,2) DEFAULT NULL,
+			// 			  `type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  `expire_date` date DEFAULT NULL,
+			// 			  `status` int(1) DEFAULT NULL,
+			// 			  `create_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  `created_date` date DEFAULT NULL,
+			// 			  `created_time` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  `system_name` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  `system_ip` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 			  PRIMARY KEY (`id`),
+			// 			  KEY `store_id` (`store_id`),
+			// 			  CONSTRAINT `db_coupons_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+			// 			  CONSTRAINT `db_coupons_ibfk_2` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+			// 			) ENGINE=InnoDB AUTO_INCREMENT=343 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+			// 			");if(!$q1){ echo "failed"; exit();}
 			
-			$q1 = $this->db->query("ALTER TABLE `db_coupons` CHANGE `create_by` `created_by` VARCHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci NULL");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_coupons` CHANGE `create_by` `created_by` VARCHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci NULL
+			// $q1 = $this->db->query("ALTER TABLE `db_coupons` CHANGE `create_by` `created_by` VARCHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci NULL");if(!$q1){ echo "failed"; exit();}
 			
 		
 			/*Sales & Purchase GST Report*/
@@ -208,49 +214,59 @@ class Updates extends MY_Controller {
 			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '2.5.2' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_salespayments` CHANGE `created_time` `created_time` VARCHAR(50) NULL; ");if(!$q1){ echo "failed"; exit();}
 			
-			$q1 = $this->db->query("
-						CREATE TABLE `db_customer_coupons` (
-					  `id` int(5) NOT NULL AUTO_INCREMENT,
-					  `store_id` int(11) DEFAULT NULL,
-					  `code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  `description` text COLLATE utf8mb4_unicode_ci,
-					  `value` double(20,2) DEFAULT NULL,
-					  `type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  `expire_date` date DEFAULT NULL,
-					  `status` int(1) DEFAULT NULL,
-					  `created_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  `created_date` date DEFAULT NULL,
-					  `created_time` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  `system_name` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  `system_ip` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-					  PRIMARY KEY (`id`),
-					  KEY `store_id` (`store_id`),
-					  CONSTRAINT `db_customer_coupons_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-					  CONSTRAINT `db_customer_coupons_ibfk_2` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-					) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-
-				");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: CREATE TABLE `db_customer_coupons`
+			// $q1 = $this->db->query("
+			// 			CREATE TABLE `db_customer_coupons` (
+			// 		  `id` int(5) NOT NULL AUTO_INCREMENT,
+			// 		  `store_id` int(11) DEFAULT NULL,
+			// 		  `code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  `description` text COLLATE utf8mb4_unicode_ci,
+			// 		  `value` double(20,2) DEFAULT NULL,
+			// 		  `type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  `expire_date` date DEFAULT NULL,
+			// 		  `status` int(1) DEFAULT NULL,
+			// 		  `created_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  `created_date` date DEFAULT NULL,
+			// 		  `created_time` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  `system_name` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  `system_ip` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			// 		  PRIMARY KEY (`id`),
+			// 		  KEY `store_id` (`store_id`),
+			// 		  CONSTRAINT `db_customer_coupons_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+			// 		  CONSTRAINT `db_customer_coupons_ibfk_2` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+			// 		) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+			//
+			// 		");if(!$q1){ echo "failed"; exit();}
 			
-			$q1 = $this->db->query("ALTER TABLE `db_customer_coupons` ADD COLUMN `customer_id` INT(10) NULL, ADD FOREIGN KEY (`customer_id`) REFERENCES `db_customers`(`id`) ON UPDATE CASCADE ON DELETE CASCADE; ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_customer_coupons` ADD COLUMN `customer_id` INT(10) NULL, ADD FOREIGN KEY (`customer_id`) REFERENCES `db_customers`(`id`) ON UPDATE CASCADE ON DELETE CASCADE;
+			// $q1 = $this->db->query("ALTER TABLE `db_customer_coupons` ADD COLUMN `customer_id` INT(10) NULL, ADD FOREIGN KEY (`customer_id`) REFERENCES `db_customers`(`id`) ON UPDATE CASCADE ON DELETE CASCADE; ");if(!$q1){ echo "failed"; exit();}
 
 
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'customerCouponAdd'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'customerCouponEdit'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'customerCouponDelete'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'customerCouponView'); ");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_sales` ADD COLUMN `coupon_id` INT(10) NULL AFTER `quotation_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_customer_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_sales` ADD COLUMN `coupon_id` INT(10) NULL AFTER `quotation_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_customer_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE
+			// $q1 = $this->db->query("ALTER TABLE `db_sales` ADD COLUMN `coupon_id` INT(10) NULL AFTER `quotation_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_customer_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE");if(!$q1){ echo "failed"; exit();}
 			//$q1 = $this->db->query("ALTER TABLE `db_sales` ADD COLUMN `coupon_code` VARCHAR(250) NULL");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_sales` ADD COLUMN `coupon_amt` DOUBLE(20,2) NULL ");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_customer_coupons` ADD COLUMN `coupon_id` INT(10) NULL AFTER `customer_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_salesreturn` ADD COLUMN `coupon_id` INT NULL AFTER `return_bit`, ADD COLUMN `coupon_amt` DOUBLE(20,4) NULL AFTER `coupon_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_customer_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_sales` CHANGE `coupon_amt` `coupon_amt` DOUBLE(20,2) DEFAULT 0 NULL; ");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_salesreturn` CHANGE `coupon_amt` `coupon_amt` DOUBLE(20,2) DEFAULT 0 NULL; ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_sales` ADD COLUMN `coupon_amt` DOUBLE(20,2) NULL
+			// $q1 = $this->db->query("ALTER TABLE `db_sales` ADD COLUMN `coupon_amt` DOUBLE(20,2) NULL ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_customer_coupons` ADD COLUMN `coupon_id` INT(10) NULL AFTER `customer_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE
+			// $q1 = $this->db->query("ALTER TABLE `db_customer_coupons` ADD COLUMN `coupon_id` INT(10) NULL AFTER `customer_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_salesreturn` ADD COLUMN `coupon_id` INT NULL AFTER `return_bit`, ADD COLUMN `coupon_amt` DOUBLE(20,4) NULL AFTER `coupon_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_customer_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE
+			// $q1 = $this->db->query("ALTER TABLE `db_salesreturn` ADD COLUMN `coupon_id` INT NULL AFTER `return_bit`, ADD COLUMN `coupon_amt` DOUBLE(20,4) NULL AFTER `coupon_id`, ADD FOREIGN KEY (`coupon_id`) REFERENCES `db_customer_coupons`(`id`) ON UPDATE CASCADE ON DELETE CASCADE");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_sales` CHANGE `coupon_amt` `coupon_amt` DOUBLE(20,2) DEFAULT 0 NULL;
+			// $q1 = $this->db->query("ALTER TABLE `db_sales` CHANGE `coupon_amt` `coupon_amt` DOUBLE(20,2) DEFAULT 0 NULL; ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_salesreturn` CHANGE `coupon_amt` `coupon_amt` DOUBLE(20,2) DEFAULT 0 NULL;
+			// $q1 = $this->db->query("ALTER TABLE `db_salesreturn` CHANGE `coupon_amt` `coupon_amt` DOUBLE(20,2) DEFAULT 0 NULL; ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_sales` CHANGE `count_id` `count_id` INT(20) NULL COMMENT 'Use to create Sales Code'");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `invoice_terms` TEXT NULL");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `invoice_terms` TEXT NULL
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `invoice_terms` TEXT NULL");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_sales` ADD COLUMN `invoice_terms` TEXT NULL");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("CREATE TABLE `db_bankdetails`( `id` INT(5) NOT NULL AUTO_INCREMENT, `store_id` INT(5), `country_id` INT(5), `holder_name` VARCHAR(250), `bank_name` VARCHAR(250), `branch_name` VARCHAR(250), `code` VARCHAR(250) COMMENT 'IFSC or Bank Code', `account_type` VARCHAR(250), `account_number` VARCHAR(250), `other_details` TEXT, `description` TEXT, `status` INT(5), PRIMARY KEY (`id`), FOREIGN KEY (`store_id`) REFERENCES `db_store`(`id`) ON UPDATE CASCADE ); ");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("INSERT INTO `db_bankdetails` (`id`, `store_id`, `status`) VALUES ('1', '1', '1')");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: CREATE TABLE `db_bankdetails` + seed default row
+			// $q1 = $this->db->query("CREATE TABLE `db_bankdetails`( `id` INT(5) NOT NULL AUTO_INCREMENT, `store_id` INT(5), `country_id` INT(5), `holder_name` VARCHAR(250), `bank_name` VARCHAR(250), `branch_name` VARCHAR(250), `code` VARCHAR(250) COMMENT 'IFSC or Bank Code', `account_type` VARCHAR(250), `account_number` VARCHAR(250), `other_details` TEXT, `description` TEXT, `status` INT(5), PRIMARY KEY (`id`), FOREIGN KEY (`store_id`) REFERENCES `db_store`(`id`) ON UPDATE CASCADE ); ");if(!$q1){ echo "failed"; exit();}
+			// $q1 = $this->db->query("INSERT INTO `db_bankdetails` (`id`, `store_id`, `status`) VALUES ('1', '1', '1')");if(!$q1){ echo "failed"; exit();}
 
 
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'return_items_report'); ");if(!$q1){ echo "failed"; exit();}
@@ -271,7 +287,8 @@ class Updates extends MY_Controller {
 
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'help_link'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_custadvance` CHANGE `amount` `amount` DOUBLE(20,4) NULL");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `previous_balance_bit` INT(1) DEFAULT 1 NULL COMMENT '1=Show, 0=Hide - Shows on sales invoice' AFTER `invoice_terms`; ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `previous_balance_bit` INT(1) DEFAULT 1 NULL COMMENT '1=Show, 0=Hide - Shows on sales invoice' AFTER `invoice_terms`;
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `previous_balance_bit` INT(1) DEFAULT 1 NULL COMMENT '1=Show, 0=Hide - Shows on sales invoice' AFTER `invoice_terms`; ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("UPDATE `db_customers` SET sales_return_due = 0 WHERE store_id=1");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("UPDATE `db_users` SET `status` = '1' WHERE `id` = '1';");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_items` CHANGE `discount_type` `discount_type` VARCHAR (100) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'Percentage' NULL,CHANGE `discount` `discount` DOUBLE (20, 2) DEFAULT 0 NULL");if(!$q1){ echo "failed"; exit();}
@@ -294,21 +311,24 @@ class Updates extends MY_Controller {
 			$q1 = $this->update_purchase_price_of_pos_sales_items_only();
 			if(!$q1){ echo "failed"; exit();}
 
-			$q1 = $this->db->query("CREATE TABLE `db_fivemojo` (
-						  `id` int(5) NOT NULL AUTO_INCREMENT,
-						  `store_id` int(5) DEFAULT NULL,
-						  `url` text CHARACTER SET utf8mb4,
-						  `token` text CHARACTER SET utf8mb4,
-						  `instance_id` text CHARACTER SET utf8mb4,
-						  `status` int(1) DEFAULT '0',
-						  PRIMARY KEY (`id`),
-						  KEY `store_id` (`store_id`),
-						  CONSTRAINT `db_fivemojo_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-						) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-					");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: CREATE TABLE `db_fivemojo`
+			// $q1 = $this->db->query("CREATE TABLE `db_fivemojo` (
+			// 			  `id` int(5) NOT NULL AUTO_INCREMENT,
+			// 			  `store_id` int(5) DEFAULT NULL,
+			// 			  `url` text CHARACTER SET utf8mb4,
+			// 			  `token` text CHARACTER SET utf8mb4,
+			// 			  `instance_id` text CHARACTER SET utf8mb4,
+			// 			  `status` int(1) DEFAULT '0',
+			// 			  PRIMARY KEY (`id`),
+			// 			  KEY `store_id` (`store_id`),
+			// 			  CONSTRAINT `db_fivemojo_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `db_store` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+			// 			) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+			// 			");if(!$q1){ echo "failed"; exit();}
 
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `t_and_c_status` INT(1) DEFAULT 1 NULL COMMENT '1=Show, 0=Hide - Shows on sales invoice'");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `number_to_words` VARCHAR(250) DEFAULT 'Default' NULL");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `t_and_c_status` INT(1) DEFAULT 1 NULL COMMENT '1=Show, 0=Hide - Shows on sales invoice'
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `t_and_c_status` INT(1) DEFAULT 1 NULL COMMENT '1=Show, 0=Hide - Shows on sales invoice'");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `number_to_words` VARCHAR(250) DEFAULT 'Default' NULL
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `number_to_words` VARCHAR(250) DEFAULT 'Default' NULL");if(!$q1){ echo "failed"; exit();}
 			
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('2', '2', 'recent_sales_invoice_list')");if(!$q1){ echo "failed"; exit();}
 
@@ -320,7 +340,8 @@ class Updates extends MY_Controller {
 
 
 			
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `t_and_c_status_pos` INT(1) DEFAULT 1 NULL AFTER `t_and_c_status`");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `t_and_c_status_pos` INT(1) DEFAULT 1 NULL AFTER `t_and_c_status`
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `t_and_c_status_pos` INT(1) DEFAULT 1 NULL AFTER `t_and_c_status`");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_package` ADD COLUMN `plan_type` VARCHAR(100) NULL AFTER `status`; ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE db_bankdetails  CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");if(!$q1){ echo "failed"; exit();}
 			
@@ -365,9 +386,12 @@ class Updates extends MY_Controller {
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'stock_transfer_report'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'pos'); ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'sales_summary_report'); ");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `signature` TEXT NULL AFTER `qty_decimals`");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `show_signature` INT(1) DEFAULT 0 NULL AFTER `signature`");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `default_account_id` INT(10) NULL; ");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `signature` TEXT NULL AFTER `qty_decimals`
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `signature` TEXT NULL AFTER `qty_decimals`");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `show_signature` INT(1) DEFAULT 0 NULL AFTER `signature`
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `show_signature` INT(1) DEFAULT 0 NULL AFTER `signature`");if(!$q1){ echo "failed"; exit();}
+			// Moved to migration: ALTER TABLE `db_store` ADD COLUMN `default_account_id` INT(10) NULL;
+			// $q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `default_account_id` INT(10) NULL; ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("ALTER TABLE `db_items` ADD COLUMN `sac` VARCHAR(50) NULL AFTER `hsn`; ");if(!$q1){ echo "failed"; exit();}
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'sales_return_payments')");if(!$q1){ echo "failed"; exit();}
 
@@ -379,38 +403,7 @@ class Updates extends MY_Controller {
 		if($current_app_version=='3.0'){
 			// MartPoint Retail 3.1 — Subscription License System
 			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '3.1' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
-			$q1 = $this->db->query("
-				CREATE TABLE IF NOT EXISTS `db_subscription_license` (
-				  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-				  `store_id` int(11) NOT NULL,
-				  `license_code` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-				  `plan_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT 'Basic',
-				  `subscription_start_date` date DEFAULT NULL,
-				  `subscription_end_date` date DEFAULT NULL,
-				  `subscription_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'ACTIVE',
-				  `branch_limit` int(11) DEFAULT 1,
-				  `user_limit` int(11) DEFAULT 5,
-				  `renewal_amount` decimal(20,2) DEFAULT NULL,
-				  `last_renewal_date` date DEFAULT NULL,
-				  `suspension_reason` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-				  `reminder_90_sent` tinyint(1) DEFAULT 0,
-				  `reminder_60_sent` tinyint(1) DEFAULT 0,
-				  `reminder_30_last_sent` date DEFAULT NULL,
-				  `reminder_10_last_sent` date DEFAULT NULL,
-				  `expiry_notice_sent` tinyint(1) DEFAULT 0,
-				  `expired_followup_count` int(11) DEFAULT 0,
-				  `expired_followup_last_sent` date DEFAULT NULL,
-				  `activated_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-				  `created_date` date DEFAULT NULL,
-				  `created_time` time DEFAULT NULL,
-				  `updated_date` date DEFAULT NULL,
-				  `updated_time` time DEFAULT NULL,
-				  `status` int(1) DEFAULT 1,
-				  PRIMARY KEY (`id`),
-				  UNIQUE KEY `store_id` (`store_id`),
-				  KEY `license_code` (`license_code`)
-				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-			");if(!$q1){ echo "failed"; exit();}
+			// db_subscription_license is now created by the 4.0.2 migration via Updates_model.
 			$q1 = $this->db->query("INSERT INTO `db_permissions` (`store_id`, `role_id`, `permissions`) VALUES ('1', '2', 'subscription_license');");if(!$q1){ echo "failed"; exit();}
 		}//end 3.1
 
@@ -487,47 +480,92 @@ class Updates extends MY_Controller {
 				$q1 = $this->db->query("ALTER TABLE `db_subscription_license` ADD COLUMN `installation_fingerprint` VARCHAR(255) DEFAULT NULL");if(!$q1){ echo "failed"; exit();}
 			}
 
-			$q1 = $this->db->query("
-				CREATE TABLE IF NOT EXISTS `db_license_otps` (
-					`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-					`store_id` INT NOT NULL DEFAULT 0,
-					`otp_code` VARCHAR(10) NOT NULL,
-					`otp_type` VARCHAR(20) NOT NULL DEFAULT 'generate',
-					`expires_at` DATETIME NOT NULL,
-					`used` TINYINT(1) NOT NULL DEFAULT 0,
-					`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-			");if(!$q1){ echo "failed"; exit();}
-
-			$q1 = $this->db->query("
-				CREATE TABLE IF NOT EXISTS `db_license_history` (
-					`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-					`store_id` INT NOT NULL DEFAULT 0,
-					`license_code` VARCHAR(500) DEFAULT NULL,
-					`plan_name` VARCHAR(100) DEFAULT NULL,
-					`domain` VARCHAR(255) DEFAULT NULL,
-					`activated_at` DATETIME DEFAULT NULL,
-					`deactivated_at` DATETIME DEFAULT NULL,
-					`status` VARCHAR(20) DEFAULT 'active',
-					`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-			");if(!$q1){ echo "failed"; exit();}
+			// db_license_otps and db_license_history are created by the 4.0.2 migration via Updates_model.
 		}//end 3.8
 
 		if($current_app_version=='3.8'){
 			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '3.9' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
-
-			$q1 = $this->db->query("
-				CREATE TABLE IF NOT EXISTS `db_brevo` (
-					`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-					`store_id` INT NOT NULL DEFAULT 0,
-					`api_key` VARCHAR(255) DEFAULT NULL,
-					`sender_name` VARCHAR(50) DEFAULT NULL,
-					`status` INT(1) DEFAULT '0',
-					KEY `store_id` (`store_id`)
-				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-			");if(!$q1){ echo "failed"; exit();}
+			// db_brevo is created by the 4.0.2 migration via Updates_model.
 		}//end 3.9
+
+		if($current_app_version=='3.9'){
+			// v4.0.0 — Auto-Update System, AI Assist, UI Reskin, Approvals
+			$migrationFile = FCPATH . 'updates/migrations/3.0_to_4.0.0.sql';
+			if (file_exists($migrationFile)) {
+				$sql = file_get_contents($migrationFile);
+				$conn = $this->db->conn_id;
+				if (mysqli_multi_query($conn, $sql)) {
+					do {
+						if ($result = mysqli_store_result($conn)) {
+							mysqli_free_result($result);
+						}
+					} while (mysqli_more_results($conn) && mysqli_next_result($conn));
+				}
+			}
+			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.0' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		}//end 4.0.0
+
+		if($current_app_version=='4.0.0'){
+			// v4.0.1 — Purchase batch tracking, partial receipt, 4-stage purchase workflow
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'received_qty'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `received_qty` DOUBLE(20,4) NULL AFTER `purchase_qty`");if(!$q1){ echo "failed"; exit();}
+			}
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'barcode'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `barcode` VARCHAR(100) NULL AFTER `batch_lot`");if(!$q1){ echo "failed"; exit();}
+			}
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'expire_date'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `expire_date` DATE NULL AFTER `barcode`");if(!$q1){ echo "failed"; exit();}
+			}
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_purchaseitems` LIKE 'mfg_date'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_purchaseitems` ADD COLUMN `mfg_date` DATE NULL AFTER `expire_date`");if(!$q1){ echo "failed"; exit();}
+			}
+			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.1' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		}//end 4.0.1
+
+		if($current_app_version=='4.0.1'){
+			// v4.0.2 — Industry Adaptation Engine: Business Profile & Feature Flags
+			// Industry columns moved to migration (added to db_store only if needed, then copied to modular tables)
+			// $cols = [
+			// 	'industry_type'           => "VARCHAR(50) DEFAULT 'general_retail' NULL",
+			// 	'business_model'            => "VARCHAR(50) DEFAULT 'product_based' NULL",
+			// 	'feature_flags_json'        => "JSON NULL",
+			// 	'workflow_template_key'     => "VARCHAR(50) DEFAULT 'retail_standard' NULL",
+			// 	'dashboard_template_key'    => "VARCHAR(50) DEFAULT 'general_retail' NULL",
+			// 	'storefront_theme_key'      => "VARCHAR(50) DEFAULT 'general_retail' NULL",
+			// 	'label_overrides_json'      => "JSON NULL",
+			// 	'industry_settings_json'    => "JSON NULL",
+			// ];
+			// foreach($cols as $col => $def){
+			// 	$colExists = $this->db->query("SHOW COLUMNS FROM `db_store` LIKE '$col'")->num_rows();
+			// 	if($colExists == 0){
+			// 		$q1 = $this->db->query("ALTER TABLE `db_store` ADD COLUMN `$col` $def");if(!$q1){ echo "failed"; exit();}
+			// 	}
+			// }
+			// db_services custom fields foundation
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_services` LIKE 'industry_fields_json'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_services` ADD COLUMN `industry_fields_json` JSON NULL");if(!$q1){ echo "failed"; exit();}
+			}
+			// db_items custom order foundation
+			$colExists = $this->db->query("SHOW COLUMNS FROM `db_items` LIKE 'accept_custom_order'")->num_rows();
+			if($colExists == 0){
+				$q1 = $this->db->query("ALTER TABLE `db_items` ADD COLUMN `accept_custom_order` TINYINT(1) DEFAULT 0 NULL, ADD COLUMN `custom_order_fields_json` JSON NULL, ADD COLUMN `requires_quote` TINYINT(1) DEFAULT 0 NULL, ADD COLUMN `requires_deposit` TINYINT(1) DEFAULT 0 NULL, ADD COLUMN `workflow_template_key` VARCHAR(50) DEFAULT NULL NULL");if(!$q1){ echo "failed"; exit();}
+			}
+			$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.2' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		}//end 4.0.2
+
+		// 4.0.3 Recipe costing columns on items.
+		// db_recipe_categories is created by the 4.0.2 migration via Updates_model.
+		$colExists = $this->db->query("SHOW COLUMNS FROM `db_items` LIKE 'recipe_id'")->num_rows();
+		if($colExists == 0){
+			$q1 = $this->db->query("ALTER TABLE `db_items` ADD COLUMN `recipe_id` INT NULL, ADD COLUMN `recipe_margin_pct` DECIMAL(10,2) NULL");if(!$q1){ echo "failed"; exit();}
+		}
+		$q1 = $this->db->query("UPDATE `db_sitesettings` SET `version` = '4.0.3' WHERE `id` = '1'");if(!$q1){ echo "failed"; exit();}
+		//end 4.0.3
 
 		$this->db->trans_commit();
 		redirect(base_url('login'),'refresh');

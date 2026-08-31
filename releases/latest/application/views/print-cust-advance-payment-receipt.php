@@ -22,7 +22,8 @@
 	
     //Current Store Records
     $store_rec = get_store_details();
-    $store_logo=(!empty($store_rec->store_logo)) ? $store_rec->store_logo : store_demo_logo();
+    $store_logo_path = mp_get_store_theme_setting($store_rec->id, 'store_logo');
+    $store_logo= !empty($store_logo_path) ? $store_logo_path : store_demo_logo();
 
     //Sales Records
     $payment_rec = $this->db->select('*')->from('db_custadvance')->where('id',$payment_id)->get()->row();
@@ -47,7 +48,7 @@
 	<table width="95%" align="center">
 		<tr>
 			<td align="center" width="30%">
-				<img src="<?= base_url($store_logo);?>" width="30%" height="auto">
+				<img src="<?= mp_store_logo_round_base64($store_logo, 120); ?>" width="80" height="80" alt="store logo">
 			</td>
 		</tr>
 		<tr>

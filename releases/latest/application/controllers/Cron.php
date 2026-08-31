@@ -258,10 +258,10 @@ class Cron extends CI_Controller {
 			'errors' => []
 		];
 
-		// Get all stores with debt reminders enabled
-		$stores = $this->db->where('customer_id', 0)->where('enabled', 1)->get('db_debt_reminder_settings')->result();
-		foreach($stores as $storeSettings){
-			$storeId = $storeSettings->store_id;
+		// Get all stores that have debt reminders enabled at store level OR any per-customer override enabled
+		$storeIds = $this->db->query("SELECT DISTINCT store_id FROM db_debt_reminder_settings WHERE (customer_id = 0 AND enabled = 1) OR (customer_id > 0 AND enabled = 1)")->result_array();
+		foreach($storeIds as $storeRow){
+			$storeId = $storeRow['store_id'];
 			$customers = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
 			$results['customers_checked'] += count($customers);
 

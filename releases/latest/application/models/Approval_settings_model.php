@@ -85,6 +85,7 @@ class Approval_settings_model extends CI_Model {
 			'purchase' => 'Purchase Approval',
 			'purchase_price_override' => 'Purchase Price Override',
 			'hold_delete' => 'Delete Hold Invoice',
+			'bnpl' => 'PayPlan / Installment Plan',
 		];
 	}
 

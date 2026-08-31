@@ -8,13 +8,30 @@
 <?php $this->load->view('sidebar');?>
 
   <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?= $page_title ?></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?=base_url('dashboard');?>"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?=base_url('online_store/orders');?>">Online Orders</a></li>
-        <li class="active"><?= $page_title; ?></li>
-      </ol>
+    <?php
+      $CI =& get_instance();
+      $statusLabels = [
+        'pending' => 'label-warning', 'paid' => 'label-success', 'processing' => 'label-info',
+        'ready' => 'label-primary', 'completed' => 'label-success', 'cancelled' => 'label-danger'
+      ];
+      $paymentLabels = [
+        'unpaid' => 'label-warning', 'paid' => 'label-success', 'partially_paid' => 'label-info',
+        'failed' => 'label-danger', 'refunded' => 'label-default'
+      ];
+    ?>
+    <section class="content-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1><?= $page_title ?></h1>
+        <ol class="breadcrumb" style="margin:0;">
+          <li><a href="<?=base_url('dashboard');?>"><i class="fa fa-dashboard"></i> Home</a></li>
+          <li><a href="<?=base_url('online_store/orders');?>">Online Orders</a></li>
+          <li class="active"><?= $page_title; ?></li>
+        </ol>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="label <?= $statusLabels[$order->order_status] ?? 'label-default'; ?>" style="font-size:13px;padding:6px 12px;"><?= ucfirst($order->order_status); ?></span>
+        <span class="label <?= $paymentLabels[$order->payment_status] ?? 'label-default'; ?>" style="font-size:13px;padding:6px 12px;"><?= ucfirst(str_replace('_',' ',$order->payment_status)); ?></span>
+      </div>
     </section>
 
     <section class="content">
@@ -23,20 +40,6 @@
           <div class="box box-primary">
             <div class="box-header with-border">
               <h3 class="box-title">Order Details</h3>
-              <?php
-                $statusLabels = [
-                  'pending' => 'label-warning', 'paid' => 'label-success', 'processing' => 'label-info',
-                  'ready' => 'label-primary', 'completed' => 'label-success', 'cancelled' => 'label-danger'
-                ];
-                $paymentLabels = [
-                  'unpaid' => 'label-warning', 'paid' => 'label-success', 'partially_paid' => 'label-info',
-                  'failed' => 'label-danger', 'refunded' => 'label-default'
-                ];
-              ?>
-              <div class="box-tools">
-                <span class="label <?= $statusLabels[$order->order_status] ?? 'label-default'; ?>" style="font-size:13px;padding:6px 12px;"><?= ucfirst($order->order_status); ?></span>
-                <span class="label <?= $paymentLabels[$order->payment_status] ?? 'label-default'; ?>" style="font-size:13px;padding:6px 12px;margin-left:4px;"><?= ucfirst(str_replace('_',' ',$order->payment_status)); ?></span>
-              </div>
             </div>
             <div class="box-body">
               <table class="table table-bordered">
@@ -47,6 +50,9 @@
                 <tr><th>Address</th><td><?= nl2br(htmlspecialchars($order->customer_address)); ?></td></tr>
                 <tr><th>Order Type</th><td><?= ucfirst($order->order_type); ?></td></tr>
                 <tr><th>Payment Method</th><td><?= ucfirst(str_replace('_',' ',$order->payment_method)); ?></td></tr>
+                <?php if($order->shipping_method): ?>
+                <tr><th>Shipping Method</th><td><?= htmlspecialchars($order->shipping_method); ?></td></tr>
+                <?php endif; ?>
                 <?php if($order->paystack_reference): ?>
                 <tr><th>Paystack Ref</th><td><code><?= $order->paystack_reference; ?></code></td></tr>
                 <?php endif; ?>
@@ -74,17 +80,17 @@
                     <td><?= htmlspecialchars($it->item_name); ?></td>
                     <td><?= ucfirst($it->item_type); ?></td>
                     <td><?= $it->qty; ?></td>
-                    <td><?= store_number_format($it->unit_price); ?></td>
-                    <td><?= store_number_format($it->total_price); ?></td>
+                    <td><?= $CI->currency($it->unit_price); ?></td>
+                    <td><?= $CI->currency($it->total_price); ?></td>
                   </tr>
                   <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                  <tr><th colspan="4" class="text-right">Subtotal</th><th><?= store_number_format($order->subtotal); ?></th></tr>
+                  <tr><th colspan="4" class="text-right">Subtotal</th><th><?= $CI->currency($order->subtotal); ?></th></tr>
                   <?php if($order->delivery_fee > 0): ?>
-                  <tr><th colspan="4" class="text-right">Delivery Fee</th><th><?= store_number_format($order->delivery_fee); ?></th></tr>
+                  <tr><th colspan="4" class="text-right"><?= $order->shipping_method ? 'Shipping Fee' : 'Delivery Fee'; ?></th><th><?= $CI->currency($order->delivery_fee); ?></th></tr>
                   <?php endif; ?>
-                  <tr><th colspan="4" class="text-right">Grand Total</th><th><?= store_number_format($order->grand_total); ?></th></tr>
+                  <tr><th colspan="4" class="text-right">Grand Total</th><th><?= $CI->currency($order->grand_total); ?></th></tr>
                 </tfoot>
               </table>
             </div>
@@ -92,6 +98,19 @@
         </div>
 
         <div class="col-md-4">
+          <!-- Order Summary first so it is always visible -->
+          <div class="box box-default">
+            <div class="box-header with-border">
+              <h3 class="box-title">Order Summary</h3>
+            </div>
+            <div class="box-body">
+              <div class="text-center" style="padding:20px;">
+                <div style="font-size:28px;font-weight:700;color:#3B82F6;"><?= $CI->currency($order->grand_total); ?></div>
+                <div style="font-size:13px;color:#64748B;margin-top:4px;">Grand Total</div>
+              </div>
+            </div>
+          </div>
+
           <div class="box box-info">
             <div class="box-header with-border">
               <h3 class="box-title">Actions</h3>
@@ -117,18 +136,6 @@
                   <option value="failed" <?= $order->payment_status=='failed'?'selected':''; ?>>Failed</option>
                   <option value="refunded" <?= $order->payment_status=='refunded'?'selected':''; ?>>Refunded</option>
                 </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="box box-default">
-            <div class="box-header with-border">
-              <h3 class="box-title">Order Summary</h3>
-            </div>
-            <div class="box-body">
-              <div class="text-center" style="padding:20px;">
-                <div style="font-size:28px;font-weight:700;color:#3B82F6;"><?= store_number_format($order->grand_total); ?></div>
-                <div style="font-size:13px;color:#64748B;margin-top:4px;">Grand Total</div>
               </div>
             </div>
           </div>

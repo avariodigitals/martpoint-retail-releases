@@ -15,31 +15,9 @@ class Email_log_model extends CI_Model {
 	}
 
 	protected function ensureTable(){
-		if($this->db->table_exists($this->table)){
-			return;
+		if(!$this->db->table_exists($this->table)){
+			log_message('error', 'Missing required table: ' . $this->table . '. Run the 4.0.2 migration via login.');
 		}
-
-		$this->db->query("CREATE TABLE IF NOT EXISTS `{$this->table}` (
-			`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-			`store_id` int(11) unsigned NOT NULL DEFAULT 1,
-			`email_type` varchar(64) NOT NULL DEFAULT '',
-			`provider_used` varchar(32) NOT NULL DEFAULT '',
-			`recipient` varchar(512) NOT NULL DEFAULT '',
-			`subject` varchar(255) NOT NULL DEFAULT '',
-			`status` enum('sent','failed','pending','retrying') NOT NULL DEFAULT 'pending',
-			`error_message` text,
-			`triggered_by` varchar(64) DEFAULT NULL,
-			`related_module` varchar(64) DEFAULT NULL,
-			`related_record_id` varchar(64) DEFAULT NULL,
-			`provider_response` text,
-			`created_at` datetime DEFAULT NULL,
-			`sent_at` datetime DEFAULT NULL,
-			PRIMARY KEY (`id`),
-			KEY `idx_status` (`status`),
-			KEY `idx_type` (`email_type`),
-			KEY `idx_store` (`store_id`),
-			KEY `idx_created` (`created_at`)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 	}
 
 	public function create(array $data){

@@ -111,7 +111,7 @@
 
 
                             <?php } ?>
-                            <a href="<?=base_url('subscription')?>">Back</a>
+                            <a href="<?=base_url('subscription_license')?>">Back</a>
                           </div>
                         </div>
 

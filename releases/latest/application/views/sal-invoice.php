@@ -36,7 +36,7 @@
     
 
     
-    $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt, b.due_date,b.quotation_id,b.store_id,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,a.id,
+    $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt, b.due_date,b.quotation_id,b.store_id,b.customer_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,COALESCE(a.id,b.customer_id) as id,
                            a.opening_balance,a.country_id,a.state_id,a.city,
                            a.postcode,a.address,b.sales_date,b.created_time,b.reference_no,
                            b.sales_code,b.sales_status,b.sales_note,b.invoice_terms,
@@ -52,10 +52,9 @@
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status,b.pos
 
-                           FROM db_customers a,
-                           db_sales b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_sales b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
                            b.`id`='$sales_id' AND b.store_id=".get_current_store_id());
                         
     
@@ -297,7 +296,7 @@
               $tot_price_per_unit=0;
               $sum_of_tot_price=0;
 
-                $this->db->select(" a.description,c.mrp,c.item_name, a.sales_qty,a.tax_type,
+                $this->db->select(" a.description,c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost , d.unit_name,c.sku,c.hsn

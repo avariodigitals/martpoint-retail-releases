@@ -47,6 +47,8 @@ th, td {
       $company_gst_no=$res1->gst_no;
       $company_vat_no=$res1->vat_no;
       $company_pan_no=$res1->pan_no;
+      $store_logo_path = mp_get_store_theme_setting($res1->id, 'store_logo');
+      $store_logo= !empty($store_logo_path) ? $store_logo_path : store_demo_logo();
 
     ?>
 
@@ -55,6 +57,7 @@ th, td {
       
       <tr>
           <th colspan="5" rowspan="2" style="padding-left: 15px;">
+            <img src="<?= mp_store_logo_round_base64($store_logo, 80); ?>" width="80" height="80" alt="store logo"><br>
             <b><?php echo $store_name; ?></b><br/>
             <?php echo $this->lang->line('address')." : ".$company_address; ?><br/>
             <?php echo $company_country; ?><br/>

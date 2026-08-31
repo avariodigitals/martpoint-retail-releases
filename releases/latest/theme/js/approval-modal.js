@@ -239,7 +239,7 @@ window.MPApproval = (function(){
       if(typeof swal !== 'undefined'){
         swal({ title: 'Approval Error', text: msg, icon: 'error' });
       } else {
-        alert(msg);
+        toastr.error(msg);
       }
     });
   }

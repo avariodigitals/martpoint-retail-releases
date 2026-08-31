@@ -65,6 +65,8 @@
               </div>
               <div class="form-group">
                 <button type="button" id="getCurrentLocation" class="btn btn-default btn-sm"><i class="fa fa-crosshairs"></i> Use My Current Location</button>
+                <a href="https://www.google.com/maps/search/?api=1&query=My+Location" target="_blank" class="btn btn-default btn-sm" style="margin-left: 5px;"><i class="fa fa-external-link"></i> Get from Google Maps</a>
+                <small class="text-muted" style="display:block; margin-top:5px;">Note: Desktop devices may not have GPS. Use Google Maps to get coordinates manually.</small>
               </div>
               <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save Shift</button>
               <a href="<?= base_url('attendance/shifts'); ?>" class="btn btn-default">Cancel</a>
@@ -79,12 +81,43 @@
 </div>
 <?php $this->load->view('comman/code_js.php'); ?>
 <script>
-$('#getCurrentLocation').click(function(){
-  if(!navigator.geolocation){ toastr['warning']('Geolocation not supported'); return; }
-  navigator.geolocation.getCurrentPosition(function(pos){
-    $('input[name="location_lat"]').val(pos.coords.latitude.toFixed(6));
-    $('input[name="location_lng"]').val(pos.coords.longitude.toFixed(6));
-  }, function(){ toastr['warning']('Could not get location'); });
+$(document).ready(function(){
+  // Check if site is using HTTPS
+  if(window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'){
+    console.warn('Geolocation requires HTTPS. Current protocol:', window.location.protocol);
+  }
+
+  $('#getCurrentLocation').click(function(){
+    if(!navigator.geolocation){ toastr['warning']('Geolocation not supported by your browser'); return; }
+    $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Getting location...');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      $('input[name="location_lat"]').val(pos.coords.latitude.toFixed(6));
+      $('input[name="location_lng"]').val(pos.coords.longitude.toFixed(6));
+      $('#getCurrentLocation').prop('disabled', false).html('<i class="fa fa-crosshairs"></i> Use My Current Location');
+      toastr['success']('Location captured successfully');
+    }, function(err){
+      $('#getCurrentLocation').prop('disabled', false).html('<i class="fa fa-crosshairs"></i> Use My Current Location');
+      var errorMsg = 'Could not get location. ';
+      switch(err.code) {
+        case err.PERMISSION_DENIED:
+          errorMsg += 'Please allow location access in your browser settings.';
+          break;
+        case err.POSITION_UNAVAILABLE:
+          errorMsg += 'Location services are unavailable. Desktop devices may not have GPS hardware. Please use the Google Maps button to get coordinates manually.';
+          if(window.location.protocol !== 'https:' && window.location.hostname !== 'localhost'){
+            errorMsg += ' Note: Geolocation requires HTTPS.';
+          }
+          break;
+        case err.TIMEOUT:
+          errorMsg += 'Location request timed out. Please try again.';
+          break;
+        default:
+          errorMsg += 'Please ensure you are using HTTPS and location services are enabled.';
+      }
+      console.error('Geolocation error:', err);
+      toastr['warning'](errorMsg);
+    }, { timeout: 30000, enableHighAccuracy: false, maximumAge: 60000 });
+  });
 });
 $('#shiftForm').submit(function(e){
   e.preventDefault();

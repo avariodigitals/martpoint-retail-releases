@@ -259,8 +259,7 @@ body { margin: 5px; }
       </tr>
       <tr class="bg-sky"><!-- Colspan 10 -->
         <th colspan='1' class="text-center"><?= $this->lang->line('sl_no'); ?></th>
-        <th colspan='5' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
-        <th colspan='2' class="text-center"><?= $this->lang->line('hsn/sac'); ?></th>
+        <th colspan='7' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('gst_rate'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('qty'); ?></th>
         <th colspan='2' class="text-center"><?= $this->lang->line('rate'); ?></th>
@@ -300,11 +299,11 @@ body { margin: 5px; }
                   $tot_cost_before_tax=$res2->total_cost;//$before_tax * $res2->sales_qty;
                   echo "<tr>";  
                   echo "<td colspan='1' class='text-center'>".++$i."</td>";
-                  echo "<td colspan='5'>";
+                  echo "<td colspan='7'>";
                   echo $res2->item_name;
                   echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
                   echo "</td>";
-                  echo "<td colspan='2' class='text-center'>".$res2->hsn."</td>";
+
                   
                   echo "<td colspan='1' class='text-right'>".store_number_format($res2->tax)."%</td>";
                   echo "<td colspan='1' class='text-center'>".format_qty($res2->sales_qty)."</td>";

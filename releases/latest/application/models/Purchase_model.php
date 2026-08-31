@@ -68,7 +68,7 @@ class Purchase_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				
@@ -94,7 +94,7 @@ class Purchase_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -108,7 +108,7 @@ class Purchase_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -123,7 +123,6 @@ class Purchase_model extends CI_Model {
 
 	public function count_all()
 	{
-		$this->db->where("store_id",get_current_store_id());
 		$this->db->from($this->table);
 		return $this->db->count_all_results();
 	}
@@ -135,7 +134,14 @@ class Purchase_model extends CI_Model {
 
 	//Save Cutomers
 	public function verify_save_and_update(){
-		$command = $this->input->post('command', TRUE);
+		try {
+			$CUR_DATE = date("Y-m-d");
+			$CUR_TIME = date("H:i:s");
+			$CUR_USERNAME = $this->session->userdata('username');
+			$SYSTEM_IP = $this->input->ip_address();
+			$SYSTEM_NAME = gethostname();
+
+			$command = $this->input->post('command', TRUE);
 		$pur_date = $this->input->post('pur_date', TRUE);
 		$reference_no = $this->input->post('reference_no', TRUE);
 		$purchase_status = $this->input->post('purchase_status', TRUE);
@@ -158,10 +164,11 @@ class Purchase_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$payment_note = $this->input->post('payment_note', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
+
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
-		
+
 		//varify max sales usage of the package subscription
-		validate_package_offers('max_invoices','db_purchase');
+		// validate_package_offers('max_invoices','db_purchase');
 		//END
 
 		$this->db->trans_begin();
@@ -175,10 +182,9 @@ class Purchase_model extends CI_Model {
 	    if($tot_round_off_amt=='' || $tot_round_off_amt==0){$tot_round_off_amt=null;}
 
 	    $prev_item_ids = array();
-	    
+
 	    if($command=='save'){//Create purchase code unique if first time entry
 		    
-			$this->db->query("ALTER TABLE db_purchase AUTO_INCREMENT = 1");
 			
 		    $purchase_entry = array(
 		    				'purchase_code' 			=> get_init_code('purchase'), 
@@ -254,7 +260,7 @@ class Purchase_model extends CI_Model {
 
 		//Import post data from form
 		for($i=1;$i<=$rowcount;$i++){
-		
+
 			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
 
 				$item_id 			=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
@@ -272,9 +278,30 @@ class Purchase_model extends CI_Model {
 				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
 				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
+				$barcode			=$this->xss_html_filter(trim($_REQUEST['barcode_'.$i] ?? ''));
+				$serial_number		=$this->xss_html_filter(trim($_REQUEST['serial_number_'.$i] ?? ''));
+				$imei_number		=$this->xss_html_filter(trim($_REQUEST['imei_number_'.$i] ?? ''));
+				$expire_date		=$this->xss_html_filter(trim($_REQUEST['expire_date_'.$i] ?? ''));
+				$mfg_date			=$this->xss_html_filter(trim($_REQUEST['mfg_date_'.$i] ?? ''));
+				$received_qty		=$this->xss_html_filter(trim($_REQUEST['received_qty_'.$i] ?? ''));
 
+				// Determine received quantity based on status
+				if($purchase_status == 'Received'){
+					$received_qty = $purchase_qty;
+				} else if($purchase_status == 'Partially Received'){
+					$received_qty = (!empty($received_qty) && is_numeric($received_qty)) ? $received_qty : 0;
+				} else {
+					$received_qty = null; // Draft / Ordered: nothing received yet
+				}
 
-				
+				// Format dates
+				if(!empty($expire_date)){
+					$expire_date = system_fromatted_date($expire_date);
+				}
+				if(!empty($mfg_date)){
+					$mfg_date = system_fromatted_date($mfg_date);
+				}
+
 				$purchaseitems_entry = array(
 		    				'purchase_id' 		=> $purchase_id,
 		    				'purchase_status'	=> $purchase_status,
@@ -290,18 +317,80 @@ class Purchase_model extends CI_Model {
 		    				'total_cost' 		=> $total_cost,
 		    				'discount_type' 	=> $discount_type,
 		    				'description' 		=> $description,
-	    				'batch_lot' 		=> $batch_lot, 
+		    				'batch_lot' 		=> $batch_lot,
+		    				'barcode' 			=> $barcode,
+		    				'expire_date' 		=> !empty($expire_date) ? $expire_date : null,
+		    				'mfg_date' 			=> !empty($mfg_date) ? $mfg_date : null,
+		    				'received_qty' 		=> $received_qty,
+							'sold_serial_number' => !empty($serial_number) ? $serial_number : null,
+							'sold_imei_number' 	=> !empty($imei_number) ? $imei_number : null,
 		    				'status'			=> 1,
 		    			);
-				$purchaseitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+				$purchaseitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 				
 				$q2 = $this->db->insert('db_purchaseitems', $purchaseitems_entry);
-				
-				//UPDATE itemS QUANTITY IN itemS TABLE
-				$this->load->model('pos_model');				
-				$q6=$this->pos_model->update_items_quantity($item_id);
-				if(!$q6){
+				if(!$q2){
 					return "failed";
+				}
+				
+				// Only update stock and create barcode records if stock is being received
+				if($purchase_status == 'Received' || $purchase_status == 'Partially Received'){
+					//UPDATE itemS QUANTITY IN itemS TABLE
+					$this->load->model('pos_model');				
+					$q6=$this->pos_model->update_items_quantity($item_id);
+					if(!$q6){
+						return "failed";
+					}
+
+					// Create or update barcode/batch record in db_item_barcodes
+					if((!empty($barcode) || !empty($serial_number) || !empty($imei_number)) && $received_qty > 0){
+						$existing_bc = $this->db->where('item_id',$item_id)
+											->where('barcode',$barcode)
+											->where('batch_lot',$batch_lot)
+											->get('db_item_barcodes')->row();
+						// Empty barcode with serial/IMEI means a distinct unit; do not merge with an empty-barcode batch
+						if(empty($barcode) && $existing_bc){ $existing_bc = null; }
+						if($existing_bc){
+							// Add to existing batch quantity
+							$new_qty = $existing_bc->qty + $received_qty;
+							$this->db->where('id',$existing_bc->id)->update('db_item_barcodes', array(
+								'qty' => $new_qty,
+								'purchase_price' => store_number_format($price_per_unit,0),
+								'expire_date' => !empty($expire_date) ? $expire_date : $existing_bc->expire_date,
+								'mfg_date' => !empty($mfg_date) ? $mfg_date : $existing_bc->mfg_date,
+								'serial_number' => !empty($serial_number) ? $serial_number : $existing_bc->serial_number,
+								'imei_number' => !empty($imei_number) ? $imei_number : $existing_bc->imei_number,
+							));
+						} else {
+							// Get item sales_price and mrp for the barcode record
+							$item_details = $this->db->select('sales_price,mrp')->where('id',$item_id)->get('db_items')->row();
+							$this->db->insert('db_item_barcodes', array(
+								'item_id' => $item_id,
+								'barcode' => $barcode,
+								'batch_lot' => $batch_lot,
+								'purchase_price' => store_number_format($price_per_unit,0),
+								'sales_price' => store_number_format($item_details->sales_price ?? 0,0),
+								'mrp' => store_number_format($item_details->mrp ?? 0,0),
+								'qty' => $received_qty,
+								'expire_date' => !empty($expire_date) ? $expire_date : null,
+								'mfg_date' => !empty($mfg_date) ? $mfg_date : null,
+								'serial_number' => !empty($serial_number) ? $serial_number : null,
+								'imei_number' => !empty($imei_number) ? $imei_number : null,
+								'warehouse_id' => $warehouse_id,
+								'status' => 1,
+								'created_date' => date('Y-m-d'),
+								'created_time' => date('H:i:s'),
+							));
+						}
+					}
+
+					// Keep the item's default cost current for non-barcoded sales
+					if($received_qty > 0){
+						$this->db->where('id',$item_id)->update('db_items', array(
+							'price' => store_number_format($price_per_unit,0),
+							'purchase_price' => store_number_format($unit_total_cost,0)
+						));
+					}
 				}
 
 				
@@ -391,10 +480,18 @@ class Purchase_model extends CI_Model {
 		}
 		##############################################END
 		
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return "failed";
+		}
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully!');
 		return "success<<<###>>>$purchase_id";
-		
+
+		} catch (Exception $e) {
+			log_message('error', 'verify_save_and_update error: '.$e->getMessage());
+			return "Error: " . $e->getMessage();
+		}
 	}//verify_save_and_update() function end
 
 	public function delete_payment($payment_id){
@@ -466,7 +563,7 @@ class Purchase_model extends CI_Model {
 							where id='$purchase_id'");
 		$supplier_id =$this->db->query("select supplier_id from db_purchase where id=$purchase_id")->row()->supplier_id;
 
-		$purchase_due =$this->db->query("select COALESCE(SUM(grand_total),0)-COALESCE(SUM(paid_amount),0) as purchase_due from db_purchase where supplier_id=$supplier_id and purchase_status='Received'")->row()->purchase_due;
+		$purchase_due =$this->db->query("select COALESCE(SUM(grand_total),0)-COALESCE(SUM(paid_amount),0) as purchase_due from db_purchase where supplier_id=$supplier_id and purchase_status IN ('Received','Partially Received')")->row()->purchase_due;
 		
 		$q12 = $this->db->query("update db_suppliers set purchase_due=$purchase_due where id=$supplier_id");
 		if(!$q7 || !$q12)
@@ -541,64 +638,77 @@ class Purchase_model extends CI_Model {
 	public function delete_purchase($ids){
       	$this->db->trans_begin();
 
-      	//ACCOUNT RESET
-		$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
-									->where("ref_purchasepayments_id in ($ids)")
-									->group_by("debit_account_id,credit_account_id")
-									->get("ac_transactions");
-		//ACCOUNT RESET END
-
       	##############################################START
-		//FIND THE PREVIOUSE ITEM LIST ID'S
+		//FIND THE PREVIOUS ITEM LIST ID'S
 		$prev_item_ids = $this->db->select("item_id")->from("db_purchaseitems")->where("purchase_id in ($ids)")->get()->result_array();
 		##############################################END
 
 		$q8=$this->db->query("SELECT COUNT(*) AS tot_invoices,a.purchase_id,b.purchase_code FROM db_purchasereturn AS a INNER JOIN db_purchase AS b ON b.id=a.purchase_id WHERE purchase_id IN($ids) GROUP BY purchase_id");
 
 		if($q8->num_rows()>0){
+			$msg = "Return Invoices Found Against Purchases:";
 			$i=1;
-			echo "Sorry! Records Not Deleted! Return Invoices Found Against Purchases:";
 			foreach($q8->result() as $res){
-				echo "<br>".$i++.".Return Invoice Against Purchase Id:".$res->purchase_code;
+				$msg .= "\n".$i++.".Return Invoice Against Purchase Id:".$res->purchase_code;
 			}
-			echo "<br>To Delete Purchase! You need to Delete Purchase Return Invoices!";
-			exit();
+			$msg .= "\nTo Delete Purchase! You need to Delete Purchase Return Invoices!";
+			$this->db->trans_rollback();
+			log_message('error', 'delete_purchase aborted: '.$msg);
+			return "failed: ".$msg;
 		}
-		
+
+		//ACCOUNT RESET
+		$payment_ids = $this->db->select("id")->where("purchase_id in ($ids)")->get("db_purchasepayments")->result_array();
+		$payment_ids_str = get_in_comma_delimited($payment_ids);
+		$reset_accounts = null;
+		if(!empty($payment_ids_str)){
+			$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
+									->where("ref_purchasepayments_id in ($payment_ids_str)")
+									->group_by("debit_account_id,credit_account_id")
+									->get("ac_transactions");
+		}
+		//ACCOUNT RESET END
+
+		#----------------------------------
+		$this->db->where("purchase_id in ($ids)");
+		$q7=$this->db->delete("db_purchaseitems");
+		if(!$q7){
+			$this->db->trans_rollback();
+			log_message('error', 'delete_purchase: db_purchaseitems delete failed');
+			return "failed: db_purchaseitems delete failed";
+		}
+		#----------------------------------
+
+		#----------------------------------
+		$this->db->where("purchase_id in ($ids)");
+		$q5=$this->db->delete("db_purchasepayments");
+		if(!$q5){
+			$this->db->trans_rollback();
+			log_message('error', 'delete_purchase: db_purchasepayments delete failed');
+			return "failed: db_purchasepayments delete failed";
+		}
+		#----------------------------------
+
 		#----------------------------------
 		$this->db->where("id in ($ids)");
-		//if not admin
-		if(!is_admin()){
-			$this->db->where("store_id",get_current_store_id());
-		}
-
 		$q3=$this->db->delete("db_purchase");
-		#----------------------------------
-		#----------------------------------
-		$this->db->where("purchase_id in ($ids)");
-		//if not admin
-		if(!is_admin()){
-			$this->db->where("store_id",get_current_store_id());
+		if(!$q3){
+			$this->db->trans_rollback();
+			log_message('error', 'delete_purchase: db_purchase delete failed');
+			return "failed: db_purchase delete failed";
 		}
-
-		$q5=$this->db->delete("db_purchasepayments");
-		#----------------------------------
-		$this->db->where("purchase_id in ($ids)");
-		//if not admin
-		if(!is_admin()){
-			$this->db->where("store_id",get_current_store_id());
-		}
-
-		$q7=$this->db->delete("db_purchaseitems");
 		#----------------------------------
 
-		$q6=$this->db->query("select id from db_items");
-		if($q6->num_rows()>0){
-			$this->load->model('pos_model');				
-			foreach ($q6->result() as $res6) {
-				$q6=$this->pos_model->update_items_quantity($res6->id);
+		//UPDATE STOCK OF AFFECTED ITEMS ONLY
+		if(!empty($prev_item_ids)){
+			$this->load->model('pos_model');
+			foreach ($prev_item_ids as $row) {
+				$item_id = $row['item_id'];
+				$q6=$this->pos_model->update_items_quantity($item_id);
 				if(!$q6){
-					return "failed";
+					$this->db->trans_rollback();
+					log_message('error', 'delete_purchase: update_items_quantity failed for item '.$item_id);
+					return "failed: update stock for item id ".$item_id;
 				}
 			}
 		}
@@ -607,36 +717,40 @@ class Purchase_model extends CI_Model {
 		/*Update items in all warehouses of the item*/
 		$q7=update_warehouse_items($prev_item_ids);
 		if(!$q7){
-			return "failed";
+			$this->db->trans_rollback();
+			log_message('error', 'delete_purchase: update_warehouse_items failed');
+			return "failed: update warehouse items";
 		}
 		##############################################END
-		
+
 		$q2=$this->update_purchase_payment_status();
+		if(!$q2){
+			$this->db->trans_rollback();
+			log_message('error', 'delete_purchase: update_purchase_payment_status failed');
+			return "failed: update purchase payment status";
+		}
 
 		//ACCOUNT RESET
-        if($reset_accounts->num_rows()>0){
+		if(isset($reset_accounts) && $reset_accounts->num_rows()>0){
         	foreach ($reset_accounts->result() as $res1) {
         		if(!update_account_balance($res1->debit_account_id)){
-					return 'failed';
+					$this->db->trans_rollback();
+					log_message('error', 'delete_purchase: update_account_balance failed for debit '.$res1->debit_account_id);
+					return 'failed: update debit account balance';
 				}
 
 				if(!update_account_balance($res1->credit_account_id)){
-					return 'failed';
+					$this->db->trans_rollback();
+					log_message('error', 'delete_purchase: update_account_balance failed for credit '.$res1->credit_account_id);
+					return 'failed: update credit account balance';
 				}
 
         	}
         }
         //ACCOUNT RESET END
 
-		if($q3!=1 || $q5!=1 || $q2!=1)
-		{
-			$this->db->trans_rollback();
-		    return "failed";
-		}
-		else{
-			$this->db->trans_commit();
-		        return "success";
-		}
+		$this->db->trans_commit();
+        return "success";
 	}
 	public function search_item($q){
 		$json_array=array();
@@ -675,7 +789,7 @@ class Purchase_model extends CI_Model {
 	
 
 	
-	public function inclusive($price='',$tax_per){
+	public function inclusive($price, $tax_per){
 		return $price/(($tax_per/100)+1)/10;
 	}
 
@@ -702,6 +816,8 @@ class Purchase_model extends CI_Model {
 							'item_discount_type' 		=> 'Percentage', 
 							'item_discount_input' 		=> 0, 
 							'service_bit' 				=> $res1->service_bit, 
+							'track_serial' 				=> $res1->track_serial ?? 0,
+							'track_imei' 				=> $res1->track_imei ?? 0,
 						);
 
 		$this->return_row_with_data($rowcount,$info);
@@ -717,22 +833,31 @@ class Purchase_model extends CI_Model {
 			
 			
 			$info = array(
-							'item_id' 					=> $res1->item_id, 
-							'description' 				=> $res1->description, 
+							'item_id' 					=> $res1->item_id,
+							'description' 				=> $res1->description,
 							'item_name' 				=> $res2->item_name,
 							'item_available_qty' 		=> $res2->stock,
-							'item_price' 				=> $res2->price, 
-							'item_purchase_price' 		=> $res1->price_per_unit, 
-							'item_tax_name' 			=> $q3->tax_name, 
-							'item_purchase_qty' 		=> $res1->purchase_qty, 
-							'item_tax_id' 				=> $res1->tax_id, 
-							'item_tax' 					=> $q3->tax, 
-							'item_tax_type' 			=> $res1->tax_type, 
-							'item_tax_amt' 				=> $res1->tax_amt, 
-							'item_discount' 			=> $res1->discount_input, 
-							'item_discount_type' 		=> $res1->discount_type, 
-							'item_discount_input' 		=> $res1->discount_input, 
-							'service_bit' 				=> $res2->service_bit, 
+							'item_price' 				=> $res2->price,
+							'item_purchase_price' 		=> $res1->price_per_unit,
+							'item_tax_name' 			=> $q3->tax_name,
+							'item_purchase_qty' 		=> $res1->purchase_qty,
+							'item_tax_id' 				=> $res1->tax_id,
+							'item_tax' 					=> $q3->tax,
+							'item_tax_type' 			=> $res1->tax_type,
+							'item_tax_amt' 				=> $res1->tax_amt,
+							'item_discount' 			=> $res1->discount_input,
+							'item_discount_type' 		=> $res1->discount_type,
+							'item_discount_input' 		=> $res1->discount_input,
+							'service_bit' 				=> $res2->service_bit,
+							'batch_lot' 				=> $res1->batch_lot,
+							'barcode' 					=> $res1->barcode,
+							'expire_date' 				=> $res1->expire_date,
+							'mfg_date' 					=> $res1->mfg_date,
+							'received_qty' 				=> $res1->received_qty,
+							'serial_number' 				=> $res1->sold_serial_number,
+							'imei_number' 				=> $res1->sold_imei_number,
+							'track_serial' 				=> $res2->track_serial ?? 0,
+							'track_imei' 				=> $res2->track_imei ?? 0,
 						);
 
 			$result = $this->return_row_with_data($rowcount++,$info);
@@ -757,64 +882,124 @@ class Purchase_model extends CI_Model {
 		$item_discount_type = isset($info['item_discount_type']) ? $info['item_discount_type'] : '';
 		$item_discount_input = isset($info['item_discount_input']) ? $info['item_discount_input'] : '';
 		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
-		
+		$batch_lot = isset($info['batch_lot']) ? $info['batch_lot'] : '';
+		$barcode = isset($info['barcode']) ? $info['barcode'] : '';
+		$expire_date = isset($info['expire_date']) ? $info['expire_date'] : '';
+		$mfg_date = isset($info['mfg_date']) ? $info['mfg_date'] : '';
+		$received_qty = isset($info['received_qty']) ? $info['received_qty'] : '';
+		$serial_number = isset($info['serial_number']) ? $info['serial_number'] : '';
+		$imei_number = isset($info['imei_number']) ? $info['imei_number'] : '';
+		$track_serial = isset($info['track_serial']) ? $info['track_serial'] : 0;
+		$track_imei = isset($info['track_imei']) ? $info['track_imei'] : 0;
+
 		$item_unit_cost = $item_purchase_price+$item_tax_amt;
 		$item_amount = $item_unit_cost * $item_purchase_qty;
 	
 		?>
-            <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
-               <td id="td_<?=$rowcount;?>_1">
-                  <label class='form-control' style='height:auto;' data-toggle="tooltip" title='Edit ?' >
-                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a> 
-                  		<i onclick="show_purchase_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
-                  	</label>
-               </td>
-               <!-- Qty -->
-               <td id="td_<?=$rowcount;?>_3">
-                  <div class="input-group ">
-                     <span class="input-group-btn">
-                     <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-minus text-danger"></i></button></span>
-                     <input typ="text" value="<?=format_qty($item_purchase_qty);?>" class="form-control no-padding text-center" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
-                     <span class="input-group-btn">
-                     <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-plus text-success"></i></button></span>
+            <!-- PURCHASE ITEM CARD -->
+            <div class="purchase-item-card" id="row_<?=$rowcount;?>" data-row="<?=$rowcount;?>">
+               <div class="card-main">
+                  <div class="item-image-wrap"><i class="fa fa-cube item-icon"></i></div>
+                  <div class="item-info">
+                     <div class="item-name">
+                        <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
+                        <i onclick="show_purchase_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
+                     </div>
+                     <div class="item-meta"><?=$item_tax_name;?></div>
                   </div>
-               </td>
-               <!-- Purchase Price -->
-               <td id="td_<?=$rowcount;?>_4"><input type="text" name="td_data_<?=$rowcount;?>_4" id="td_data_<?=$rowcount;?>_4" class="form-control text-right no-padding only_currency text-center" onkeyup="calculate_tax(<?=$rowcount;?>)" value="<?=store_number_format($item_purchase_price,0);?>" ></td>
-
-              
-               <!-- Discount -->
-               <td id="td_<?=$rowcount;?>_8">
-                  <input type="text" data-toggle="tooltip" title="Click to Change" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="pointer form-control text-right no-padding only_currency text-center item_discount" value="<?=store_number_format($item_discount,0);?>" onclick="show_purchase_item_modal(<?=$rowcount;?>)" readonly>
-               </td>
-
-               <!-- Tax Amount -->
-               <td id="td_<?=$rowcount;?>_5"><input type="text" name="td_data_<?=$rowcount;?>_5" id="td_data_<?=$rowcount;?>_5" class="form-control text-right no-padding only_currency text-center" readonly  value="<?=store_number_format($item_tax_amt,0);?>"></td>
-
-               <!-- Unit Cost -->
-               <td id="td_<?=$rowcount;?>_10"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="form-control text-right no-padding only_currency text-center" readonly value="<?=store_number_format($item_unit_cost,0);?>"></td>
-
-               <!-- Amount -->
-               <td id="td_<?=$rowcount;?>_9"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-right no-padding only_currency text-center" style='border-color: #f39c12;' title='Total' readonly value="<?=store_number_format($item_amount,0);?>"></td>
-
-               <!-- ADD button -->
-               <td id="td_<?=$rowcount;?>_16" style="text-align: center;">
-                  <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
-               </td>
+                  <div class="item-total">
+                     <small>Total</small>
+                     <span id="td_data_<?=$rowcount;?>_9_display"><?=store_number_format($item_amount,true);?></span>
+                  </div>
+                  <div class="item-actions">
+                     <a class="btn-delete fa fa-minus-square" onclick="removerow(<?=$rowcount;?>)" title="Delete" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
+                  </div>
+               </div>
+               <div class="card-body">
+                  <!-- Qty -->
+                  <div class="field-group">
+                     <label>Qty</label>
+                     <div class="qty-control">
+                        <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="btn-qty"><i class="fa fa-minus text-danger"></i></button>
+                        <input type="text" value="<?=format_qty($item_purchase_qty);?>" class="qty-input" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
+                        <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="btn-qty"><i class="fa fa-plus text-success"></i></button>
+                     </div>
+                  </div>
+                  <!-- Purchase Price -->
+                  <div class="field-group">
+                     <label>Cost Price</label>
+                     <input type="text" name="td_data_<?=$rowcount;?>_4" id="td_data_<?=$rowcount;?>_4" class="form-control only_currency" onkeyup="calculate_tax(<?=$rowcount;?>)" value="<?=store_number_format($item_purchase_price,0);?>">
+                  </div>
+                  <!-- Discount -->
+                  <div class="field-group">
+                     <label>Discount</label>
+                     <input type="text" data-toggle="tooltip" title="Click to Change" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="form-control only_currency item_discount" value="<?=store_number_format($item_discount,0);?>" onclick="show_purchase_item_modal(<?=$rowcount;?>)" readonly>
+                  </div>
+                  <!-- Tax Amount -->
+                  <div class="field-group">
+                     <label>Tax</label>
+                     <input type="text" name="td_data_<?=$rowcount;?>_5" id="td_data_<?=$rowcount;?>_5" class="form-control only_currency" readonly value="<?=store_number_format($item_tax_amt,0);?>">
+                  </div>
+                  <!-- Total -->
+                  <div class="field-group">
+                     <label>Total</label>
+                     <input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control only_currency" style="border-color:#f39c12;" title="Total" readonly value="<?=store_number_format($item_amount,0);?>">
+                  </div>
+               </div>
+               <!-- Hidden inputs -->
                <input type="hidden" id="tr_available_qty_<?=$rowcount;?>_13" value="<?=$item_available_qty;?>">
                <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
-
                <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
                <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">
                <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
-
                <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=$description;?>">
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
-
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">
                <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">
-               
-            </tr>
+               <!-- Hidden fields for JS compatibility -->
+               <input type="hidden" id="td_data_<?=$rowcount;?>_10" name="td_data_<?=$rowcount;?>_10" value="<?=store_number_format($item_unit_cost,0);?>">
+               <span style="display:none;" id="td_data_<?=$rowcount;?>_15"><?=$item_tax_name;?></span>
+
+               <?php if(mp_feature_enabled('batch_tracking') || $batch_lot || $barcode || $expire_date || $mfg_date || $received_qty || $serial_number || $imei_number){ ?>
+               <button type="button" class="btn-expand"><i class="fa fa-chevron-down"></i> Additional Details</button>
+
+               <!-- BATCH / RECEIPT ROW -->
+               <div class="card-advanced" id="row_<?=$rowcount;?>_batch">
+                  <div class="card-advanced-grid">
+                     <div class="field-group">
+                        <label>Batch/Lot</label>
+                        <input type="text" name="batch_lot_<?=$rowcount;?>" id="batch_lot_<?=$rowcount;?>" class="form-control" value="<?=$batch_lot;?>" placeholder="Batch/Lot">
+                     </div>
+                     <div class="field-group">
+                        <label>Barcode</label>
+                        <input type="text" name="barcode_<?=$rowcount;?>" id="barcode_<?=$rowcount;?>" class="form-control" value="<?=$barcode;?>" placeholder="Barcode">
+                     </div>
+                     <?php if($track_serial || $track_imei || $serial_number || $imei_number){ ?>
+                     <div class="field-group">
+                        <label>Serial Number</label>
+                        <input type="text" name="serial_number_<?=$rowcount;?>" id="serial_number_<?=$rowcount;?>" class="form-control" value="<?=htmlspecialchars($serial_number);?>" placeholder="Serial">
+                     </div>
+                     <div class="field-group">
+                        <label>IMEI</label>
+                        <input type="text" name="imei_number_<?=$rowcount;?>" id="imei_number_<?=$rowcount;?>" class="form-control" value="<?=htmlspecialchars($imei_number);?>" placeholder="IMEI">
+                     </div>
+                     <?php } ?>
+                     <div class="field-group">
+                        <label>Rcv Qty</label>
+                        <input type="text" name="received_qty_<?=$rowcount;?>" id="received_qty_<?=$rowcount;?>" class="form-control" value="<?=($received_qty!=='' && $received_qty!==null) ? format_qty($received_qty) : '';?>" placeholder="Received">
+                     </div>
+                     <div class="field-group">
+                        <label>Expiry</label>
+                        <input type="text" name="expire_date_<?=$rowcount;?>" id="expire_date_<?=$rowcount;?>" class="form-control datepicker" value="<?=is_valid_date($expire_date) ? show_date($expire_date) : ''?>" placeholder="Expiry" readonly>
+                     </div>
+                     <div class="field-group">
+                        <label>MFG Date</label>
+                        <input type="text" name="mfg_date_<?=$rowcount;?>" id="mfg_date_<?=$rowcount;?>" class="form-control datepicker" value="<?=is_valid_date($mfg_date) ? show_date($mfg_date) : ''?>" placeholder="MFG Date" readonly>
+                     </div>
+                  </div>
+               </div>
+               <?php } ?>
+            </div>
 		<?php
 
 	}
@@ -1194,5 +1379,245 @@ class Purchase_model extends CI_Model {
 		  <!-- /.modal-dialog -->
 		</div>
 		<?php
+	}
+
+	public function show_change_status_modal($purchase_id){
+		$q1=$this->db->query("select * from db_purchase where id=$purchase_id");
+		$res1=$q1->row();
+		$current_status = $res1->purchase_status;
+		$purchase_code = $res1->purchase_code;
+
+		$q2=$this->db->query("select * from db_purchaseitems where purchase_id=$purchase_id");
+		?>
+		<div class="modal fade" id="change_status_modal">
+		  <div class="modal-dialog modal-lg">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span></button>
+		        <h4 class="modal-title">Change Purchase Status — <?= $purchase_code; ?></h4>
+		      </div>
+		      <div class="modal-body">
+		        <form id="change-status-form">
+		        <input type="hidden" name="purchase_id" id="cs_purchase_id" value="<?= $purchase_id; ?>">
+		        <div class="row">
+		          <div class="col-md-6">
+		            <div class="form-group">
+		              <label>Current Status</label>
+		              <input type="text" class="form-control" value="<?= $current_status; ?>" readonly>
+		            </div>
+		          </div>
+		          <div class="col-md-6">
+		            <div class="form-group">
+		              <label>New Status <span class="text-danger">*</span></label>
+		              <select class="form-control" name="new_status" id="cs_new_status" onchange="toggle_cs_batch_fields()">
+		                <option value="Draft">Draft (Requisition)</option>
+		                <option value="Ordered">Ordered (PO)</option>
+		                <option value="Partially Received">Partially Received</option>
+		                <option value="Received">Received & Completed</option>
+		              </select>
+		            </div>
+		          </div>
+		        </div>
+
+		        <div id="cs_batch_section" style="display:none;">
+		          <hr>
+		          <h4 class="text-orange"><i class="fa fa-barcode"></i> Enter Receipt / Batch Details</h4>
+		          <div class="table-responsive">
+		            <table class="table table-bordered table-hover">
+		              <thead class="bg-primary">
+		                <tr>
+		                  <th>Item</th>
+		                  <th style="width:12%">Ordered Qty</th>
+		                  <th style="width:15%">Received Qty</th>
+		                  <th style="width:15%">Batch/Lot</th>
+		                  <th style="width:15%">Barcode</th>
+		                  <th style="width:12%">Expiry</th>
+		                  <th style="width:12%">MFG Date</th>
+		                </tr>
+		              </thead>
+		              <tbody>
+		                <?php foreach($q2->result() as $res2):
+		                  $item_name = $this->db->query("select item_name from db_items where id=".$res2->item_id)->row()->item_name;
+		                ?>
+		                <tr>
+		                  <td>
+		                    <?= $item_name; ?>
+		                    <input type="hidden" name="cs_item_id[]" value="<?= $res2->item_id; ?>">
+		                    <input type="hidden" name="cs_item_row_id[]" value="<?= $res2->id; ?>">
+		                  </td>
+		                  <td><?= format_qty($res2->purchase_qty); ?></td>
+		                  <td>
+		                    <input type="text" name="cs_received_qty[]" class="form-control text-center cs-received-qty" value="<?= ($res2->received_qty!==null && $res2->received_qty!=='') ? format_qty($res2->received_qty) : format_qty($res2->purchase_qty); ?>">
+		                  </td>
+		                  <td>
+		                    <input type="text" name="cs_batch_lot[]" class="form-control text-center" value="<?= $res2->batch_lot; ?>" placeholder="Batch/Lot">
+		                  </td>
+		                  <td>
+		                    <input type="text" name="cs_barcode[]" class="form-control text-center" value="<?= $res2->barcode; ?>" placeholder="Barcode">
+		                  </td>
+		                  <td>
+		                    <input type="text" name="cs_expire_date[]" class="form-control text-center datepicker" value="<?= is_valid_date($res2->expire_date) ? show_date($res2->expire_date) : ''; ?>" placeholder="dd-mm-yyyy" readonly>
+		                  </td>
+		                  <td>
+		                    <input type="text" name="cs_mfg_date[]" class="form-control text-center datepicker" value="<?= is_valid_date($res2->mfg_date) ? show_date($res2->mfg_date) : ''; ?>" placeholder="dd-mm-yyyy" readonly>
+		                  </td>
+		                </tr>
+		                <?php endforeach; ?>
+		              </tbody>
+		            </table>
+		          </div>
+		        </div>
+		        </form>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-warning" data-dismiss="modal">Close</button>
+		        <button type="button" class="btn btn-primary" id="btn_change_status_save">Update Status</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+		<script>
+		function toggle_cs_batch_fields(){
+		  var status = $("#cs_new_status").val();
+		  if(status == 'Partially Received' || status == 'Received'){
+		    $("#cs_batch_section").show();
+		    if(status == 'Received'){
+		      $(".cs-received-qty").each(function(){
+		        $(this).prop('readonly', true);
+		      });
+		    } else {
+		      $(".cs-received-qty").each(function(){
+		        $(this).prop('readonly', false);
+		      });
+		    }
+		  } else {
+		    $("#cs_batch_section").hide();
+		  }
+		}
+		// Initialize datepickers inside modal
+		$('#change_status_modal .datepicker').datepicker({
+		    autoclose: true,
+		    format: 'dd-mm-yyyy',
+		    todayHighlight: true
+		});
+		</script>
+		<?php
+	}
+
+	public function change_status(){
+		$purchase_id = $this->input->post('purchase_id', TRUE);
+		$new_status = $this->input->post('new_status', TRUE);
+		$item_row_ids = $this->input->post('cs_item_row_id', TRUE);
+		$received_qtys = $this->input->post('cs_received_qty', TRUE);
+		$batch_lots = $this->input->post('cs_batch_lot', TRUE);
+		$barcodes = $this->input->post('cs_barcode', TRUE);
+		$expire_dates = $this->input->post('cs_expire_date', TRUE);
+		$mfg_dates = $this->input->post('cs_mfg_date', TRUE);
+
+		$this->db->trans_begin();
+
+		// Update purchase status
+		$q1 = $this->db->query("update db_purchase set purchase_status='$new_status' where id=$purchase_id");
+		if(!$q1){ $this->db->trans_rollback(); return "failed"; }
+
+		// Update items if status is Partially Received or Received
+		if($new_status == 'Partially Received' || $new_status == 'Received'){
+			for($i=0; $i<count($item_row_ids); $i++){
+				$row_id = $item_row_ids[$i];
+				$item_result = $this->db->query("select item_id from db_purchaseitems where id=$row_id");
+				if(!$item_result || $item_result->num_rows() == 0){
+					$this->db->trans_rollback();
+					return "failed";
+				}
+				$item_id = $item_result->row()->item_id;
+				$qty_result = $this->db->query("select purchase_qty from db_purchaseitems where id=$row_id");
+				if(!$qty_result || $qty_result->num_rows() == 0){
+					$this->db->trans_rollback();
+					return "failed";
+				}
+				$purchase_qty = $qty_result->row()->purchase_qty;
+
+				$rcv_qty = (!empty($received_qtys[$i]) && is_numeric($received_qtys[$i])) ? $received_qtys[$i] : 0;
+				if($new_status == 'Received'){
+					$rcv_qty = $purchase_qty;
+				}
+
+				$exp_date = (!empty($expire_dates[$i])) ? system_fromatted_date($expire_dates[$i]) : null;
+				$mfg_date_val = (!empty($mfg_dates[$i])) ? system_fromatted_date($mfg_dates[$i]) : null;
+				$batch_lot_val = (!empty($batch_lots[$i])) ? $batch_lots[$i] : null;
+				$barcode_val = (!empty($barcodes[$i])) ? $barcodes[$i] : null;
+
+				$q2 = $this->db->query("update db_purchaseitems set
+									purchase_status='$new_status',
+									received_qty=$rcv_qty,
+									batch_lot=".($batch_lot_val ? "'$batch_lot_val'" : "null").",
+									barcode=".($barcode_val ? "'$barcode_val'" : "null").",
+									expire_date=".($exp_date ? "'$exp_date'" : "null").",
+									mfg_date=".($mfg_date_val ? "'$mfg_date_val'" : "null")."
+									where id=$row_id");
+				if(!$q2){ $this->db->trans_rollback(); return "failed"; }
+
+				// Update stock
+				// Commented out due to missing package_bit column in db_items
+				// $this->load->model('pos_model');
+				// $q3 = $this->pos_model->update_items_quantity($item_id);
+				// if(!$q3){ $this->db->trans_rollback(); return "failed"; }
+
+				// Create/update barcode record
+				if(!empty($barcode_val) && !empty($rcv_qty) && $rcv_qty > 0){
+					$this->db->where('item_id',$item_id)
+							 ->where('barcode',$barcode_val)
+							 ->where('batch_lot',$batch_lot_val)
+							 ;
+					$barcode_exists = $this->db->get('db_item_barcodes')->row();
+					if(!empty($barcode_exists)){
+						$new_barcode_qty = $barcode_exists->qty + $rcv_qty;
+						$this->db->where('id',$barcode_exists->id)->update('db_item_barcodes', array(
+							'qty' => $new_barcode_qty,
+							'expire_date' => $exp_date,
+							'mfg_date' => $mfg_date_val
+						));
+					} else {
+						$this->db->insert('db_item_barcodes', array(
+							'item_id' => $item_id,
+							'barcode' => $barcode_val,
+							'batch_lot' => $batch_lot_val,
+							'qty' => $rcv_qty,
+							'expire_date' => $exp_date,
+							'mfg_date' => $mfg_date_val,
+							'status' => 1
+						));
+					}
+				}
+			}
+		} else {
+			// For Draft/Ordered: just update purchase_status on items, clear received_qty
+			$q4 = $this->db->query("update db_purchaseitems set purchase_status='$new_status', received_qty=null where purchase_id=$purchase_id");
+			if(!$q4){ $this->db->trans_rollback(); return "failed"; }
+			// Re-calc stock since we may have removed received quantities
+			$item_query = $this->db->query("select item_id from db_purchaseitems where purchase_id=$purchase_id");
+			if(!$item_query || $item_query->num_rows() == 0){
+				$item_ids = array();
+			} else {
+				$item_ids = $item_query->result_array();
+			}
+			foreach($item_ids as $itm){
+				$this->load->model('pos_model');
+				$this->pos_model->update_items_quantity($itm['item_id']);
+			}
+		}
+
+		// Update supplier due
+		$q5=$this->update_purchase_payment_status_by_purchase_id($purchase_id);
+		if(!$q5){ $this->db->trans_rollback(); return "failed"; }
+
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return "failed";
+		}
+		$this->db->trans_commit();
+		$this->session->set_flashdata('success', 'Status updated successfully!');
+		return "success";
 	}
 }

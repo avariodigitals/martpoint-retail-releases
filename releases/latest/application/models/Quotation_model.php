@@ -80,7 +80,7 @@ class Quotation_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				
@@ -106,7 +106,7 @@ class Quotation_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -120,7 +120,7 @@ class Quotation_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -147,7 +147,7 @@ class Quotation_model extends CI_Model {
 
 	//Save Quotation
 	public function verify_save_and_update(){
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$quotation_date = $this->input->post('quotation_date', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
 		$reference_no = $this->input->post('reference_no', TRUE);
@@ -155,15 +155,15 @@ class Quotation_model extends CI_Model {
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$other_charges_input = $this->input->post('other_charges_input', TRUE);
 		$other_charges_tax_id = $this->input->post('other_charges_tax_id', TRUE);
-		$other_charges_amt = $this->input->post('other_charges_amt', TRUE);
+		$other_charges_amt = $this->input->post_get('other_charges_amt', TRUE);
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
-		$tot_discount_to_all_amt = $this->input->post('tot_discount_to_all_amt', TRUE);
-		$tot_subtotal_amt = $this->input->post('tot_subtotal_amt', TRUE);
-		$tot_round_off_amt = $this->input->post('tot_round_off_amt', TRUE);
-		$tot_total_amt = $this->input->post('tot_total_amt', TRUE);
+		$tot_discount_to_all_amt = $this->input->post_get('tot_discount_to_all_amt', TRUE);
+		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
+		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
+		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
 		$quotation_note = $this->input->post('quotation_note', TRUE);
-		$rowcount = $this->input->post('rowcount', TRUE);
+		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$quotation_id = $this->input->post('quotation_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
@@ -185,7 +185,6 @@ class Quotation_model extends CI_Model {
 	    
 	    if($command=='save'){//Create quotation code unique if first time entry
 
-			$this->db->query("ALTER TABLE db_quotation AUTO_INCREMENT = 1");
 			
 		    $quotation_entry = array(
 		    				'quotation_code' 				=> get_init_code('quotation'),
@@ -348,6 +347,13 @@ class Quotation_model extends CI_Model {
 			}
 		}*/
 		
+		if($q1 === FALSE || $this->db->trans_status() === FALSE || empty($quotation_id)){
+			$this->db->trans_rollback();
+			$error = $this->db->error();
+			$msg = !empty($error['message']) ? $error['message'] : 'Quotation could not be saved';
+			return "Database error: " . $msg . " [q1=" . var_export($q1, true) . ", insert_id=" . var_export($quotation_id, true) . ", last_query=" . $this->db->last_query() . "]";
+		}
+
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully! '.$sms_info);
 		return "success<<<###>>>$quotation_id";

@@ -54,7 +54,7 @@ class Subscribers_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -73,7 +73,7 @@ class Subscribers_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -87,7 +87,7 @@ class Subscribers_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -157,7 +157,6 @@ class Subscribers_model extends CI_Model {
                 'status'          => 1,
               );
 
-      $this->db->query("ALTER TABLE db_subscription AUTO_INCREMENT = 1");
       $query1 = $this->db->insert('db_subscription', array_merge($info,$info1));
       $this->session->set_flashdata('success', 'Success!! New Subscription Added Successfully!');
     }

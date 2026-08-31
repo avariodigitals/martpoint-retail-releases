@@ -10,9 +10,7 @@ class Discount_coupon extends MY_Controller {
 
 	public function add() {
 		$this->permission_check('discountCouponAdd');
-		$data = $this->data;
-		$data['page_title'] = $this->lang->line('discountCoupon');
-		$this->load->view('coupons/create', $data);
+		redirect('mobile/discount_coupon/add');
 	}
 	
 	public function save() {
@@ -54,9 +52,7 @@ class Discount_coupon extends MY_Controller {
 	}
 	public function view() {
 		$this->permission_check('discountCouponView');
-		$data = $this->data;
-		$data['page_title'] = $this->lang->line('discountCoupons');
-		$this->load->view('coupons/list', $data);
+		redirect('mobile/discount_coupon/view');
 	}
 
 	public function ajax_list() {

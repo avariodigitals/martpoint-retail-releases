@@ -266,8 +266,7 @@ body { margin: 5px; }
       </tr>
       <tr class="bg-sky"><!-- Colspan 10 -->
         <th colspan='2' class="text-center"><?= $this->lang->line('sl_no'); ?></th>
-        <th colspan='4' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
-        <th colspan='2' class="text-center"><?= $this->lang->line('hsn'); ?></th>
+        <th colspan='6' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
         <th colspan='2' class="text-center"><?= $this->lang->line('unit_cost'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('qty'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('tax'); ?></th>
@@ -316,11 +315,11 @@ body { margin: 5px; }
                   
                   echo "<tr>";  
                   echo "<td colspan='2' class='text-center'>".$i++."</td>";
-                  echo "<td colspan='4'>";
+                  echo "<td colspan='6'>";
                   echo $res2->item_name;
                   echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
                   echo "</td>";
-                  echo "<td colspan='2' class='text-left'>".$res2->hsn."</td>";
+
                   echo "<td colspan='2' class='text-right'>".store_number_format($res2->price_per_unit)."</td>";
                   
                   echo "<td class='text-center'>".format_qty($res2->purchase_qty)."</td>";

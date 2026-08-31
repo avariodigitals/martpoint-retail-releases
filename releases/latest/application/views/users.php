@@ -165,6 +165,7 @@
                                     <span id="confirm_msg" style="display:none" class="text-danger"></span>
                                  </div>
                               </div>
+                              <?php if(mp_feature_enabled('manager_approvals')) { ?>
                               <div class="form-group">
                                  <label for="approval_pin" class="col-sm-4 control-label">Approval PIN <i class="fa fa-info-circle text-info" title="4-6 digit PIN for manager/owner approval overrides. Leave blank to disable." data-toggle="tooltip"></i></label>
                                  <div class="col-sm-8">
@@ -172,6 +173,7 @@
                                     <span id="approval_pin_msg" style="display:none" class="text-danger"></span>
                                  </div>
                               </div>
+                              <?php } ?>
 
                               <!-- Warehouse Code -->
                               <?php 
@@ -215,9 +217,9 @@
                                 $total_wh = $this->db->where('store_id',$diag_store_id)->count_all_results('db_warehouse');
                                 $active_wh = $this->db->where('store_id',$diag_store_id)->where('status',1)->count_all_results('db_warehouse');
                                 if($total_wh==0){
-                                  echo '<div class="col-sm-8 col-sm-offset-4"><p class="text-danger"><i class="fa fa-warning"></i> No warehouses found for this store. Please create a warehouse in <a href="'.base_url('warehouse').'">Settings &gt; Warehouse</a>.</p></div>';
+                                  echo '<div class="col-sm-8 col-sm-offset-4"><p class="text-danger"><i class="fa fa-warning"></i> No branches found for this store. Please create a branch in <a href="'.base_url('warehouse').'">Settings &gt; Branches</a>.</p></div>';
                                 } else if($active_wh==0){
-                                  echo '<div class="col-sm-8 col-sm-offset-4"><p class="text-danger"><i class="fa fa-warning"></i> All warehouses are inactive. Please activate a warehouse in <a href="'.base_url('warehouse').'">Settings &gt; Warehouse</a>.</p></div>';
+                                  echo '<div class="col-sm-8 col-sm-offset-4"><p class="text-danger"><i class="fa fa-warning"></i> All branches are inactive. Please activate a branch in <a href="'.base_url('warehouse').'">Settings &gt; Branches</a>.</p></div>';
                                 }
                               ?>
 
@@ -360,6 +362,9 @@
         ?>
       </script>
       <!-- Make sidebar menu hughlighter/selector -->
-      <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+      <script>
+        $(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active menu-open");
+        $(".users-view-active-li").addClass("active");
+      </script>
    </body>
 </html>

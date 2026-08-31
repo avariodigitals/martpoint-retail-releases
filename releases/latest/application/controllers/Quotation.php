@@ -46,6 +46,7 @@ class Quotation extends MY_Controller {
 	
 	
 	public function update($id){
+		if(empty($id)){ redirect('quotation'); }
 		$this->belong_to('db_quotation',$id);
 		$this->permission_check('quotation_edit');
 		$data=$this->data;
@@ -191,6 +192,7 @@ class Quotation extends MY_Controller {
 	//quotation invoice form
 	public function invoice($id)
 	{	
+		if(empty($id)){ redirect('quotation'); }
 		$this->belong_to('db_quotation',$id);
 		if(!$this->permissions('quotation_view')){
 			$this->show_access_denied_page();
@@ -204,6 +206,7 @@ class Quotation extends MY_Controller {
 	//Print quotation invoice 
 	public function print_invoice($quotation_id)
 	{
+		if(empty($quotation_id)){ redirect('quotation'); }
 		$this->belong_to('db_quotation',$quotation_id);
 		if(!$this->permissions('quotation_add') && !$this->permissions('quotation_edit')){
 			$this->show_access_denied_page();
@@ -211,13 +214,16 @@ class Quotation extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('quotation_id'=>$quotation_id));
 		$data['page_title']=$this->lang->line('quotation_invoice');
+		$data['auto_print']=true;
 		
-			$this->load->view('quotation/print-quotation-invoice-2',$data);
+			$this->load->view('quotation/print-quotation-invoice-3',$data);
 		
 	}
 
 
 	public function pdf($quotation_id){
+		if(empty($quotation_id)){ redirect('quotation'); }
+		$this->belong_to('db_quotation',$quotation_id);
 		if(!$this->permissions('quotation_add') && !$this->permissions('quotation_edit')){
 			$this->show_access_denied_page();
 		}
@@ -226,12 +232,16 @@ class Quotation extends MY_Controller {
 		$data['page_title']=$this->lang->line('quotation_invoice');
         $data=array_merge($data,array('quotation_id'=>$quotation_id));
       
-			$this->load->view('quotation/print-quotation-invoice-2',$data);
+			$this->load->view('quotation/print-quotation-invoice-3',$data);
 		
        
 
         // Get output html
         $html = $this->output->get_output();
+
+        require_once(APPPATH . 'libraries/dompdf/autoload.inc.php');
+        mb_internal_encoding('UTF-8');
+
         $options = new Options();
 		$options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
@@ -247,6 +257,7 @@ class Quotation extends MY_Controller {
         
         // Output the generated PDF (1 = download and 0 = preview)
         $dompdf->stream("Quotation_$quotation_id-".date('M')."_".date('d')."_".date('Y'), array("Attachment"=>0));
+		exit;
 	}
 	
 	

@@ -25,7 +25,7 @@
 	
     
 
-  	$q3=$this->db->query("SELECT b.store_id, b.created_by, a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+  	$q3=$this->db->query("SELECT b.store_id, b.created_by, COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,
                            a.postcode,a.address,b.sales_date,b.created_time,b.reference_no,
                            b.sales_code,b.sales_note,
@@ -41,10 +41,9 @@
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status
 
-                           FROM db_customers a,
-                           db_sales b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_sales b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
                            b.`id`='$sales_id' 
                            ");
                           
@@ -235,10 +234,13 @@
 			              $tot_qty=0;
 			              $subtotal=0;
 			              $tax_amt=0;
-			              $q2=$this->db->query("select b.item_name,a.sales_qty,a.unit_total_cost,a.price_per_unit,a.tax_amt,c.tax,a.total_cost from db_salesitems a,db_items b,db_tax c where c.id=a.tax_id and b.id=a.item_id and a.sales_id='$sales_id'");
+			              $q2=$this->db->query("select COALESCE(b.item_name, a.description, 'Unknown Item') as item_name,a.sales_qty,a.unit_total_cost,a.price_per_unit,a.tax_amt,c.tax,a.total_cost,a.sold_serial_number,a.sold_imei_number from db_salesitems a left join db_items b on b.id=a.item_id left join db_tax c on c.id=a.tax_id where a.sales_id='$sales_id'");
 			              foreach ($q2->result() as $res2) {
 			                  echo "<tr>";  
-			                  echo "<td style='padding-left: 2px; padding-right: 2px;'>".$res2->item_name."</td>";
+			                  echo "<td style='padding-left: 2px; padding-right: 2px;'>".$res2->item_name;
+if(!empty($res2->sold_serial_number)){ echo "<br><small style='font-size:10px;'>S/N: ".htmlspecialchars($res2->sold_serial_number)."</small>"; }
+if(!empty($res2->sold_imei_number)){ echo "<br><small style='font-size:10px;'>IMEI: ".htmlspecialchars($res2->sold_imei_number)."</small>"; }
+echo "</td>";
 			                  echo "<td style='text-align: center;padding-left: 2px; padding-right: 2px;'>".$res2->sales_qty."</td>";
 			                  echo "<td style='text-align: right;padding-left: 2px; padding-right: 2px;' >".number_format(($res2->total_cost),2,'.','')."</td>";
 			                  echo "</tr>";  

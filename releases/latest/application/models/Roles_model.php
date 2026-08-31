@@ -20,7 +20,7 @@ class Roles_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -39,7 +39,7 @@ class Roles_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -53,7 +53,7 @@ class Roles_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -237,7 +237,7 @@ class Roles_model extends CI_Model {
 	        exit();
 	}
 
-	function get_selected($role_id= 0,$store_id,$permissions_array){
+	function get_selected($role_id= 0,$store_id=null,$permissions_array=null){
 		$info=array();
 		foreach ($permissions_array as $key => $value) {
 			if(isset($_POST['permission'][$value])) {
@@ -247,7 +247,7 @@ class Roles_model extends CI_Model {
 		return $info;
 	}
 
-	public function set_persmissions($role_id= 0,$store_id){
+	public function set_persmissions($role_id= 0,$store_id=null){
 		//echo "<pre>"; print_r($this->security->xss_clean(html_escape(array_merge($_POST))));exit;
 		$result =array();
 		//PERMISSIONS KEY FROM FRONT END
@@ -386,6 +386,30 @@ class Roles_model extends CI_Model {
 				                                        'services_edit',
 				                                        'services_delete',
 				                                        'services_view',
+												'service_packages_add',
+												'service_packages_edit',
+												'service_packages_delete',
+												'service_packages_view',
+												'memberships_add',
+												'memberships_edit',
+												'memberships_delete',
+												'memberships_view',
+												'treatment_notes_add',
+												'treatment_notes_edit',
+												'treatment_notes_delete',
+												'treatment_notes_view',
+																		'custom_orders_add',
+																		'custom_orders_edit',
+																		'custom_orders_delete',
+																		'custom_orders_view',
+																		'production_batches_add',
+																		'production_batches_edit',
+																		'production_batches_delete',
+																		'production_batches_view',
+																		'recipes_add',
+																		'recipes_edit',
+																		'recipes_delete',
+																		'recipes_view',
 			                                          	'quotation_add',
 							                            'quotation_edit',
 							                            'quotation_delete',
@@ -465,6 +489,30 @@ class Roles_model extends CI_Model {
 														
 																		'online_store_view',
 																		'online_store_edit',
+																		'online_store_orders',
+																		'attendance_edit',
+                    'attendance_view',
+ 
+                    'installment_plans',
+                    'installment_payment',
+                    'installment_report',
+
+                    'nin_verify',
+                    'nin_settings',
+                    'nin_usage',
+                    'nin_logs',
+                    'loyalty_view',
+                    'loyalty_add',
+                    'loyalty_edit',
+                    'loyalty_delete',
+                    'gift_cards_view',
+                    'gift_cards_add',
+                    'gift_cards_edit',
+                    'gift_cards_delete',
+                    'store_credit_view',
+                    'store_credit_add',
+                    'store_credit_edit',
+                    'store_credit_delete',
 
 													)));
 		

@@ -281,13 +281,13 @@
           });
         });
 
-        /*Warehouse*/
+        /*Branch*/
         $("#warehouse_from").on("change",function(){
           var warehouse_id=$(this).val();
           $("#stock_table > tbody").empty();
           calculate_quantity();
         });
-        /*Warehouse end*/
+        /*Branch end*/
 
          $(".close_btn").on("click",function(){
            if(typeof swal === 'undefined'){
@@ -318,7 +318,7 @@
           $("#item_search").attr({
             disabled: true,
           });
-          toastr["warning"]("Please Select Warehouse!!");
+          toastr["warning"]("Please Select Branch!!");
           failed.currentTime = 0; 
           failed.play();
          

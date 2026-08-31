@@ -1,7 +1,14 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+use Dompdf\Dompdf;
+use Dompdf\Options;
+
 class Pdf extends MY_Controller {
+
+	private function load_dompdf(){
+		require_once(APPPATH . 'libraries/dompdf/autoload.inc.php');
+	}
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
@@ -14,32 +21,40 @@ class Pdf extends MY_Controller {
 	*/
 	public function sales($sales_id=null){
 
-		$params = array();
-
-		//Validate Record Authenttication
+		//Validate Record Authentication
 		$this->belong_to('db_sales',$sales_id);
 		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
 			$this->show_access_denied_page();
 		}
 
-		//Select Store Invoice Format
-		$invoice_format_id = get_invoice_format_id();
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('sales_invoice');
+        $data=array_merge($data,array('sales_id'=>$sales_id));
 
-		$params['sales_id'] = $sales_id;
+		$this->load->view('print-sales-invoice-whatsapp',$data);
 
-		if($invoice_format_id==4){
-			//GST invoice
-			$this->load->library('tcpdf/invoice/GstInvoice',$params);
+		// Get output html
+        $html = $this->output->get_output();
 
-			$this->gstinvoice->show_pdf();
-		}
-		else{
-			//Default invoice
-			$this->load->library('tcpdf/invoice/Sales',$params);
+		$this->load_dompdf();
+		mb_internal_encoding('UTF-8');
 
-			$this->sales->show_pdf();
-		}
+        $options = new Options();
+		$options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
 
+        // Load HTML content
+        $dompdf->loadHtml($html,'UTF-8');
+
+        // (Optional) Setup the paper size and orientation
+        $dompdf->setPaper('A4', 'portrait');/*landscape or portrait*/
+
+        // Render the HTML as PDF
+        $dompdf->render();
+
+        // Output the generated PDF (1 = download and 0 = preview)
+        $dompdf->stream("Sales-invoice-$sales_id-".date('M')."_".date('d')."_".date('Y'), array("Attachment"=>0));
+		exit;
 	}
 
 }

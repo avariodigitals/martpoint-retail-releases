@@ -132,12 +132,7 @@
                     <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
                     
                   </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('hsn'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                    <td></td>
-                  </tr>
+
                   <tr>
                     <td><?=$i++;?></td>
                     <td><?= $this->lang->line('unit_name'); ?></td>

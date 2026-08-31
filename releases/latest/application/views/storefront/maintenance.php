@@ -122,7 +122,7 @@
             <h1>Store Not Found</h1>
             <p>The store you're looking for is not available at the moment. It may have been removed or deactivated.</p>
         <?php endif; ?>
-        <div class="footer-note">
+        <div class="footer-note" style="display:none;">
             <i class="fa fa-shopping-bag" style="margin-right:5px;"></i>
             Powered by <a href="#">MartPoint Retail</a>
         </div>

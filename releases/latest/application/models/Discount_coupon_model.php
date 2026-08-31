@@ -21,7 +21,7 @@ class Discount_coupon_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -40,7 +40,7 @@ class Discount_coupon_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -54,7 +54,7 @@ class Discount_coupon_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -84,11 +84,13 @@ class Discount_coupon_model extends CI_Model {
 		$expire_date = $this->input->post('expire_date', TRUE);
 		$command = $this->input->post('command', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
-		$CUR_DATE = $this->data['CUR_DATE'];
-		$CUR_TIME = $this->data['CUR_TIME'];
-		$CUR_USERNAME = $this->data['CUR_USERNAME'];
-		$SYSTEM_IP = $this->data['SYSTEM_IP'];
-		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
+		$CI =& get_instance();
+		$global = property_exists($CI, 'data') && is_array($CI->data) ? $CI->data : [];
+		$CUR_DATE = $this->data['CUR_DATE'] ?? $global['CUR_DATE'] ?? date('Y-m-d');
+		$CUR_TIME = $this->data['CUR_TIME'] ?? $global['CUR_TIME'] ?? date('H:i:s');
+		$CUR_USERNAME = $this->data['CUR_USERNAME'] ?? $global['CUR_USERNAME'] ?? 'system';
+		$SYSTEM_IP = $this->data['SYSTEM_IP'] ?? $global['SYSTEM_IP'] ?? '127.0.0.1';
+		$SYSTEM_NAME = $this->data['SYSTEM_NAME'] ?? $global['SYSTEM_NAME'] ?? 'MartPoint';
 
 		$expire_date=system_fromatted_date($expire_date);
 		//Validate This customers already exist or not
@@ -156,10 +158,10 @@ class Discount_coupon_model extends CI_Model {
 	
 	public function update_status($id,$status){
 		if (set_status_of_table($id,$status,'db_coupons')){
-            echo "success";
+            echo "success"; exit;
         }
         else{
-            echo "failed";
+            echo "failed"; exit;
         }
 	}
 	public function delete_coupons($ids){
@@ -176,10 +178,10 @@ class Discount_coupon_model extends CI_Model {
 
 	        if ($query1){
 	        	$this->db->trans_commit();
-	            echo "success";
+	            echo "success"; exit;
 	        }
 	        else{
-	            echo "failed";
+	            echo "failed"; exit;
 	        }	
 		
 	}

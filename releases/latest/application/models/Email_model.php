@@ -13,7 +13,6 @@ class Email_model extends CI_Model {
 		$this->db->trans_begin();
 		if($hidden_rowcount>0){
 		$this->db->query("delete from db_emailapi where store_id=".$store_id);
-		$this->db->query("ALTER TABLE db_emailapi AUTO_INCREMENT = 1");
 			for($i=1; $i<=$hidden_rowcount; $i++){
 				if(isset($_POST['info_'.$i])){
 					$info 	 	= $_POST['info_'.$i];

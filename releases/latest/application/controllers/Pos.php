@@ -19,6 +19,12 @@ class Pos extends MY_Controller {
 	public function index()
 	{
 		$this->permission_check('pos');
+
+		if(is_mobile() && $this->input->get('mobile') !== '0'){
+			redirect(base_url('mobile/pos'), 'refresh');
+			return;
+		}
+
 		$data=$this->data;
 
 		// Check if cashier is clocked in
@@ -27,6 +33,24 @@ class Pos extends MY_Controller {
 		if(stripos($roleName, 'cashier') !== false){
 			$this->load->model('attendance_model');
 			$data['needs_clock_in'] = !$this->attendance_model->needsClockOut($this->session->userdata('inv_userid'));
+		}
+
+		// Cashier shift (Z-Report) status for the POS top bar
+		$data['open_shift'] = null;
+		$data['can_manage_shifts'] = false;
+		if($this->permissions('cashier_shifts_manage') && mp_feature_enabled('cashier_shifts')){
+			$data['can_manage_shifts'] = true;
+			if($this->db->table_exists('db_cashier_shifts')){
+				$this->load->model('cashier_shifts_model');
+				$data['open_shift'] = $this->cashier_shifts_model->get_open_shift();
+				$data['tills']      = $this->cashier_shifts_model->get_tills_for_user();
+				if(!empty($data['open_shift'])){
+					$data['expected'] = $this->cashier_shifts_model->compute_expected($data['open_shift']);
+				}
+				// Till account to use as default for cash Pay in POS
+				$data['till_account_id']   = (!empty($data['open_shift']) && !empty($data['open_shift']->cash_account_id)) ? $data['open_shift']->cash_account_id : get_cash_account_id();
+				$data['till_account_name'] = (!empty($data['open_shift']) && !empty($data['open_shift']->account_name)) ? $data['open_shift']->account_name : get_account_name($data['till_account_id']);
+			}
 		}
 
 		//Sales Code
@@ -42,6 +66,18 @@ class Pos extends MY_Controller {
 		$data['result'] = $this->get_hold_invoice_list();
 		$data['tot_count'] = $this->get_hold_invoice_count();
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		$data['is_restaurant'] = mp_feature_enabled('kitchen_workflow');
+		$data['is_laundry'] = mp_feature_enabled('laundry_workflow');
+		$data['manager_approvals_enabled'] = mp_feature_enabled('manager_approvals');
+		// Staff list for commission assignment
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		// Service-to-staff mapping for POS staff assignment dropdown filtering
+		$service_staff = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_service_staff')->result();
+		$service_staff_map = [];
+		foreach ($service_staff as $ss) {
+			$service_staff_map[$ss->service_id][] = $ss->staff_id;
+		}
+		$data['service_staff_map'] = $service_staff_map;
 		$this->load->view('pos',$data);
 	}
 
@@ -53,6 +89,15 @@ class Pos extends MY_Controller {
 		if ($this->form_validation->run() == TRUE) {
 			$this->load->model('customers_model');
 			$result=$this->customers_model->verify_and_save();
+			if($result === 'success'){
+				$customer_id = $this->db->insert_id();
+				$nin_bvn = $this->input->post('nin_bvn', TRUE);
+				$nin_verified = $this->input->post('nin_verified', TRUE);
+				$this->db->where('id', $customer_id)->update('db_customers', array(
+					'nin_bvn' => $nin_bvn,
+					'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+				));
+			}
 			//fetch latest item details
 			$res=array();
 			$query=$this->db->query("select id,customer_name from db_customers order by id desc limit 1");
@@ -110,6 +155,28 @@ class Pos extends MY_Controller {
 	    $data['result'] = $this->get_hold_invoice_list();
 		$data['tot_count'] = $this->get_hold_invoice_count();
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		$data['is_restaurant'] = mp_feature_enabled('kitchen_workflow');
+		$data['is_laundry'] = mp_feature_enabled('laundry_workflow');
+		$data['manager_approvals_enabled'] = mp_feature_enabled('manager_approvals');
+		// Staff list for commission assignment
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		// Cashier shift (Z-Report) status
+		$data['open_shift'] = null;
+		$data['can_manage_shifts'] = false;
+		if($this->permissions('cashier_shifts_manage') && mp_feature_enabled('cashier_shifts')){
+			$data['can_manage_shifts'] = true;
+			if($this->db->table_exists('db_cashier_shifts')){
+				$this->load->model('cashier_shifts_model');
+				$data['open_shift'] = $this->cashier_shifts_model->get_open_shift();
+				$data['tills']      = $this->cashier_shifts_model->get_tills_for_user();
+				if(!empty($data['open_shift'])){
+					$data['expected'] = $this->cashier_shifts_model->compute_expected($data['open_shift']);
+				}
+				// Till account to use as default for cash Pay in POS
+				$data['till_account_id']   = (!empty($data['open_shift']) && !empty($data['open_shift']->cash_account_id)) ? $data['open_shift']->cash_account_id : get_cash_account_id();
+				$data['till_account_name'] = (!empty($data['open_shift']) && !empty($data['open_shift']->account_name)) ? $data['open_shift']->account_name : get_account_name($data['till_account_id']);
+			}
+		}
 		$this->load->view('pos',$data);
 	}
 	public function fetch_sales($sales_id){
@@ -182,6 +249,50 @@ class Pos extends MY_Controller {
 	}
 	public function get_item_details(){
 		echo $this->pos_model->get_item_details($this->input->post('item_id'));
+	}
+
+	/**
+	 * AJAX: Return attribute types and values for a product (for POS variant picker)
+	 */
+	public function get_item_attribute_types(){
+		$item_id = (int)$this->input->post('item_id', TRUE);
+		$this->load->model('items_model');
+		$item = $this->db->where('id', $item_id)->get('db_items')->row();
+		$attribute_types = !empty($item) && !empty($item->attribute_types_json) ? json_decode($item->attribute_types_json, true) : array();
+		$this->load->model('attributes_model','attributes');
+		$attribute_map = array();
+		if(!empty($attribute_types)){
+			foreach($attribute_types as $type){
+				$this->db->where('store_id', get_current_store_id());
+				$this->db->where('attribute_type', $type);
+				$this->db->where('status', 1);
+				$this->db->order_by('sort_order','asc');
+				$this->db->order_by('attribute_value','asc');
+				$q = $this->db->get('db_attributes');
+				$attribute_map[$type] = array();
+				foreach($q->result() as $r){
+					$attribute_map[$type][] = $r->attribute_value;
+				}
+			}
+		}
+		echo json_encode(array('status'=>'success','has_attributes'=>!empty($attribute_types),'attribute_types'=>$attribute_types,'attribute_map'=>$attribute_map));
+	}
+
+	/**
+	 * AJAX: Find the child item_id for selected attribute values.
+	 */
+	public function find_child_item_by_attributes(){
+		$parent_id = (int)$this->input->post('parent_id', TRUE);
+		$attributes = $this->input->post('attributes', TRUE); // JSON or array
+		$attributes = is_string($attributes) ? json_decode($attributes, true) : $attributes;
+		if(empty($attributes)) { echo json_encode(array('status'=>'error','message'=>'No attributes selected')); return; }
+		$this->load->model('items_model');
+		$child_id = $this->items_model->find_child_item_id_by_attributes($parent_id, $attributes);
+		if($child_id){
+			echo json_encode(array('status'=>'success','item_id'=>$child_id));
+		} else {
+			echo json_encode(array('status'=>'error','message'=>'No child variant found for the selected attributes.'));
+		}
 	}
 
 }

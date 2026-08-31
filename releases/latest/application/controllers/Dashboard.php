@@ -5,7 +5,6 @@ class Dashboard extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
-		if($this->get_current_version_of_db()!=app_version()){ redirect(base_url('updates/update_db'),'refresh'); }
 	}
 	public function dashboard_values(){
 		$this->load->model('dashboard_model');//Model
@@ -13,17 +12,40 @@ class Dashboard extends MY_Controller {
 		echo json_encode($data);
 	}
 
+	public function dismiss_update_warning(){
+		$this->session->set_userdata('db_update_dismissed', 1);
+		echo json_encode(['status' => 'ok']);
+	}
+
 	public function index($val='')
 	{ 	
+		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
+			redirect(base_url('pos'));
+		}
 		$this->load->model('dashboard_model');//Model
 
 		// Branch / Warehouse Filter
 		$selected_branch = '';
 		if($this->input->get('branch_id') !== NULL){
 			$selected_branch = $this->input->get('branch_id');
+			// Validate branch belongs to current store
+			if(!empty($selected_branch)){
+				$branch_exists = $this->db->where('id', $selected_branch)->where('store_id', get_current_store_id())->count_all_results('db_warehouse') > 0;
+				if(!$branch_exists){
+					$selected_branch = '';
+				}
+			}
 			$this->session->set_userdata('selected_branch_id', $selected_branch);
 		} else if($this->session->userdata('selected_branch_id') !== NULL){
 			$selected_branch = $this->session->userdata('selected_branch_id');
+			// Validate stale session branch belongs to current store
+			if(!empty($selected_branch)){
+				$branch_exists = $this->db->where('id', $selected_branch)->where('store_id', get_current_store_id())->count_all_results('db_warehouse') > 0;
+				if(!$branch_exists){
+					$selected_branch = '';
+					$this->session->set_userdata('selected_branch_id', '');
+				}
+			}
 		}
 
 		// Date range filter
@@ -33,10 +55,11 @@ class Dashboard extends MY_Controller {
 			$range = $this->input->get('range');
 		}
 		$range_info = $this->dashboard_model->get_range_info($range);
-		$data['range'] = $range;
-		$data['range_label'] = $range_info['label'];
+		$range_label = $range_info['label'];
 
-		$data=array_merge($this->data,$this->dashboard_model->get_bar_chart(),$this->dashboard_model->get_pie_chart($selected_branch));
+		$data=array_merge($this->data,$this->dashboard_model->get_bar_chart($range, $selected_branch),$this->dashboard_model->get_pie_chart($selected_branch));
+		$data['range'] = $range;
+		$data['range_label'] = $range_label;
 		if(is_admin()){
 			$data = array_merge($data,$this->dashboard_model->get_subscription_chart());
 		}
@@ -45,6 +68,13 @@ class Dashboard extends MY_Controller {
 		$data['today_sales']     = $this->dashboard_model->get_sales_by_range($range, $selected_branch);
 		$data['today_profit']    = $this->dashboard_model->get_profit_by_range($range, $selected_branch);
 		$data['today_expenses']  = $this->dashboard_model->get_expenses_by_range($range, $selected_branch);
+
+		$site = get_site_details();
+		$daily_target = (float)($site->sales_target ?? 50000);
+		$today = $data['today_sales']['today'] ?? 0;
+		$data['daily_target'] = $daily_target;
+		$data['daily_target_progress'] = ($daily_target > 0) ? min(100, round(($today / $daily_target) * 100, 1)) : 0;
+
 		$data['outstanding']     = $this->dashboard_model->get_outstanding_debts($selected_branch);
 		$data['low_stock_count'] = $this->dashboard_model->get_low_stock_count($selected_branch);
 		$data['low_stock_items'] = $this->dashboard_model->get_low_stock_items($selected_branch);
@@ -54,7 +84,16 @@ class Dashboard extends MY_Controller {
 		$data['recent_activities'] = $this->dashboard_model->get_recent_activities($selected_branch);
 		$data['insights']        = $this->dashboard_model->get_insights($selected_branch);
 		$data['branch_performance'] = $this->dashboard_model->get_branch_performance($range);
+		$data['best_selling_variant'] = $this->dashboard_model->get_best_selling_variant($selected_branch, $range);
 		$data['page_title']=$this->lang->line('dashboard');
+
+		// Clock-in status for dashboard (all non-admin staff)
+		$data['needs_clock_in'] = false;
+		if(!is_admin()){
+			$this->load->model('attendance_model');
+			$data['needs_clock_in'] = !$this->attendance_model->needsClockOut($this->session->userdata('inv_userid'));
+		}
+
 		if(isset($_POST['store_id'])){
 			$data['store_id'] =$_POST['store_id'];
 		}
@@ -155,7 +194,7 @@ class Dashboard extends MY_Controller {
 		foreach ($list as $items) {
 			$no++;
 			$row = array();
-			$row[] = $items->item_code;
+			$row[] = $no;
 			$row[] = $items->item_name;
 			$row[] = $items->category_name;
 			$row[] = $items->brand_name;
@@ -208,7 +247,17 @@ class Dashboard extends MY_Controller {
 		$data['store_name'] = $this->db->select('store_name')->where('id',get_current_store_id())->get('db_store')->row()->store_name;
 		$data['page_title'] = 'Daily Business Summary';
 
-		$this->load->view('daily_summary', $data);
+		// Prevent stale cached versions from showing the old desktop UI on mobile
+		$this->output->set_header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->output->set_header('Pragma: no-cache');
+		$this->output->set_header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+
+		$force_mobile = (is_mobile() || $this->input->get('mobile') === '1');
+		if($force_mobile){
+			$this->load->view('mobile/daily_summary', $data);
+		} else {
+			$this->load->view('daily_summary', $data);
+		}
 	}
 
 	/**

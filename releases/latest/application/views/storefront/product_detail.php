@@ -84,7 +84,7 @@
     <?php foreach($related_products as $p): ?>
     <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/product/' . $p->id); ?>" class="sf-card">
       <?php if($p->item_image && file_exists($p->item_image)): ?>
-        <img src="<?= base_url($p->item_image); ?>" class="sf-card-img" alt="">
+        <img src="<?= base_url($p->item_image); ?>" class="sf-card-img" alt="" loading="lazy">
       <?php else: ?>
         <div class="sf-card-img" style="display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:10px;">No Image</div>
       <?php endif; ?>

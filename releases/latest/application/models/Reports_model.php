@@ -3,6 +3,13 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Reports_model extends CI_Model {
 
+	public function __construct(){
+		parent::__construct();
+		// The report queries pre-date strict MySQL modes; relax ONLY_FULL_GROUP_BY
+		// so the existing grouped reports (sales summary, item sales, etc.) run.
+		$this->db->query("SET SESSION sql_mode = REPLACE((SELECT @@SESSION.sql_mode), 'ONLY_FULL_GROUP_BY', '')");
+	}
+
 	public function show_supplier_items_report(){
 		$store_id = $this->input->post('store_id', TRUE);
 		$item_id = $this->input->post('item_id', TRUE);
@@ -360,7 +367,7 @@ class Reports_model extends CI_Model {
 		}
 		$this->db->where("b.`id`= a.`supplier_id`");
 		$this->db->from("db_purchase as a");
-		$this->db->where("a.`purchase_status`= 'Received'");
+		$this->db->where("a.`purchase_status` IN ('Received','Partially Received')");
 		$this->db->from("db_suppliers as b");
 		
 		
@@ -661,6 +668,10 @@ class Reports_model extends CI_Model {
 		$to_warehouse = $this->input->post('to_warehouse', TRUE);
 		$item_type = $this->input->post('item_type', TRUE);
 		
+		$as_of_date = '';
+		if(!empty($to_date)){
+			$as_of_date = system_fromatted_date($to_date);
+		}
 
 		if(!empty($store_id)){
 			$this->db->where("a.store_id",$store_id);
@@ -668,15 +679,9 @@ class Reports_model extends CI_Model {
 		if(!is_admin()){
 			$this->db->where("a.store_id",get_current_store_id());
 		}
-		$this->db->select("a.sales_price,a.item_code,a.price,a.purchase_price,a.item_name,a.tax_type,a.store_id,a.id as item_id,a.item_group,
-			d.category_name,
-			c.brand_name,
-			");
-		$this->db->select("b.tax_name");
+		$this->db->select("a.sales_price,a.item_code,a.price,a.purchase_price,a.item_name,a.tax_type,a.store_id,a.id as item_id,a.item_group,d.category_name,c.brand_name,b.tax_name");
 		$this->db->from("db_items as a");
-
-		$this->db->from("db_tax as b");
-		$this->db->where("b.id=a.tax_id");
+		$this->db->join("db_tax as b","b.id=a.tax_id","left");
 		$this->db->where("a.service_bit=0");
 		$this->db->join("db_brands as c","c.id=a.brand_id","left");
 		$this->db->join("db_category as d","d.id=a.category_id","left");
@@ -702,9 +707,11 @@ class Reports_model extends CI_Model {
 
 				if($res1->item_group=='Variants'){continue;}
 
-					$available_qty_wh = total_available_qty_items_of_warehouse($warehouse_id,$res1->store_id,$res1->item_id);
-
-					
+					if(!empty($as_of_date)){
+						$available_qty_wh = get_total_qty_of_warehouse_item_as_of_date($res1->item_id,$warehouse_id,$res1->store_id,$as_of_date);
+					}else{
+						$available_qty_wh = total_available_qty_items_of_warehouse($warehouse_id,$res1->store_id,$res1->item_id);
+					}
 
 					$value = $available_qty_wh * $res1->sales_price;
 
@@ -740,8 +747,9 @@ class Reports_model extends CI_Model {
 			if(store_module() && is_admin()){
 				$total_columns_count ++;
 			}
+			$date_note = (!empty($as_of_date)) ? " <span style='font-size:12px;color:#666;'>[Stock as of ".show_date($as_of_date)."]</span>" : "";
 			$str .= "<tr>
-					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
+					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b>".$date_note."</td>
 					  <td class='text-left text-bold'>".format_qty($tot_stock)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_value)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_stock_value_by_purchase_price)."</td>
@@ -804,11 +812,11 @@ class Reports_model extends CI_Model {
 					$store_id=$res1->store_id;
 
 					$str='';
-					if(empty($store_id)){
-					     $str =" and store_id= $store_id ";
+					if(!empty($store_id)){
+					     $str .=" and store_id= $store_id ";
 					}
 					if(!empty($warehouse_id)){
-				         $str =" and warehouse_id= $warehouse_id ";
+				         $str .=" and warehouse_id= $warehouse_id ";
 				    }
 					$q3 = "select COALESCE(sum(available_qty),0) as available_qty from 
 							db_warehouseitems where 
@@ -1012,7 +1020,7 @@ class Reports_model extends CI_Model {
 		$this->db->from("db_purchasepayments as a");
 		$this->db->from("db_suppliers as b");
 		$this->db->from("db_purchase as c");
-		$this->db->where("c.`purchase_status`= 'Received'");
+		$this->db->where("c.`purchase_status` IN ('Received','Partially Received')");
 		if(!empty($store_id)){
 			$this->db->where("a.store_id",$store_id);
 		}
@@ -1350,11 +1358,11 @@ class Reports_model extends CI_Model {
 	    exit;
 	}
 
-	function _create_query($store_id='',$table_name,$table_column,$from_date,$to_date){
+	function _create_query($store_id,$table_name,$table_column,$from_date,$to_date){
 		$ids = array();
 
 		if($table_column=='db_purchase'){
-			$this->db->where("purchase_status='Received'");
+			$this->db->where("purchase_status IN ('Received','Partially Received')");
 		}
 		else if($table_column=='db_sales'){
 			$this->db->where("sales_status='Final'");
@@ -1380,27 +1388,27 @@ class Reports_model extends CI_Model {
 		}
 		return (count($ids)>0) ? implode (", ", $ids) : 'null';
 	}
-	function _get_db_sales_ids($store_id='',$from_date,$to_date){
+	function _get_db_sales_ids($store_id,$from_date,$to_date){
 
 		return $this->_create_query($store_id,'db_sales','sales_date',$from_date,$to_date);
 
 	}
-	function _get_db_sales_return_ids($store_id='',$from_date,$to_date){
+	function _get_db_sales_return_ids($store_id,$from_date,$to_date){
 
 		return $this->_create_query($store_id,'db_salesreturn','return_date',$from_date,$to_date);
 
 	}
-	function _get_db_purchase_ids($store_id='',$from_date,$to_date){
+	function _get_db_purchase_ids($store_id,$from_date,$to_date){
 
 		return $this->_create_query($store_id,'db_purchase','purchase_date',$from_date,$to_date);
 
 	}
-	function _get_db_purchase_return_ids($store_id='',$from_date,$to_date){
+	function _get_db_purchase_return_ids($store_id,$from_date,$to_date){
 
 		return $this->_create_query($store_id,'db_purchasereturn','return_date',$from_date,$to_date);
 
 	}
-	function _get_db_expense_ids($store_id='',$from_date,$to_date){
+	function _get_db_expense_ids($store_id,$from_date,$to_date){
 		
 		return $this->_create_query($store_id,'db_expense','expense_date',$from_date,$to_date);
 
@@ -1424,18 +1432,35 @@ class Reports_model extends CI_Model {
 			
 			$info=array();
 
-			//Get opening Balance
-			if(store_module() && is_admin()){if(!empty($store_id)){ 
-						$this->db->where("a.store_id",$store_id);}
-					}else{ 
-						$this->db->where("a.store_id",get_current_store_id());	
-				}
-			$this->db->select("SUM(b.adjustment_qty * a.purchase_price) AS  opening_stock_price");
-			$this->db->from("db_items AS a , db_stockadjustmentitems AS b");
-			$this->db->where("a.id=b.item_id");
-			$query = $this->db->get()->row();
-            $opening_stock_price=$query->opening_stock_price;
-            $info['opening_stock_price']=(store_number_format($opening_stock_price));
+			//Get opening and closing stock by actual qty as of date
+			$effective_store_id = (store_module() && is_admin() && !empty($store_id)) ? $store_id : get_current_store_id();
+			$opening_date = date('Y-m-d', strtotime($from_date . ' -1 day'));
+			$closing_date = $to_date;
+
+			$this->db->reset_query();
+			$this->db->where("store_id", $effective_store_id);
+			$this->db->where("service_bit", 0);
+			$this->db->select("id, purchase_price");
+			$items = $this->db->get("db_items")->result();
+			$this->db->reset_query();
+
+			$opening_stock_price = 0;
+			$closing_stock_price = 0;
+			$opening_stock_qty = 0;
+			$closing_stock_qty = 0;
+			foreach($items as $itm){
+				$opening_qty = get_total_qty_of_item_as_of_date($itm->id, $effective_store_id, $opening_date);
+				$closing_qty = get_total_qty_of_item_as_of_date($itm->id, $effective_store_id, $closing_date);
+				$opening_stock_price += ($opening_qty * $itm->purchase_price);
+				$closing_stock_price += ($closing_qty * $itm->purchase_price);
+				$opening_stock_qty += $opening_qty;
+				$closing_stock_qty += $closing_qty;
+			}
+
+			$info['opening_stock_price'] = store_number_format($opening_stock_price);
+			$info['closing_stock_price'] = store_number_format($closing_stock_price);
+			$info['opening_stock_qty'] = format_qty($opening_stock_qty);
+			$info['closing_stock_qty'] = format_qty($closing_stock_qty);
             
 
 
@@ -1941,10 +1966,10 @@ class Reports_model extends CI_Model {
 			$tot_net_profit=0;
 
 			foreach ($q1->result() as $res1) {
-				$q2=$this->db->query("SELECT b.sales_qty,COALESCE(SUM(a.purchase_price*sales_qty),0) AS purchase_price, COALESCE(SUM(total_cost),0) AS total_cost FROM db_items AS a, db_salesitems AS b, db_sales AS c WHERE c.id=b.sales_id AND a.id=b.item_id and c.sales_status='Final'
+				$q2=$this->db->query("SELECT b.sales_qty,COALESCE(SUM(a.price*sales_qty),0) AS purchase_price, COALESCE(SUM(total_cost),0) AS total_cost FROM db_items AS a, db_salesitems AS b, db_sales AS c WHERE c.id=b.sales_id AND a.id=b.item_id and c.sales_status='Final'
 					AND b.sales_id=".$res1->id);
 
-				$q3=$this->db->query("SELECT COALESCE(SUM(a.purchase_price*return_qty),0) AS purchase_price, COALESCE(SUM(total_cost),0) AS total_cost FROM db_items AS a, db_salesitemsreturn AS b, db_salesreturn AS c WHERE c.id=b.return_id AND a.id=b.item_id and c.return_status!='Final'
+				$q3=$this->db->query("SELECT COALESCE(SUM(a.price*return_qty),0) AS purchase_price, COALESCE(SUM(total_cost),0) AS total_cost FROM db_items AS a, db_salesitemsreturn AS b, db_salesreturn AS c WHERE c.id=b.return_id AND a.id=b.item_id and c.return_status!='Final'
 					AND b.sales_id=".$res1->id);
 				$purchase_return_price=$q3->row()->purchase_price;
 
@@ -3175,7 +3200,7 @@ class Reports_model extends CI_Model {
 				echo "<td>".show_date($res1->sales_date)."</td>";
 				echo "<td>".$res1->item_name."</td>";
 				echo "<td>".format_qty($res1->sales_qty)."</td>";
-				echo "<td>".$res1->hsn."</td>";
+				
 				echo "<td class='text-right'>".store_number_format($res1->price_per_unit)."</td>";
 				echo "<td class='text-right'>".store_number_format($res1->discount_amt+$coupon_amt)."</td>";
 				echo "<td class='text-right'>".store_number_format($taxable)."</td>";
@@ -3213,7 +3238,6 @@ class Reports_model extends CI_Model {
 			echo "<tr>
 					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
 					  <td class='text-right text-bold'>".format_qty($tot_sales_qty)."</td>
-					  <td class='text-right text-bold'></td>
 					  <td class='text-right text-bold'>".store_number_format($tot_price_per_unit)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_discount_amt)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_taxable)."</td>
@@ -3230,7 +3254,7 @@ class Reports_model extends CI_Model {
 				  </tr>";
 		}
 		else{
-			$total_columns_count=20;
+			$total_columns_count=19;
 			if(store_module() && is_admin()){
 				$total_columns_count ++;
 			}
@@ -3386,7 +3410,7 @@ class Reports_model extends CI_Model {
 				echo "<td>".show_date($res1->purchase_date)."</td>";
 				echo "<td>".$res1->item_name."</td>";
 				echo "<td>".format_qty($res1->purchase_qty)."</td>";
-				echo "<td>".$res1->hsn."</td>";
+				
 				echo "<td class='text-right'>".store_number_format($res1->price_per_unit)."</td>";
 				echo "<td class='text-right'>".store_number_format($res1->discount_amt)."</td>";
 				echo "<td class='text-right'>".store_number_format($taxable)."</td>";
@@ -3424,7 +3448,6 @@ class Reports_model extends CI_Model {
 			echo "<tr>
 					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
 					  <td class='text-left text-bold'>".format_qty($tot_purchase_qty)."</td>
-					  <td class='text-right text-bold'></td>
 					  <td class='text-right text-bold'>".store_number_format($tot_price_per_unit)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_discount_amt)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_taxable)."</td>
@@ -3441,7 +3464,7 @@ class Reports_model extends CI_Model {
 				  </tr>";
 		}
 		else{
-			$total_columns_count=20;
+			$total_columns_count=19;
 			if(store_module() && is_admin()){
 				$total_columns_count ++;
 			}
@@ -3615,8 +3638,14 @@ class Reports_model extends CI_Model {
 	              					a.`created_time` AS created_time
               					FROM 
               						db_sales a";
-  						$str1.=" WHERE 
-						a.customer_id =".$customer_id ;
+  						$where = "1=1";
+  						if(!empty($store_id)){
+  							$where .= " and a.store_id =".$store_id;
+  						}
+  						if(!empty($customer_id) && is_numeric($customer_id) && $customer_id > 0){
+  							$where .= " and a.customer_id =".$customer_id;
+  						}
+  						$str1.=" WHERE ".$where;
               		if(!empty($from_date) && !empty($to_date)){
               			$str1.="  and
 									(sales_date>='".$from_date."' and sales_date<='".$to_date."') ";
@@ -3631,8 +3660,14 @@ class Reports_model extends CI_Model {
 									b.`created_time` AS created_time
 								FROM 
 									`db_salespayments` b";
-									$str1.=" WHERE 
-						b.customer_id =".$customer_id ;
+  						$where2 = "1=1";
+  						if(!empty($store_id)){
+  							$where2 .= " and b.store_id =".$store_id;
+  						}
+  						if(!empty($customer_id) && is_numeric($customer_id) && $customer_id > 0){
+  							$where2 .= " and b.customer_id =".$customer_id;
+  						}
+  						$str1.=" WHERE ".$where2;
               		if(!empty($from_date) && !empty($to_date)){
               			$str1.="  and
 									(b.payment_date>='".$from_date."' and b.payment_date<='".$to_date."') ";
@@ -3822,8 +3857,12 @@ class Reports_model extends CI_Model {
 
 		$item_id = isset($item_id) ? $item_id : "";
 
-		$this->db->where("a.warehouse_from",$from_warehouse);
-		$this->db->where("a.warehouse_to",$to_warehouse);
+		if(!empty($from_warehouse)){
+			$this->db->where("a.warehouse_from",$from_warehouse);
+		}
+		if(!empty($to_warehouse)){
+			$this->db->where("a.warehouse_to",$to_warehouse);
+		}
 		
 		$this->db->select("a.id,a.transfer_date,a.created_by,a.store_id,e.category_name,f.brand_name");
 		$this->db->select("c.transfer_qty,d.item_name");
@@ -3857,7 +3896,7 @@ class Reports_model extends CI_Model {
 			$str = " and e.id=$category_id"; 
 		}
 
-		$this->db->join("db_category as e","e.`id`= d.`category_id` $str","right");
+		$this->db->join("db_category as e","e.`id`= d.`category_id` $str","inner");
 			
 		$str ="";
 
@@ -3865,10 +3904,10 @@ class Reports_model extends CI_Model {
 			$str = " and f.id=$brand_id"; 
 		}
 
-		$this->db->join("db_brands as f","f.`id`= d.`brand_id` $str","right");
+		$this->db->join("db_brands as f","f.`id`= d.`brand_id` $str","inner");
 
-		$this->db->join("db_warehouse as w1","w1.`id`= c.`warehouse_from`","right");
-		$this->db->join("db_warehouse as w2","w2.`id`= c.`warehouse_to`","right");
+		$this->db->join("db_warehouse as w1","w1.`id`= c.`warehouse_from`","left");
+		$this->db->join("db_warehouse as w2","w2.`id`= c.`warehouse_to`","left");
 
 
 		
@@ -3907,11 +3946,11 @@ class Reports_model extends CI_Model {
 
 			echo "<tr>
 					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
-					  <td class='text-left text-bold'>".format_qty($tot_sales_qty)."</td>
+					  <td class='text-left text-bold'>".format_qty($tot_transfer_qty)."</td>
 				  </tr>";
 		}
 		else{
-			$total_columns_count=9;
+			$total_columns_count=8;
 			if(store_module() && is_admin()){
 				$total_columns_count ++;
 			}
@@ -4040,6 +4079,641 @@ class Reports_model extends CI_Model {
 		}
 		
 	    exit;
+	}
+
+	/* ===================== PRODUCTION REPORTS ===================== */
+	public function show_production_summary_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$from_date = get_date_format($this->input->post('from_date'),'Y-m-d');
+		$to_date = get_date_format($this->input->post('to_date'),'Y-m-d');
+		$status = $this->input->post('status', TRUE);
+
+		$this->db->select('a.*, COUNT(b.id) as item_count');
+		$this->db->from('db_production_batches a');
+		$this->db->join('db_production_batch_items b', 'b.batch_id = a.id', 'left');
+		if(!empty($store_id)){ $this->db->where('a.store_id', $store_id); }
+		if(!empty($from_date)){ $this->db->where('a.scheduled_date >=', $from_date); }
+		if(!empty($to_date)){ $this->db->where('a.scheduled_date <=', $to_date); }
+		if(!empty($status)){ $this->db->where('a.status', $status); }
+		$this->db->group_by('a.id');
+		$this->db->order_by('a.scheduled_date', 'DESC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		$tot_qty=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$tot_qty += (float)$res1->quantity;
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($res1->store_id)."</td>"; }
+				echo "<td>".htmlspecialchars($res1->batch_code)."</td>";
+				echo "<td>".htmlspecialchars($res1->batch_name)."</td>";
+				echo "<td><span class='label label-".Production_batches_model::status_badge($res1->status)."'>".Production_batches_model::status_label($res1->status)."</span></td>";
+				echo "<td>".show_date($res1->scheduled_date)."</td>";
+				echo "<td>".($res1->scheduled_time ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($res1->quantity)."</td>";
+				echo "<td>".htmlspecialchars($res1->equipment ?: '-')."</td>";
+				echo "<td>".htmlspecialchars($res1->staff_name ?: '-')."</td>";
+				echo "</tr>";
+			}
+			echo "<tr><td class='text-right text-bold' colspan='".((store_module() && is_admin())?9:8)."'><b>Total Quantity:</b></td><td class='text-left text-bold'>".format_qty($tot_qty)."</td><td></td></tr>";
+		} else {
+			$colspan = (store_module() && is_admin()) ? 10 : 9;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	public function show_ingredient_usage_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$from_date = get_date_format($this->input->post('from_date'),'Y-m-d');
+		$to_date = get_date_format($this->input->post('to_date'),'Y-m-d');
+		$item_id = $this->input->post('item_id', TRUE);
+
+		$this->db->select('b.item_name as ingredient_name, b.item_code, ri.qty as recipe_qty, ri.cost_per_unit, ri.wastage_pct, r.name as recipe_name, r.yield_qty, r.yield_unit, pb.batch_code, pb.scheduled_date, pbi.quantity as produce_qty, pbi.item_name as product_name');
+		$this->db->from('db_production_batches pb');
+		$this->db->join('db_production_batch_items pbi', 'pbi.batch_id = pb.id');
+		$this->db->join('db_recipes r', 'r.id = pbi.item_id AND pbi.item_type = "recipe_product"');
+		$this->db->join('db_recipe_ingredients ri', 'ri.recipe_id = r.id');
+		$this->db->join('db_items b', 'b.id = ri.item_id');
+		$this->db->where('pb.status', 'completed');
+		if(!empty($store_id)){ $this->db->where('pb.store_id', $store_id); }
+		if(!empty($from_date)){ $this->db->where('pb.scheduled_date >=', $from_date); }
+		if(!empty($to_date)){ $this->db->where('pb.scheduled_date <=', $to_date); }
+		if(!empty($item_id)){ $this->db->where('ri.item_id', $item_id); }
+		$this->db->order_by('pb.scheduled_date', 'DESC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		$tot_used=0;
+		$tot_cost=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$scale = (float)$res1->produce_qty / (float)$res1->yield_qty;
+				$used_qty = (float)$res1->recipe_qty * $scale;
+				$line_cost = $used_qty * (float)$res1->cost_per_unit;
+				$tot_used += $used_qty;
+				$tot_cost += $line_cost;
+
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($this->input->post('store_id', TRUE) ?: get_current_store_id())."</td>"; }
+				echo "<td>".htmlspecialchars($res1->ingredient_name)."</td>";
+				echo "<td>".htmlspecialchars($res1->item_code ?: '-')."</td>";
+				echo "<td>".htmlspecialchars($res1->recipe_name)."</td>";
+				echo "<td>".htmlspecialchars($res1->batch_code)."</td>";
+				echo "<td>".show_date($res1->scheduled_date)."</td>";
+				echo "<td class='text-right'>".format_qty($used_qty)."</td>";
+				echo "<td class='text-right'>".store_number_format($res1->cost_per_unit)."</td>";
+				echo "<td class='text-right'>".store_number_format($line_cost)."</td>";
+				echo "</tr>";
+			}
+			$colspan = (store_module() && is_admin()) ? 9 : 8;
+			echo "<tr><td class='text-right text-bold' colspan='$colspan'><b>Total:</b></td><td class='text-left text-bold'>".format_qty($tot_used)."</td><td></td><td class='text-left text-bold'>".store_number_format($tot_cost)."</td></tr>";
+		} else {
+			$colspan = (store_module() && is_admin()) ? 10 : 9;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	public function show_recipe_costing_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$recipe_id = $this->input->post('recipe_id', TRUE);
+
+		$this->db->select('r.*, i.item_name as product_name, i.item_code as product_code, i.sales_price');
+		$this->db->from('db_recipes r');
+		$this->db->join('db_items i', 'i.id = r.product_item_id', 'left');
+		if(!empty($store_id)){ $this->db->where('r.store_id', $store_id); }
+		if(!empty($recipe_id)){ $this->db->where('r.id', $recipe_id); }
+		$this->db->where('r.status', 1);
+		$this->db->order_by('r.name', 'ASC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$ings = $this->db->where('recipe_id', $res1->id)->get('db_recipe_ingredients')->result();
+				$total_cost = 0;
+				foreach($ings as $ing){
+					$total_cost += (float)$ing->qty * (float)$ing->cost_per_unit;
+				}
+				$cost_per_unit = $res1->yield_qty > 0 ? $total_cost / (float)$res1->yield_qty : 0;
+				$margin = ((float)$res1->sales_price - $cost_per_unit);
+				$margin_pct = $cost_per_unit > 0 ? ($margin / $cost_per_unit) * 100 : 0;
+
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($res1->store_id)."</td>"; }
+				echo "<td>".htmlspecialchars($res1->name)."</td>";
+				echo "<td>".htmlspecialchars($res1->category ?: '-')."</td>";
+				echo "<td>".htmlspecialchars($res1->product_name ?: '-')." <small class='text-muted'>".htmlspecialchars($res1->product_code ?: '')."</small></td>";
+				echo "<td class='text-right'>".format_qty($res1->yield_qty).' '.htmlspecialchars($res1->yield_unit)."</td>";
+				echo "<td class='text-right'>".store_number_format($total_cost)."</td>";
+				echo "<td class='text-right'>".store_number_format($cost_per_unit)."</td>";
+				echo "<td class='text-right'>".store_number_format($res1->sales_price)."</td>";
+				echo "<td class='text-right'>".store_number_format($margin)." <small class='text-muted'>(".number_format($margin_pct,1)."%)</small></td>";
+				echo "</tr>";
+			}
+		} else {
+			$colspan = (store_module() && is_admin()) ? 10 : 9;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	public function show_production_runs_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$from_date = get_date_format($this->input->post('from_date'),'Y-m-d');
+		$to_date = get_date_format($this->input->post('to_date'),'Y-m-d');
+		$recipe_id = $this->input->post('recipe_id', TRUE);
+
+		$this->db->select('pr.*, r.name as recipe_name, r.yield_unit, u.first_name, u.last_name');
+		$this->db->from('db_recipe_production_runs pr');
+		$this->db->join('db_recipes r', 'r.id = pr.recipe_id', 'left');
+		$this->db->join('db_users u', 'u.id = pr.staff_id', 'left');
+		if(!empty($store_id)){ $this->db->where('pr.store_id', $store_id); }
+		if(!empty($from_date)){ $this->db->where('pr.run_date >=', $from_date); }
+		if(!empty($to_date)){ $this->db->where('pr.run_date <=', $to_date); }
+		if(!empty($recipe_id)){ $this->db->where('pr.recipe_id', $recipe_id); }
+		$this->db->order_by('pr.run_date', 'DESC');
+		$q1 = $this->db->get();
+
+		$i=0;
+		$tot_planned=0;
+		$tot_actual=0;
+		$tot_cost=0;
+		if($q1->num_rows()>0){
+			foreach($q1->result() as $res1){
+				$tot_planned += (float)$res1->planned_qty;
+				$tot_actual += (float)$res1->actual_yield;
+				$tot_cost += (float)$res1->actual_cost;
+				echo "<tr>";
+				echo "<td>".++$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($res1->store_id)."</td>"; }
+				echo "<td>".show_date($res1->run_date)."</td>";
+				echo "<td>".htmlspecialchars($res1->recipe_name ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($res1->planned_qty).' '.htmlspecialchars($res1->yield_unit ?: '')."</td>";
+				echo "<td class='text-right'>".format_qty($res1->actual_yield).' '.htmlspecialchars($res1->yield_unit ?: '')."</td>";
+				echo "<td class='text-right'>".store_number_format($res1->actual_cost)."</td>";
+				echo "<td>".htmlspecialchars(($res1->first_name ? $res1->first_name.' '.$res1->last_name : '-'))."</td>";
+				echo "<td>".htmlspecialchars($res1->notes ?: '-')."</td>";
+				echo "</tr>";
+			}
+			$colspan = (store_module() && is_admin()) ? 8 : 7;
+			echo "<tr><td class='text-right text-bold' colspan='$colspan'><b>Total:</b></td><td class='text-left text-bold'>".format_qty($tot_actual)."</td><td class='text-left text-bold'>".store_number_format($tot_cost)."</td><td></td><td></td></tr>";
+		} else {
+			$colspan = (store_module() && is_admin()) ? 9 : 8;
+			echo "<tr><td class='text-center text-danger' colspan='$colspan'>No Records Found</td></tr>";
+		}
+		exit;
+	}
+
+	/* ============================================================
+	 * RECEIVABLES AGING REPORT
+	 * Buckets unpaid Final sales by invoice age (0-30/31-60/61-90/90+)
+	 * ============================================================ */
+	public function show_receivables_aging_report(){
+		$store_id = $this->input->post('store_id', TRUE);
+		$as_of    = $this->input->post('as_of_date', TRUE);
+		if(empty($store_id)){ $store_id = get_current_store_id(); }
+		if(empty($as_of)){ $as_of = date('d-m-Y'); }
+		$as_of_db = system_fromatted_date($as_of);
+
+		$this->db->select("c.id, c.customer_name, c.mobile");
+		$this->db->select("SUM(CASE WHEN DATEDIFF('$as_of_db', s.sales_date) <= 30 THEN (s.grand_total - s.paid_amount) ELSE 0 END) as b_30", FALSE);
+		$this->db->select("SUM(CASE WHEN DATEDIFF('$as_of_db', s.sales_date) BETWEEN 31 AND 60 THEN (s.grand_total - s.paid_amount) ELSE 0 END) as b_60", FALSE);
+		$this->db->select("SUM(CASE WHEN DATEDIFF('$as_of_db', s.sales_date) BETWEEN 61 AND 90 THEN (s.grand_total - s.paid_amount) ELSE 0 END) as b_90", FALSE);
+		$this->db->select("SUM(CASE WHEN DATEDIFF('$as_of_db', s.sales_date) > 90 THEN (s.grand_total - s.paid_amount) ELSE 0 END) as b_over", FALSE);
+		$this->db->select("SUM(s.grand_total - s.paid_amount) as total_outstanding", FALSE);
+		$this->db->from("db_sales s");
+		$this->db->join("db_customers c", "c.id = s.customer_id", "inner");
+		$this->db->where("s.sales_status", "Final");
+		$this->db->where("s.store_id", $store_id);
+		$this->db->where("(s.grand_total - s.paid_amount) >", 0, FALSE);
+		$this->db->where("s.sales_date <=", $as_of_db);
+		$this->db->group_by("c.id");
+		$this->db->order_by("total_outstanding", "DESC");
+		$this->db->having("total_outstanding >", 0, FALSE);
+		$q = $this->db->get();
+
+		$tot = array('b_30'=>0,'b_60'=>0,'b_90'=>0,'b_over'=>0,'total'=>0);
+		if($q->num_rows() > 0){
+			$i=0;
+			foreach($q->result() as $r){
+				$i++;
+				echo "<tr>";
+				echo "<td>".$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($store_id)."</td>"; }
+				echo "<td>".htmlspecialchars($r->customer_name)."</td>";
+				echo "<td>".htmlspecialchars($r->mobile ?: '-')."</td>";
+				echo "<td class='text-right'>".store_number_format($r->b_30)."</td>";
+				echo "<td class='text-right'>".store_number_format($r->b_60)."</td>";
+				echo "<td class='text-right'>".store_number_format($r->b_90)."</td>";
+				echo "<td class='text-right text-danger'>".store_number_format($r->b_over)."</td>";
+				echo "<td class='text-right text-bold'>".store_number_format($r->total_outstanding)."</td>";
+				echo "</tr>";
+				$tot['b_30']   += $r->b_30;
+				$tot['b_60']   += $r->b_60;
+				$tot['b_90']   += $r->b_90;
+				$tot['b_over'] += $r->b_over;
+				$tot['total']  += $r->total_outstanding;
+			}
+			$cs = (store_module() && is_admin()) ? 5 : 4;
+			echo "<tr class='bg-gray-active'>";
+			echo "<td class='text-right text-bold' colspan='".$cs."'><b>Total</b></td>";
+			echo "<td class='text-right text-bold'>".store_number_format($tot['b_30'])."</td>";
+			echo "<td class='text-right text-bold'>".store_number_format($tot['b_60'])."</td>";
+			echo "<td class='text-right text-bold'>".store_number_format($tot['b_90'])."</td>";
+			echo "<td class='text-right text-bold text-danger'>".store_number_format($tot['b_over'])."</td>";
+			echo "<td class='text-right text-bold'>".store_number_format($tot['total'])."</td>";
+			echo "</tr>";
+		} else {
+			$cs = (store_module() && is_admin()) ? 9 : 8;
+			echo "<tr><td class='text-center text-success' colspan='".$cs."'>No outstanding receivables as of ".show_date($as_of).".</td></tr>";
+		}
+		exit;
+	}
+
+	/* ============================================================
+	 * INVENTORY AGING / DEAD STOCK REPORT
+	 * Buckets in-stock items by days since last sale.
+	 * ============================================================ */
+	public function show_inventory_aging_report(){
+		$store_id    = $this->input->post('store_id', TRUE);
+		$category_id = $this->input->post('category_id', TRUE);
+		$bucket      = $this->input->post('aging_bucket', TRUE);
+		$as_of       = $this->input->post('as_of_date', TRUE);
+		if(empty($store_id)){ $store_id = get_current_store_id(); }
+		if(empty($as_of)){ $as_of = date('d-m-Y'); }
+		$as_of_db = system_fromatted_date($as_of);
+		$as_of_ts = strtotime($as_of_db);
+
+		$this->db->select("i.id, i.item_name, i.stock, i.purchase_price, c.category_name");
+		$this->db->select("(SELECT MAX(s.sales_date) FROM db_salesitems si JOIN db_sales s ON s.id = si.sales_id WHERE si.item_id = i.id AND s.sales_status = 'Final' AND s.store_id = ".$this->db->escape($store_id).") as last_sold", FALSE);
+		$this->db->from("db_items i");
+		$this->db->join("db_category c", "c.id = i.category_id", "left");
+		$this->db->where("i.store_id", $store_id);
+		$this->db->where("i.service_bit", 0);
+		$this->db->where("i.stock >", 0);
+		$this->db->where("i.status", 1);
+		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		$this->db->order_by("i.item_name", "asc");
+		$q = $this->db->get();
+
+		$tot_value = 0;
+		$counts = array('fast'=>0,'fast2'=>0,'med'=>0,'slow'=>0,'vslow'=>0,'dead'=>0);
+		if($q->num_rows() > 0){
+			$i=0;
+			foreach($q->result() as $r){
+				$days = $r->last_sold ? floor(($as_of_ts - strtotime($r->last_sold)) / 86400) : null;
+				if($days === null){ $bk = 'dead'; $bk_lbl = 'Never Sold'; }
+				elseif($days <= 30){ $bk = 'fast';  $bk_lbl = '0-30 days'; }
+				elseif($days <= 60){ $bk = 'fast2'; $bk_lbl = '31-60 days'; }
+				elseif($days <= 90){ $bk = 'med';  $bk_lbl = '61-90 days'; }
+				elseif($days <= 180){ $bk = 'slow';  $bk_lbl = '91-180 days'; }
+				elseif($days <= 365){ $bk = 'vslow'; $bk_lbl = '181-365 days'; }
+				else{ $bk = 'dead';  $bk_lbl = '365+ days'; }
+
+				if(!empty($bucket) && $bucket !== $bk){ continue; }
+
+				$value = $r->stock * $r->purchase_price;
+				$tot_value += $value;
+				$counts[$bk]++;
+
+				$bk_class = ($bk === 'dead') ? 'text-danger' : (($bk === 'vslow') ? 'text-warning' : (($bk === 'slow') ? 'text-warning' : (($bk === 'med') ? 'text-info' : 'text-success')));
+				$i++;
+				echo "<tr>";
+				echo "<td>".$i."</td>";
+				if(store_module() && is_admin()){ echo "<td>".get_store_name($store_id)."</td>"; }
+				echo "<td>".htmlspecialchars($r->item_name)."</td>";
+				echo "<td>".htmlspecialchars($r->category_name ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($r->stock)."</td>";
+				echo "<td class='text-right'>".store_number_format($value)."</td>";
+				echo "<td>".($r->last_sold ? show_date($r->last_sold) : '<span class="text-danger">Never</span>')."</td>";
+				echo "<td class='text-right'>".($days === null ? '-' : number_format($days))."</td>";
+				echo "<td class='".$bk_class." text-bold'>".$bk_lbl."</td>";
+				echo "</tr>";
+			}
+			if($i == 0){
+				$cs = (store_module() && is_admin()) ? 9 : 8;
+				echo "<tr><td class='text-center text-info' colspan='".$cs."'>No items in the selected bucket.</td></tr>";
+			} else {
+				$cs = (store_module() && is_admin()) ? 7 : 6;
+				echo "<tr class='bg-gray-active'>";
+				echo "<td class='text-right text-bold' colspan='".$cs."'><b>Total Stock Value (filtered)</b></td>";
+				echo "<td class='text-right text-bold' colspan='2'>".store_number_format($tot_value)."</td>";
+				echo "</tr>";
+			}
+		} else {
+			$cs = (store_module() && is_admin()) ? 9 : 8;
+			echo "<tr><td class='text-center text-info' colspan='".$cs."'>No in-stock items found.</td></tr>";
+		}
+		exit;
+	}
+
+	/* ============================================================
+	 * CASH FLOW STATEMENT REPORT
+	 * Cash in vs out over a period, filtered to payment modes that
+	 * affect cash in hand. Returns an array (JSON-encoded upstream).
+	 * ============================================================ */
+	public function show_cash_flow_report(){
+		$store_id  = $this->input->post('store_id', TRUE);
+		$from_date = $this->input->post('from_date', TRUE);
+		$to_date   = $this->input->post('to_date', TRUE);
+		if(empty($store_id)){ $store_id = get_current_store_id(); }
+		if(empty($from_date)){ $from_date = date('d-m-Y'); }
+		if(empty($to_date)){ $to_date = date('d-m-Y'); }
+		$from_db = system_fromatted_date($from_date);
+		$to_db   = system_fromatted_date($to_date);
+
+		// Helper: sum of a payment table filtered to cash-affecting modes
+		$sum_cash = function($table, $amount_col, $date_col) use ($store_id, $from_db, $to_db){
+			if(!$this->db->table_exists($table)){ return 0; }
+			// Check if affects_cash_in_hand column exists
+			$has_cash_col = $this->db->query("SHOW COLUMNS FROM db_payment_modes LIKE 'affects_cash_in_hand'")->num_rows() > 0;
+			$this->db->select("COALESCE(SUM(t.".$amount_col."),0) as amt", FALSE);
+			$this->db->from($table." t");
+			if($has_cash_col){
+				$this->db->join("db_payment_modes pm", "pm.code = t.payment_type AND pm.store_id = t.store_id", "inner");
+				$this->db->where("pm.affects_cash_in_hand", 1);
+			} else {
+				// Fallback: treat cash payments as cash-affecting
+				$this->db->join("db_payment_modes pm", "pm.code = t.payment_type AND pm.store_id = t.store_id", "left");
+				$this->db->where("(pm.affects_cash_in_hand = 1 OR LOWER(t.payment_type) = 'cash' OR pm.id IS NULL)");
+			}
+			$this->db->where("t.store_id", $store_id);
+			$this->db->where("t.".$date_col." >=", $from_db);
+			$this->db->where("t.".$date_col." <=", $to_db);
+			$row = $this->db->get()->row();
+			return floatval($row->amt);
+		};
+
+		$cash_sales          = $sum_cash('db_salespayments',        'payment',      'payment_date');
+		$cash_sales_return   = $sum_cash('db_salespaymentsreturn',  'payment',      'payment_date');
+		$cash_purchase       = $sum_cash('db_purchasepayments',     'payment',      'payment_date');
+		$cash_purchase_return= $sum_cash('db_purchasepaymentsreturn','payment',     'payment_date');
+		$cash_expense        = $sum_cash('db_expense',              'expense_amt',  'expense_date');
+
+		$in_total  = $cash_sales + $cash_purchase_return;
+		$out_total = $cash_sales_return + $cash_purchase + $cash_expense;
+		$net = $in_total - $out_total;
+
+		return array(
+			'store_id'   => $store_id,
+			'from_date'  => $from_date,
+			'to_date'    => $to_date,
+			'lines' => array(
+				array('label'=>'Cash Sales',                  'direction'=>'in',  'amount'=>$cash_sales),
+				array('label'=>'Purchase Returns (cash)',     'direction'=>'in',  'amount'=>$cash_purchase_return),
+				array('label'=>'Sales Returns / Refunds',     'direction'=>'out', 'amount'=>$cash_sales_return),
+				array('label'=>'Purchases (cash)',            'direction'=>'out', 'amount'=>$cash_purchase),
+				array('label'=>'Expenses (cash)',             'direction'=>'out', 'amount'=>$cash_expense),
+			),
+			'in_total'  => $in_total,
+			'out_total' => $out_total,
+			'net'       => $net,
+		);
+	}
+
+
+	/* ============================================================
+	 * BEST SELLERS BY VARIANT ATTRIBUTE (Size / Colour / etc.)
+	 * Groups sales by variant attribute_type + attribute_value.
+	 * Falls back to legacy single-dimension variant_name when no
+	 * db_variant_attributes rows exist.
+	 * ============================================================ */
+	public function show_variant_attribute_report(){
+		$store_id    = $this->input->post('store_id', TRUE);
+		$attribute   = $this->input->post('attribute_type', TRUE);
+		$from_date   = $this->input->post('from_date', TRUE);
+		$to_date     = $this->input->post('to_date', TRUE);
+		$category_id = $this->input->post('category_id', TRUE);
+		if(empty($store_id)){ $store_id = get_current_store_id(); }
+		if(empty($from_date)){ $from_date = date('d-m-Y', strtotime('-30 days')); }
+		if(empty($to_date)){ $to_date = date('d-m-Y'); }
+		$from_db = system_fromatted_date($from_date);
+		$to_db   = system_fromatted_date($to_date);
+
+		// Build the query: join salesitems -> items -> variants -> variant_attributes
+		$this->db->select("va.attribute_type, va.attribute_value, SUM(si.sales_qty) as qty_sold, SUM(si.total_cost) as revenue, COUNT(DISTINCT si.sales_id) as transactions");
+		$this->db->from("db_salesitems si");
+		$this->db->join("db_sales s", "s.id = si.sales_id", "inner");
+		$this->db->join("db_items i", "i.id = si.item_id", "inner");
+		$this->db->join("db_variants v", "v.id = i.variant_id", "inner");
+		$this->db->join("db_variant_attributes va", "va.variant_id = v.id", "inner");
+		$this->db->where("s.sales_status", "Final");
+		$this->db->where("s.store_id", $store_id);
+		$this->db->where("si.store_id", $store_id);
+		$this->db->where("s.sales_date >=", $from_db);
+		$this->db->where("s.sales_date <=", $to_db);
+		$this->db->where("i.child_bit", 1);
+		if(!empty($attribute)){ $this->db->where("va.attribute_type", $attribute); }
+		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		$this->db->group_by(array("va.attribute_type","va.attribute_value"));
+		$this->db->order_by("va.attribute_type","asc");
+		$this->db->order_by("qty_sold","desc");
+		$q = $this->db->get();
+
+		$has_matrix = $q->num_rows() > 0;
+
+		// Fallback: legacy single-dimension variants (no db_variant_attributes)
+		if(!$has_matrix){
+			$this->db->select("v.variant_name as attribute_value, 'variant' as attribute_type, SUM(si.sales_qty) as qty_sold, SUM(si.total_cost) as revenue, COUNT(DISTINCT si.sales_id) as transactions");
+			$this->db->from("db_salesitems si");
+			$this->db->join("db_sales s", "s.id = si.sales_id", "inner");
+			$this->db->join("db_items i", "i.id = si.item_id", "inner");
+			$this->db->join("db_variants v", "v.id = i.variant_id", "inner");
+			$this->db->where("s.sales_status", "Final");
+			$this->db->where("s.store_id", $store_id);
+			$this->db->where("si.store_id", $store_id);
+			$this->db->where("s.sales_date >=", $from_db);
+			$this->db->where("s.sales_date <=", $to_db);
+			$this->db->where("i.child_bit", 1);
+			$this->db->where("i.variant_id IS NOT NULL", null, false);
+			if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+			$this->db->group_by("v.variant_name");
+			$this->db->order_by("qty_sold","desc");
+			$q = $this->db->get();
+		}
+
+		if($q->num_rows() > 0){
+			$i=0; $tot_qty=0; $tot_rev=0;
+			$cur_type=''; $type_qty=0; $type_rev=0; $type_started=false;
+			$rows = $q->result();
+			foreach($rows as $r){
+				if($has_matrix && $r->attribute_type !== $cur_type){
+					if($type_started){
+						echo "<tr class='bg-gray-active'><td colspan='3' class='text-right text-bold'>Subtotal ".$cur_type."</td><td class='text-right text-bold'>".format_qty($type_qty)."</td><td class='text-right text-bold'>".store_number_format($type_rev)."</td><td></td></tr>";
+					}
+					$cur_type = $r->attribute_type;
+					$type_qty=0; $type_rev=0; $type_started=true;
+					echo "<tr class='bg-light-blue'><td colspan='6' class='text-bold' style='text-transform:capitalize;'>".htmlspecialchars(ucfirst($cur_type))."</td></tr>";
+				}
+				$i++;
+				$tot_qty += $r->qty_sold;
+				$tot_rev += $r->revenue;
+				$type_qty += $r->qty_sold;
+				$type_rev += $r->revenue;
+				echo "<tr>";
+				echo "<td>".$i."</td>";
+				echo "<td style='text-transform:capitalize;'>".htmlspecialchars($has_matrix ? ucfirst($r->attribute_type) : 'Variant')."</td>";
+				echo "<td class='text-bold'>".htmlspecialchars($r->attribute_value)."</td>";
+				echo "<td class='text-right'>".format_qty($r->qty_sold)."</td>";
+				echo "<td class='text-right'>".store_number_format($r->revenue)."</td>";
+				echo "<td class='text-right'>".$r->transactions."</td>";
+				echo "</tr>";
+			}
+			if($has_matrix && $type_started){
+				echo "<tr class='bg-gray-active'><td colspan='3' class='text-right text-bold'>Subtotal ".$cur_type."</td><td class='text-right text-bold'>".format_qty($type_qty)."</td><td class='text-right text-bold'>".store_number_format($type_rev)."</td><td></td></tr>";
+			}
+			echo "<tr class='bg-blue'><td colspan='3' class='text-right text-bold'>Grand Total</td><td class='text-right text-bold'>".format_qty($tot_qty)."</td><td class='text-right text-bold'>".store_number_format($tot_rev)."</td><td></td></tr>";
+		} else {
+			$cs = 6;
+			echo "<tr><td class='text-center text-info' colspan='".$cs."'>No variant sales found in this period. Make sure your items use variants with size/colour attributes.</td></tr>";
+		}
+		exit;
+	}
+
+	/* ============================================================
+	 * SELL-THROUGH REPORT
+	 * Sell-through % = units sold / (units sold + current stock)
+	 * Per item (and per variant child), for a date range.
+	 * ============================================================ */
+	public function show_sell_through_report(){
+		$store_id    = $this->input->post('store_id', TRUE);
+		$from_date   = $this->input->post('from_date', TRUE);
+		$to_date     = $this->input->post('to_date', TRUE);
+		$category_id = $this->input->post('category_id', TRUE);
+		$min_rate    = $this->input->post('min_rate', TRUE);
+		if(empty($store_id)){ $store_id = get_current_store_id(); }
+		if(empty($from_date)){ $from_date = date('d-m-Y', strtotime('-30 days')); }
+		if(empty($to_date)){ $to_date = date('d-m-Y'); }
+		$from_db = system_fromatted_date($from_date);
+		$to_db   = system_fromatted_date($to_date);
+
+		// Aggregate sold qty per item in range
+		$this->db->select("i.id, i.item_name, i.stock, i.purchase_price, i.sales_price,
+			COALESCE(sold.qty,0) as qty_sold,
+			COALESCE(sold.rev,0) as revenue,
+			c.category_name");
+		$this->db->from("db_items i");
+		$this->db->join("db_category c","c.id = i.category_id","left");
+		$this->db->join("(SELECT si.item_id, SUM(si.sales_qty) as qty, SUM(si.total_cost) as rev
+			FROM db_salesitems si
+			INNER JOIN db_sales s ON s.id = si.sales_id
+			WHERE s.sales_status='Final' AND s.store_id=".$this->db->escape($store_id)."
+			AND s.sales_date >= ".$this->db->escape($from_db)." AND s.sales_date <= ".$this->db->escape($to_db)."
+			GROUP BY si.item_id) sold","sold.item_id = i.id","left");
+		$this->db->where("i.store_id", $store_id);
+		$this->db->where("i.service_bit", 0);
+		$this->db->where("i.status", 1);
+		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		$this->db->having("(COALESCE(sold.qty,0) + i.stock) > 0");
+		$this->db->order_by("qty_sold","desc");
+		$q = $this->db->get();
+
+		if($q->num_rows() > 0){
+			$i=0;
+			foreach($q->result() as $r){
+				$received = $r->qty_sold + $r->stock;
+				$rate = ($received > 0) ? round(($r->qty_sold / $received) * 100, 1) : 0;
+				if(!empty($min_rate) && $rate < (float)$min_rate){ continue; }
+				$i++;
+				$rate_class = ($rate >= 70) ? 'text-success' : (($rate >= 40) ? 'text-warning' : 'text-danger');
+				$status = ($rate >= 70) ? 'Fast Mover' : (($rate >= 40) ? 'Steady' : 'Slow Mover');
+				echo "<tr>";
+				echo "<td>".$i."</td>";
+				echo "<td>".htmlspecialchars($r->item_name)."</td>";
+				echo "<td>".htmlspecialchars($r->category_name ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($r->qty_sold)."</td>";
+				echo "<td class='text-right'>".format_qty($r->stock)."</td>";
+				echo "<td class='text-right'>".format_qty($received)."</td>";
+				echo "<td class='".$rate_class." text-bold text-right'>".$rate."%</td>";
+				echo "<td class='".$rate_class."'>".$status."</td>";
+				echo "<td class='text-right'>".store_number_format($r->revenue)."</td>";
+				echo "</tr>";
+			}
+			if($i == 0){
+				echo "<tr><td class='text-center text-info' colspan='9'>No items match the selected sell-through threshold.</td></tr>";
+			}
+		} else {
+			echo "<tr><td class='text-center text-info' colspan='9'>No data available for this period.</td></tr>";
+		}
+		exit;
+	}
+
+	/* ============================================================
+	 * REORDER SUGGESTION ENGINE
+	 * Suggests reorder quantities based on sell-through velocity,
+	 * current stock, and lead time. Uses reorder_point if set,
+	 * otherwise derives from alert_qty / average daily sales.
+	 * ============================================================ */
+	public function show_reorder_suggestion_report(){
+		$store_id    = $this->input->post('store_id', TRUE);
+		$days_window = (int)$this->input->post('days_window', TRUE);
+		$category_id = $this->input->post('category_id', TRUE);
+		if(empty($store_id)){ $store_id = get_current_store_id(); }
+		if(empty($days_window) || $days_window < 1){ $days_window = 30; }
+
+		$from_db = date('Y-m-d', strtotime('-'.$days_window.' days'));
+		$to_db   = date('Y-m-d');
+
+		$this->db->select("i.id, i.item_name, i.stock, i.alert_qty, i.reorder_point,
+			i.reorder_qty, i.lead_time_days, i.purchase_price, c.category_name,
+			COALESCE(sold.qty,0) as qty_sold, COALESCE(sold.rev,0) as revenue");
+		$this->db->from("db_items i");
+		$this->db->join("db_category c","c.id = i.category_id","left");
+		$this->db->join("(SELECT si.item_id, SUM(si.sales_qty) as qty, SUM(si.total_cost) as rev
+			FROM db_salesitems si
+			INNER JOIN db_sales s ON s.id = si.sales_id
+			WHERE s.sales_status='Final' AND s.store_id=".$this->db->escape($store_id)."
+			AND s.sales_date >= ".$this->db->escape($from_db)." AND s.sales_date <= ".$this->db->escape($to_db)."
+			GROUP BY si.item_id) sold","sold.item_id = i.id","left");
+		$this->db->where("i.store_id", $store_id);
+		$this->db->where("i.service_bit", 0);
+		$this->db->where("i.status", 1);
+		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		$this->db->order_by("qty_sold","desc");
+		$q = $this->db->get();
+
+		if($q->num_rows() > 0){
+			$i=0;
+			foreach($q->result() as $r){
+				$avg_daily = ($days_window > 0) ? $r->qty_sold / $days_window : 0;
+				$lead = !empty($r->lead_time_days) ? (int)$r->lead_time_days : 7;
+				// Reorder point: explicit > alert_qty > 14 days of sales
+				$rop = !empty($r->reorder_point) ? (int)$r->reorder_point
+					: (!empty($r->alert_qty) ? (int)$r->alert_qty : ceil($avg_daily * 14));
+				// Suggested reorder qty: cover lead time + 30 days of stock, minus current
+				$suggested = !empty($r->reorder_qty) ? (int)$r->reorder_qty
+					: max(0, ceil($avg_daily * ($lead + 30)) - (int)$r->stock);
+				$needs_reorder = ($r->stock <= $rop) || ($suggested > 0 && $avg_daily > 0);
+				if(!$needs_reorder){ continue; }
+				$i++;
+				$urgency = ($r->stock <= $rop) ? '<span class="label label-danger">Urgent</span>'
+					: '<span class="label label-warning">Soon</span>';
+				echo "<tr>";
+				echo "<td>".$i."</td>";
+				echo "<td>".htmlspecialchars($r->item_name)."</td>";
+				echo "<td>".htmlspecialchars($r->category_name ?: '-')."</td>";
+				echo "<td class='text-right'>".format_qty($r->stock)."</td>";
+				echo "<td class='text-right'>".format_qty($r->qty_sold)."</td>";
+				echo "<td class='text-right'>".number_format($avg_daily, 1)."</td>";
+				echo "<td class='text-right'>".format_qty($rop)."</td>";
+				echo "<td class='text-right text-bold text-success'>".format_qty($suggested)."</td>";
+				echo "<td class='text-center'>".$urgency."</td>";
+				echo "<td class='text-right'>".store_number_format($suggested * $r->purchase_price)."</td>";
+				echo "</tr>";
+			}
+			if($i == 0){
+				echo "<tr><td class='text-center text-success' colspan='10'><i class='fa fa-check-circle'></i> No items need reordering right now. Stock levels are healthy.</td></tr>";
+			}
+		} else {
+			echo "<tr><td class='text-center text-info' colspan='10'>No items found.</td></tr>";
+		}
+		exit;
 	}
 
 

@@ -189,7 +189,7 @@
     ?>
     <div class="sf-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
       <?php if($p->item_image && file_exists($p->item_image)): ?>
-        <img src="<?= base_url($p->item_image); ?>" class="sf-card-img" alt="<?= htmlspecialchars($p->item_name); ?>">
+        <img src="<?= base_url($p->item_image); ?>" class="sf-card-img" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
       <?php else: ?>
         <div class="sf-card-img" style="display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;">No Image</div>
       <?php endif; ?>
@@ -227,7 +227,7 @@
     ?>
     <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/service/' . $s->id); ?>" class="sf-service-card">
       <?php if($s->service_image && file_exists($s->service_image)): ?>
-        <img src="<?= base_url($s->service_image); ?>" class="sf-service-img" alt="">
+        <img src="<?= base_url($s->service_image); ?>" class="sf-service-img" alt="" loading="lazy">
       <?php else: ?>
         <div class="sf-service-img" style="display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:10px;">No Image</div>
       <?php endif; ?>

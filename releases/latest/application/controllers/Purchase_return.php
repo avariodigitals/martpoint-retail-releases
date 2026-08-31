@@ -33,7 +33,7 @@ class Purchase_return extends MY_Controller {
 		$this->permission_check('purchase_return_edit');
 
 		$q2=$this->db->query("select purchase_status from db_purchase where id=".$id);
-		if($q2->row()->purchase_status!='Received'){
+		if(!in_array($q2->row()->purchase_status, array('Received','Partially Received'))){
 			$this->session->set_flashdata('warning','Sorry! '.$q2->row()->purchase_status.' Invoice could not be returned!');
 			redirect($_SERVER['HTTP_REFERER']);
 			exit();

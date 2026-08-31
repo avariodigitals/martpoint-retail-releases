@@ -206,20 +206,24 @@
                    toastr["success"]("Record Deleted Successfully!");
                   // $('#example2').DataTable().ajax.reload();
                   location.reload();
-                  
+
                  }
                  else if(result=="failed"){
-                   toastr["error"]("Failed to Delete .Try again!");
-                  
+                   toastr["error"]("Failed to Delete. Try again!");
+
                  }
                  else{
-                   toastr["error"]("Error! Something Went Wrong!");
-                  
+                   toastr["error"](result);
+
                  }
                  $(".overlay").remove();
+            }).fail(function(xhr){
+                $(".overlay").remove();
+                var msg = (xhr.responseText && xhr.responseText.length < 200) ? xhr.responseText : 'Server error. Please check console or contact support.';
+                toastr["error"](msg);
+                console.log('Delete warehouse error:', xhr.status, xhr.responseText);
             });
             }//end confirmation
-         }
          //Delete Record end    
       </script>
       <script type="text/javascript">

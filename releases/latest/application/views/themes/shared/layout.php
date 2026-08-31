@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <?php
   $seoTitle = $seo_title ?? ($settings->meta_title ?? ($store->store_name ?? 'Store'));
   $seoDesc = $seo_description ?? ($settings->meta_description ?? ($settings->store_description ?? 'Browse our online store'));
@@ -56,6 +56,10 @@
   <meta name="twitter:image" content="<?= $seoImage; ?>">
 
   <link href="<?= $this->theme_engine->googleFontLink(); ?>" rel="stylesheet">
+<?php $themeKey = $theme_key ?? 'general_retail'; ?>
+<?php if(file_exists(FCPATH . 'theme/dist/css/' . $themeKey . '.css')): ?>
+  <link rel="stylesheet" href="<?= base_url('theme/dist/css/' . $themeKey . '.css?v=1'); ?>">
+<?php endif; ?>
   <style>
     <?= $this->theme_engine->cssVariables(); ?>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -100,7 +104,7 @@
     .mp-hero-overlay { position:absolute; inset:0; background:linear-gradient(to right, rgba(0,0,0,0.6), rgba(0,0,0,0.1)); display:flex; align-items:center; }
     .mp-hero-content { max-width:1280px; margin:0 auto; padding:0 24px; width:100%; color:#fff; }
     .mp-hero-title { font-size:42px; font-weight:800; line-height:1.15; margin-bottom:12px; max-width:600px; }
-    .mp-hero-subtitle { font-size:18px; opacity:0.9; margin-bottom:24px; max-width:500px; }
+    .mp-hero-subtitle { font-size:18px; font-weight:400; opacity:0.9; margin-bottom:24px; max-width:500px; }
     .mp-hero-btn { display:inline-block; padding:14px 32px; background:var(--mp-primary); color:#fff; font-weight:700; border-radius:var(--mp-radius); font-size:15px; border:none; cursor:pointer; }
     .mp-hero-btn:hover { background:var(--mp-primary-dark); }
 
@@ -548,7 +552,7 @@
       .mp-footer[data-footer-style="about_focused"] .mp-footer-inner { grid-template-columns:1fr; }
       .mp-mobile-nav { display:block; }
       .mp-sticky-wa { display:flex; }
-      .mp-footer-space { height:120px; }
+      .mp-footer-space { height:72px; }
       .mp-mobile-menu-btn { display:block; }
       .mp-topbar { display:none; }
       .mp-header-cart .cart-amount { display:none; }
@@ -557,6 +561,75 @@
       .mp-cat-circles { gap:14px; }
       .mp-cat-circle-img { width:80px; height:80px; font-size:22px; }
       .mp-cat-circle-label { font-size:11px; }
+    }
+
+    /* Mobile header & accessibility cleanup */
+    @media (max-width: 767px) {
+      .mp-header-main { gap: 10px; }
+      .mp-logo { max-width: 160px; overflow: hidden; }
+      .mp-logo img { height: 32px; }
+      .mp-logo-name { font-size: 15px; }
+      .mp-logo-tagline { display: none; }
+      .mp-mobile-menu-btn { display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
+      .mp-nav-link { padding: 14px 12px; font-size: 14px; }
+      .mp-header-cart { min-height: 44px; min-width: 44px; justify-content: center; }
+      .mp-header-btn { min-height: 44px; min-width: 44px; justify-content: center; }
+      .laundry-header-cta { display: none; }
+      .mp-section { padding: 24px 14px; }
+      .mp-hero { padding: 0; }
+      .mp-hero-title { font-size: 26px; }
+      .mp-hero-subtitle { font-size: 14px; }
+      .mp-hero-img { height: 240px; }
+      .mp-hero-content { padding: 0 16px; }
+      .mp-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .mp-card-img-wrap { aspect-ratio: 1 / 1; }
+      .mp-card-body { padding: 10px; }
+      .mp-card-name { font-size: 13px; -webkit-line-clamp: 2; }
+      .mp-card-price { font-size: 15px; }
+      .mp-card-add { min-height: 40px; font-size: 12px; }
+      .mp-cat-grid { grid-template-columns: 1fr; }
+      .mp-cat-grid-card { height: 140px; }
+      .mp-promo-grid { grid-template-columns: 1fr; }
+      .mp-promo-card { border-radius: 10px; }
+      .mp-promo-overlay { padding: 16px; }
+      .mp-promo-title { font-size: 18px; }
+      .mp-modal { border-radius: 16px 16px 0 0; padding: 16px; }
+      .mp-modal-qty button { width: 40px; height: 40px; }
+      .mp-modal-add { min-height: 48px; }
+      .mp-sticky-cart { padding: 10px 12px; }
+      .mp-sticky-cart-total { font-size: 16px; }
+      .mp-sticky-cart-btn { padding: 10px 18px; font-size: 13px; }
+      .mp-cart-item { gap: 10px; padding: 10px; }
+      .mp-cart-item-img { width: 48px; height: 48px; }
+      .mp-cart-summary { padding: 14px; }
+      .mp-payment-option { padding: 10px; }
+      .mp-newsletter { padding: 36px 16px; }
+      .mp-newsletter h3 { font-size: 20px; }
+      .mp-footer-inner { grid-template-columns: 1fr; gap: 28px; }
+      .mp-footer { padding: 40px 16px 20px; }
+      .mp-trust-grid { grid-template-columns: 1fr; }
+      .mp-contact-grid { grid-template-columns: 1fr; }
+      .mp-wa-section { margin: 16px; padding: 36px 20px; }
+      .mp-wa-section h3 { font-size: 22px; }
+      .mp-wa-btn { padding: 12px 24px; font-size: 14px; }
+    }
+
+    @media (max-width: 480px) {
+      .mp-grid { grid-template-columns: repeat(2, 1fr); }
+      .mp-cat-circles { gap: 10px; }
+      .mp-cat-circle-img { width: 70px; height: 70px; font-size: 18px; }
+      .mp-cat-circle-label { font-size: 10px; }
+      .mp-hero-title { font-size: 22px; }
+      .mp-hero-img { height: 200px; }
+      .mp-card-name { font-size: 12px; }
+      .mp-card-price { font-size: 14px; }
+      .mp-card-add { font-size: 12px; padding: 8px; }
+      .mp-header-main { padding: 8px 12px; }
+      .mp-nav-inner { padding: 0 12px; }
+      .mp-section { padding: 20px 12px; }
+      .mp-mobile-nav-item { font-size: 9px; }
+      .mp-mobile-nav-item .nav-icon { font-size: 20px; }
+      .mp-footer { padding: 32px 12px 16px; }
     }
   </style>
   <?php if(!empty($settings->header_text_color)): ?>
@@ -580,9 +653,17 @@
     }
   </script>
 </head>
-<body>
+<?php $themeKey = $theme_key ?? 'general_retail'; ?>
+<body class="theme-<?= htmlspecialchars($themeKey); ?>">
 
-<?php $this->load->view('themes/shared/header'); ?>
+<?php
+  $themeHeader = 'themes/' . $themeKey . '/header';
+  if(file_exists(APPPATH . 'views/' . $themeHeader . '.php')){
+    $this->load->view($themeHeader);
+  } else {
+    $this->load->view('themes/shared/header');
+  }
+?>
 
 <?= $content; ?>
 
@@ -613,7 +694,17 @@
 <script>
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('<?= base_url("sw.js"); ?>').then(function(reg){
+      navigator.serviceWorker.getRegistrations().then(function(registrations){
+        return Promise.all(registrations.map(function(reg){ return reg.unregister(); }));
+      }).then(function(){
+        if('caches' in window){
+          return caches.keys().then(function(names){
+            return Promise.all(names.map(function(name){ return caches.delete(name); }));
+          });
+        }
+      }).then(function(){
+        return navigator.serviceWorker.register('<?= base_url("sw.js"); ?>');
+      }).then(function(reg){
         console.log('PWA SW registered:', reg.scope);
       }).catch(function(err){
         console.log('PWA SW registration failed:', err);

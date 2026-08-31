@@ -210,7 +210,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
 
               <div class="row">
                 <div class="col-md-12">
-                <div class="col-md-2 pull-right">
+                <div class="col-xs-12 col-md-2 pull-right">
                   <?php if ($CI->permissions('sales_add')) {?>
                   <div class="box-tools">
                 <a class="btn btn-block btn-info" href="<?php echo $base_url; ?>sales/add">
@@ -235,7 +235,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
 }?>
                 <!-- Warehouse Code end -->
 
-                <div class="col-md-4">
+                <div class="col-xs-12 col-md-4">
                     <div class="form-group">
                        <label for="search_customer_id"><?=$this->lang->line('customers');?> </label></label>
                        <select class="form-control select2" id="search_customer_id" name="search_customer_id"  style="width: 100%;">
@@ -244,7 +244,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
                     </div>
                   </div>
 
-                  <div class="col-md-4">
+                  <div class="col-xs-12 col-md-4">
                     <div class="form-group">
                        <label for="users"><?=$this->lang->line('users');?> </label></label>
                        <select class="form-control select2" id="users" name="users"  style="width: 100%;">
@@ -254,7 +254,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
                     </div>
                   </div>
 
-                  <div class="col-md-4">
+                  <div class="col-xs-12 col-md-4">
                     <div class="form-group">
                        <label for="sales_from_date"><?=$this->lang->line('from_date');?> </label></label>
                        <div class="input-group date">
@@ -267,7 +267,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
                     </div>
                   </div>
 
-                  <div class="col-md-4">
+                  <div class="col-xs-12 col-md-4">
                     <div class="form-group">
                        <label for="sales_to_date"><?=$this->lang->line('to_date');?> </label></label>
                        <div class="input-group date">
@@ -297,7 +297,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
             </div>
             <!-- /.box-header -->
             <div class="box-body ">
-              <table id="example2" class="table custom_hover " width="100%">
+              <table id="example2" class="table custom_hover responsive" width="100%">
                 <thead class="bg-gray ">
                 <tr>
                   <th class="text-center">
@@ -314,6 +314,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
                   <th><?=$this->lang->line('total');?></th>
                   <th><?=$this->lang->line('paid_amount');?></th>
                   <th><?=$this->lang->line('payment_status');?></th>
+                  <th><?=$this->lang->line('payment_type');?></th>
                   <th><?=$this->lang->line('created_by');?></th>
                   <th><?=$this->lang->line('action');?></th>
                 </tr>
@@ -403,11 +404,11 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
                           multi_delete();
                       }
                   },
-                  { extend: 'copy', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9]} },
-                  { extend: 'excel', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9]} },
-                  { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9]} },
-                  { extend: 'print', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9]} },
-                  { extend: 'csv', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9]} },
+                  { extend: 'copy', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10]} },
+                  { extend: 'excel', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10]} },
+                  { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10]} },
+                  { extend: 'print', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10]} },
+                  { extend: 'csv', className: 'btn bg-teal color-palette btn-flat',footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10]} },
                   { extend: 'colvis', className: 'btn bg-teal color-palette btn-flat',footer: true, text:'Columns' },
 
                   ]
@@ -417,7 +418,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
               "processing": true, //Feature control the processing indicator.
               "serverSide": true, //Feature control DataTables' server-side processing mode.
               "order": [], //Initial no order.
-              "responsive": true,
+              "responsive": false,
               language: {
                   processing: '<div class="text-primary bg-primary" style="position: relative;z-index:100;overflow: visible;">Processing...</div>'
               },
@@ -448,7 +449,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
               //Set column definition initialisation properties.
               "columnDefs": [
               {
-                  "targets": [ 0,10 ], //first column / numbering column
+                  "targets": [ 0,9,11 ], //checkbox, payment type & action columns
                   "orderable": false, //set not orderable
               },
               {
@@ -494,7 +495,7 @@ $sales_due_total = $this->db->select("COALESCE(SUM(sales_due),0) AS sales_due")-
         },
               /*End Footer Total*/
           });
-          new $.fn.dataTable.FixedHeader( table );
+          // FixedHeader removed to avoid conflict with responsive/empty-table nodeName error
       }
       $(document).ready(function() {
           //datatables

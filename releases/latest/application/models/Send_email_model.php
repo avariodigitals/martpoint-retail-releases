@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Send_email_model extends CI_Model {
 	
-	public function send_message($to_email='',$subject='',$message)
+	public function send_message($to_email,$subject,$message)
 	{
 		$this->load->model('email_service');
 		$result = $this->email_service->sendRaw(

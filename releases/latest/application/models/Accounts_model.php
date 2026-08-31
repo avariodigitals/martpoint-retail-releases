@@ -25,7 +25,7 @@ class Accounts_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -44,7 +44,7 @@ class Accounts_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -58,7 +58,7 @@ class Accounts_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -110,7 +110,6 @@ class Accounts_model extends CI_Model {
 		}
 
 
-		$this->db->query("ALTER TABLE ac_accounts AUTO_INCREMENT = 1");
 		if(empty($parent_id)) { 
 			$parent_id=0;
 			$maxid=$this->db->select("coalesce(max(id),0)+1 as maxid")->get("ac_accounts")->row()->maxid;
@@ -227,7 +226,6 @@ class Accounts_model extends CI_Model {
 		}
 
 
-		$this->db->query("ALTER TABLE ac_accounts AUTO_INCREMENT = 1");
 		if(empty($parent_id)) { 
 			$parent_id=0;
 			$maxid=$this->db->select("coalesce(max(id),0)+1 as maxid")->get("ac_accounts")->row()->maxid;

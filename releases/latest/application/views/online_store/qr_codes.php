@@ -28,7 +28,7 @@
                   <option value="product">Product QR</option>
                   <option value="service">Service QR</option>
                   <option value="category">Category QR</option>
-                  <option value="table">Table QR</option>
+                  <?php if(mp_feature_enabled('table_management')) { ?><option value="table">Table QR</option><?php } ?>
                   <option value="attendance">Attendance QR</option>
                 </select>
               </div>
@@ -41,7 +41,7 @@
               <div class="form-group" id="category-select" style="display:none;"><label>Select Category</label>
                 <select class="form-control" id="related_category"><option value="">- Select -</option><?php foreach($categories as $c): ?><option value="<?= $c->id; ?>"><?= htmlspecialchars($c->category_name); ?></option><?php endforeach; ?></select>
               </div>
-              <div class="form-group" id="table-input" style="display:none;"><label>Table Number</label><input type="text" class="form-control" id="table_number" placeholder="e.g. Table 5"></div>
+              <?php if(mp_feature_enabled('table_management')) { ?><div class="form-group" id="table-input" style="display:none;"><label>Table Number</label><input type="text" class="form-control" id="table_number" placeholder="e.g. Table 5"></div><?php } ?>
               <button class="btn btn-success" id="btn-generate"><i class="fa fa-qrcode"></i> Generate QR</button>
             </div>
           </div>
@@ -108,11 +108,11 @@
 <script>
 function toggleQrOptions(){
   var type = $('#qr_type').val();
-  $('#product-select,#service-select,#category-select,#table-input').hide();
+  $('#product-select,#service-select,#category-select<?php if(mp_feature_enabled('table_management')) { ?>,#table-input<?php } ?>').hide();
   if(type=='product') $('#product-select').show();
   if(type=='service') $('#service-select').show();
   if(type=='category') $('#category-select').show();
-  if(type=='table') $('#table-input').show();
+  <?php if(mp_feature_enabled('table_management')) { ?>if(type=='table') $('#table-input').show();<?php } ?>
 }
 
 $('#btn-generate').click(function(){
@@ -126,7 +126,7 @@ $('#btn-generate').click(function(){
   $.post('<?=base_url("online_store/generate_qr");?>', {
     qr_type: type,
     related_id: relatedId,
-    table_number: $('#table_number').val(),
+    table_number: <?php echo mp_feature_enabled('table_management') ? "$('#table_number').val()" : "''"; ?>,
     qr_name: $('#qr_name').val(),
     <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
   }, function(res){

@@ -88,14 +88,10 @@
                                  <td><?= $this->lang->line('opening_stock'); ?></td>
                                  <td class="text-right text-bold opening_stock_price"><?php echo $CI->currency(number_format(0,2,'.','')); ?></td>
                               </tr>
-                              <!-- <tr>
+                              <tr>
                                  <td><?= $this->lang->line('closing_stock'); ?><br><small class="text-primary ">(By Purchase Price)</small></td>
                                  <td class="text-right text-bold closing_stock_price"><?php echo $CI->currency(number_format(0,2,'.','')); ?></td>
                               </tr>
-                              <tr>
-                                 <td><?= $this->lang->line('closing_stock'); ?><br><small class="text-primary ">(By Sales Price)</small></td>
-                                 <td class="text-right text-bold closing_stock_price"><?php echo $CI->currency(number_format(0,2,'.','')); ?></td>
-                              </tr> -->
                               <tr>
                                  <td colspan="2" class="text-bold font-italic text-primary"><?= $this->lang->line('purchase'); ?></td>
                               </tr>

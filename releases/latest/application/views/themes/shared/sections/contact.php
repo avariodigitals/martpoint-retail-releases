@@ -1,3 +1,4 @@
+<?php if(!empty($settings->store_phone) || !empty($settings->store_email) || !empty($settings->store_address) || !empty($settings->whatsapp_number)): ?>
 <div class="mp-section">
   <div class="mp-section-title">Get In Touch</div>
   <div class="mp-contact-grid">
@@ -39,3 +40,4 @@
     <?php endif; ?>
   </div>
 </div>
+<?php endif; ?>

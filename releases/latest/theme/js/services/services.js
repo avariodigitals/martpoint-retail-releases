@@ -32,7 +32,17 @@ $('#save,#update').on("click",function (e) {
 	check_field("tax_type");
 	//check_field("profit_margin");
 	check_field("sales_price");
-	
+	if($("#laundry_service_type").length){
+		check_field("laundry_service_type");
+	}
+
+    // Warn if expenses exceed sales price (would cause negative profit)
+    var expensePrice = parseFloat($('#price').val()) || 0;
+    var salePrice = parseFloat($('#sales_price').val()) || 0;
+    if(expensePrice > salePrice){
+        toastr["warning"]("Expenses (Price) is higher than Sales Price. This will show negative profit on the dashboard.");
+        // Allow save but warn
+    }
 
     if(flag==false)
     {

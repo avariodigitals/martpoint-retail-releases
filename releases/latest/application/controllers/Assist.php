@@ -23,8 +23,9 @@ class Assist extends MY_Controller {
 		$sessionId = trim($this->input->post('session_id', true) ?? '');
 		if(!$sessionId) $sessionId = session_id();
 
-		if(empty($message)){
+		if($message === ''){
 			$this->_json(['type' => 'error', 'text' => 'Please enter a message.']);
+			return;
 		}
 
 		$response = $this->assist_model->processMessage($message, $sessionId);

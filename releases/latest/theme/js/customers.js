@@ -531,3 +531,46 @@ function delete_opening_balance_entry(entry_id){
   });
 }
 /*End*/
+
+/* NIN/BVN Verification */
+$(document).on("click", "#btn_verify_nin", function(){
+	var base_url = $("#base_url").val();
+	var nin = $("#nin_bvn").val().trim();
+	if(!nin){
+		$("#nin_status").html('<span class="text-danger"><i class="fa fa-times"></i> Please enter NIN/BVN</span>');
+		return;
+	}
+	$("#nin_status").html('<span class="text-info"><i class="fa fa-spinner fa-spin"></i> Verifying...</span>');
+	$.ajax({
+		type: 'POST',
+		url: base_url + 'ninverify/verify',
+		data: { nin_bvn: nin },
+		dataType: 'json',
+		success: function(res){
+			if(res.status === 'success' && res.data && res.data.verified){
+				$("#nin_status").html('<span class="text-success"><i class="fa fa-check-circle"></i> ' + res.message + '</span>');
+				$("#nin_verified").val(1);
+				if(res.data.full_name && !$("#customer_name").val()){
+					$("#customer_name").val(res.data.full_name);
+				}
+				if(res.data.phone && !$("#mobile").val()){
+					$("#mobile").val(res.data.phone);
+				}
+				if(res.data.email && !$("#email").val()){
+					$("#email").val(res.data.email);
+				}
+				if(res.data.address && !$("#address").val()){
+					$("#address").val(res.data.address);
+				}
+			} else {
+				$("#nin_status").html('<span class="text-danger"><i class="fa fa-times"></i> ' + (res.message || 'Verification failed') + '</span>');
+				$("#nin_verified").val(0);
+			}
+		},
+		error: function(){
+			$("#nin_status").html('<span class="text-danger"><i class="fa fa-times"></i> Network error. Please try again.</span>');
+			$("#nin_verified").val(0);
+		}
+	});
+});
+/* NIN/BVN Verification End */

@@ -83,6 +83,7 @@
 			'MAD'=>['main'=>'Moroccan dirham', 'fraction'=>'Centime'],
             'MUR'=>['main'=>'Rupee', 'fraction'=>"Cent"],
             'NGN'=>['main'=>"Naira", 'fraction'=>'Kobo'],
+            '₦'=>['main'=>"Naira", 'fraction'=>'Kobo'],
 			'NZD'=>['main'=>'New Zealand dollar', 'fraction'=>'Cent'],
 			'PEN'=>['main'=>'Peruvian sol', 'fraction'=>'Céntimo'],
 			'PHP'=>['main'=>'Philippine peso', 'fraction'=>'Sentimo'],

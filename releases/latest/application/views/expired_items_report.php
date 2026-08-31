@@ -84,7 +84,7 @@
                   <td><code><?= $item->item_code; ?></code></td>
                   <td><strong><?= $item->item_name; ?></strong></td>
                   <td><span class="text-danger"><strong><?= show_date($item->expire_date); ?></strong></span></td>
-                  <td><?= (!empty($item->mfg_date) && $item->mfg_date != '0000-00-00') ? show_date($item->mfg_date) : '-'; ?></td>
+                  <td><?= is_valid_date($item->mfg_date) ? show_date($item->mfg_date) : '-'; ?></td>
                   <td><?= format_qty($item->stock); ?></td>
                   <td><span class="badge bg-red"><?= $days; ?> days past</span></td>
                   <td><a href="<?= base_url('items/update/'.$item->id); ?>" class="btn btn-xs btn-primary"><i class="fa fa-edit"></i> Edit</a></td>
@@ -100,7 +100,7 @@
                   <td><code><?= $item->item_code; ?></code></td>
                   <td><strong><?= $item->item_name; ?></strong></td>
                   <td><span class="text-warning"><strong><?= show_date($item->expire_date); ?></strong></span></td>
-                  <td><?= (!empty($item->mfg_date) && $item->mfg_date != '0000-00-00') ? show_date($item->mfg_date) : '-'; ?></td>
+                  <td><?= is_valid_date($item->mfg_date) ? show_date($item->mfg_date) : '-'; ?></td>
                   <td><?= format_qty($item->stock); ?></td>
                   <td><span class="badge bg-yellow" style="color:#000;"><?= $days; ?> days left</span></td>
                   <td><a href="<?= base_url('items/update/'.$item->id); ?>" class="btn btn-xs btn-primary"><i class="fa fa-edit"></i> Edit</a></td>

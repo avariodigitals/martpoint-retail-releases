@@ -53,7 +53,7 @@
                         <ul class="nav nav-tabs">
                            <li class="active"><a href="#tab_1" data-toggle="tab"><i class="fa  fa-pencil-square text-red"></i> <?= $this->lang->line('add/edit'); ?></a></li>
                            <li><a href="#tab_2" data-toggle="tab"><i class="fa fa-gears text-red"></i> <?= $this->lang->line('advanced'); ?></a></li>
-                           
+                           <li><a href="#tab_3" data-toggle="tab"><i class="fa fa-sticky-note text-red"></i> Notes & History</a></li>
                         </ul>
                         <div class="tab-content">
                            <div class="tab-pane active" id="tab_1">
@@ -76,7 +76,7 @@
 
                                  <div class="col-md-10">
                                     <div class="form-group">
-                                       <label for="customer_name" class="col-sm-2 control-label"><?= $this->lang->line('customer_name'); ?><label class="text-danger">*</label></label>
+                                       <label for="customer_name" class="col-sm-2 control-label"><?= mp_label('customer'); ?> Name<label class="text-danger">*</label></label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder=""  value="<?php print $customer_name; ?>" >
                                           <span id="customer_name_msg" style="display:none" class="text-danger"></span>
@@ -138,6 +138,29 @@
                                           <span id="opening_balance_msg" style="display:none" class="text-danger"></span>
                                        </div>
                                     </div>
+                                    <!-- NIN/BVN Verification -->
+                                    <div class="form-group">
+                                       <label for="nin_bvn" class="col-sm-2 control-label">NIN / BVN <small class="text-muted">(Nigeria)</small></label>
+                                       <div class="col-sm-4">
+                                          <div class="input-group">
+                                             <input type="text" class="form-control" id="nin_bvn" name="nin_bvn" placeholder="Enter NIN or BVN" value="<?php print (isset($nin_bvn) ? $nin_bvn : ''); ?>" maxlength="11" >
+                                             <span class="input-group-btn">
+                                                <button type="button" class="btn btn-info" id="btn_verify_nin" title="Verify NIN/BVN"><i class="fa fa-search"></i> Verify</button>
+                                             </span>
+                                          </div>
+                                          <div id="nin_status" style="margin-top:4px;"></div>
+                                          <input type="hidden" id="nin_verified" name="nin_verified" value="<?php print (isset($nin_verified) && $nin_verified ? 1 : 0); ?>">
+                                          <span id="nin_bvn_msg" style="display:none" class="text-danger"></span>
+                                       </div>
+                                       <?php if(isset($nin_verified) && $nin_verified){ ?>
+                                       <div class="col-sm-4">
+                                          <span class="label label-success"><i class="fa fa-check"></i> NIN Verified</span>
+                                          <?php if(!empty($nin_verified_at)){ ?>
+                                          <small class="text-muted"><?= show_date($nin_verified_at); ?></small>
+                                          <?php } ?>
+                                       </div>
+                                       <?php } ?>
+                                    </div>
                                     <div class="form-group">
                                        <label for="attachment_1" class="col-sm-2 control-label"><?= $this->lang->line('attachment_1'); ?></label>
                                        <div class="col-sm-4">
@@ -146,7 +169,44 @@
                                             <span onclick="show_attachment('<?= (empty($attachment_1)) ? "" : base_url($attachment_1) ?>')" class="label label-success" style="cursor:pointer">Click to view</span>
                                        </div>
                                     </div>
-                                  
+
+                                    <!-- Loyalty Details -->
+                                    <div class="form-group">
+                                       <h3 class="box-title text-uppercase text-warning" id="">
+                                          <i class="fa fa-fw fa-heart"></i>
+                                          <ins>Loyalty & Rewards</ins>
+                                       </h3>
+                                    </div>
+                                    <div class="form-group">
+                                       <label class="col-sm-2 control-label">Loyalty Points</label>
+                                       <div class="col-sm-4">
+                                          <input type="text" class="form-control" value="<?=isset($loyalty_points)?$loyalty_points:0;?>" readonly>
+                                       </div>
+                                       <label class="col-sm-2 control-label">Current Tier</label>
+                                       <div class="col-sm-4">
+                                          <input type="text" class="form-control" value="<?=isset($loyalty_tier)?$loyalty_tier:'Bronze';?>" readonly>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label class="col-sm-2 control-label">Store Credit</label>
+                                       <div class="col-sm-4">
+                                          <input type="text" class="form-control" value="<?=isset($store_credit_balance)?store_number_format($store_credit_balance):0;?>" readonly>
+                                       </div>
+                                       <label class="col-sm-2 control-label">Gift Card Balance</label>
+                                       <div class="col-sm-4">
+                                          <input type="text" class="form-control" value="<?=isset($gift_card_balance)?store_number_format($gift_card_balance):0;?>" readonly>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label class="col-sm-2 control-label">Birthday</label>
+                                       <div class="col-sm-4">
+                                          <input type="date" class="form-control" name="birthday" id="birthday" value="<?=isset($birthday)?$birthday:'';?>">
+                                       </div>
+                                       <label class="col-sm-2 control-label">Referral Code</label>
+                                       <div class="col-sm-4">
+                                          <input type="text" class="form-control" value="<?=isset($referral_code)?$referral_code:'';?>" readonly>
+                                       </div>
+                                    </div>
 
                                     <div class="form-group">
                                        <h3 class="box-title text-uppercase text-success " id="">
@@ -317,6 +377,23 @@
                            </div>
                            </div>
                            <!-- /.tab-pane -->
+                           <div class="tab-pane" id="tab_3">
+                           <div class="box-body">
+                              <div class="row">
+                                 <div class="col-md-12">
+                                    <div class="form-group">
+                                       <label for="notes" class="col-sm-2 control-label">Customer Notes</label>
+                                       <div class="col-sm-10">
+                                          <textarea type="text" class="form-control" id="notes" name="notes" placeholder="Add notes about this customer (e.g., complaints, preferences, treatment history)" rows="8"><?php print (isset($notes) ? $notes : ''); ?></textarea>
+                                          <span id="notes_msg" style="display:none" class="text-danger"></span>
+                                          <small class="text-muted">Notes are automatically appended with timestamps when entered during pharmacy sales.</small>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           </div>
+                           <!-- /.tab-pane -->
                         </div>
                         <!-- /.tab-content -->
 
@@ -427,7 +504,7 @@
       <?php include"comman/code_js_sound.php"; ?>
       <!-- TABLES CODE -->
       <?php include"comman/code_js.php"; ?>
-      <script src="<?php echo $theme_link; ?>js/customers.js"></script>
+      <script src="<?php echo $theme_link; ?>js/customers.js?v=2"></script>
       <!-- Make sidebar menu hughlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
       <script type="text/javascript">

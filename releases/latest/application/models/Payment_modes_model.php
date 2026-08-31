@@ -15,7 +15,7 @@ class Payment_modes_model extends CI_Model {
 
 		$i = 0;
 		foreach ($this->column_search as $item) {
-			if($_POST['search']['value']) {
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) {
 				if($i===0) {
 					$this->db->group_start();
 					$this->db->like($item, $_POST['search']['value']);
@@ -28,7 +28,7 @@ class Payment_modes_model extends CI_Model {
 			$i++;
 		}
 
-		if(isset($_POST['order'])) {
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) {
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} else if(isset($this->order)) {
 			$order = $this->order;
@@ -39,7 +39,7 @@ class Payment_modes_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 			$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();

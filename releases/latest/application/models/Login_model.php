@@ -93,6 +93,15 @@ class Login_model extends CI_Model
 				        	);
 			$this->session->set_userdata($logdata);
 
+			// Re-seed any missing default permissions for standard roles
+			// (fixes roles created before new permissions were added)
+			try {
+				$this->load->model('default_data_model','default_data');
+				$this->default_data->reseed_missing_permissions($query->row()->store_id);
+			} catch (Exception $e) {
+				log_message('error', 'Login: reseed_missing_permissions failed: ' . $e->getMessage());
+			}
+
 			// Check subscription license activation
 			$needs_activation = false;
 			if($this->db->table_exists('db_subscription_license')){
@@ -101,9 +110,8 @@ class Login_model extends CI_Model
 			}
 			if($needs_activation){
 				if($query->row()->role_id == 2 || $query->row()->id == 1){
-					// Admin/Owner can access activation
-					$this->session->set_flashdata('warning', 'Please activate your MartPoint Retail subscription.');
-					redirect(base_url().'subscription_license/activate_form');
+					// Admin/Owner can still use the store; SAAS activation is available from Settings → License
+					$this->session->set_flashdata('warning', 'Please activate your MartPoint Retail subscription from Settings → License.');
 				} else {
 					// Normal users blocked
 					$this->session->unset_userdata(array_keys($logdata));
@@ -113,8 +121,15 @@ class Login_model extends CI_Model
 			}
 
 			$this->session->set_userdata('login_attempts', 0);
-			$this->session->set_flashdata('success', 'Welcome '.ucfirst($display_name)." !");
-			// Redirect cashier-role users straight to POS
+			$this->session->set_userdata('welcome_alert', 'Welcome '.ucfirst($display_name)." !");
+			// Mobile users go to the mobile app first
+			if(is_mobile()){
+				if(stripos(trim($query->row()->role_name), 'cashier') !== false){
+					redirect(base_url().'mobile/pos');
+				}
+				redirect(base_url().'mobile');
+			}
+			// Redirect cashier-role users straight to POS on desktop
 			if(stripos(trim($query->row()->role_name), 'cashier') !== false){
 				redirect(base_url().'pos');
 			}

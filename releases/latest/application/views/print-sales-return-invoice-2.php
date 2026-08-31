@@ -72,7 +72,8 @@ body { margin: 5px; }
     $company_address=$res1->address;
     $company_gst_no=$res1->gst_no;
     $company_vat_no=$res1->vat_no;
-    $store_logo=(!empty($res1->store_logo)) ? $res1->store_logo : store_demo_logo();
+    $store_logo_path = mp_get_store_theme_setting($res1->id, 'store_logo');
+    $store_logo= !empty($store_logo_path) ? $store_logo_path : store_demo_logo();
     $store_website=$res1->store_website;
     $bank_details=$res1->bank_details;
     $terms_and_conditions="";//$res1->sales_terms_and_conditions;
@@ -91,7 +92,7 @@ body { margin: 5px; }
     
     $sales_invoice_footer_text=$res1->sales_invoice_footer_text;
     
-    $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt,a.customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
+    $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,a.created_by,
                            a.postcode,a.address,b.return_date,b.created_time,b.reference_no,
                            b.return_code,b.return_note,b.return_status,
@@ -107,10 +108,10 @@ body { margin: 5px; }
                            coalesce(b.round_off,0) as round_off,
                            b.payment_status
 
-                           FROM db_customers a,
-                           db_salesreturn b 
-                           WHERE 
-                           a.`id`=b.`customer_id` AND 
+                           FROM db_salesreturn b
+                           LEFT JOIN db_customers a ON a.`id`=b.`customer_id`
+                           WHERE
+ 
                            b.`id`='$return_id' 
                            ");
                          
@@ -187,7 +188,7 @@ body { margin: 5px; }
               <tr>
                 <!-- First Half -->
                 <td colspan="4">
-                  <img src="<?= base_url($store_logo);?>" width='100%' height='auto'>
+                  <img src="<?= mp_store_logo_round_base64($store_logo, 120); ?>" width="120" height="120" alt="store logo">
                 </td>
 
                 <td colspan="4">
@@ -292,8 +293,7 @@ body { margin: 5px; }
       </tr>
       <tr class="bg-sky"><!-- Colspan 10 -->
         <th colspan='2' class="text-center"><?= $this->lang->line('sl_no'); ?></th>
-        <th colspan='4' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
-        <th colspan='2' class="text-center"><?= $this->lang->line('hsn'); ?></th>
+        <th colspan='6' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
         <th colspan='2' class="text-center"><?= $this->lang->line('unit_cost'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('qty'); ?></th>
         <th colspan='1' class="text-center"><?= $this->lang->line('tax'); ?></th>
@@ -339,11 +339,11 @@ body { margin: 5px; }
                   
                   echo "<tr>";  
                   echo "<td colspan='2' class='text-center'>".$i++."</td>";
-                  echo "<td colspan='4'>";
+                  echo "<td colspan='6'>";
                   echo $res2->item_name;
                   echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
                   echo "</td>";
-                  echo "<td colspan='2' class='text-left'>".$res2->hsn."</td>";
+
                   echo "<td colspan='2' class='text-right'>".store_number_format($res2->price_per_unit)."</td>";
                   
                   echo "<td class='text-center'>".format_qty($res2->return_qty)."</td>";

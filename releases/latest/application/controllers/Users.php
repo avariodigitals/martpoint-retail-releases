@@ -34,10 +34,9 @@
 				
 				if($cmd!='update'){
 					// Check user limit
-					$user_used = get_user_usage();
-					$user_limit = get_subscription_limit('user_limit');
-					if($user_limit > 0 && $user_used >= $user_limit){
-						echo "User limit reached (".$user_used."/".$user_limit."). Contact admin to upgrade subscription.";
+					$user_check = check_subscription_limit('user_limit');
+					if($user_check !== true){
+						echo $user_check;
 						return;
 					}
 					$result=$this->users_model->verify_and_save($data);

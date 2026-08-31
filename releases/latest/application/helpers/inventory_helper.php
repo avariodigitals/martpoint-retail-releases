@@ -48,7 +48,7 @@
 	        try {
 	        	$CI->load->model('expiry_settings_model');
 	        	$expiry_settings = $CI->expiry_settings_model->get_settings();
-	        	if(!empty($res1->expire_date) && $res1->expire_date != '0000-00-00' && $expiry_settings->stop_selling_expired == 1 && $res1->expire_date < date('Y-m-d')){
+	        	if(is_valid_date($res1->expire_date) && $expiry_settings->stop_selling_expired == 1 && $res1->expire_date < date('Y-m-d')){
 	        		continue; // skip expired item
 	        	}
 	        } catch (Exception $e) { /* Expiry settings not ready yet */ }
@@ -242,6 +242,13 @@
 	             ->where("state_id",$state_id)
 	             ->from("db_cities")
 	             ->get();
+	  // Fallback: if no cities mapped to this state, show all active cities
+	  if($q1->num_rows()==0){
+	    $q1=$CI->db->select("*")
+	               ->where("status=1")
+	               ->from("db_cities")
+	               ->get();
+	  }
 	  $str='';
 	   if($q1->num_rows($q1)>0)
 	    {  $str.='<option value="">Select City</option>'; 

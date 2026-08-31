@@ -61,6 +61,10 @@ class Roles extends MY_Controller {
 
 	public function ajax_list()
 	{
+		// Release the session lock early so concurrent AJAX requests don't block
+		// on the session file while this query runs (fixes "Processing..." / Ajax error).
+		session_write_close();
+
 		$list = $this->roles->get_datatables();
 		
 		$data = array();

@@ -134,7 +134,7 @@
                                     <th style=""><?= $this->lang->line('purchase_date'); ?></th>
                                     <th style=""><?= $this->lang->line('item_name'); ?></th>
                                     <th style=""><?= $this->lang->line('purchase_qty'); ?></th>
-                                    <th style=""><?= $this->lang->line('hsn'); ?></th>
+
                                     <th style=""><?= $this->lang->line('amount'); ?></th>
                                     <th style=""><?= $this->lang->line('discount'); ?></th>
                                     <th style=""><?= $this->lang->line('taxable'); ?></th>

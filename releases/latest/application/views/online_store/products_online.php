@@ -29,9 +29,24 @@
               </div>
             </div>
             <div class="box-body table-responsive">
-              <table class="table table-bordered table-striped">
+              <?php if($msg = $this->session->flashdata('success')): ?>
+              <div class="alert alert-success alert-dismissible" style="margin:0 0 10px;">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+                <?= htmlspecialchars($msg); ?>
+              </div>
+              <?php endif; ?>
+              <?php if($msg = $this->session->flashdata('error')): ?>
+              <div class="alert alert-danger alert-dismissible" style="margin:0 0 10px;">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+                <?= htmlspecialchars($msg); ?>
+              </div>
+              <?php endif; ?>
+              <form method="post" action="<?= base_url('online_store/save_featured'); ?>" style="display: contents;">
+                <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+                <button type="submit" class="btn btn-sm btn-success" style="margin-bottom:10px;"><i class="fa fa-save"></i> Save Featured</button>
+                <table class="table table-bordered table-striped">
                 <thead>
-                  <tr><th>Image</th><th>Product</th><th>Category</th><th>Stock</th><th>Sales Price</th><th>Online Price</th><th>Online</th></tr>
+                  <tr><th>Image</th><th>Product</th><th>Category</th><th>Stock</th><th>Sales Price</th><th>Online Price</th><th>Online</th><th>Featured</th></tr>
                 </thead>
                 <tbody>
                   <?php foreach($products as $p): ?>
@@ -51,11 +66,16 @@
                     <td>
                       <input type="checkbox" class="toggle-online" data-id="<?= $p->id; ?>" <?= $p->publish_online ? 'checked' : ''; ?>>
                     </td>
+                    <td>
+                      <input type="hidden" name="featured[<?= $p->id; ?>]" value="0">
+                      <input type="checkbox" name="featured[<?= $p->id; ?>]" value="1" <?= $p->is_featured ? 'checked' : ''; ?>>
+                    </td>
                   </tr>
                   <?php endforeach; ?>
-                  <?php if(empty($products)): ?><tr><td colspan="7" class="text-center text-muted">No products found.</td></tr><?php endif; ?>
+                  <?php if(empty($products)): ?><tr><td colspan="8" class="text-center text-muted">No products found.</td></tr><?php endif; ?>
                 </tbody>
               </table>
+              </form>
             </div>
           </div>
         </div>

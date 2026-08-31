@@ -4,39 +4,24 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Customers_model extends CI_Model {
 	//Datatable start
 	var $table = 'db_customers as a';
-	var $column_order = array(
-								'a.id',
-								'a.customer_code',
-								'a.customer_name',
-								'a.mobile',
-								'a.email',
-								'a.location_link',
-								'a.credit_limit',
-								'a.sales_due',
-								'a.sales_return_due',
-								'a.opening_balance',
-								'a.tot_advance',
-								'a.status',
-								'a.store_id',
-								'a.delete_bit'
-								); //set column field database for datatable orderable
-	var $column_search = array(
-								'a.id',
-								'a.customer_code',
-								'a.customer_name',
-								'a.mobile',
-								'a.email',
-								'a.location_link',
-								'a.credit_limit',
-								'a.sales_due',
-								'a.sales_return_due',
-								'a.opening_balance',
-								'a.tot_advance',
-								'a.status',
-								'a.store_id',
-								'a.delete_bit'
-								); //set column field database for datatable searchable 
-	var $order = array('a.id' => 'desc'); // default order 
+	var $order = array('a.id' => 'desc'); // default order
+
+	private function _get_available_columns(){
+		$all = [
+			'a.id','a.customer_code','a.customer_name','a.mobile','a.email',
+			'a.location_link','a.credit_limit','a.sales_due','a.sales_return_due',
+			'a.opening_balance','a.tot_advance','a.loyalty_points','a.loyalty_tier',
+			'a.store_credit_balance','a.gift_card_balance','a.status','a.store_id','a.delete_bit'
+		];
+		$exists = [];
+		foreach($all as $col){
+			$field = str_replace('a.', '', $col);
+			if($this->db->field_exists($field, 'db_customers')){
+				$exists[] = $col;
+			}
+		}
+		return $exists;
+	}
 
 	public function __construct()
 	{
@@ -46,23 +31,24 @@ class Customers_model extends CI_Model {
 	private function _get_datatables_query()
 	{
 		/*If account receivable checked*/
-		if($_POST['show_account_receivable']=='checked'){
+		if(isset($_POST['show_account_receivable']) && $_POST['show_account_receivable']=='checked'){
 			$this->db->where("(a.sales_due>0 or a.opening_balance>0)");
 		}
 
-		$this->db->select($this->column_order);
+		$columns = $this->_get_available_columns();
+		$this->db->select($columns);
 		$this->db->from($this->table);
 		//if not admin
 	    //if(!is_admin()){
 	      $this->db->where("a.store_id",get_current_store_id());
 	    //}
 		$i = 0;
-	
-		foreach ($this->column_search as $item) // loop column 
+
+		foreach ($columns as $item) // loop column
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && $_POST['search']['value']) // if datatable send POST for search
 			{
-				
+
 				if($i===0) // first loop
 				{
 					$this->db->group_start(); // open bracket. query Where with OR clause better with bracket. because maybe can combine with other WHERE with AND.
@@ -73,16 +59,19 @@ class Customers_model extends CI_Model {
 					$this->db->or_like($item, $_POST['search']['value']);
 				}
 
-				if(count($this->column_search) - 1 == $i) //last loop
+				if(count($columns) - 1 == $i) //last loop
 					$this->db->group_end(); //close bracket
 			}
 			$i++;
 		}
-		
-		if(isset($_POST['order'])) // here order processing
+
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
-			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
-		} 
+			$col_idx = (int) $_POST['order']['0']['column'];
+			if(isset($columns[$col_idx])){
+				$this->db->order_by($columns[$col_idx], $_POST['order']['0']['dir']);
+			}
+		}
 		else if(isset($this->order))
 		{
 			$order = $this->order;
@@ -93,7 +82,7 @@ class Customers_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -120,7 +109,6 @@ class Customers_model extends CI_Model {
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
 		$SYSTEM_IP = $this->data['SYSTEM_IP'];
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
-		$this->db->query("ALTER TABLE db_customers AUTO_INCREMENT = 1");
 	    $info = array(
 	                'store_id'         		=> $store_id, 
 	                'count_id' 				=> get_count_id('db_customers'), 
@@ -167,12 +155,16 @@ class Customers_model extends CI_Model {
 		$price_level_type = $this->input->post('price_level_type', TRUE);
 		$price_level = $this->input->post('price_level', TRUE);
 		$gstin = $this->input->post('gstin', TRUE);
+		$nin_bvn = $this->input->post('nin_bvn', TRUE);
+		$nin_verified = $this->input->post('nin_verified', TRUE);
 		$shipping_country = $this->input->post('shipping_country', TRUE);
 		$shipping_state = $this->input->post('shipping_state', TRUE);
 		$shipping_city = $this->input->post('shipping_city', TRUE);
 		$shipping_postcode = $this->input->post('shipping_postcode', TRUE);
 		$shipping_address = $this->input->post('shipping_address', TRUE);
 		$shipping_location_link = $this->input->post('shipping_location_link', TRUE);
+		$birthday = $this->input->post('birthday', TRUE);
+		$notes = $this->input->post('notes', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
@@ -188,7 +180,6 @@ class Customers_model extends CI_Model {
 			return "Sorry!This Mobile Number already Exist.";;
 		}
 
-		$this->db->query("ALTER TABLE db_customers AUTO_INCREMENT = 1");
 		#------------------------------------
 	    $info = array(
 	                'store_id'         		=> $store_id, 
@@ -214,6 +205,8 @@ class Customers_model extends CI_Model {
 	                'status'          		=> 1,
 	                'location_link'         => $location_link,
 	                'credit_limit'         => $credit_limit,
+                'birthday'             => (!empty($birthday)) ? $birthday : NULL,
+                'notes'                => $notes,
 	              );
 			
 			if(isset($price_level_type)){
@@ -329,6 +322,15 @@ class Customers_model extends CI_Model {
 			$data['shipping_address']=(!empty($shipping_details)) ? $shipping_details->address :'';
 			$data['shipping_location_link']=(!empty($shipping_details)) ? $shipping_details->location_link :'';
 
+			$data['loyalty_points']= property_exists($query, 'loyalty_points') ? $query->loyalty_points : 0;
+			$data['loyalty_tier']= property_exists($query, 'loyalty_tier') ? $query->loyalty_tier : '';
+			$data['store_credit_balance']= property_exists($query, 'store_credit_balance') ? $query->store_credit_balance : 0;
+			$data['gift_card_balance']= property_exists($query, 'gift_card_balance') ? $query->gift_card_balance : 0;
+			$data['birthday']= property_exists($query, 'birthday') ? $query->birthday : '';
+			$data['referral_code']= property_exists($query, 'referral_code') ? $query->referral_code : '';
+			$data['referral_count']= property_exists($query, 'referral_count') ? $query->referral_count : 0;
+			$data['notes']= property_exists($query, 'notes') ? $query->notes : '';
+
 			return $data;
 		}
 	}
@@ -356,6 +358,8 @@ class Customers_model extends CI_Model {
 		$shipping_postcode = $this->input->post('shipping_postcode', TRUE);
 		$shipping_address = $this->input->post('shipping_address', TRUE);
 		$shipping_location_link = $this->input->post('shipping_location_link', TRUE);
+		$birthday = $this->input->post('birthday', TRUE);
+		$notes = $this->input->post('notes', TRUE);
 
 		if($q_id==1){
 			echo "Sorry! This Record Restricted! Can't Update";exit();
@@ -380,6 +384,8 @@ class Customers_model extends CI_Model {
 			                'tax_number'          	=> $tax_number,
 			                'location_link'         => $location_link,
 			                'credit_limit'         => empty($credit_limit) ? null : $credit_limit,
+                'birthday'             => (!empty($birthday)) ? $birthday : NULL,
+                'notes'                => $notes,
 			              );
 			    if(isset($price_level_type)){
 					$info['price_level_type'] = $price_level_type;
@@ -1453,7 +1459,13 @@ class Customers_model extends CI_Model {
 		$store_id = (isset($_REQUEST['store_id'])) ? $_REQUEST['store_id'] : get_current_store_id();
 		$q = '';
 		
-		$this->db->select("id, customer_name, mobile, sales_due, opening_balance, tot_advance, delete_bit")->from('db_customers');
+		$select_cols = "id, customer_name, mobile, sales_due, opening_balance, tot_advance, delete_bit";
+		$possible = ['loyalty_points','loyalty_tier','store_credit_balance','gift_card_balance'];
+		foreach($possible as $c){
+			if($this->db->field_exists($c, 'db_customers')){ $select_cols .= ', ' . $c; }
+		}
+		$this->db->select($select_cols);
+		$this->db->from('db_customers');
 		$this->db->where("store_id",$store_id);
 		if(!empty($id)){
 
@@ -1484,7 +1496,11 @@ class Customers_model extends CI_Model {
 			  	$json_arr["mobile"] 				 = $res->mobile;
 			  	$json_arr["previous_due"] 	 = store_number_format($customer_previous_due,false);
 			  	$json_arr["tot_advance"] 			 = $tot_advance;
-			  	$json_arr["delete_bit"] 			 = $res->delete_bit;
+			  	$json_arr["delete_bit"] 				 = $res->delete_bit;
+		  	$json_arr["loyalty_points"] 			 = property_exists($res, 'loyalty_points') ? $res->loyalty_points : 0;
+		  	$json_arr["loyalty_tier"] 			 = $res->loyalty_tier;
+		  	$json_arr["store_credit_balance"] 	 = $res->store_credit_balance;
+		  	$json_arr["gift_card_balance"] 		 = $res->gift_card_balance;
 			  	
 			  	array_push($display_json, $json_arr);
 			}
@@ -1508,5 +1524,105 @@ class Customers_model extends CI_Model {
 				'cu_delete_bit' =>$customersArrayData[0]['delete_bit'],
 		);
 		return $singleCustomerData;
+	}
+
+	public function get_statement($customer_id, $store_id = null){
+		$store_id = $store_id ?: get_current_store_id();
+		$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+		if(!$customer) return array('opening' => 0, 'rows' => array(), 'summary' => array());
+
+		$opening = ($customer->opening_balance ?? 0) - get_paid_cob($customer_id);
+		$rows = array();
+
+		$rows[] = array(
+			'date' => $customer->created_date ?? '1970-01-01',
+			'sort' => 0,
+			'type' => 'opening',
+			'description' => 'Opening Balance',
+			'reference' => '-',
+			'debit' => ($opening > 0) ? $opening : 0,
+			'credit' => ($opening < 0) ? abs($opening) : 0,
+			'balance' => $opening
+		);
+
+		$sales = $this->db->where('customer_id', $customer_id)
+						  ->where('store_id', $store_id)
+						  ->order_by('sales_date', 'ASC')
+						  ->get('db_sales')
+						  ->result();
+		foreach($sales as $s){
+			$rows[] = array(
+				'date' => $s->sales_date,
+				'sort' => strtotime($s->sales_date) . '1',
+				'type' => 'sale',
+				'description' => 'Invoice',
+				'reference' => $s->sales_code,
+				'debit' => (float)$s->grand_total,
+				'credit' => 0,
+				'balance' => 0
+			);
+		}
+
+		$payments = $this->db->where('customer_id', $customer_id)
+							 ->order_by('payment_date', 'ASC')
+							 ->get('db_customer_payments')
+							 ->result();
+		foreach($payments as $p){
+			$rows[] = array(
+				'date' => $p->payment_date,
+				'sort' => strtotime($p->payment_date) . '2',
+				'type' => 'payment',
+				'description' => 'Payment',
+				'reference' => ucfirst(str_replace('_', ' ', $p->payment_type)),
+				'debit' => 0,
+				'credit' => (float)($p->payment ?? $p->amount ?? 0),
+				'balance' => 0
+			);
+		}
+
+		$returns = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->order_by('return_date', 'ASC')
+							->get('db_salesreturn')
+							->result();
+		foreach($returns as $r){
+			$rows[] = array(
+				'date' => $r->return_date,
+				'sort' => strtotime($r->return_date) . '3',
+				'type' => 'return',
+				'description' => 'Sales Return',
+				'reference' => $r->return_code,
+				'debit' => 0,
+				'credit' => (float)$r->grand_total,
+				'balance' => 0
+			);
+		}
+
+		usort($rows, function($a, $b){
+			$ad = $a['date'] ?: '1970-01-01';
+			$bd = $b['date'] ?: '1970-01-01';
+			if($ad == $bd) return strcmp($a['sort'], $b['sort']);
+			return strcmp($ad, $bd);
+		});
+
+		$balance = 0;
+		$total_debit = 0;
+		$total_credit = 0;
+		foreach($rows as &$row){
+			$balance += $row['debit'] - $row['credit'];
+			$row['balance'] = $balance;
+			$total_debit += $row['debit'];
+			$total_credit += $row['credit'];
+		}
+
+		return array(
+			'opening' => $opening,
+			'rows' => $rows,
+			'summary' => array(
+				'total_sales' => $total_debit - $opening,
+				'total_payments' => $total_credit,
+				'closing_balance' => $balance
+			)
+		);
 	}
 }

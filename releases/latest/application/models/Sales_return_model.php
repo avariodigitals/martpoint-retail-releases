@@ -73,7 +73,7 @@ class Sales_return_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				
@@ -99,7 +99,7 @@ class Sales_return_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -113,7 +113,7 @@ class Sales_return_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -212,7 +212,6 @@ class Sales_return_model extends CI_Model {
 	    if($command=='save' || $command=='create'){//Create sales code unique if first time entry
 
 		    
-			$this->db->query("ALTER TABLE db_salesreturn AUTO_INCREMENT = 1");
 			
 		    $sales_entry = array(
 		    				'sales_id' 		=> $sales_id,
@@ -243,6 +242,9 @@ class Sales_return_model extends CI_Model {
 		    				'system_ip' 				=> $SYSTEM_IP,
 		    				'system_name' 				=> $SYSTEM_NAME,
 		    				'status' 					=> 1,
+		    				'sold_serial_number'=> $sold_serial_number,
+		    				'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
 		    			);
 		    $sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  
 		    $sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();	
@@ -313,6 +315,9 @@ class Sales_return_model extends CI_Model {
 				//$discount_amt 		=($return_qty * $unit_total_cost)*$discount_input/100;
 				$unit_tax			=$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_' . $i] ?? 0);
 
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
 				$discount_type 		=$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
@@ -360,6 +365,9 @@ class Sales_return_model extends CI_Model {
 		    				'total_cost' 		=> $total_cost,
 		    				'purchase_price' 	=> $purchase_price,
 		    				'status'	 		=> 1,
+		    				'sold_serial_number'=> $sold_serial_number,
+		    				'sold_imei_number'  => $sold_imei_number,
+		    				'barcode_id'        => $barcode_id,
 
 
 		    			);
@@ -374,6 +382,19 @@ class Sales_return_model extends CI_Model {
 				$q6=$this->pos_model->update_items_quantity($item_id);
 				if(!$q6){
 					return "failed";
+				}
+
+				// Update serial/IMEI unit status based on return type
+				if($return_status == 'Return' || $return_status == 'Warranty'){
+					$new_status = ($return_status == 'Warranty') ? 2 : 1;
+					if($barcode_id > 0){
+						$this->db->where('id', $barcode_id)->update('db_item_barcodes', ['status' => $new_status]);
+					} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+						$this->db->where('item_id', $item_id);
+						if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+						if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
+						$this->db->limit(1)->update('db_item_barcodes', ['status' => $new_status]);
+					}
 				}
 				
 			}
@@ -415,6 +436,8 @@ class Sales_return_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'status' 			=> 1,
+    				'sold_serial_number'=> $sold_serial_number,
+    				'sold_imei_number'  => $sold_imei_number,
     				'account_id' 		=> (empty($account_id)) ? null : $account_id,
     				'customer_id' 		=> $customer_id,
 				);
@@ -787,7 +810,7 @@ class Sales_return_model extends CI_Model {
 
 	
 	/*v1.1*/
-	public function inclusive($price='',$tax_per){
+	public function inclusive($price,$tax_per){
 		return ($tax_per!=0) ? $price/(($tax_per/100)+1)/10 : $tax_per;
 	}
 	public function get_items_info($rowcount,$item_id){
@@ -857,6 +880,9 @@ class Sales_return_model extends CI_Model {
 							'item_discount' 			=> $res1->discount_input, 
 							'item_discount_type' 		=> $res1->discount_type, 
 							'item_discount_input' 		=> $res1->discount_input, 
+							'sold_serial_number' 		=> $res1->sold_serial_number, 
+							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'barcode_id' 				=> $res1->barcode_id, 
 						);
 			
 			
@@ -905,6 +931,9 @@ class Sales_return_model extends CI_Model {
 							'item_discount' 			=> $res1->discount_input, 
 							'item_discount_type' 		=> $res1->discount_type, 
 							'item_discount_input' 		=> $res1->discount_input, 
+							'sold_serial_number' 		=> $res1->sold_serial_number, 
+							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'barcode_id' 				=> $res1->barcode_id, 
 						);
 
 			
@@ -931,6 +960,9 @@ class Sales_return_model extends CI_Model {
 		$item_discount_type = isset($info['item_discount_type']) ? $info['item_discount_type'] : '';
 		$item_discount_input = isset($info['item_discount_input']) ? $info['item_discount_input'] : '';
 		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
+		$sold_serial_number = isset($info['sold_serial_number']) ? $info['sold_serial_number'] : '';
+		$sold_imei_number = isset($info['sold_imei_number']) ? $info['sold_imei_number'] : '';
+		$barcode_id = isset($info['barcode_id']) ? $info['barcode_id'] : 0;
 		$item_amount = ($item_sales_price * $item_sales_qty) + $item_tax_amt;
 		?>
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
@@ -939,6 +971,8 @@ class Sales_return_model extends CI_Model {
                   <label class='form-control' style='height:auto;' data-toggle="tooltip" title='Edit ?' >
                   <a id="td_data_<?=$rowcount;?>_1" href="javascript:void(0)" onclick="show_sales_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a> 
                   		<i onclick="show_sales_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
+                  		<?php if(!empty($sold_serial_number)){ ?><br><small style="font-size:10px;">S/N: <?=htmlspecialchars($sold_serial_number);?></small><?php } ?>
+                  		<?php if(!empty($sold_imei_number)){ ?><br><small style="font-size:10px;">IMEI: <?=htmlspecialchars($sold_imei_number);?></small><?php } ?>
                   	</label>
                </td>
                <!-- Qty -->
@@ -993,6 +1027,9 @@ class Sales_return_model extends CI_Model {
 
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">
                <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">
+               <input type="hidden" id="sold_serial_number_<?=$rowcount;?>" name="sold_serial_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sold_serial_number);?>">
+               <input type="hidden" id="sold_imei_number_<?=$rowcount;?>" name="sold_imei_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sold_imei_number);?>">
+               <input type="hidden" id="barcode_id_<?=$rowcount;?>" name="barcode_id_<?=$rowcount;?>" value="<?=intval($barcode_id);?>">
 
             </tr>
 		<?php
@@ -1238,6 +1275,8 @@ class Sales_return_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'status' 			=> 1,
+    				'sold_serial_number'=> $sold_serial_number,
+    				'sold_imei_number'  => $sold_imei_number,
     				'account_id' 		=> (empty($account_id)) ? null : $account_id,
     				'customer_id' 		=> $customer_id,
 				);

@@ -3,6 +3,20 @@
 .mp-hero-btn{background:#FF3B30!important; text-transform:uppercase; letter-spacing:1px;}
 .mp-nav-link{text-transform:uppercase; letter-spacing:0.5px; font-size:12px!important;}
 .mp-card{border-radius:0!important;}
+.mp-lookbook-cta{background:#111; color:#fff; text-align:center;}
+.mp-lookbook-cta h3{font-size:28px; font-weight:800; margin-bottom:12px; text-transform:uppercase;}
+.mp-lookbook-cta p{opacity:0.8; margin-bottom:20px;}
+@media(max-width:767px){
+  .mp-lookbook-cta{padding:32px 16px;}
+  .mp-lookbook-cta h3{font-size:22px;}
+  .mp-lookbook-cta p{font-size:13px;}
+  .mp-lookbook-cta .mp-hero-btn{padding:11px 22px; font-size:13px;}
+}
+@media(max-width:480px){
+  .mp-lookbook-cta{padding:24px 14px;}
+  .mp-lookbook-cta h3{font-size:20px;}
+  .mp-lookbook-cta .mp-hero-btn{padding:10px 20px; font-size:13px;}
+}
 </style>
 
 <?php foreach($homepage_sections as $key => $section){ if(!$section->is_enabled) continue; $baseKey = preg_replace('/_\d+$/', '', $key); switch($baseKey){
@@ -26,8 +40,8 @@
 }} ?>
 
 <!-- Fashion Lookbook CTA -->
-<div class="mp-section" style="background:#111; color:#fff; text-align:center;">
-  <h3 style="font-size:28px; font-weight:800; margin-bottom:12px; text-transform:uppercase;">New Collection</h3>
-  <p style="opacity:0.8; margin-bottom:20px;">Discover the latest trends this season.</p>
+<div class="mp-section mp-lookbook-cta">
+  <h3>New Collection</h3>
+  <p>Discover the latest trends this season.</p>
   <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>" class="mp-hero-btn">Explore Collection</a>
 </div>

@@ -15,24 +15,9 @@ class Email_template_model extends CI_Model {
 	}
 
 	protected function ensureTable(){
-		if($this->db->table_exists($this->table)){
-			return;
+		if(!$this->db->table_exists($this->table)){
+			log_message('error', 'Missing required table: ' . $this->table . '. Run the 4.0.2 migration via login.');
 		}
-		$this->db->query("CREATE TABLE IF NOT EXISTS `{$this->table}` (
-			`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-			`store_id` int(11) unsigned NOT NULL DEFAULT 1,
-			`template_key` varchar(64) NOT NULL,
-			`template_name` varchar(128) NOT NULL,
-			`subject` varchar(255) NOT NULL DEFAULT '',
-			`html_body` text,
-			`text_body` text,
-			`status` tinyint(1) NOT NULL DEFAULT 1,
-			`send_copy_to_owner` tinyint(1) NOT NULL DEFAULT 0,
-			`created_at` datetime DEFAULT NULL,
-			`updated_at` datetime DEFAULT NULL,
-			PRIMARY KEY (`id`),
-			UNIQUE KEY `uk_template_key_store` (`template_key`,`store_id`)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 	}
 
 	public function getByKey($key, $storeId = NULL){
@@ -92,6 +77,8 @@ class Email_template_model extends CI_Model {
 			['template_key'=>'subscription_activated','template_name'=>'Subscription Activated','subject'=>'MartPoint Subscription Activated — {store_name}','html_body'=>"<p>Hello {user_name},</p><p>Your MartPoint Retail subscription has been activated.</p><p><strong>Store:</strong> {store_name}<br><strong>Plan:</strong> {subscription_plan}<br><strong>Start Date:</strong> {subscription_start_date}<br><strong>Expiry Date:</strong> {subscription_expiry_date}<br><strong>Days Active:</strong> {subscription_duration}</p><p>Thank you,<br>{app_name}</p>",'text_body'=>"Hello {user_name},\n\nYour MartPoint Retail subscription has been activated.\n\nStore: {store_name}\nPlan: {subscription_plan}\nStart Date: {subscription_start_date}\nExpiry Date: {subscription_expiry_date}\nDays Active: {subscription_duration}\n\nThank you,\n{app_name}",'status'=>1,'send_copy_to_owner'=>1],
 			['template_key'=>'subscription_renewed','template_name'=>'Subscription Renewed','subject'=>'MartPoint Subscription Renewed — {store_name}','html_body'=>"<p>Hello {user_name},</p><p>Your MartPoint Retail subscription has been renewed successfully.</p><p><strong>Plan:</strong> {subscription_plan}<br><strong>New Start Date:</strong> {subscription_start_date}<br><strong>New Expiry Date:</strong> {subscription_expiry_date}<br><strong>Days Left:</strong> {subscription_days_left}</p><p>Thank you,<br>{app_name}</p>",'text_body'=>"Hello {user_name},\n\nYour MartPoint Retail subscription has been renewed successfully.\n\nPlan: {subscription_plan}\nNew Start Date: {subscription_start_date}\nNew Expiry Date: {subscription_expiry_date}\nDays Left: {subscription_days_left}\n\nThank you,\n{app_name}",'status'=>1,'send_copy_to_owner'=>1],
 			['template_key'=>'subscription_suspended','template_name'=>'Subscription Suspended','subject'=>'MartPoint Subscription Suspended — {store_name}','html_body'=>"<p>Hello {user_name},</p><p>Your MartPoint Retail subscription for {store_name} has been suspended.</p><p><strong>Reason:</strong> {subscription_suspension_reason}</p><p>Please contact your MartPoint provider for support.</p><p>Thank you,<br>{app_name}</p>",'text_body'=>"Hello {user_name},\n\nYour MartPoint Retail subscription for {store_name} has been suspended.\n\nReason: {subscription_suspension_reason}\n\nPlease contact your MartPoint provider for support.\n\nThank you,\n{app_name}",'status'=>1,'send_copy_to_owner'=>1],
+			['template_key'=>'online_order_owner','template_name'=>'Online Order Received (Store Owner)','subject'=>'New Online Order #{order_code} - {store_name}','html_body'=>"<h2>New Order Received</h2><p><strong>Order Code:</strong> {order_code}</p><p><strong>Customer:</strong> {customer_name}</p><p><strong>Phone:</strong> {customer_phone}</p><p><strong>Email:</strong> {customer_email}</p><p><strong>Address:</strong> {customer_address}</p><p><strong>Payment Method:</strong> {payment_method}</p><p><strong>Shipping:</strong> {shipping_method}</p><hr><h3>Order Items</h3><table style='width:100%;border-collapse:collapse;'><tr style='background:#f8fafc;'><th style='padding:8px;text-align:left;'>Item</th><th style='padding:8px;'>Qty</th><th style='padding:8px;text-align:right;'>Total</th></tr>{order_items}</table><p><strong>Subtotal:</strong> {subtotal}</p><p><strong>Delivery Fee:</strong> {delivery_fee}</p><p><strong>Grand Total:</strong> {grand_total}</p><hr><p style='color:#888;font-size:12px;'>This is an automated notification from your MartPoint online store.</p>",'text_body'=>"New Order Received\n\nOrder Code: {order_code}\nCustomer: {customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\nPayment Method: {payment_method}\nShipping: {shipping_method}\n\nOrder Items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery Fee: {delivery_fee}\nGrand Total: {grand_total}",'status'=>1,'send_copy_to_owner'=>0],
+			['template_key'=>'online_order_customer','template_name'=>'Online Order Confirmation (Customer)','subject'=>'Order Confirmation #{order_code} - {store_name}','html_body'=>"<h2>Thank you for your order!</h2><p>Hi {customer_name},</p><p>We've received your order <strong>{order_code}</strong> and it's now being processed.</p><h3>Order Summary</h3><table style='width:100%;border-collapse:collapse;'><tr style='background:#f8fafc;'><th style='padding:8px;text-align:left;'>Item</th><th style='padding:8px;'>Qty</th><th style='padding:8px;text-align:right;'>Total</th></tr>{order_items}</table><p><strong>Subtotal:</strong> {subtotal}</p><p><strong>Delivery Fee:</strong> {delivery_fee}</p><p><strong>Grand Total:</strong> {grand_total}</p><p><strong>Payment Method:</strong> {payment_method}</p><hr><p>If you have any questions about your order, please contact us at {store_email}.</p><p style='color:#888;font-size:12px;'>This is an automated email from {store_name}. Please do not reply.</p>",'text_body'=>"Thank you for your order!\n\nHi {customer_name},\n\nWe've received your order {order_code} and it's now being processed.\n\nOrder Items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery Fee: {delivery_fee}\nGrand Total: {grand_total}\nPayment Method: {payment_method}\n\nIf you have any questions, please contact us at {store_email}.\n\nThis is an automated email from {store_name}. Please do not reply.",'status'=>1,'send_copy_to_owner'=>0],
 		];
 
 		$created = 0;

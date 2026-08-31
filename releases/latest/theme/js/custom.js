@@ -34,7 +34,7 @@ function click_this(kevent,target){
     }
 }
 function get_float_type_data(location=''){
-  var res = $(location).val();
+  var res = ($(location).val() || '').replace(/,/g, '').trim();
   return (isNaN(parseFloat(res))) ? parseFloat(0) : parseFloat(res);
  }
 //Animation
@@ -65,7 +65,9 @@ const animateCSS = (element, animation, prefix = 'animate__') =>
 	//animateCSS('.treeview', 'backInRight');
 	//animateCSS('.treeview2', 'backInRight');
 
-	$(".treeview").addClass('animate__animated animate__slideInUp ');
+	// Removed: animating every .treeview causes the sidebar menu to "drag" / freeze
+	// while the slide-in keyframes run, especially on mobile / low-end devices.
+	// $(".treeview").addClass('animate__animated animate__slideInUp ');
 	$(".info-box").addClass('animate__animated animate__slideInUp ');
 	$(".small-box").addClass('animate__animated animate__slideInUp ');
 	$(".animated ").addClass('animate__animated animate__slideInUp ');

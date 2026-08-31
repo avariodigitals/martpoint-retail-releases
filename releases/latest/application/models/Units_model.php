@@ -4,6 +4,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Units_model extends CI_Model {
 
 	var $table = 'db_units';
+
+	public function __construct() {
+		parent::__construct();
+	}
 	var $column_order = array('unit_name','description','status','store_id'); //set column field database for datatable orderable
 	var $column_search = array('unit_name','description','status','store_id'); //set column field database for datatable searchable 
 	var $order = array('id' => 'desc'); // default order 
@@ -21,7 +25,7 @@ class Units_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -40,7 +44,7 @@ class Units_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -54,7 +58,7 @@ class Units_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -78,6 +82,8 @@ class Units_model extends CI_Model {
 	public function verify_and_save(){
 		$unit_name = $this->input->post('unit_name', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
+		$conversion_factor = $this->input->post('conversion_factor', TRUE);
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		//Validate This units already exist or not
 		$this->db->where("upper(unit_name)", strtoupper($unit_name));
@@ -92,7 +98,9 @@ class Units_model extends CI_Model {
 		    				'store_id' 				=> $store_id, 
 		    				'unit_name' 				=> $unit_name, 
 		    				'description' 				=> $description,
-		    				'status' 				=> 1,
+																				'parent_unit_id' 								=> $parent_unit_id,
+																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
+																				'status' 										=> 1,
 		    			);
 			
 			$q1 = $this->db->insert('db_units', $info);
@@ -118,6 +126,8 @@ class Units_model extends CI_Model {
 			$data['q_id']=$query->id;
 			$data['unit_name']=$query->unit_name;
 			$data['description']=$query->description;
+			$data['parent_unit_id']=$query->parent_unit_id;
+			$data['conversion_factor']=$query->conversion_factor;
 			$data['store_id']=$query->store_id;
 			return $data;
 		}
@@ -126,6 +136,8 @@ class Units_model extends CI_Model {
 		$q_id = $this->input->post('q_id', TRUE);
 		$unit_name = $this->input->post('unit_name', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
+		$conversion_factor = $this->input->post('conversion_factor', TRUE);
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		//Validate This units already exist or not
 		$this->db->where("upper(unit_name)", strtoupper($unit_name));
@@ -138,9 +150,12 @@ class Units_model extends CI_Model {
 		}
 		else{
 			$info = array(
-		    				'unit_name' 				=> $unit_name, 
-		    				'description' 				=> $description,
-		    			);
+	    																				'unit_name' 								=> $unit_name, 
+	    																				'description' 								=> $description,
+	    																				'parent_unit_id' 								=> $parent_unit_id,
+	    																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
+	    																				'status' 										=> 1,
+	    																				);
 			
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 

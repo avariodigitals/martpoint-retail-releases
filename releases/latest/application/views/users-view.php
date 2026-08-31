@@ -148,8 +148,8 @@
                       <?php } ?>
                       <?php if($CI->permissions('users_edit') && warehouse_module() && $res1->id!=1) { ?>
                       <li>
-                        <a title="Assign Warehouse" href="<?= $base_url; ?>users/edit/<?= $res1->id; ?>">
-                          <i class="fa fa-fw fa-building text-orange"></i>Assign Warehouse
+                        <a title="Assign Branches" href="<?= $base_url; ?>users/edit/<?= $res1->id; ?>">
+                          <i class="fa fa-fw fa-building text-orange"></i>Assign Branches
                         </a>
                       </li>
                       <?php } ?>

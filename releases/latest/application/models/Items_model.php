@@ -5,7 +5,7 @@ class Items_model extends CI_Model {
 
 	//Datatable start
 	var $table = 'db_items as a';
-	var $column_order = array( 
+	var $column_order = array(
 								'a.id',
 								'a.item_image',
 								'a.item_code',
@@ -23,12 +23,13 @@ class Items_model extends CI_Model {
 								'a.store_id',
 								'a.sku',
 								'a.hsn',
-								'a.sac',
 								'a.item_group',
 								'a.expire_date',
 								'a.mfg_date',
+								'a.not_for_sale',
+								'a.consumable_unit',
 								); //set column field database for datatable orderable
-	var $column_search = array( 
+	var $column_search = array(
 								'a.id',
 								'a.item_image',
 								'a.item_code',
@@ -46,10 +47,11 @@ class Items_model extends CI_Model {
 								'a.store_id',
 								'a.sku',
 								'a.hsn',
-								'a.sac',
 								'a.item_group',
 								'a.expire_date',
 								'a.mfg_date',
+								'a.not_for_sale',
+								'a.consumable_unit',
 								); //set column field database for datatable searchable 
 	var $order = array('a.id' => 'desc'); // default order 
 
@@ -57,7 +59,7 @@ class Items_model extends CI_Model {
 	{
 		parent::__construct();
 	}
-	
+
 	private function _get_datatables_query()
 	{	
 		
@@ -92,17 +94,16 @@ class Items_model extends CI_Model {
 			$this->db->where("a.store_id",get_current_store_id());
 		//}
 		
-		//$this->db->where("a.child_bit=0");
-		//$this->db->where("a.item_group!='Variants'");
-			$this->db->where("(a.item_group is NULL || a.item_group = 'Single')");
+		// Show parent products and single items only — hide child variant rows from the catalog list
+		$this->db->where("a.child_bit", 0);
 		//	echo $this->db->get_compiled_select();exit();
 		$i = 0;
 	
-		foreach ($this->column_search as $item) // loop column 
+		foreach ($this->column_search as $item) // loop column
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
-				
+
 				if($i===0) // first loop
 				{
 					$this->db->group_start(); // open bracket. query Where with OR clause better with bracket. because maybe can combine with other WHERE with AND.
@@ -119,10 +120,10 @@ class Items_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
-		} 
+		}
 		else if(isset($this->order))
 		{
 			$order = $this->order;
@@ -133,9 +134,13 @@ class Items_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
+		if(!$query){
+			log_message('error', 'Items_model get_datatables query failed: '.$this->db->error()['message']);
+			return [];
+		}
 		return $query->result();
 	}
 
@@ -175,22 +180,79 @@ class Items_model extends CI_Model {
 		$hsn = $this->input->post('hsn', TRUE);
 		$unit_id = $this->input->post('unit_id', TRUE);
 		$alert_qty = $this->input->post('alert_qty', TRUE);
-		$price = $this->input->post('price', TRUE);
+		$price = str_replace(',','',$this->input->post('price', TRUE));
 		$tax_id = $this->input->post('tax_id', TRUE);
-		$purchase_price = $this->input->post('purchase_price', TRUE);
+		$purchase_price = str_replace(',','',$this->input->post('purchase_price', TRUE));
 		$tax_type = $this->input->post('tax_type', TRUE);
-		$profit_margin = $this->input->post('profit_margin', TRUE);
-		$sales_price = $this->input->post('sales_price', TRUE);
+		$profit_margin = str_replace(',','',$this->input->post('profit_margin', TRUE));
+		$sales_price = str_replace(',','',$this->input->post('sales_price', TRUE));
 		$seller_points = $this->input->post('seller_points', TRUE);
 		$custom_barcode = $this->input->post('custom_barcode', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$laundry_service_type = $this->input->post('laundry_service_type', TRUE);
 		$item_group = $this->input->post('item_group', TRUE);
+		$attribute_types = $this->input->post('attribute_types', TRUE);
+		$attribute_types_json = (!empty($attribute_types) && is_array($attribute_types)) ? json_encode(array_map('strtolower', $attribute_types)) : null;
 		$discount_type = $this->input->post('discount_type', TRUE);
-		$discount = $this->input->post('discount', TRUE);
-		$mrp = $this->input->post('mrp', TRUE);
+		$discount = str_replace(',','',$this->input->post('discount', TRUE));
+		$mrp = str_replace(',','',$this->input->post('mrp', TRUE));
 		$batch_lot = $this->input->post('batch_lot', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
 		$mfg_date = $this->input->post('mfg_date', TRUE);
+		$serial_number = $this->input->post('serial_number', TRUE);
+		$imei_number = $this->input->post('imei_number', TRUE);
+		$warranty_months = $this->input->post('warranty_months', TRUE);
+		$track_serial = $this->input->post('track_serial', TRUE) ? 1 : 0;
+		$track_imei = $this->input->post('track_imei', TRUE) ? 1 : 0;
+		$not_for_sale = $this->input->post('not_for_sale', TRUE) ? 1 : 0;
+		$consumable_unit = $this->input->post('consumable_unit', TRUE);
+		$accept_custom_order = $this->input->post('accept_custom_order', TRUE) ? 1 : 0;
+		$requires_quote = $this->input->post('requires_quote', TRUE) ? 1 : 0;
+		$requires_deposit = $this->input->post('requires_deposit', TRUE) ? 1 : 0;
+		$workflow_template_key = $this->input->post('workflow_template_key', TRUE) ?: 'standard';
+		// Only update recipe fields if the Recipe & Costing section was visible (key exists in POST)
+		// This preserves existing links when the feature is disabled for the business
+		$recipe_id = null;
+		$recipe_margin_pct = null;
+		if ($this->input->post('recipe_id') !== false) {
+			$recipe_id = $this->input->post('recipe_id', TRUE) ? (int)$this->input->post('recipe_id', TRUE) : null;
+		}
+		if ($this->input->post('recipe_margin_pct') !== false) {
+			$recipe_margin_pct = $this->input->post('recipe_margin_pct', TRUE) !== '' ? (float)$this->input->post('recipe_margin_pct', TRUE) : null;
+		}
+
+		// If recipe is linked, auto-calculate purchase/sales price from recipe cost + margin
+		if ($recipe_id && $this->db->table_exists('db_recipes')) {
+			$this->load->model('recipe_model');
+			$recipe = $this->recipe_model->get($recipe_id);
+			if ($recipe) {
+				$cost_per_unit = $this->recipe_model->calculate_cost_per_unit($recipe_id);
+				if ($cost_per_unit > 0) {
+					$purchase_price = $cost_per_unit;
+					$price = $cost_per_unit;
+					if ($recipe_margin_pct !== null && $recipe_margin_pct > 0) {
+						$sales_price = round($cost_per_unit * (1 + $recipe_margin_pct / 100), 2);
+					}
+				}
+			}
+		}
+		// Build custom order fields JSON
+		$cf_labels = $this->input->post('cf_label', TRUE) ?: [];
+		$cf_types = $this->input->post('cf_type', TRUE) ?: [];
+		$cf_options = $this->input->post('cf_options', TRUE) ?: [];
+		$cf_required = $this->input->post('cf_required', TRUE) ?: [];
+		$custom_fields = [];
+		for($i=0; $i<count($cf_labels); $i++){
+			if(!empty($cf_labels[$i])){
+				$custom_fields[] = [
+					'label' => $cf_labels[$i],
+					'type' => $cf_types[$i] ?? 'text',
+					'options' => $cf_options[$i] ?? '',
+					'required' => isset($cf_required[$i]) ? 1 : 0,
+				];
+			}
+		}
+		$custom_order_fields_json = !empty($custom_fields) ? json_encode($custom_fields) : null;
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$adjustment_qty = $this->input->post('adjustment_qty', TRUE);
 		$command = $this->input->post('command', TRUE);
@@ -198,7 +260,24 @@ class Items_model extends CI_Model {
 			$command = $modal_post['command'];
 		}
 		$q_id = $this->input->post('q_id', TRUE);
-		$existing_row_count = $this->input->post('existing_row_count', TRUE);
+		// Try to get existing_row_count from URL parameter first (passed by JavaScript), then fall back to hidden_rowcount from POST
+		$existing_row_count = $this->input->get('existing_row_count', TRUE) ?? $this->input->post('hidden_rowcount', TRUE);
+		
+		// Ensure parents with children are always saved as Variants, and new saves with variants become Variants
+		if($command == 'update' && !empty($q_id)){
+			$child_count = $this->db->where('parent_id',$q_id)->count_all_results('db_items');
+			if($child_count > 0){
+				$item_group = 'Variants';
+			}
+		}
+		elseif($existing_row_count > 0){
+			for($i=1; $i<=$existing_row_count; $i++){
+				if(!empty($_REQUEST['tr_variant_id_'.$i])){
+					$item_group = 'Variants';
+					break;
+				}
+			}
+		}
 		
 		//varify max sales usage of the package subscription
 		validate_package_offers('max_items','db_items');
@@ -213,7 +292,7 @@ class Items_model extends CI_Model {
 			$new_name = time();
 			$config['file_name'] = $new_name;
 			$config['upload_path']          = './uploads/items/';
-	        $config['allowed_types']        = 'jpg|png|jpeg';
+	        $config['allowed_types']        = 'jpg|png|jpeg|gif|webp';
 	        $config['max_size']             = 1024;
 	        $config['max_width']            = 1500;
 	        $config['max_height']           = 1500;
@@ -254,13 +333,16 @@ class Items_model extends CI_Model {
 		}*/
 		
 		//Create items unique Number
-		$this->db->query("ALTER TABLE db_items AUTO_INCREMENT = 1");
+		// (auto-increment is managed by MySQL; removed the runtime DDL reset to keep schema governance clean)
 		//end
 
 		
 		//$stock = $current_opening_stock + $new_opening_stock;
 
 		$alert_qty = empty(trim($alert_qty)) ? '0' : $alert_qty;
+
+		// Tracks whether the barcode/batch table saved without error; also used by variants
+		$barcode_save_ok = true;
 
 		if($item_group=='Single'){
 			$initial = array();
@@ -294,6 +376,7 @@ class Items_model extends CI_Model {
 			    				'seller_points'				=> $seller_points,
 			    				'custom_barcode'			=> $custom_barcode,
 			    				'description'				=> $description,
+			    				'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
 			    				'item_group'				=> $item_group,
 			    				'discount_type'				=> $discount_type,
 			    				'discount'					=> $discount,
@@ -302,11 +385,29 @@ class Items_model extends CI_Model {
 								'expire_date'				=> (!empty($expire_date) ? $expire_date : null),
 
 								'mfg_date'				=> (!empty($mfg_date) ? $mfg_date : null),
+								'serial_number'				=> !empty($serial_number) ? $serial_number : null,
+								'imei_number'				=> !empty($imei_number) ? $imei_number : null,
+								'warranty_months'			=> is_numeric($warranty_months) ? (int)$warranty_months : 0,
+								'track_serial'				=> $track_serial,
+								'track_imei'				=> $track_imei,
+								'not_for_sale'				=> $not_for_sale,
+								'consumable_unit'			=> !empty($consumable_unit) ? $consumable_unit : null,
+								'accept_custom_order'		=> $accept_custom_order,
+								'custom_order_fields_json'	=> $custom_order_fields_json,
+								'requires_quote'			=> $requires_quote,
+								'requires_deposit'			=> $requires_deposit,
+								'workflow_template_key'		=> $workflow_template_key,
+								'attribute_types_json'		=> $attribute_types_json,
 			    				'item_code' 				=> $item_code,
 			    				
 			    			);
 			if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
+							}
+							// Only include recipe fields if the Recipe & Costing section was visible
+							if ($this->input->post('recipe_id') !== false) {
+								$info['recipe_id'] = $recipe_id;
+								$info['recipe_margin_pct'] = $recipe_margin_pct;
 							}
 							
 			if ( $command == 'save' ){
@@ -319,39 +420,67 @@ class Items_model extends CI_Model {
 			}
 			
 			if(!$query1){
+				$this->db->trans_rollback();
 				return "failed";
 			}
 
-			// Save barcode / batch / lot records
+			// Save barcode / batch / lot records (also unit tracking for electronics)
+			$barcode_save_ok = true;
 			$this->db->where('item_id', $item_id)->delete('db_item_barcodes');
 			$barcode_barcodes = $this->input->post('barcode_barcode', TRUE) ?? [];
 			$barcode_batches  = $this->input->post('barcode_batch', TRUE) ?? [];
+			$barcode_serials  = $this->input->post('barcode_serial', TRUE) ?? [];
+			$barcode_imeis    = $this->input->post('barcode_imei', TRUE) ?? [];
 			$barcode_pprices  = $this->input->post('barcode_pprice', TRUE) ?? [];
 			$barcode_sprices  = $this->input->post('barcode_sprice', TRUE) ?? [];
 			$barcode_mrps     = $this->input->post('barcode_mrp', TRUE) ?? [];
 			$barcode_qtys     = $this->input->post('barcode_qty', TRUE) ?? [];
 			$barcode_expires  = $this->input->post('barcode_expire_date', TRUE) ?? [];
 			$barcode_mfgs     = $this->input->post('barcode_mfg_date', TRUE) ?? [];
+			$barcode_warranties = $this->input->post('barcode_warranty', TRUE) ?? [];
 			$bc_count = count($barcode_barcodes);
 			for($bc = 0; $bc < $bc_count; $bc++){
 				$bc_barcode = trim($barcode_barcodes[$bc] ?? '');
-				if($bc_barcode === '') continue;
+				$bc_batch   = trim($barcode_batches[$bc] ?? '');
+				$bc_serial  = trim($barcode_serials[$bc] ?? '');
+				$bc_imei    = trim($barcode_imeis[$bc] ?? '');
+				// Skip completely empty rows (no barcode, no batch, no serial, no imei)
+				if($bc_barcode === '' && $bc_batch === '' && $bc_serial === '' && $bc_imei === '') continue;
 				$bc_data = array(
 					'item_id'        => $item_id,
 					'barcode'        => $bc_barcode,
-					'batch_lot'      => trim($barcode_batches[$bc] ?? ''),
+					'batch_lot'      => $bc_batch,
+					'serial_number'  => $bc_serial,
+					'imei_number'    => $bc_imei,
 					'purchase_price' => store_number_format($barcode_pprices[$bc] ?? 0,0),
 					'sales_price'    => store_number_format($barcode_sprices[$bc] ?? 0,0),
 					'mrp'            => store_number_format($barcode_mrps[$bc] ?? 0,0),
 					'qty'            => store_number_format($barcode_qtys[$bc] ?? 0,0),
-					'expire_date'    => !empty($barcode_expires[$bc]) ? $barcode_expires[$bc] : null,
-					'mfg_date'       => !empty($barcode_mfgs[$bc]) ? $barcode_mfgs[$bc] : null,
 					'warehouse_id'   => $warehouse_id,
 					'status'         => 1,
 					'created_date'   => date('Y-m-d'),
 					'created_time'   => date('H:i:s'),
 				);
-				$this->db->insert('db_item_barcodes', $bc_data);
+				if(!empty($barcode_expires[$bc])) $bc_data['expire_date'] = $barcode_expires[$bc];
+				if(!empty($barcode_mfgs[$bc]))    $bc_data['mfg_date']    = $barcode_mfgs[$bc];
+				if(!empty($barcode_warranties[$bc])) $bc_data['warranty_months'] = (int)$barcode_warranties[$bc];
+				$bc_insert = $this->db->insert('db_item_barcodes', $bc_data);
+				if(!$bc_insert){
+					$barcode_save_ok = false;
+					$error = $this->db->error();
+					$barcode_error_msg = "Barcode save failed: " . $error['message'];
+					break;
+				}
+			}
+
+			// Sync first barcode row's serial/imei/warranty back to db_items for backward compatibility
+			$first_bc = $this->db->where('item_id', $item_id)->where('status', 1)->order_by('id', 'asc')->get('db_item_barcodes')->row();
+			if($first_bc){
+				$this->db->where('id', $item_id)->update('db_items', array(
+					'serial_number'   => !empty($first_bc->serial_number) ? $first_bc->serial_number : null,
+					'imei_number'     => !empty($first_bc->imei_number) ? $first_bc->imei_number : null,
+					'warranty_months' => !empty($first_bc->warranty_months) ? (int)$first_bc->warranty_months : 0,
+				));
 			}
 
 			//Opening Stock Exist
@@ -363,6 +492,8 @@ class Items_model extends CI_Model {
                                    	);
                 $q2 = $this->add_opening_stock($array_params); 
                 if(!$q2){
+                    $this->db->trans_rollback();
+                    log_message('error', "Opening stock save failed: " . $this->db->error()['message']);
                     return "failed";
                 }
             }
@@ -371,23 +502,114 @@ class Items_model extends CI_Model {
 
 		//Insert Variants in db_items table
 		if( $item_group =='Variants'){
+
+			// Save the parent product row first so children can reference it
+			$profit_margin = (empty(trim($profit_margin))) ? 'null' : $profit_margin;
+			$parent_info = array(
+	    							'item_name' 				=> $item_name,
+	    							'brand_id' 					=> $brand_id,
+	    							'category_id' 				=> $category_id,
+	    							'sku' 						=> $sku,
+	    							'hsn' 						=> $hsn,
+	    							'unit_id' 					=> $unit_id,
+	    							'alert_qty' 				=> $alert_qty,
+	    							
+	    							'price' 					=> $price,
+	    							'tax_id' 					=> $tax_id,
+	    							'purchase_price' 			=> $purchase_price,
+	    							'tax_type' 					=> $tax_type,
+	    							'profit_margin' 			=> $profit_margin,
+	    							'sales_price' 				=> $sales_price,
+	    							
+	    							'seller_points'				=> $seller_points,
+	    							'custom_barcode'			=> $custom_barcode,
+	    							'description'				=> $description,
+	    							'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
+	    							'item_group'				=> 'Variants',
+	    							'discount_type'				=> $discount_type,
+	    							'discount'					=> $discount,
+	    							'mrp'						=> $mrp,
+									'batch_lot'					=> $batch_lot,
+									'expire_date'				=> (!empty($expire_date) ? $expire_date : null),
+									'mfg_date'					=> (!empty($mfg_date) ? $mfg_date : null),
+									'serial_number'				=> !empty($serial_number) ? $serial_number : null,
+									'imei_number'				=> !empty($imei_number) ? $imei_number : null,
+									'warranty_months'			=> is_numeric($warranty_months) ? (int)$warranty_months : 0,
+									'track_serial'				=> $track_serial,
+									'track_imei'				=> $track_imei,
+									'not_for_sale'				=> $not_for_sale,
+									'consumable_unit'			=> !empty($consumable_unit) ? $consumable_unit : null,
+									'accept_custom_order'		=> $accept_custom_order,
+									'custom_order_fields_json'	=> $custom_order_fields_json,
+									'requires_quote'			=> $requires_quote,
+									'requires_deposit'			=> $requires_deposit,
+									'workflow_template_key'		=> $workflow_template_key,
+									'attribute_types_json'		=> $attribute_types_json,
+	    							'item_code' 				=> $item_code,
+	    							'child_bit' 				=> 0,
+	    						);
+			if(!empty($file_name)){
+				$parent_info['item_image'] = 'uploads/items/'.$file_name;
+			}
+			// Only include recipe fields if the Recipe & Costing section was visible
+			if ($this->input->post('recipe_id') !== false) {
+				$parent_info['recipe_id'] = $recipe_id;
+				$parent_info['recipe_margin_pct'] = $recipe_margin_pct;
+			}
+
+			if ( $command == 'save' ) {
+				$initial = array(
+	    								'store_id' 					=> $store_id,
+										'count_id' 					=> get_count_id('db_items'), 
+	    								//'item_code' 				=> get_init_code('item'), 
+	    								'status' 					=> 1,
+	    							);
+				$initial = array_merge($initial,$this->log_details());
+				$query1 = $this->db->insert('db_items', array_merge($parent_info,$initial));
+				$item_id = $this->db->insert_id();
+			}
+			else{
+				$item_id = $q_id;
+				$query1 = $this->db->where('id',$q_id)->update('db_items', $parent_info);
+			}
+
+			if(!$query1){
+				$this->db->trans_rollback();
+				log_message('error', "Variant parent save failed: " . $this->db->error()['message']);
+				return "failed";
+			}
+
 			if($existing_row_count>0){
 				for($i=1;$i<=$existing_row_count;$i++){
-					if(isset($_REQUEST['tr_variant_id_'.$i]) && !empty($_REQUEST['tr_variant_id_'.$i])){
+					$child_id = $this->input->post('tr_item_id_'.$i, TRUE) ?? '';
+					$variant_id = isset($_REQUEST['tr_variant_id_'.$i]) ? $this->xss_html_filter(trim($_REQUEST['tr_variant_id_'.$i])) : '';
+					if(!empty($child_id) || !empty($variant_id)){
 
-						$variant_id 		=$this->xss_html_filter(trim($_REQUEST['tr_variant_id_'.$i]));
-						$sku				=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_2']));
-						$hsn				=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9']));
-						$custom_barcode 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));
-						$price 			 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3']));
-						$purchase_price	 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4']));
-						$profit_margin	 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_5']));
-						$sales_price	 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_6']));
-						$item_mrp	 		=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10']));
-						$opening_stock	 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
+						$child_id = $this->xss_html_filter(trim($child_id));
+						$sku				=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_2'] ?? ''));
+						$hsn				=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9'] ?? ''));
+						$custom_barcode 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8'] ?? ''));
+						$price 			 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3'] ?? '')));
+						$purchase_price	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4'] ?? '')));
+						$profit_margin	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_5'] ?? '')));
+						$sales_price	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_6'] ?? '')));
+						$item_mrp	 		=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10'] ?? '')));
+						$opening_stock	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11'] ?? '')));
 						
+						$child_item_name = '';
+						$existing_child = !empty($child_id) ? $this->db->where('id',$child_id)->get('db_items')->row() : $this->db->where('variant_id',$variant_id)->where('parent_id',$item_id)->get('db_items')->row();
+						if($existing_child && empty($child_id)){ $child_id = $existing_child->id; }
+						if($command == 'update' && $existing_child){
+							$child_item_name = $existing_child->item_name;
+						}
+						if(empty($variant_id) && $existing_child){ $variant_id = $existing_child->variant_id; }
+
 						$variant_details = $this->db->select("*")->where("id",$variant_id)->get("db_variants")->row();
-						$variant_name = $variant_details->variant_name;
+						if(!$variant_details && empty($child_item_name)){
+							$this->db->trans_rollback();
+							return "Variant details missing for row ".$i;
+						}
+						$variant_name = $variant_details ? $variant_details->variant_name : '';
 
 						
 						$initial = array();
@@ -402,8 +624,8 @@ class Items_model extends CI_Model {
 
 						}//Command SAVE
 						else{
-							$count_id 			=$this->xss_html_filter(trim($_REQUEST['count_id_'.$i]));
-							$item_code 			=$this->xss_html_filter(trim($_REQUEST['item_code_'.$i]));
+							$count_id 			=$this->xss_html_filter(trim($_REQUEST['count_id_'.$i] ?? ''));
+							$item_code 			=$this->xss_html_filter(trim($_REQUEST['item_code_'.$i] ?? ''));
 							$initial = array(
 											'count_id' 					=> $count_id, 
 						    				'item_code' 				=> $item_code,
@@ -411,7 +633,7 @@ class Items_model extends CI_Model {
 						}
 
 						$info = array(
-			    				'item_name' 				=> $item_name."-".$variant_name,
+			    				'item_name' 				=> ((isset($child_item_name) && !empty($child_item_name)) ? $child_item_name : $item_name."-".$variant_name),
 			    				'brand_id' 					=> $brand_id,
 			    				'category_id' 				=> $category_id,
 			    				'sku' 						=> $sku,
@@ -432,37 +654,76 @@ class Items_model extends CI_Model {
 			    				'custom_barcode'			=> $custom_barcode,
 			    				'description'				=> $description,
 			    				'item_group'				=> 'Single',
-			    				//'parent_id'					=> $item_id,
+			    				'parent_id'					=> $item_id,
 			    				'child_bit'					=> 1,
 			    				'variant_id'				=> $variant_id,
 			    				'discount_type'				=> $discount_type,
 			    				'discount'					=> $discount,
+								'not_for_sale'				=> $not_for_sale,
+								'consumable_unit'			=> $consumable_unit,
 			    			
 			    			);
 							
-							if(!empty($file_name)){
-								$info['item_image'] = 'uploads/items/'.$file_name;
+							$variant_file_name = '';
+							if(!empty($_FILES['variant_image_'.$i]['name'])){
+								if(!isset($this->upload)){
+									$this->load->library('upload');
+								}
+								$v_config['file_name'] = time().'_'.$i;
+								$v_config['upload_path'] = './uploads/items/';
+								$v_config['allowed_types'] = 'jpg|png|jpeg|gif|webp';
+								$v_config['max_size'] = 1024;
+								$v_config['max_width'] = 1500;
+								$v_config['max_height'] = 1500;
+								$this->upload->initialize($v_config);
+								if($this->upload->do_upload('variant_image_'.$i)){
+									$variant_file_name = $this->upload->data('file_name');
+								} else {
+									log_message('error', 'Variant image upload failed for row '.$i.': '.$this->upload->display_errors());
+								}
+							}
+							if(!empty($variant_file_name)){
+								$info['item_image'] = 'uploads/items/'.$variant_file_name;
+							}
+							// Only include recipe fields if the Recipe & Costing section was visible
+							if ($this->input->post('recipe_id') !== false) {
+								$info['recipe_id'] = $recipe_id;
+								$info['recipe_margin_pct'] = $recipe_margin_pct;
 							}
 							/*echo "<pre>";
 							print_r($info);
 							exit;*/
 							$info = array_merge($info,$initial);
+							$query1 = false; // Initialize per iteration
 							if ( $command == 'save'){
 								$query1 = $this->db->insert('db_items', $info);
 							}
 							else{
-								//FIND THE THIS VARIANT SAVED IN DB_ITEMS OT NOT
-								$q3 = $this->db->select("id")->where('variant_id',$variant_id)->where('parent_id',$item_id)->get("db_items");
-								if($q3->num_rows()>0){
-									//YES ITEM ALREADY EXIST
-									$query1 = $this->db->where("id",$q3->row()->id)->update('db_items', $info);	
+								//FIND THE THIS VARIANT SAVED IN DB_ITEMS OR NOT
+								if(!empty($child_id)){
+									$query1 = $this->db->where("id",$child_id)->update('db_items', $info);
+								}
+								elseif(!empty($variant_id)){
+									$q3 = $this->db->select("id")->where('variant_id',$variant_id)->where('parent_id',$item_id)->get("db_items");
+									if($q3->num_rows()>0){
+										//YES ITEM ALREADY EXIST
+										$query1 = $this->db->where("id",$q3->row()->id)->update('db_items', $info);
+									}
+									else{
+										$query1 = $this->db->insert('db_items', $info);
+									}
 								}
 								else{
-									$query1 = $this->db->insert('db_items', $info);
+									// Both child_id and variant_id are empty - cannot update this row
+									log_message('error', "Variant row $i: both child_id and variant_id are empty, skipping");
+									$query1 = true; // Don't fail the whole save, just skip this row
 								}
 							}
 							#------------------------------------
 							if(!$query1){
+								$err = $this->db->error();
+								$this->db->trans_rollback();
+								log_message('error', "Variant child save failed for row $i: " . ($err['message'] ?? 'unknown'));
 								return "failed";
 							}
 							$variant_item_id = $this->db->insert_id();
@@ -476,6 +737,7 @@ class Items_model extends CI_Model {
 		                                           	);
 		                        $q2 = $this->add_opening_stock($array_params); 
 		                        if(!$q2){
+		                            $this->db->trans_rollback();
 		                            return "failed";
 		                        }
 		                    }
@@ -487,14 +749,13 @@ class Items_model extends CI_Model {
 			}//existing_row_count END
 		}//Variant END
 
-		
-		if ($query1){
+		if ($query1 && $barcode_save_ok){
 				$this->db->trans_commit();
 				if ($command=='save') {
-					$this->session->set_flashdata('success', 'Success!! New Item Added Successfully!');
+					@$this->session->set_flashdata('success', 'Success!! New Item Added Successfully!');
 				}
 				else{
-					$this->session->set_flashdata('success', 'Success!! Item Updated Successfully!');
+					@$this->session->set_flashdata('success', 'Success!! Item Updated Successfully!');
 				}
 				
 		        return "success";
@@ -502,7 +763,13 @@ class Items_model extends CI_Model {
 		else{
 				$this->db->trans_rollback();
 				//unlink('uploads/items/'.$file_name);
-		        return "failed";
+				$error = $this->db->error();
+				$msg = isset($barcode_error_msg) ? $barcode_error_msg : "failed";
+				if(!empty($error['message'])){
+					$msg .= " | DB: " . $error['message'];
+					log_message('error', "Item save failed [command=$command group=$item_group]: " . $error['message']);
+				}
+		        return $msg;
 		}
 		
 	}
@@ -524,7 +791,7 @@ class Items_model extends CI_Model {
 			$data['category_id']=$query->category_id;
 			$data['sku']=$query->sku;
 			$data['hsn']=$query->hsn;
-			$data['sac']=$query->sac;
+			$data['sac']=$query->sac ?? '';
 			$data['unit_id']=$query->unit_id;
 			$data['alert_qty']=$query->alert_qty;
 			$data['price']=store_number_format($query->price,0);
@@ -538,14 +805,31 @@ class Items_model extends CI_Model {
 			$data['seller_points']=$query->seller_points;
 			$data['custom_barcode']=$query->custom_barcode;
 			$data['description']=$query->description;
+			$data['laundry_service_type']=$query->laundry_service_type;
 			$data['item_group']=$query->item_group;
+			// If this item already has children in the DB, it must always be treated as a Variants parent
+			if($this->db->where('parent_id',$id)->count_all_results('db_items') > 0){
+				$data['item_group']='Variants';
+			}
+			$data['attribute_types']=(!empty($query->attribute_types_json)) ? json_decode($query->attribute_types_json, true) : array();
 			$data['discount']=$query->discount;
 			$data['discount_type']=$query->discount_type;
+			$data['commission_type']=$query->commission_type ?? 'none';
+			$data['commission_value']=$query->commission_value ?? 0;
 			$data['child_bit']=$query->child_bit;
 			$data['mrp']=store_number_format($query->mrp,0);
 			$data['batch_lot']=$query->batch_lot;
 			$data['expire_date']=$query->expire_date;
 			$data['mfg_date']=$query->mfg_date;
+			$data['serial_number']=$query->serial_number ?? '';
+			$data['imei_number']=$query->imei_number ?? '';
+			$data['warranty_months']=$query->warranty_months ?? 0;
+			$data['track_serial']=$query->track_serial ?? 0;
+			$data['track_imei']=$query->track_imei ?? 0;
+			$data['not_for_sale']=$query->not_for_sale ?? 0;
+			$data['consumable_unit']=$query->consumable_unit ?? '';
+			$data['recipe_id']=$query->recipe_id ?? null;
+			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
 
 			// Load barcode / batch records
 			$data['item_barcodes'] = $this->db->where('item_id', $id)->where('status', 1)->get('db_item_barcodes')->result();
@@ -668,7 +952,7 @@ class Items_model extends CI_Model {
 	}
 
 
-	public function inclusive($price='',$tax_per){
+	public function inclusive($price, $tax_per){
 		return $price/(($tax_per/100)+1)/10;
 	}
 
@@ -690,7 +974,7 @@ class Items_model extends CI_Model {
 
 		// Server-side expiry check as safety net
 		$row = $q1->row();
-		if(!empty($row->expire_date) && $row->expire_date != '0000-00-00'){
+		if(is_valid_date($row->expire_date)){
 			$CI =& get_instance();
 			$CI->load->model('expiry_settings_model');
 			$expiry_settings = $CI->expiry_settings_model->get_settings();
@@ -836,14 +1120,16 @@ class Items_model extends CI_Model {
 	public function get_variants_list_in_row($parent_id){
 		$q1=$this->db->select('*')->from('db_items')->where("parent_id=$parent_id")->get();
 		$rowcount =1;
+		$html = '';
 		foreach ($q1->result() as $res1) {
 
 			$res2=$this->db->select('*')->from('db_variants')->where("id",$res1->variant_id)->get()->row();
 			
 			$info = array(
 							'item_id'					=> $res1->id, 
-							'variant_id' 				=> $res2->id, 
-							'variant_name' 				=> $res2->variant_name,
+							'variant_id' 				=> $res2 ? $res2->id : $res1->variant_id, 
+							'variant_name' 				=> $res2 ? $res2->variant_name : $res1->item_name,
+							'item_image'				=> $res1->item_image,
 							'item_price' 				=> '',
 							'item_sales_price' 			=> store_number_format($res1->sales_price,0),
 							'variant_item_sku' 			=> $res1->sku,
@@ -857,14 +1143,18 @@ class Items_model extends CI_Model {
 							'opening_stock'				=> 0,
 						);
 			
-			$result = $this->return_variant_data_in_html_row($rowcount++,$info);
+			ob_start();
+			$this->return_variant_data_in_html_row($rowcount++,$info);
+			$html .= ob_get_clean();
 		}
-		return $result;
+		return $html;
 	}
 
 	public function return_variant_data_in_html_row($rowcount,$info){
 		$variant_id = isset($info['variant_id']) ? $info['variant_id'] : '';
 		$variant_name = isset($info['variant_name']) ? $info['variant_name'] : '';
+		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
+		$item_image = isset($info['item_image']) ? $info['item_image'] : '';
 		$item_price = isset($info['item_price']) ? $info['item_price'] : '';
 		$item_sales_price = isset($info['item_sales_price']) ? $info['item_sales_price'] : '';
 		$variant_item_sku = isset($info['variant_item_sku']) ? $info['variant_item_sku'] : '';
@@ -883,12 +1173,23 @@ class Items_model extends CI_Model {
                   <a id="td_data_<?=$rowcount;?>_1" href="javascript:" title=""><?=$variant_name;?></a>
                   	</label>
                </td>
+
+               <!-- Image -->
+               <td id="td_<?=$rowcount;?>_0" style="text-align:center; min-width:80px;">
+                  <?php if(!empty($item_image) && file_exists($item_image)): ?>
+                     <img id="variant_preview_<?=$rowcount;?>" src="<?= base_url($item_image); ?>" style="max-width:48px; max-height:48px; border-radius:4px; margin-bottom:6px; cursor:pointer;" onclick="$('#variant_image_<?=$rowcount;?>').click()"><br>
+                  <?php else: ?>
+                     <img id="variant_preview_<?=$rowcount;?>" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" style="width:48px; height:48px; border-radius:4px; margin-bottom:6px; cursor:pointer; background:#eee;" onclick="$('#variant_image_<?=$rowcount;?>').click()"><br>
+                  <?php endif; ?>
+                  <input type="file" name="variant_image_<?=$rowcount;?>" id="variant_image_<?=$rowcount;?>" class="form-control input-sm" accept="image/*" style="display:none;" onchange="previewVariantImage(this, <?=$rowcount;?>)">
+                  <a href="javascript:" class="variant-choose-link small" onclick="$('#variant_image_<?=$rowcount;?>').click()">Choose image</a>
+               </td>
   
                <!-- SKU-->
                <td id="td_<?=$rowcount;?>_2"><input type="text" name="td_data_<?=$rowcount;?>_2" id="td_data_<?=$rowcount;?>_2" class="form-control text-center no-padding" value="<?=$variant_item_sku;?>" placeholder='Optional'></td>
 
                <!-- HSN-->
-               <td id="td_<?=$rowcount;?>_9"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-center no-padding" value="<?=$variant_item_hsn;?>" placeholder='Optional'></td>
+               <td id="td_<?=$rowcount;?>_9" style="display:none;"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-center no-padding" value="<?=$variant_item_hsn;?>" placeholder='Optional'></td>
 
                <!-- Barcode-->
                <td id="td_<?=$rowcount;?>_8"><input type="text" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="form-control text-center no-padding" value="<?=$barcode;?>" placeholder='Optional'></td>
@@ -915,10 +1216,11 @@ class Items_model extends CI_Model {
                <!-- Delete button -->
                <td id="td_<?=$rowcount;?>_7" style="text-align: center;">
                   <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow_also_delete_from_database('<?=$item_id;?>',<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_7" id="td_data_<?=$rowcount;?>_7"></a>
+                  <input type="hidden" id="tr_variant_id_<?=$rowcount;?>" name="tr_variant_id_<?=$rowcount;?>" value="<?=$variant_id;?>">
+                  <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+                  <input type="hidden" id="count_id_<?=$rowcount;?>" name="count_id_<?=$rowcount;?>" value="<?=$count_id;?>">
+                  <input type="hidden" id="item_code_<?=$rowcount;?>" name="item_code_<?=$rowcount;?>" value="<?=$item_code;?>">
                </td>
-               <input type="hidden" id="tr_variant_id_<?=$rowcount;?>" name="tr_variant_id_<?=$rowcount;?>" value="<?=$variant_id;?>">
-               <input type="hidden" id="count_id_<?=$rowcount;?>" name="count_id_<?=$rowcount;?>" value="<?=$count_id;?>">
-               <input type="hidden" id="item_code_<?=$rowcount;?>" name="item_code_<?=$rowcount;?>" value="<?=$item_code;?>">
             </tr>
 		<?php
 
@@ -1020,7 +1322,13 @@ class Items_model extends CI_Model {
 
 			$q = (isset($_POST['searchTerm'])) ? strtoupper($_POST['searchTerm']) : '';
 
-			$this->db->where("(upper(item_name) like '%$q%' or upper(item_code) like '%$q%' or upper(custom_barcode) like '%$q%')");
+			// For name/code search: show parent products and single items only (child_bit=0)
+			// For barcode scan: allow matching a child variant by its custom_barcode
+			$this->db->where("(
+				(child_bit = 0 AND (upper(item_name) like '%$q%' or upper(item_code) like '%$q%'))
+				OR
+				(upper(custom_barcode) like '%$q%' AND custom_barcode != '')
+			)");
 		}
 		$this->db->limit(10);
 		//echo $this->db->get_compiled_select();exit;
@@ -1044,4 +1352,270 @@ class Items_model extends CI_Model {
 	public function getItemsJson($id){
 		return json_encode($this->getItemsArray($id));
 	}
+
+	/**
+	 * Get distinct variant attribute types and values for this store.
+	 * Returns an array keyed by attribute_type, e.g.
+	 * [ 'size' => ['S','M','L'], 'colour' => ['Red','Blue'] ]
+	 */
+	public function get_variant_attribute_map($store_id = null){
+		if(empty($store_id)) $store_id = get_current_store_id();
+		$map = array();
+
+		// 1. Prefer the master attribute table (attribute-driven products)
+		if($this->db->table_exists('db_attributes')){
+			$this->db->select('attribute_type, attribute_value');
+			$this->db->where('store_id', $store_id);
+			$this->db->where('status', 1);
+			$this->db->order_by('attribute_type','asc');
+			$this->db->order_by('sort_order','asc');
+			$this->db->order_by('attribute_value','asc');
+			$q = $this->db->get('db_attributes');
+			if($q->num_rows() > 0){
+				foreach($q->result() as $r){
+					$type = strtolower($r->attribute_type);
+					if(!isset($map[$type])) $map[$type] = array();
+					$map[$type][] = $r->attribute_value;
+				}
+				return $map;
+			}
+		}
+
+		// 2. Fallback: variant_attributes created manually
+		if($this->db->table_exists('db_variant_attributes')){
+			$this->db->select('attribute_type, attribute_value, COUNT(*) as c');
+			$this->db->where('store_id', $store_id);
+			$this->db->group_by(array('attribute_type','attribute_value'));
+			$this->db->order_by('attribute_type','asc');
+			$this->db->order_by('attribute_value','asc');
+			$q = $this->db->get('db_variant_attributes');
+			if($q->num_rows() > 0){
+				foreach($q->result() as $r){
+					$type = strtolower($r->attribute_type);
+					if(!isset($map[$type])) $map[$type] = array();
+					$map[$type][] = $r->attribute_value;
+				}
+				return $map;
+			}
+		}
+
+		// Fallback: legacy single-dimension variants
+		$this->db->select('attribute_type, attribute_value, variant_name');
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->order_by('attribute_value','asc');
+		$q = $this->db->get('db_variants');
+		foreach($q->result() as $r){
+			$type = !empty($r->attribute_type) ? strtolower($r->attribute_type) : 'variant';
+			$value = !empty($r->attribute_value) ? $r->attribute_value : $r->variant_name;
+			if(!isset($map[$type])) $map[$type] = array();
+			if(!in_array($value, $map[$type])) $map[$type][] = $value;
+		}
+		return $map;
+	}
+
+	/**
+	 * Generate or retrieve a variant record that matches a set of attribute values.
+	 * This enables N-dimensional item matrix generation on the item form.
+	 *
+	 * @param array $attributes associative [ 'size' => 'M', 'colour' => 'Red' ]
+	 * @param string $base_sku  parent SKU base for child SKU auto-generation
+	 * @param int $store_id
+	 * @return int|null variant_id
+	 */
+	public function find_or_create_variant_by_attributes($attributes, $base_sku = '', $store_id = null){
+		if(empty($store_id)) $store_id = get_current_store_id();
+		if(empty($attributes)) return null;
+
+		$attribute_values = array_values($attributes);
+		$variant_name = implode(' / ', $attribute_values);
+
+		// 1. Try to find an exact existing variant by name
+		$this->db->where('store_id', $store_id);
+		$this->db->where('UPPER(variant_name)', strtoupper($variant_name));
+		$q = $this->db->get('db_variants');
+		if($q->num_rows() > 0){
+			return $q->row()->id;
+		}
+
+		// 2. Try to match via db_variant_attributes (multi-attribute table)
+		if($this->db->table_exists('db_variant_attributes')){
+			$where_parts = array();
+			foreach($attributes as $type => $value){
+				$type = $this->db->escape_str(strtolower($type));
+				$value = $this->db->escape_str($value);
+				$where_parts[] = "(attribute_type = '{$type}' AND attribute_value = '{$value}')";
+			}
+			$sql = "SELECT variant_id, COUNT(*) as cnt
+					FROM db_variant_attributes
+					WHERE store_id = " . (int)$store_id . " AND (" . implode(' OR ', $where_parts) . ")
+					GROUP BY variant_id
+					HAVING cnt >= " . count($attributes) . "
+					LIMIT 1";
+			$q = $this->db->query($sql);
+			if($q->num_rows() > 0){
+				return $q->row()->variant_id;
+			}
+		}
+
+		// 3. Create a new variant master record (auto-generation)
+		$primary_type = key($attributes);
+		$primary_value = reset($attributes);
+		$this->db->insert('db_variants', array(
+			'store_id' => $store_id,
+			'variant_name' => $variant_name,
+			'attribute_type' => $primary_type,
+			'attribute_value' => $primary_value,
+			'description' => 'Auto-generated by variant matrix',
+			'status' => 1,
+		));
+		$variant_id = $this->db->insert_id();
+
+		if($this->db->table_exists('db_variant_attributes')){
+			$sort = 1;
+			foreach($attributes as $type => $value){
+				$this->db->insert('db_variant_attributes', array(
+					'store_id' => $store_id,
+					'variant_id' => $variant_id,
+					'attribute_type' => strtolower($type),
+					'attribute_value' => $value,
+					'sort_order' => $sort++,
+					'created_date' => date('Y-m-d'),
+				));
+			}
+		}
+		return $variant_id;
+	}
+
+	/**
+	 * Given a parent item and a set of attribute values, return the child item_id.
+	 * Used by the POS variant picker to sell the correct variant.
+	 *
+	 * @param int $parent_id
+	 * @param array $attributes associative [ 'size' => '14', 'colour' => 'Red' ]
+	 * @return int|null child item_id
+	 */
+	public function find_child_item_id_by_attributes($parent_id, $attributes){
+		if(empty($parent_id) || empty($attributes)) return null;
+		$store_id = get_current_store_id();
+		// Find the master variant_id for this attribute combination
+		$variant_id = $this->find_or_create_variant_by_attributes($attributes, '', $store_id);
+		if(empty($variant_id)) return null;
+		// Find the child db_items row with this variant_id and parent
+		$child = $this->db->where('parent_id', $parent_id)
+						  ->where('variant_id', $variant_id)
+						  ->where('store_id', $store_id)
+						  ->get('db_items')->row();
+		return $child ? $child->id : null;
+	}
+
+	/**
+	 * Build the HTML rows for an item-level variant matrix cross-product.
+	 * Called via AJAX from the item form. Works for N attribute dimensions,
+	 * e.g. size × colour × length, storage × colour, etc.
+	 *
+	 * @return string HTML <tr> rows concatenated
+	 */
+	public function build_matrix_rows_html(){
+		$store_id = get_current_store_id();
+		$attribute_map = $this->input->post('attribute_map', TRUE);
+		$attribute_map = is_string($attribute_map) ? json_decode($attribute_map, true) : $attribute_map;
+		if(!is_array($attribute_map) || empty($attribute_map)){
+			return "<tr><td colspan='11' class='text-center text-info'>Please select at least one attribute and value.</td></tr>";
+		}
+		// Clean keys and values
+		$attributes = array();
+		foreach($attribute_map as $type => $vals){
+			$type = strtolower(trim($type));
+			if(empty($type)) continue;
+			$vals = is_array($vals) ? $vals : explode(',', $vals);
+			$vals = array_filter(array_map('trim', $vals));
+			if(!empty($vals)) $attributes[$type] = $vals;
+		}
+		if(empty($attributes)){
+			return "<tr><td colspan='11' class='text-center text-info'>No attribute values selected.</td></tr>";
+		}
+
+		$base_name = trim($this->input->post('base_item_name', TRUE));
+		$base_sku = trim($this->input->post('base_sku', TRUE));
+		$base_price = (float)$this->input->post('base_price', TRUE);
+		$base_sales_price = (float)$this->input->post('base_sales_price', TRUE);
+		$base_mrp = (float)$this->input->post('base_mrp', TRUE);
+
+		$html = '';
+		$rowcount = (int)$this->input->post('starting_rowcount', TRUE);
+		if($rowcount < 1) $rowcount = 1;
+
+		// Recursively generate the Cartesian product across N dimensions
+		$combinations = $this->_cartesian_product($attributes);
+		foreach($combinations as $combo){
+			$attributes_for_variant = array();
+			foreach($combo as $type => $val){
+				$attributes_for_variant[strtolower($type)] = trim($val);
+			}
+			$variant_id = $this->find_or_create_variant_by_attributes($attributes_for_variant, $base_sku, $store_id);
+			if(empty($variant_id)) continue;
+
+			$variant = $this->db->where('id', $variant_id)->get('db_variants')->row();
+			if(!$variant) continue;
+
+			$variant_name = $variant->variant_name; // pure variant name like "14 / Red / Short"
+			$slugs = array();
+			foreach($attributes_for_variant as $v){
+				$slugs[] = $this->_matrix_sku_slug($v);
+			}
+			$slug = implode('-', $slugs);
+			$child_sku = !empty($base_sku) ? $base_sku . '-' . $slug : $slug;
+
+			$info = array(
+				'variant_id' => $variant_id,
+				'variant_name' => $variant_name,
+				'item_price' => $base_price,
+				'item_sales_price' => $base_sales_price,
+				'variant_purchase_price' => $base_price,
+				'variant_item_sku' => $child_sku,
+				'variant_item_hsn' => '',
+				'variant_profit_margin' => '',
+				'barcode' => '',
+				'count_id' => '',
+				'item_code' => '',
+				'item_mrp' => $base_mrp,
+				'opening_stock' => 0,
+			);
+			ob_start();
+			$this->return_variant_data_in_html_row($rowcount++, $info);
+			$html .= ob_get_clean();
+		}
+
+		if(empty($html)){
+			$html = "<tr><td colspan='11' class='text-center text-info'>No combinations could be generated. Check that attribute values are not empty.</td></tr>";
+		}
+		return $html;
+	}
+
+	/**
+	 * Cartesian product helper for N attribute dimensions.
+	 */
+	private function _cartesian_product($input){
+		$result = array(array());
+		foreach($input as $key => $values){
+			$append = array();
+			foreach($result as $product){
+				foreach($values as $value){
+					$product[$key] = $value;
+					$append[] = $product;
+				}
+			}
+			$result = $append;
+		}
+		return $result;
+	}
+
+	private function _matrix_sku_slug($val){
+		$val = trim($val);
+		$val = preg_replace('/[^A-Za-z0-9]/', '', $val);
+		return strtoupper($val);
+	}
+
+
 }

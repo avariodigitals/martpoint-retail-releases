@@ -68,6 +68,14 @@ class Site extends MY_Controller {
 		                   ->from('db_cities')
 		                   ->get()
 		                   ->result_array();
+		// Fallback: if no cities mapped to this state, return all active cities
+		if(empty($cities)){
+			$cities = $this->db->select('id, city')
+			                   ->where('status',1)
+			                   ->from('db_cities')
+			                   ->get()
+			                   ->result_array();
+		}
 		echo json_encode($cities);
 	}
 }

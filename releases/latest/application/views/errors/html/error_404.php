@@ -84,7 +84,7 @@ body {
         <div class="message">
             The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
         </div>
-        <a href="<?php echo base_url(); ?>" class="btn">Go to Dashboard</a>
+        <a href="/" class="btn">Go to Dashboard</a>
         <div class="footer">&copy; <?php echo date('Y'); ?> MartPoint</div>
     </div>
 </body>

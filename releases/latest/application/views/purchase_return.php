@@ -117,7 +117,7 @@
                <?php include"comman/code_flashdata.php"; ?>
                <!-- ********** ALERT MESSAGE END******* -->
                   <!-- right column -->
-                  <div class="col-md-12">
+                  <div class="col-xs-12 col-md-12">
                      <!-- Horizontal Form -->
                      <div class="box box-primary " >
                         <!-- style="background: #68deac;" -->
@@ -149,12 +149,12 @@
                             <?php if(!empty($purchase_code) || !empty($supplier_name)) { ?>
                             <div class="form-group">
                               <?php if(!empty($purchase_code)) { ?>
-                                 <label for="" class="col-sm-2 control-label"><?= $this->lang->line('purchase_code'); ?><label class="text-danger">*</label> </label>
-                                  <label class="col-sm-3 control-label" style="text-align: left;">#<?= $purchase_code;?></label>
+                                 <label for="" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('purchase_code'); ?><label class="text-danger">*</label> </label>
+                                  <label class="col-xs-12 col-sm-3 control-label" style="text-align: left;">#<?= $purchase_code;?></label>
                                 <?php } ?>
                                 <?php if(!empty($supplier_name)) { ?>
-                                 <label for="" class="col-sm-2 control-label"><?= $this->lang->line('supplier_name'); ?><label class="text-danger">*</label> </label>
-                                  <label class="col-sm-3 control-label" style="text-align: left;"><?= $supplier_name;?></label>
+                                 <label for="" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('supplier_name'); ?><label class="text-danger">*</label> </label>
+                                  <label class="col-xs-12 col-sm-3 control-label" style="text-align: left;"><?= $supplier_name;?></label>
                                   <input type="hidden" name="supplier_id" id='supplier_id' value="<?=$supplier_id;?>">
                                 <?php } ?>
                               </div>
@@ -164,13 +164,13 @@
                               <div class="form-group">
 
                                 <?php if(!empty($return_code)) { ?>
-                                 <label for="" class="col-sm-2 control-label"><?= $this->lang->line('invoice'); ?><label class="text-danger">*</label> </label>
-                                  <label class="col-sm-3 control-label" style="text-align: left;">#<?= $return_code;?></label>
+                                 <label for="" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('invoice'); ?><label class="text-danger">*</label> </label>
+                                  <label class="col-xs-12 col-sm-3 control-label" style="text-align: left;">#<?= $return_code;?></label>
                                 <?php } ?>
 
                                 <?php if(empty($supplier_id)) {?>
-                                 <label for="supplier_id" class="col-sm-2 control-label"><?= $this->lang->line('supplier_name'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                 <label for="supplier_id" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('supplier_name'); ?><label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <div class="input-group">
                                        <select class="form-control select2" id="supplier_id" name="supplier_id"  style="width: 100%;" >
                                        </select>
@@ -182,8 +182,8 @@
 
                               
 
-                                 <label for="return_date" class="col-sm-2 control-label"><?= $this->lang->line('date'); ?> <label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                 <label for="return_date" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('date'); ?> <label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <div class="input-group date">
                                        <div class="input-group-addon">
                                           <i class="fa fa-calendar"></i>
@@ -194,8 +194,8 @@
                                  </div>
                               </div>
                               <div class="form-group">
-                                 <label for="return_status" class="col-sm-2 control-label"><?= $this->lang->line('status'); ?> <label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                 <label for="return_status" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('status'); ?> <label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                        <select class="form-control select2" id="return_status" name="return_status"  style="width: 100%;" onkeyup="shift_cursor(event,'mobile')">
                                          	<!-- <option value="">-Select-</option> -->
                                           <?php 
@@ -207,16 +207,16 @@
                                        </select>
                                     <span id="return_status_msg" style="display:none" class="text-danger"></span>
                                  </div>
-                                  <label for="reference_no" class="col-sm-2 control-label"><?= $this->lang->line('reference_no'); ?> </label>
-                                 <div class="col-sm-3">
+                                  <label for="reference_no" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('reference_no'); ?> </label>
+                                 <div class="col-xs-12 col-sm-3">
                                     <input type="text" value="<?php echo  $reference_no; ?>" class="form-control " id="reference_no" name="reference_no" placeholder="" >
                   <span id="reference_no_msg" style="display:none" class="text-danger"></span>
                                  </div>
                                  
                               </div>
                               <!-- <div class="form-group">
-                                <label for="warehouse_id" class="col-sm-2 control-label"><?= $this->lang->line('warehouse'); ?> <label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
+                                <label for="warehouse_id" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('warehouse'); ?> <label class="text-danger">*</label></label>
+                                 <div class="col-xs-12 col-sm-3">
                                        <select class="form-control select2" id="warehouse_id" name="warehouse_id"  style="width: 100%;" onkeyup="shift_cursor(event,'mobile')">
                                           <?php
                                              
@@ -246,12 +246,12 @@
                            <!-- /.box-body -->
                            
                            <div class="row">
-                              <div class="col-md-12">
-                                <div class="col-md-12">
+                              <div class="col-xs-12 col-md-12">
+                                <div class="col-xs-12 col-md-12">
                                   <div class="box">
                                     <div class="box-info">
                                       <div class="box-header">
-                                        <div class="col-md-8 col-md-offset-2 d-flex justify-content" >
+                                        <div class="col-xs-12 col-md-8 col-md-offset-2 d-flex justify-content" >
                                          <div class="input-group">
                                                 <span class="input-group-addon" title="Select Items"><i class="fa fa-barcode"></i></span>
                                                  <input type="text" class="form-control " placeholder="Item name/Barcode/Itemcode" autofocus id="item_search">
@@ -265,7 +265,7 @@
                                              <thead class="custom_thead">
                                                 <tr class="bg-primary" >
                                                    <th rowspan='2' style="width:20%"><?= $this->lang->line('item_name'); ?></th>
-                                                   <th rowspan='2' style="width:15%;min-width: 180px;"><?= $this->lang->line('quantity'); ?></th>
+                                                   <th rowspan='2' style="width:15%;"><?= $this->lang->line('quantity'); ?></th>
                                                    <th rowspan='2' style="width:10%"><?= $this->lang->line('purchase_price'); ?></th>
                                                    
                                                    <th rowspan='2' style="width:6%"><?= $this->lang->line('discount'); ?>(<?=$CURRENCY;?>)</th>
@@ -289,25 +289,25 @@
                               </div>
                               
                               
-                              <div class="col-md-6">
+                              <div class="col-xs-12 col-md-6">
                                 <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="" class="col-sm-4 control-label"><?= $this->lang->line('total_quantities'); ?></label>    
-                                          <div class="col-sm-4">
+                                          <label for="" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('total_quantities'); ?></label>    
+                                          <div class="col-xs-12 col-sm-4">
                                              <label class="control-label total_quantity text-success" style="font-size: 15pt;">0</label>
                                           </div>
                                        </div>
                                     </div>
                                  </div>
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="other_charges_input" class="col-sm-4 control-label"><?= $this->lang->line('other_charges'); ?></label>    
-                                          <div class="col-sm-4">
+                                          <label for="other_charges_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('other_charges'); ?></label>    
+                                          <div class="col-xs-12 col-sm-4">
                                              <input type="text" class="form-control text-right only_currency" id="other_charges_input" name="other_charges_input" onkeyup="final_total();" value="<?php echo  $other_charges_input; ?>">
                                           </div>
-                                          <div class="col-sm-4">
+                                          <div class="col-xs-12 col-sm-4">
                                              <select class="form-control " id="other_charges_tax_id" name="other_charges_tax_id" onchange="final_total();" style="width: 100%;">
                                                <?= get_tax_select_list($other_charges_tax_id,get_current_store_id());?>
                                              </select>
@@ -316,13 +316,13 @@
                                     </div>
                                  </div>
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="discount_to_all_input" class="col-sm-4 control-label"><?= $this->lang->line('discount_on_all'); ?></label>    
-                                          <div class="col-sm-4">
+                                          <label for="discount_to_all_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('discount_on_all'); ?></label>    
+                                          <div class="col-xs-12 col-sm-4">
                                              <input type="text" class="form-control  text-right only_currency" id="discount_to_all_input" name="discount_to_all_input" onkeyup="enable_or_disable_item_discount();" value="<?php echo  $discount_input; ?>">
                                           </div>
-                                          <div class="col-sm-4">
+                                          <div class="col-xs-12 col-sm-4">
                                              <select class="form-control" onchange="final_total();" id='discount_to_all_type' name="discount_to_all_type">
                                                 <option value='in_percentage'>Per%</option>
                                                 <option value='in_fixed'>Fixed</option>
@@ -339,10 +339,10 @@
                                     </div>
                                  </div>
                                 <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
-                                          <label for="return_note" class="col-sm-4 control-label"><?= $this->lang->line('note'); ?></label>    
-                                          <div class="col-sm-8">
+                                          <label for="return_note" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('note'); ?></label>    
+                                          <div class="col-xs-12 col-sm-8">
                                              <textarea class="form-control text-left" id='return_note' name="return_note"><?=$return_note;?></textarea>
                                             <span id="return_note_msg" style="display:none" class="text-danger"></span>
                                           </div>
@@ -354,15 +354,15 @@
                               </div>
                               
 
-                              <div class="col-md-6">
+                              <div class="col-xs-12 col-md-6">
                                  <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-xs-12 col-md-12">
                                        <div class="form-group">
                                            
-                                          <table  class="col-md-9">
+                                          <table  class="col-xs-12 col-md-9">
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('subtotal'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4>
                                                     <?= $CI->currency('<b id="subtotal_amt" name="subtotal_amt">0.00</b>'); ?>
                                                    </h4>
@@ -370,7 +370,7 @@
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('other_charges'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4>
                                                     <?= $CI->currency('<b id="other_charges_amt" name="other_charges_amt">0.00</b>'); ?>
                                                   </h4>
@@ -378,7 +378,7 @@
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('discount_on_all'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4>
                                                     <?= $CI->currency('<b id="discount_to_all_amt" name="discount_to_all_amt">0.00</b>'); ?></h4>
                                                 </th>
@@ -390,14 +390,14 @@
                                                     </i>
                                                   
                                                 </th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4>
                                                     <?= $CI->currency('<b id="round_off_amt" name="tot_round_off_amt">0.00</b>'); ?></h4>
                                                 </th>
                                              </tr>
                                              <tr>
                                                 <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('grand_total'); ?></th>
-                                                <th class="text-right" style="padding-left:10%;font-size: 17px;">
+                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
                                                    <h4>
                                                     <?= $CI->currency('<b id="total_amt" name="total_amt">0.00</b>'); ?></h4>
                                                 </th>
@@ -409,9 +409,10 @@
                               </div>
 
                               <div class="col-xs-12 ">
-                                 <div class="col-sm-12">
+                                 <div class="col-xs-12 col-sm-12">
                                        <div class="box-body ">
-                                        <div class="col-md-12">
+                                        <div class="col-xs-12 col-md-12">
+                                          <div class="table-responsive" style="width:100%;">
                                           <table class="table table-hover table-bordered" style="width:100%" id="payments_table"><h4 class="box-title text-info"><?= $this->lang->line('previous_payments_information'); ?> : </h4>
                                              <thead>
                                                 <tr class="bg-gray " >
@@ -457,6 +458,7 @@
                                                 ?>
                                              </tbody>
                                           </table>
+                                          </div>
                                         </div>
                                        </div>
                                        <!-- /.box-body -->
@@ -465,23 +467,23 @@
                               </div>
 
                               <div class="col-xs-12 ">
-                                 <div class="col-sm-12">
+                                 <div class="col-xs-12 col-sm-12">
                                        <div class="box-body ">
 
-                                          <div class="col-md-12 payments_div payments_div_">
+                                          <div class="col-xs-12 col-md-12 payments_div payments_div_">
                                             <h4 class="box-title text-info"><?= $this->lang->line('make_payment'); ?> : </h4>
                                           <div class="box box-solid bg-gray">
                                             <div class="box-body">
                                               <div class="row">
                                          
-                                                <div class="col-md-4">
+                                                <div class="col-xs-12 col-md-4">
                                                   <div class="">
                                                   <label for="amount"><?= $this->lang->line('amount'); ?></label>
                                                     <input type="text" class="form-control text-right paid_amt only_currency" id="amount" name="amount" placeholder="" >
                                                       <span id="amount_msg" style="display:none" class="text-danger"></span>
                                                 </div>
                                                </div>
-                                                <div class="col-md-4">
+                                                <div class="col-xs-12 col-md-4">
                                                   <div class="">
                                                     <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
                                                     <select class="form-control select2" id='payment_type' name="payment_type">
@@ -501,7 +503,7 @@
                                                     <span id="payment_type_msg" style="display:none" class="text-danger"></span>
                                                   </div>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-xs-12 col-md-4">
                                                     <label for="account_id"><?= $this->lang->line('account'); ?></label>
                                                     <select class="form-control select2" id='account_id' name="account_id">
                                                       <?php
@@ -514,7 +516,7 @@
                                             <div class="clearfix"></div>
                                         </div>  
                                         <div class="row">
-                                               <div class="col-md-12">
+                                               <div class="col-xs-12 col-md-12">
                                                   <div class="">
                                                     <label for="payment_note"><?= $this->lang->line('payment_note'); ?></label>
                                                     <textarea type="text" class="form-control" id="payment_note" name="payment_note" placeholder="" ></textarea>
@@ -559,10 +561,10 @@
 
 
                                 ?>
-                                 <div class="col-md-3 col-md-offset-3">
+                                 <div class="col-xs-12 col-md-3 col-md-offset-3">
                                     <button type="button" id="<?php echo $btn_id;?>" class="btn btn-block btn-success payments_modal" title="Save Data"><?php echo $btn_name;?></button>
                                  </div>
-                                 <div class="col-sm-3"><a href="<?= base_url()?>dashboard">
+                                 <div class="col-xs-12 col-sm-3"><a href="<?= base_url()?>dashboard">
                                     <button type="button" class="btn btn-block btn-warning" title="Go Dashboard">Close</button>
                                   </a>
                                 </div>

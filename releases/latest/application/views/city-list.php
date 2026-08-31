@@ -21,6 +21,10 @@
           <div class="box box-primary">
             <div class="box-header with-border">
               <h3 class="box-title"><?= $this->lang->line('cities_list'); ?></h3>
+              <div class="box-tools pull-right">
+                <a class="btn btn-info" href="<?php echo $base_url; ?>city/add">
+                <i class="fa fa-plus"></i> Add City</a>
+              </div>
             </div>
             <div class="box-body">
               <table id="example2" class="table table-bordered custom_hover" width="100%">

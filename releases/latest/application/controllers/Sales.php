@@ -38,7 +38,8 @@ class Sales extends MY_Controller {
 
 		$data=array_merge($data);
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
-		$this->load->view('sales',$data);
+		$view = (is_mobile() || $this->input->get('mobile')=='1') ? 'sales_mobile' : 'sales';
+		$this->load->view($view,$data);
 	}
 
 	public function add()
@@ -47,7 +48,8 @@ class Sales extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales');
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
-		$this->load->view('sales',$data);
+		$view = (is_mobile() || $this->input->get('mobile')=='1') ? 'sales_mobile' : 'sales';
+		$this->load->view($view,$data);
 	}
 	
 
@@ -80,7 +82,8 @@ class Sales extends MY_Controller {
 
 		$data['page_title']=$this->lang->line('sales');
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
-		$this->load->view('sales', $data);
+		$view = (is_mobile() || $this->input->get('mobile')=='1') ? 'sales_mobile' : 'sales';
+		$this->load->view($view, $data);
 	}
 
 	public function ajax_list()
@@ -130,6 +133,7 @@ class Sales extends MY_Controller {
 			          $str="<span class='label label-success' style='cursor:pointer'> Paid </span>";
 
 			$row[] = $str;
+			$row[] = !empty($sales->payment_type) ? $sales->payment_type : '-';
 			$row[] = ($sales->created_by);
 
 					 if($sales->pos ==1):
@@ -279,6 +283,7 @@ class Sales extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('sales_id'=>$sales_id));
 		$data['page_title']=$this->lang->line('sales_invoice');
+		$data['auto_print']=true;
 
 		$this->get_html_invoice($data);
 	}
@@ -303,14 +308,7 @@ class Sales extends MY_Controller {
 		
 	}
 	public function get_html_invoice($data){
-		$invoice_format_id = get_invoice_format_id();
-
-		if($invoice_format_id==4){
-			$this->load->view('print-sales-invoice-4',$data);
-		}
-		else{
-			$this->load->view('print-sales-invoice-3',$data);
-		}
+		$this->load->view('print-sales-invoice-whatsapp',$data);
         // Get output html
         return $this->output->get_output();
 	}
@@ -328,6 +326,9 @@ class Sales extends MY_Controller {
 
         $html = $this->get_html_invoice($data);
         
+        require_once(APPPATH . 'libraries/dompdf/autoload.inc.php');
+        mb_internal_encoding('UTF-8');
+
         $options = new Options();
 		$options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
@@ -343,6 +344,7 @@ class Sales extends MY_Controller {
         
         // Output the generated PDF (1 = download and 0 = preview)
         $dompdf->stream("Sales-invoice-$sales_id-".date('M')."_".date('d')."_".date('Y'), array("Attachment"=>0));
+		exit;
 	}
 	
 	

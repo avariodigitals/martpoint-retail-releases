@@ -1,18 +1,22 @@
+<?php $CI =& get_instance(); ?>
 <!DOCTYPE html>
 <html>
 <head>
 <!-- FORM CSS CODE -->
 <?php include"comman/code_css.php"; ?>
 <style>
-  .ds-wrapper { padding: 20px; }
+  .ds-wrapper { padding: 20px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
   .ds-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
-  .ds-header h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1E293B; }
+  .ds-header h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1E293B; letter-spacing: -0.3px; }
   .ds-header .meta { color: #64748B; font-size: 14px; }
   .ds-date-form { display: flex; gap: 8px; align-items: center; }
+  .ds-date-pickers { display: flex; gap: 8px; align-items: flex-end; }
+  .ds-date-picker { display: flex; flex-direction: column; gap: 4px; }
+  .ds-date-picker span { font-size: 12px; color: #64748B; white-space: nowrap; }
   .ds-date-form input[type="date"] { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; height: 38px; font-size: 14px; }
   .ds-date-form .btn { border-radius: 8px; padding: 8px 16px; font-size: 14px; }
 
-  .ds-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .ds-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
   .ds-kpi-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #E2E8F0; }
   .ds-kpi-card .label { font-size: 12px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
   .ds-kpi-card .value { font-size: 22px; font-weight: 700; color: #1E293B; }
@@ -21,12 +25,16 @@
   .ds-kpi-card .value.orange { color: #F97316; }
   .ds-kpi-card .sub { font-size: 12px; color: #94A3B8; margin-top: 4px; }
 
-  .ds-section { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #E2E8F0; margin-bottom: 20px; }
+  .ds-section { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #E2E8F0; margin-bottom: 24px; }
   .ds-section h3 { margin: 0 0 14px 0; font-size: 16px; font-weight: 700; color: #1E293B; }
   .ds-section table { width: 100%; border-collapse: collapse; }
-  .ds-section table th { text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; color: #64748B; border-bottom: 1px solid #E2E8F0; font-weight: 600; }
-  .ds-section table td { padding: 10px 12px; font-size: 14px; color: #334155; border-bottom: 1px solid #F1F5F9; }
+  .ds-section .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 10px; border-radius: 8px; }
+  .ds-section .table-wrap table { min-width: 520px; }
+  .ds-section table th { text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; color: #64748B; border-bottom: 1px solid #E2E8F0; font-weight: 600; white-space: nowrap; }
+  .ds-section table td { padding: 10px 12px; font-size: 14px; color: #334155; border-bottom: 1px solid #F1F5F9; word-break: break-word; }
   .ds-section table tr:last-child td { border-bottom: none; }
+
+  .ds-payment-totals { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
   .ds-insights { display: flex; flex-wrap: wrap; gap: 10px; }
   .ds-insight { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; border-radius: 8px; padding: 10px 14px; font-size: 13px; }
@@ -44,6 +52,28 @@
 
   .ds-empty { text-align: center; padding: 60px 20px; color: #94A3B8; }
   .ds-empty i { font-size: 48px; margin-bottom: 12px; display: block; color: #CBD5E1; }
+
+  .ds-payment-totals .label { white-space: normal; line-height: 1.4; }
+
+  @media (max-width: 767px) {
+    .ds-wrapper { padding: 14px; }
+    .ds-header { flex-direction: column; }
+    .ds-header h1 { font-size: 20px; }
+    .ds-actions .btn { width: 100%; justify-content: center; }
+    .ds-kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ds-kpi-card { padding: 14px; }
+    .ds-kpi-card .value { font-size: 20px; }
+    .ds-section { padding: 16px; }
+    .ds-section table th,
+    .ds-section table td { padding: 8px 10px; font-size: 13px; }
+    .ds-section .table-wrap table { min-width: 480px; }
+    .ds-payment-totals .label { display: inline-flex; margin-left: 0 !important; }
+    .ds-date-form form { flex-direction: column !important; align-items: stretch !important; flex-wrap: nowrap !important; gap: 10px !important; }
+    .ds-date-pickers { width: 100%; }
+    .ds-date-picker { flex: 1 1 0; }
+    .ds-date-form input[type="date"] { width: 100% !important; min-height: 44px; }
+    .ds-date-form .btn { width: 100%; min-height: 44px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; }
+  }
 
   /* Print styles */
   @media print {
@@ -71,18 +101,19 @@
       <!-- Actions & Date -->
       <div class="ds-header">
         <div>
-          <h1>MartPoint Daily Business Summary</h1>
           <div class="meta"><?=htmlspecialchars($store_name);?> &mdash; <?=($selected_date !== $selected_date_to) ? show_date($selected_date).' — '.show_date($selected_date_to) : show_date($selected_date);?></div>
         </div>
         <div class="ds-date-form">
           <form method="get" action="<?=base_url('dashboard/daily_summary');?>" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <div style="display:flex;gap:6px;align-items:center;">
-              <span style="font-size:12px;color:#64748B;white-space:nowrap;">From</span>
-              <input type="date" name="date_from" value="<?=$selected_date;?>" class="form-control" style="width:140px;">
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <span style="font-size:12px;color:#64748B;white-space:nowrap;">To</span>
-              <input type="date" name="date_to" value="<?=$selected_date_to;?>" class="form-control" style="width:140px;">
+            <div class="ds-date-pickers">
+              <div class="ds-date-picker">
+                <span>From</span>
+                <input type="date" name="date_from" value="<?=$selected_date;?>" class="form-control" style="width:140px;">
+              </div>
+              <div class="ds-date-picker">
+                <span>To</span>
+                <input type="date" name="date_to" value="<?=$selected_date_to;?>" class="form-control" style="width:140px;">
+              </div>
             </div>
             <button type="submit" class="btn btn-primary"><i class="fa fa-filter"></i> View</button>
           </form>
@@ -260,6 +291,7 @@
       <?php if(count($summary['sales']['payment_breakdown']) > 0): ?>
       <div class="ds-section">
         <h3><i class="fa fa-credit-card text-info"></i> Payment Breakdown</h3>
+        <div class="table-wrap">
         <table>
           <thead>
             <tr><th>Payment Method</th><th>Txn</th><th>Amount</th><th>Type</th><th>Pending</th></tr>
@@ -276,7 +308,8 @@
             <?php endforeach; ?>
           </tbody>
         </table>
-        <div style="margin-top:8px;">
+        </div>
+        <div class="ds-payment-totals">
           <span class="label label-success">Cash In Hand: <?=kmb($summary['sales']['cash_expected']);?></span>
           <span class="label label-info" style="margin-left:6px;">Bank/POS/Transfer: <?=kmb($summary['sales']['bank_pos_expected'] ?? 0);?></span>
         </div>
@@ -287,7 +320,7 @@
       <?php if($summary['purchase_due'] > 0): ?>
       <div class="ds-section">
         <h3><i class="fa fa-truck text-muted"></i> Purchase Due</h3>
-        <p style="margin:0;font-size:16px;color:#1E293B;"><strong><?=kmb($summary['purchase_due']);?></strong> owed to suppliers.</p>
+        <p style="margin:0;font-size:16px;color:#1E293B;"><strong><?=$CI->currency(kmb($summary['purchase_due']));?></strong> owed to suppliers.</p>
       </div>
       <?php endif; ?>
 

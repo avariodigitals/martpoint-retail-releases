@@ -99,7 +99,7 @@ class Subscribers extends MY_Controller {
 		$this->form_validation->set_rules('monthly_price', 'Monthly Price', 'trim|required');
 		$this->form_validation->set_rules('annual_price', 'Annual Price', 'trim|required');
 		$this->form_validation->set_rules('trial_days', 'Trial Days', 'trim|required');
-		$this->form_validation->set_rules('max_warehouses', 'Max Warehouses', 'trim|required');
+		$this->form_validation->set_rules('max_warehouses', 'Max Branches', 'trim|required');
 		$this->form_validation->set_rules('max_users', 'Max Users', 'trim|required');
 		$this->form_validation->set_rules('max_items', 'Max Items', 'trim|required');
 		$this->form_validation->set_rules('max_invoices', 'Max Invoices', 'trim|required');

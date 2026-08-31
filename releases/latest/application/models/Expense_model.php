@@ -37,7 +37,7 @@ class Expense_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -56,7 +56,7 @@ class Expense_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -70,7 +70,7 @@ class Expense_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -100,6 +100,10 @@ class Expense_model extends CI_Model {
 		$expense_date = $this->input->post('expense_date', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
+		// Cash expenses default to the active cashier's till account
+		if(empty($account_id) && strtolower($payment_type) === 'cash'){
+			$account_id = get_current_cash_account_id();
+		}
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
@@ -197,6 +201,10 @@ class Expense_model extends CI_Model {
 		$expense_date = $this->input->post('expense_date', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
+		// Cash expenses default to the active cashier's till account
+		if(empty($account_id) && strtolower($payment_type) === 'cash'){
+			$account_id = get_current_cash_account_id();
+		}
 		$info = array(
 	    				'category_id' 			=> $category_id,
 	    				'expense_for' 				=> $expense_for,

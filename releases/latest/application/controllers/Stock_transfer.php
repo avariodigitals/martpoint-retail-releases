@@ -26,8 +26,8 @@ class Stock_transfer extends MY_Controller {
 
 	public function stock_save_and_update(){
 		$this->form_validation->set_rules('transfer_date', 'Stock Date', 'trim|required');
-		$this->form_validation->set_rules('warehouse_from', 'Warehouse From', 'trim|required');
-		$this->form_validation->set_rules('warehouse_to', 'Warehouse To', 'trim|required');
+		$this->form_validation->set_rules('warehouse_from', 'From Branch', 'trim|required');
+		$this->form_validation->set_rules('warehouse_to', 'To Branch', 'trim|required');
 		
 		if ($this->form_validation->run() == TRUE) {
 	    	$result = $this->stock_transfer->verify_save_and_update();

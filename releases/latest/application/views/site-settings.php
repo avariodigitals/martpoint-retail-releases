@@ -52,8 +52,15 @@
                                                 <div class="form-group">
                                                    <label for="site_name" class="col-sm-4 control-label"><?= $this->lang->line('site_name'); ?><label class="text-danger">*</label></label>
                                                    <div class="col-sm-8">
-                                                      <input type="text" class="form-control" id="site_name" name="site_name" placeholder="" onkeyup="shift_cursor(event,'mobile')" value="<?php print $site_name; ?>" >
+                                                      <input type="text" class="form-control" id="site_name" name="site_name" placeholder="" onkeyup="shift_cursor(event,'sales_target')" value="<?php print $site_name; ?>" >
                                                       <span id="site_name_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="sales_target" class="col-sm-4 control-label">Daily Sales Target</label>
+                                                   <div class="col-sm-8">
+                                                      <input type="number" step="any" min="0" class="form-control" id="sales_target" name="sales_target" placeholder="0" value="<?php print (float)($sales_target ?? 0); ?>" >
+                                                      <span class="text-muted"><small>Used by dashboard target progress bar.</small></span>
                                                    </div>
                                                 </div>
                                              </div>

@@ -12,7 +12,7 @@
  * @since       1.0.0
  */
 class MY_Controller extends CI_Controller{
-      public $source_version = "4.0.0";
+      public $source_version = "4.0.8";
       public function __construct()
       {
         parent::__construct();
@@ -144,6 +144,9 @@ class MY_Controller extends CI_Controller{
             // Subscription enforcement
             $this->enforce_subscription();
 
+            // DB update warning: handled in code_flashdata via session flag (not flashdata)
+            // to prevent it from reappearing on every page load
+
             $this->load_info();
       }
 
@@ -170,10 +173,10 @@ class MY_Controller extends CI_Controller{
             }
       }
 
-      public function currency($value='',$with_comma=false){
+      public function currency($value='',$with_comma=true){
         $value = trim($value);
 
-        if(!empty($value) && is_numeric($value)){
+        if($value !== '' && is_numeric($value)){
           $value= ($with_comma) ? store_number_format($value) : store_number_format($value,false);
         }
 
@@ -234,34 +237,124 @@ class MY_Controller extends CI_Controller{
         }
       }
       public function permissions($permissions=''){
-          //If he the Admin
-          if($this->session->userdata('inv_userid')==1){
+          //If he the Admin (user_id 1 or 2 get full access)
+          if($this->session->userdata('inv_userid')==1 || $this->session->userdata('inv_userid')==2){
             return true;
           }
 
-          $tot=$this->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$permissions.'" and role_id='.$this->session->userdata('role_id'))->row()->tot;
+          $role_id = $this->session->userdata('role_id');
+          if(empty($role_id)){
+            return false;
+          }
+
+          $tot=$this->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$this->db->escape_str($permissions).'" and role_id='.(int)$role_id)->row()->tot;
           if($tot==1){
             return true;
           }
+
+          // Fallback for standard roles whose permissions have not been seeded
+          // Cache the default permissions per role to avoid loading the model on every call
+          static $cached_role_perms = null;
+          if($cached_role_perms === null){
+            $this->load->model('default_data_model','default_data');
+            $cached_role_perms = $this->default_data->get_role_default_permissions($this->session->userdata('role_name'));
+          }
+          if(!empty($cached_role_perms) && in_array($permissions, $cached_role_perms, true)){
+            return true;
+          }
+
            return false;
         }
         
         public function permission_check($value=''){
           if(!$this->permissions($value)){
-             show_error("Access Denied", 403, $heading = "You Don't Have Enough Permission!!");
+             $this->show_access_denied_page();
           }
           return true;
         }
         public function permission_check_with_msg($value=''){
           if(!$this->permissions($value)){
-             echo "You Don't Have Enough Permission for this Operation!";
+             echo "You don't have permission for this operation.";
             exit();
           }
           return true;
         }
         public function show_access_denied_page()
         {
-          show_error("Access Denied", 403, $heading = "You Don't Have Enough Permission!!");
+          // AJAX requests get JSON, not a redirect
+          if($this->input->is_ajax_request() || $this->input->post('is_ajax')){
+            header('Content-Type: application/json');
+            echo json_encode(array('status'=>'error','message'=>'You don\'t have permission to access this feature.'));
+            exit;
+          }
+          // Normal page requests: redirect back with a toastr notification
+          $this->session->set_flashdata('error', 'You don\'t have permission to access that feature.');
+          $referrer = $this->input->server('HTTP_REFERER', TRUE);
+          if(!empty($referrer)){
+            redirect($referrer);
+          } else {
+            redirect(base_url('dashboard'));
+          }
+        }
+
+        /**
+         * Render the branded "Feature Not Activated" card.
+         * Use this when a feature flag is off (not a permission issue).
+         */
+        public function show_feature_not_activated($flag, $description = '')
+        {
+          $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+          $industry_label = '';
+          if (is_array($profile) && !empty($profile['industry_type'])) {
+            $industry_label = ucwords(str_replace(['_','-'], ' ', $profile['industry_type']));
+          }
+          $icons = [
+            'treatment_notes'      => 'fa-file-text-o',
+            'medical_notes'        => 'fa-file-medical-o',
+            'custom_orders'        => 'fa-pencil-square-o',
+            'memberships'          => 'fa-id-card',
+            'packages'             => 'fa-gift',
+            'production_workflow'  => 'fa-industry',
+            'recipe_tracking'      => 'fa-cutlery',
+            'kitchen_workflow'     => 'fa-utensils',
+            'laundry_workflow'     => 'fa-tint',
+            'price_catalogue'      => 'fa-book',
+            'public_catalogue'     => 'fa-globe',
+            'staff_assignment'     => 'fa-user-md',
+            'staff_commission'     => 'fa-percent',
+            'table_management'     => 'fa-table',
+            'delivery_scheduling'  => 'fa-truck',
+            'expiry_tracking'      => 'fa-calendar-times-o',
+            'batch_tracking'       => 'fa-layer-group',
+            'serial_number_tracking'=> 'fa-barcode',
+            'imei_tracking'        => 'fa-mobile',
+            'warranty_tracking'    => 'fa-shield',
+            'online_store'         => 'fa-globe',
+            'qr_ordering'          => 'fa-qrcode',
+            'loyalty'              => 'fa-heart',
+            'gift_cards'           => 'fa-gift',
+            'store_credit'         => 'fa-credit-card',
+            'payplan'              => 'fa-money',
+            'bundles'              => 'fa-cubes',
+            'manager_approvals'    => 'fa-check-circle-o',
+            'accounts'             => 'fa-calculator',
+            'warehouse'            => 'fa-building',
+            'multi_unit_inventory' => 'fa-cubes',
+          ];
+          $icon = isset($icons[$flag]) ? $icons[$flag] : 'fa-lock';
+
+          set_status_header(403);
+          $d = $this->data ?? [];
+          $d['page_title']      = function_exists('mp_feature_label') ? mp_feature_label($flag) : ucwords(str_replace(['_','-'],' ',$flag));
+          $d['feature_label']   = $d['page_title'];
+          $d['feature_key']     = $flag;
+          $d['industry_label']  = $industry_label;
+          $d['icon']            = $icon;
+          $d['description']     = $description;
+          $d['enable_url']      = base_url('business_profile');
+          $d['back_url']        = base_url('dashboard');
+          $this->load->view('operations/feature_not_activated.php', $d);
+          exit;
         }
             //end
         public function get_current_version_of_db(){

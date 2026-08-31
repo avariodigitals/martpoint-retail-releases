@@ -12,6 +12,7 @@ class Units extends MY_Controller {
 		$this->permission_check('units_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('units');
+		$data['all_units'] = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_units')->result();
 		$this->load->view('unit', $data);
 	}
 	public function new_unit(){
@@ -33,6 +34,7 @@ class Units extends MY_Controller {
 		$result=$this->units->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('units');
+		$data['all_units'] = $this->db->where('store_id', get_current_store_id())->where('status', 1)->where('id !=', $id)->get('db_units')->result();
 		$this->load->view('unit', $data);
 	}
 	public function update_Unit(){
@@ -62,8 +64,13 @@ class Units extends MY_Controller {
 		foreach ($list as $unit) {
 			$no++;
 			$row = array();
-			
-			$row[] = $unit->unit_name;
+
+			$parent_str = "";
+			if (!empty($unit->parent_unit_id)) {
+				$parent = $this->db->where("id", $unit->parent_unit_id)->get("db_units")->row();
+				$parent_str = " <small class=\"text-muted\">(".$unit->conversion_factor." per ".($parent ? $parent->unit_name : "parent").")</small>";
+			}
+			$row[] = $unit->unit_name . $parent_str;
 			$row[] = $unit->description;
 
 			 		if($unit->status==1){ 

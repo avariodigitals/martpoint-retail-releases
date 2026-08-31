@@ -5,111 +5,8 @@ function shift_cursor(kevent,target){
     if(kevent.keyCode==13){
 		$("#"+target).focus();
     }
-	
+
 }
-
-
-$('#save,#update').on("click",function (e) {
-	var base_url=$("#base_url").val();
-
-    //Initially flag set true
-    var flag=true;
-
-    function check_field(id)
-    {
-
-      if(!$("#"+id).val() ) //Also check Others????
-        {
-
-            $('#'+id+'_msg').fadeIn(200).show().html('Required Field').addClass('required');
-           // $('#'+id).css({'background-color' : '#E8E2E9'});
-            flag=false;
-        }
-        else
-        {
-             $('#'+id+'_msg').fadeOut(200).hide();
-             //$('#'+id).css({'background-color' : '#FFFFFF'});    //White color
-        }
-    }
-
-
-   //Validate Input box or selection box should not be blank or empty
-	  check_field("supplier_id");
-    check_field("pur_date");
-    check_field("purchase_status");
-    //check_field("warehouse_id");
-	/*if(!isNaN($("#amount").val()) && parseInt($("#amount").val())==0){
-        toastr["error"]("You have entered Payment Amount! <br>Please Select Payment Type!");
-        return;
-    }*/
-	if(flag==false)
-	{
-		toastr["error"]("You have missed Something to Fillup!");
-		return;
-	}
-
-	//Atleast one record must be added in purchase table 
-    var rowcount=document.getElementById("hidden_rowcount").value;
-	var flag1=false;
-	for(var n=1;n<=rowcount;n++){
-		if($("#td_data_"+n+"_3").val()!=null && $("#td_data_"+n+"_3").val()!=''){
-			flag1=true;
-		}	
-	}
-	
-    if(flag1==false){
-    	toastr["warning"]("Please Select Item!!");
-        $("#item_search").focus();
-		return;
-    }
-    //end
-
-    var tot_subtotal_amt=$("#subtotal_amt").text();
-    var other_charges_amt=$("#other_charges_amt").text();//other_charges include tax calcualated amount
-    var tot_discount_to_all_amt=$("#discount_to_all_amt").text();
-    var tot_round_off_amt=$("#round_off_amt").text();
-    var tot_total_amt=$("#total_amt").text();
-
-    var this_id=this.id;
-    
-			//if(confirm("Do You Wants to Save Record ?")){
-				e.preventDefault();
-				data = new FormData($('#purchase-form')[0]);//form name
-        /*Check XSS Code*/
-        if(!xss_validation(data)){ return false; }
-        
-        $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-        $("#"+this_id).attr('disabled',true);  //Enable Save or Update button
-				$.ajax({
-				type: 'POST',
-				url: base_url+'purchase/purchase_save_and_update?command='+this_id+'&rowcount='+rowcount+'&tot_subtotal_amt='+tot_subtotal_amt+'&tot_discount_to_all_amt='+tot_discount_to_all_amt+'&tot_round_off_amt='+tot_round_off_amt+'&tot_total_amt='+tot_total_amt+"&other_charges_amt="+other_charges_amt,
-				data: data,
-				cache: false,
-				contentType: false,
-				processData: false,
-				success: function(result){
-         // alert(result);return;
-				result=result.split("<<<###>>>");
-					if(result[0]=="success")
-					{
-						location.href=base_url+"purchase/invoice/"+result[1];
-					}
-					else if(result[0]=="failed")
-					{
-					   toastr['error']("Sorry! Failed to save Record.Try again");
-					}
-					else
-					{
-						alert(result);
-					}
-					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
-					$(".overlay").remove();
-
-			   }
-			   });
-		//}
-  
-});
 
 $("#item_search").bind("paste", function(e){
     $("#item_search").autocomplete('search');
@@ -122,11 +19,6 @@ $("#item_search").autocomplete({
             url: $("#base_url").val()+'items/get_json_items_details',
             method: 'GET',
             dataType: 'json',
-            /*showHintOnFocus: true,
-      autoSelect: true, 
-      
-      selectInitial :true,*/
-      
             data: {
                 name: data.term,
                 store_id:$("#store_id").val(),
@@ -134,20 +26,14 @@ $("#item_search").autocomplete({
                 search_for:"purchase",
             },
             beforeSend: function() {
-                if($("#warehouse_id").val()==''){
-                  toastr['warning']("Please Select Wareshouse!");
-                  $("#warehouse_id").select2('open');
-                  $("#item_search").removeClass('ui-autocomplete-loading');
-                  return;
-                }
+                // Don't require warehouse for purchase - items can be added without warehouse selection
                 $("#item_search").addClass('ui-autocomplete-loading');
             },
             success: function(res){
-              //console.log(res);
+                console.log('Search results:', res);
                 var result;
                 result = [
                     {
-                        //label: 'No Records Found '+data.term,
                         label: 'No Records Found ',
                         value: ''
                     }
@@ -160,14 +46,16 @@ $("#item_search").autocomplete({
                             value: '',
                             id: el.id,
                             item_name: el.value,
-                           // mobile: el.mobile,
-                            //customer_dob: el.customer_dob,
-                            //address: el.address,
                         };
                     });
                 }
 
                 cb(result);
+            },
+            error: function(xhr, status, error) {
+                console.error('Search error:', error);
+                console.error('Response:', xhr.responseText);
+                cb([{label: 'Error loading items', value: ''}]);
             }
         });
     },
@@ -212,7 +100,7 @@ $("#item_search").autocomplete({
 
 function check_same_item(item_id){
 
-  if($("#purchase_table tr").length>1){
+  if($("#purchase_items_container .purchase-item-card").length>=1){
     var rowcount=$("#hidden_rowcount").val();
     for(i=0;i<=rowcount;i++){
             if($("#tr_item_id_"+i).val()==item_id){
@@ -237,7 +125,16 @@ function return_row_with_data(item_id){
 	var rowcount=$("#hidden_rowcount").val();
 	$.post(base_url+"purchase/return_row_with_data/"+rowcount+"/"+item_id,{},function(result){
         //alert(result);
-        $('#purchase_table tbody').append(result);
+        $("#purchase_items_empty").hide();
+        $('#purchase_items_container').append(result);
+        // Initialize datepickers on new batch date fields
+        $('#purchase_items_container .purchase-item-card:last .datepicker').datepicker({
+            autoclose: true,
+            format: 'dd-mm-yyyy',
+            todayHighlight: true
+        });
+        // Show/hide batch columns based on current status
+        toggle_batch_fields();
        	$("#hidden_rowcount").val(parseInt(rowcount)+1);
         success.currentTime = 0;
         success.play();
@@ -559,4 +456,25 @@ function delete_purchase_payment(payment_id){
  if(key == 13){
     $("#item_search").autocomplete('search');
   }
-});  
+});
+
+function toggle_batch_fields(){
+    var status = $("#purchase_status").val();
+    if(status == 'Partially Received' || status == 'Received'){
+        $(".card-advanced").addClass('expanded');
+        $(".btn-expand").addClass('expanded').html('<i class="fa fa-chevron-down"></i> Hide Details');
+    } else {
+        $(".card-advanced").removeClass('expanded');
+        $(".btn-expand").removeClass('expanded').html('<i class="fa fa-chevron-down"></i> Additional Details');
+    }
+    if(status == 'Partially Received'){
+        $("[id^='received_qty_']").closest('.field-group').show();
+    } else {
+        $("[id^='received_qty_']").closest('.field-group').hide();
+    }
+}
+
+// Initialize on page load
+$(document).ready(function(){
+    toggle_batch_fields();
+});

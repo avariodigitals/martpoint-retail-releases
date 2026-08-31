@@ -58,6 +58,7 @@
                     <td><?= htmlspecialchars($o->customer_name); ?></td>
                     <td><?= htmlspecialchars($o->customer_phone); ?></td>
                     <?php
+                      $CI =& get_instance();
                       $statusLabels = [
                         'pending' => 'label-warning', 'paid' => 'label-success', 'processing' => 'label-info',
                         'ready' => 'label-primary', 'completed' => 'label-success', 'cancelled' => 'label-danger'
@@ -68,7 +69,7 @@
                       ];
                     ?>
                     <td><span class="label label-default"><?= ucfirst($o->order_type); ?></span></td>
-                    <td><?= store_number_format($o->grand_total); ?></td>
+                    <td><?= $CI->currency($o->grand_total); ?></td>
                     <td><span class="label <?= $paymentLabels[$o->payment_status] ?? 'label-default'; ?>"><?= ucfirst(str_replace('_',' ',$o->payment_status)); ?></span></td>
                     <td><span class="label <?= $statusLabels[$o->order_status] ?? 'label-default'; ?>"><?= ucfirst($o->order_status); ?></span></td>
                     <td>

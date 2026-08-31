@@ -25,10 +25,7 @@
 <script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/buttons.bootstrap.min.js"></script>
 <!--  FOR EXPORT BUTTONS END -->
 
-<!-- SlimScroll -->
-<script src="<?php echo $theme_link; ?>plugins/slimScroll/jquery.slimscroll.min.js"></script>
-<!-- FastClick -->
-<script src="<?php echo $theme_link; ?>plugins/fastclick/fastclick.js"></script>
+
 <!-- Shortcut Keys -->
 <script src="<?php echo $theme_link; ?>plugins/shortcuts/shortcuts.js"></script>
 <!-- Select2 -->
@@ -40,6 +37,8 @@
     sidebarExpandOnHover: true,
     navbarMenuHeight: "200px", //The height of the inner menu
     animationSpeed: 250,
+    sidebarSlimScroll: false,
+    navbarMenuSlimscroll: false,
   };
 </script>
 <script src="<?php echo $theme_link; ?>dist/js/app.js"></script>
@@ -50,6 +49,10 @@
 <script src="<?php echo $theme_link; ?>toastr/toastr.js"></script>
 <script src="<?php echo $theme_link; ?>toastr/toastr_custom.js"></script>
 <!--Toastr notification end-->
+<script>
+function success_show(msg){ toastr.success(msg); }
+function error_show(msg){ toastr.error(msg); }
+</script>
 <!-- bootstrap datepicker -->
 <script src="<?php echo $theme_link; ?>plugins/daterangepicker/moment.min.js"></script>
 <script src="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.js"></script>
@@ -75,7 +78,8 @@ $(document).ajaxStart(function() { Pace.restart(); });
 <script src="<?php echo $theme_link; ?>plugins/iCheck/icheck.min.js"></script>
 <script>
   $(function () {
-    $('input').iCheck({
+    // Skip checkboxes/radios that opt out with .no-icheck (e.g. custom toggle switches)
+    $('input[type="checkbox"]:not(.no-icheck), input[type="radio"]:not(.no-icheck)').iCheck({
       checkboxClass: 'icheckbox_square-orange',
       /*uncheckedClass: 'bg-white',*/
       radioClass: 'iradio_square-orange',
@@ -84,7 +88,15 @@ $(document).ajaxStart(function() { Pace.restart(); });
   });
 </script>
 <!-- Initialize Select2 Elements -->
-<script type="text/javascript"> $(".select2").select2(); </script>
+<script type="text/javascript">
+  // Init per-element so one failing select can't leave the rest as broken native dropdowns
+  $(function () {
+    $(".select2").each(function () {
+      try { $(this).select2(); }
+      catch (e) { if (window.console) console.warn('select2 init failed:', this, e); }
+    });
+  });
+</script>
 <!-- Initialize toggler -->
 <script type="text/javascript">
   $(document).ready(function(){
@@ -134,7 +146,12 @@ $(document).ajaxStart(function() { Pace.restart(); });
 <script type="text/javascript" >
 $(function($) { // this script needs to be loaded on every page where an ajax POST may happen
   //var csrf = $('input[name="csrf_token"]').val();  // <- get token value from hidden form input
-    $.ajaxSetup({ data: {'<?php echo $this->security->get_csrf_token_name(); ?>' : '<?php echo $this->security->get_csrf_hash(); ?>' }  }); });
+    $.ajaxSetup({ data: {'<?php echo $this->security->get_csrf_token_name(); ?>' : '<?php echo $this->security->get_csrf_hash(); ?>' }  });
+    // Refresh CSRF hash from cookie after every AJAX response
+    $(document).ajaxComplete(function(){
+      var c = document.cookie.match('(^|;)\\s*csrf_cookie_name\\s*=\\s*([^;]+)');
+      if(c){ $.ajaxSetup({ data: {'<?php echo $this->security->get_csrf_token_name(); ?>' : c.pop()} }); }
+    }); });
 </script>
 <script type="text/javascript">
 	function show_delete_btn() {
@@ -201,6 +218,26 @@ $(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" )
       }
 </script>
 <script type="text/javascript">
+  function format_money(res=0){
+    var raw = to_Fixed(res);
+    var parts = raw.split('.');
+    if(parts.length > 1){
+      parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+      return parts.join('.');
+    }
+    return parseInt(raw).toLocaleString('en-US');
+  }
+  function format_qty_display(res=0){
+    var raw = format_qty(res);
+    var parts = raw.split('.');
+    if(parts.length > 1){
+      parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+      return parts.join('.');
+    }
+    return parseInt(raw).toLocaleString('en-US');
+  }
+</script>
+<script type="text/javascript">
   $("#item_search").on("focusout", function(){
   $("#item_search").val('').removeClass('ui-autocomplete-loading');
 });
@@ -209,7 +246,17 @@ $(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" )
   /* MartPoint PWA Service Worker Registration */
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('<?= base_url("sw.js"); ?>').then(function(reg){
+      navigator.serviceWorker.getRegistrations().then(function(registrations){
+        return Promise.all(registrations.map(function(reg){ return reg.unregister(); }));
+      }).then(function(){
+        if('caches' in window){
+          return caches.keys().then(function(names){
+            return Promise.all(names.map(function(name){ return caches.delete(name); }));
+          });
+        }
+      }).then(function(){
+        return navigator.serviceWorker.register('<?= base_url("sw.js"); ?>?v=16');
+      }).then(function(reg){
         console.log('PWA SW registered:', reg.scope);
       }).catch(function(err){
         console.log('PWA SW registration failed:', err);
@@ -220,3 +267,24 @@ $(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" )
 <!-- MartPoint Assist -->
 <script src="<?php echo $theme_link; ?>js/assist.js?v=12"></script>
 <?php $this->load->view('assist/panel'); ?>
+
+<script>
+  // Close mobile sidebar when clicking a menu link or the overlay
+  $(document).ready(function(){
+    if ($(window).width() <= 767) {
+      $('.sidebar-menu a, .main-sidebar a').on('click', function(e){
+        // Don't close if it's a treeview parent that toggles the submenu
+        if ($(this).attr('href') === '#' || $(this).next('.treeview-menu').length > 0 || $(this).find('.pull-right-container').length > 0) {
+          return;
+        }
+        $('body').removeClass('sidebar-open');
+      });
+      // Close when clicking the dark overlay (sidebar ::before pseudo background)
+      $(document).on('click', function(e){
+        if ($('body').hasClass('sidebar-open') && !$(e.target).closest('.main-sidebar').length && !$(e.target).closest('.sidebar-toggle').length) {
+          $('body').removeClass('sidebar-open');
+        }
+      });
+    }
+  });
+</script>

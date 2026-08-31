@@ -111,7 +111,7 @@
   });
 
   document.getElementById('btnConfirm').addEventListener('click', function(){
-    if(!capturedImage){ alert('Please capture your face first.'); return; }
+    if(!capturedImage){ toastr.error('Please capture your face first.'); return; }
     var btn = this;
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
@@ -137,7 +137,7 @@
           btn.disabled = false;
           btn.innerHTML = '<i class="fa fa-check"></i> Confirm Clock In';
           document.getElementById('status').textContent = res.message;
-          alert(res.message);
+          toastr.error(res.message);
         }
       }
     };

@@ -153,12 +153,7 @@
                     <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
                     <td></td>
                   </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('hsn'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                    <td></td>
-                  </tr>
+
                   <tr>
                     <td><?=$i++;?></td>
                     <td><?= $this->lang->line('sac'); ?></td>

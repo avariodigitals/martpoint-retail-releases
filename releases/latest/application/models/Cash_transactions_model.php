@@ -38,8 +38,8 @@ class Cash_transactions_model extends CI_Model {
      	$to_date = $this->input->post('to_date');
      	$to_date = system_fromatted_date($to_date);
      	if($to_date!='1970-01-01'){
-     		$to_date_query = " and payment_date <= '$from_date'";
-     		$to_date_query_expense = " and expense_date <= '$from_date'";
+     		$to_date_query = " and payment_date <= '$to_date'";
+     		$to_date_query_expense = " and expense_date <= '$to_date'";
      	}
 
      	$users = $this->input->post('users');
@@ -54,7 +54,7 @@ class Cash_transactions_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				if($i===0) // first loop
@@ -73,7 +73,7 @@ class Cash_transactions_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			//$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 
@@ -208,7 +208,7 @@ class Cash_transactions_model extends CI_Model {
 		
 		$query = $this->_get_datatables_query();
 
-		if($_POST['length'] != -1){
+		if(isset($_POST['length']) && $_POST['length'] != -1){
 			$start_end_query = " limit  ".$_POST['start'].", ".$_POST['length']." ";
 			$query .= $start_end_query;
 		}

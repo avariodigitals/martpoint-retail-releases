@@ -15,6 +15,9 @@
 .mp-toggle-small input[type="checkbox"]:checked { background:#10B981; }
 .mp-toggle-small input[type="checkbox"]::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:2px; left:2px; transition:left .2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
 .mp-toggle-small input[type="checkbox"]:checked::after { left:18px; }
+/* Protect from iCheck + mobile min-height overrides */
+.mp-toggle-small input[type="checkbox"] { min-height:0 !important; }
+.mp-channel-input { -webkit-appearance:none !important; appearance:none !important; min-height:0 !important; }
 .mp-select { padding:6px 10px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; color:#0F172A; background:#fff; }
 .mp-select:focus { border-color:#3B82F6; outline:none; }
 .mp-input-sm { padding:6px 10px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; width:70px; }
@@ -97,8 +100,8 @@
                         </select>
                       </td>
                       <td><input type="number" class="mp-input-sm override-max" value="<?= $c->max_reminders !== NULL ? $c->max_reminders : ''; ?>" placeholder="Default" data-cid="<?= $c->customer_id; ?>"></td>
-                      <td><label class="mp-toggle-small"><input type="checkbox" class="override-email" <?= $c->send_email == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
-                      <td><label class="mp-toggle-small"><input type="checkbox" class="override-sms" <?= $c->send_sms == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
+                      <td><label class="mp-toggle-small"><input type="checkbox" class="override-email mp-channel-input no-icheck" <?= $c->send_email == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
+                      <td><label class="mp-toggle-small"><input type="checkbox" class="override-sms mp-channel-input no-icheck" <?= $c->send_sms == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
                       <td><button class="mp-btn-save btn-save-customer" data-cid="<?= $c->customer_id; ?>"><i class="fa fa-save"></i></button></td>
                     </tr>
                     <?php endforeach; ?>
@@ -125,10 +128,11 @@
 
 <?php include"comman/code_js_sound.php"; ?>
 <?php include"comman/code_js.php"; ?>
-<script src="<?= $theme_link; ?>toastr/toastr.min.js"></script>
 <script>
 $(function(){
-  toastr.options = { positionClass: 'toast-top-right', closeButton: true, progressBar: true };
+  if(typeof toastr !== 'undefined'){
+    toastr.options = { positionClass: 'toast-top-right', closeButton: true, progressBar: true };
+  }
 
   $('.btn-save-customer').click(function(){
     var btn = $(this);
@@ -136,22 +140,37 @@ $(function(){
     var row = $('tr[data-cid="'+cid+'"]');
     btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
 
-    $.post('<?=base_url("debt_reminder/update_customer");?>', {
-      customer_id: cid,
-      enabled: row.find('.override-enabled').val(),
-      frequency: row.find('.override-freq').val(),
-      max_reminders: row.find('.override-max').val(),
-      send_email: row.find('.override-email').is(':checked') ? 1 : 0,
-      send_sms: row.find('.override-sms').is(':checked') ? 1 : 0,
-      <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
-    }, function(res){
-      btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
-      if(res.status === 'success'){
-        toastr.success(res.message);
-      } else {
-        toastr.error(res.message);
+    $.ajax({
+      url: '<?=base_url("debt_reminder/update_customer");?>',
+      type: 'POST',
+      dataType: 'json',
+      data: {
+        customer_id: cid,
+        enabled: row.find('.override-enabled').val(),
+        frequency: row.find('.override-freq').val(),
+        max_reminders: row.find('.override-max').val(),
+        send_email: row.find('.override-email').is(':checked') ? 1 : 0,
+        send_sms: row.find('.override-sms').is(':checked') ? 1 : 0,
+        <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
+      },
+      success: function(res){
+        btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
+        if(res && res.status === 'success'){
+          if(typeof toastr !== 'undefined'){ toastr.success(res.message); }
+          else { alert(res.message); }
+        } else {
+          var msg = res && res.message ? res.message : 'Failed to update';
+          if(typeof toastr !== 'undefined'){ toastr.error(msg); }
+          else { alert('Error: ' + msg); }
+        }
+      },
+      error: function(xhr, status, error){
+        btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
+        var msg = 'Server error: ' + (error || status || 'Unknown error');
+        if(typeof toastr !== 'undefined'){ toastr.error(msg); }
+        else { alert(msg); }
       }
-    }, 'json');
+    });
   });
 });
 </script>

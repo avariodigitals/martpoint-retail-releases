@@ -97,23 +97,29 @@ class Users_model extends CI_Model {
 		if(isset($role_id)){
 			$info['role_id'] = $role_id;
 		}
-		$info['store_id']=(store_module()) ? $store_id : $this->session->userdata('store_id');	
+		$info['store_id']=(store_module()) ? $store_id : $this->session->userdata('store_id');
+		$next_user_id = $this->db->select('COALESCE(MAX(id),0)+1 as next_id')->get('db_users')->row()->next_id;
+		$info['id'] = $next_user_id;
 		$q1 = $this->db->insert('db_users', $info);
 		if (!$q1){
-			return "failed";
+			$err = $this->db->error();
+			log_message('error', 'Users_model verify_and_save db_users insert failed: '.json_encode($err));
+			return "failed: ".($err['message'] ?? 'Unknown DB error');
 		}
 		if(warehouse_module() && isset($_POST['warehouses']) && $role_id!=1 && $role_id!=store_admin_id()){
 
 			$warehouseSelectionFlag = false;
 
-			$user_id = $this->db->insert_id();
-
+			$user_id = $next_user_id;
+			$max_wh_id = $this->db->select('COALESCE(MAX(id),0) as max_id')->get('db_userswarehouses')->row()->max_id;
 			$warehouses_list = sizeof($_POST['warehouses']);
-			foreach ($_POST['warehouses'] as $res => $val) {
-				$warehouse_info = array ( 'user_id'=> $user_id, 'warehouse_id'=>$val );
+			foreach ($_POST['warehouses'] as $idx => $val) {
+				$warehouse_info = array ( 'id' => $max_wh_id + $idx + 1, 'user_id'=> $user_id, 'warehouse_id'=>$val );
 				$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
 				if (!$q2){
-					return "failed";
+					$err = $this->db->error();
+					log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
+					return "failed: ".($err['message'] ?? 'Unknown DB error');
 				}
 
 				//Varify the default warehouse should selected in all warehouse selection?
@@ -125,7 +131,7 @@ class Users_model extends CI_Model {
 			}
 
 			if($warehouseSelectionFlag == false){
-				return "Please ensure that the Default Warehouse is selected in the group selection box";
+				return "Please ensure that the Default Branch is selected in the group selection box";
 			}
 			
 		}
@@ -262,7 +268,9 @@ class Users_model extends CI_Model {
 				$warehouse_info = array ( 'user_id'=> $q_id, 'warehouse_id'=>$val );
 				$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
 				if (!$q2){
-					return "failed";
+					$err = $this->db->error();
+					log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
+					return "failed: ".($err['message'] ?? 'Unknown DB error');
 				}
 
 				//Varify the default warehouse should selected in all warehouse selection?
@@ -273,7 +281,7 @@ class Users_model extends CI_Model {
 			}
 
 			if($warehouseSelectionFlag == false){
-				return "Please ensure that the Default Warehouse is selected in the group selection box";
+				return "Please ensure that the Default Branch is selected in the group selection box";
 			}
 		}
 

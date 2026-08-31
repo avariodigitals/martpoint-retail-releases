@@ -177,6 +177,45 @@
                 </div>
 
                 <hr style="margin:20px 0;">
+                <h4 class="text-muted" style="margin-bottom:15px;"><i class="fa fa-truck"></i> Shipping</h4>
+
+                <div class="form-group">
+                  <label class="col-sm-2 control-label">Shipping Notice</label>
+                  <div class="col-sm-8">
+                    <textarea class="form-control input-sm" id="shipping_notice" name="shipping_notice" rows="3" placeholder="e.g. We deliver within Lagos only. Orders placed after 4pm ship next day."><?= htmlspecialchars($settings->shipping_notice ?? ''); ?></textarea>
+                    <span class="text-muted" style="font-size:12px;">Shown to customers at checkout above the shipping options.</span>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="col-sm-2 control-label">Shipping Methods</label>
+                  <div class="col-sm-10">
+                    <span class="text-muted" style="font-size:12px;display:block;margin-bottom:8px;">Add the shipping/delivery options customers can pick at checkout. The fee is added to the order total.</span>
+                    <div id="shipping-methods-container">
+                      <?php
+                        $savedMethods = json_decode($settings->shipping_methods_json ?? '', true);
+                        if(!is_array($savedMethods) || empty($savedMethods)){
+                          $savedMethods = [['name'=>'','fee'=>'','description'=>'','enabled'=>1]];
+                        }
+                        foreach($savedMethods as $idx => $m):
+                      ?>
+                      <div class="shipping-method-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                        <input type="text" class="form-control input-sm sm-name" name="sm_name[]" value="<?= htmlspecialchars($m['name'] ?? ''); ?>" placeholder="Method name (e.g. Home Delivery)" style="flex:1 1 180px;min-width:160px;">
+                        <div class="input-group" style="flex:0 0 130px;">
+                          <span class="input-group-addon">Fee</span>
+                          <input type="number" step="0.01" min="0" class="form-control input-sm sm-fee" name="sm_fee[]" value="<?= htmlspecialchars($m['fee'] ?? ''); ?>" placeholder="0.00">
+                        </div>
+                        <input type="text" class="form-control input-sm sm-desc" name="sm_desc[]" value="<?= htmlspecialchars($m['description'] ?? ''); ?>" placeholder="Description (optional)" style="flex:2 1 220px;min-width:180px;">
+                        <label style="flex:0 0 auto;margin:0;white-space:nowrap;"><input type="checkbox" class="sm-enabled" name="sm_enabled[]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
+                        <button type="button" class="btn btn-danger btn-sm sm-remove" onclick="removeShippingMethod(this)" style="flex:0 0 auto;"><i class="fa fa-trash"></i></button>
+                      </div>
+                      <?php endforeach; ?>
+                    </div>
+                    <button type="button" class="btn btn-default btn-sm" onclick="addShippingMethod()" style="margin-top:4px;"><i class="fa fa-plus"></i> Add Method</button>
+                  </div>
+                </div>
+
+                <hr style="margin:20px 0;">
                 <h4 class="text-muted" style="margin-bottom:15px;"><i class="fa fa-sliders"></i> Store Features</h4>
 
                 <div class="form-group">
@@ -332,6 +371,25 @@ $(function(){
     });
   });
 });
+
+function addShippingMethod(){
+  var container = document.getElementById('shipping-methods-container');
+  var row = document.createElement('div');
+  row.className = 'shipping-method-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;';
+  row.innerHTML = ''
+    + '<input type="text" class="form-control input-sm sm-name" name="sm_name[]" value="" placeholder="Method name (e.g. Home Delivery)" style="flex:1 1 180px;min-width:160px;">'
+    + '<div class="input-group" style="flex:0 0 130px;"><span class="input-group-addon">Fee</span><input type="number" step="0.01" min="0" class="form-control input-sm sm-fee" name="sm_fee[]" value="" placeholder="0.00"></div>'
+    + '<input type="text" class="form-control input-sm sm-desc" name="sm_desc[]" value="" placeholder="Description (optional)" style="flex:2 1 220px;min-width:180px;">'
+    + '<label style="flex:0 0 auto;margin:0;white-space:nowrap;"><input type="checkbox" class="sm-enabled" name="sm_enabled[]" value="1" checked> Enabled</label>'
+    + '<button type="button" class="btn btn-danger btn-sm sm-remove" onclick="removeShippingMethod(this)" style="flex:0 0 auto;"><i class="fa fa-trash"></i></button>';
+  container.appendChild(row);
+}
+function removeShippingMethod(btn){
+  var container = document.getElementById('shipping-methods-container');
+  if(container.children.length <= 1){ return; }
+  btn.closest('.shipping-method-row').remove();
+}
 </script>
 <script>$('.online-store-settings-active-li').addClass("active");</script>
 </body>

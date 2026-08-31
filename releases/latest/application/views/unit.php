@@ -62,6 +62,26 @@
                                     <span id="description_msg" style="display:none" class="text-danger"></span>
                                  </div>
                               </div>
+                              <div class="form-group">
+                                 <label for="parent_unit_id" class="col-sm-2 control-label">Parent Unit <small class="text-muted">(optional)</small></label>
+                                 <div class="col-sm-4">
+                                    <select class="form-control" id="parent_unit_id" name="parent_unit_id">
+                                       <option value="">-- No Parent (Root Unit) --</option>
+                                       <?php foreach(($all_units ?? []) as $u): if(($q_id ?? 0) == $u->id) continue; ?>
+                                       <option value="<?= $u->id; ?>" <?= (isset($parent_unit_id) && $parent_unit_id==$u->id)?'selected':''; ?>><?= htmlspecialchars($u->unit_name); ?></option>
+                                       <?php endforeach; ?>
+                                    </select>
+                                    <span id="parent_unit_id_msg" style="display:none" class="text-danger"></span>
+                                 </div>
+                              </div>
+                              <div class="form-group">
+                                 <label for="conversion_factor" class="col-sm-2 control-label">Conversion Factor</label>
+                                 <div class="col-sm-4">
+                                    <input type="number" step="0.000001" class="form-control input-sm" id="conversion_factor" name="conversion_factor" value="<?php print isset($conversion_factor) ? $conversion_factor : '1'; ?>" placeholder="e.g. 50">
+                                    <p class="text-muted" style="font-size:10px;margin-top:4px;">How many of <strong>this unit</strong> = 1 <strong>parent unit</strong>. Example: if Parent = Bag and this unit = Kilogram, enter 50 (50 kg per bag).</p>
+                                    <span id="conversion_factor_msg" style="display:none" class="text-danger"></span>
+                                 </div>
+                              </div>
                            </div>
                            <!-- /.box-body -->
                            <div class="box-footer">

@@ -5,14 +5,14 @@
                     <div class="modal-header header-custom">
                       <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <label aria-hidden="true">&times;</label></button>
-                      <h4 class="modal-title text-center"><?= $this->lang->line('add_customer'); ?></h4>
+                      <h4 class="modal-title text-center"><?= mp_label('customer'); ?> Details</h4>
                     </div>
                     <div class="modal-body">
                         <div class="row">
                           <div class="col-md-4">
                             <div class="box-body">
                               <div class="form-group">
-                                <label for="customer_name"><?= $this->lang->line('customer_name'); ?>*</label>
+                                <label for="customer_name"><?= mp_label('customer'); ?> Name*</label>
                                 <label id="customer_name_msg" class="text-danger text-right pull-right"></label>
                                 <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="" >
                               </div>
@@ -74,6 +74,24 @@
                                 <label class="text-success text-right pull-right">0 = No Credit, -1 = No Limit</label>
                                 <label id="credit_limit_msg" class="text-danger text-right pull-right"></label>
                                 <input type="text"  class="form-control only_currency" id="credit_limit" name="credit_limit" value='0' placeholder=""  >
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- NIN/BVN Verification -->
+                          <div class="col-md-4">
+                            <div class="box-body">
+                              <div class="form-group">
+                                <label for="nin_bvn">NIN / BVN <small class="text-muted">(Nigeria)</small></label>
+                                <label id="nin_bvn_msg" class="text-danger text-right pull-right"></label>
+                                <div class="input-group">
+                                  <input type="text" class="form-control" id="nin_bvn" name="nin_bvn" placeholder="Enter NIN or BVN" maxlength="11" >
+                                  <span class="input-group-btn">
+                                    <button type="button" class="btn btn-info" id="btn_verify_nin" title="Verify NIN/BVN"><i class="fa fa-search"></i> Verify</button>
+                                  </span>
+                                </div>
+                                <div id="nin_status" style="margin-top:4px;"></div>
+                                <input type="hidden" id="nin_verified" name="nin_verified" value="0">
                               </div>
                             </div>
                           </div>

@@ -21,8 +21,14 @@ $('#save,#update').on("click",function (e) {
     }
 
     //Sync first barcode row into hidden general fields before validation
+    // Only sync when the barcode/unit table actually exists — otherwise we would
+    // zero out the visible simple-pricing inputs (#price, #sales_price, etc.)
     function syncBarcodeToHiddenFields(){
-        var pprice = parseFloat($('input[name="barcode_pprice[]"]').first().val()) || 0;
+        var $firstPprice = $('input[name="barcode_pprice[]"]').first();
+        if($firstPprice.length === 0){
+            return; // Barcode table not visible — nothing to sync
+        }
+        var pprice = parseFloat($firstPprice.val()) || 0;
         var sprice = parseFloat($('input[name="barcode_sprice[]"]').first().val()) || 0;
         var mrp    = parseFloat($('input[name="barcode_mrp[]"]').first().val()) || 0;
         var batch  = $('input[name="barcode_batch[]"]').first().val() || '';
@@ -63,21 +69,33 @@ $('#save,#update').on("click",function (e) {
 	check_field("tax_type");
 	//check_field("profit_margin");
 	if(item_group=='Single'){
-		check_field("price");
-		check_field("purchase_price");
-		check_field("sales_price");
-		//Also validate barcode row 1 has prices
-		var bc_pprice = parseFloat($('input[name="barcode_pprice[]"]').first().val()) || 0;
-		var bc_sprice = parseFloat($('input[name="barcode_sprice[]"]').first().val()) || 0;
-		if(bc_pprice <= 0){
-			$('input[name="barcode_pprice[]"]').first().focus();
-			toastr["warning"]("Purchase Price in Barcode / Batch row is required!");
-			flag = false;
-		}
-		if(bc_sprice <= 0){
-			$('input[name="barcode_sprice[]"]').first().focus();
-			toastr["warning"]("Wholesale Price in Barcode / Batch row is required!");
-			flag = false;
+		// Validate barcode table prices (primary price entry point)
+		var $bc_pprice = $('input[name="barcode_pprice[]"]').first();
+		var $bc_sprice = $('input[name="barcode_sprice[]"]').first();
+		var $bc_mrp    = $('input[name="barcode_mrp[]"]').first();
+		var bc_pprice_val = parseFloat($bc_pprice.val()) || 0;
+		var bc_sprice_val = parseFloat($bc_sprice.val()) || 0;
+		var bc_mrp_val    = parseFloat($bc_mrp.val()) || 0;
+
+		var bc_has_data = ($bc_pprice.length > 0); // table exists if first pprice input exists
+		if(bc_has_data){
+			// Barcode table is visible — prices MUST be entered in the first row
+			if(bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0){
+				$('#barcode_table_msg').fadeIn(200).show();
+				$('#barcode_table_msg_text').html('Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.');
+				if(bc_pprice_val <= 0) $bc_pprice.focus();
+				else if(bc_sprice_val <= 0) $bc_sprice.focus();
+				else $bc_mrp.focus();
+				flag = false;
+			} else {
+				$('#barcode_table_msg').fadeOut(200).hide();
+			}
+		} else {
+			// No barcode table visible — fall back to hidden fields
+			if(!$('#purchase_price').val() || !$('#sales_price').val() || !$('#price').val()){
+				toastr["warning"]("Please fill Purchase Price, Sales Price and Item Price.");
+				flag = false;
+			}
 		}
 	}
 	else{
@@ -98,8 +116,8 @@ $('#save,#update').on("click",function (e) {
 
     var existing_row_count=0;
     if(item_group=='Variants'){
-    	var existing_row_count = $("#variant_table  tr").length;
-    	if(existing_row_count==1){
+    	var existing_row_count = $("#variant_table tbody tr").length;
+    	if(existing_row_count==0){
     		toastr["warning"]("No Records in Variants List!!");
     		return;
     	}
@@ -111,6 +129,10 @@ $('#save,#update').on("click",function (e) {
 
 					///if(confirm("Do You Wants to Save Record ?")){
 						e.preventDefault();
+						// Sync barcode row prices into hidden fields before capturing FormData
+						if(typeof syncBarcodeToHiddenFields === 'function'){
+							syncBarcodeToHiddenFields();
+						}
 						data = new FormData($('#items-form')[0]);//form name
 						/*Check XSS Code*/
 						if(!xss_validation(data)){ return false; }
@@ -145,6 +167,11 @@ $('#save,#update').on("click",function (e) {
 							$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 							$(".overlay").remove();
 
+					   },
+					   error: function(xhr){
+					   	   toastr["error"](xhr.responseText || "Server error. Please refresh and try again.");
+					   	   $("#"+this_id).attr('disabled',false);
+					   	   $(".overlay").remove();
 					   }
 					   });
 				///}
@@ -159,6 +186,10 @@ $('#save,#update').on("click",function (e) {
 				
 					///if(confirm("Do You Wants to Update Record ?")){
 						e.preventDefault();
+						// Sync barcode row prices into hidden fields before capturing FormData
+						if(typeof syncBarcodeToHiddenFields === 'function'){
+							syncBarcodeToHiddenFields();
+						}
 						data = new FormData($('#items-form')[0]);//form name3
 						/*Check XSS Code*/
 						if(!xss_validation(data)){ return false; }
@@ -189,6 +220,11 @@ $('#save,#update').on("click",function (e) {
 							$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 							$(".overlay").remove();
 							return;
+					   },
+					   error: function(xhr){
+					   	   toastr["error"](xhr.responseText || "Server error. Please refresh and try again.");
+					   	   $("#"+this_id).attr('disabled',false);
+					   	   $(".overlay").remove();
 					   }
 					   });
 				///}
@@ -544,13 +580,13 @@ $("#variant_search").autocomplete({
 function return_variant_data_in_row(variant_id){
   $("#variant_search").addClass('ui-autocomplete-loader-center');
   var base_url=$("#base_url").val();
-  var rowcount=$("#hidden_rowcount").val();
+  var rowcount=$("#variant_table tbody tr").length;
   $.post(base_url+"items/return_variant_data_in_row/"+rowcount+"/"+variant_id,{},function(result){
         //alert(result);
         console.log("Result = "+result);
 
         $('#variant_table tbody').append(result);
-        $("#hidden_rowcount").val(parseInt(rowcount)+1);
+        $("#hidden_rowcount").val($("#variant_table tbody tr").length);
         success.currentTime = 0;
         success.play();
         //enable_or_disable_item_discount();
@@ -559,16 +595,17 @@ function return_variant_data_in_row(variant_id){
     }); 
 }
 
-function removerow(id){//id=Rowid 
- 	$("#row_"+id).remove();
- 	//final_total();
- 	failed.currentTime = 0;
+function removerow(id){//id=Rowid
+	$("#row_"+id).remove();
+	$("#row_"+id+"_batch").remove();
+	//final_total();
+	failed.currentTime = 0;
 	failed.play();
 }
 
 
  function calculate_purchase_price_of_all_row(){
-   var rowcount=$("#hidden_rowcount").val();     
+   var rowcount=$("#variant_table tbody tr").length;     
  
    for(i=1;i<=rowcount;i++){
  
@@ -594,7 +631,7 @@ function calculate_purchase_price_new(price){
 }
 
 function calculate_sales_price_of_all_row(){
-   var rowcount=$("#hidden_rowcount").val();     
+   var rowcount=$("#variant_table tbody tr").length;     
  
    for(i=1;i<=rowcount;i++){
      if(document.getElementById("td_data_"+i+"_3")){
@@ -603,7 +640,10 @@ function calculate_sales_price_of_all_row(){
        var profit_margin = get_float_type_data("#td_data_"+i+"_5");
        var sales_price   = calculate_sales_price_new(price,profit_margin);
 
-       $("#td_data_"+i+"_6").val(sales_price);
+       var $td6 = $("#td_data_"+i+"_6");
+       if(profit_margin > 0 || $td6.val().trim() == ''){
+         $td6.val(sales_price);
+       }
            
      }//if end
    }//for end
@@ -622,7 +662,7 @@ function calculate_sales_price_new(price,profit_margin){
 
 
 function calculate_profit_margin_of_all_row(){
-   var rowcount=$("#hidden_rowcount").val();     
+   var rowcount=$("#variant_table tbody tr").length;     
  
    for(i=1;i<=rowcount;i++){
      if(document.getElementById("td_data_"+i+"_3")){
@@ -662,19 +702,18 @@ $("#tax_id,#tax_type").on("change",function(event) {
 });
 
 function validate_variants_records(){
-   var rowcount=$("#hidden_rowcount").val();     
+   var rowcount=$("#variant_table tbody tr").length;
    var available_rows=0;
    for(i=1;i<=rowcount;i++){
      if(document.getElementById("td_data_"+i+"_3")){
      	available_rows++;
 
-       //var price = get_float_type_data("#td_data_"+i+"_3");
-       var purchase_price = get_float_type_data("#td_data_"+i+"_4");
-       var sales_price   = get_float_type_data("#td_data_"+i+"_6");
-       
-       if(purchase_price==0 || sales_price==0){
-       	   $("#td_data_"+i+"_3").focus();
-       	   toastr["warning"]("Variants Price & Sales Price is Required!");
+       var price = get_float_type_data("#td_data_"+i+"_3");
+       var sales_price = get_float_type_data("#td_data_"+i+"_6");
+
+       if(price==0 || sales_price==0){
+      	   $("#td_data_"+i+"_3").focus();
+      	   toastr["warning"]("Variants Price & Sales Price is Required!");
            return false;
        }
      }//if end

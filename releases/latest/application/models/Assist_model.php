@@ -54,7 +54,7 @@ class Assist_model extends CI_Model {
 			['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
 			['label' => 'Find Customer', 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
 			['label' => "Today's Sales", 'action' => 'today_sales', 'icon' => 'fa-line-chart', 'min_role' => 'cashier'],
-			['label' => 'Daily Summary', 'action' => 'today_profit', 'icon' => 'fa-file-text-o', 'min_role' => 'cashier'],
+			['label' => 'Daily Summary', 'action' => 'daily_summary', 'icon' => 'fa-file-text-o', 'min_role' => 'cashier'],
 			['label' => 'Record Expense', 'action' => 'record_expense', 'icon' => 'fa-money', 'min_role' => 'cashier'],
 			['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
 			['label' => 'View Debts', 'action' => 'view_debts', 'icon' => 'fa-handshake-o', 'min_role' => 'cashier'],
@@ -74,6 +74,13 @@ class Assist_model extends CI_Model {
 	public function processMessage($message, $sessionId){
 		$message = strtolower(trim($message));
 		if(empty($message)){
+			return $this->_welcomeResponse();
+		}
+
+		// Greetings should always trigger the welcome response before any KB lookup
+		$greetings = ['hi','hey','hello','good morning','good afternoon','good evening','greetings','morning','evening'];
+		$msgWords = array_filter(preg_split('/\s+/', $message));
+		if(in_array($message, $greetings) || in_array($msgWords[0] ?? '', ['hi','hey','hello','yo'])){
 			return $this->_welcomeResponse();
 		}
 
@@ -150,7 +157,7 @@ class Assist_model extends CI_Model {
 		$intent = $this->_detectIntent($message);
 		switch($intent){
 			case 'SEARCH_CUSTOMER': return $this->_searchCustomer($message);
-			case 'CREATE_CUSTOMER': return $this->_createCustomerDraft($message);
+			case 'CREATE_CUSTOMER': return $this->_startFlow('create_customer', $sessionId);
 			case 'SEARCH_PRODUCT':
 			case 'CHECK_STOCK': return $this->_checkStock($message);
 			case 'LOW_STOCK': return $this->_lowStock();
@@ -192,6 +199,9 @@ class Assist_model extends CI_Model {
 			case 'today_profit':
 				if($levelVal < 1) return $this->_roleDeniedResponse();
 				return $this->_todayProfit();
+			case 'daily_summary':
+				if($levelVal < 1) return $this->_roleDeniedResponse();
+				return $this->_businessSummary();
 			case 'record_expense':
 				if($levelVal < 1) return $this->_roleDeniedResponse();
 				return $this->_createExpenseDraft('');
@@ -302,6 +312,9 @@ class Assist_model extends CI_Model {
 		if($flow === 'create_sale'){
 			return $this->_flowCreateSale($step, $message, $conversation, $sessionId);
 		}
+		if($flow === 'create_customer'){
+			return $this->_flowCreateCustomer($step, $message, $conversation, $sessionId);
+		}
 		if($flow === 'create_account'){
 			return $this->_flowCreateAccount($step, $message, $conversation, $sessionId);
 		}
@@ -346,7 +359,7 @@ class Assist_model extends CI_Model {
 		try {
 			$this->load->model('expiry_settings_model');
 			$expirySettings = $this->expiry_settings_model->get_settings();
-			if(!empty($item->expire_date) && $item->expire_date != '0000-00-00' && $expirySettings->stop_selling_expired == 1){
+			if(is_valid_date($item->expire_date) && $expirySettings->stop_selling_expired == 1){
 				$today = date('Y-m-d');
 				if($item->expire_date < $today){
 					return true;
@@ -518,7 +531,6 @@ class Assist_model extends CI_Model {
 					}
 				}
 
-				$this->db->query("ALTER TABLE db_customers AUTO_INCREMENT = 1");
 				$customerData = [
 					'store_id'       => $store_id,
 					'count_id'       => get_count_id('db_customers'),
@@ -856,7 +868,7 @@ class Assist_model extends CI_Model {
 				$salesId = $conv['data']['sales_id'] ?? 0;
 				$salesCode = $conv['data']['sales_code'] ?? 'N/A';
 				$token = get_pdf_token('sales', $salesId, $salesCode);
-				$pdfUrl = base_url('publicpdf/sales/'.$salesId.'?t='.$token);
+				$pdfUrl = base_url('publicpdf/sales/'.$salesId.'?t='.$token.'&download=1');
 				$viewUrl = base_url('sales/print_invoice_pos/'.$salesId);
 
 				$html = '<div class="assist-card"><h4>Sale Complete!</h4>';
@@ -866,6 +878,80 @@ class Assist_model extends CI_Model {
 
 				$this->_clearConversation($sessionId);
 				return $this->_response('html', 'All done! Payment recorded successfully.', ['html'=>$html, 'quick_tasks'=>$this->_getFilteredQuickTasks()]);
+
+			default:
+				$this->_clearConversation($sessionId);
+				return $this->_fallbackResponse();
+		}
+	}
+
+	// =================== CREATE CUSTOMER FLOW ===================
+
+	private function _flowCreateCustomer($step, $message, $conversation, $sessionId){
+		$msg = strtolower(trim($message));
+		$data = $conversation['data'] ?? [];
+
+		switch($step){
+			case 'init':
+				$this->_advanceStep('collect_name', [], $sessionId);
+				return $this->_conversational("Let's create a new customer. What is the customer's full name?", ['step'=>'collect_name']);
+
+			case 'collect_name':
+				if(empty($msg) || strlen($msg) < 2){
+					return $this->_conversational('I need a valid name. Please enter the customer\'s full name:', ['step'=>'collect_name']);
+				}
+				$this->_advanceStep('collect_email', ['new_customer_name'=>ucwords(trim($message))], $sessionId);
+				return $this->_conversational('Got it. What is the email address? (Type "skip" if none)', ['step'=>'collect_email']);
+
+			case 'collect_email':
+				$email = (in_array($msg, ['skip','none','no','n/a'])) ? '' : trim($message);
+				$this->_advanceStep('collect_phone', ['new_customer_email'=>$email], $sessionId);
+				return $this->_conversational('What is the phone number? (Type "skip" if none)', ['step'=>'collect_phone']);
+
+			case 'collect_phone':
+				$phone = (in_array($msg, ['skip','none','no','n/a'])) ? '' : trim($message);
+				$this->_advanceStep('collect_credit', ['new_customer_phone'=>$phone], $sessionId);
+				return $this->_conversational('What is the credit limit? (Type "0" or "skip" for none)', ['step'=>'collect_credit']);
+
+			case 'collect_credit':
+				$credit = (in_array($msg, ['skip','none','no','n/a'])) ? 0 : floatval(str_replace([',',' '], '', $message));
+				$conv = $this->_getConversation($sessionId);
+				$d = $conv['data'];
+				$store_id = get_current_store_id();
+				$mobile = $d['new_customer_phone'] ?? '';
+
+				// Check for duplicate mobile
+				if(!empty($mobile)){
+					$this->db->where('mobile', $mobile);
+					$this->db->where('store_id', $store_id);
+					$existing = $this->db->get('db_customers')->row();
+					if($existing){
+						$this->_clearConversation($sessionId);
+						return $this->_response('text', 'That customer already exists: <strong>'.htmlspecialchars($existing->customer_name).'</strong> (ID: '.$existing->id.').', ['quick_tasks'=>$this->_getFilteredQuickTasks()]);
+					}
+				}
+
+				$customerData = [
+					'store_id'       => $store_id,
+					'count_id'       => get_count_id('db_customers'),
+					'customer_code'  => get_init_code('customer'),
+					'customer_name'  => $d['new_customer_name'] ?? 'Unknown',
+					'email'          => $d['new_customer_email'] ?? '',
+					'mobile'         => $mobile,
+					'credit_limit'   => $credit,
+					'created_date'   => date('Y-m-d'),
+					'created_time'   => date('H:i:s'),
+					'created_by'     => $this->session->userdata('inv_username') ?? 'system',
+					'system_ip'      => $_SERVER['REMOTE_ADDR'] ?? '',
+					'system_name'    => gethostname() ?: '',
+					'status'         => 1
+				];
+				$this->db->insert('db_customers', $customerData);
+				$customerId = $this->db->insert_id();
+				$this->_clearConversation($sessionId);
+				return $this->_response('success', 'Customer "'.($d['new_customer_name'] ?? 'Unknown').'" created successfully! <strong>Customer ID: '.$customerId.'</strong>', [
+					'quick_tasks' => $this->_getFilteredQuickTasks()
+				]);
 
 			default:
 				$this->_clearConversation($sessionId);
@@ -938,7 +1024,10 @@ class Assist_model extends CI_Model {
 		}
 
 		$itemDetails = get_item_details($itemId);
-		$purchasePrice = $itemDetails ? ($itemDetails->price ?? 0) : 0;
+		$purchasePrice = 0;
+		if($itemDetails){
+			$purchasePrice = (!empty($itemDetails->purchase_price) && $itemDetails->purchase_price > 0) ? $itemDetails->purchase_price : ($itemDetails->price ?? 0);
+		}
 		$serviceBit = $itemDetails ? ($itemDetails->service_bit ?? 0) : 0;
 
 		$priceType = $d['price_type'] ?? 'wholesale';
@@ -986,8 +1075,42 @@ class Assist_model extends CI_Model {
 		$salesId = $d['sales_id'] ?? 0;
 		$customerId = $d['customer_id'] ?? 0;
 		$amount = $d['amount_paid'] ?? 0;
-		$paymentMode = $d['payment_mode'] ?? 'cash';
+		$paymentMode = $d['payment_mode'] ?? '';
+		$paymentModeName = $d['payment_mode_name'] ?? '';
 		$total = $d['grand_total'] ?? 0;
+
+		// Resolve payment mode to a real enabled store mode; fall back to default/cash if missing
+		$paymentModeRow = $this->db->where('store_id', $storeId)
+								  ->where('code', $paymentMode)
+								  ->where('enabled', 1)
+								  ->where('status', 1)
+								  ->get('db_payment_modes')
+								  ->row();
+		if(!$paymentModeRow){
+			$paymentModeRow = $this->db->where('store_id', $storeId)
+									  ->where('is_default', 1)
+									  ->where('enabled', 1)
+									  ->where('status', 1)
+									  ->get('db_payment_modes')
+									  ->row();
+		}
+		if(!$paymentModeRow){
+			$paymentModeRow = $this->db->where('store_id', $storeId)
+									  ->where('enabled', 1)
+									  ->where('status', 1)
+									  ->order_by('sort_order', 'asc')
+									  ->get('db_payment_modes')
+									  ->row();
+		}
+		if($paymentModeRow){
+			$paymentMode = $paymentModeRow->code;
+			$paymentModeName = !empty($paymentModeName) ? $paymentModeName : $paymentModeRow->name;
+			$paymentModeId = $paymentModeRow->id;
+		} else {
+			$paymentMode = 'cash';
+			$paymentModeName = !empty($paymentModeName) ? $paymentModeName : 'Cash';
+			$paymentModeId = null;
+		}
 
 		$paymentCode = get_init_code('sales_payment');
 		$countId = get_count_id('db_salespayments');
@@ -1002,8 +1125,9 @@ class Assist_model extends CI_Model {
 			'sales_id' => $salesId,
 			'payment_date' => date('Y-m-d'),
 			'payment_type' => $paymentMode,
+			'payment_mode_id' => $paymentModeId,
 			'payment' => $amount,
-			'payment_note' => 'Paid By ' . strtoupper($paymentMode) . ' via MartPoint Assist',
+			'payment_note' => 'Paid By ' . $paymentModeName . ' via MartPoint Assist',
 			'created_date' => date('Y-m-d'),
 			'created_time' => date('H:i:s'),
 			'created_by' => ($this->session->userdata('inv_username') ?: 'system'),
@@ -1226,7 +1350,7 @@ class Assist_model extends CI_Model {
 				if(count($wh) === 1){
 					$w = $wh[0];
 					$this->_advanceStep('ask_item', ['warehouse_id'=>$w->id, 'warehouse_name'=>$w->warehouse_name], $sessionId);
-					return $this->_conversational('Warehouse: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What item are you purchasing?', ['step'=>'ask_item']);
+					return $this->_conversational('Branch: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What item are you purchasing?', ['step'=>'ask_item']);
 				}
 				$options = [];
 				foreach($wh as $w){
@@ -1240,7 +1364,7 @@ class Assist_model extends CI_Model {
 					$w = $this->db->where('id', $wid)->get('db_warehouse')->row();
 					if($w){
 						$this->_advanceStep('ask_item', ['warehouse_id'=>$w->id, 'warehouse_name'=>$w->warehouse_name], $sessionId);
-						return $this->_conversational('Warehouse: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What item are you purchasing?', ['step'=>'ask_item']);
+						return $this->_conversational('Branch: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What item are you purchasing?', ['step'=>'ask_item']);
 					}
 				}
 				return $this->_conversational('Please select a warehouse.', ['step'=>'pick_warehouse']);
@@ -1505,7 +1629,7 @@ class Assist_model extends CI_Model {
 				if(count($wh) === 1){
 					$w = $wh[0];
 					$this->_advanceStep('ask_tax', ['warehouse_id'=>$w->id], $sessionId);
-					return $this->_conversational('Warehouse: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What tax rate? (Type "skip" if none)', ['step'=>'ask_tax']);
+					return $this->_conversational('Branch: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What tax rate? (Type "skip" if none)', ['step'=>'ask_tax']);
 				}
 				$options = [];
 				foreach($wh as $w){
@@ -1519,7 +1643,7 @@ class Assist_model extends CI_Model {
 					$w = $this->db->where('id', $wid)->get('db_warehouse')->row();
 					if($w){
 						$this->_advanceStep('ask_tax', ['warehouse_id'=>$w->id], $sessionId);
-						return $this->_conversational('Warehouse: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What tax rate? (Type "skip" if none)', ['step'=>'ask_tax']);
+						return $this->_conversational('Branch: <strong>'.htmlspecialchars($w->warehouse_name).'</strong>. What tax rate? (Type "skip" if none)', ['step'=>'ask_tax']);
 					}
 				}
 				return $this->_conversational('Please select a warehouse.', ['step'=>'pick_warehouse']);
@@ -1621,7 +1745,7 @@ class Assist_model extends CI_Model {
 
 		if(empty($customers)){
 			$html = '<div class="assist-card"><h4>No Match</h4><p>No customer found for "'.ucwords($name).'".</p><p><a href="'.base_url('customers/add').'" target="_blank" style="color:#667eea;font-weight:600;">+ Create New Customer</a></p></div>';
-			return $this->_response('html', 'No customer found:', ['html' => $html]);
+			return $this->_response('html', 'No customer found:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 		}
 		if(count($customers) === 1) return $this->_customerDetail($customers[0]->id);
 
@@ -1629,7 +1753,7 @@ class Assist_model extends CI_Model {
 		foreach($customers as $c){
 			$options[] = ['label' => ($c->customer_name ?? 'Unknown').' - '.($c->mobile ?? 'No phone'), 'value' => 'customer_'.$c->id];
 		}
-		return $this->_response('choice', 'Multiple customers found:', ['options' => $options, 'context' => 'customer_search']);
+		return $this->_response('choice', 'Multiple customers found:', ['options' => $options, 'context' => 'customer_search', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _recentCustomers(){
@@ -1639,7 +1763,7 @@ class Assist_model extends CI_Model {
 
 		if(empty($customers)){
 			$html = '<div class="assist-card"><h4>Customers</h4><p>No customers yet.</p><p><a href="'.base_url('customers/add').'" target="_blank" style="color:#667eea;font-weight:600;">+ Create First Customer</a></p></div>';
-			return $this->_response('html', 'Customers:', ['html' => $html]);
+			return $this->_response('html', 'Customers:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 		}
 
 		$html = '<div class="assist-card"><h4>Recent Customers</h4><table class="assist-table">';
@@ -1651,7 +1775,7 @@ class Assist_model extends CI_Model {
 			$html .= '<tr><td>'.($c->customer_name ?? 'Unknown').'</td><td>'.($c->mobile ?? 'N/A').'</td><td>'.number_format($balance, 2).'</td></tr>';
 		}
 		$html .= '</table></div>';
-		return $this->_response('html', 'Recent customers:', ['html' => $html]);
+		return $this->_response('html', 'Recent customers:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _customerDetail($customerId){
@@ -1670,7 +1794,7 @@ class Assist_model extends CI_Model {
 		$html .= '<p><strong>Outstanding:</strong> '.number_format($balance, 2).'</p>';
 		if($lastSale) $html .= '<p><strong>Last Purchase:</strong> '.date('d M Y', strtotime($lastSale->sales_date)).'</p>';
 		$html .= '</div>';
-		return $this->_response('html', 'Customer found:', ['html' => $html]);
+		return $this->_response('html', 'Customer found:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _customerBalances($message){
@@ -1686,7 +1810,7 @@ class Assist_model extends CI_Model {
 		$this->db->limit(10);
 		$debts = $this->db->get()->result();
 
-		if(empty($debts)) return $this->_response('text', 'No customers with outstanding balance.');
+		if(empty($debts)) return $this->_response('text', 'No customers with outstanding balance.', ['quick_tasks' => $this->_getFilteredQuickTasks()]);
 
 		$html = '<div class="assist-card"><h4>Outstanding Debts</h4><table class="assist-table">';
 		$html .= '<tr><th>Customer</th><th>Phone</th><th>Balance</th></tr>';
@@ -1694,7 +1818,7 @@ class Assist_model extends CI_Model {
 			$html .= '<tr><td>'.($d->customer_name ?? '').'</td><td>'.($d->mobile ?? 'N/A').'</td><td>'.number_format($d->balance, 2).'</td></tr>';
 		}
 		$html .= '</table></div>';
-		return $this->_response('html', 'Customers with outstanding balances:', ['html' => $html]);
+		return $this->_response('html', 'Customers with outstanding balances:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _createCustomerDraft($message){
@@ -1912,7 +2036,7 @@ class Assist_model extends CI_Model {
 		$html .= '<p><strong>Sales:</strong> '.number_format($salesTotal, 2).' ('.$salesCount.' transactions)</p>';
 		$html .= '<p><strong>Expenses:</strong> '.number_format($expenses, 2).'</p>';
 		$html .= '<p><strong>Net:</strong> '.number_format($salesTotal - $expenses, 2).'</p></div>';
-		return $this->_response('html', 'Today\'s business summary:', ['html' => $html]);
+		return $this->_response('html', 'Today\'s business summary:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _todayProfit(){
@@ -1989,7 +2113,6 @@ class Assist_model extends CI_Model {
 		}
 
 		// Build proper customer record matching Customers_model::verify_and_save logic
-		$this->db->query("ALTER TABLE db_customers AUTO_INCREMENT = 1");
 		$data = array(
 			'store_id'       => $store_id,
 			'count_id'       => get_count_id('db_customers'),

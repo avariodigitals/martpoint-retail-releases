@@ -180,8 +180,74 @@ class Reports extends MY_Controller {
 		echo json_encode($this->reports->get_profit_loss_report());
 	}
 
+	//Receivables Aging Report
+	public function receivables_aging(){
+		$this->permission_check('receivables_aging_report');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('receivables_aging_report');
+		$this->load->view('report-receivables-aging', $data);
+	}
+	public function show_receivables_aging_report(){
+		echo $this->reports->show_receivables_aging_report();
+	}
 
-	//Item Sales Report 
+	//Inventory Aging / Dead Stock Report
+	public function inventory_aging(){
+		$this->permission_check('inventory_aging_report');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('inventory_aging_report');
+		$this->load->view('report-inventory-aging', $data);
+	}
+	public function show_inventory_aging_report(){
+		echo $this->reports->show_inventory_aging_report();
+	}
+
+	//Cash Flow Statement Report
+	public function cash_flow(){
+		$this->permission_check('cash_flow_report');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('cash_flow_report');
+		$this->load->view('report-cash-flow', $data);
+	}
+	public function show_cash_flow_report(){
+		echo json_encode($this->reports->show_cash_flow_report());
+	}
+
+	//Best Sellers by Variant Attribute (Size / Colour)
+	public function variant_attribute(){
+		$this->permission_check('variant_attribute_report');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('variant_attribute_report');
+		$this->load->view('report-variant-attribute', $data);
+	}
+	public function show_variant_attribute_report(){
+		echo $this->reports->show_variant_attribute_report();
+	}
+
+	//Sell-Through Report
+	public function sell_through(){
+		$this->permission_check('sell_through_report');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('sell_through_report');
+		$this->load->view('report-sell-through', $data);
+	}
+	public function show_sell_through_report(){
+		echo $this->reports->show_sell_through_report();
+	}
+
+	//Reorder Suggestion Report
+	public function reorder_suggestion(){
+		$this->permission_check('reorder_suggestion_report');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('reorder_suggestion_report');
+		$this->load->view('report-reorder-suggestion', $data);
+	}
+	public function show_reorder_suggestion_report(){
+		echo $this->reports->show_reorder_suggestion_report();
+	}
+
+
+	//Item Sales Report
 	public function seller_points(){
 		$this->permission_check('seller_points_report');
 		$data=$this->data;
@@ -269,12 +335,20 @@ class Reports extends MY_Controller {
 
 	//Delivery sheet report
 	public function delivery_sheet(){
+		if(!mp_feature_enabled('delivery_scheduling')){
+			$this->show_feature_not_activated('delivery_scheduling');
+			return;
+		}
 		$this->permission_check('delivery_sheet_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('delivery_sheet_report');
 		$this->load->view('report-delivery-sheet', $data);
 	}
 	public function show_delivery_sheet(){
+		if(!mp_feature_enabled('delivery_scheduling')){
+			echo json_encode(['data'=>[]]);
+			return;
+		}
 		echo $this->reports->show_delivery_sheet();
 	}
 
@@ -322,6 +396,86 @@ class Reports extends MY_Controller {
 		echo $this->reports->show_sales_summary_report();
 	}
 
+	/* ===================== PRODUCTION REPORTS ===================== */
+	public function production_summary(){
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('production_batches_view');
+		$data=$this->data;
+		$data['page_title']='Production Summary Report';
+		$this->load->view('report-production-summary', $data);
+	}
+	public function show_production_summary_report(){
+		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
+		echo $this->reports->show_production_summary_report();
+	}
+
+	public function ingredient_usage(){
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('production_batches_view');
+		$data=$this->data;
+		$data['page_title']='Ingredient Usage Report';
+		$this->load->view('report-ingredient-usage', $data);
+	}
+	public function show_ingredient_usage_report(){
+		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
+		echo $this->reports->show_ingredient_usage_report();
+	}
+
+	public function recipe_costing(){
+		if(!mp_feature_enabled('recipe_tracking')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('recipes_view');
+		$data=$this->data;
+		$data['page_title']='Recipe Costing Report';
+		$this->load->view('report-recipe-costing', $data);
+	}
+	public function show_recipe_costing_report(){
+		if(!mp_feature_enabled('recipe_tracking')){ echo ''; return; }
+		echo $this->reports->show_recipe_costing_report();
+	}
+
+	public function production_runs(){
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->permission_check('production_batches_view');
+		$data=$this->data;
+		$data['page_title']='Production Runs Report';
+		$this->load->view('report-production-runs', $data);
+	}
+	public function show_production_runs_report(){
+		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
+		echo $this->reports->show_production_runs_report();
+	}
+
+	//Cash in Hand summary page
+	public function cash_in_hand(){
+		$this->permission_check('dashboard_view');
+		$this->load->model('dashboard_model','dashboard');
+		$data=$this->data;
+		$data['page_title']='Cash in Hand';
+		$warehouse_id = get_store_warehouse_id();
+
+		$selected_date = $this->input->get('date', TRUE);
+		if(empty($selected_date) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $selected_date)){
+			$selected_date = date('Y-m-d');
+		}
+		$selected_date = min($selected_date, date('Y-m-d'));
+
+		$b = $this->dashboard->get_cash_in_hand_breakdown($warehouse_id, $selected_date);
+		$data['cash_in_hand'] = $this->currency($b['net_cash'], false);
+		$data['cash_in_total'] = $this->currency($b['cash_in_sales'] + $b['cash_in_purchase_returns'], false);
+		$data['cash_out_total'] = $this->currency($b['cash_out_expenses'] + $b['cash_out_purchases'] + $b['cash_out_sales_returns'] + $b['cash_out_deposits'], false);
+		$data['breakdown'] = [
+			['label' => 'Cash Sales', 'amount' => $this->currency($b['cash_in_sales'], false), 'type' => 'in'],
+			['label' => 'Purchase Returns', 'amount' => $this->currency($b['cash_in_purchase_returns'], false), 'type' => 'in'],
+			['label' => 'Expenses', 'amount' => $this->currency($b['cash_out_expenses'], false), 'type' => 'out'],
+			['label' => 'Purchase Payments', 'amount' => $this->currency($b['cash_out_purchases'], false), 'type' => 'out'],
+			['label' => 'Sales Return Refunds', 'amount' => $this->currency($b['cash_out_sales_returns'], false), 'type' => 'out'],
+			['label' => 'Bank Deposits', 'amount' => $this->currency($b['cash_out_deposits'], false), 'type' => 'out'],
+		];
+		$data['selected_date'] = $selected_date;
+		$data['selected_date_label'] = show_date($selected_date);
+		$data['updated_at'] = 'As of ' . show_date($selected_date);
+		$this->load->view('mobile/cash_in_hand', $data);
+	}
 
 }
 

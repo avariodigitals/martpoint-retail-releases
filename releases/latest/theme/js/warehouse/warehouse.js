@@ -116,12 +116,18 @@ function update_status(id,status)
         }
         else if(result=="failed"){
           toastr["error"]("Failed to Update Status.Try again!");
-          failed.currentTime = 0; 
+          failed.currentTime = 0;
+          failed.play();
+        }
+        else if(result.indexOf("limit") !== -1 || result.indexOf("upgrade") !== -1){
+          // Subscription limit block message
+          toastr["warning"](result);
+          failed.currentTime = 0;
           failed.play();
         }
         else{
          toastr["error"]("Error! Something Went Wrong!");
-         failed.currentTime = 0; 
+         failed.currentTime = 0;
          failed.play();
         }
          return false;

@@ -51,6 +51,7 @@ class Sales_model extends CI_Model {
 		$privileged_warehouses = get_privileged_warehouses_ids();
 
 		$this->db->select($this->column_order);
+		$this->db->select("(SELECT sp.payment_type FROM db_salespayments sp WHERE sp.sales_id = a.id AND sp.status = 1 LIMIT 1) as payment_type", FALSE);
 		$this->db->from($this->table);
 		$this->db->join('db_customers as b','b.id=a.customer_id','left');
 		$this->db->join('db_customer_coupons as c','c.id=a.coupon_id','left');
@@ -101,7 +102,7 @@ class Sales_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				
@@ -127,7 +128,7 @@ class Sales_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -141,7 +142,7 @@ class Sales_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -168,40 +169,54 @@ class Sales_model extends CI_Model {
 
 	//Save Sales
 	public function verify_save_and_update(){
-		$command = $this->input->post('command', TRUE);
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = gethostname() ?: 'localhost';
+		$command = $this->input->post_get('command', TRUE);
 		$sales_date = $this->input->post('sales_date', TRUE);
 		$due_date = $this->input->post('due_date', TRUE);
 		$reference_no = $this->input->post('reference_no', TRUE);
 		$sales_status = $this->input->post('sales_status', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
-		$other_charges_input = $this->input->post('other_charges_input', TRUE);
+		$other_charges_input = parse_amount($this->input->post('other_charges_input', TRUE));
 		$other_charges_tax_id = $this->input->post('other_charges_tax_id', TRUE);
-		$other_charges_amt = $this->input->post('other_charges_amt', TRUE);
-		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
+		$other_charges_amt = parse_amount($this->input->post_get('other_charges_amt', TRUE));
+		$discount_to_all_input = parse_amount($this->input->post('discount_to_all_input', TRUE));
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
-		$tot_discount_to_all_amt = $this->input->post('tot_discount_to_all_amt', TRUE);
-		$tot_subtotal_amt = $this->input->post('tot_subtotal_amt', TRUE);
-		$tot_round_off_amt = $this->input->post('tot_round_off_amt', TRUE);
-		$tot_total_amt = $this->input->post('tot_total_amt', TRUE);
+		$tot_discount_to_all_amt = parse_amount($this->input->post_get('tot_discount_to_all_amt', TRUE));
+		$tot_subtotal_amt = parse_amount($this->input->post_get('tot_subtotal_amt', TRUE));
+		$tot_round_off_amt = parse_amount($this->input->post_get('tot_round_off_amt', TRUE));
+		$tot_total_amt = parse_amount($this->input->post_get('tot_total_amt', TRUE));
 		$sales_note = $this->input->post('sales_note', TRUE);
-		$rowcount = $this->input->post('rowcount', TRUE);
+		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$sales_id = $this->input->post('sales_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
 		$count_id = $this->input->post('count_id', TRUE);
 		$init_code = $this->input->post('init_code', TRUE);
 		$coupon_code = $this->input->post('coupon_code', TRUE);
-		$coupon_discount_amt = $this->input->post('coupon_discount_amt', TRUE);
+		$coupon_discount_amt = parse_amount($this->input->post_get('coupon_discount_amt', TRUE));
 		$invoice_terms = $this->input->post('invoice_terms', TRUE);
 		$quotation_id = $this->input->post('quotation_id', TRUE);
-		$amount = $this->input->post('amount', TRUE);
+		$amount = parse_amount($this->input->post('amount', TRUE));
 		$payment_type = $this->input->post('payment_type', TRUE);
+		// Only apply default payment mode if not explicitly provided (for split payments, it will be empty)
+		if(empty($payment_type)){
+			$payment_type = null; // Keep it null for split payments, don't apply default
+		}
 		$payment_note = $this->input->post('payment_note', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
 		$cheque_number = $this->input->post('cheque_number', TRUE);
 		$cheque_period = $this->input->post('cheque_period', TRUE);
 		$allow_tot_advance = $this->input->post('allow_tot_advance', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+		
+		// Check if pharmacy business type for customer notes tracking
+		$CI =& get_instance();
+		$store_profile = mp_get_store_profile();
+		$is_pharmacy = isset($store_profile['industry_type']) && $store_profile['industry_type'] == 'pharmacy';
 		
 		//varify max sales usage of the package subscription
 		validate_package_offers('max_invoices','db_sales');
@@ -225,11 +240,13 @@ class Sales_model extends CI_Model {
 	    $prev_item_ids = array();
 	    
 	    if(empty(trim($count_id))) {
-	    	echo "Invoice Number Should be not be Empty!";exit;
+	    	$this->db->trans_rollback();
+	    	return "Invoice Number Should be not be Empty!";
 	    }
 	    else{
 	    	if(!is_numeric($count_id)){
-	    		echo "Invoice Number Should be Numerical!";exit;		
+	    		$this->db->trans_rollback();
+	    		return "Invoice Number Should be Numerical!";
 	    	}
 	    }
 
@@ -264,8 +281,8 @@ class Sales_model extends CI_Model {
 				$count_id = autosynch_sales_code();
 			}
 			else{
-				echo "Sales Code already exist";
-				exit;	
+				$this->db->trans_rollback();
+				return "Sales Code already exist";
 			}
 		}
 		
@@ -282,7 +299,6 @@ class Sales_model extends CI_Model {
 
 	    if($command=='save'){//Create sales code unique if first time entry
 
-			$this->db->query("ALTER TABLE db_sales AUTO_INCREMENT = 1");
 			
 		    $sales_entry = array(
 		    				
@@ -323,7 +339,17 @@ class Sales_model extends CI_Model {
 
 		   // print_r($sales_entry);exit;
 			$q1 = $this->db->insert('db_sales', array_merge($sales_entry,$sales_entry_init));
+			if(!$q1){
+				$err = $this->db->error();
+				$this->db->trans_rollback();
+				return 'Failed to save sale (db_sales insert): ' . ($err['message'] ?? 'unknown error');
+			}
 			$sales_id = $this->db->insert_id();
+			if(!$sales_id){
+				$err = $this->db->error();
+				$this->db->trans_rollback();
+				return 'Failed to save sale (no insert_id): ' . ($err['message'] ?? 'unknown error');
+			}
 			//SET QUOTATION STATUS
 			if(isset($quotation_id)){
 				$q11 = $this->db->set("sales_status",'Converted')->where("id",$quotation_id)->update("db_quotation");
@@ -368,7 +394,7 @@ class Sales_model extends CI_Model {
 
 			$q11=$this->db->query("delete from db_salesitems where sales_id='$sales_id'");
 			if(!$q11){
-				return "failed";
+				return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 			}
 		}
 		//end
@@ -386,9 +412,9 @@ class Sales_model extends CI_Model {
 					$this->load->model('expiry_settings_model');
 					$expiry_settings = $this->expiry_settings_model->get_settings();
 					$item_check = $this->db->select('item_name,expire_date')->where('id',$item_id)->get('db_items')->row();
-					if(!empty($item_check->expire_date) && $item_check->expire_date != '0000-00-00' && $expiry_settings->stop_selling_expired == 1 && $item_check->expire_date < date('Y-m-d')){
-						echo "This item has expired (".$item_check->expire_date."). Cannot sell: ".$item_check->item_name;
-						exit;
+					if(is_valid_date($item_check->expire_date) && $expiry_settings->stop_selling_expired == 1 && $item_check->expire_date < date('Y-m-d')){
+						$this->db->trans_rollback();
+						return "This item has expired (".$item_check->expire_date."). Cannot sell: ".$item_check->item_name;
 					}
 				} catch (Exception $e) { /* Expiry settings not ready yet */ }
 				$sales_qty			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3']));
@@ -432,14 +458,15 @@ class Sales_model extends CI_Model {
 
 				//For Update operation only
 				if($command=='update' && !update_warehouse_items($item_id)){
-					return "failed";
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 				}
 				//end
 				
 				$item_details = get_item_details($item_id);
 				$item_name = $item_details->item_name;
 				$service_bit = $item_details->service_bit;
-				$purchase_price = $item_details->price;
+				// Use the item's cost (purchase_price with tax) preferentially, falling back to base price before tax
+				$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
 				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
 				if($current_stock_of_item<$sales_qty && $service_bit==0){
 					return $item_name." has only ".$current_stock_of_item." in Stock!!";exit;
@@ -470,12 +497,29 @@ class Sales_model extends CI_Model {
 				
 				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 				$q2 = $this->db->insert('db_salesitems', $salesitems_entry);
+				if(!$q2){
+					$err = $this->db->error();
+					log_message('error', "Sales db_salesitems insert FAILED: #{$err['code']} {$err['message']} sales_id=$sales_id item_id=$item_id");
+					$this->db->trans_rollback();
+					return "Failed to save sale item: " . $err['message'];
+				}
+				$sale_items_id = $this->db->insert_id();
+				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty");
+
+				// If this is a package, create customer package record
+				if ($item_details->package_bit == 1) {
+					$this->load->model('service_package_model');
+					$pkg = $this->service_package_model->get_by_item_id($item_id);
+					if ($pkg) {
+						$this->service_package_model->create_customer_package($sales_id, $sale_items_id, $pkg->id, $customer_id);
+					}
+				}
 				
 				//UPDATE itemS QUANTITY IN itemS TABLE
 				$this->load->model('pos_model');				
 				$q6=$this->pos_model->update_items_quantity($item_id);
 				if(!$q6){
-					return "failed";
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 				}
 				
 			}
@@ -486,14 +530,15 @@ class Sales_model extends CI_Model {
 		$walkin_paid = ($amount=='' || $amount==0) ? 0 : floatval($amount);
 		if(is_walk_in_customer($customer_id) && $walkin_paid < $tot_total_amt){
 			$this->db->trans_rollback();
-			echo "Walk-in Customer cannot have credit! Please create a registered customer profile or collect full payment.";exit;
+			return "Walk-in Customer cannot have credit! Please create a registered customer profile or collect full payment.";
 		}
 
 		if($amount=='' || $amount==0){$amount=null;}
 		if($amount>0 && !empty($payment_type)){
 
 			if($amount>$tot_total_amt){
-				echo "Payble amount should not be exceeds Invoice Amount!!";exit;
+				$this->db->trans_rollback();
+				return "Payble amount should not be exceeds Invoice Amount!!";
 			}
 
 			/**
@@ -503,7 +548,8 @@ class Sales_model extends CI_Model {
 			if($command=='update'){
 				$tot_payment = $this->db->select('coalesce(sum(payment),0) as payment')->where('sales_id',$sales_id)->get('db_salespayments')->row()->payment;
 				if(($tot_payment+$amount)>$tot_total_amt){
-					echo "Payble amount should not be exceeds Invoice Amount!!\nPlease check previous payments as well.";exit;
+					$this->db->trans_rollback();
+					return "Payble amount should not be exceeds Invoice Amount!!\nPlease check previous payments as well.";
 				}
 			}
 
@@ -557,6 +603,11 @@ class Sales_model extends CI_Model {
 				);
 			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
+		if(!$q3){
+			$err = $this->db->error();
+			$this->db->trans_rollback();
+			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
+		}
 
 
 			//Set the payment to specified account
@@ -577,7 +628,7 @@ class Sales_model extends CI_Model {
 															'supplier_id'  			=> null,
 													));
 				if(!$insert_bit){
-					return "failed";
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 				}
 			}
 			//end
@@ -589,16 +640,16 @@ class Sales_model extends CI_Model {
 
 		$q10=$this->update_sales_payment_status($sales_id,$customer_id);
 		if($q10!=1){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 		
 		
 		if(!set_customer_tot_advance($customer_id)){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 		/*$q10=$this->set_quotation_sales_status($sales_id);
 		if(!$q10){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}*/
 		
 		//Dont save if invoice credit limit exceeds
@@ -625,19 +676,51 @@ class Sales_model extends CI_Model {
 		/*Update items in all warehouses of the item*/
 		$q7=update_warehouse_items($two_array);
 		if(!$q7){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 		##############################################END
 		
 		//Calculate Opening balance before and after invoice
 		/*$q7=calculate_ob_of_customer($sales_id,$customer_id);
 		if(!$q7){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}*/
 
-		/*$this->db->set("due_date",null)->where("due_date",'1970-01-01')->or_where("due_date","0000-00-00")->update("db_sales");*/
+		// Ensure invalid legacy due dates are stored as NULL
+
+		//Record Loyalty Points
+		if($customer_id != 1 && $tot_total_amt > 0){
+			$this->load->model('loyalty_model');
+			$settings = $this->loyalty_model->get_settings();
+			if($settings && $settings->loyalty_enabled){
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_total_amt);
+				if($points > 0){
+					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from sale');
+				}
+			}
+		}
+		//end
 
 		$this->db->trans_commit();
+
+		// Append sales_note to customer profile notes for tracking (works for all business types)
+		// Skip walk-in customers (they don't have persistent profiles)
+		if(!empty($sales_note) && !is_walk_in_customer($customer_id)){
+			try {
+				log_message('error', 'Saving sales_note to customer: customer_id=' . $customer_id . ', note=' . $sales_note);
+				$existing_notes = $this->db->select('notes')->where('id', $customer_id)->get('db_customers')->row()->notes ?? '';
+				$date_str = date('Y-m-d H:i');
+				$new_entry = "\n\n[$date_str] $sales_note";
+				$updated_notes = $existing_notes . $new_entry;
+				$this->db->where('id', $customer_id)->update('db_customers', ['notes' => $updated_notes]);
+				log_message('error', 'Customer notes updated successfully');
+			} catch (Exception $e) {
+				// Don't block sale if customer notes update fails
+				log_message('error', 'Failed to update customer notes: ' . $e->getMessage());
+			}
+		} else {
+			log_message('error', 'sales_note not saved: sales_note=' . $sales_note . ', customer_id=' . $customer_id . ', is_walkin=' . (is_walk_in_customer($customer_id) ? 'yes' : 'no'));
+		}
 
 		// Send invoice email to customer (non-critical — must not block save)
 		if($customer_id != 1){ // Skip walk-in customer
@@ -792,10 +875,23 @@ class Sales_model extends CI_Model {
       	}
 
       	//ACCOUNT RESET
-		$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
-									->where("ref_salespayments_id in ($ids)")
-									->group_by("debit_account_id,credit_account_id")
-									->get("ac_transactions");
+		// Get the affected payment rows
+		$payment_rows = $this->db->select("id, account_id, payment_code")
+								->where("sales_id in ($ids)")
+								->get("db_salespayments")
+								->result();
+		$payment_codes = array_filter(array_unique(array_map(function($r){ return $r->payment_code; }, $payment_rows)));
+		$account_ids = array_filter(array_unique(array_map(function($r){ return $r->account_id; }, $payment_rows)));
+
+		// Delete the account transaction rows linked to this sale's payments
+		if(!empty($payment_codes)){
+			$this->db->where_in("payment_code", $payment_codes)
+					 ->where("transaction_type", 'SALES PAYMENT')
+					 ->delete("ac_transactions");
+			// Also delete the payment rows themselves
+			$this->db->where("sales_id in ($ids)")
+					 ->delete("db_salespayments");
+		}
 		//ACCOUNT RESET END
 
       	##############################################START
@@ -805,8 +901,12 @@ class Sales_model extends CI_Model {
 		
 		//RESET QUOTATION RESET
 		if(!$this->reset_quotation_sales_status_to_null($ids)){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
+
+		// Delete the invoice line items
+		$this->db->where("sales_id in ($ids)")
+				 ->delete("db_salesitems");
 
 		//find customer list group by
 		$this->db->select("customer_id,id as sales_id");
@@ -836,7 +936,7 @@ class Sales_model extends CI_Model {
 			foreach ($q6->result() as $res6) {
 				$q6=$this->pos_model->update_items_quantity($res6->id);
 				if(!$q6){
-					return "failed";
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 				}
 			}
 		}
@@ -856,24 +956,19 @@ class Sales_model extends CI_Model {
 		/*Update items in all warehouses of the item*/
 		$q7=update_warehouse_items($prev_item_ids);
 		if(!$q7){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 		##############################################END
 		
 		//ACCOUNT RESET
-        if($reset_accounts->num_rows()>0){
-        	foreach ($reset_accounts->result() as $res1) {
-        		if(!update_account_balance($res1->debit_account_id)){
+		if(!empty($account_ids)){
+			foreach ($account_ids as $acc_id) {
+				if(!empty($acc_id) && !update_account_balance($acc_id)){
 					return 'failed';
 				}
-
-				if(!update_account_balance($res1->credit_account_id)){
-					return 'failed';
-				}
-
-        	}
-        }
-        //ACCOUNT RESET END
+			}
+		}
+		//ACCOUNT RESET END
 
         if($customer_records->num_rows()>0){
         	foreach ($customer_records->result() as $customer_id) {
@@ -896,6 +991,24 @@ class Sales_model extends CI_Model {
         if($q1->num_rows()>0){
             foreach ($q1->result() as $value) {
             	$json_array[]=['id'=>(int)$value->id, 'text'=>$value->item_name];
+            }
+        }
+
+        // Also search db_item_barcodes by barcode, serial, or imei
+        $this->db->select('b.item_id, a.item_name, b.barcode, b.serial_number, b.imei_number');
+        $this->db->from('db_item_barcodes b');
+        $this->db->join('db_items a', 'a.id = b.item_id', 'left');
+        $this->db->where('b.status', 1);
+        $this->db->where("(LOWER(b.barcode) LIKE '%$q%' OR LOWER(b.serial_number) LIKE '%$q%' OR LOWER(b.imei_number) LIKE '%$q%')", null, false);
+        $this->db->group_by('b.item_id');
+        $q2 = $this->db->get();
+        if($q2->num_rows()>0){
+            foreach ($q2->result() as $value) {
+                $label = $value->item_name;
+                if($value->barcode) $label .= ' [BC:'.$value->barcode.']';
+                if($value->serial_number) $label .= ' [S/N:'.$value->serial_number.']';
+                if($value->imei_number) $label .= ' [IMEI:'.$value->imei_number.']';
+                $json_array[]=['id'=>(int)$value->item_id, 'text'=>$label];
             }
         }
         return json_encode($json_array);
@@ -949,7 +1062,7 @@ class Sales_model extends CI_Model {
 
 	
 	/*v1.1*/
-	public function inclusive($price='',$tax_per){
+	public function inclusive($price, $tax_per){
 		return ($tax_per!=0) ? $price/(($tax_per/100)+1)/10 : $tax_per;
 	}
 	public function get_items_info($rowcount,$item_id){
@@ -969,7 +1082,7 @@ class Sales_model extends CI_Model {
 			$this->db->where('b.status', 1);
 			$bc_data = $this->db->get()->row();
 			if($bc_data){
-				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp)) ? $bc_data->mrp : $bc_data->sales_price;
+				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
 				$sales_price = get_price_level_price($customer_id,$sales_price);
 				$sales_price = number_format($sales_price,decimals(),'.','');
 				$item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price,$bc_data->tax) :calculate_exclusive($sales_price,$bc_data->tax);
@@ -1005,7 +1118,7 @@ class Sales_model extends CI_Model {
 		try {
 			$this->load->model('expiry_settings_model');
 			$expiry_settings = $this->expiry_settings_model->get_settings();
-			if(!empty($res1->expire_date) && $res1->expire_date != '0000-00-00' && $expiry_settings->stop_selling_expired == 1 && $res1->expire_date < date('Y-m-d')){
+			if(is_valid_date($res1->expire_date) && $expiry_settings->stop_selling_expired == 1 && $res1->expire_date < date('Y-m-d')){
 				echo json_encode(array('error' => 'This item has expired ('.$res1->expire_date.'). Cannot sell expired items.'));
 				return;
 			}
@@ -1015,7 +1128,7 @@ class Sales_model extends CI_Model {
 
 		//Get Customer Price
 		$price_type = $this->input->post('price_type', TRUE) ?? 'wholesale';
-		$base_price = ($price_type == 'retail' && !empty($res1->mrp)) ? $res1->mrp : $res1->sales_price;
+		$base_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
 		$sales_price = get_price_level_price($customer_id,$base_price);
 		$sales_price = number_format($sales_price,decimals(),'.','');
 
@@ -1102,6 +1215,9 @@ class Sales_model extends CI_Model {
 							'item_discount_type' 		=> $res1->discount_type, 
 							'item_discount_input' 		=> $res1->discount_input, 
 							'service_bit' 				=> $res2->service_bit, 
+							'sold_serial_number' 		=> $res1->sold_serial_number, 
+							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'barcode_id' 				=> $res1->barcode_id, 
 						);
 
 			$result = $this->return_row_with_data($rowcount++,$info);
@@ -1217,11 +1333,11 @@ class Sales_model extends CI_Model {
 
 		$q1=$this->db->query("delete from db_salespayments where id='$payment_id'");
 		if(!$q1){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 		$q2=$this->update_sales_payment_status($sales_id,$customer_id);
 		if(!$q2){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 
 		//ACCOUNT RESET
@@ -1454,6 +1570,7 @@ class Sales_model extends CI_Model {
 	public function save_payment(){
 		$amount = $this->input->post('amount', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
+		$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
 		$payment_date = $this->input->post('payment_date', TRUE);
 		$payment_note = $this->input->post('payment_note', TRUE);
 		$sales_id = $this->input->post('sales_id', TRUE);
@@ -1466,13 +1583,20 @@ class Sales_model extends CI_Model {
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
     	if($amount=='' || $amount==0){$amount=null;}
 		if($amount>0 && !empty($payment_type)){
-			$this->db->query("ALTER TABLE db_salespayments AUTO_INCREMENT = 1");
 
 			$this->db->trans_begin();
 
 			// Look up payment_mode_id
 			$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
 			$payment_mode_id = $pm_row ? $pm_row->id : null;
+
+			// Auto-link cash payments to the active till account (or store default)
+			if(empty($account_id) && strtolower($payment_type) === 'cash'){
+				$account_id = get_current_cash_account_id();
+				if(empty($account_id)){
+					$account_id = get_cash_account_id();
+				}
+			}
 
 			$payment_code=get_init_code('sales_payment');
 			$salespayments_entry = array(
@@ -1517,6 +1641,11 @@ class Sales_model extends CI_Model {
 			//end 
 			$salespayments_entry['advance_adjusted'] = $advance_adjusted;
 			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
+		if(!$q3){
+			$err = $this->db->error();
+			$this->db->trans_rollback();
+			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
+		}
 
 			//Set the payment to specified account
 			if(!empty($account_id)){
@@ -1536,7 +1665,7 @@ class Sales_model extends CI_Model {
 															'supplier_id'  			=> null,
 													));
 				if(!$insert_bit){
-					return "failed";
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 				}
 			}
 			//end
@@ -1552,7 +1681,7 @@ class Sales_model extends CI_Model {
 		
 		$q10=$this->update_sales_payment_status($sales_id,$customer_id);
 		if($q10!=1){
-			return "failed";
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 
 		$this->db->trans_commit();

@@ -3,7 +3,7 @@
 <head>
 <!-- FORM CSS CODE -->
 <?php $this->load->view('comman/code_css'); ?>
-<!-- </copy> -->  
+<!-- </copy> -->
 
 </head>
 <body class="hold-transition skin-blue sidebar-mini">
@@ -14,7 +14,7 @@
     <source src="<?php echo $theme_link; ?>sound/login.ogg" type="audio/ogg">
   </audio>
   <script type="text/javascript">
-    var login_sound = document.getElementById("login"); 
+    var login_sound = document.getElementById("login");
   </script>
   <!-- Notification end -->
   <script type="text/javascript">
@@ -22,8 +22,8 @@
         login_sound.play();
   <?php } ?>
   </script>
-  
-  <?php 
+
+  <?php
   $this->load->view('sidebar');
   ?>
 
@@ -35,16 +35,29 @@
         <?=$page_title;?>
         <small>Overall Information on Single Screen</small>
       </h1>
-      <ol class="breadcrumb">
-        <li class="active"><i class="fa fa-dashboard"></i> Home</li>
-      </ol>
-    </section><br/>
-    <div class="col-md-12">
-      <!-- ********** ALERT MESSAGE START******* -->
-       <?php $this->load->view('comman/code_flashdata'); ?>
-       <!-- ********** ALERT MESSAGE END******* -->
-     </div>
-     
+    </section>
+
+    <section class="content">
+      <div class="mp-dashboard-wrapper">
+        <div class="col-md-12">
+          <!-- ********** ALERT MESSAGE START******* -->
+           <?php $this->load->view('comman/code_flashdata'); ?>
+           <!-- ********** ALERT MESSAGE END******* -->
+         </div>
+
+        <div class="mp-section">
+          <div class="mp-card">
+            <div class="mp-card-body">
+              <div class="mp-empty-state" style="padding:60px 20px;">
+                <i class="fa fa-lock" style="font-size:40px;color:#94A3B8;margin-bottom:14px;display:block;"></i>
+                <div style="font-size:16px;font-weight:600;color:#475569;margin-bottom:6px;">No dashboard access</div>
+                <div style="font-size:14px;color:#94A3B8;">Your role does not have permission to view the dashboard. Contact your administrator if you believe this is an error.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
   <!-- /.content-wrapper -->
 

@@ -19,7 +19,7 @@ class Online_payments extends MY_Controller
     
 
     function index(){
-        redirect(base_url('subscription'),'refresh');
+        redirect(base_url('subscription_license'),'refresh');
 
     }
 
@@ -28,7 +28,7 @@ class Online_payments extends MY_Controller
         redirect(base_url('online_payments/paymentSuccess/Free/'.$pid),'refresh');
     }
 
-    function buy_package($gateway='paypal',$pid){
+    function buy_package($gateway,$pid){
         //IF EMPTY ID
         if(empty($pid)){
             echo "Something went wrong";exit;
@@ -230,7 +230,7 @@ class Online_payments extends MY_Controller
             }
             if($prev_package_type=='Free'){
                 $this->session->set_flashdata('warning', 'Sorry!! This Package already used to your account!');
-                redirect(base_url('subscription'),'refresh');
+                redirect(base_url('subscription_license'),'refresh');
                 exit;
             }
             $data['payment_by'] = 'Manual';
@@ -315,7 +315,7 @@ class Online_payments extends MY_Controller
             return 'success';
         }
         else{
-            redirect(base_url('subscription'),'refresh');
+            redirect(base_url('subscription_license'),'refresh');
         }
 
      }
@@ -327,7 +327,7 @@ class Online_payments extends MY_Controller
         //if transaction cancelled
 
         $this->session->set_flashdata('failed', 'Sorry!! Payment Failed, try again!');
-        redirect(base_url('subscription'),'refresh');
+        redirect(base_url('subscription_license'),'refresh');
 
      }
 

@@ -67,7 +67,7 @@ class Purchase_returns_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				
@@ -93,7 +93,7 @@ class Purchase_returns_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -107,7 +107,7 @@ class Purchase_returns_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -182,7 +182,6 @@ class Purchase_returns_model extends CI_Model {
 		$prev_item_ids = array();
 	    if($command=='save' || $command=='create'){//Create purchase code unique if first time entry
 		    
-			$this->db->query("ALTER TABLE db_purchasereturn AUTO_INCREMENT = 1");
 			
 		    $purchase_entry = array(
 		    				'purchase_id' 		=> $purchase_id, 
@@ -653,7 +652,7 @@ class Purchase_returns_model extends CI_Model {
 	}
 	
 
-	public function inclusive($price='',$tax_per){
+	public function inclusive($price,$tax_per){
 		return $price/(($tax_per/100)+1)/10;
 	}
 

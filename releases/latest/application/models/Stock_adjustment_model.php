@@ -46,7 +46,7 @@ class Stock_adjustment_model extends CI_Model {
 	
 		foreach ($this->column_search as $item) // loop column 
 		{
-			if($_POST['search']['value']) // if datatable send POST for search
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
 				
 				
@@ -72,7 +72,7 @@ class Stock_adjustment_model extends CI_Model {
 			$i++;
 		}
 		
-		if(isset($_POST['order'])) // here order processing
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
 		{
 			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
 		} 
@@ -86,7 +86,7 @@ class Stock_adjustment_model extends CI_Model {
 	function get_datatables()
 	{
 		$this->_get_datatables_query();
-		if($_POST['length'] != -1)
+		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
 		return $query->result();
@@ -130,7 +130,6 @@ class Stock_adjustment_model extends CI_Model {
 	    $warehouse_id=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id(); 	
 	    if($command=='save'){//Create purchase code unique if first time entry
 		    
-			$this->db->query("ALTER TABLE db_stockadjustment AUTO_INCREMENT = 1");
 			
 		    $purchase_entry = array(
 		    				'store_id' 				=> $store_id, 

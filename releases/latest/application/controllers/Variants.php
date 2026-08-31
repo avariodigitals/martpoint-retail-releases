@@ -4,6 +4,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Variants extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
+		if(!mp_feature_enabled('bundles')){
+			$this->show_feature_not_activated('bundles');
+			return;
+		}
 		$this->load_global();
 		$this->load->model('variants_model','variant');
 	}
@@ -133,6 +137,25 @@ class Variants extends MY_Controller {
 		$this->permission_check_with_msg('variant_delete');
 		$ids=implode (",",$_POST['checkbox']);
 		return $this->variant->delete_variants_from_table($ids);
+	}
+
+	/**
+	 * Variant Matrix Builder — generate all size x colour combinations
+	 * as individual variants in one shot. Designed for fashion boutiques.
+	 */
+	public function matrix_builder(){
+		$this->permission_check('variant_add');
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('variant_matrix');
+		$this->load->view('variants/matrix_builder', $data);
+	}
+
+	public function generate_matrix(){
+		$this->permission_check_with_msg('variant_add');
+		$sizes = $this->input->post('sizes', TRUE);
+		$colours = $this->input->post('colours', TRUE);
+		$materials = $this->input->post('materials', TRUE);
+		echo $this->variant->generate_matrix_variants($sizes, $colours, $materials);
 	}
 
 }

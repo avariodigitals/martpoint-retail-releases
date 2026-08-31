@@ -358,7 +358,7 @@
         }
         $this->db->select("COALESCE(SUM(grand_total),0) AS pur_total,MONTH(purchase_date) AS purchase_date");
         $this->db->from("db_purchase");
-        $this->db->where("purchase_status='Received'");
+        $this->db->where("purchase_status IN ('Received','Partially Received')");
         $this->db->group_by("MONTH(purchase_date)");
 
         $q1=$this->db->get();

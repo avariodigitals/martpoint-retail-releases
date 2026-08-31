@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Pos_model extends CI_Model {
 
-	public function inclusive($price='',$tax_per){
+	public function inclusive($price, $tax_per){
 		return ($tax_per!=0) ? $price/(($tax_per/100)+1)/10 : $tax_per;
 	}
 
@@ -14,24 +14,33 @@ class Pos_model extends CI_Model {
 	      $this->db->join("db_tax b","b.id=a.tax_id","left");
 	      $this->db->where("a.status=1");
 	      $this->db->where("a.id",$item_id);
+	      $this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 		  //echo $this->db->get_compiled_select();exit();
 		  $res1=$this->db->get()->row();
+		  if(!$res1){
+		      return json_encode(array('error' => 'Item not available for sale.'));
+		  }
 
 	      $price_type = $this->input->post('price_type', TRUE) ?? 'retail';
       $barcode = $this->input->post('barcode', TRUE) ?? '';
+      $barcode_id = $this->input->post('barcode_id', TRUE) ?? 0;
 
-      // Barcode-specific lookup
-      if(!empty($barcode)){
-        $this->db->select('b.*, a.item_name, t.tax, t.tax_name');
+      // Barcode / Unit-specific lookup (by barcode_id, barcode, serial, or imei)
+      if(!empty($barcode_id) || !empty($barcode)){
+        $this->db->select('b.*, a.item_name, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
         $this->db->from('db_item_barcodes b');
         $this->db->join('db_items a', 'a.id = b.item_id', 'left');
         $this->db->join('db_tax t', 't.id = a.tax_id', 'left');
-        $this->db->where('b.barcode', $barcode);
         $this->db->where('b.item_id', $item_id);
         $this->db->where('b.status', 1);
+        if(!empty($barcode_id)){
+          $this->db->where('b.id', $barcode_id);
+        } else {
+          $this->db->where('b.barcode', $barcode);
+        }
         $bc_data = $this->db->get()->row();
         if($bc_data){
-          $sales_price = ($price_type == 'retail' && !empty($bc_data->mrp)) ? $bc_data->mrp : $bc_data->sales_price;
+          $sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
           $item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price, $bc_data->tax) : calculate_exclusive($sales_price, $bc_data->tax);
           return json_encode(array(
             'id' => $item_id, 'item_name' => $bc_data->item_name, 'stock' => $bc_data->qty,
@@ -40,24 +49,47 @@ class Pos_model extends CI_Model {
             'tax_id' => $bc_data->tax_id, 'tax_type' => $bc_data->tax_type, 'tax' => $bc_data->tax,
             'tax_name' => $bc_data->tax_name, 'item_tax_amt' => $item_tax_amt,
             'discount_type' => $bc_data->discount_type, 'discount' => $bc_data->discount,
-            'service_bit' => $bc_data->service_bit, 'barcode' => $barcode,
+            'service_bit' => $bc_data->service_bit, 'barcode' => $bc_data->barcode,
+            'barcode_id' => $bc_data->id,
+            'serial_number' => $bc_data->serial_number,
+            'imei_number' => $bc_data->imei_number,
+            'warranty_months' => $bc_data->warranty_months,
+            'track_serial' => $bc_data->track_serial ?? 0,
+            'track_imei' => $bc_data->track_imei ?? 0,
           ));
         }
       }
-      $effective_price = ($price_type == 'retail' && !empty($res1->mrp)) ? $res1->mrp : $res1->sales_price;
+      $effective_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
       $item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($effective_price,$res1->tax) :calculate_exclusive($effective_price,$res1->tax);
 	      
 	      // Check expiry
 	      try {
 	      	$this->load->model('expiry_settings_model');
 	      	$expiry_settings = $this->expiry_settings_model->get_settings();
-	      	if(!empty($res1->expire_date) && $res1->expire_date != '0000-00-00' && $expiry_settings->stop_selling_expired == 1){
+	      	if(is_valid_date($res1->expire_date) && $expiry_settings->stop_selling_expired == 1){
 	      		$today = date('Y-m-d');
 	      		if($res1->expire_date < $today){
 	      			return json_encode(array('error' => 'This item has expired ('.$res1->expire_date.'). Cannot sell expired items.'));
 	      		}
 	      	}
 	      } catch (Exception $e) { /* Expiry settings not ready yet */ }
+
+      // Apply active promotion (with margin protection) if module is available
+      $promo_name = '';
+      $promo_discount = 0;
+      try {
+          if($this->db->table_exists('db_promotions')){
+              $this->load->model('promotions_model');
+              $promo = $this->promotions_model->compute_effective_price($item_id, $effective_price);
+              if($promo['has_promo']){
+                  $effective_price = $promo['price'];
+                  $promo_name = $promo['promo_name'];
+                  $promo_discount = $promo['discount_amount'];
+                  // Recalculate tax on the promoted price
+                  $item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($effective_price,$res1->tax) : calculate_exclusive($effective_price,$res1->tax);
+              }
+          }
+      } catch (Exception $e) { /* Promotions module not ready */ }
 
 	      $warehouse_stock = total_available_qty_items_of_warehouse($this->input->post('warehouse_id'),null,$item_id);
 	      $item_array = array(
@@ -74,9 +106,18 @@ class Pos_model extends CI_Model {
 	      				'tax' 					=> $res1->tax,
 	      				'tax_name' 				=> $res1->tax_name,
 	      				'item_tax_amt' 			=> $item_tax_amt,
+	      				'promo_name' 			=> $promo_name,
+	      				'promo_discount' 		=> $promo_discount,
 	      				'discount_type' 		=> $res1->discount_type,
 	      				'discount' 				=> $res1->discount,
 	      				'service_bit' 			=> $res1->service_bit,
+	      				'package_bit' 			=> $res1->package_bit ?? 0,
+	      				'barcode_id' 			=> 0,
+	      				'serial_number' 		=> $res1->serial_number ?? '',
+	      				'imei_number' 			=> $res1->imei_number ?? '',
+	      				'warranty_months' 		=> $res1->warranty_months ?? 0,
+				'track_serial' 			=> $res1->track_serial ?? 0,
+				'track_imei' 			=> $res1->track_imei ?? 0,
 	      );
 
 	      return json_encode($item_array);
@@ -95,6 +136,7 @@ class Pos_model extends CI_Model {
 		$last_id = $this->input->post('last_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
+		$customer_id = $this->input->post('customer_id', TRUE);
 		$CI =& get_instance();
 		
 		
@@ -114,6 +156,7 @@ class Pos_model extends CI_Model {
 		  $this->db->from("db_items as a");
 		  $this->db->where("a.store_id",$store_id);
 		  $this->db->where("a.status",1);
+		  $this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 		  if(!empty($item_name)){
 		  	$this->db->where("upper(a.item_name) like upper('%".$item_name."%')");
 		  }
@@ -143,7 +186,7 @@ class Pos_model extends CI_Model {
 	        	$discount = $res2->discount;
 	        	
 
-	        	$display_price = ($price_type == 'retail' && !empty($res2->mrp)) ? $res2->mrp : $res2->sales_price;
+	        	$display_price = ($price_type == 'retail' && !empty($res2->mrp) && $res2->mrp > 0) ? $res2->mrp : $res2->sales_price;
 	        	$item_sales_price = get_price_level_price($customer_id,$display_price);
 				$item_sales_price = number_format($item_sales_price,decimals(),'.','');
 
@@ -157,7 +200,7 @@ class Pos_model extends CI_Model {
 
 				// Check expiry first
 				$is_expired = false;
-				if(!empty($res2->expire_date) && $res2->expire_date != '0000-00-00' && $expiry_settings->stop_selling_expired == 1 && $res2->expire_date < $today){
+				if(is_valid_date($res2->expire_date) && $expiry_settings->stop_selling_expired == 1 && $res2->expire_date < $today){
 					$is_expired = true;
 				}
 
@@ -193,7 +236,7 @@ class Pos_model extends CI_Model {
 	        	$item_display_name = $is_expired ? substr($res2->item_name,0,15).' (EXPIRED)' : substr($res2->item_name,0,25);
 	        	$item_tooltip = $is_expired ? $res2->item_name.' [Expired: '.$res2->expire_date.']' : $res2->item_name;
 
-	         	$table .= '<div class="col-md-3 col-xs-6 " id="item_parent_'.$i.'" '.$disabled.' data-toggle="tooltip" style="padding-left:5px;padding-right:5px;" title="'.$item_tooltip.'">
+	         	$table .= '<div class="col-lg-3 col-md-3 col-sm-3 col-xs-6 pos-item-col" id="item_parent_'.$i.'" '.$disabled.' data-toggle="tooltip" style="padding-left:5px;padding-right:5px;" title="'.$item_tooltip.'">
 	          <div class="box box-default item_box" id="div_'.$res2->id.'" onclick="'.$str.'"
 	          				data-item-id="'.$res2->id.'"
 	          				data-item-name="'.$res2->item_name.'"
@@ -208,9 +251,17 @@ class Pos_model extends CI_Model {
 	          				data-item-tax-name="'.$item_tax_name.'"
 	          				data-item-tax-amt="'.$item_tax_amt.'"
 	          				data-service_bit="'.$service_bit.'"
+																												data-package-bit="'.($res2->package_bit ?? 0).'"
+	          													data-commission-type="'.($res2->commission_type ?? 'none').'"
+	          													data-commission-value="'.($res2->commission_value ?? 0).'"
 	          				data-discount_type="'.$discount_type.'"
 	          				data-discount="'.$discount.'"
-	           				style="max-height: 150px;min-height: 150px;cursor: pointer;'.$bg_color.'">
+								data-item-serial-number="'.($res2->serial_number ?? '').'"
+								data-item-imei-number="'.($res2->imei_number ?? '').'"
+								data-item-warranty-months="'.($res2->warranty_months ?? 0).'"
+							data-item-track-serial="'.($res2->track_serial ?? 0).'"
+							data-item-track-imei="'.($res2->track_imei ?? 0).'"
+	           				style="cursor: pointer;'.$bg_color.'">
 	           	<span class="label label-danger push-right" style="font-weight: bold;font-family: sans-serif;" data-toggle="tooltip" title="'.$label_title.'">'.$label.'</span>
 	          
 
@@ -226,7 +277,14 @@ class Pos_model extends CI_Model {
 
 	          </div>
 	        </div>';
-	          $i++;
+          // Clearfix every 4 items for lg/md/sm, every 2 for xs
+          if(($i + 1) % 4 == 0){
+            $table .= '<div class="clearfix visible-lg-block visible-md-block visible-sm-block"></div>';
+          }
+          if(($i + 1) % 2 == 0){
+            $table .= '<div class="clearfix visible-xs-block"></div>';
+          }
+          $i++;
 	          }//for end
 	          return $table;
 	      }//if num_rows() end
@@ -239,8 +297,27 @@ class Pos_model extends CI_Model {
 	
 	//Save Sales
 	public function pos_save_update(){//Save or update sales
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = 'localhost';
+
 		$this->db->trans_begin();
 		$by_cash = $this->input->post('by_cash', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+
+		// Validate customer_id
+		if(empty($customer_id)){
+			$this->db->trans_rollback();
+			echo "Customer ID is required."; exit;
+		}
+
+		// Laundry / service businesses require real customer data
+		if (mp_feature_enabled('laundry_workflow') && is_walk_in_customer($customer_id)) {
+			$this->db->trans_rollback();
+			echo "Please select or create a registered customer before creating a laundry invoice. Walk-in is not allowed for service orders."; exit;
+		}
 		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$count_id = $this->input->post('count_id', TRUE);
@@ -250,14 +327,17 @@ class Pos_model extends CI_Model {
 		$store_id = $this->input->post('store_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$coupon_code = $this->input->post('coupon_code', TRUE);
+		$coupon_discount_amt = $this->input->post('coupon_discount_amt', TRUE);
 		$discount_input = $this->input->post('discount_input', TRUE);
-		$tot_disc = $this->input->post('tot_disc', TRUE);
-		$tot_grand = $this->input->post('tot_grand', TRUE);
-		$tot_amt = $this->input->post('tot_amt', TRUE);
+		$tot_disc = $this->input->get_post('tot_disc', TRUE);
+		$tot_grand = $this->input->get_post('tot_grand', TRUE);
+		$tot_amt = $this->input->get_post('tot_amt', TRUE);
+		$pay_all = $this->input->get_post('pay_all', TRUE);
 		$points_use = $this->input->post('points_use', TRUE);
 		$sales_note = $this->input->post('sales_note', TRUE);
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
+		$discount_type = $this->input->post('discount_type', TRUE);
 		$invoice_terms = $this->input->post('invoice_terms', TRUE);
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
@@ -271,6 +351,8 @@ class Pos_model extends CI_Model {
 			$payment_row_count=1;
 		}else{ //by multiple payments
 			$by_cash=false;
+			$payment_row_count = $this->input->post('payment_row_count', TRUE);
+			$payment_row_count = (empty($payment_row_count)) ? 0 : intval($payment_row_count);
 		}
 		//end 
 
@@ -287,6 +369,10 @@ class Pos_model extends CI_Model {
 
 		//FIND CUSTOMER INFORMATION BY ITS ID
 		$q1=$this->db->query("select customer_name,mobile from db_customers where id=$customer_id");
+		if(!$q1 || $q1->num_rows() == 0){
+			$this->db->trans_rollback();
+			echo "Customer not found. Please select a valid customer."; exit;
+		}
 		$customer_name 	= $q1->row()->customer_name;
 		$mobile 		= $q1->row()->mobile;
 
@@ -378,7 +464,6 @@ class Pos_model extends CI_Model {
 				}
 		}
 		else{
-			$this->db->query("ALTER TABLE db_sales AUTO_INCREMENT = 1");
 
 			$sales_entry = array(
 							//'count_id' 					=> get_count_id('db_sales'),  
@@ -436,6 +521,11 @@ class Pos_model extends CI_Model {
 				$discount_type =$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
 				$discount_input =$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt =$this->xss_html_filter(trim($_REQUEST['item_discount_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_'.$i] ?? 0);
+								$staff_id = intval($_REQUEST['staff_id_' . $i] ?? 0);
+								$commission_amount = floatval($_REQUEST['commission_amount_' . $i] ?? 0);
 
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($tax_value * $price_per_unit / 100);
@@ -455,7 +545,43 @@ class Pos_model extends CI_Model {
 				$item_details = get_item_details($item_id);
 				$item_name = $item_details->item_name;
 				$service_bit = $item_details->service_bit;
-				$purchase_price = $item_details->price;
+				// Use the item's cost (purchase_price with tax) when no barcode, or the barcode's cost when a unit is selected
+				if($barcode_id > 0){
+					$barcode_rec = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
+					$purchase_price = ($barcode_rec && !empty($barcode_rec->purchase_price)) ? $barcode_rec->purchase_price : 0;
+				} else {
+					$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
+				}
+				$track_serial = $item_details->track_serial ?? 0;
+				$track_imei = $item_details->track_imei ?? 0;
+
+				// Serial/IMEI validation for electronics and cellular devices
+				if($track_serial && empty($sold_serial_number)){
+					$this->db->trans_rollback();
+					return "Serial number is required for {$item_name}. Please scan or type the serial number before checkout.";
+				}
+				if($track_imei && empty($sold_imei_number)){
+					$this->db->trans_rollback();
+					return "IMEI number is required for {$item_name}. Please scan or type the IMEI before checkout.";
+				}
+
+				// Prevent selling a unit that is already marked as sold
+				if($barcode_id > 0){
+					$bc_status = $this->db->where('id', $barcode_id)->get('db_item_barcodes')->row()->status ?? 1;
+					if($bc_status != 1){
+						$this->db->trans_rollback();
+						return "This unit of {$item_name} has already been sold. Use a different serial/IMEI or barcode.";
+					}
+				} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+					$this->db->where('item_id', $item_id);
+					if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+					if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
+					$matched_bc = $this->db->get('db_item_barcodes')->row();
+					if($matched_bc && $matched_bc->status != 1){
+						$this->db->trans_rollback();
+						return "The serial/IMEI for {$item_name} has already been sold. Use a different unit.";
+					}
+				}
 
 				
 				/*$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
@@ -484,8 +610,33 @@ class Pos_model extends CI_Model {
 		    				'purchase_price' 	=> $purchase_price,
 		    				'status'	 		=> 1,
 		    				'seller_points'		=> get_seller_points($item_id) * $sales_qty,
+		    				'sold_serial_number'=> $sold_serial_number,
+		    				'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
+		    											'staff_id'          => $staff_id ? $staff_id : null,
+		    											'commission_amount' => $commission_amount,
 		    			);
 				$q4 = $this->db->insert('db_salesitems', $salesitems_entry);
+				if(!$q4){
+					$err = $this->db->error();
+					log_message('error', "POS db_salesitems insert FAILED: #{$err['code']} {$err['message']} sales_id=$sales_id item_id=$item_id");
+					$this->db->trans_rollback();
+					return "Failed to save sale item: " . $err['message'];
+				}
+				$sale_items_id = $this->db->insert_id();
+				log_message('error', "POS db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty");
+
+				// Mark the unit as sold so it cannot be sold again
+				if($q4 && ($track_serial || $track_imei || !empty($sold_serial_number) || !empty($sold_imei_number))){
+					if($barcode_id > 0){
+						$this->db->where('id', $barcode_id)->update('db_item_barcodes', ['status' => 0]);
+					} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+						$this->db->where('item_id', $item_id);
+						if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+						if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
+						$this->db->limit(1)->update('db_item_barcodes', ['status' => 0]);
+					}
+				}
 
 				$q11=$this->update_items_quantity($item_id);
 				if(!$q11){
@@ -506,6 +657,7 @@ class Pos_model extends CI_Model {
 
 		$tot_received_amt = 0;
 		//UPDATE CUSTMER MULTPLE PAYMENTS
+		$payments_processed = 0;
 		for($i=1;$i<=$payment_row_count;$i++){
 		
 			if((isset($_REQUEST['amount_'.$i]) && trim($_REQUEST['amount_'.$i])!='') || ($by_cash==true)){
@@ -515,21 +667,28 @@ class Pos_model extends CI_Model {
 					$amount 		=$tot_grand;
 					$payment_type 	=get_default_payment_mode_code($store_id);
 					$payment_note 	='Paid By ' . $payment_type;
+					$payments_processed++;
 				}
 				else{
 					//RECEIVE VALUES FROM FORM
 					$amount 		=$this->xss_html_filter(trim($_REQUEST['amount_'.$i]));
-					$payment_type 	=$this->xss_html_filter(trim($_REQUEST['payment_type_'.$i]));
-					$payment_note 	=$this->xss_html_filter(trim($_REQUEST['payment_note_'.$i]));
+					// Skip if amount is 0 or empty
+					if(empty($amount) || $amount == 0){
+						continue;
+					}
+					$payment_type 	=$this->xss_html_filter(trim($_REQUEST['payment_type_'.$i] ?? ''));
+					$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
+					$payment_note 	=$this->xss_html_filter(trim($_REQUEST['payment_note_'.$i] ?? ''));
 					$payment_reference = $this->xss_html_filter(trim($_REQUEST['payment_reference_'.$i] ?? ''));
 					$confirmation_status = intval($_REQUEST['confirmation_status_'.$i] ?? 1);
+					$payments_processed++;
 				}
 
 				if($command=='save' && $pay_all=='true'){
 					$account_id = $this->session->userdata('default_account_id');
 				}
 				else{
-					$account_id 	=$this->xss_html_filter(trim($_REQUEST['account_id_'.$i]));
+					$account_id 	=$this->xss_html_filter(trim($_REQUEST['account_id_'.$i] ?? ''));
 				}
 				
 
@@ -541,8 +700,8 @@ class Pos_model extends CI_Model {
 				}
 				//end
 				// Look up payment_mode_id
-				$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
-				$payment_mode_id = $pm_row ? $pm_row->id : null;
+				$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes');
+				$payment_mode_id = ($pm_row && $pm_row->num_rows() > 0) ? $pm_row->row()->id : null;
 
 				$payment_code=get_init_code('sales_payment');
 				$salespayments_entry = array(
@@ -631,6 +790,12 @@ class Pos_model extends CI_Model {
 		
 		}//for end
 
+		// Check if any payments were processed (unless it's a credit sale for registered customer)
+		if($payments_processed == 0 && $tot_grand > 0 && is_walk_in_customer($customer_id)){
+			$this->db->trans_rollback();
+			echo "Walk-in Customer requires payment. Please enter a payment amount.";exit;
+		}
+
 		// WALK-IN CUSTOMER CANNOT OWE MONEY
 		if(is_walk_in_customer($customer_id) && $tot_received_amt < $tot_grand){
 			$this->db->trans_rollback();
@@ -703,8 +868,23 @@ class Pos_model extends CI_Model {
 		}
 
 		
+		//Record Loyalty Points
+		if(!is_walk_in_customer($customer_id) && $tot_grand > 0){
+			$this->load->model('loyalty_model');
+			$settings = $this->loyalty_model->get_settings();
+			if($settings && $settings->loyalty_enabled){
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_grand);
+				if($points > 0){
+					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from POS sale');
+				}
+			}
+		}
+		//end
+
 		//COMMIT RECORD
 		$this->db->trans_commit();
+
+		log_message('error', "[POS SAVE] sales_id=$sales_id date=$sales_date status=Final store=$store_id grand_total=$tot_grand");
 		
 		$this->session->set_flashdata('success', 'Success!! Sales Created Successfully!'.$sms_info);
         return "success<<<###>>>$sales_id";
@@ -714,8 +894,8 @@ class Pos_model extends CI_Model {
 
 	public function update_items_quantity($item_id){
 		//FIND IS IS SERVICE OR NOT
-		$service_bit=$this->db->query("select service_bit from db_items where id='$item_id'")->row()->service_bit;
-		if($service_bit==1){
+		$item = $this->db->query("select service_bit from db_items where id='$item_id'")->row();
+		if($item->service_bit==1){
 			return true;
 		}
 		
@@ -723,7 +903,7 @@ class Pos_model extends CI_Model {
 		$q7=$this->db->query("select COALESCE(SUM(adjustment_qty),0) as stock_qty from db_stockadjustmentitems where item_id='$item_id'");
 		$stock_qty=$q7->row()->stock_qty;
 
-		$q8=$this->db->query("select COALESCE(SUM(purchase_qty),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status='Received'");
+		$q8=$this->db->query("select COALESCE(SUM(CASE WHEN received_qty IS NOT NULL THEN received_qty ELSE purchase_qty END),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status IN ('Received','Partially Received')");
 		$pu_tot_qty=$q8->row()->pu_tot_qty;
 		
 		$q9=$this->db->query("select coalesce(SUM(sales_qty),0) as sl_tot_qty from db_salesitems where item_id='$item_id' and sales_status='Final'");
@@ -773,6 +953,10 @@ class Pos_model extends CI_Model {
 		  		$price_per_unit = $res3->price_per_unit;
 		  		$description = $res3->description;
 		  		$service_bit = $q5->row()->service_bit;
+		  		$item_commission_type = $q5->row()->commission_type ?? 'none';
+		  		$item_commission_value = $q5->row()->commission_value ?? 0;
+		  		$staff_id = $res3->staff_id ?? 0;
+		  		$commission_amount = $res3->commission_amount ?? 0;
 
 		  		$stock = total_available_qty_items_of_warehouse($warehouse_id,$store_id,$q5->row()->id);
 		  		$stock+=$res3->sales_qty;
@@ -839,6 +1023,10 @@ class Pos_model extends CI_Model {
         		echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_per_unit == $q5->row()->mrp ? 'retail' : 'wholesale').'">';
 		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
         		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
+        		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
+        		echo '<input type="hidden" id="commission_value_'.$i.'" name="commission_value_'.$i.'" value="'.$item_commission_value.'">';
+        		echo '<input type="hidden" id="commission_amount_'.$i.'" name="commission_amount_'.$i.'" value="'.$commission_amount.'">';
+        		echo '<input type="hidden" id="staff_id_'.$i.'" name="staff_id_'.$i.'" value="'.$staff_id.'">';
 		  		$i++;
 		  	}//foreach() end
 
@@ -892,6 +1080,8 @@ class Pos_model extends CI_Model {
 		if(!$q1){
 			return "failed";
 		}
+		// Also delete related hold items
+		$this->db->query("DELETE from db_holditems where hold_id='$id'");
 		//COMMIT RECORD
 		$this->db->trans_commit();
         return "success";
@@ -924,6 +1114,10 @@ class Pos_model extends CI_Model {
 		  		$price_per_unit = $res3->price_per_unit;
 		  		$description = $res3->description;
 		  		$service_bit = $q5->row()->service_bit;
+		  		$item_commission_type = $q5->row()->commission_type ?? 'none';
+		  		$item_commission_value = $q5->row()->commission_value ?? 0;
+		  		$staff_id = $res3->staff_id ?? 0;
+		  		$commission_amount = $res3->commission_amount ?? 0;
 
 		  		$warehouse_stock = total_available_qty_items_of_warehouse($warehouse_id,null,$res3->item_id);
 		  		$stock=$warehouse_stock;//$q5->row()->stock + $res3->sales_qty;
@@ -984,6 +1178,10 @@ class Pos_model extends CI_Model {
         		echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_per_unit == $q5->row()->mrp ? 'retail' : 'wholesale').'">';
 		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
         		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
+        		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
+        		echo '<input type="hidden" id="commission_value_'.$i.'" name="commission_value_'.$i.'" value="'.$item_commission_value.'">';
+        		echo '<input type="hidden" id="commission_amount_'.$i.'" name="commission_amount_'.$i.'" value="'.$commission_amount.'">';
+        		echo '<input type="hidden" id="staff_id_'.$i.'" name="staff_id_'.$i.'" value="'.$staff_id.'">';
 		  		$i++;
 		  	}//foreach() end
 
@@ -1000,14 +1198,20 @@ class Pos_model extends CI_Model {
 
 
 	public function hold_list_save_update(){//Save or update sales
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = 'localhost';
+
 		$this->db->trans_begin();
 		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
 		$reference_id = $this->input->post('reference_id', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$discount_input = $this->input->post('discount_input', TRUE);
-		$tot_disc = $this->input->post('tot_disc', TRUE);
-		$tot_grand = $this->input->post('tot_grand', TRUE);
-		$tot_amt = $this->input->post('tot_amt', TRUE);
+		$tot_disc = $this->input->get_post('tot_disc', TRUE);
+		$tot_grand = $this->input->get_post('tot_grand', TRUE);
+		$tot_amt = $this->input->get_post('tot_amt', TRUE);
 		$sales_note = $this->input->post('sales_note', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
@@ -1080,6 +1284,11 @@ class Pos_model extends CI_Model {
 				$discount_type =$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
 				$discount_input =$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt =$this->xss_html_filter(trim($_REQUEST['item_discount_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_'.$i] ?? 0);
+				$staff_id = intval($_REQUEST['staff_id_' . $i] ?? 0);
+				$commission_amount = floatval($_REQUEST['commission_amount_' . $i] ?? 0);
 
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($tax_value * $price_per_unit / 100);
@@ -1121,6 +1330,11 @@ class Pos_model extends CI_Model {
 		    				'discount_amt' 		=> $discount_amt,
 		    				'unit_total_cost' 	=> $single_unit_total_cost,
 		    				'total_cost' 		=> $total_cost,
+		    			'sold_serial_number'=> $sold_serial_number,
+		    			'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
+		    											'staff_id'          => $staff_id ? $staff_id : null,
+		    											'commission_amount' => $commission_amount,
 		    			);
 				$q4 = $this->db->insert('db_holditems', $salesitems_entry);
 
@@ -1137,7 +1351,7 @@ class Pos_model extends CI_Model {
 		//COMMIT RECORD
 		$this->db->trans_commit();
 		
-		$this->session->set_flashdata('success', 'Success!! Sales Created Successfully!');
+		$this->session->set_flashdata('success', 'Success!! Sale Held Successfully!');
         return "success";
 
 
