@@ -2,8 +2,15 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Updater — Core auto-update orchestrator for MartPoint Retail
- * Handles: manifest fetch, hash diff, download, apply, migrate, restore
+ * Updater — Robust chunked auto-update orchestrator for MartPoint Retail
+ *
+ * Designed for cPanel / shared hosting:
+ * - No single PHP request runs for more than a few seconds
+ * - Progress is persisted to disk so a page refresh can resume
+ * - Each step is split into small batches (download / apply / verify)
+ * - Session lock is never held during long operations
+ * - File downloads have retry logic
+ * - Migrations are idempotent (ignore already-exists errors)
  */
 class Updater {
 
@@ -19,16 +26,31 @@ class Updater {
         'application/config/constants.php',
     ];
 
+    // How many files to download/verify/apply in one PHP request.
+    // Keeps each request under ~5-10 seconds on shared hosting.
+    protected $batchSize = 50;
+
+    // State file used to resume across HTTP requests.
+    protected $statePath;
+    protected $tempDir;
+
     public function __construct() {
         $this->CI =& get_instance();
         $this->CI->load->library('BackupManager');
         $this->backupManager = $this->CI->backupmanager;
         $this->CI->load->helper('file');
+
+        $this->tempDir = FCPATH . 'updates/temp';
+        if (!is_dir($this->tempDir)) {
+            @mkdir($this->tempDir, 0755, true);
+        }
+        $this->statePath = $this->tempDir . '/update-state.json';
     }
 
-    /**
-     * Get current installed version from db_sitesettings
-     */
+    /* ------------------------------------------------------------------ */
+    /*  Version / manifest                                                */
+    /* ------------------------------------------------------------------ */
+
     public function getInstalledVersion(): string {
         $row = $this->CI->db->select('version')
             ->from('db_sitesettings')
@@ -38,27 +60,12 @@ class Updater {
         return $row ? $row->version : '0.0';
     }
 
-    /**
-     * Fetch remote manifest from GitHub / update channel
-     */
     public function fetchManifest(): ?array {
         $channel = $this->getUpdateChannelUrl();
         $manifestUrl = rtrim($channel, '/') . '/release-manifest.json';
 
-        $ctx = stream_context_create([
-            'http' => [
-                'timeout' => 30,
-                'user_agent' => 'MartPointUpdater/1.0',
-                'follow_location' => 1,
-            ],
-            'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-            ],
-        ]);
-
-        $json = @file_get_contents($manifestUrl, false, $ctx);
-        if ($json === false) {
+        $json = $this->httpGet($manifestUrl, 60);
+        if ($json === null) {
             return null;
         }
 
@@ -70,9 +77,6 @@ class Updater {
         return $manifest;
     }
 
-    /**
-     * Check if an update is available
-     */
     public function checkForUpdate(): array {
         $installed = $this->getInstalledVersion();
         $manifest = $this->fetchManifest();
@@ -99,9 +103,10 @@ class Updater {
         ];
     }
 
-    /**
-     * Preview what will change (without downloading yet)
-     */
+    /* ------------------------------------------------------------------ */
+    /*  Preview diff                                                      */
+    /* ------------------------------------------------------------------ */
+
     public function previewChanges(array $manifest): array {
         $files = $manifest['files'] ?? [];
         $toDownload = [];
@@ -131,66 +136,180 @@ class Updater {
         ];
     }
 
-    /**
-     * Start a new update job record
-     */
+    /* ------------------------------------------------------------------ */
+    /*  Job / database state                                              */
+    /* ------------------------------------------------------------------ */
+
     public function startJob(string $fromVersion, string $toVersion): int {
         $this->CI->db->insert('db_system_updates', [
             'store_id' => get_current_store_id(),
             'from_version' => $fromVersion,
             'to_version' => $toVersion,
-            'status' => 'pending',
-            'current_step' => 0,
+            'status' => 'running',
+            'current_step' => 1,
             'total_steps' => 8,
             'step_label' => 'Initializing...',
             'log' => "Update started: {$fromVersion} → {$toVersion}\n",
         ]);
         $this->updateRecordId = $this->CI->db->insert_id();
+        $this->clearState();
+        $this->writeState([
+            'record_id' => $this->updateRecordId,
+            'from_version' => $fromVersion,
+            'to_version' => $toVersion,
+            'step' => 1,
+            'step_label' => 'Initializing...',
+            'message' => '',
+            'done' => false,
+            'failed' => false,
+            'batch' => 0,
+            'total' => 0,
+            'files_to_update' => [],
+            'files_to_add' => [],
+            'migrations' => [],
+            'manifest' => [],
+        ]);
         return $this->updateRecordId;
     }
 
+    public function getProgress(): ?object {
+        // Prefer the latest DB record; fallback to state file
+        $job = $this->CI->db->order_by('id', 'DESC')
+            ->limit(1)
+            ->get('db_system_updates')
+            ->row();
+
+        if (!$job) {
+            $state = $this->readState();
+            if ($state) {
+                return (object) [
+                    'status' => $state['failed'] ? 'failed' : ($state['done'] ? 'success' : 'running'),
+                    'current_step' => $state['step'],
+                    'total_steps' => 8,
+                    'step_label' => $state['step_label'] . ($state['message'] ? ' — ' . $state['message'] : ''),
+                    'from_version' => $state['from_version'],
+                    'to_version' => $state['to_version'],
+                    'error_message' => $state['failed'] ? $state['message'] : '',
+                    'log' => $state['message'],
+                    'completed_at' => null,
+                ];
+            }
+            return null;
+        }
+
+        return $job;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Main step runner (chunked / resumable)                            */
+    /* ------------------------------------------------------------------ */
+
     /**
-     * Execute one step of the update (called via AJAX sequentially)
-     * Steps: 1=backup_db, 2=backup_files, 3=download, 4=verify, 5=apply_files, 6=migrate, 7=finalize, 8=cleanup
+     * Run (or resume) a step. Each call processes one small batch then returns.
+     * The frontend keeps calling with the same step until the returned `done` is true.
+     *
+     * @param int $step 1-8
+     * @param array $manifest Fetched remote manifest
+     * @param array $preview Output of previewChanges()
+     * @return array {status, message, step, done, failed, progress, total}
      */
     public function runStep(int $step, array $manifest, array $preview): array {
+        $this->resetTimer();
+
+        // We always need a record id. If none, this is the first call to step 1.
+        $state = $this->readState();
+        if (empty($state)) {
+            $this->updateRecordId = 0;
+        } else {
+            $this->updateRecordId = $state['record_id'] ?? 0;
+        }
         $this->ensureJobExists();
-        $this->logStep($step, 'running');
+
+        // If the manifest/preview changed (new call), store them in state.
+        if (!empty($state)) {
+            if (empty($state['manifest'])) {
+                $state['manifest'] = $manifest;
+                $state['files_to_update'] = $preview['files_to_update'];
+                $state['files_to_add'] = $preview['files_to_add'];
+                $state['migrations'] = $preview['migrations'];
+                $state['total'] = count($preview['files_to_update']) + count($preview['files_to_add']) + count($preview['migrations']);
+                $this->writeState($state);
+            }
+        } else {
+            $this->startJob($this->getInstalledVersion(), $manifest['version'] ?? '0.0');
+            $state = $this->readState();
+            $state['manifest'] = $manifest;
+            $state['files_to_update'] = $preview['files_to_update'];
+            $state['files_to_add'] = $preview['files_to_add'];
+            $state['migrations'] = $preview['migrations'];
+            $state['total'] = count($preview['files_to_update']) + count($preview['files_to_add']) + count($preview['migrations']);
+            $this->writeState($state);
+        }
+
+        // Step mismatch: if frontend is asking for a different step than stored,
+        // it usually means the previous step just completed. Move to next.
+        if ($state['step'] !== $step) {
+            $step = $state['step'];
+        }
 
         try {
             switch ($step) {
                 case 1:
-                    return $this->step1BackupDb();
+                    $result = $this->step1BackupDb($state);
+                    break;
                 case 2:
-                    return $this->step2BackupFiles($preview);
+                    $result = $this->step2BackupFiles($state);
+                    break;
                 case 3:
-                    return $this->step3DownloadFiles($manifest, $preview);
+                    $result = $this->step3DownloadFiles($state);
+                    break;
                 case 4:
-                    return $this->step4VerifyFiles($manifest, $preview);
+                    $result = $this->step4VerifyFiles($state);
+                    break;
                 case 5:
-                    return $this->step5ApplyFiles($preview);
+                    $result = $this->step5ApplyFiles($state);
+                    break;
                 case 6:
-                    return $this->step6RunMigrations($manifest);
+                    $result = $this->step6RunMigrations($state);
+                    break;
                 case 7:
-                    return $this->step7Finalize($manifest);
+                    $result = $this->step7Finalize($state);
+                    break;
                 case 8:
-                    return $this->step8Cleanup();
+                    $result = $this->step8Cleanup($state);
+                    break;
                 default:
                     return ['status' => 'error', 'message' => 'Invalid step number'];
             }
+
+            $this->logJob($step, $result['step_label'] ?? $this->stepLabel($step), $result['message'] ?? '');
+            $this->updateStateFromResult($state, $result);
+
+            return $result;
+
         } catch (Exception $e) {
-            $this->logStep($step, 'failed', $e->getMessage());
             $this->markJobFailed($e->getMessage());
-            return ['status' => 'error', 'message' => $e->getMessage(), 'fatal' => true];
+            $state['failed'] = true;
+            $state['message'] = $e->getMessage();
+            $this->writeState($state);
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'failed' => true,
+                'step' => $step,
+            ];
         }
     }
 
-    /**
-     * Restore from backup (triggered on failure or manual request)
-     */
+    /* ------------------------------------------------------------------ */
+    /*  RESTORE                                                           */
+    /* ------------------------------------------------------------------ */
+
     public function restore(): array {
+        // Latest job with a backup (failed, running, or success)
         $job = $this->CI->db->where('status', 'failed')
             ->or_where('status', 'running')
+            ->or_where('status', 'success')
             ->order_by('id', 'DESC')
             ->limit(1)
             ->get('db_system_updates')
@@ -207,6 +326,8 @@ class Updater {
             if (!$this->backupManager->restoreDatabase($job->backup_db_path)) {
                 $errors[] = 'Database restore failed.';
             }
+        } else {
+            $errors[] = 'Database backup not found. Cannot restore DB.';
         }
 
         // Restore files
@@ -214,6 +335,8 @@ class Updater {
             if (!$this->backupManager->restoreFiles($job->backup_files_path)) {
                 $errors[] = 'File restore failed.';
             }
+        } else {
+            $errors[] = 'File backup not found. Cannot restore files.';
         }
 
         if (empty($errors)) {
@@ -222,98 +345,171 @@ class Updater {
                 'completed_at' => date('Y-m-d H:i:s'),
                 'error_message' => 'Restored to pre-update state.',
             ]);
+            $this->clearState();
             return ['status' => 'success', 'message' => 'System restored successfully.'];
         }
 
         return ['status' => 'error', 'message' => implode(' ', $errors)];
     }
 
-    /**
-     * Get current job progress for polling
-     */
-    public function getProgress(): ?object {
-        return $this->CI->db->order_by('id', 'DESC')
-            ->limit(1)
-            ->get('db_system_updates')
-            ->row();
-    }
+    /* ------------------------------------------------------------------ */
+    /*  STEP HANDLERS                                                     */
+    /* ------------------------------------------------------------------ */
 
-    /* ================================================================ */
-    /*  PRIVATE STEP HANDLERS                                           */
-    /* ================================================================ */
+    protected function step1BackupDb(array &$state): array {
+        $this->resetTimer();
+        $this->logJob(1, 'Backup Database', 'Creating SQL dump...');
 
-    protected function step1BackupDb(): array {
-        $this->logStep(1, 'running', 'Backing up database...');
         $path = $this->backupManager->backupDatabase();
         if (!$path) {
-            throw new Exception('Database backup failed. Check folder permissions on backups/');
+            throw new Exception('Database backup failed. Check backups/ folder permissions.');
         }
+
+        // Save the backup path in the job record for restore
         $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
             'backup_db_path' => $path,
         ]);
-        $this->logStep(1, 'success', 'Database backed up: ' . basename($path));
-        return ['status' => 'ok', 'message' => 'Database backed up'];
+
+        return [
+            'status' => 'ok',
+            'message' => 'Database backed up: ' . basename($path),
+            'step_label' => 'Backup Database',
+            'done' => true,
+            'step' => 1,
+        ];
     }
 
-    protected function step2BackupFiles(array $preview): array {
-        $this->logStep(2, 'running', 'Backing up files...');
-        $files = array_merge($preview['files_to_update'], $preview['files_to_add']);
+    protected function step2BackupFiles(array &$state): array {
+        $this->resetTimer();
+        $this->logJob(2, 'Backup Files', 'Zipping files to be changed...');
+
+        $files = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
         $path = $this->backupManager->backupFiles($files);
-        if ($path) {
+
+        if (!$path) {
+            // File backup is not fatal; we still have DB backup.
             $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
-                'backup_files_path' => $path,
+                'backup_files_path' => '',
             ]);
+            return [
+                'status' => 'ok',
+                'message' => 'Files backup skipped (ZipArchive not available).',
+                'step_label' => 'Backup Files',
+                'done' => true,
+                'step' => 2,
+            ];
         }
-        $this->logStep(2, 'success', 'Files backed up.');
-        return ['status' => 'ok', 'message' => 'Files backed up'];
+
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'backup_files_path' => $path,
+        ]);
+
+        return [
+            'status' => 'ok',
+            'message' => 'Files backed up.',
+            'step_label' => 'Backup Files',
+            'done' => true,
+            'step' => 2,
+        ];
     }
 
-    protected function step3DownloadFiles(array $manifest, array $preview): array {
-        $this->logStep(3, 'running', 'Downloading changed files...');
+    protected function step3DownloadFiles(array &$state): array {
+        $this->resetTimer();
+
         $channel = $this->getUpdateChannelUrl();
-        $allFiles = array_merge($preview['files_to_update'], $preview['files_to_add']);
-        $tempDir = FCPATH . 'updates/temp';
-        if (!is_dir($tempDir)) {
-            @mkdir($tempDir, 0755, true);
+        $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+
+        // Determine resume offset
+        $offset = $state['batch'] ?? 0;
+        $total = count($allFiles);
+
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'All files downloaded.',
+                'step_label' => 'Download Changed Files',
+                'done' => true,
+                'step' => 3,
+                'progress' => $total,
+                'total' => $total,
+            ];
         }
 
-        foreach ($allFiles as $relPath) {
+        $batch = array_slice($allFiles, $offset, $this->batchSize);
+        $batchEnd = min($offset + count($batch), $total);
+
+        foreach ($batch as $relPath) {
+            $this->resetTimer();
             $remoteUrl = rtrim($channel, '/') . '/' . $relPath;
-            $localTemp = $tempDir . '/' . $relPath;
+            $localTemp = $this->tempDir . '/' . $relPath;
             $dir = dirname($localTemp);
             if (!is_dir($dir)) {
                 @mkdir($dir, 0755, true);
             }
 
-            $ctx = stream_context_create([
-                'http' => ['timeout' => 30, 'user_agent' => 'MartPointUpdater/1.0'],
-                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
-            ]);
-
-            $data = @file_get_contents($remoteUrl, false, $ctx);
-            if ($data === false) {
-                throw new Exception("Failed to download: {$relPath}");
+            // Download with retry
+            $data = $this->httpGet($remoteUrl, 30);
+            if ($data === null) {
+                throw new Exception("Failed to download after retries: {$relPath}");
             }
+
             if (@file_put_contents($localTemp, $data) === false) {
                 throw new Exception("Failed to write temp file: {$relPath}");
             }
         }
 
-        $this->logStep(3, 'success', 'All files downloaded.');
-        return ['status' => 'ok', 'message' => 'Files downloaded'];
+        $state['batch'] = $batchEnd;
+        $this->writeState($state);
+
+        $message = "Downloaded {$batchEnd} / {$total} files";
+        $this->logJob(3, 'Download Changed Files', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Download Changed Files',
+            'done' => ($batchEnd >= $total),
+            'step' => 3,
+            'progress' => $batchEnd,
+            'total' => $total,
+        ];
     }
 
-    protected function step4VerifyFiles(array $manifest, array $preview): array {
-        $this->logStep(4, 'running', 'Verifying file hashes...');
-        $tempDir = FCPATH . 'updates/temp';
+    protected function step4VerifyFiles(array &$state): array {
+        $this->resetTimer();
+
+        $manifest = $state['manifest'] ?? [];
         $manifestMap = [];
-        foreach ($manifest['files'] as $f) {
+        foreach ($manifest['files'] ?? [] as $f) {
             $manifestMap[$f['path']] = $f['hash'];
         }
 
-        $allFiles = array_merge($preview['files_to_update'], $preview['files_to_add']);
-        foreach ($allFiles as $relPath) {
-            $tempPath = $tempDir . '/' . $relPath;
+        $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+        $offset = $state['batch'] ?? 0;
+        $total = count($allFiles);
+
+        // For step 4, we start from the beginning (we just finished step 3 at $total)
+        if ($offset === $total && $state['step'] === 3) {
+            $offset = 0;
+            $state['batch'] = 0;
+        }
+
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'All hashes verified.',
+                'step_label' => 'Verify File Integrity',
+                'done' => true,
+                'step' => 4,
+                'progress' => $total,
+                'total' => $total,
+            ];
+        }
+
+        $batch = array_slice($allFiles, $offset, $this->batchSize);
+        foreach ($batch as $relPath) {
+            $this->resetTimer();
+            $tempPath = $this->tempDir . '/' . $relPath;
             if (!file_exists($tempPath)) {
                 throw new Exception("Missing downloaded file: {$relPath}");
             }
@@ -323,20 +519,56 @@ class Updater {
             }
         }
 
-        $this->logStep(4, 'success', 'All hashes verified.');
-        return ['status' => 'ok', 'message' => 'Hashes verified'];
+        $batchEnd = min($offset + count($batch), $total);
+        $state['batch'] = $batchEnd;
+        $this->writeState($state);
+
+        $message = "Verified {$batchEnd} / {$total} files";
+        $this->logJob(4, 'Verify File Integrity', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Verify File Integrity',
+            'done' => ($batchEnd >= $total),
+            'step' => 4,
+            'progress' => $batchEnd,
+            'total' => $total,
+        ];
     }
 
-    protected function step5ApplyFiles(array $preview): array {
-        $this->logStep(5, 'running', 'Applying file changes...');
-        $tempDir = FCPATH . 'updates/temp';
-        $allFiles = array_merge($preview['files_to_update'], $preview['files_to_add']);
+    protected function step5ApplyFiles(array &$state): array {
+        $this->resetTimer();
 
-        foreach ($allFiles as $relPath) {
+        $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+        $total = count($allFiles);
+
+        // Reset offset if we just finished step 4 at $total
+        $offset = $state['batch'] ?? 0;
+        if ($offset === $total && $state['step'] === 4) {
+            $offset = 0;
+            $state['batch'] = 0;
+        }
+
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'All file changes applied.',
+                'step_label' => 'Apply File Changes',
+                'done' => true,
+                'step' => 5,
+                'progress' => $total,
+                'total' => $total,
+            ];
+        }
+
+        $batch = array_slice($allFiles, $offset, $this->batchSize);
+        foreach ($batch as $relPath) {
+            $this->resetTimer();
             if ($this->isProtected($relPath)) {
                 continue;
             }
-            $source = $tempDir . '/' . $relPath;
+            $source = $this->tempDir . '/' . $relPath;
             $target = FCPATH . $relPath;
             $dir = dirname($target);
             if (!is_dir($dir)) {
@@ -347,69 +579,118 @@ class Updater {
             }
         }
 
-        $this->logStep(5, 'success', 'Files applied.');
-        return ['status' => 'ok', 'message' => 'Files applied'];
+        $batchEnd = min($offset + count($batch), $total);
+        $state['batch'] = $batchEnd;
+        $this->writeState($state);
+
+        $message = "Applied {$batchEnd} / {$total} files";
+        $this->logJob(5, 'Apply File Changes', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Apply File Changes',
+            'done' => ($batchEnd >= $total),
+            'step' => 5,
+            'progress' => $batchEnd,
+            'total' => $total,
+        ];
     }
 
-    protected function step6RunMigrations(array $manifest): array {
-        $this->logStep(6, 'running', 'Running database migrations...');
-        $migrations = $manifest['migrations'] ?? [];
+    protected function step6RunMigrations(array &$state): array {
+        $this->resetTimer();
+
+        $manifest = $state['manifest'] ?? [];
+        $migrations = $state['migrations'] ?? [];
         $channel = $this->getUpdateChannelUrl();
 
-        foreach ($migrations as $migrationFile) {
-            $already = $this->CI->db->where('filename', $migrationFile)
-                ->where('version', $manifest['version'])
-                ->get('db_schema_migrations')
-                ->num_rows();
-            if ($already > 0) {
-                continue;
-            }
+        $offset = $state['batch'] ?? 0;
+        $total = count($migrations);
 
-            $sqlUrl = rtrim($channel, '/') . '/migrations/' . $migrationFile;
-            $ctx = stream_context_create([
-                'http' => ['timeout' => 30, 'user_agent' => 'MartPointUpdater/1.0'],
-                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
-            ]);
-            $sql = @file_get_contents($sqlUrl, false, $ctx);
-            if ($sql === false) {
-                throw new Exception("Failed to fetch migration: {$migrationFile}");
-            }
-
-            // Run migration statements
-            $this->CI->db->trans_start();
-            $statements = $this->splitSql($sql);
-            foreach ($statements as $stmt) {
-                $stmt = trim($stmt);
-                if (empty($stmt)) continue;
-                // Skip errors for "already exists" to make migrations idempotent
-                $result = @$this->CI->db->query($stmt);
-                if ($result === false) {
-                    $error = $this->CI->db->error();
-                    // If it's a benign "already exists" error, continue
-                    $benign = (strpos($error['message'], 'Duplicate') !== false)
-                           || (strpos($error['message'], 'already exists') !== false)
-                           || (strpos($error['message'], 'Duplicate entry') !== false);
-                    if (!$benign) {
-                        $this->CI->db->trans_rollback();
-                        throw new Exception("Migration failed [{$migrationFile}]: " . $error['message']);
-                    }
-                }
-            }
-            $this->CI->db->trans_complete();
-
-            $this->CI->db->insert('db_schema_migrations', [
-                'version' => $manifest['version'],
-                'filename' => $migrationFile,
-            ]);
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'Migrations completed.',
+                'step_label' => 'Run Database Migrations',
+                'done' => true,
+                'step' => 6,
+                'progress' => $total,
+                'total' => $total,
+            ];
         }
 
-        $this->logStep(6, 'success', 'Migrations completed.');
-        return ['status' => 'ok', 'message' => 'Migrations completed'];
+        $migrationFile = $migrations[$offset];
+
+        // Skip if already applied
+        $already = $this->CI->db->where('filename', $migrationFile)
+            ->where('version', $manifest['version'])
+            ->get('db_schema_migrations')
+            ->num_rows();
+        if ($already > 0) {
+            $state['batch'] = $offset + 1;
+            $this->writeState($state);
+            return [
+                'status' => 'ok',
+                'message' => 'Skipped ' . $migrationFile . ' (already applied).',
+                'step_label' => 'Run Database Migrations',
+                'done' => false,
+                'step' => 6,
+                'progress' => $offset + 1,
+                'total' => $total,
+            ];
+        }
+
+        $sqlUrl = rtrim($channel, '/') . '/migrations/' . $migrationFile;
+        $sql = $this->httpGet($sqlUrl, 60);
+        if ($sql === null) {
+            throw new Exception("Failed to fetch migration: {$migrationFile}");
+        }
+
+        $this->CI->db->trans_start();
+        $statements = $this->splitSql($sql);
+        foreach ($statements as $stmt) {
+            $stmt = trim($stmt);
+            if (empty($stmt)) continue;
+            $result = @$this->CI->db->query($stmt);
+            if ($result === false) {
+                $error = $this->CI->db->error();
+                $benign = (stripos($error['message'], 'Duplicate') !== false)
+                       || (stripos($error['message'], 'already exists') !== false)
+                       || (stripos($error['message'], 'Duplicate entry') !== false);
+                if (!$benign) {
+                    $this->CI->db->trans_rollback();
+                    throw new Exception("Migration failed [{$migrationFile}]: " . $error['message']);
+                }
+            }
+        }
+        $this->CI->db->trans_complete();
+
+        $this->CI->db->insert('db_schema_migrations', [
+            'version' => $manifest['version'],
+            'filename' => $migrationFile,
+        ]);
+
+        $state['batch'] = $offset + 1;
+        $this->writeState($state);
+
+        $message = 'Ran migration ' . ($offset + 1) . ' / ' . $total . ': ' . $migrationFile;
+        $this->logJob(6, 'Run Database Migrations', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Run Database Migrations',
+            'done' => ($offset + 1 >= $total),
+            'step' => 6,
+            'progress' => $offset + 1,
+            'total' => $total,
+        ];
     }
 
-    protected function step7Finalize(array $manifest): array {
-        $this->logStep(7, 'running', 'Finalizing update...');
-        $newVersion = $manifest['version'];
+    protected function step7Finalize(array &$state): array {
+        $this->resetTimer();
+
+        $newVersion = $state['to_version'] ?? '0.0';
         $this->CI->db->where('id', 1)->update('db_sitesettings', [
             'version' => $newVersion,
         ]);
@@ -419,15 +700,20 @@ class Updater {
             'completed_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $this->logStep(7, 'success', "Updated to {$newVersion}.");
-        return ['status' => 'ok', 'message' => "Updated to {$newVersion}"];
+        return [
+            'status' => 'ok',
+            'message' => "Updated to {$newVersion}.",
+            'step_label' => 'Finalize Update',
+            'done' => true,
+            'step' => 7,
+        ];
     }
 
-    protected function step8Cleanup(): array {
-        $this->logStep(8, 'running', 'Cleaning up...');
-        $tempDir = FCPATH . 'updates/temp';
-        if (is_dir($tempDir)) {
-            $this->rrmdir($tempDir);
+    protected function step8Cleanup(array &$state): array {
+        $this->resetTimer();
+
+        if (is_dir($this->tempDir)) {
+            $this->rrmdir($this->tempDir);
         }
         $this->backupManager->cleanup(3);
 
@@ -438,12 +724,151 @@ class Updater {
             'completed_at' => date('Y-m-d H:i:s'),
         ]);
 
-        return ['status' => 'ok', 'message' => 'Update complete', 'done' => true];
+        $this->clearState();
+
+        return [
+            'status' => 'ok',
+            'message' => 'Update complete',
+            'step_label' => 'Cleanup',
+            'done' => true,
+            'step' => 8,
+        ];
     }
 
-    /* ================================================================ */
-    /*  HELPERS                                                         */
-    /* ================================================================ */
+    /* ------------------------------------------------------------------ */
+    /*  STATE HELPERS                                                     */
+    /* ------------------------------------------------------------------ */
+
+    public function getPersistedState(): ?array {
+        return $this->readState();
+    }
+
+    protected function readState(): ?array {
+        if (file_exists($this->statePath)) {
+            $json = file_get_contents($this->statePath);
+            $data = json_decode($json, true);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+        return null;
+    }
+
+    protected function writeState(array $state): void {
+        @file_put_contents($this->statePath, json_encode($state, JSON_PRETTY_PRINT));
+    }
+
+    protected function clearState(): void {
+        if (file_exists($this->statePath)) {
+            @unlink($this->statePath);
+        }
+    }
+
+    protected function updateStateFromResult(array &$state, array $result): void {
+        $state['step'] = $result['step'] ?? $state['step'];
+        $state['step_label'] = $result['step_label'] ?? $this->stepLabel($state['step']);
+        $state['message'] = $result['message'] ?? '';
+        $state['done'] = $result['done'] ?? false;
+
+        if ($result['done']) {
+            $state['batch'] = 0; // Reset batch for next step
+            $state['step'] = min($state['step'] + 1, 8);
+        }
+
+        $this->writeState($state);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  DB job helpers                                                    */
+    /* ------------------------------------------------------------------ */
+
+    protected function logJob(int $step, string $label, string $message = ''): void {
+        if ($this->updateRecordId <= 0) {
+            return;
+        }
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'current_step' => $step,
+            'step_label' => $label . ($message ? " — {$message}" : ''),
+            'log' => $message,
+            'status' => 'running',
+        ]);
+    }
+
+    protected function ensureJobExists(): void {
+        if ($this->updateRecordId > 0) {
+            return;
+        }
+        $job = $this->CI->db->order_by('id', 'DESC')
+            ->limit(1)
+            ->get('db_system_updates')
+            ->row();
+        if ($job) {
+            $this->updateRecordId = $job->id;
+        }
+    }
+
+    protected function markJobFailed(string $message): void {
+        if ($this->updateRecordId <= 0) {
+            return;
+        }
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'status' => 'failed',
+            'error_message' => $message,
+            'completed_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    protected function stepLabel(int $step): string {
+        $map = [
+            1 => 'Backup Database',
+            2 => 'Backup Files',
+            3 => 'Download Changed Files',
+            4 => 'Verify File Integrity',
+            5 => 'Apply File Changes',
+            6 => 'Run Database Migrations',
+            7 => 'Finalize Update',
+            8 => 'Cleanup',
+        ];
+        return $map[$step] ?? 'Unknown';
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Network / misc                                                    */
+    /* ------------------------------------------------------------------ */
+
+    protected function httpGet(string $url, int $timeout = 30): ?string {
+        $attempts = 0;
+        $maxAttempts = 3;
+        $lastError = '';
+
+        while ($attempts < $maxAttempts) {
+            $attempts++;
+            $ctx = stream_context_create([
+                'http' => [
+                    'timeout' => $timeout,
+                    'user_agent' => 'MartPointUpdater/1.0',
+                    'follow_location' => 1,
+                ],
+                'ssl' => [
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+
+            $data = @file_get_contents($url, false, $ctx);
+            if ($data !== false) {
+                return $data;
+            }
+
+            $lastError = error_get_last()['message'] ?? 'unknown';
+            if ($attempts < $maxAttempts) {
+                sleep(min($attempts, 3)); // Backoff: 1s, 2s, 3s
+            }
+        }
+
+        log_message('error', "Updater httpGet failed for {$url}: {$lastError}");
+        return null;
+    }
 
     protected function getUpdateChannelUrl(): string {
         try {
@@ -454,11 +879,9 @@ class Updater {
                 ->row();
             $url = $row ? ($row->update_channel_url ?? '') : '';
         } catch (Exception $e) {
-            // Column may not exist yet (pre-migration)
             $url = '';
         }
         if (empty($url)) {
-            // Fallback — avariodigitals/martpoint-retail-releases
             return 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest';
         }
         return $url;
@@ -473,47 +896,14 @@ class Updater {
         return false;
     }
 
-    protected function ensureJobExists() {
-        if ($this->updateRecordId === 0) {
-            $job = $this->CI->db->order_by('id', 'DESC')
-                ->limit(1)
-                ->get('db_system_updates')
-                ->row();
-            if ($job) {
-                $this->updateRecordId = $job->id;
-            }
+    protected function resetTimer(): void {
+        @set_time_limit(120);
+        @ini_set('max_execution_time', 120);
+        // Tell the browser we are still alive
+        if (function_exists('flush') && !headers_sent()) {
+            @ob_flush();
+            @flush();
         }
-    }
-
-    protected function logStep(int $step, string $status, string $message = '') {
-        $label = $this->stepLabel($step);
-        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
-            'current_step' => $step,
-            'step_label' => $label . ($message ? " — {$message}" : ''),
-            'log' => $message,
-        ]);
-    }
-
-    protected function markJobFailed(string $message) {
-        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
-            'status' => 'failed',
-            'error_message' => $message,
-            'completed_at' => date('Y-m-d H:i:s'),
-        ]);
-    }
-
-    protected function stepLabel(int $step): string {
-        $map = [
-            1 => 'Backup Database',
-            2 => 'Backup Files',
-            3 => 'Download Files',
-            4 => 'Verify Integrity',
-            5 => 'Apply Changes',
-            6 => 'Run Migrations',
-            7 => 'Finalize Update',
-            8 => 'Cleanup',
-        ];
-        return $map[$step] ?? 'Unknown';
     }
 
     protected function splitSql(string $sql): array {

@@ -245,7 +245,6 @@
       }
 
       setStepIcon(step, 'running');
-      log('Starting step ' + step + ' / ' + totalSteps + '...');
 
       $.post('<?= base_url('system_updates/run_step'); ?>', { step: step }, function(res) {
         if (res.status === 'error') {
@@ -255,33 +254,45 @@
           isUpdating = false;
           clearInterval(pollInterval);
           showActions('failed');
-          // Auto-restore prompt
-          if (confirm('Update failed. Would you like to restore from backup automatically?')) {
-            doRestore();
-          }
           return;
         }
 
-        setStepIcon(step, 'done');
-        updateProgress(step);
-        log('Step ' + step + ' completed.');
+        // Update the progress bar for this step
+        if (res.progress && res.total) {
+          var stepPct = Math.round((res.progress / res.total) * 100);
+          var overallPct = Math.round(((step - 1 + (res.progress / res.total)) / totalSteps) * 100);
+          document.getElementById('progressBar').style.width = overallPct + '%';
+          document.getElementById('progressBar').textContent = overallPct + '%';
+          log('Step ' + step + ': ' + res.message);
+        } else {
+          setStepIcon(step, 'done');
+          updateProgress(step);
+          log('Step ' + step + ' completed.');
+        }
 
         if (res.done) {
-          isUpdating = false;
-          setStatus('success', 'Update completed successfully!');
-          clearInterval(pollInterval);
-          showActions('idle');
+          setStepIcon(step, 'done');
+          updateProgress(step);
+          if (step >= totalSteps) {
+            isUpdating = false;
+            setStatus('success', 'Update completed successfully!');
+            log('Update finished.');
+            clearInterval(pollInterval);
+            showActions('idle');
+          } else {
+            // Proceed to next step after short delay
+            setTimeout(function() { runStep(step + 1); }, 800);
+          }
         } else {
-          // Proceed to next step after short delay
-          setTimeout(function() { runStep(step + 1); }, 800);
+          // Same step, next chunk
+          setTimeout(function() { runStep(step); }, 200);
         }
       }, 'json').fail(function(xhr) {
         setStepIcon(step, 'fail');
-        setStatus('danger', 'Network/server error at step ' + step);
-        log('Network error at step ' + step);
-        isUpdating = false;
-        clearInterval(pollInterval);
-        showActions('failed');
+        setStatus('danger', 'Network/server error at step ' + step + '. Will retry in 3s...');
+        log('Network error at step ' + step + '. Retrying...');
+        // Auto-retry the same chunk
+        setTimeout(function() { runStep(step); }, 3000);
       });
     }
 
@@ -299,7 +310,7 @@
       for (var i = 1; i <= totalSteps; i++) setStepIcon(i, 'pending');
       updateProgress(0);
 
-      log('Update initiated.');
+      log('Update initiated. Each step is split into small chunks to avoid timeout.');
       runStep(1);
 
       // Fallback polling in case browser tab loses focus / AJAX drops
@@ -311,10 +322,12 @@
             updateProgress(res.current_step);
           }
         }, 'json').fail(function(xhr) {
-          setStatus('danger', 'Progress poll failed: ' + xhr.status);
-          clearInterval(pollInterval);
+          // Polling may fail if a long chunk is still running; do not stop on transient failures
+          if (isUpdating) {
+            log('Progress poll temporarily unavailable (timeout). Continuing...');
+          }
         });
-      }, 3000);
+      }, 5000);
     }
 
     function doRestore() {

@@ -1970,8 +1970,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "b7f2cdceaa0cfd7bb08c285cb79227f862867433e68a95b8d150f24c5c775d53",
-            "size": 20294
+            "hash": "ebed0214c49e16f12d1b8a3e6f4241d3634b6ff0efe9a3aeee1f22edcac3eecc",
+            "size": 33174
         },
         {
             "path": "application/libraries/Resend_provider.php",
@@ -5360,8 +5360,8 @@
         },
         {
             "path": "application/controllers/System_updates.php",
-            "hash": "71c56b176ac2dd09d424e174503dfff89ee4f4cbebb131a093d161f0beb0a42c",
-            "size": 4478
+            "hash": "8d70a27e465cc33df79fc7cae3014142d27106920b0b0bf766fd353719e7e4b5",
+            "size": 5084
         },
         {
             "path": "application/controllers/Paystack.php",
@@ -6025,8 +6025,8 @@
         },
         {
             "path": "application/views/system-updates.php",
-            "hash": "c1242581204fd1b18f23c7764c0b4a13f16447fc8cdcd32c4785ea0cda865745",
-            "size": 18144
+            "hash": "595502da295957101bf0b9bd68bae27ce9f4521abf67161b1a2eebd7c2805595",
+            "size": 18908
         },
         {
             "path": "application/views/brand-view.php",
@@ -14162,5 +14162,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9 \u2014 Performance optimizations, Online Store granular permissions, Business Owner items_view fix, Email/SMTP admin-only restriction, Permission Audit tool, System Update access fix for Store Admin"
+    "changelog": "Release 4.0.9 \u2014 Performance optimizations, Online Store permissions, Business Owner items_view fix, Email/SMTP admin restriction, Permission Audit tool, hardened chunked auto-updater for cPanel"
 }

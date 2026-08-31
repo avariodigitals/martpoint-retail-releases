@@ -21,7 +21,6 @@ class System_updates extends MY_Controller {
      * Render the Super Admin update panel
      */
     public function index() {
-        // Access already verified by constructor's special_access() check
         $data = $this->data;
         $data['page_title'] = 'System Update';
         $this->load->view('system-updates', $data);
@@ -53,43 +52,42 @@ class System_updates extends MY_Controller {
     }
 
     /**
-     * AJAX: Start update job and run a specific step
-     * POST params: step (1-8)
+     * AJAX: Start or resume one chunk of the update
+     * POST params: step (1-8), resume (1 to resume current step)
+     *
+     * Each call only processes a small batch so it never exceeds cPanel timeout.
+     * The frontend keeps calling until the returned `done` is true, then moves on.
      */
     public function run_step() {
-        $step = (int) $this->input->post('step');
-        if ($step < 1 || $step > 8) {
-            echo json_encode(['status' => 'error', 'message' => 'Invalid step']);
-            return;
+        // Allow long-running but never too long — each chunk resets its own timer
+        @set_time_limit(0);
+        @ini_set('max_execution_time', 0);
+        @ignore_user_abort(true);
+
+        // Release session lock so the progress poller can run concurrently
+        if (function_exists('session_write_close')) {
+            session_write_close();
         }
 
-        // Fetch manifest
         $manifest = $this->updater->fetchManifest();
         if (!$manifest) {
             echo json_encode(['status' => 'error', 'message' => 'Cannot fetch manifest.']);
             return;
         }
 
-        // On step 1, create a new job record
-        if ($step === 1) {
-            $installed = $this->updater->getInstalledVersion();
-            $remote = $manifest['version'] ?? '0.0';
-            $this->updater->startJob($installed, $remote);
-        }
-
-        // Preview needed for steps 2-5
         $preview = $this->updater->previewChanges($manifest);
 
-        // Run the step
-        $result = $this->updater->runStep($step, $manifest, $preview);
-        echo json_encode($result);
-    }
+        // We no longer require a posted step. The Updater's persisted state
+        // knows the current step and resume point. Accept it if sent, otherwise
+        // the Updater will use its internal state.
+        $state = $this->updater->getPersistedState();
+        $step = ($state['step'] ?? 0) > 0 ? ($state['step'] ?? 1) : 1;
+        $postedStep = (int) $this->input->post('step');
+        if ($postedStep >= 1 && $postedStep <= 8) {
+            $step = $postedStep;
+        }
 
-    /**
-     * AJAX: Restore from last backup
-     */
-    public function restore() {
-        $result = $this->updater->restore();
+        $result = $this->updater->runStep($step, $manifest, $preview);
         echo json_encode($result);
     }
 
@@ -97,6 +95,11 @@ class System_updates extends MY_Controller {
      * AJAX: Poll current progress
      */
     public function progress() {
+        // Release session lock so the poller never blocks the updater
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+
         $job = $this->updater->getProgress();
         if (!$job) {
             echo json_encode(['status' => 'idle']);
@@ -113,6 +116,14 @@ class System_updates extends MY_Controller {
             'log' => $job->log,
             'completed_at' => $job->completed_at,
         ]);
+    }
+
+    /**
+     * AJAX: Restore from last backup
+     */
+    public function restore() {
+        $result = $this->updater->restore();
+        echo json_encode($result);
     }
 
     /**
