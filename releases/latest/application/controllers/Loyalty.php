@@ -22,7 +22,8 @@ class Loyalty extends MY_Controller {
         $data['settings']=$this->loyalty->get_settings();
         $data['tiers']=$this->loyalty->get_tiers();
         $data['stats']=$this->loyalty->get_dashboard_stats();
-        $this->load->view('loyalty/dashboard',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/dashboard', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function settings()
@@ -32,7 +33,8 @@ class Loyalty extends MY_Controller {
         $data['page_title']='Loyalty Settings';
         $data['settings']=$this->loyalty->get_settings();
         $data['tiers']=$this->loyalty->get_tiers();
-        $this->load->view('loyalty/settings',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/settings', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save_settings()
@@ -47,7 +49,8 @@ class Loyalty extends MY_Controller {
         $data=$this->data;
         $data['page_title']='Customer Tiers';
         $data['tiers']=$this->loyalty->get_tiers();
-        $this->load->view('loyalty/tiers',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/tiers', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save_tier()
@@ -68,7 +71,8 @@ class Loyalty extends MY_Controller {
         $data=$this->data;
         $data['page_title']='Bonus Rules';
         $data['rules']=$this->loyalty->get_bonus_rules();
-        $this->load->view('loyalty/bonus_rules',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/bonus_rules', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save_bonus_rule()
@@ -88,7 +92,8 @@ class Loyalty extends MY_Controller {
         $this->permission_check('loyalty_view');
         $data=$this->data;
         $data['page_title']='Product Points';
-        $this->load->view('loyalty/product_points',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/product_points', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function ajax_product_points_list()
@@ -115,6 +120,17 @@ class Loyalty extends MY_Controller {
         echo json_encode($output);
     }
 
+    public function get_product_point($id)
+    {
+        $this->permission_check_with_msg('loyalty_view');
+        $row = $this->loyalty->get_product_point((int)$id);
+        if($row){
+            echo json_encode(array('success'=>true, 'data'=>$row));
+        } else {
+            echo json_encode(array('success'=>false, 'message'=>'Record not found'));
+        }
+    }
+
     public function save_product_points()
     {
         $this->permission_check_with_msg('loyalty_edit');
@@ -127,7 +143,8 @@ class Loyalty extends MY_Controller {
         $data=$this->data;
         $data['page_title']='Points History';
         $data['customer_id']=$customer_id;
-        $this->load->view('loyalty/points_history',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/points_history', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function ajax_points_history()
@@ -182,7 +199,8 @@ class Loyalty extends MY_Controller {
         $data=$this->data;
         $data['page_title']='Referral Program';
         $data['settings']=$this->loyalty->get_referral_settings();
-        $this->load->view('loyalty/referral_program',$data);
+        $data['content'] = $this->load->view('marketing/desktop/loyalty/referral_program', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save_referral_settings()

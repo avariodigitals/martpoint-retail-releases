@@ -540,7 +540,7 @@
     </section>
 
     <footer class="copyright-footer">
-      &copy; <?= date('Y'); ?> <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved.<br>
+      &copy; <?= date('Y'); ?> <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.<br>
       Powered by Avario Digitals
     </footer>
 

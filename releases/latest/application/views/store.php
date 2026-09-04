@@ -1,87 +1,51 @@
-<!DOCTYPE html>
-<html>
-   
-   <head>
-  <!-- TABLES CSS CODE -->
-  <?php $this->load->view('comman/code_css.php');?>
-  <!-- </copy> -->  
-  <!-- bootstrap wysihtml5 - text editor -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css">
-
-  </head>
-
-   <body class="hold-transition skin-blue sidebar-mini">
-      <div class="wrapper">
-         <?php $this->load->view('sidebar');?>
-          <?php
-              $CI =& get_instance();
-              if(!isset($q_id)){
-                
-                $store_name=$logo=$currency_id=$currency_placement=$timezone=
-                $date_format=$time_format=
-                $round_off='';
-                $mobile=$phone=$email=$country=$state=$city=
-                $postcode=$address=$gst_no=$vat_no=
-                $store_website=$pan_no=$bank_details=
-                $store_logo=
-                $signature='';
-                $sales_target=0;
-
-                $decimals=2;
-                $qty_decimals=2;
-                $invoice_terms = '';
-                $default_account_id='';
-                $nin_api_enabled=0;
-                $nin_api_url='';
-                $nin_api_key='';
-                $nin_api_provider='ninbvnportal';
-                $nin_api_cost=50.00;
-                $nin_provider='ninbvnportal';
-                $bvn_provider='ninbvnportal';
-                $interswitch_client_id='';
-                $interswitch_client_secret='';
-                
-               
-                
-              }
-          ?>
-
-         <!-- Content Wrapper. Contains page content -->
-         <div class="content-wrapper">
-            <!-- Content Header (Page header) -->
-            <section class="content-header">
-               <h1>
-                  <?= $page_title; ?>
-               </h1>
-               <ol class="breadcrumb">
-                  <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-                  <li class="active"><?= $page_title; ?></li>
-               </ol>
-            </section>
-            
-            <!-- Main content -->
-  <?= form_open('#', array('class' => 'form-horizontal', 'id' => 'store-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
-            <section class="content">
-               <div class="row">
-                  <!-- ********** ALERT MESSAGE START******* -->
-                <?php $this->load->view('comman/code_flashdata');?>
-                  <!-- ********** ALERT MESSAGE END******* -->
-
-                  <div class="col-md-12">
-                     <!-- Custom Tabs -->
-                     <div class="nav-tabs-custom">
-                        <ul class="nav nav-tabs">
-                           <li class="active"><a href="#tab_4" id='tab_4_btn' data-toggle="tab"><?= $this->lang->line('store'); ?></a></li>
-                           <li><a href="#tab_1" id='tab_1_btn' data-toggle="tab"><?= $this->lang->line('system'); ?></a></li>
-                           <?php if(!is_user()){?>
-                           <li><a href="#tab_2" id='tab_2_btn' data-toggle="tab"><?= $this->lang->line('sales'); ?></a></li>
-                           <li><a href="#tab_3" id='tab_3_btn' data-toggle="tab"><?= $this->lang->line('prefixes'); ?></a></li>
-                           <?php if($CI->permissions('nin_settings')){ ?>
-                           <li><a href="#tab_nin" id='tab_nin_btn' data-toggle="tab">NIN/BVN API</a></li>
-                           <?php } ?>
-                         <?php }?>
-                           
-                        </ul>
+<?php
+/* Store Profile / Add Store form — content-only view for mp_layout */
+?>
+<link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css">
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php
+$CI =& get_instance();
+if(!isset($q_id)){
+  $store_name=$logo=$currency_id=$currency_placement=$timezone=
+  $date_format=$time_format=
+  $round_off='';
+  $mobile=$phone=$email=$country=$state=$city=
+  $postcode=$address=$gst_no=$vat_no=
+  $store_website=$pan_no=$bank_details=
+  $store_logo=
+  $signature='';
+  $sales_target=0;
+  $decimals=2;
+  $qty_decimals=2;
+  $invoice_terms = '';
+  $default_account_id='';
+  $nin_api_enabled=0;
+  $nin_api_url='';
+  $nin_api_key='';
+  $nin_api_provider='ninbvnportal';
+  $nin_api_cost=50.00;
+  $nin_provider='ninbvnportal';
+  $bvn_provider='ninbvnportal';
+  $interswitch_client_id='';
+  $interswitch_client_secret='';
+}
+?>
+<div class="mp-page-head"><h1 class="mp-page-title"><?= $page_title; ?></h1><p class="mp-page-sub"><?= isset($q_id) ? 'Update store profile, system, sales and prefix settings.' : 'Create a new store.'; ?></p></div>
+<?= form_open('#', array('class' => 'form-horizontal', 'id' => 'store-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
+<div class="mp-card">
+<div class="mp-card-body">
+<div class="nav-tabs-custom">
+<ul class="nav nav-tabs">
+  <li class="active"><a href="#tab_4" id='tab_4_btn' data-toggle="tab"><?= $this->lang->line('store'); ?></a></li>
+  <li><a href="#tab_1" id='tab_1_btn' data-toggle="tab"><?= $this->lang->line('system'); ?></a></li>
+  <?php if(!is_user()){?>
+  <li><a href="#tab_2" id='tab_2_btn' data-toggle="tab"><?= $this->lang->line('sales'); ?></a></li>
+  <li><a href="#tab_3" id='tab_3_btn' data-toggle="tab"><?= $this->lang->line('prefixes'); ?></a></li>
+  <?php if($CI->permissions('nin_settings')){ ?>
+  <li><a href="#tab_nin" id='tab_nin_btn' data-toggle="tab">NIN/BVN API</a></li>
+  <?php } ?>
+  <?php }?>
+</ul>
                         <div class="tab-content">
                           <div class="tab-pane active" id="tab_4">
                               <div class="row">
@@ -1014,9 +978,8 @@
                         <!-- /.tab-content -->
                      </div>
                      <!-- nav-tabs-custom -->
-                     <div>
-                        <div class="col-sm-8 col-sm-offset-2 text-center">
-                           <center>
+                     <div class="mp-form-actions" style="margin-top:20px;">
+                        <center>
                               <?php
                                  if(isset($q_id)){
                                       $btn_name="Update";
@@ -1031,37 +994,14 @@
                                  }
                                  
                                  ?>
-                              <div class="col-md-3 col-md-offset-3">
-                                 <button type="button" id="<?php echo $btn_id;?>" class=" btn btn-block btn-success" title="Save Data"><?php echo $btn_name;?></button>
-                              </div>
-                              <div class="col-sm-3">
-                                <a href="<?=base_url('dashboard');?>">
-                                 <button type="button" class="col-sm-3 btn btn-block btn-warning close_btn" title="Go Dashboard">Close</button>
-                               </a>
-                              </div>
-                           </center>
-                        </div>
+                              <button type="button" id="<?php echo $btn_id;?>" class="mp-btn-primary" title="Save Data"><?php echo $btn_name;?></button>
+                              <a href="<?=base_url('dashboard');?>" class="mp-btn-secondary">Close</a>
+                        </center>
                      </div>
                   </div>
-                  <!-- /.col -->
-               </div>
-               <!-- /.row -->
-            </section>
-            <!-- /.content -->
-            <?= form_close(); ?>
-         </div>
-         <!-- /.content-wrapper -->
-         <?php $this->load->view('footer.php');?>
-         <!-- Add the sidebar's background. This div must be placed
-            immediately after the control sidebar -->
-         <div class="control-sidebar-bg"></div>
-      </div>
-      <!-- ./wrapper -->
-      <?php $this->load->view('comman/code_js_language.php');?>
-      <!-- SOUND CODE -->
-      <?php $this->load->view('comman/code_js_sound.php');?>
-      <!-- TABLES CODE -->
-      <?php $this->load->view('comman/code_js.php');?>
+<?= form_close(); ?>
+</div><!-- /.mp-card-body -->
+</div><!-- /.mp-card -->
 
       <script type="text/javascript">
          $(document).submit(function(event) {
@@ -1138,11 +1078,11 @@
        <?php } ?>
 
       </script>
-      <!-- Make sidebar menu hughlighter/selector -->
+      <!-- Make sidebar menu highlighter/selector -->
       <?php if( isset($q_id) && !empty($q_id) && get_current_store_id()==$q_id){ ?>
-        <script>$(".store_profile-active-li").addClass("active");</script>
+        <script>$(".store_profile-active-li").addClass("active"); $(".store-active-li").addClass("active"); $(".store_profile-active-li").closest(".mp-nav-group").addClass("open");</script>
       <?php }else{?>
-        <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+        <script>$(".store-active-li").addClass("active"); $(".store-active-li").closest(".mp-nav-group").addClass("open");</script>
       <?php } ?>
 
       <script>
@@ -1151,6 +1091,3 @@
          // $("#invoice_terms").wysihtml5()
         })
       </script>
-
-   </body>
-</html>

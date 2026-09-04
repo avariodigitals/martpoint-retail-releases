@@ -167,7 +167,7 @@
   <?php endif; ?>
 </nav>
 <footer class="mp-mobile-copyright">
-  &copy; <?= date('Y'); ?> <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved.
+  &copy; <?= date('Y'); ?> <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.
 </footer>
 </div>
 

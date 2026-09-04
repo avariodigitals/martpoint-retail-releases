@@ -14,7 +14,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('supplier_items_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('supplier_items_report');
-		$this->load->view('report-supplier_items', $data);
+		$data['content'] = $this->load->view('reports/desktop/supplier_items', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_supplier_items_report(){
 		echo $this->reports->show_supplier_items_report();
@@ -25,7 +26,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_report');
-		$this->load->view('report-sales', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_report(){
 		echo $this->reports->show_sales_report();
@@ -36,7 +38,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_return_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_return_report');
-		$this->load->view('report-sales-return', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_return_report(){
 		echo $this->reports->show_sales_return_report();
@@ -47,7 +50,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('purchase_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_report');
-		$this->load->view('report-purchase', $data);
+		$data['content'] = $this->load->view('reports/desktop/purchase', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_purchase_report(){
 		echo $this->reports->show_purchase_report();
@@ -58,7 +62,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('purchase_return_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_return_report');
-		$this->load->view('report-purchase-return', $data);
+		$data['content'] = $this->load->view('reports/desktop/purchase_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_purchase_return_report(){
 		echo $this->reports->show_purchase_return_report();
@@ -69,7 +74,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('expense_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expense_report');
-		$this->load->view('report-expense', $data);
+		$data['content'] = $this->load->view('reports/desktop/expense', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_expense_report(){
 		echo $this->reports->show_expense_report();
@@ -79,7 +85,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('profit_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('profit_and_loss_report');
-		$this->load->view('report-profit-loss', $data);
+		$data['content'] = $this->load->view('reports/desktop/profit_loss', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function get_profit_by_item(){
 		echo $this->reports->get_profit_by_item();
@@ -93,7 +100,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('stock_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('stock_report');
-		$this->load->view('report-stock', $data);
+		$data['content'] = $this->load->view('reports/desktop/stock', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	/*Stock Report*/
 	public function show_stock_report(){
@@ -117,7 +125,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('item_sales_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('item_sales_report');
-		$this->load->view('report-sales-item', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_item', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_item_sales_report(){
 		echo $this->reports->show_item_sales_report();
@@ -127,7 +136,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('return_items_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('return_items_report');
-		$this->load->view('report-return-item', $data);
+		$data['content'] = $this->load->view('reports/desktop/return_item', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_return_items_report(){
 		echo $this->reports->show_return_items_report();
@@ -138,7 +148,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('purchase_payments_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_payments_report');
-		$this->load->view('report-purchase-payments', $data);
+		$data['content'] = $this->load->view('reports/desktop/purchase_payments', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_purchase_payments_report(){
 		echo $this->reports->show_purchase_payments_report();
@@ -149,7 +160,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_payments_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_payments_report');
-		$this->load->view('report-sales-payments', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_payments', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_payments_report(){
 		echo $this->reports->show_sales_payments_report();
@@ -160,7 +172,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_payments_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_return_payments_report');
-		$this->load->view('report-sales-return-payments', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_return_payments', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_return_payments_report(){
 		echo $this->reports->show_sales_return_payments_report();
@@ -171,7 +184,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('expired_items_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expired_items_report');
-		$this->load->view('report-expired-items', $data);
+		$data['content'] = $this->load->view('reports/desktop/expired_items', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_expired_items_report(){
 		echo $this->reports->show_expired_items_report();
@@ -185,7 +199,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('receivables_aging_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('receivables_aging_report');
-		$this->load->view('report-receivables-aging', $data);
+		$data['content'] = $this->load->view('reports/desktop/receivables_aging', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_receivables_aging_report(){
 		echo $this->reports->show_receivables_aging_report();
@@ -196,7 +211,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('inventory_aging_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('inventory_aging_report');
-		$this->load->view('report-inventory-aging', $data);
+		$data['content'] = $this->load->view('reports/desktop/inventory_aging', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_inventory_aging_report(){
 		echo $this->reports->show_inventory_aging_report();
@@ -207,7 +223,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('cash_flow_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('cash_flow_report');
-		$this->load->view('report-cash-flow', $data);
+		$data['content'] = $this->load->view('reports/desktop/cash_flow', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_cash_flow_report(){
 		echo json_encode($this->reports->show_cash_flow_report());
@@ -218,7 +235,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('variant_attribute_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('variant_attribute_report');
-		$this->load->view('report-variant-attribute', $data);
+		$data['content'] = $this->load->view('reports/desktop/variant_attribute', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_variant_attribute_report(){
 		echo $this->reports->show_variant_attribute_report();
@@ -229,7 +247,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sell_through_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sell_through_report');
-		$this->load->view('report-sell-through', $data);
+		$data['content'] = $this->load->view('reports/desktop/sell_through', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sell_through_report(){
 		echo $this->reports->show_sell_through_report();
@@ -240,7 +259,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('reorder_suggestion_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('reorder_suggestion_report');
-		$this->load->view('report-reorder-suggestion', $data);
+		$data['content'] = $this->load->view('reports/desktop/reorder_suggestion', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_reorder_suggestion_report(){
 		echo $this->reports->show_reorder_suggestion_report();
@@ -252,7 +272,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('seller_points_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('seller_points_report');
-		$this->load->view('report-seller-points', $data);
+		$data['content'] = $this->load->view('reports/desktop/seller_points', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_seller_points_report(){
 		echo $this->reports->show_seller_points_report();
@@ -263,7 +284,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_tax_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_tax_report');
-		$this->load->view('report-sales-tax', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_tax', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_tax_report(){
 		echo $this->reports->show_sales_tax_report();
@@ -274,7 +296,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('purchase_tax_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_tax_report');
-		$this->load->view('report-purchase-tax', $data);
+		$data['content'] = $this->load->view('reports/desktop/purchase_tax', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_purchase_tax_report(){
 		echo $this->reports->show_purchase_tax_report();
@@ -285,7 +308,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('gstr_1_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('gstr_1_report');
-		$this->load->view('gst/report-gstr-1', $data);
+		$data['content'] = $this->load->view('reports/desktop/gstr_1', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_gstr_1_report(){
 		echo $this->reports->show_gstr_1_report();
@@ -295,7 +319,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('gstr_2_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('gstr_2_report');
-		$this->load->view('gst/report-gstr-2', $data);
+		$data['content'] = $this->load->view('reports/desktop/gstr_2', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_gstr_2_report(){
 		echo $this->reports->show_gstr_2_report();
@@ -306,7 +331,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_gst_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_gst_report');
-		$this->load->view('gst/report-sales-gst', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_gst', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_gst_report(){
 		echo $this->reports->show_sales_gst_report();
@@ -316,7 +342,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('purchase_gst_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_gst_report');
-		$this->load->view('gst/report-purchase-gst', $data);
+		$data['content'] = $this->load->view('reports/desktop/purchase_gst', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_purchase_gst_report(){
 		echo $this->reports->show_purchase_gst_report();
@@ -327,7 +354,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('customer_orders_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('customer_orders');
-		$this->load->view('report-customer-orders', $data);
+		$data['content'] = $this->load->view('reports/desktop/customer_orders', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_customer_orders(){
 		echo $this->reports->show_customer_orders();
@@ -342,7 +370,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('delivery_sheet_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('delivery_sheet_report');
-		$this->load->view('report-delivery-sheet', $data);
+		$data['content'] = $this->load->view('reports/desktop/delivery_sheet', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_delivery_sheet(){
 		if(!mp_feature_enabled('delivery_scheduling')){
@@ -357,7 +386,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('load_sheet_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('load_sheet_report');
-		$this->load->view('report-load-sheet', $data);
+		$data['content'] = $this->load->view('reports/desktop/load_sheet', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_load_sheet(){
 		echo $this->reports->show_load_sheet();
@@ -368,7 +398,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_and_payments_report');
-		$this->load->view('report-sales-and-payments', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_and_payments', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function sales_and_payments_report(){
 		echo $this->reports->sales_and_payments_report();
@@ -379,7 +410,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('stock_transfer_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('stock_transfer_report');
-		$this->load->view('report-stock-transfer', $data);
+		$data['content'] = $this->load->view('reports/desktop/stock_transfer', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_stock_transfer_report(){
 		echo $this->reports->show_stock_transfer_report();
@@ -390,7 +422,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('sales_summary_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_summary_report');
-		$this->load->view('report-sales-summary', $data);
+		$data['content'] = $this->load->view('reports/desktop/sales_summary', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_sales_summary_report(){
 		echo $this->reports->show_sales_summary_report();
@@ -402,7 +435,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('production_batches_view');
 		$data=$this->data;
 		$data['page_title']='Production Summary Report';
-		$this->load->view('report-production-summary', $data);
+		$data['content'] = $this->load->view('reports/desktop/production_summary', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_production_summary_report(){
 		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
@@ -414,7 +448,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('production_batches_view');
 		$data=$this->data;
 		$data['page_title']='Ingredient Usage Report';
-		$this->load->view('report-ingredient-usage', $data);
+		$data['content'] = $this->load->view('reports/desktop/ingredient_usage', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_ingredient_usage_report(){
 		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }
@@ -426,7 +461,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('recipes_view');
 		$data=$this->data;
 		$data['page_title']='Recipe Costing Report';
-		$this->load->view('report-recipe-costing', $data);
+		$data['content'] = $this->load->view('reports/desktop/recipe_costing', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_recipe_costing_report(){
 		if(!mp_feature_enabled('recipe_tracking')){ echo ''; return; }
@@ -438,7 +474,8 @@ class Reports extends MY_Controller {
 		$this->permission_check('production_batches_view');
 		$data=$this->data;
 		$data['page_title']='Production Runs Report';
-		$this->load->view('report-production-runs', $data);
+		$data['content'] = $this->load->view('reports/desktop/production_runs', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function show_production_runs_report(){
 		if(!mp_feature_enabled('production_workflow')){ echo ''; return; }

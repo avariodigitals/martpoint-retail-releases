@@ -1,4 +1,39 @@
 <script>var base_url = '<?php echo base_url(); ?>'; var mpUserId = '<?php echo $this->session->userdata('inv_userid') ?? '0'; ?>';</script>
+<!-- MartPoint Assist Panel — Critical layout styles inline so the panel is always correctly sized regardless of page CSS/cache -->
+<style>
+  .mp-assist-overlay {
+    position: fixed !important; inset: 0 !important; z-index: 9998 !important;
+    background: rgba(0,0,0,0.3) !important; display: none !important;
+  }
+  .mp-assist-overlay.active { display: block !important; }
+
+  .mp-assist-panel {
+    position: fixed !important; z-index: 9999 !important;
+    bottom: 24px !important; right: -420px !important;
+    width: 380px !important; max-width: 95vw !important;
+    height: 70vh !important; max-height: 560px !important; min-height: 360px !important;
+    background: #fff !important; border-radius: 12px !important;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15) !important;
+    display: flex !important; flex-direction: column !important;
+    transition: right 0.3s ease, bottom 0.3s ease !important;
+    overflow: hidden !important; box-sizing: border-box !important;
+  }
+  .mp-assist-panel.open { right: 24px !important; }
+
+  .mp-fab-wrapper {
+    position: fixed !important; z-index: 9997 !important;
+    bottom: 24px !important; right: 24px !important;
+    display: flex !important; flex-direction: column !important;
+    align-items: flex-end !important; gap: 10px !important;
+  }
+
+  @media (max-width: 768px) {
+    .mp-assist-panel { width: 100vw !important; right: -100vw !important; height: 75vh !important; max-height: none !important; bottom: 0 !important; }
+    .mp-assist-panel.open { right: 0 !important; bottom: 0 !important; border-radius: 0 !important; }
+    .mp-fab-wrapper { right: 14px !important; bottom: 14px !important; }
+    .mp-assist-fab-label { display: none !important; }
+  }
+</style>
 <!-- MartPoint Assist Panel -->
 <div id="mp-assist-overlay" class="mp-assist-overlay" onclick="MPAssist.toggle()"></div>
 <div id="mp-assist-panel" class="mp-assist-panel">

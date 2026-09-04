@@ -39,9 +39,9 @@ function get_float_type_data(location=''){
  }
 //Animation
 //Class : animate
-const animateCSS = (element, animation, prefix = 'animate__') =>
+window.animateCSS = window.animateCSS || function (element, animation, prefix = 'animate__') {
   // We create a Promise and return it
-  new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const animationName = `${prefix}${animation}`;
     const node = document.querySelector(element);
 
@@ -57,6 +57,7 @@ const animateCSS = (element, animation, prefix = 'animate__') =>
 
     node.addEventListener('animationend', handleAnimationEnd);
   });
+};
 
   document.documentElement.style.setProperty('--animate-duration', '.5s');
   document.documentElement.style.setProperty('--animate-delay', '.1s');

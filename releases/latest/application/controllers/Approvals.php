@@ -19,7 +19,7 @@ class Approvals extends MY_Controller {
 
 	public function settings(){
 		if(!$this->permissions('approval_settings_edit') && !is_admin() && !is_store_admin()){
-			show_404(); exit;
+			$this->show_access_denied_page(); exit;
 		}
 		$storeId = get_current_store_id();
 		$settings = $this->approval_settings_model->getSettings($storeId);
@@ -31,7 +31,8 @@ class Approvals extends MY_Controller {
 			'approval_methods' => $this->approval_settings_model->getApprovalMethods(), // keep for backward compat
 			'approver_users' => $approvers,
 		]);
-		$this->load->view('approvals/settings', $data);
+		$data['content'] = $this->load->view('approvals/settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	private function getApproverUsers($storeId){
@@ -184,7 +185,7 @@ class Approvals extends MY_Controller {
 
 	public function logs(){
 		if(!$this->permissions('approval_logs_view') && !is_admin() && !is_store_admin()){
-			show_404(); exit;
+			$this->show_access_denied_page(); exit;
 		}
 		$storeId = get_current_store_id();
 		$filters = [
@@ -208,6 +209,7 @@ class Approvals extends MY_Controller {
 			'filters' => $filters,
 			'approval_types' => $this->approval_settings_model->getApprovalTypes(),
 		]);
-		$this->load->view('approvals/logs', $data);
+		$data['content'] = $this->load->view('approvals/desktop/logs', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 }

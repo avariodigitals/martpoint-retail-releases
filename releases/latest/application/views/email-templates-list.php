@@ -1,87 +1,36 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <!-- TABLES CSS CODE -->
-<?php include"comman/code_css.php"; ?>
-<!-- bootstrap datepicker -->
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+<?php
+/* Email Templates List — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php include"comman/code_flashdata.php"; ?>
 
-  <!-- Left side column. contains the logo and sidebar -->
-  
-  <?php include"sidebar.php"; ?>
-
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <h1>
-        <?= $this->lang->line('email_templates_list'); ?>
-        <small>View/Search Template</small>
-      </h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class="active"><?= $this->lang->line('email_templates_list'); ?></li>
-        
-      </ol>
-    </section>
-
-    <!-- Main content -->
-    <section class="content">
-      <div class="row">
-        <!-- ********** ALERT MESSAGE START******* -->
-        <?php include"comman/code_flashdata.php"; ?>
-        <!-- ********** ALERT MESSAGE END******* -->
-        <div class="col-xs-12">
-          <div class="box box-primary">
-            <div class="box-header with-border">
-              <h3 class="box-title"><?= $this->lang->line('email_templates_list'); ?></h3>
-              <!-- <div class="box-tools">
-                <a class="btn btn-block btn-info" href="<?php echo $base_url; ?>templates/email_new">
-                <i class="fa fa-plus"></i> <?= $this->lang->line('add_template'); ?></a>
-              </div> -->
-            </div>
-            <!-- /.box-header -->
-            <div class="box-body">
-              <input type="hidden" id="base_url" value="<?=base_url()?>">
-              <table id="example2" class="table table-bordered custom_hover" width="100%">
-                <thead>
-                <tr>
-                  <th>#</th>
-                  <th><?= $this->lang->line('template_name'); ?></th>
-                  <th><?= $this->lang->line('content'); ?></th>
-                  <th><?= $this->lang->line('status'); ?></th>
-                  <th><?= $this->lang->line('action'); ?></th>
-                </tr>
-                </thead>
-                <tbody>
-				
-                </tbody>
-               
-              </table>
-            </div>
-            <!-- /.box-body -->
-          </div>
-          <!-- /.box -->
-        </div>
-        <!-- /.col -->
-      </div>
-      <!-- /.row -->
-    </section>
-    <!-- /.content -->
-  </div>
-  <!-- /.content-wrapper -->
-  <?php include"footer.php"; ?>
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
+<div class="mp-page-head">
+  <h1 class="mp-page-title"><?= $this->lang->line('email_templates_list'); ?></h1>
 </div>
-<!-- ./wrapper -->
-<!-- SOUND CODE -->
-<?php include"comman/code_js_sound.php"; ?>
-<!-- TABLES CODE -->
-<?php include"comman/code_js.php"; ?>
+
+<div class="mp-card">
+  <div class="mp-card-body">
+    <input type="hidden" id="base_url" value="<?=base_url()?>">
+    <div class="mp-dt-scroll">
+      <table id="example2" class="mp-dt-table" width="100%">
+        <thead>
+        <tr>
+          <th>#</th>
+          <th><?= $this->lang->line('template_name'); ?></th>
+          <th><?= $this->lang->line('content'); ?></th>
+          <th><?= $this->lang->line('status'); ?></th>
+          <th><?= $this->lang->line('action'); ?></th>
+        </tr>
+        </thead>
+        <tbody>
+		
+        </tbody>
+       
+      </table>
+    </div>
+  </div>
+</div>
+
 <script type="text/javascript">
 var table;
 $(document).ready(function() {
@@ -110,6 +59,4 @@ $(document).ready(function() {
 </script>
 <script src="<?php echo $theme_link; ?>js/email_templates.js"></script>
 <!-- Make sidebar menu hughlighter/selector -->
-<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-</body>
-</html>
+<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");$(".<?php echo basename(__FILE__,'.php');?>-active-li").closest(".mp-nav-group").addClass("open");</script>

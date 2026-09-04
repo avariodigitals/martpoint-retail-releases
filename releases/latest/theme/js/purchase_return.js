@@ -9,6 +9,7 @@ function shift_cursor(kevent,target){
 }
 
 
+$(document).ready(function(){
 $('#save,#update,#create').on("click",function (e) {
 	var base_url=$("#base_url").val();
 
@@ -110,7 +111,9 @@ $('#save,#update,#create').on("click",function (e) {
 		//}
   
 });
+});
 
+$(document).ready(function(){
 $("#item_search").bind("paste", function(e){
     $("#item_search").autocomplete('search');
 } );
@@ -208,6 +211,7 @@ $("#item_search").autocomplete({
 
         },   
         //loader end
+});
 });
 
 function check_same_item(item_id){
@@ -551,10 +555,12 @@ function delete_return_payment(payment_id){
    }//end confirmation   
   }
 
+$(document).ready(function(){
   $('#item_search').keypress(function (e) {
- var key = e.which;
- // the enter key code
- if(key == 13){
-    $("#item_search").autocomplete('search');
-  }
-});  
+    var key = e.which;
+    // the enter key code
+    if(key == 13){
+      $("#item_search").autocomplete('search');
+    }
+  });
+});

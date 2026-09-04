@@ -72,7 +72,7 @@ $('#save,#update').on("click",function (e) {
         /*Check XSS Code*/
         if(!xss_validation(data)){ return false; }
         
-        $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+        $(".mp-card-form, .mp-table-wrap, .box").first().append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
         $("#"+this_id).attr('disabled',true);  //Enable Save or Update button
 				$.ajax({
 				type: 'POST',

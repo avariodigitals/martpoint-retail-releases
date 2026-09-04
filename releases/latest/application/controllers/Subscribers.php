@@ -15,7 +15,8 @@ class Subscribers extends MY_Controller {
 		//$data=$this->data;
 		$data=array_merge($this->data,$this->package_model->get_package_list());
 		$data['page_title']=$this->lang->line('subscription');
-		$this->load->view('subscription-list',$data);
+		$data['content'] = $this->load->view('subscription-list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}*/
 	/*public function save(){
 		$this->form_validation->set_rules('package_id', 'Package Name', 'trim|required');
@@ -67,7 +68,8 @@ class Subscribers extends MY_Controller {
 		$data['user_details']=$user_details;
 
 		$data['page_title']=$this->lang->line('subscription_list');
-		$this->load->view('superadmin-subscription-list',$data);
+		$data['content'] = $this->load->view('superadmin-subscription-list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function add($store_id='')
 	{
@@ -83,7 +85,8 @@ class Subscribers extends MY_Controller {
 		
 		$data['store_id']=$store_id;
 		$data['page_title']=$this->lang->line('add_subscription');
-		$this->load->view('manual-subscription',$data);
+		$data['content'] = $this->load->view('manual-subscription', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function get_category(){
 		$package_id = $this->input->post('package_id');
@@ -118,7 +121,8 @@ class Subscribers extends MY_Controller {
 		$result=$this->subscription->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('subscription');
-		$this->load->view('subscription', $data);
+		$data['content'] = $this->load->view('subscription', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}*/
 
 	public function ajax_list()

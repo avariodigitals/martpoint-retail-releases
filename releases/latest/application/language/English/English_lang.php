@@ -174,6 +174,7 @@ $lang['grand_total'			]	=		'Grand Total';
 $lang['previous_payments_information'			]	=		'Previous Payments Information';
 $lang['date'			]	=		'Date';
 $lang['payment_type'			]	=		'Payment Type';
+$lang['payment_mode'			]	=		'Payment Mode';
 $lang['payment_note'			]	=		'Payment Note';
 $lang['payment'			]	=		'Payment';
 $lang['make_payment'			]	=		'Make Payment';

@@ -138,10 +138,10 @@ function update_status(id,status)
 //Delete Record start
 function delete_coupon(q_id)
 {
-	
+	var base_url=$("#base_url").val();
    if(confirm("Do You Wants to Delete Record ?")){
    	$(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-   $.post("delete_coupon",{q_id:q_id},function(result){
+   $.post(base_url+"discount_coupon/delete_coupon",{q_id:q_id},function(result){
    //alert(result);return;
 	   if(result=="success")
 				{
@@ -162,17 +162,17 @@ function delete_coupon(q_id)
 //Delete Record end
 
 function multi_delete(){
-	//var base_url=$("#base_url").val();
+	var base_url=$("#base_url").val();
     var this_id=this.id;
-    
+
 		if(confirm("Are you sure ?")){
 			$(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
 			$("#"+this_id).attr('disabled',true);  //Enable Save or Update button
-			
+
 			data = new FormData($('#table_form')[0]);//form name
 			$.ajax({
 			type: 'POST',
-			url: 'multi_delete',
+			url: base_url+'discount_coupon/multi_delete',
 			data: data,
 			cache: false,
 			contentType: false,

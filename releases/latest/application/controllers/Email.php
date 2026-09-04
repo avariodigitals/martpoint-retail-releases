@@ -14,7 +14,8 @@ class Email extends MY_Controller {
 		$data['page_title']=$this->lang->line('send_email');
 		$this->load->model('email_template_model');
 		$data['email_templates'] = $this->email_template_model->getAll();
-		$this->load->view('email', $data);
+		$data['content'] = $this->load->view('email', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 

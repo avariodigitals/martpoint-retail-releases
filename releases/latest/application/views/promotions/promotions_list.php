@@ -1,86 +1,122 @@
-<!DOCTYPE html>
-<html>
-<head>
-<?php $this->load->view('comman/code_css.php');?>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar.php');?>
-<div class="content-wrapper">
-<section class="content-header">
-<h1><?=$page_title;?><small></small></h1>
-<ol class="breadcrumb">
-<li><a href="<?=base_url('dashboard');?>"><i class="fa fa-dashboard"></i> Home</a></li>
-<li class="active"><?=$page_title;?></li>
-</ol>
-</section>
-<section class="content">
-<div class="row">
-<div class="col-md-12">
-<div class="box box-primary">
-<div class="box-header with-border">
-<h3 class="box-title"><?= $this->lang->line('promotion_list'); ?></h3>
-<a href="<?=base_url('promotions/add');?>" class="btn btn-info pull-right"><i class="fa fa-plus"></i> <?= $this->lang->line('promotion_add'); ?></a>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+
+<?php
+$CI =& get_instance();
+$store_name = $this->session->userdata('store_name') ?: 'MartPoint';
+?>
+
+<style>
+.pr-table-wrap{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:16px;overflow:hidden;width:100%;box-sizing:border-box;box-shadow:var(--mp-shadow-sm)}
+.pr-table-wrap .box-body{padding:0;overflow-x:auto}
+#promo-list-table{font-size:13px!important;width:100%!important;border-collapse:collapse!important}
+#promo-list-table .promo-name{font-weight:600;color:var(--mp-ink)}
+#promo-list-table .promo-code{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;color:var(--mp-muted)}
+#promo-list-table .discount-val{font-weight:700;color:var(--mp-primary)}
+
+/* Action buttons — clean icon buttons */
+#promo-list-table .pr-actions{display:flex!important;gap:6px!important;align-items:center!important}
+#promo-list-table .pr-actions a,#promo-list-table .pr-actions button{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:32px!important;height:32px!important;border-radius:8px!important;border:1px solid var(--mp-border)!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;cursor:pointer!important;transition:all .15s ease!important;text-decoration:none!important;padding:0!important}
+#promo-list-table .pr-actions a:hover,#promo-list-table .pr-actions button:hover{background:var(--mp-bg)!important;text-decoration:none!important}
+#promo-list-table .pr-actions .pr-edit:hover{border-color:var(--mp-primary)!important;color:var(--mp-primary)!important;background:rgba(0,87,255,.06)!important}
+#promo-list-table .pr-actions .pr-delete:hover{border-color:var(--mp-danger)!important;color:var(--mp-danger)!important;background:rgba(220,38,38,.06)!important}
+</style>
+
+<div class="mp-section">
+  <?php include "comman/code_flashdata.php"; ?>
 </div>
-<div class="box-body">
-<table class="table table-bordered table-hover" id="data-list-table">
-<thead>
-<tr class="bg-blue">
-<th><input type="checkbox" id="select_all"></th>
-<th>Promotion</th>
-<th>Code</th>
-<th>Discount</th>
-<th>Min Price</th>
-<th>Min Margin</th>
-<th>Start</th>
-<th>End</th>
-<th>Status</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody id="tbodyid"></tbody>
-</table>
+
+<!-- Page Header + Add Button -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; <?= $this->lang->line('promotion_list'); ?></div>
+    </div>
+    <a class="mp-qa-btn green" href="<?= base_url('promotions/add'); ?>">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <?= $this->lang->line('promotion_add'); ?>
+    </a>
+  </div>
 </div>
+
+<!-- Promotions Table -->
+<div class="mp-section">
+  <div class="pr-table-wrap">
+    <div class="box-body">
+      <table id="promo-list-table" class="table custom_hover responsive" width="100%">
+        <thead>
+        <tr>
+          <th class="text-center"><input type="checkbox" id="select_all" class="checkbox"></th>
+          <th>Promotion</th>
+          <th>Discount</th>
+          <th>Applies To</th>
+          <th>Rules</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+        </thead>
+        <tbody id="tbodyid"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
-</div>
-</div>
-</section>
-</div>
-<?php $this->load->view('footer.php');?>
-<div class="control-sidebar-bg"></div>
-</div>
-<?php $this->load->view('comman/code_js_sound.php');?>
-<?php $this->load->view('comman/code_js.php');?>
+
 <script type="text/javascript">
-var base_url="<?=$base_url;?>";
+var base_url = "<?= $base_url; ?>";
 $(document).ready(function(){
-    var table = $('#data-list-table').DataTable({
-        "aLengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
-        "processing": true,
-        "serverSide": true,
-        "responsive": true,
-        "order": [],
-        "ajax": { url: base_url+"promotions/ajax_list", type: "POST" },
-        "columnDefs": [{ "orderable": false, "targets": [0,9] }],
-        "drawCallback": function(){
-            $('.column_checkbox').iCheck({
-                checkboxClass: 'icheckbox_square-orange',
-                radioClass: 'iradio_square-orange'
-            });
-        }
-    });
-    $("#select_all").on("click",function(){
-        $(".column_checkbox").prop("checked", this.checked);
-    });
+  var table = $('#promo-list-table').DataTable({
+    "aLengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
+    "processing": true,
+    "serverSide": true,
+    "responsive": true,
+    "order": [],
+    "ajax": {
+      url: base_url + "promotions/ajax_list",
+      type: "POST",
+      data: function(d){
+        d[window.csrfName] = window.csrfHash;
+      }
+    },
+    "columnDefs": [{ "orderable": false, "targets": [0, 8] }],
+    "drawCallback": function(){
+      $('.column_checkbox').iCheck({
+        checkboxClass: 'icheckbox_square-orange',
+        radioClass: 'iradio_square-orange'
+      });
+    }
+  });
+  $("#select_all").on("ifChanged", function(){
+    $(".column_checkbox").iCheck(this.checked ? 'check' : 'uncheck');
+  });
 });
+
 function delete_promotion(id){
-    if(!confirm("Delete this promotion? This cannot be undone.")) return;
-    $.post(base_url+"promotions/delete",{q_id:id,<?=$this->security->get_csrf_token_name();?>:'<?=$this->security->get_csrf_hash();?>'},function(res){
-        if(res.indexOf("success")!==-1){ $('#data-list-table').DataTable().ajax.reload(); }
-        else { alert(res); }
+  swal({
+    title: "Delete Promotion?",
+    text: "This cannot be undone. The promotion and all its item links will be removed.",
+    icon: "warning",
+    buttons: { cancel: "Cancel", confirm: { text: "Delete", value: true, closeModal: false } },
+    dangerMode: true
+  }).then(function(confirmed){
+    if(!confirmed) return;
+    $.post(base_url + "promotions/delete", {
+      q_id: id,
+      [window.csrfName]: window.csrfHash
+    }, function(res){
+      if(res.indexOf("success") !== -1){
+        toastr.success("Promotion deleted.");
+        $('#promo-list-table').DataTable().ajax.reload();
+      } else {
+        toastr.error(res || "Failed to delete promotion.");
+      }
+      swal.close();
+    }).fail(function(){
+      toastr.error("Network error. Please try again.");
+      swal.close();
     });
+  });
 }
 </script>
-<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-</body>
-</html>
+<script>$(".<?php echo basename(__FILE__, '.php'); ?>-active-li").addClass("active");</script>

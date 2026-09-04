@@ -41,16 +41,24 @@ class Updates_model extends CI_Model {
 			'4.0.7' => '4.0.6_to_4.0.7_fashion_intelligence.sql',
 			'4.0.7-attr' => '4.0.7_attribute_driven_variants.sql',
 			'4.0.8' => '4.0.8_featured_products.sql',
+			'4.0.9' => '4.0.8_to_4.0.9_compatibility.sql',
+			'4.0.9.1' => '4.0.8_to_4.0.9_holditems_staff_commission.sql',
+			'4.0.9.2' => '4.0.9_to_4.0.9.2_promotions_loyalty.sql',
 		];
+		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $file){
 			if(version_compare($this->db_version, $target_version, '<')){
 				$migration_file = FCPATH . 'updates/migrations/' . $file;
 				if(file_exists($migration_file)){
 					$this->_run_sql_file($migration_file);
+					$latest_applied = $target_version;
 				} else {
 					log_message('error', 'MartPoint migration file not found: ' . $migration_file);
 				}
 			}
+		}
+		if(version_compare($this->db_version, $latest_applied, '<')){
+			$this->db->where('id', 1)->update('db_sitesettings', ['version' => $latest_applied]);
 		}
 	}
 

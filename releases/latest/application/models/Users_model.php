@@ -106,32 +106,45 @@ class Users_model extends CI_Model {
 			log_message('error', 'Users_model verify_and_save db_users insert failed: '.json_encode($err));
 			return "failed: ".($err['message'] ?? 'Unknown DB error');
 		}
-		if(warehouse_module() && isset($_POST['warehouses']) && $role_id!=1 && $role_id!=store_admin_id()){
-
-			$warehouseSelectionFlag = false;
-
-			$user_id = $next_user_id;
-			$max_wh_id = $this->db->select('COALESCE(MAX(id),0) as max_id')->get('db_userswarehouses')->row()->max_id;
-			$warehouses_list = sizeof($_POST['warehouses']);
-			foreach ($_POST['warehouses'] as $idx => $val) {
-				$warehouse_info = array ( 'id' => $max_wh_id + $idx + 1, 'user_id'=> $user_id, 'warehouse_id'=>$val );
-				$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
-				if (!$q2){
-					$err = $this->db->error();
-					log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
-					return "failed: ".($err['message'] ?? 'Unknown DB error');
+		if(warehouse_module() && $role_id!=1 && $role_id!=store_admin_id()){
+			// Get warehouses to assign
+			$warehouses_to_assign = array();
+			
+			if(isset($_POST['warehouses']) && !empty($_POST['warehouses'])){
+				// Use selected warehouses
+				$warehouses_to_assign = $_POST['warehouses'];
+			} else {
+				// Auto-assign all warehouses for Managers and Business Owners if none selected
+				$all_warehouses = $this->db->select('id')->where('store_id', $info['store_id'])->where('status', 1)->get('db_warehouse')->result();
+				foreach($all_warehouses as $wh){
+					$warehouses_to_assign[] = $wh->id;
 				}
-
-				//Varify the default warehouse should selected in all warehouse selection?
-				if($default_warehouse_id == $val){
-					$warehouseSelectionFlag = true;
-				}
-
-
 			}
 
-			if($warehouseSelectionFlag == false){
-				return "Please ensure that the Default Branch is selected in the group selection box";
+			// Only process warehouses if we have any to assign
+			if(!empty($warehouses_to_assign)){
+				$warehouseSelectionFlag = false;
+				$user_id = $next_user_id;
+				$max_wh_id = $this->db->select('COALESCE(MAX(id),0) as max_id')->get('db_userswarehouses')->row()->max_id;
+				
+				foreach ($warehouses_to_assign as $idx => $val) {
+					$warehouse_info = array ( 'id' => $max_wh_id + $idx + 1, 'user_id'=> $user_id, 'warehouse_id'=>$val );
+					$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
+					if (!$q2){
+						$err = $this->db->error();
+						log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
+						return "failed: ".($err['message'] ?? 'Unknown DB error');
+					}
+
+					//Varify the default warehouse should selected in all warehouse selection?
+					if($default_warehouse_id == $val){
+						$warehouseSelectionFlag = true;
+					}
+				}
+
+				if($warehouseSelectionFlag == false && !empty($default_warehouse_id)){
+					return "Please ensure that the Default Branch is selected in the group selection box";
+				}
 			}
 			
 		}
@@ -258,30 +271,44 @@ class Users_model extends CI_Model {
 
 		
 
-		if(warehouse_module() && isset($_POST['warehouses']) && $role_id!=1 && $role_id!=store_admin_id()){
-
-			$warehouseSelectionFlag = false;
-
-			$this->db->where('user_id',$q_id)->delete("db_userswarehouses");
-			$warehouses_list = sizeof($_POST['warehouses']);
-			foreach ($_POST['warehouses'] as $res => $val) {
-				$warehouse_info = array ( 'user_id'=> $q_id, 'warehouse_id'=>$val );
-				$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
-				if (!$q2){
-					$err = $this->db->error();
-					log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
-					return "failed: ".($err['message'] ?? 'Unknown DB error');
+		if(warehouse_module() && $role_id!=1 && $role_id!=store_admin_id()){
+			// Get warehouses to assign
+			$warehouses_to_assign = array();
+			
+			if(isset($_POST['warehouses']) && !empty($_POST['warehouses'])){
+				// Use selected warehouses
+				$warehouses_to_assign = $_POST['warehouses'];
+			} else {
+				// Auto-assign all warehouses for Managers and Business Owners if none selected
+				$all_warehouses = $this->db->select('id')->where('store_id', $user_data['store_id'])->where('status', 1)->get('db_warehouse')->result();
+				foreach($all_warehouses as $wh){
+					$warehouses_to_assign[] = $wh->id;
 				}
-
-				//Varify the default warehouse should selected in all warehouse selection?
-				if($default_warehouse_id == $val){
-					$warehouseSelectionFlag = true;
-				}
-
 			}
 
-			if($warehouseSelectionFlag == false){
-				return "Please ensure that the Default Branch is selected in the group selection box";
+			// Only process warehouses if we have any to assign
+			if(!empty($warehouses_to_assign)){
+				$warehouseSelectionFlag = false;
+				$this->db->where('user_id',$q_id)->delete("db_userswarehouses");
+				
+				foreach ($warehouses_to_assign as $res => $val) {
+					$warehouse_info = array ( 'user_id'=> $q_id, 'warehouse_id'=>$val );
+					$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
+					if (!$q2){
+						$err = $this->db->error();
+						log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
+						return "failed: ".($err['message'] ?? 'Unknown DB error');
+					}
+
+					//Varify the default warehouse should selected in all warehouse selection?
+					if($default_warehouse_id == $val){
+						$warehouseSelectionFlag = true;
+					}
+				}
+
+				if($warehouseSelectionFlag == false && !empty($default_warehouse_id)){
+					return "Please ensure that the Default Branch is selected in the group selection box";
+				}
 			}
 		}
 

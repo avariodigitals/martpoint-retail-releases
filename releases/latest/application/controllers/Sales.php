@@ -22,7 +22,8 @@ class Sales extends MY_Controller {
 		$this->permission_check('sales_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_list');
-		$this->load->view('sales-list',$data);
+		$data['content']=$this->load->view('sales-list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	//Convert to Quotation to Sales Invoice
@@ -38,8 +39,13 @@ class Sales extends MY_Controller {
 
 		$data=array_merge($data);
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
-		$view = (is_mobile() || $this->input->get('mobile')=='1') ? 'sales_mobile' : 'sales';
-		$this->load->view($view,$data);
+		if(is_mobile() || $this->input->get('mobile')=='1'){
+			$this->load->view('sales_mobile', $data);
+		} else {
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=13','js/ajaxselect/customer_select_ajax.js'];
+			$data['content'] = $this->load->view('sales',$data,TRUE);
+			$this->load->view('mp_layout', $data);
+		}
 	}
 
 	public function add()
@@ -48,10 +54,15 @@ class Sales extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales');
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
-		$view = (is_mobile() || $this->input->get('mobile')=='1') ? 'sales_mobile' : 'sales';
-		$this->load->view($view,$data);
+		if(is_mobile() || $this->input->get('mobile')=='1'){
+			$this->load->view('sales_mobile', $data);
+		} else {
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=13','js/ajaxselect/customer_select_ajax.js'];
+			$data['content'] = $this->load->view('sales',$data,TRUE);
+			$this->load->view('mp_layout', $data);
+		}
 	}
-	
+
 
 	public function sales_save_and_update(){
 		$this->form_validation->set_rules('sales_date', 'Sales Date', 'trim|required');
@@ -82,8 +93,13 @@ class Sales extends MY_Controller {
 
 		$data['page_title']=$this->lang->line('sales');
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
-		$view = (is_mobile() || $this->input->get('mobile')=='1') ? 'sales_mobile' : 'sales';
-		$this->load->view($view, $data);
+		if(is_mobile() || $this->input->get('mobile')=='1'){
+			$this->load->view('sales_mobile', $data);
+		} else {
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=13','js/ajaxselect/customer_select_ajax.js'];
+			$data['content'] = $this->load->view('sales', $data, TRUE);
+			$this->load->view('mp_layout', $data);
+		}
 	}
 
 	public function ajax_list()
@@ -258,6 +274,18 @@ class Sales extends MY_Controller {
 		echo $result;
 	}
 
+	public function get_customer_trends(){
+		$customer_id = $this->input->post('customer_id', true);
+		$store_id = $this->input->post('store_id', true);
+		if(empty($customer_id)){
+			echo json_encode(array('error' => 'Customer required'));
+			return;
+		}
+		$data = $this->sales->get_customer_trends($customer_id, $store_id);
+		$data['currency'] = $this->currency();
+		echo json_encode($data);
+	}
+
 	//sales invoice form
 	public function invoice($id)
 	{	
@@ -269,7 +297,8 @@ class Sales extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('sales_id'=>$id));
 		$data['page_title']=$this->lang->line('sales_invoice');
-		$this->load->view('sal-invoice',$data);
+		$data['content']=$this->load->view('sal-invoice',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	//Print sales invoice 
@@ -307,6 +336,61 @@ class Sales extends MY_Controller {
 		
 		
 	}
+
+	public function get_receipt_html($sales_id)
+	{
+		header('Content-Type: text/html; charset=utf-8');
+		$this->belong_to('db_sales',$sales_id);
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			echo '<div style="text-align: center; padding: 40px; color: red;">Access denied</div>';
+			exit;
+		}
+		$data = $this->data;
+		$data['sales_id'] = $sales_id;
+		
+		// Load the receipt view and capture output
+		ob_start();
+		try {
+			$this->load->view('sal-invoice-pos', $data);
+			$html = ob_get_clean();
+			
+			// Extract styles from head and scope them to receipt container
+			$styleStart = stripos($html, '<style');
+			$styleEnd = stripos($html, '</style>') + 8;
+			$styles = '';
+			if ($styleStart !== false && $styleEnd > $styleStart) {
+				$styles = substr($html, $styleStart, $styleEnd - $styleStart);
+				// Scope all styles to .receipt-container
+				$styles = str_replace('<style', '<style scoped', $styles);
+				$styles = str_replace('body{', '.receipt-container {', $styles);
+				$styles = str_replace('body ', '.receipt-container ', $styles);
+				$styles = str_replace('onload="window.print();"', '', $styles);
+			}
+			
+			// Extract just the body content
+			$bodyStart = stripos($html, '<body');
+			if ($bodyStart !== false) {
+				$bodyStart = stripos($html, '>', $bodyStart) + 1;
+				$bodyEnd = stripos($html, '</body>');
+				if ($bodyEnd !== false) {
+					$bodyContent = substr($html, $bodyStart, $bodyEnd - $bodyStart);
+					// Remove onload attribute if present
+					$bodyContent = str_replace('onload="window.print();"', '', $bodyContent);
+					
+					// Return wrapped content with scoped styles
+					echo $styles;
+					echo '<div class="receipt-container">';
+					echo $bodyContent;
+					echo '</div>';
+				}
+			}
+		} catch (Exception $e) {
+			ob_end_clean();
+			echo '<div style="text-align: center; padding: 40px; color: red;">Error loading receipt: ' . htmlspecialchars($e->getMessage()) . '</div>';
+		}
+		exit;
+	}
+
 	public function get_html_invoice($data){
 		$this->load->view('print-sales-invoice-whatsapp',$data);
         // Get output html

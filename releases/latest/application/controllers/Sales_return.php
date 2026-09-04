@@ -21,7 +21,8 @@ class Sales_return extends MY_Controller {
 		$this->permission_check('sales_return_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_returns_list');
-		$this->load->view('sales-return-list',$data);
+		$data['content']=$this->load->view('sales-return-list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function create(){

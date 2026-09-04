@@ -1,0 +1,490 @@
+[
+  {
+    "id": "create_sale",
+    "keywords": ["create sale","make sale","sell item","how to sell","create invoice","make invoice","new sale","pos sale","how do i sell","how can i sell"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "How to create a sale or invoice in MartPoint",
+    "answer": "Here's how to create a sale in MartPoint:\n\n1. **Open POS**: Go to **Sales -> POS** or click the POS menu.\n2. **Select Customer**: Choose from existing customers or use Walk-in.\n3. **Add Items**: Search by name/code, enter quantity, and add to cart.\n4. **Apply Discount** (if allowed): Enter discount % or amount.\n5. **Checkout**: Click **Cash** or your payment mode.\n6. **Print**: Choose to print or email the receipt.\n\nYou can also ask me to create a sale directly by saying *'Create sale for [customer]'*."
+  },
+  {
+    "id": "check_stock",
+    "keywords": ["check stock","view stock","how much stock","item quantity","product stock","stock level","how many do we have","stock count"],
+    "required_role": "all",
+    "category": "inventory",
+    "preview": "How to check stock levels",
+    "answer": "To check stock levels:\n\n1. **Quick Check**: Ask me *'How many [item name] do we have?'*\n2. **Full Stock**: Go to **Items -> Items List** to see all stock levels.\n3. **Low Stock Alert**: Go to **Items -> Low Stock** to see items below alert quantity.\n4. **Warehouse Stock**: Use **Stock Transfer** to see stock by branch/warehouse.\n\nStock is updated automatically when sales, purchases, or adjustments are made."
+  },
+  {
+    "id": "find_customer",
+    "keywords": ["find customer","search customer","customer lookup","where is customer","customer details","look up customer"],
+    "required_role": "all",
+    "category": "customers",
+    "preview": "How to find customer records",
+    "answer": "To find a customer:\n\n1. **Quick Search**: Ask me *'Find customer [name or phone]'*\n2. **Customer List**: Go to **Customers -> Customers List** and use the search box.\n3. **Filter**: You can filter by name, phone, email, or outstanding balance.\n\nCustomer records show contact info, purchase history, and outstanding balance."
+  },
+  {
+    "id": "create_customer",
+    "keywords": ["add customer","new customer","create customer","register customer","customer form","how do i add customer"],
+    "required_role": "all",
+    "category": "customers",
+    "preview": "How to add a new customer",
+    "answer": "To add a new customer:\n\n1. **Quick Add**: Ask me *'Create customer [name] [phone]'*\n2. **Form**: Go to **Customers -> New Customer**.\n3. **Required Info**: Name and phone number.\n4. **Optional**: Email, GST/Tax number, Credit limit, and Shipping address.\n5. **Save**: Click **Save** to add them to the system.\n\nCustomers with credit limits can buy on credit up to their limit."
+  },
+  {
+    "id": "record_payment",
+    "keywords": ["record payment","receive payment","customer paid","payment received","collect money","receive money"],
+    "required_role": "all",
+    "category": "payments",
+    "preview": "How to record customer payments",
+    "answer": "To record a customer payment:\n\n1. **From Invoice**: Open the unpaid invoice and click **Receive Payment**.\n2. **From Customer**: Go to **Customers -> Customer Payments** and select the customer.\n3. **Enter Details**: Amount, Payment mode (Cash, Card, Transfer, etc.), and Date.\n4. **Allocate**: Choose which invoice(s) the payment applies to.\n5. **Save**: Click **Save** to update the balance.\n\nYou can also ask me to help record a payment during a sale."
+  },
+  {
+    "id": "pos_help",
+    "keywords": ["how to use pos","pos screen","point of sale","sell at pos","pos tutorial","pos guide"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "Guide to using the POS screen",
+    "answer": "Using the POS screen:\n\n1. **Open POS**: Click **Sales -> POS** from the sidebar.\n2. **Select Store/Warehouse**: Choose the branch you're selling from.\n3. **Search Items**: Type in the item name or scan the barcode.\n4. **Add to Cart**: Click the item or press Enter. Adjust quantity if needed.\n5. **Apply Discount**: Use the discount field (if you have permission).\n6. **Checkout**: Click **Cash**, enter amount received, and click **Save**.\n7. **Print**: A receipt will print automatically if configured.\n\n**Shortcuts**: F2 for item search, F4 for customer search."
+  },
+  {
+    "id": "view_debts",
+    "keywords": ["view debts","who owes","outstanding balance","customer debt","credit customers","who owes money"],
+    "required_role": "all",
+    "category": "reports",
+    "preview": "How to view outstanding customer debts",
+    "answer": "To view outstanding debts:\n\n1. **Quick Check**: Ask me *'Who owes money?'* or *'View debts'*\n2. **Customer List**: Go to **Customers -> Customers List** and sort by balance.\n3. **Debt Report**: Go to **Reports -> Customer Orders / Debts** for a full report.\n4. **Follow Up**: Use the debt reminder feature to send SMS/email to customers with pending payments.\n\nYou can click on any customer to see their full payment history."
+  },
+  {
+    "id": "barcode_scanning",
+    "keywords": ["barcode","scan item","scanner","barcode print","print barcode"],
+    "required_role": "all",
+    "category": "inventory",
+    "preview": "Using barcode scanning and printing",
+    "answer": "Barcode features in MartPoint:\n\n1. **Print Labels**: Go to **Items -> Print Barcode/Labels**, select items, and print.\n2. **Scan to Sell**: In POS, scan the barcode and the item auto-adds to cart.\n3. **Scan to Find**: In Items list, scan to search for an item.\n4. **Barcode Formats**: Supports Code 128, Code 39, EAN, and QR codes.\n\nMake sure your barcode scanner is set to 'keyboard emulation' mode."
+  },
+  {
+    "id": "return_refund",
+    "keywords": ["return item","sales return","refund","customer return","return sale","how to return"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "How to process sales returns and refunds",
+    "answer": "To process a sales return:\n\n1. **Go to Returns**: **Sales -> Sales Return**.\n2. **Select Invoice**: Find the original sale invoice.\n3. **Select Items**: Choose which items are being returned and enter quantity.\n4. **Reason**: Enter the return reason (optional but recommended).\n5. **Refund Method**: Choose refund to customer account or cash back.\n6. **Save**: The stock is automatically updated and a return receipt is generated.\n\nYou need **Sales Return** permission to perform this action."
+  },
+  {
+    "id": "invoice_reprint",
+    "keywords": ["reprint invoice","print receipt","duplicate invoice","invoice copy","print duplicate"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "How to reprint or duplicate invoices",
+    "answer": "To reprint an invoice:\n\n1. **From Sales List**: Go to **Sales -> Sales List**, find the invoice, and click the **Print** icon.\n2. **From POS History**: In POS, click **Hold/History** to see recent sales.\n3. **PDF Download**: Click **PDF** to download a digital copy.\n4. **Email**: Click **Email** to send the invoice to the customer.\n\nYou can also ask me to find a recent sale by customer name."
+  },
+  {
+    "id": "online_orders",
+    "keywords": ["online order","web order","e-commerce","website order","customer order","internet order"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "Managing online orders",
+    "answer": "Managing online orders:\n\n1. **View Orders**: Go to **Online Store -> Orders** to see pending and completed orders.\n2. **Process Order**: Click on an order to view details and mark it as processed/shipped.\n3. **Stock Check**: Online orders deduct stock just like POS sales.\n4. **Customer Notification**: Customers receive email/SMS updates when order status changes.\n\nAsk me *'Show online orders'* for a quick summary."
+  },
+  {
+    "id": "items_view",
+    "keywords": ["view items","product list","item catalog","all products","product catalog","item directory"],
+    "required_role": "all",
+    "category": "inventory",
+    "preview": "How to view your product catalog",
+    "answer": "To view your products:\n\n1. **Items List**: Go to **Items -> Items List** to see all products.\n2. **Search**: Use the search bar to find by name, code, or category.\n3. **Filters**: Filter by category, brand, stock status, or expiry date.\n4. **Export**: Export to CSV or PDF for offline use.\n\nYou can also ask me *'Find product [name]'* for quick lookups."
+  },
+  {
+    "id": "quotation",
+    "keywords": ["quotation","quote","estimate","proforma invoice","create quote","make estimate"],
+    "required_role": "cashier",
+    "category": "sales",
+    "preview": "How to create quotations and estimates",
+    "answer": "To create a quotation/estimate:\n\n1. **Go to Quotations**: **Sales -> Quotations**.\n2. **New Quote**: Click **New Quotation**.\n3. **Add Customer & Items**: Same process as creating a sale.\n4. **Set Expiry**: Add an expiry date for the quote (optional).\n5. **Save/Print**: Save as draft or convert to PDF/email.\n6. **Convert to Sale**: Later, you can convert the quote directly to an invoice.\n\nQuotations do not affect stock until converted to a sale."
+  },
+  {
+    "id": "expense_record",
+    "keywords": ["record expense","add expense","create expense","new expense","daily expense","spend money","log expense","how to create expense"],
+    "required_role": "cashier",
+    "category": "expenses",
+    "preview": "How to record business expenses",
+    "answer": "To record an expense:\n\n1. **Quick Record**: Ask me *'Record expense [category] [amount]'*\n2. **Go to Expenses**: **Expenses -> New Expense**.\n3. **Details**: Category, Amount, Date, and Description.\n4. **Payment Mode**: Choose how it was paid (Cash, Bank, Card).\n5. **Attach Receipt**: Upload a photo/scan of the receipt (optional).\n6. **Save**: Click **Save** to record it.\n\nExpenses appear in the daily summary and expense reports."
+  },
+  {
+    "id": "purchase_order",
+    "keywords": ["purchase order","buy stock","new purchase","order from supplier","restock","supplier order"],
+    "required_role": "business_owner",
+    "category": "purchases",
+    "preview": "How to create purchase orders from suppliers",
+    "answer": "To create a purchase order:\n\n1. **Go to Purchases**: **Purchase -> New Purchase**.\n2. **Select Supplier**: Choose from existing suppliers or add new.\n3. **Add Items**: Search items, enter quantity, and purchase price.\n4. **Other Costs**: Add shipping, tax, or other charges if applicable.\n5. **Discount**: Apply supplier discount if any.\n6. **Save**: Choose **Paid** or **Unpaid** status.\n7. **Stock Update**: Items are added to inventory automatically.\n\nYou need **Purchase** permission to create purchase orders."
+  },
+  {
+    "id": "profit_report",
+    "keywords": ["profit","profit report","how much profit","margin","earnings","revenue report","net profit"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view profit and margin reports",
+    "answer": "To view profit and margins:\n\n1. **Profit Report**: Go to **Reports -> Profit Report**.\n2. **Date Range**: Select the period you want to analyze.\n3. **Breakdown**: See profit by item, category, or overall.\n4. **Gross vs Net**: Gross profit = Sales - Cost. Net = Gross - Expenses.\n5. **Export**: Export to Excel or PDF for accounting.\n\n**Note:** Purchase price must be accurate for correct profit calculations."
+  },
+  {
+    "id": "expense_report",
+    "keywords": ["expense report","spending report","where money went","expense summary","cost report"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view expense reports",
+    "answer": "To view expense reports:\n\n1. **Expense Report**: Go to **Reports -> Expense Report**.\n2. **Filter by Category**: See spending by rent, utilities, salaries, etc.\n3. **Date Range**: Daily, weekly, monthly, or custom period.\n4. **Comparison**: Compare expenses month-over-month.\n5. **Export**: Export for tax filing or accounting software.\n\nRegular expense tracking helps you understand your overhead costs."
+  },
+  {
+    "id": "stock_adjustment",
+    "keywords": ["stock adjustment","adjust stock","damaged stock","wastage","inventory adjustment","correct stock"],
+    "required_role": "business_owner",
+    "category": "inventory",
+    "preview": "How to adjust stock levels",
+    "answer": "To adjust stock levels:\n\n1. **Go to Adjustments**: **Items -> Stock Adjustment**.\n2. **New Adjustment**: Click **New Adjustment**.\n3. **Select Item**: Choose the item to adjust.\n4. **Reason**: Select reason (Damage, Expiry, Theft, Correction, etc.).\n5. **Quantity**: Enter +/- quantity to adjust.\n6. **Save**: Stock is updated and an adjustment log is kept.\n\n**Important:** Adjustments affect profit calculations. Always add a note explaining the reason."
+  },
+  {
+    "id": "stock_transfer",
+    "keywords": ["stock transfer","move stock","warehouse transfer","branch transfer","transfer items"],
+    "required_role": "business_owner",
+    "category": "inventory",
+    "preview": "How to transfer stock between warehouses",
+    "answer": "To transfer stock between warehouses/branches:\n\n1. **Go to Transfers**: **Items -> Stock Transfer**.\n2. **New Transfer**: Click **New Transfer**.\n3. **From/To**: Select source and destination warehouses.\n4. **Add Items**: Choose items and quantities to transfer.\n5. **Save**: Stock is deducted from source and added to destination.\n6. **Track**: View transfer history and pending transfers.\n\nYou need **Stock Transfer** permission to perform this action."
+  },
+  {
+    "id": "supplier_management",
+    "keywords": ["add supplier","supplier list","vendor","new supplier","supplier payment","manage supplier"],
+    "required_role": "business_owner",
+    "category": "purchases",
+    "preview": "How to manage suppliers and vendors",
+    "answer": "Managing suppliers:\n\n1. **Add Supplier**: Go to **Purchase -> Suppliers -> New Supplier**.\n2. **Details**: Name, contact person, phone, email, address, and GST/Tax number.\n3. **View Suppliers**: See all suppliers with total purchases and pending payments.\n4. **Payments**: Record supplier payments under **Purchase -> Supplier Payments**.\n5. **History**: View purchase history per supplier.\n\nSupplier records help you track who you owe and payment terms."
+  },
+  {
+    "id": "sales_report",
+    "keywords": ["sales report","daily sales","monthly sales","sales summary","transaction report","sale report"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view sales reports",
+    "answer": "To view sales reports:\n\n1. **Sales Report**: Go to **Reports -> Sales Report**.\n2. **Filters**: Filter by date range, customer, item, category, or user.\n3. **Summary**: See total sales, transactions, average ticket size, and tax collected.\n4. **User-wise**: See sales per staff member (if permission is set).\n5. **Export**: Export to CSV, Excel, or PDF.\n\nSales reports help you identify trends and peak selling periods."
+  },
+  {
+    "id": "item_sales_report",
+    "keywords": ["item sales","best selling","product report","sales by item","top products","fast moving"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view product sales performance",
+    "answer": "To view item sales performance:\n\n1. **Item Sales Report**: Go to **Reports -> Item Sales Report**.\n2. **Ranking**: See top-selling and slow-moving items.\n3. **Revenue**: See revenue and profit contribution per item.\n4. **Date Range**: Analyze trends over time.\n5. **Export**: Export for purchasing decisions.\n\nUse this report to optimize inventory and discontinue poor performers."
+  },
+  {
+    "id": "customer_report",
+    "keywords": ["customer report","customer list report","customer activity","loyalty report","customer analysis"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view customer reports",
+    "answer": "To view customer reports:\n\n1. **Customer Report**: Go to **Reports -> Customer Orders Report**.\n2. **Top Customers**: See who buys most frequently or spends the most.\n3. **Inactive Customers**: Find customers who haven't purchased recently.\n4. **Credit Analysis**: See customers approaching or exceeding credit limits.\n5. **Export**: Export for marketing campaigns or loyalty programs.\n\nCustomer insights help you build better relationships and increase retention."
+  },
+  {
+    "id": "price_level",
+    "keywords": ["price level","customer price","special price","discount level","pricing","tier price"],
+    "required_role": "business_owner",
+    "category": "customers",
+    "preview": "How to set up customer price levels",
+    "answer": "To set up price levels for customers:\n\n1. **Go to Customers**: **Customers -> Customers List**.\n2. **Edit Customer**: Click on a customer and select **Edit**.\n3. **Price Level**: Set **Price Level** (e.g., 5 for 5% discount) and **Type** (Increase or Decrease).\n4. **Apply**: Save the customer record.\n5. **Effect**: In POS, their invoice price will automatically adjust.\n\nThis is useful for VIP customers, wholesalers, or loyalty tiers."
+  },
+  {
+    "id": "store_settings",
+    "keywords": ["store settings","business settings","shop setup","store profile","company info","store config"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to update store settings",
+    "answer": "To update store settings:\n\n1. **Go to Settings**: **Settings -> Store Settings**.\n2. **Store Info**: Update store name, address, phone, email, and logo.\n3. **Currency**: Set currency symbol, code, and placement.\n4. **Tax**: Configure tax name, rate, and registration number.\n5. **Receipt**: Customize receipt header/footer and enable/disable features.\n6. **Save**: Click **Update** to apply changes.\n\nStore settings affect receipts, reports, and online store branding."
+  },
+  {
+    "id": "user_management",
+    "keywords": ["add user","new staff","employee","user account","staff member","create user"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to add and manage users",
+    "answer": "To add and manage users:\n\n1. **Go to Users**: **Users -> New User**.\n2. **Details**: Name, email, phone, username, and password.\n3. **Role**: Assign a role (Cashier, Manager, etc.).\n4. **Store**: Assign to a specific store/branch.\n5. **Status**: Set as Active or Inactive.\n6. **Save**: The user can now log in with their credentials.\n\n**Security:** Only create accounts for trusted staff. Use strong passwords."
+  },
+  {
+    "id": "role_permissions",
+    "keywords": ["role","permission","access control","who can do what","user role","assign role","role setup"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to manage roles and permissions",
+    "answer": "To manage roles and permissions:\n\n1. **Go to Roles**: **Users -> Roles**.\n2. **Create Role**: Click **New Role**, name it (e.g., 'Cashier', 'Manager').\n3. **Set Permissions**: Check boxes for allowed actions.\n4. **Common Permissions**:\n   - Cashier: sales_add, items_view, customers_add, customers_view\n   - Manager: All cashier + purchase_add, expense_add, reports_view\n   - Owner: Full access\n5. **Assign**: Go to **Users** and assign the role to each user.\n\nRoles ensure staff only access features relevant to their job."
+  },
+  {
+    "id": "warehouse_setup",
+    "keywords": ["warehouse","branch","location","store branch","add warehouse","manage warehouse"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to manage warehouses and branches",
+    "answer": "To manage warehouses/branches:\n\n1. **Go to Warehouses**: **Items -> Warehouses**.\n2. **Add Warehouse**: Click **New Warehouse**, enter name, location, and manager.\n3. **System Warehouse**: The default 'System' warehouse cannot be deleted.\n4. **Stock per Branch**: Each warehouse tracks its own stock.\n5. **Transfers**: Move stock between warehouses using **Stock Transfer**.\n\nMulti-warehouse is useful for businesses with multiple locations."
+  },
+  {
+    "id": "category_brand",
+    "keywords": ["add category","new brand","product category","item type","brand setup","manage category"],
+    "required_role": "business_owner",
+    "category": "inventory",
+    "preview": "How to manage categories and brands",
+    "answer": "To manage categories and brands:\n\n1. **Categories**: Go to **Items -> Categories** to add/edit product categories.\n2. **Brands**: Go to **Items -> Brands** to manage product brands.\n3. **Organization**: Use categories for grouping (e.g., Electronics, Food).\n4. **Reporting**: Reports can be filtered by category or brand.\n5. **Online Store**: Categories appear in the online store navigation.\n\nWell-organized categories make inventory and reporting easier."
+  },
+  {
+    "id": "tax_settings",
+    "keywords": ["tax setup","gst","vat","tax rate","tax configuration","configure tax"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to configure tax settings",
+    "answer": "To configure tax settings:\n\n1. **Go to Store Settings**: **Settings -> Store Settings**.\n2. **Tax Details**: Enter Tax Name (e.g., VAT, GST), Tax Rate, and Registration Number.\n3. **Tax Type**: Choose Inclusive (price includes tax) or Exclusive (tax added on top).\n4. **Apply**: Tax is automatically calculated on invoices and reports.\n5. **Tax Reports**: Go to **Reports -> Tax Report** for filing.\n\nEnsure tax settings comply with your local regulations."
+  },
+  {
+    "id": "payment_modes",
+    "keywords": ["payment mode","payment method","cash","card","bank transfer","momo","paystack","payment type"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to configure payment modes",
+    "answer": "To configure payment modes:\n\n1. **Go to Payment Modes**: **Settings -> Payment Modes**.\n2. **Add Mode**: Click **New**, enter name (e.g., 'Bank Transfer', 'Mobile Money').\n3. **Code**: Assign a short code (e.g., 'momo', 'transfer').\n4. **Status**: Enable/disable as needed.\n5. **POS Integration**: Enabled modes appear in the POS payment dropdown.\n6. **Bank Accounts**: Link payment modes to bank accounts for reconciliation.\n\nCommon modes: Cash, Card, Bank Transfer, Mobile Money, Paystack."
+  },
+  {
+    "id": "expiry_settings",
+    "keywords": ["expiry","expire date","expiration","batch tracking","stop selling expired","expired items"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to manage item expiry settings",
+    "answer": "To manage item expiry settings:\n\n1. **Go to Expiry Settings**: **Settings -> Expiry Settings**.\n2. **Enable Expiry**: Turn on expiry tracking for your store.\n3. **Stop Selling Expired**: Enable to block sales of expired items.\n4. **Alert Days**: Set how many days before expiry to show warnings.\n5. **Item Setup**: When adding items, enter manufacturing date and expiry date.\n6. **Reports**: View **Expired Items Report** to manage waste.\n\nExpiry tracking is critical for food, medicine, and cosmetics businesses."
+  },
+  {
+    "id": "sms_settings",
+    "keywords": ["sms setup","text message","bulk sms","sms notification","sms api","send sms"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to configure SMS notifications",
+    "answer": "To configure SMS notifications:\n\n1. **Go to SMS Settings**: **Settings -> SMS Settings**.\n2. **API Provider**: Select your SMS gateway (Twilio, Termii, etc.).\n3. **Credentials**: Enter API key, sender ID, and endpoint.\n4. **Templates**: Create templates for invoice, payment, and reminder messages.\n5. **Test**: Send a test SMS to verify configuration.\n6. **Usage**: SMS is sent automatically or manually from customer/invoices pages.\n\nSMS increases customer engagement and payment reminders."
+  },
+  {
+    "id": "email_settings",
+    "keywords": ["email setup","smtp","email notification","mail server","email config","configure email"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to configure email settings",
+    "answer": "To configure email settings:\n\n1. **Go to Email Settings**: **Settings -> Email Settings**.\n2. **SMTP**: Enter SMTP host, port, username, password, and encryption.\n3. **From Address**: Set the sender email and name (e.g., yourstore@email.com).\n4. **Test**: Send a test email to verify.\n5. **Templates**: Customize invoice, payment, and welcome email templates.\n6. **Auto-send**: Enable automatic email on invoice creation.\n\nProper email setup ensures customers receive receipts and updates."
+  },
+  {
+    "id": "online_store_setup",
+    "keywords": ["online store","e-commerce setup","web store","website","sell online","setup online"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to set up the online store",
+    "answer": "To set up the online store:\n\n1. **Go to Online Store**: **Online Store -> Settings**.\n2. **Enable**: Turn on the online store feature.\n3. **Theme**: Customize colors, logo, banner, and layout.\n4. **Products**: Select which items appear online and set online prices.\n5. **Payment**: Configure Paystack or bank transfer for online payments.\n6. **Delivery**: Set delivery zones, fees, and pickup options.\n7. **Share**: Your store URL is shown on the dashboard - share it with customers!\n\nOnline orders sync directly with your inventory."
+  },
+  {
+    "id": "backup_restore",
+    "keywords": ["backup","database backup","export data","restore","data export","save data"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to backup and restore data",
+    "answer": "To backup your data:\n\n1. **Go to Backup**: **Settings -> Database Backup**.\n2. **Create Backup**: Click **Backup Now** to download a SQL dump.\n3. **Auto Backup**: Set up scheduled backups (if configured on server).\n4. **Restore**: Use the restore function to import a previous backup.\n5. **Export**: Export specific tables (sales, items, customers) to CSV.\n\n**Recommendation:** Back up weekly or before major updates. Store backups off-site."
+  },
+  {
+    "id": "accounts_ledger",
+    "keywords": ["accounts","ledger","accounting","chart of accounts","general ledger","bookkeeping"],
+    "required_role": "business_owner",
+    "category": "accounts",
+    "preview": "How to manage accounts and ledgers",
+    "answer": "To manage accounts and ledgers:\n\n1. **Chart of Accounts**: Go to **Accounts -> Accounts List**.\n2. **Add Account**: Create income, expense, asset, or liability accounts.\n3. **Journal Entries**: Record debits and credits for transactions.\n4. **Ledger**: View the general ledger for detailed transaction history.\n5. **Trial Balance**: Generate a trial balance to verify your books.\n6. **Reports**: Export profit/loss and balance sheet reports.\n\nAccurate bookkeeping is essential for tax filing and financial health."
+  },
+  {
+    "id": "subscription_license",
+    "keywords": ["subscription","license","activation","activate","plan","billing","payment plan"],
+    "required_role": "admin",
+    "category": "system",
+    "preview": "Managing MartPoint subscription and license",
+    "answer": "To manage the MartPoint subscription:\n\n1. **Go to License**: **Settings -> Subscription License** (or **Subscription License -> Activate**).\n2. **View Status**: Check current plan, expiry date, and features.\n3. **Activate**: Enter your license key to activate or extend the subscription.\n4. **Renew**: Follow the payment instructions to renew before expiry.\n5. **Support**: Contact support@martpoint.com.ng for license issues.\n\n**Important:** Only Super Admin or Business Owner can manage subscriptions."
+  },
+  {
+    "id": "system_settings",
+    "keywords": ["system settings","global settings","app settings","configure system","platform settings"],
+    "required_role": "admin",
+    "category": "system",
+    "preview": "System-wide configuration settings",
+    "answer": "System settings are managed by the Super Administrator.\n\nThese include:\n- Application mode and debug settings\n- Database configuration\n- Base URL and environment setup\n- Default language and timezone\n- Security policies\n\nIf you need changes to system settings, please contact your administrator."
+  },
+  {
+    "id": "role_admin_only",
+    "keywords": ["super admin","admin code","developer","source code","system access","root access"],
+    "required_role": "admin",
+    "category": "system",
+    "preview": "Restricted - Super Admin only",
+    "answer": "This information is restricted to Super Administrators only. If you need access to system-level configurations or admin codes, please contact your system administrator or MartPoint support."
+  },
+  {
+    "id": "create_product",
+    "keywords": ["create product","add product","new product","add item","create item","new item","how to add product","how to create product","add inventory","register product"],
+    "required_role": "all",
+    "category": "inventory",
+    "preview": "How to create a new product or item",
+    "answer": "To create a new product in MartPoint:\n\n1. **Go to Items**: Click **Items -> New Item** from the sidebar.\n2. **Item Name**: Enter the product name (required).\n3. **Item Code**: Auto-generated or enter your own SKU/code.\n4. **Category & Brand**: Select from existing categories and brands (optional).\n5. **Pricing**: Set the **Purchase Price** (cost) and **Sales Price** (selling price).\n6. **Stock**: Enter opening quantity and select the warehouse.\n7. **Tax**: Choose tax type (Inclusive or Exclusive) and rate.\n8. **Optional Fields**: Barcode, description, expiry date, alert quantity.\n9. **Save**: Click **Save** to add the item to inventory.\n\n**Important:** Set the purchase price accurately so profit calculations on the dashboard are correct."
+  },
+  {
+    "id": "create_user",
+    "keywords": ["create user","add user","new user","add staff","create staff","new staff","how to create user","how to add user","register user","add employee"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to create a new user or staff member",
+    "answer": "To create a new user in MartPoint:\n\n1. **Go to Users**: Click **Users -> New User** from the sidebar.\n2. **Name**: Enter the full name of the user.\n3. **Email & Phone**: Provide contact details.\n4. **Username & Password**: Set login credentials.\n5. **Role**: Assign a role (Cashier, Sales Person, Admin, etc.).\n6. **Store**: Assign to a specific store or branch.\n7. **Status**: Set as Active or Inactive.\n8. **Save**: Click **Save** to create the account.\n\n**Note:** Only users with user management permission can create new accounts."
+  },
+  {
+    "id": "edit_item",
+    "keywords": ["edit item","update item","modify product","change item price","edit product","update product","change price","item details","product details"],
+    "required_role": "all",
+    "category": "inventory",
+    "preview": "How to edit or update an existing product",
+    "answer": "To edit an existing product in MartPoint:\n\n1. **Go to Items List**: Click **Items -> Items List**.\n2. **Find Item**: Search for the item by name or code.\n3. **Edit**: Click the **Edit** icon (pencil) next to the item.\n4. **Update Fields**: Change name, price, stock, category, brand, tax, barcode, etc.\n5. **Save**: Click **Update** to save changes.\n\n**Note:** Changing the purchase price affects future profit calculations but does not change past sales."
+  },
+  {
+    "id": "delete_item",
+    "keywords": ["delete item","remove product","delete product","remove item","trash item","clear item"],
+    "required_role": "business_owner",
+    "category": "inventory",
+    "preview": "How to delete or remove a product",
+    "answer": "To delete a product in MartPoint:\n\n1. **Go to Items List**: Click **Items -> Items List**.\n2. **Find Item**: Search for the item by name or code.\n3. **Delete**: Click the **Delete** icon (trash can) next to the item.\n4. **Confirm**: Confirm the deletion in the popup.\n\n**Warning:** You cannot delete items that have been used in sales or purchase records. For those, you must first remove the related transactions or use **Stock Adjustment** to set quantity to zero."
+  },
+  {
+    "id": "edit_sale",
+    "keywords": ["edit sale","update sale","modify invoice","change invoice","edit invoice","update invoice","correct sale","sale mistake"],
+    "required_role": "business_owner",
+    "category": "sales",
+    "preview": "How to edit or update a sale or invoice",
+    "answer": "To update or correct a sale in MartPoint:\n\n1. **Go to Sales List**: Click **Sales -> Sales List**.\n2. **Find Invoice**: Search by invoice number or customer.\n3. **Edit**: Click the **Edit** icon next to the sale.\n4. **Update**: Modify items, quantities, prices, customer, or discounts.\n5. **Save**: Click **Update** to save changes.\n\n**Alternative:** If the sale is already finalized, you can create a **Sales Return** to reverse it, then create a new corrected sale."
+  },
+  {
+    "id": "cancel_sale",
+    "keywords": ["cancel sale","delete sale","void sale","void invoice","remove sale","cancel invoice","reverse sale"],
+    "required_role": "business_owner",
+    "category": "sales",
+    "preview": "How to cancel, void, or delete a sale",
+    "answer": "To cancel or void a sale in MartPoint:\n\n1. **Go to Sales List**: Click **Sales -> Sales List**.\n2. **Find Invoice**: Locate the sale you want to cancel.\n3. **Delete**: Click the **Delete** icon next to the sale.\n4. **Confirm**: Confirm the deletion.\n\n**Note:**\n- Deleting a sale restores the stock automatically.\n- If payment was received, you should also record a refund or adjustment.\n- For audit purposes, consider using **Sales Return** instead of deletion."
+  },
+  {
+    "id": "split_payment",
+    "keywords": ["split payment","multiple payment","two payments","part cash part card","mixed payment","combined payment","partial payment"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "How to accept split or multiple payment methods",
+    "answer": "To accept a split payment (e.g., part cash, part card) in MartPoint:\n\n1. **In POS**: Add items to the cart as usual.\n2. **Checkout**: Click the first payment mode (e.g., **Cash**).\n3. **Enter Amount**: Enter the partial amount the customer is paying in cash.\n4. **Save**: This creates the first payment record.\n5. **Second Payment**: The remaining balance stays on the invoice. Go back to the sale and add a second payment using a different mode (e.g., **Card** or **Transfer**).\n6. **Complete**: Both payments are recorded against the same invoice.\n\n**Tip:** The invoice will show both payment modes and amounts."
+  },
+  {
+    "id": "apply_discount",
+    "keywords": ["apply discount","give discount","item discount","sale discount","discount item","reduce price","markdown","promo","promotion"],
+    "required_role": "all",
+    "category": "sales",
+    "preview": "How to apply discounts on items or sales",
+    "answer": "To apply a discount in MartPoint:\n\n**Per Item Discount:**\n1. In POS, add the item to cart.\n2. Click the **Discount** field for that item row.\n3. Enter discount % or fixed amount.\n4. Choose discount type (Percentage or Fixed).\n\n**Overall Sale Discount:**\n1. After adding all items, look for the **Discount** field in the totals section.\n2. Enter the discount amount or percentage.\n3. The discount is applied to the grand total.\n\n**Note:** Discount permissions may be restricted by role. If you cannot see discount fields, contact your admin."
+  },
+  {
+    "id": "credit_sale",
+    "keywords": ["credit sale","sell on credit","customer credit","owe","debt sale","unpaid sale","customer owes","credit limit"],
+    "required_role": "cashier",
+    "category": "sales",
+    "preview": "How to sell to a customer on credit",
+    "answer": "To sell to a customer on credit in MartPoint:\n\n1. **Select Customer**: In POS, choose the customer (not Walk-in).\n2. **Add Items**: Add products to the cart as usual.\n3. **Checkout**: Click **Save** without entering a full payment amount, or pay partially.\n4. **Credit Record**: The unpaid balance is recorded as the customer's outstanding debt.\n5. **View Debt**: Go to **Customers -> Customer Payments** to see outstanding balances.\n6. **Credit Limit**: Customers can be assigned a credit limit in their profile.\n\n**To Collect Payment Later:**\nGo to **Customers -> Customer Payments**, select the customer, enter the amount received, and allocate it to the invoice."
+  },
+  {
+    "id": "receive_purchase",
+    "keywords": ["receive purchase","goods received","receive stock","receive items","accept delivery","purchase delivery","stock in","receive goods"],
+    "required_role": "business_owner",
+    "category": "purchases",
+    "preview": "How to receive purchased goods into stock",
+    "answer": "To receive purchased goods in MartPoint:\n\n1. **Go to Purchases**: Click **Purchase -> Purchase List**.\n2. **Find Order**: Locate the purchase order.\n3. **View Details**: Click to open the purchase details.\n4. **Receive**: Click **Receive** or mark as **Received**.\n5. **Stock Updated**: Items are automatically added to inventory.\n\n**For New Purchases:**\nWhen creating a purchase under **Purchase -> New Purchase**, choose status **Received** to immediately add stock, or **Ordered** to create a pending order.\n\n**Note:** You can also use **Items -> Stock Adjustment** to manually add received stock without a purchase record."
+  },
+  {
+    "id": "low_stock",
+    "keywords": ["low stock","stock alert","running out","below alert","reorder","stock warning","need to restock","stock low","item running low"],
+    "required_role": "all",
+    "category": "inventory",
+    "preview": "How to view and manage low stock items",
+    "answer": "To view and manage low stock in MartPoint:\n\n1. **Dashboard**: The main dashboard shows a **Low Stock Count** and lists items running low.\n2. **Low Stock Report**: Go to **Items -> Low Stock** to see all items below their alert quantity.\n3. **Alert Quantity**: Each item has an **Alert Qty** field. When stock drops below this number, it appears in the low stock report.\n4. **Reorder**: Use this report to know what to restock.\n5. **Purchase Order**: Create a new purchase order under **Purchase -> New Purchase** to restock.\n\n**Tip:** Set alert quantities when creating or editing items so you get warned before stock runs out completely."
+  },
+  {
+    "id": "import_items",
+    "keywords": ["import items","bulk import","csv import","excel import","upload products","import products","bulk upload","import csv"],
+    "required_role": "business_owner",
+    "category": "inventory",
+    "preview": "How to bulk import items from CSV or Excel",
+    "answer": "To bulk import items in MartPoint:\n\n1. **Go to Items List**: Click **Items -> Items List**.\n2. **Import**: Click the **Import** button (usually near the top).\n3. **Download Template**: Download the CSV template to see the required format.\n4. **Fill Data**: Add your items to the CSV with columns like: item name, code, category, purchase price, sales price, stock, tax, barcode.\n5. **Upload**: Select the completed CSV file and upload it.\n6. **Validate**: Review the preview for any errors before confirming.\n7. **Import**: Click **Import** to add all items at once.\n\n**Note:** Make sure categories and brands exist before importing, or the import may fail."
+  },
+  {
+    "id": "dashboard_overview",
+    "keywords": ["dashboard","view dashboard","home page","main screen","overview","summary","today sales","daily summary","sales today","what happened today"],
+    "required_role": "all",
+    "category": "reports",
+    "preview": "Understanding the MartPoint dashboard",
+    "answer": "The MartPoint Dashboard shows your business overview at a glance:\n\n**Key Sections:**\n- **Today's Sales**: Total revenue and transaction count for today.\n- **Profit**: Gross profit and margin based on sales vs purchase cost.\n- **Expenses**: Total expenses recorded today.\n- **Outstanding Debts**: Amount customers owe you.\n- **Low Stock Items**: Products running below alert quantity.\n- **Top Products**: Best-selling items.\n- **Top Debtors**: Customers with highest unpaid balances.\n- **Cash in Hand**: Total cash collected today.\n- **Recent Activities**: Latest sales, purchases, and payments.\n\n**Date Range:** Use the filter to view Today, 7 Days, 30 Days, This Month, or This Year."
+  },
+  {
+    "id": "export_report",
+    "keywords": ["export report","download report","pdf report","excel export","csv export","print report","save report","report download"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to export or download reports",
+    "answer": "To export reports in MartPoint:\n\n1. **Go to Reports**: Navigate to any report (Sales, Expenses, Profit, Items, etc.).\n2. **Set Filters**: Choose date range, branch, or other filters.\n3. **Export Button**: Click **Export** or the download icon.\n4. **Choose Format:**\n   - **PDF** - For printing or sharing\n   - **Excel** - For spreadsheet analysis\n   - **CSV** - For importing into other systems\n5. **Download**: The file downloads to your computer.\n\n**Tip:** Most reports support filtering by date, warehouse, customer, and item before exporting."
+  },
+  {
+    "id": "change_password",
+    "keywords": ["change password","reset password","update password","forgot password","new password","password change","login password"],
+    "required_role": "all",
+    "category": "settings",
+    "preview": "How to change or reset your password",
+    "answer": "To change your password in MartPoint:\n\n1. **Go to Profile**: Click your name/profile at the top right, then **Change Password**.\n2. **Current Password**: Enter your existing password.\n3. **New Password**: Enter a strong new password (minimum 6 characters recommended).\n4. **Confirm**: Re-enter the new password to confirm.\n5. **Save**: Click **Update** to apply the change.\n\n**If you forgot your password:**\nContact your administrator or business owner. Only admins can reset passwords from the **Users** section.\n\n**Security Tip:** Use a mix of letters, numbers, and symbols. Do not share your password with others."
+  },
+  {
+    "id": "purchase_return",
+    "keywords": ["purchase return","return to supplier","supplier return","send back stock","reject purchase","damaged goods return","vendor return"],
+    "required_role": "business_owner",
+    "category": "purchases",
+    "preview": "How to process a purchase return to a supplier",
+    "answer": "To process a purchase return in MartPoint:\n\n1. **Go to Purchase Returns**: Click **Purchase -> Purchase Return**.\n2. **New Return**: Click **New Purchase Return**.\n3. **Select Purchase**: Find the original purchase order.\n4. **Select Items**: Choose which items are being returned and enter quantities.\n5. **Reason**: Enter the return reason (damaged, wrong item, excess, etc.).\n6. **Refund**: Choose whether you want a refund or credit from the supplier.\n7. **Save**: Stock is automatically deducted and a return record is created.\n\n**Note:** Purchase returns affect inventory and supplier balances."
+  },
+  {
+    "id": "view_reports",
+    "keywords": ["view reports","generate report","run report","reports list","all reports","where are reports","report section","find reports"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to access and generate business reports",
+    "answer": "To view reports in MartPoint:\n\n1. **Go to Reports**: Click **Reports** in the sidebar to see all available reports.\n2. **Choose Report**: Select the report you need:\n   - **Sales Report** - Total sales, transactions, by date/customer/user\n   - **Profit Report** - Gross profit and margins by item or overall\n   - **Expense Report** - Spending by category and period\n   - **Item Sales Report** - Best and worst selling products\n   - **Customer Report** - Customer activity and credit analysis\n   - **Purchase Report** - Purchases by supplier and date\n   - **Stock Report** - Current stock levels and valuation\n   - **Payment Report** - Cash, card, and transfer collections\n3. **Set Filters**: Choose date range, warehouse, customer, or item.\n4. **Generate**: Click **Search** or **Generate** to run the report.\n5. **Export**: Download as PDF, Excel, or CSV.\n\n**Tip:** Most reports can be filtered by store, warehouse, and date range."
+  },
+  {
+    "id": "purchase_report",
+    "keywords": ["purchase report","supplier report","buying report","what did i buy","purchase summary","purchase by supplier","goods purchased"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view purchase and supplier reports",
+    "answer": "To view purchase reports in MartPoint:\n\n1. **Go to Reports**: Click **Reports -> Purchase Report**.\n2. **Date Range**: Select the period to analyze.\n3. **Filters**: Filter by supplier, warehouse, or item.\n4. **Summary**: See total purchases, amount paid vs unpaid, and supplier breakdown.\n5. **Details**: Click into any supplier to see their full purchase history.\n6. **Export**: Download as PDF or Excel for accounting.\n\n**Related Reports:**\n- **Supplier Payments Report** - See what you owe and what you've paid\n- **Item Purchase Report** - See which items you buy most\n- **Purchase Return Report** - Track returns to suppliers"
+  },
+  {
+    "id": "stock_report",
+    "keywords": ["stock report","inventory report","stock valuation","current stock","stock levels","inventory summary","stock count report","what do i have in stock"],
+    "required_role": "all",
+    "category": "reports",
+    "preview": "How to view stock and inventory reports",
+    "answer": "To view stock reports in MartPoint:\n\n1. **Go to Reports**: Click **Reports -> Stock Report** (or **Items -> Items List** for a quick view).\n2. **Current Stock**: See quantity on hand for every item.\n3. **Stock Valuation**: See total value of inventory at purchase price and sales price.\n4. **By Warehouse**: Filter stock by branch or warehouse location.\n5. **By Category**: Group items by category for easier review.\n6. **Movement**: See items that have been bought, sold, or adjusted recently.\n7. **Export**: Download for physical stock counting or audits.\n\n**Related Views:**\n- **Items List** - Full catalog with current quantities\n- **Low Stock** - Items below alert quantity\n- **Stock Transfer Report** - Track items moved between warehouses"
+  },
+  {
+    "id": "payment_report",
+    "keywords": ["payment report","cash report","money collected","daily collection","payment mode report","cash in hand","bank report","card report","transfer report"],
+    "required_role": "business_owner",
+    "category": "reports",
+    "preview": "How to view payment and collection reports",
+    "answer": "To view payment reports in MartPoint:\n\n1. **Go to Reports**: Click **Reports -> Payment Report** (or **Reports -> Sales Report** for payment breakdown).\n2. **Date Range**: Select the period to review.\n3. **Payment Modes**: See collections broken down by:\n   - **Cash**\n   - **Card / POS**\n   - **Bank Transfer**\n   - **Mobile Money**\n   - **Credit / Unpaid**\n4. **Cash in Hand**: See total cash collected minus expenses and refunds.\n5. **User-wise**: See which staff member collected which payments.\n6. **Export**: Download for daily reconciliation and banking.\n\n**Tip:** Use this report to reconcile your physical cash drawer with system records at the end of each day."
+  },
+  {
+    "id": "create_account",
+    "keywords": ["create account","add account","new account","create ledger","add ledger","new ledger","chart of accounts","how to create account","how to add account","new accounting account"],
+    "required_role": "business_owner",
+    "category": "accounts",
+    "preview": "How to create a new account or ledger",
+    "answer": "To create a new account or ledger in MartPoint:\n\n1. **Go to Accounts**: Click **Accounts -> New Account** from the sidebar.\n2. **Account Name**: Enter a clear name for the account (e.g., 'Petty Cash', 'Rent Expense', 'Sales Income').\n3. **Account Type**: Choose the type:\n   - **Asset** - What you own (Cash, Inventory, Equipment)\n   - **Liability** - What you owe (Loans, Payables)\n   - **Income** - Revenue sources (Sales, Services)\n   - **Expense** - Business costs (Rent, Utilities, Salaries)\n4. **Parent Account** (optional): Link to a parent account for grouping.\n5. **Opening Balance**: Enter the starting balance if applicable.\n6. **Description**: Add a brief description for reference.\n7. **Save**: Click **Save** to add the account to your Chart of Accounts.\n\n**Note:** Proper account setup is essential for accurate financial reports. Use consistent naming conventions."
+  }
+]

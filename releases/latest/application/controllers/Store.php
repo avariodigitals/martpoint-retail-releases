@@ -12,7 +12,8 @@ class Store extends MY_Controller {
 		$this->permission_check('store_add');
 		$data=array_merge($this->data,$this->store->store_making_codes());
 		$data['page_title']=$this->lang->line('store');
-		$this->load->view('store', $data);
+		$data['content'] = $this->load->view('store', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newstore(){
 		$result=$this->store->verify_and_save();
@@ -25,7 +26,37 @@ class Store extends MY_Controller {
 		$this->permission_check('store_view');
 		$data=array_merge($this->data);
 		$data['page_title']=$this->lang->line('store_list');
-		$this->load->view('store/store_list', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('store_list'),
+			'page_sub' => 'Manage stores and subscriptions',
+			'add_url' => base_url('store/add'),
+			'add_label' => 'Add Store',
+			'add_permission' => 'store_add',
+			'columns' => [
+				['title' => '', 'type' => 'checkbox'],
+				['title' => 'Code', 'type' => 'text'],
+				['title' => 'Name', 'type' => 'text'],
+				['title' => 'Mobile', 'type' => 'text'],
+				['title' => 'Address', 'type' => 'text'],
+				['title' => 'Created', 'type' => 'text'],
+				['title' => 'Created By', 'type' => 'text'],
+				['title' => 'Package', 'type' => 'text'],
+				['title' => 'Expire', 'type' => 'text'],
+				['title' => 'Status', 'type' => 'status'],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'store',
+			'ajax_url' => base_url('store/ajax_list'),
+			'status_url' => 'store/update_status',
+			'delete_url' => 'store/delete_store',
+			'multi_delete_url' => 'store/multi_delete',
+			'edit_url' => base_url('store_profile/update/{id}'),
+			'delete_permission' => 'store_delete',
+			'edit_permission' => 'store_edit',
+			'bulk_delete' => true,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

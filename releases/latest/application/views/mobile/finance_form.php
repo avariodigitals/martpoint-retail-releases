@@ -305,12 +305,10 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Payment Type <span class="req">*</span></label>
+                <label>Payment Mode <span class="req">*</span></label>
                 <select class="mp-select" name="payment_type" required>
-                  <option value="cash" <?= ($payment_type == 'cash') ? 'selected' : ''; ?>>Cash</option>
-                  <option value="bank" <?= ($payment_type == 'bank') ? 'selected' : ''; ?>>Bank</option>
-                  <option value="card" <?= ($payment_type == 'card') ? 'selected' : ''; ?>>Card</option>
-                  <option value="other" <?= ($payment_type == 'other') ? 'selected' : ''; ?>>Other</option>
+                  <option value="">— Select —</option>
+                  <?= get_payment_modes_select_list(get_current_store_id(), $payment_type); ?>
                 </select>
               </div>
               <div class="form-group">

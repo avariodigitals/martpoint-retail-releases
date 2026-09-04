@@ -16,7 +16,8 @@ class Subscription_plans extends MY_Controller {
 		$data = $this->data;
 		$data['plans'] = $this->plans->get_all();
 		$data['page_title'] = 'Subscription Plans';
-		$this->load->view('subscription_plans/index', $data);
+		$data['content'] = $this->load->view('subscription_plans/index', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function add(){
@@ -26,7 +27,8 @@ class Subscription_plans extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Create Plan';
 		$data['plan'] = null;
-		$this->load->view('subscription_plans/form', $data);
+		$data['content'] = $this->load->view('subscription_plans/form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function edit($id){
@@ -41,7 +43,8 @@ class Subscription_plans extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Edit Plan';
 		$data['plan'] = $plan;
-		$this->load->view('subscription_plans/form', $data);
+		$data['content'] = $this->load->view('subscription_plans/form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save(){

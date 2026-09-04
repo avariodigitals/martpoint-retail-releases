@@ -18,7 +18,8 @@ class Store_credit extends MY_Controller {
         $this->permission_check('store_credit_view');
         $data=$this->data;
         $data['page_title']='Store Credit';
-        $this->load->view('store_credit/list',$data);
+        $data['content'] = $this->load->view('marketing/desktop/store_credit/list', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function add()
@@ -26,7 +27,8 @@ class Store_credit extends MY_Controller {
         $this->permission_check('store_credit_add');
         $data=$this->data;
         $data['page_title']='Issue Store Credit';
-        $this->load->view('store_credit/form',$data);
+        $data['content'] = $this->load->view('marketing/desktop/store_credit/form', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save()
@@ -57,13 +59,14 @@ class Store_credit extends MY_Controller {
             $row_arr[] = ucfirst(str_replace('_',' ',$row->source));
             $row_arr[] = show_date($row->expiry_date) ?: 'Never';
             $row_arr[] = $status_label;
-            $action = '';
+            $action = '<div class="mp-actions">';
             if($this->permissions('store_credit_view') && $row->status == 'active'){
-                $action .= '<a href="'.base_url('store_credit/print_credit/'.$row->id).'" class="btn btn-sm btn-default" target="_blank" title="Print Card"><i class="fa fa-print"></i></a> ';
+                $action .= '<a href="'.base_url('store_credit/print_credit/'.$row->id).'" class="mp-edit" target="_blank" title="Print"><i class="fa fa-print"></i></a>';
             }
             if($this->permissions('store_credit_delete') && $row->status == 'active'){
-                $action .= '<button class="btn btn-sm btn-danger" onclick="cancel_credit('.$row->id.')"><i class="fa fa-ban"></i></button>';
+                $action .= '<button class="mp-delete" title="Cancel Credit" onclick="cancel_credit('.$row->id.')"><i class="fa fa-ban"></i></button>';
             }
+            $action .= '</div>';
             $row_arr[] = $action;
             $data[] = $row_arr;
         }
@@ -81,7 +84,7 @@ class Store_credit extends MY_Controller {
         $this->permission_check('store_credit_view');
         $data = $this->data;
         $data['page_title'] = 'Print Store Credit';
-        $data['credit'] = $this->db->where('id', $id)->get('db_store_credit')->row();
+        $data['credit'] = $this->db->where('id', $id)->where('store_id', get_current_store_id())->get('db_store_credit')->row();
         if(!$data['credit'] || $data['credit']->status != 'active'){
             show_error('This credit cannot be printed because it is cancelled or expired.', 403, 'Not Printable');
             return;

@@ -178,6 +178,7 @@ class Items_model extends CI_Model {
 		$category_id = $this->input->post('category_id', TRUE);
 		$sku = $this->input->post('sku', TRUE);
 		$hsn = $this->input->post('hsn', TRUE);
+		$sac = $this->input->post('sac', TRUE);
 		$unit_id = $this->input->post('unit_id', TRUE);
 		$alert_qty = $this->input->post('alert_qty', TRUE);
 		$price = str_replace(',','',$this->input->post('price', TRUE));
@@ -190,6 +191,12 @@ class Items_model extends CI_Model {
 		$custom_barcode = $this->input->post('custom_barcode', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$laundry_service_type = $this->input->post('laundry_service_type', TRUE);
+		$commission_type = $this->input->post('commission_type', TRUE) ?? 'none';
+		$commission_value = $this->input->post('commission_value', TRUE) ?? 0;
+		$deposit_required = $this->input->post('deposit_required', TRUE) ?? 0;
+		$deposit_percent = $this->input->post('deposit_percent', TRUE) ?? 0;
+		$item_type_post = $this->input->post('item_type', TRUE);
+		$service_bit = ($item_type_post === 'service') ? 1 : 0;
 		$item_group = $this->input->post('item_group', TRUE);
 		$attribute_types = $this->input->post('attribute_types', TRUE);
 		$attribute_types_json = (!empty($attribute_types) && is_array($attribute_types)) ? json_encode(array_map('strtolower', $attribute_types)) : null;
@@ -377,6 +384,12 @@ class Items_model extends CI_Model {
 			    				'custom_barcode'			=> $custom_barcode,
 			    				'description'				=> $description,
 			    				'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
+			    				'service_bit'				=> $service_bit,
+			    				'sac'						=> !empty($sac) ? $sac : null,
+			    				'commission_type'			=> $commission_type,
+			    				'commission_value'			=> $commission_value,
+			    				'deposit_required'			=> $deposit_required,
+			    				'deposit_percent'			=> $deposit_percent,
 			    				'item_group'				=> $item_group,
 			    				'discount_type'				=> $discount_type,
 			    				'discount'					=> $discount,
@@ -525,6 +538,12 @@ class Items_model extends CI_Model {
 	    							'custom_barcode'			=> $custom_barcode,
 	    							'description'				=> $description,
 	    							'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
+	    							'service_bit'				=> $service_bit,
+	    							'sac'						=> !empty($sac) ? $sac : null,
+	    							'commission_type'			=> $commission_type,
+	    							'commission_value'			=> $commission_value,
+	    							'deposit_required'			=> $deposit_required,
+	    							'deposit_percent'			=> $deposit_percent,
 	    							'item_group'				=> 'Variants',
 	    							'discount_type'				=> $discount_type,
 	    							'discount'					=> $discount,
@@ -816,6 +835,10 @@ class Items_model extends CI_Model {
 			$data['discount_type']=$query->discount_type;
 			$data['commission_type']=$query->commission_type ?? 'none';
 			$data['commission_value']=$query->commission_value ?? 0;
+			$data['service_bit']=$query->service_bit ?? 0;
+			$data['deposit_required']=$query->deposit_required ?? 0;
+			$data['deposit_percent']=$query->deposit_percent ?? 0;
+			$data['item_image']=$query->item_image ?? '';
 			$data['child_bit']=$query->child_bit;
 			$data['mrp']=store_number_format($query->mrp,0);
 			$data['batch_lot']=$query->batch_lot;
@@ -866,8 +889,8 @@ class Items_model extends CI_Model {
 	public function delete_items_from_table($ids){
 		$this->db->trans_begin();
 		//find the this item has the Purchase Return 
-		$purchase_ret_rec = $this->db->select("*")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_purchaseitemsreturn");
-		if($purchase_ret_rec->num_rows()>0){
+		$purchase_ret_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_purchaseitemsreturn");
+		if($purchase_ret_rec && $purchase_ret_rec->num_rows()>0){
 			$i=1;
 			echo "Can't Delete!<br>These Items List Have the Purchase Returns Records!";
 			foreach($purchase_ret_rec->result() as $res1){
@@ -877,8 +900,8 @@ class Items_model extends CI_Model {
 		}
 
 		//find the this item has the Purchase
-		$purchase_rec = $this->db->select("*")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_purchaseitems");
-		if($purchase_rec->num_rows()>0){
+		$purchase_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_purchaseitems");
+		if($purchase_rec && $purchase_rec->num_rows()>0){
 			$i=1;
 			echo "Can't Delete!<br>These Items List Have the Purchase Records!";
 			foreach($purchase_rec->result() as $res1){
@@ -888,8 +911,8 @@ class Items_model extends CI_Model {
 		}
 
 		//find the this item has the Sales Return 
-		$sales_ret_rec = $this->db->select("*")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_salesitemsreturn");
-		if($sales_ret_rec->num_rows()>0){
+		$sales_ret_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_salesitemsreturn");
+		if($sales_ret_rec && $sales_ret_rec->num_rows()>0){
 			$i=1;
 			echo "Can't Delete!<br>These Items List Have the Sales Returns Records!";
 			foreach($sales_ret_rec->result() as $res1){
@@ -899,8 +922,8 @@ class Items_model extends CI_Model {
 		}
 
 		//find the this item has the sales
-		$sales_rec = $this->db->select("*")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_salesitems");
-		if($sales_rec->num_rows()>0){
+		$sales_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_salesitems");
+		if($sales_rec && $sales_rec->num_rows()>0){
 			$i=1;
 			echo "Can't Delete!<br>These Items List Have the Sales Records!";
 			foreach($sales_rec->result() as $res1){
@@ -910,8 +933,8 @@ class Items_model extends CI_Model {
 		}
 
 		//find the this item has the quotation
-		$quotation_rec = $this->db->select("*")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_quotationitems");
-		if($quotation_rec->num_rows()>0){
+		$quotation_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_quotationitems");
+		if($quotation_rec && $quotation_rec->num_rows()>0){
 			$i=1;
 			echo "Can't Delete!<br>These Items List Have the Quotation Records!";
 			foreach($quotation_rec->result() as $res1){
@@ -939,6 +962,7 @@ class Items_model extends CI_Model {
 		/*Update items in all warehouses of the item*/
 		$q7=update_warehousewise_items_qty_by_store(null,$ids);
 		if(!$q7){
+			echo "failed";
 			return "failed";
 		}
 

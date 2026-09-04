@@ -23,7 +23,7 @@
     .sf-card { background:var(--white); border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); }
     .sf-card-img { width:100%; height:140px; object-fit:cover; background:var(--light-gray); }
     .sf-card-body { padding:10px; }
-    .sf-card-name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px; }
+    .sf-card-name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px; }
     .sf-card-price { font-size:15px; font-weight:700; color:var(--primary); }
     .sf-card-old { font-size:12px; color:var(--gray); text-decoration:line-through; margin-left:4px; }
     .sf-card-add { width:100%; margin-top:8px; padding:8px; border:none; border-radius:6px; background:var(--primary); color:#fff; font-size:13px; font-weight:600; cursor:pointer; }

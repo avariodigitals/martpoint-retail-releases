@@ -118,7 +118,7 @@ $aboutUs = $settings->footer_about_us ?? '';
   <?php endif; ?>
 
   <div class="mp-footer-bottom">
-    &copy; <?= date('Y'); ?> <?= htmlspecialchars($store->store_name ?? 'Store'); ?>. All rights reserved.
+    &copy; <?= date('Y'); ?> <?= htmlspecialchars($store->store_name ?? 'Store'); ?>. All rights reserved. Business operations powered by MartPoint.
   </div>
 </div>
 

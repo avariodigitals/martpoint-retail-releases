@@ -17,7 +17,8 @@ class Release extends MY_Controller {
     public function index() {
         $data = $this->data;
         $data['page_title'] = 'Build Release Package';
-        $this->load->view('release-builder', $data);
+        $data['content'] = $this->load->view('release-builder', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function build() {

@@ -1,125 +1,103 @@
-<!DOCTYPE html>
-<html>
-   <head>
-      <!-- TABLES CSS CODE -->
-      <?php include"comman/code_css.php"; ?>
-      <!-- </copy> -->  
-   </head>
-   <body class="hold-transition skin-blue sidebar-mini">
-      <div class="wrapper">
-         <?php include"sidebar.php"; ?>
-         <?php
-            if(!isset($brand_name)){
-                 $brand_code=$brand_name=$description=$store_id="";
-            }
-            ?>
-         <!-- Content Wrapper. Contains page content -->
-         <div class="content-wrapper">
-            <!-- Content Header (Page header) -->
-            <section class="content-header">
-               <h1>
-                  <?=$page_title;?>
-                  <small>Add/Update Brand</small>
-               </h1>
-               <ol class="breadcrumb">
-                  <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-                  <li><a href="<?php echo $base_url; ?>brand/view"><?= $this->lang->line('brands_list'); ?></a></li>
-                  <li class="active"><?=$page_title;?></li>
-               </ol>
-            </section>
-            <!-- Main content -->
-            <section class="content">
-               <div class="row">
-                  <!-- right column -->
-                  <div class="col-md-12">
-                     <!-- Horizontal Form -->
-                     <div class="box box-primary ">
-                        <div class="box-header with-border">
-                           <h3 class="box-title">Please Enter Valid Data</h3>
-                        </div>
-                        <!-- /.box-header -->
-                        <!-- form start -->
-                        <form class="form-horizontal" id="brand-form" onkeypress="return event.keyCode != 13;">
-                           <input type="hidden" name="<?php echo $this->security->get_csrf_token_name();?>" value="<?php echo $this->security->get_csrf_hash();?>">
-                           <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
-                           <div class="box-body">
-                              <!-- Store Code -->
-                               <?php /*if(store_module() && is_admin()) {$this->load->view('store/store_code',array('show_store_select_box'=>true,'store_id'=>$store_id)); }else{*/
-                                echo "<input type='hidden' name='store_id' id='store_id' value='".get_current_store_id()."'>";
-                              /*}*/ ?>
-                              <!-- Store Code end -->
-                              <div class="form-group">
-                                 <label for="brand" class="col-sm-2 control-label"><?= $this->lang->line('brand_name'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-4">
-                                    <input type="text" class="form-control input-sm" id="brand" name="brand" placeholder="" onkeyup="shift_cursor(event,'description')" value="<?php print $brand_name; ?>" autofocus >
-                                    <span id="brand_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                              </div>
-                              <div class="form-group">
-                                 <label for="description" class="col-sm-2 control-label"><?= $this->lang->line('description'); ?></label>
-                                 <div class="col-sm-4">
-                                    <textarea type="text" class="form-control" id="description" name="description" placeholder=""><?php print $description; ?></textarea>
-                                    <span id="description_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                              </div>
-                           </div>
-                           <!-- /.box-footer -->
-                           <div class="box-footer">
-                              <div class="col-sm-8 col-sm-offset-2 text-center">
-                                 <!-- <div class="col-sm-4"></div> -->
-                                 <?php
-                                    if(isset($q_id)){
-                                         $btn_name="Update";
-                                         $btn_id="update";
-                                        ?>
-                                 <input type="hidden" name="q_id" id="q_id" value="<?php echo $q_id;?>"/>
-                                 <?php
-                                    }
-                                              else{
-                                                  $btn_name="Save";
-                                                  $btn_id="save";
-                                              }
-                                    
-                                              ?>
-                                 <div class="col-md-3 col-md-offset-3">
-                                    <button type="button" id="<?php echo $btn_id;?>" class=" btn btn-block btn-success" title="Save Data"><?php echo $btn_name;?></button>
-                                 </div>
-                                 <div class="col-sm-3">
-                                    <a href="<?=base_url('dashboard');?>">
-                                    <button type="button" class="col-sm-3 btn btn-block btn-warning close_btn" title="Go Dashboard">Close</button>
-                                    </a>
-                                 </div>
-                              </div>
-                           </div>
-                           <!-- /.box-footer -->
-                        </form>
-                     </div>
-                     <!-- /.box -->
-                  </div>
-                  <!--/.col (right) -->
-               </div>
-               <!-- /.row -->
-            </section>
-            <!-- /.content -->
-         </div>
-         <!-- /.content-wrapper -->
-         <?php include"footer.php"; ?>
-         <!-- Add the sidebar's background. This div must be placed
-            immediately after the control sidebar -->
-         <div class="control-sidebar-bg"></div>
+<?php
+$this->load->view('admin/desktop/_styles');
+
+$CI =& get_instance();
+$store_name = $this->session->userdata('store_name') ?: 'MartPoint';
+
+if(!isset($brand_name)){
+  $brand_code=$brand_name=$description=$store_id="";
+}
+// Save vs Update button
+if(isset($q_id)){
+  $btn_name = 'Update';
+  $btn_id = 'update';
+} else {
+  $btn_name = 'Save';
+  $btn_id = 'save';
+}
+?>
+
+<style>
+.mp-card-form { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 16px; box-shadow: var(--mp-shadow-sm); overflow: hidden; margin-bottom: 24px; }
+.mp-card-form .mp-card-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--mp-border); }
+.mp-card-form .mp-card-head h3 { font-size: 15px; font-weight: 700; margin: 0; color: var(--mp-text); }
+.mp-card-form .mp-card-body { padding: 20px; }
+.mp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; }
+.mp-form-grid .mp-form-group.full { grid-column: 1 / -1; }
+.mp-form-group { display: flex; flex-direction: column; gap: 6px; }
+.mp-form-group > label { font-size: 13px; font-weight: 600; color: var(--mp-ink); }
+.mp-form-group > label .text-danger { color: var(--mp-danger); }
+.mp-form-control { width: 100%; padding: 11px 14px; border: 1px solid var(--mp-border); border-radius: 10px; background: var(--mp-surface); color: var(--mp-ink); font-size: 14px; font-weight: 500; font-family: inherit; transition: all .15s ease; }
+.mp-form-control:focus { outline: none; border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,.1); }
+.mp-form-control[readonly] { background: var(--mp-bg); color: var(--mp-muted); }
+textarea.mp-form-control { min-height: 90px; resize: vertical; }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); }
+@media (max-width:767px){ .mp-form-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="mp-section">
+  <?php include "comman/code_flashdata.php"; ?>
+</div>
+
+<!-- Page Header -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; <?= isset($q_id) ? 'Update brand' : 'Add a new brand'; ?></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?php echo $base_url; ?>brands/view" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Brands
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Form Card -->
+<div class="mp-section">
+  <div class="mp-card-form box">
+    <div class="mp-card-head">
+      <h3>Brand Details</h3>
+    </div>
+    <form class="mp-card-body" id="brand-form" onkeypress="return event.keyCode != 13;">
+      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name();?>" value="<?php echo $this->security->get_csrf_hash();?>">
+      <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
+      <input type="hidden" name="store_id" id="store_id" value="<?php echo get_current_store_id(); ?>">
+      <?php if(isset($q_id)): ?>
+      <input type="hidden" name="q_id" id="q_id" value="<?php echo $q_id; ?>"/>
+      <?php endif; ?>
+
+      <div class="mp-form-grid">
+        <div class="mp-form-group">
+          <label for="brand"><?= $this->lang->line('brand_name'); ?> <span class="text-danger">*</span></label>
+          <input type="text" class="mp-form-control" id="brand" name="brand" placeholder="e.g. Coca-Cola" onkeyup="shift_cursor(event,'description')" value="<?php print $brand_name; ?>" autofocus>
+          <span id="brand_msg" style="display:none" class="text-danger"></span>
+        </div>
+
+        <div class="mp-form-group">
+          <label for="description"><?= $this->lang->line('description'); ?></label>
+          <textarea class="mp-form-control" id="description" name="description" placeholder="Short description (optional)"><?php print $description; ?></textarea>
+          <span id="description_msg" style="display:none" class="text-danger"></span>
+        </div>
       </div>
-      <!-- ./wrapper -->
-      <!-- SOUND CODE -->
-      <?php include"comman/code_js_sound.php"; ?>
-      <!-- TABLES CODE -->
-      <?php include"comman/code_js.php"; ?>
-      <script src="<?php echo $theme_link; ?>js/brand.js"></script>
-      <script type="text/javascript">
-        <?php if(isset($q_id)){ ?>
-          $("#store_id").attr('readonly',true);
-        <?php }?>
-      </script>
-      <!-- Make sidebar menu hughlighter/selector -->
-      <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-   </body>
-</html>
+    </form>
+
+    <div class="mp-form-actions">
+      <button type="button" id="<?php echo $btn_id; ?>" class="mp-qa-btn green" title="Save Data">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <?php echo $btn_name; ?>
+      </button>
+      <a href="<?php echo $base_url; ?>brands/view" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Cancel</a>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+  <?php if(isset($q_id)): ?>
+  $("#store_id").attr('readonly', true);
+  <?php endif; ?>
+</script>
+<!-- Make sidebar menu highlighter/selector -->
+<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>

@@ -97,7 +97,7 @@
     .recent-item { display: flex; flex-direction: column; align-items: center; padding: 16px; border: 1px solid var(--mp-border); border-radius: 14px; background: #fff; cursor: pointer; text-align: center; min-width: 0; overflow: hidden; }
     .recent-item:active { background: var(--mp-bg); }
     .recent-item img { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; margin-bottom: 10px; background: #f1f5f9; }
-    .recent-item .name { font-size: 13px; font-weight: 600; line-height: 1.35; height: 2.7em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+    .recent-item .name { font-size: 13px; font-weight: 600; line-height: 1.35; height: 2.7em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
     .recent-item .price { font-size: 14px; font-weight: 700; color: var(--mp-primary); margin-top: 6px; word-break: break-word; }
     .recent-item .price-alt { font-size: 11px; color: var(--mp-muted); margin-top: 2px; word-break: break-word; }
     .catalog-count { font-size: 12px; color: var(--mp-muted); padding: 0 2px 8px; }
@@ -745,6 +745,9 @@
         showToast('No ' + ($('#price_type').val() === 'retail' ? 'retail (MRP)' : 'wholesale') + ' price for this item.', 'error');
         return;
       }
+      if(item.promo_name){
+        showToast(item.item_name + ' — Promo: ' + item.promo_name, 'success');
+      }
       var found = cart.find(function(c){ return c.id == item.id; });
       if(found){
         found.qty += 1;
@@ -1067,6 +1070,13 @@
       var customer_id = $('#customer_id').val();
       if(!customer_id){ showToast('Please select a customer', 'warning'); return; }
       if(cart.length === 0){ showToast('Please add at least one item', 'warning'); return; }
+
+      // Block walk-in customer from using coupon codes
+      var couponCodeVal = ($('#coupon_code').val() || '').trim();
+      var walkinCid = '<?= get_walk_in_customer_id(); ?>';
+      if(couponCodeVal && customer_id == walkinCid){
+        showToast('Coupons require a real customer, not Walk-in', 'warning'); return;
+      }
 
       var total = getCartTotal();
       var inputPaid = parseFloat($('#payment_amount_paid').val()) || 0;

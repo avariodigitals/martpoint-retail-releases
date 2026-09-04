@@ -1,8 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-<!-- FORM CSS CODE -->
-<?php include"comman/code_css.php"; ?>
+<?php
+/* Email Scheduled Reports — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
 <style>
   .schedule-card { border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px; background: #fff; }
   .schedule-card h4 { margin: 0 0 12px 0; font-weight: 700; }
@@ -11,142 +10,112 @@
   .schedule-card .badge-disabled { background: #EF4444; color: #fff; }
   .schedule-card .last-run { color: #64748B; font-size: 12px; }
 </style>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+<div class="mp-page-head"><h1 class="mp-page-title"><?= $page_title ?></h1></div>
 
- <?php include"sidebar.php"; ?>
-
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?= $page_title ?></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?=base_url('email_settings');?>">Email Settings</a></li>
-        <li class="active"><?= $page_title; ?></li>
-      </ol>
-    </section>
-
-    <section class="content">
-      <div class="row">
-        <div class="col-md-12">
-
-          <div class="callout callout-info">
-            <h4><i class="fa fa-clock-o"></i> Automated Reports</h4>
-            <p>Configure daily reports to be sent automatically via email or WhatsApp. Set up a cron job to trigger sending (see bottom of page).</p>
-          </div>
-
-          <?php foreach($schedules as $schedule): ?>
-          <div class="schedule-card" data-schedule-id="<?=$schedule->id;?>">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-              <div>
-                <h4><?=htmlspecialchars($schedule->template_name ?: ucwords(str_replace('_', ' ', $schedule->report_type)));?></h4>
-                <span class="badge-status <?=($schedule->status ? 'badge-enabled' : 'badge-disabled');?>"><?=($schedule->status ? 'Enabled' : 'Disabled');?></span>
-                <?php if($schedule->last_run_at): ?>
-                <span class="last-run">Last run: <?=show_date($schedule->last_run_at) . ' ' . date('H:i', strtotime($schedule->last_run_at));?></span>
-                <?php else: ?>
-                <span class="last-run">Never run</span>
-                <?php endif; ?>
-              </div>
-              <div>
-                <button type="button" class="btn btn-info btn-sm btn-run-now" style="margin-right:6px;"><i class="fa fa-play"></i> Run Now</button>
-                <button type="button" class="btn btn-success btn-sm btn-save-schedule"><i class="fa fa-save"></i> Save</button>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-3">
-                <div class="form-group">
-                  <label>Status</label>
-                  <select class="form-control schedule-status">
-                    <option value="1" <?=($schedule->status==1?'selected':'');?>>Enabled</option>
-                    <option value="0" <?=($schedule->status==0?'selected':'');?>>Disabled</option>
-                  </select>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-group">
-                  <label>Send Time (24h)</label>
-                  <input type="time" class="form-control schedule-time" value="<?=htmlspecialchars($schedule->send_time);?>">
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-group">
-                  <label>Frequency</label>
-                  <select class="form-control schedule-frequency">
-                    <option value="daily" <?=($schedule->frequency=='daily'?'selected':'');?>>Daily</option>
-                  </select>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-group">
-                  <label>Email Template</label>
-                  <select class="form-control schedule-template">
-                    <option value="daily_business_summary" <?=($schedule->email_template_key=='daily_business_summary'?'selected':'');?>>Daily Business Summary</option>
-                    <option value="low_stock_alert" <?=($schedule->email_template_key=='low_stock_alert'?'selected':'');?>>Low Stock Alert</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-6">
-                <div class="form-group">
-                  <label><i class="fa fa-envelope"></i> Email Recipients</label>
-                  <input type="text" class="form-control schedule-emails" value="<?=htmlspecialchars($schedule->email_recipients);?>" placeholder="email1@domain.com, email2@domain.com">
-                  <small class="text-muted">Comma-separated email addresses</small>
-                </div>
-                <div class="form-group">
-                  <label>
-                    <input type="checkbox" class="schedule-email-enabled" <?=($schedule->email_enabled ? 'checked' : '');?>> Enable Email Delivery
-                  </label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-group">
-                  <label><i class="fa fa-whatsapp"></i> WhatsApp Numbers</label>
-                  <input type="text" class="form-control schedule-phones" value="<?=htmlspecialchars($schedule->whatsapp_numbers);?>" placeholder="+254712345678, +254723456789">
-                  <small class="text-muted">Comma-separated with country code</small>
-                </div>
-                <div class="form-group">
-                  <label>
-                    <input type="checkbox" class="schedule-whatsapp-enabled" <?=($schedule->whatsapp_enabled ? 'checked' : '');?>> Enable WhatsApp Delivery
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>WhatsApp Message Template</label>
-              <textarea class="form-control schedule-whatsapp-template" rows="3"><?=htmlspecialchars($schedule->whatsapp_message_template);?></textarea>
-              <small class="text-muted">Plain text message. Variables: {store_name}, {report_date}, {total_sales}, {total_profit}, {total_expenses}, {net_position}, {low_stock_items}, {report_link}</small>
-            </div>
-          </div>
-          <?php endforeach; ?>
-
-          <?php if(count($schedules) == 0): ?>
-          <div class="alert alert-warning">No schedules found. <a href="<?=base_url('email_settings/seed_schedules');?>" class="alert-link">Seed default schedules</a>.</div>
-          <?php endif; ?>
-
-          <div class="callout callout-warning">
-            <h4><i class="fa fa-terminal"></i> Cron Setup Required</h4>
-            <p>To enable automatic sending, add this cron job to your server (runs every hour at minute 0):</p>
-            <pre style="background:#1E293B;color:#E2E8F0;padding:12px;border-radius:8px;">0 * * * * curl -s "<?=base_url('cron/run_scheduled_reports?key=martpoint_cron_2024');?>" > /dev/null 2>&1</pre>
-            <p class="text-muted">Or via CLI (if you have CLI access to your server):</p>
-            <pre style="background:#1E293B;color:#E2E8F0;padding:12px;border-radius:8px;">0 * * * * cd <?=FCPATH;?> && php index.php cron run_scheduled_reports martpoint_cron_2024 > /dev/null 2>&1</pre>
-          </div>
-
-        </div>
-      </div>
-    </section>
-  </div>
-
- <?php include"footer.php"; ?>
-  <div class="control-sidebar-bg"></div>
+<div class="callout callout-info">
+  <h4><i class="fa fa-clock-o"></i> Automated Reports</h4>
+  <p>Configure daily reports to be sent automatically via email or WhatsApp. Set up a cron job to trigger sending (see bottom of page).</p>
 </div>
 
-<?php include"comman/code_js_sound.php"; ?>
-<?php include"comman/code_js.php"; ?>
+<?php foreach($schedules as $schedule): ?>
+<div class="schedule-card" data-schedule-id="<?=$schedule->id;?>">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <h4><?=htmlspecialchars($schedule->template_name ?: ucwords(str_replace('_', ' ', $schedule->report_type)));?></h4>
+      <span class="badge-status <?=($schedule->status ? 'badge-enabled' : 'badge-disabled');?>"><?=($schedule->status ? 'Enabled' : 'Disabled');?></span>
+      <?php if($schedule->last_run_at): ?>
+      <span class="last-run">Last run: <?=show_date($schedule->last_run_at) . ' ' . date('H:i', strtotime($schedule->last_run_at));?></span>
+      <?php else: ?>
+      <span class="last-run">Never run</span>
+      <?php endif; ?>
+    </div>
+    <div>
+      <button type="button" class="btn btn-info btn-sm btn-run-now" style="margin-right:6px;"><i class="fa fa-play"></i> Run Now</button>
+      <button type="button" class="btn btn-success btn-sm btn-save-schedule"><i class="fa fa-save"></i> Save</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-3">
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-control schedule-status">
+          <option value="1" <?=($schedule->status==1?'selected':'');?>>Enabled</option>
+          <option value="0" <?=($schedule->status==0?'selected':'');?>>Disabled</option>
+        </select>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="form-group">
+        <label>Send Time (24h)</label>
+        <input type="time" class="form-control schedule-time" value="<?=htmlspecialchars($schedule->send_time);?>">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="form-group">
+        <label>Frequency</label>
+        <select class="form-control schedule-frequency">
+          <option value="daily" <?=($schedule->frequency=='daily'?'selected':'');?>>Daily</option>
+        </select>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="form-group">
+        <label>Email Template</label>
+        <select class="form-control schedule-template">
+          <option value="daily_business_summary" <?=($schedule->email_template_key=='daily_business_summary'?'selected':'');?>>Daily Business Summary</option>
+          <option value="low_stock_alert" <?=($schedule->email_template_key=='low_stock_alert'?'selected':'');?>>Low Stock Alert</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="form-group">
+        <label><i class="fa fa-envelope"></i> Email Recipients</label>
+        <input type="text" class="form-control schedule-emails" value="<?=htmlspecialchars($schedule->email_recipients);?>" placeholder="email1@domain.com, email2@domain.com">
+        <small class="text-muted">Comma-separated email addresses</small>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" class="schedule-email-enabled" <?=($schedule->email_enabled ? 'checked' : '');?>> Enable Email Delivery
+        </label>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="form-group">
+        <label><i class="fa fa-whatsapp"></i> WhatsApp Numbers</label>
+        <input type="text" class="form-control schedule-phones" value="<?=htmlspecialchars($schedule->whatsapp_numbers);?>" placeholder="+254712345678, +254723456789">
+        <small class="text-muted">Comma-separated with country code</small>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" class="schedule-whatsapp-enabled" <?=($schedule->whatsapp_enabled ? 'checked' : '');?>> Enable WhatsApp Delivery
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>WhatsApp Message Template</label>
+    <textarea class="form-control schedule-whatsapp-template" rows="3"><?=htmlspecialchars($schedule->whatsapp_message_template);?></textarea>
+    <small class="text-muted">Plain text message. Variables: {store_name}, {report_date}, {total_sales}, {total_profit}, {total_expenses}, {net_position}, {low_stock_items}, {report_link}</small>
+  </div>
+</div>
+<?php endforeach; ?>
+
+<?php if(count($schedules) == 0): ?>
+<div class="alert alert-warning">No schedules found. <a href="<?=base_url('email_settings/seed_schedules');?>" class="alert-link">Seed default schedules</a>.</div>
+<?php endif; ?>
+
+<div class="callout callout-warning">
+  <h4><i class="fa fa-terminal"></i> Cron Setup Required</h4>
+  <p>To enable automatic sending, add this cron job to your server (runs every hour at minute 0):</p>
+  <pre style="background:#1E293B;color:#E2E8F0;padding:12px;border-radius:8px;">0 * * * * curl -s "<?=base_url('cron/run_scheduled_reports?key=martpoint_cron_2024');?>" > /dev/null 2>&1</pre>
+  <p class="text-muted">Or via CLI (if you have CLI access to your server):</p>
+  <pre style="background:#1E293B;color:#E2E8F0;padding:12px;border-radius:8px;">0 * * * * cd <?=FCPATH;?> && php index.php cron run_scheduled_reports martpoint_cron_2024 > /dev/null 2>&1</pre>
+</div>
 
 <script>
 function csrfData() {
@@ -213,6 +182,4 @@ $('.btn-run-now').on('click', function(){
   });
 });
 </script>
-<script>$(".smtp-active-li").addClass("active");</script>
-</body>
-</html>
+<script>$(".smtp-active-li").addClass("active");$(".smtp-active-li").closest(".mp-nav-group").addClass("open");</script>

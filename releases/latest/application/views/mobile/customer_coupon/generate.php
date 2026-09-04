@@ -87,7 +87,7 @@
         </div>
 
         <div class="form-group">
-          <label>Coupon <span class="req">*</span></label>
+          <label>Occasion / Coupon <span class="req">*</span></label>
           <div class="mp-select" id="coupon_select">
             <select class="hidden-select" name="coupon_id" id="coupon_id">
               <option value="">Select coupon</option>
@@ -96,7 +96,7 @@
               <?php endforeach; ?>
             </select>
             <div class="trigger" id="coupon_trigger">
-              <span class="placeholder">Select coupon</span>
+              <span class="selected-text placeholder">Select coupon</span>
               <i class="fa fa-chevron-down"></i>
             </div>
             <div class="options" id="coupon_options">
@@ -243,7 +243,7 @@
         var val = $(this).data('value');
         var text = $(this).text();
         $('#coupon_id').val(val).trigger('change');
-        $('#coupon_trigger .placeholder').replaceWith('<span>' + escapeHtml(text) + '</span>');
+        $('#coupon_trigger .selected-text').text(text).removeClass('placeholder');
         $('#coupon_select .option').removeClass('selected');
         $(this).addClass('selected');
         $couponSelect.removeClass('open');

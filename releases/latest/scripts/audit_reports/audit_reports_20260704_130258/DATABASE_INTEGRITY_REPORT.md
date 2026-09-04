@@ -1,0 +1,238 @@
+# MartPoint Database Integrity Report
+
+**Generated:** 2026-07-04 13:03:00
+
+## Findings
+
+- **[low]** Date column nullable without default (`ac_accounts`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`ac_moneydeposits`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`ac_moneytransfer`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`ac_transactions`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Table not using utf8mb4 collation (`db_bankdetails`)
+  - Root cause: Mixed collation can cause join errors
+  - Fix: Consider converting to utf8mb4_unicode_ci
+- **[low]** Date column nullable without default (`db_cobpayments`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_cobpayments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_coupons`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_custadvance`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_custadvance`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_customer_coupons`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_customer_packages`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_customer_payments`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_customer_payments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_customers`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_delivery_drivers`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_delivery_schedules`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_expense`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_expiry_settings`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_gift_card_usage`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_gift_cards`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_hold`.sales_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_installment_payments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_installment_plans`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_item_barcodes`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_items`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Table not using utf8mb4 collation (`db_laundry_orders`)
+  - Root cause: Mixed collation can cause join errors
+  - Fix: Consider converting to utf8mb4_unicode_ci
+- **[low]** Date column nullable without default (`db_license_limit_overrides`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_loyalty_bonus_rules`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_loyalty_points`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_loyalty_product_points`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_loyalty_settings`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_loyalty_tiers`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_offline_purchase_queue`.purchase_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_offline_purchase_queue`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_package`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_payment_modes`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_paystack_settings`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchase`.purchase_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchase`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchasepayments`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchasepayments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchasepaymentsreturn`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchasepaymentsreturn`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_purchasereturn`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_quotation`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_referrals`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_rewards_history`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_sales`.sales_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_sales`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_salespayments`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_salespayments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_salespaymentsreturn`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_salespaymentsreturn`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_salesreturn`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_service_packages`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_sobpayments`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_sobpayments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_stockadjustment`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_stocktransfer`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_store`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_store_credit`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_store_credit_usage`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_subscription`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_subscription_license`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_subscription_plans`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_supplier_payments`.payment_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_supplier_payments`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`db_suppliers`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Table not using utf8mb4 collation (`db_tables`)
+  - Root cause: Mixed collation can cause join errors
+  - Fix: Consider converting to utf8mb4_unicode_ci
+- **[low]** Date column nullable without default (`db_users`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+- **[low]** Date column nullable without default (`temp_holdinvoice`.created_date)
+  - Root cause: Could allow NULL where business expects a date
+  - Fix: Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling
+
+## Legacy Date Values
+
+- **[medium]** Zero-date literals found in source files (``)
+  - Root cause: Source files still reference '0000-00-00'
+  - Fix: Replace with NULL or CURRENT_TIMESTAMP defaults
+
+## Files with Zero-Date Literals
+
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Import.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Operations.php
+- /Users/ralphmore/Herd/martpointretailapp/application/views/operations/laundry.php
+- /Users/ralphmore/Herd/martpointretailapp/application/views/operations/driver_profile.php
+- /Users/ralphmore/Herd/martpointretailapp/application/views/operations/warranty_lookup.php
+- /Users/ralphmore/Herd/martpointretailapp/application/views/expired_items_report.php
+- /Users/ralphmore/Herd/martpointretailapp/application/views/customer-packages.php

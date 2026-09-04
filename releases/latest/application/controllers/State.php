@@ -9,13 +9,41 @@ class State extends MY_Controller {
 	}
 
 	public function index(){
-		//$this->permission_check('places_view');
 		if(!special_access()){
 			$this->show_access_denied_page();exit;
 		}
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('states_list');
-		$this->load->view('state-list', $data);
+		$data['rows'] = $this->state->get_datatables();
+		$data['crud'] = [
+			'page_title' => $this->lang->line('states_list'),
+			'page_sub' => 'Manage states and provinces',
+			'add_url' => base_url('state/add'),
+			'add_label' => 'New State',
+			'columns' => [
+				['title' => 'State', 'field' => 'state', 'type' => 'text'],
+				['title' => 'Country', 'field' => 'country', 'type' => 'text'],
+				['title' => 'Status', 'field' => 'status', 'type' => 'status'],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'state',
+			'status_url' => 'state/update_status',
+			'delete_url' => 'state/delete_state',
+			'edit_url' => base_url('state/update/{id}'),
+			'bulk_delete' => false,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	private function _country_options(){
+		$allowed = ['Nigeria','Ghana','Benin','Burkina Faso','Cape Verde',"Cote d'Ivoire","Côte d'Ivoire",'Gambia','Guinea','Guinea-Bissau','Liberia','Mali','Mauritania','Niger','Senegal','Sierra Leone','Togo','Cameroon','United Kingdom','UK','Great Britain','United States','USA','United States of America','US'];
+		$options = ['' => '-Select-'];
+		$q = $this->db->where('status',1)->where_in('country',$allowed)->get('db_country');
+		foreach($q->result() as $row){
+			$options[$row->country] = $row->country;
+		}
+		return $options;
 	}
 	public function newstate(){
 		$this->form_validation->set_rules('state', 'State', 'trim|required');
@@ -28,15 +56,27 @@ class State extends MY_Controller {
 		}
 	}
 	public function update($id){
-		//$this->belong_to('db_states',$id);
-		//$this->permission_check('places_edit');
 		if(!special_access()){
 			$this->show_access_denied_page();exit;
 		}
 		$result=$this->state->get_details($id);
 		$data=array_merge($this->data,$result);
 		$data['page_title']=$this->lang->line('state');
-		$this->load->view('state', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('state'),
+			'page_sub' => 'Update state',
+			'form_id' => 'state-form',
+			'save_url' => 'state/newstate',
+			'update_url' => 'state/update_state',
+			'list_url' => base_url('state'),
+			'module' => 'state',
+			'fields' => [
+				['name' => 'state', 'label' => 'State Name', 'type' => 'text', 'required' => true],
+				['name' => 'country', 'label' => 'Country', 'type' => 'select', 'required' => true, 'options' => $this->_country_options()],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_state(){
 		
@@ -51,13 +91,26 @@ class State extends MY_Controller {
 		}
 	}
 	public function add(){
-		//$this->permission_check('places_add');
 		if(!special_access()){
 			$this->show_access_denied_page();exit;
 		}
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('state');
-		$this->load->view('state', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('state'),
+			'page_sub' => 'Create a new state',
+			'form_id' => 'state-form',
+			'save_url' => 'state/newstate',
+			'update_url' => 'state/update_state',
+			'list_url' => base_url('state'),
+			'module' => 'state',
+			'fields' => [
+				['name' => 'state', 'label' => 'State Name', 'type' => 'text', 'required' => true],
+				['name' => 'country', 'label' => 'Country', 'type' => 'select', 'required' => true, 'options' => $this->_country_options()],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

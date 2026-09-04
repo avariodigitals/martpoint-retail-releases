@@ -18,7 +18,8 @@ class Manifest extends MY_Controller {
     public function index() {
         $data = $this->data;
         $data['page_title'] = 'Generate Release Manifest';
-        $this->load->view('manifest-generator', $data);
+        $data['content'] = $this->load->view('manifest-generator', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function generate() {

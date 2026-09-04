@@ -13,7 +13,8 @@ class Sales_payments extends MY_Controller {
 		$this->permission_check('sales_payment_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_payments');
-		$this->load->view('sales_payments/list',$data);
+		$data['content']=$this->load->view('sales_payments/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 

@@ -73,7 +73,7 @@ $('#save,#update').on("click",function (e) {
         /*Check XSS Code*/
         if(!xss_validation(data)){ return false; }
         
-        $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+        $(".mp-card-form, .mp-table-wrap, .box").first().append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
         $("#"+this_id).attr('disabled',true);  //Enable Save or Update button
 				$.ajax({
 				type: 'POST',
@@ -268,7 +268,7 @@ function delete_stock_adjustment(q_id)
 {
     var base_url=$("#base_url").val();
    if(confirm("Do You Wants to Delete Record ?")){
-    $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+    $(".mp-card-form, .mp-table-wrap, .box").first().append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
     $.post(base_url+"stock_adjustment/delete_stock_adjustment",{q_id:q_id},function(result){
    //alert(result);return;
      if(result=="success")
@@ -297,7 +297,7 @@ function multi_delete(){
       /*Check XSS Code*/
       if(!xss_validation(data)){ return false; }
       
-      $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+      $(".mp-card-form, .mp-table-wrap, .box").first().append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
       $("#"+this_id).attr('disabled',true);  //Enable Save or Update button
       $.ajax({
       type: 'POST',

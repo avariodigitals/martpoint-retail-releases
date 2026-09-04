@@ -27,7 +27,8 @@ class Subscription_license extends MY_Controller {
 		$data['storefront_used'] = get_storefront_usage();
 		$data['domain_used'] = get_custom_domain_usage();
 		$data['page_title'] = 'License Management';
-		$this->load->view('subscription_license/index', $data);
+		$data['content'] = $this->load->view('subscription_license/index', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function activate_form(){
@@ -38,7 +39,8 @@ class Subscription_license extends MY_Controller {
 		$data = $this->data;
 		$data['license'] = $this->license->get_by_store();
 		$data['page_title'] = 'Activate MartPoint Retail';
-		$this->load->view('subscription_license/activate', $data);
+		$data['content'] = $this->load->view('subscription_license/activate', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function usage(){
@@ -54,7 +56,8 @@ class Subscription_license extends MY_Controller {
 		$data['service_used'] = get_service_usage();
 		$data['media_used'] = get_media_storage_usage_mb();
 		$data['page_title'] = 'License Usage';
-		$this->load->view('subscription_license/usage', $data);
+		$data['content'] = $this->load->view('subscription_license/usage', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/* ----- Request OTP (AJAX) ----- */

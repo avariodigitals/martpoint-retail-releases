@@ -33,7 +33,7 @@
     .sf-card { background:var(--white); border-radius:var(--radius-sm); border:1px solid var(--border); overflow:hidden; }
     .sf-card-img { width:100%; height:120px; object-fit:cover; background:var(--light-gray); }
     .sf-card-body { padding:10px; }
-    .sf-card-name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:4px; }
+    .sf-card-name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:4px; }
     .sf-card-price { font-size:14px; font-weight:700; color:var(--primary); }
     .sf-toast { position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-80px); background:var(--dark); color:#fff; padding:12px 20px; border-radius:var(--radius-sm); font-size:14px; z-index:300; opacity:0; transition:all .3s ease; }
     .sf-toast.show { transform:translateX(-50%) translateY(0); opacity:1; }

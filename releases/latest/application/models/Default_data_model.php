@@ -515,6 +515,11 @@ class Default_data_model extends CI_Model {
             }
         }
 
+        // Loose fallback for owner/manager/admin variants (e.g. "Owner", "Store Owner")
+        if (stripos($role_name, 'owner') !== false || stripos($role_name, 'admin') !== false) {
+            return $this->get_business_owner_permissions();
+        }
+
         return array();
     }
 

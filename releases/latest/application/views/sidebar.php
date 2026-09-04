@@ -494,7 +494,7 @@
         <!-- 8. MARKETING & LOYALTY (Coupons + Loyalty + Gift Cards + Store Credit merged) -->
         <?php if(true){?>
         <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView') && !is_admin()) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit'))) { ?>
-        <li class="coupon-active-li loyalty-active-li gift-cards-active-li store-credit-active-li treeview">
+        <li class="marketing-active-li coupon-active-li loyalty-active-li gift-cards-active-li store-credit-active-li treeview">
           <a href="#">
             <i class="fa fa-ticket text-fuchsia"></i> <span>Marketing</span>
             <span class="pull-right-container">
@@ -502,6 +502,8 @@
             </span>
           </a>
           <ul class="treeview-menu">
+            <!-- Marketing Overview (desktop landing page) -->
+            <li class="marketing-active-li"><a href="<?php echo $base_url; ?>marketing"><i class="fa fa-th"></i> <span>Marketing Overview</span></a></li>
             <!-- Coupons & Promotions -->
             <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) && !is_admin()) { ?>
             <?php if($CI->permissions('customerCouponAdd')) { ?>

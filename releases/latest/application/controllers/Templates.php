@@ -13,7 +13,8 @@ class Templates extends MY_Controller {
 
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sms_template');
-		$this->load->view('sms-template', $data);
+		$data['content'] = $this->load->view('sms-template', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newtemplate(){
 		$this->permission_check('sms_template_add');
@@ -34,7 +35,8 @@ class Templates extends MY_Controller {
 		$result=$this->templates->get_details($id,$data);
 		$data['page_title']=$this->lang->line('sms_template');
 		$data=array_merge($data,$result);
-		$this->load->view('sms-template', $data);
+		$data['content'] = $this->load->view('sms-template', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_template(){
 		$this->permission_check('sms_template_edit');
@@ -53,7 +55,8 @@ class Templates extends MY_Controller {
 		$this->permission_check('sms_template_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sms_templates_list');
-		$this->load->view('sms-templates-list', $data);
+		$data['content'] = $this->load->view('sms-templates-list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

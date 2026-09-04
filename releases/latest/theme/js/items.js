@@ -1,4 +1,4 @@
-$('#save,#update').on("click",function (e) {
+$(document).on("click", "#save, #update", function (e) {
 	var base_url=$("#base_url").val();
     //Initially flag set true
     var flag=true;
@@ -60,10 +60,14 @@ $('#save,#update').on("click",function (e) {
     syncBarcodeToHiddenFields();
 
     var item_group = $("#item_group").val();
+    var item_type_val = $('input[name="item_type"]:checked').val() || $('#item_type_hidden').val() || 'item';
+    var is_service = (item_type_val === 'service');
     //Validate Input box or selection box should not be blank or empty
 	check_field("item_name");
 	check_field("category_id");
-	check_field("unit_id");//units of measurments
+	if(!is_service){
+		check_field("unit_id");//units of measurments
+	}
 	//check_field("alert_qty");
 	check_field("tax_id");
 	check_field("tax_type");
@@ -136,12 +140,17 @@ $('#save,#update').on("click",function (e) {
 						data = new FormData($('#items-form')[0]);//form name
 						/*Check XSS Code*/
 						if(!xss_validation(data)){ return false; }
-						
+
 						$(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
 						$("#"+this_id).attr('disabled',true);  //Enable Save or Update button
+
+						// Determine if saving a service or an item
+						var itemType = $('input[name="item_type"]:checked').val() || $('#item_type_hidden').val() || 'item';
+						var saveUrl = (itemType === 'service') ? base_url+'services/newservices' : base_url+'items/newitems?existing_row_count='+existing_row_count;
+
 						$.ajax({
 						type: 'POST',
-						url: 'newitems?existing_row_count='+existing_row_count,
+						url: saveUrl,
 						data: data,
 						cache: false,
 						contentType: false,
@@ -151,6 +160,7 @@ $('#save,#update').on("click",function (e) {
 							if(result=="success")
 							{
 								//alert("Record Saved Successfully!");
+								var itemType = $('input[name="item_type"]:checked').val() || $('#item_type_hidden').val() || 'item';
 								window.location=base_url+'items';//"items-view.php";
 								return;
 							}
@@ -162,7 +172,7 @@ $('#save,#update').on("click",function (e) {
 							else
 							{
 								toastr["error"](result);
-								
+
 							}
 							$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 							$(".overlay").remove();
@@ -196,9 +206,14 @@ $('#save,#update').on("click",function (e) {
 						
 						$(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
 						$("#"+this_id).attr('disabled',true);  //Enable Save or Update button
+
+						// Determine if updating a service or an item
+						var itemType = $('input[name="item_type"]:checked').val() || $('#item_type_hidden').val() || 'item';
+						var updateUrl = (itemType === 'service') ? base_url+'services/update_services' : base_url+'items/update_items?existing_row_count='+existing_row_count;
+
 						$.ajax({
 						type: 'POST',
-						url: base_url+'items/update_items?existing_row_count='+existing_row_count,
+						url: updateUrl,
 						data: data,
 						cache: false,
 						contentType: false,
@@ -403,23 +418,22 @@ function multi_delete(){
 
 //CALCULATED PURCHASE PRICE
 function calculate_purchase_price(){
-	var price = (isNaN(parseFloat($("#price").val()))) ? 0 :parseFloat($("#price").val()); 
-	var tax = (isNaN(parseFloat($('option:selected', "#tax_id").attr('data-tax')))) ? 0 :parseFloat($('option:selected', "#tax_id").attr('data-tax')); 
+	var price = get_float_type_data("#price");
+	var tax = (isNaN(parseFloat($('option:selected', "#tax_id").attr('data-tax')))) ? 0 :parseFloat($('option:selected', "#tax_id").attr('data-tax'));
 	tax = parseFloat(tax);
 
 	var tax_type = $("#tax_type").val();
-	var purchase_price =parseFloat(0);
-		price =parseFloat(price);
+	var purchase_price = parseFloat(0);
 
 	console.log('tax='+tax);
 	if(tax_type=='Inclusive'){
-			purchase_price =price;
+			purchase_price = price;
 	}
 	else{
 		purchase_price = (price + (price*tax)/parseFloat(100));
 	}
 	//$("#purchase_price").val( (price + (price*tax)/parseFloat(100)).toFixed(decimals));
-	
+
 	$("#purchase_price").val(to_Fixed(purchase_price));
 	//calculate_sales_price();
 
@@ -427,18 +441,17 @@ function calculate_purchase_price(){
 	//calculate_sales_price();
 	calculate_sales_price();
 }
-$("#price").keyup(function(event) {
+$(document).on("keyup", "#price", function(event) {
 	calculate_purchase_price();
-
 });
-$("#tax_id").on("change",function(event) {
+$(document).on("change", "#tax_id", function(event) {
 	calculate_purchase_price();
 });
 
 //CALCUALATED SALES PRICE
 function calculate_sales_price(){
-	var price = (isNaN(parseFloat($("#price").val()))) ? 0 :parseFloat($("#price").val()); 
-	var profit_margin = (isNaN(parseFloat($("#profit_margin").val()))) ? 0 :parseFloat($("#profit_margin").val()); 
+	var price = get_float_type_data("#price");
+	var profit_margin = get_float_type_data("#profit_margin");
 
 	var profit_amt = (profit_margin/100) * price;
 
@@ -447,22 +460,22 @@ function calculate_sales_price(){
 	$("#sales_price").val(to_Fixed(sales_price));
 	//calculate_profit_margin();
 }
-$("#tax_type").on("change",function(event) {
+$(document).on("change", "#tax_type", function(event) {
 	calculate_purchase_price();
 });
-$("#profit_margin").on("change",function(event) {
+$(document).on("change", "#profit_margin", function(event) {
 	calculate_sales_price();
 });
 //END
 //CALCULATE PROFIT MARGIN PERCENTAGE
 function calculate_profit_margin(){
-	var price = (isNaN(parseFloat($("#price").val()))) ? 0 :parseFloat($("#price").val()); 
-	var sales_price = (isNaN(parseFloat($("#sales_price").val()))) ? 0 :parseFloat($("#sales_price").val()); 	
+	var price = get_float_type_data("#price");
+	var sales_price = get_float_type_data("#sales_price");
 	var profit_margin = (sales_price-price);
 	var profit_margin = (profit_margin/price)*parseFloat(100);
 	$("#profit_margin").val(to_Fixed(profit_margin));
 }
-$("#sales_price").on("change",function(event) {
+$(document).on("change", "#sales_price", function(event) {
 	calculate_profit_margin();
 });
 //END
@@ -682,7 +695,7 @@ function calculate_profit_margin_new(price,sales_price){
 	return to_Fixed(profit_margin);
 }
 
-$("#item_group").on("change",function(event) {
+$(document).on("change", "#item_group", function(event) {
 	var item_group = $("#item_group").val();
 	if(item_group=='Variants'){
 		$("#barcode_section").hide();
@@ -696,7 +709,7 @@ $("#item_group").on("change",function(event) {
 	}
 });
 
-$("#tax_id,#tax_type").on("change",function(event) {
+$(document).on("change", "#tax_id, #tax_type", function(event) {
 	calculate_purchase_price_of_all_row();
 	calculate_sales_price_of_all_row();
 });

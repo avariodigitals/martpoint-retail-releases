@@ -37,6 +37,11 @@ class Email_service extends CI_Model {
 		$this->storeId = get_current_store_id();
 	}
 
+	public function setStoreId($storeId){
+		$this->storeId = (int)$storeId;
+		return $this;
+	}
+
 	/**
 	 * Send an email using a template
 	 *

@@ -32,7 +32,8 @@ class Customers_model extends CI_Model {
 	{
 		/*If account receivable checked*/
 		if(isset($_POST['show_account_receivable']) && $_POST['show_account_receivable']=='checked'){
-			$this->db->where("(a.sales_due>0 or a.opening_balance>0)");
+			$store_id = (int)get_current_store_id();
+			$this->db->where("(COALESCE(a.sales_due,0) + COALESCE(a.opening_balance,0) - COALESCE(a.sales_return_due,0) - (SELECT COALESCE(SUM(payment),0) FROM db_salespayments WHERE customer_id = a.id AND short_code = 'OPENING BALANCE PAID' AND store_id = ".$store_id.")) >", 0, FALSE);
 		}
 
 		$columns = $this->_get_available_columns();
@@ -1624,5 +1625,44 @@ class Customers_model extends CI_Model {
 				'closing_balance' => $balance
 			)
 		);
+	}
+
+	public function getOrCreateStorefrontCustomer($storeId, $name, $phone, $email = ''){
+		$phone = trim($phone);
+		$email = trim($email);
+
+		// Try to find by phone first, then by email
+		$this->db->where('store_id', $storeId);
+		if(!empty($phone)){
+			$this->db->where('mobile', $phone);
+		} elseif(!empty($email)){
+			$this->db->where('email', $email);
+		} else {
+			return 0;
+		}
+		$existing = $this->db->get('db_customers')->row();
+
+		if($existing){
+			$update = [];
+			if(empty($existing->customer_name) && !empty($name)) $update['customer_name'] = $name;
+			if(!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) $update['email'] = $email;
+			if(!empty($phone)) $update['mobile'] = $phone;
+			if(!empty($update)) $this->db->where('id', $existing->id)->update('db_customers', $update);
+			return $existing->id;
+		}
+
+		$code = get_init_code('customer', $storeId);
+		$this->db->insert('db_customers', [
+			'store_id' => $storeId,
+			'customer_code' => $code,
+			'customer_name' => $name,
+			'mobile' => $phone ?: NULL,
+			'email' => $email ?: NULL,
+			'status' => 1,
+			'created_date' => date('Y-m-d'),
+			'created_time' => date('H:i:s'),
+			'created_by' => 'STOREFRONT'
+		]);
+		return $this->db->insert_id();
 	}
 }

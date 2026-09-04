@@ -16,6 +16,16 @@
       this._bindEvents();
       this._bindAutocomplete();
       this._restoreHistory();
+
+      // Hard reset: never start with the panel open, even if cached markup had the class
+      var panel = document.getElementById('mp-assist-panel');
+      var overlay = document.getElementById('mp-assist-overlay');
+      var fab = document.getElementById('mp-assist-fab');
+      if(panel) panel.classList.remove('open');
+      if(overlay) overlay.classList.remove('active');
+      if(fab) fab.style.display = 'flex';
+      this.isOpen = false;
+      this._closeMenu();
     },
 
     toggle: function(){

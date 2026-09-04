@@ -1,3 +1,4 @@
+<?php if (!empty($GLOBALS['__mp_code_js_loaded'])) { return; } $GLOBALS['__mp_code_js_loaded'] = true; ?>
 <script>
   var base_url = '<?=base_url()?>';
   window.base_url = base_url;
@@ -58,7 +59,7 @@ function error_show(msg){ toastr.error(msg); }
 <script src="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.js"></script>
 <!-- bootstrap datepicker -->
 <script src="<?php echo $theme_link; ?>plugins/datepicker/bootstrap-datepicker.js"></script>
-<!-- Autocomplete -->      
+<!-- Autocomplete -->
 <script src="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.js"></script>
 <!-- Custom JS -->
 <script src="<?php echo $theme_link; ?>js/special_char_check.js"></script>
@@ -68,7 +69,7 @@ function error_show(msg){ toastr.error(msg); }
 <!-- Pace Loader -->
 <script src="<?php echo $theme_link; ?>plugins/pace/pace.min.js"></script>
 <script type="text/javascript">
-$(document).ajaxStart(function() { Pace.restart(); }); 
+$(document).ajaxStart(function() { Pace.restart(); });
 </script>  
 <!-- Sweet alert -->
 <script src="<?php echo $theme_link; ?>js/sweetalert.min.js"></script>
@@ -106,11 +107,13 @@ $(document).ajaxStart(function() { Pace.restart(); });
 <!-- Initialize date with its Format -->
 <script type="text/javascript">
   //Date picker
+  $(document).ready(function(){
     $('.datepicker').datepicker({
       autoclose: true,
     format: '<?php echo $VIEW_DATE;?>',
      todayHighlight: true
     });
+  });
 </script>
 <script>
   $(function () {
@@ -255,7 +258,7 @@ $(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" )
           });
         }
       }).then(function(){
-        return navigator.serviceWorker.register('<?= base_url("sw.js"); ?>?v=16');
+        return navigator.serviceWorker.register('<?= base_url("sw.js"); ?>?v=19');
       }).then(function(reg){
         console.log('PWA SW registered:', reg.scope);
       }).catch(function(err){
@@ -264,9 +267,22 @@ $(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" )
     });
   }
 </script>
-<!-- MartPoint Assist -->
-<script src="<?php echo $theme_link; ?>js/assist.js?v=12"></script>
+<!-- MartPoint Assist — loaded here for standalone views; mp_footer also loads it with a guard -->
+<?php if(!defined('MP_ASSIST_LOADED')): ?>
+<?php define('MP_ASSIST_LOADED', true); ?>
+<script>
+// Inject assist CSS if not already loaded (standalone views without mp_header)
+(function(){
+  if(document.querySelector('link[href*="assist.css"]')) return;
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = '<?php echo $theme_link; ?>css/assist.css?v=13';
+  document.head.appendChild(l);
+})();
+</script>
+<script src="<?php echo $theme_link; ?>js/assist.js?v=13"></script>
 <?php $this->load->view('assist/panel'); ?>
+<?php endif; ?>
 
 <script>
   // Close mobile sidebar when clicking a menu link or the overlay

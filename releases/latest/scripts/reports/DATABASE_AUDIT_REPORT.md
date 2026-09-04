@@ -1,0 +1,1037 @@
+# MartPoint Database Audit Report
+
+**Generated:** 2026-07-04
+
+**Scope:** CodeIgniter/PHP application at `/Users/ralphmore/Herd/martpointretailapp`
+
+**Method:** Automated scan of all `.sql` files plus the installer `db.txt` SQL dump, and all PHP files (excluding `release_upload`, `backups`, `vendor`, `.git`, `.idea`, `theme/build`).
+
+---
+
+## Executive Summary
+
+- **Tables created by installer SQL:** 154 (core `db.txt` plus the three extension files)
+- **Tables referenced in application code:** 132
+- **Tables created at runtime in PHP:** 0 (all runtime tables are also present in the consolidated installer schema)
+- **Tables used but NOT created by installer:** 0 (critical gap `db_expiry_settings` was added)
+- **Tables created but NOT referenced in code:** 23 (many are likely used via helpers/views not captured by the table-name heuristic; this is a detection limitation, not necessarily dead schema)
+- **Tables with BLOB/TEXT/VARCHAR(255) row-size risks:** 115
+- **ALTER TABLE columns missing from base CREATE TABLE:** 107 in the pre-fix scan; all installer-critical gaps have been folded into base CREATE TABLEs (see Section 10 for the full list). Migration-only files outside the installer were left for existing-install upgrades.
+
+---
+
+## 1. Tables Used But Not Created by Installer (CRITICAL)
+
+- **Resolved:** `db_expiry_settings` was added to `db_install_extensions.sql`.
+- **Previously missing:** `db_expiry_settings` (referenced in `/Users/ralphmore/Herd/martpointretailapp/application/models/Expiry_settings_model.php`).
+
+---
+
+## 2. Tables Created at Runtime (Should be in Installer SQL)
+
+- None detected.
+
+---
+
+## 3. Tables Created But Not Referenced in Application Code
+
+- **`ac_accounts`**
+- **`ac_moneydeposits`**
+- **`ac_moneytransfer`**
+- **`ac_transactions`**
+- **`ci_sessions`**
+- **`db_company`**
+- **`db_currency`**
+- **`db_debt_reminder_history`**
+- **`db_expense_category`**
+- **`db_license_limit_overrides`**
+- **`db_offline_purchase_queue`**
+- **`db_purchasepayments`**
+- **`db_purchasereturn`**
+- **`db_quotationitems`**
+- **`db_referrals`**
+- **`db_rewards_history`**
+- **`db_salespayments`**
+- **`db_salesreturn`**
+- **`db_stockentry`**
+- **`db_stripepayments`**
+- **`db_suppliers`**
+- **`db_warehouse`**
+- **`temp_holdinvoice`**
+
+---
+
+## 4. ALTER TABLE Columns Missing from Base CREATE TABLE
+
+These columns are added via `ALTER TABLE` statements in migration files. For a clean fresh install, they should be folded into the original `CREATE TABLE` definitions.
+
+- `db_subscription_license`.`override_branch_limit` `int(11)`
+- `db_subscription_license`.`override_user_limit` `int(11)`
+- `db_subscription_license`.`override_product_limit` `int(11)`
+- `db_subscription_license`.`override_service_limit` `int(11)`
+- `db_subscription_license`.`override_media_storage_limit_mb` `int(11)`
+- `db_subscription_license`.`override_reason` `text`
+- `db_subscription_license`.`override_expiry` `date`
+- `db_subscription_license`.`override_branch_limit` `int(11)`
+- `db_subscription_license`.`override_user_limit` `int(11)`
+- `db_subscription_license`.`override_product_limit` `int(11)`
+- `db_subscription_license`.`override_service_limit` `int(11)`
+- `db_subscription_license`.`override_media_storage_limit_mb` `int(11)`
+- `db_subscription_license`.`override_reason` `text`
+- `db_subscription_license`.`override_expiry` `date`
+- `db_users`.`approval_pin` `VARCHAR(64)`
+- `db_users`.`approval_pin` `VARCHAR(64)`
+- `db_users`.`approval_pin` `VARCHAR(64)`
+- `db_users`.`if` `NOT`
+- `db_customers`.`loyalty_points` `DECIMAL(15,2)`
+- `db_customers`.`lifetime_spend` `DECIMAL(15,2)`
+- `db_customers`.`loyalty_tier` `VARCHAR(50)`
+- `db_customers`.`store_credit_balance` `DECIMAL(15,2)`
+- `db_customers`.`gift_card_balance` `DECIMAL(15,2)`
+- `db_customers`.`referral_code` `VARCHAR(20)`
+- `db_customers`.`referred_by` `INT`
+- `db_customers`.`referral_count` `INT`
+- `db_customers`.`birthday` `DATE`
+- `db_customers`.`last_purchase_date` `DATE`
+- `db_customers`.`average_order_value` `DECIMAL(15,2)`
+- `db_customers`.`favourite_products` `TEXT`
+- `db_customers`.`photo` `VARCHAR(255)`
+- `db_customers`.`loyalty_points` `DECIMAL(15,2)`
+- `db_customers`.`lifetime_spend` `DECIMAL(15,2)`
+- `db_customers`.`loyalty_tier` `VARCHAR(50)`
+- `db_customers`.`store_credit_balance` `DECIMAL(15,2)`
+- `db_customers`.`gift_card_balance` `DECIMAL(15,2)`
+- `db_customers`.`referral_code` `VARCHAR(20)`
+- `db_customers`.`referred_by` `INT`
+- `db_customers`.`referral_count` `INT`
+- `db_customers`.`birthday` `DATE`
+- `db_customers`.`last_purchase_date` `DATE`
+- `db_customers`.`average_order_value` `DECIMAL(15,2)`
+- `db_customers`.`favourite_products` `TEXT`
+- `db_customers`.`photo` `VARCHAR(255)`
+- `db_customers`.`nin_bvn` `VARCHAR(50)`
+- `db_customers`.`nin_verified` `TINYINT(1)`
+- `db_customers`.`nin_verified_at` `DATETIME`
+- `db_customers`.`nin_waived` `TINYINT(1)`
+- `db_customers`.`nin_waived_by` `VARCHAR(50)`
+- `db_customers`.`nin_waived_at` `DATETIME`
+- `db_approval_settings`.`bnpl_approval_enabled` `TINYINT(1)`
+- `db_approval_settings`.`bnpl_approval_method` `VARCHAR(30)`
+- `db_store`.`nin_api_enabled` `TINYINT(1)`
+- `db_store`.`nin_api_url` `VARCHAR(500)`
+- `db_store`.`nin_api_key` `VARCHAR(500)`
+- `db_store`.`nin_api_provider` `VARCHAR(50)`
+- `db_store`.`nin_api_cost` `DECIMAL(10,2)`
+- `db_store`.`location_lat` `DECIMAL(10,8)`
+- `db_store`.`location_lng` `DECIMAL(11,8)`
+- `db_store`.`if` `NOT`
+- `db_store`.`if` `NOT`
+- `db_sitesettings`.`update_channel_url` `VARCHAR(500)`
+- `db_sitesettings`.`update_channel_url` `VARCHAR(500)`
+- `db_sitesettings`.`update_channel_url` `VARCHAR(500)`
+- `db_salespayments`.`payment_mode_id` `INT`
+- `db_salespayments`.`payment_reference` `VARCHAR(255)`
+- `db_salespayments`.`confirmation_status` `TINYINT(1)`
+- `db_salespayments`.`confirmed_by` `VARCHAR(50)`
+- `db_salespayments`.`confirmed_date` `DATETIME`
+- `db_salespayments`.`if` `NOT`
+- `db_salespayments`.`if` `NOT`
+- `db_salespayments`.`if` `NOT`
+- `db_salespayments`.`if` `NOT`
+- `db_salespayments`.`if` `NOT`
+- `db_items`.`batch_lot` `VARCHAR(100)`
+- `db_items`.`serial_number` `VARCHAR(100)`
+- `db_items`.`imei_number` `VARCHAR(50)`
+- `db_items`.`warranty_months` `INT(3)`
+- `db_items`.`laundry_service_type` `VARCHAR(30)`
+- `db_items`.`deposit_required` `TINYINT(1)`
+- `db_items`.`deposit_percent` `DECIMAL(10,2)`
+- `db_items`.`online_price` `DECIMAL(12,2)`
+- `db_items`.`if` `NOT`
+- `db_purchaseitems`.`batch_lot` `VARCHAR(100)`
+- `db_purchaseitems`.`sold_serial_number` `VARCHAR(100)`
+- `db_purchaseitems`.`sold_imei_number` `VARCHAR(50)`
+- `db_purchaseitems`.`received_qty` `DOUBLE(20,4)`
+- `db_purchaseitems`.`barcode` `VARCHAR(100)`
+- `db_purchaseitems`.`expire_date` `DATE`
+- `db_purchaseitems`.`mfg_date` `DATE`
+- `db_purchaseitems`.`received_qty` `DOUBLE(20,4)`
+- `db_purchaseitems`.`barcode` `VARCHAR(100)`
+- `db_purchaseitems`.`expire_date` `DATE`
+- `db_purchaseitems`.`mfg_date` `DATE`
+- `db_salesitems`.`batch_lot` `VARCHAR(100)`
+- `db_salesitems`.`price_type` `VARCHAR(20)`
+- `db_salesitems`.`sold_serial_number` `VARCHAR(100)`
+- `db_salesitems`.`sold_imei_number` `VARCHAR(50)`
+- `db_salesitems`.`barcode_id` `INT(11)`
+- `db_holditems`.`batch_lot` `VARCHAR(100)`
+- `db_holditems`.`price_type` `VARCHAR(20)`
+- `db_holditems`.`sold_serial_number` `VARCHAR(100)`
+- `db_holditems`.`sold_imei_number` `VARCHAR(50)`
+- `db_holditems`.`barcode_id` `INT(11)`
+- `db_salesitemsreturn`.`barcode_id` `INT(11)`
+- `db_services`.`assigned_staff_id` `INT(10)`
+- `db_services`.`staff_commission_percent` `DECIMAL(5,2)`
+
+---
+
+## 5. BLOB/TEXT/Row-Size Risks
+
+MySQL InnoDB has a maximum row size of ~65,535 bytes (including the 2-byte overhead for each row). Tables with many `TEXT`/`BLOB`/`VARCHAR(255)` columns, or with `utf8mb4` charset and large nullable columns, can hit:
+
+- `Row size too large (> 8126)`
+- `BLOB/TEXT column used in key specification without a key length`
+- `Column length too big` / `Maximum row size`
+
+### 5.1 High-Risk Tables
+
+- **`ac_accounts`** — 21 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text CHARACTER`
+- **`ac_moneydeposits`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text CHARACTER`
+- **`ac_moneytransfer`** — 16 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text CHARACTER`
+- **`ac_transactions`** — 23 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text CHARACTER`
+- **`ci_sessions`** — 4 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `data` `blob NOT`
+- **`db_approval_logs`** — 78 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `reason` `text`
+    - `previous_value` `text`
+    - `new_value` `text`
+    - `error_message` `text COLLATE`
+  - VARCHAR(255) columns:
+    - `device_info` `varchar(255) DEFAULT`
+    - `api_key` `varchar(255) COLLATE`
+    - `customer_name` `varchar(255) COLLATE`
+- **`db_approval_settings`** — 52 columns, engine=`innodb`, charset=`utf8mb4`
+- **`db_attendance`** — 17 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT`
+  - VARCHAR(255) columns:
+    - `face_image` `VARCHAR(255) DEFAULT`
+    - `face_image_out` `VARCHAR(255) DEFAULT`
+- **`db_bankdetails`** — 12 columns, engine=`innodb`, charset=`latin1`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `other_details` `text DEFAULT`
+    - `description` `text DEFAULT`
+- **`db_brands`** — 6 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `mediumtext COLLATE`
+- **`db_brevo`** — 5 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `api_key` `VARCHAR(255) DEFAULT`
+- **`db_category`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `mediumtext COLLATE`
+- **`db_cities`** — 5 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `city` `VARCHAR(255) NOT`
+- **`db_cobpayments`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `mediumtext COLLATE`
+- **`db_company`** — 35 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `company_logo` `text COLLATE`
+    - `logo` `mediumtext COLLATE`
+    - `upi_code` `text COLLATE`
+    - `bank_details` `mediumtext COLLATE`
+    - `sales_terms_and_conditions` `text COLLATE`
+- **`db_coupons`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_currency`** — 6 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `currency` `blob DEFAULT`
+    - `symbol` `mediumtext COLLATE`
+- **`db_custadvance`** — 15 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text CHARACTER`
+- **`db_custom_order_history`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `changed_by_name` `VARCHAR(255) NULL`
+- **`db_custom_orders`** — 23 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `item_name` `VARCHAR(255) NULL`
+    - `staff_name` `VARCHAR(255) NULL`
+- **`db_customer_coupons`** — 16 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_customer_package_redemptions`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+- **`db_customer_payments`** — 13 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text CHARACTER`
+- **`db_customers`** — 39 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `ship_address` `text COLLATE`
+    - `location_link` `text COLLATE`
+    - `attachment_1` `text COLLATE`
+- **`db_debt_reminder_history`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `error_message` `TEXT DEFAULT`
+  - VARCHAR(255) columns:
+    - `customer_name` `VARCHAR(255) DEFAULT`
+- **`db_debt_reminder_settings`** — 52 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `error_message` `text COLLATE`
+    - `provider_response` `text COLLATE`
+    - `html_body` `text COLLATE`
+    - `text_body` `text COLLATE`
+    - `license_code` `text NOT`
+    - `service_note` `text`
+  - VARCHAR(255) columns:
+    - `subject` `varchar(255) COLLATE`
+    - `alert_email` `varchar(255) DEFAULT`
+    - `domain` `varchar(255) DEFAULT`
+    - `item_image` `varchar(255) DEFAULT`
+- **`db_delivery_drivers`** — 22 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `address` `TEXT NULL`
+    - `notes` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `name` `VARCHAR(255) NOT`
+    - `emergency_contact_name` `VARCHAR(255) NULL`
+    - `photo` `VARCHAR(255) NULL`
+- **`db_delivery_schedule_items`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `address` `TEXT NULL`
+    - `delivery_notes` `TEXT NULL`
+    - `signature` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `customer_name` `VARCHAR(255) NULL`
+    - `photo_proof` `VARCHAR(255) NULL`
+- **`db_delivery_schedules`** — 15 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `route_name` `VARCHAR(255) NULL`
+    - `driver_name` `VARCHAR(255) NULL`
+- **`db_email_logs`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `error_message` `TEXT`
+    - `provider_response` `TEXT`
+  - VARCHAR(255) columns:
+    - `subject` `VARCHAR(255) NOT`
+- **`db_email_settings`** — 10 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `email_from_name` `VARCHAR(255) NULL`
+    - `email_from_email` `VARCHAR(255) NULL`
+    - `email_reply_to` `VARCHAR(255) NULL`
+    - `resend_api_key` `VARCHAR(255) NULL`
+    - `resend_from_email` `VARCHAR(255) NULL`
+    - `resend_from_name` `VARCHAR(255) NULL`
+- **`db_email_templates`** — 11 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `html_body` `TEXT`
+    - `text_body` `TEXT`
+  - VARCHAR(255) columns:
+    - `subject` `VARCHAR(255) NOT`
+- **`db_emailtemplates`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `content` `text COLLATE`
+    - `variables` `text COLLATE`
+- **`db_expense`** — 18 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text COLLATE`
+- **`db_expense_category`** — 7 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `mediumtext COLLATE`
+- **`db_fivemojo`** — 6 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `url` `TEXT CHARACTER`
+    - `token` `TEXT CHARACTER`
+    - `instance_id` `TEXT CHARACTER`
+- **`db_gift_cards`** — 15 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT DEFAULT`
+  - VARCHAR(255) columns:
+    - `qr_code` `VARCHAR(255) DEFAULT`
+- **`db_hold`** — 19 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `sales_note` `text COLLATE`
+- **`db_holditems`** — 15 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_installment_payments`** — 16 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text`
+- **`db_instamojo`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `api_key` `text CHARACTER`
+    - `api_token` `text CHARACTER`
+- **`db_instamojopayments`** — 20 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `purpose` `text CHARACTER`
+    - `shorturl` `mediumtext CHARACTER`
+    - `longurl` `mediumtext CHARACTER`
+    - `redirect_url` `mediumtext CHARACTER`
+    - `webhook` `mediumtext CHARACTER`
+  - VARCHAR(255) columns:
+    - `email` `varchar(255) CHARACTER`
+    - `buyer_name` `varchar(255) CHARACTER`
+    - `expires_at` `varchar(255) CHARACTER`
+    - `status` `varchar(255) CHARACTER`
+    - `sms_status` `varchar(255) CHARACTER`
+    - `email_status` `varchar(255) CHARACTER`
+    - `customer_id` `varchar(255) CHARACTER`
+    - `created_at` `varchar(255) CHARACTER`
+    - `modified_at` `varchar(255) CHARACTER`
+- **`db_items`** — 39 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `item_image` `text COLLATE`
+    - `description` `text COLLATE`
+- **`db_laundry_orders`** — 9 columns, engine=`innodb`, charset=`utf8`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+- **`db_license_history`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `domain` `VARCHAR(255) DEFAULT`
+- **`db_license_limit_overrides`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `override_reason` `text DEFAULT`
+- **`db_loyalty_points`** — 11 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `description` `VARCHAR(255) DEFAULT`
+- **`db_membership_payments`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+- **`db_membership_plans`** — 13 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `plan_name` `VARCHAR(255) NOT`
+- **`db_nin_verification_logs`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `response_message` `TEXT DEFAULT`
+- **`db_offline_purchase_queue`** — 22 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `purchase_note` `text`
+    - `items_json` `longtext COMMENT`
+    - `payments_json` `longtext COMMENT`
+    - `sync_error` `text`
+- **`db_online_order_items`** — 11 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `service_note` `TEXT`
+  - VARCHAR(255) columns:
+    - `item_image` `VARCHAR(255)`
+- **`db_online_orders`** — 28 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `customer_address` `text`
+    - `service_note` `text`
+    - `user_agent` `text`
+- **`db_package`** — 20 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_payment_modes`** — 20 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `TEXT DEFAULT`
+  - VARCHAR(255) columns:
+    - `system_name` `VARCHAR(255) DEFAULT`
+- **`db_paypalpaylog`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `txn_id` `varchar(255) CHARACTER`
+    - `payer_email` `varchar(255) CHARACTER`
+    - `payment_status` `varchar(255) CHARACTER`
+- **`db_paystack_payments`** — 17 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `meta_data` `TEXT DEFAULT`
+  - VARCHAR(255) columns:
+    - `customer_email` `VARCHAR(255) DEFAULT`
+    - `paystack_reference` `VARCHAR(255) NOT`
+    - `paystack_access_code` `VARCHAR(255) DEFAULT`
+- **`db_paystack_settings`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `secret_key` `VARCHAR(255) NOT`
+    - `public_key` `VARCHAR(255) NOT`
+    - `webhook_secret` `VARCHAR(255) DEFAULT`
+- **`db_production_batch_items`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `item_name` `VARCHAR(255) NULL`
+- **`db_production_batches`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `batch_name` `VARCHAR(255) NOT`
+    - `equipment` `VARCHAR(255) NULL`
+    - `staff_name` `VARCHAR(255) NULL`
+- **`db_purchase`** — 29 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `purchase_note` `text COLLATE`
+- **`db_purchaseitems`** — 19 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_purchaseitemsreturn`** — 20 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_purchasepayments`** — 18 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text COLLATE`
+- **`db_purchasepaymentsreturn`** — 19 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text COLLATE`
+- **`db_purchasereturn`** — 29 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `return_note` `text COLLATE`
+- **`db_qr_codes`** — 47 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `qr_data` `text`
+    - `whatsapp_message_template` `text COLLATE`
+    - `description` `text`
+  - VARCHAR(255) columns:
+    - `qr_image` `varchar(255) DEFAULT`
+    - `service_image` `varchar(255) DEFAULT`
+    - `user_agent` `varchar(255) COLLATE`
+    - `search_term` `varchar(255) COLLATE`
+    - `brand_logo` `varchar(255) COLLATE`
+- **`db_quotation`** — 34 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `quotation_note` `text COLLATE`
+- **`db_quotationitems`** — 18 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_recipe_ingredients`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `item_name` `VARCHAR(255) NOT`
+- **`db_recipe_production_runs`** — 11 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+- **`db_recipes`** — 16 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `TEXT NULL`
+    - `notes` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `name` `VARCHAR(255) NOT`
+- **`db_report_schedules`** — 16 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `whatsapp_message_template` `TEXT DEFAULT`
+- **`db_rewards_history`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `description` `VARCHAR(255) DEFAULT`
+- **`db_roles`** — 5 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `mediumtext COLLATE`
+- **`db_sales`** — 38 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `sales_note` `text COLLATE`
+    - `invoice_terms` `text COLLATE`
+- **`db_salesitems`** — 19 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_salesitemsreturn`** — 19 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_salespayments`** — 23 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text COLLATE`
+- **`db_salespaymentsreturn`** — 20 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text COLLATE`
+- **`db_salesreturn`** — 33 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `return_note` `text COLLATE`
+- **`db_service_packages`** — 20 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `package_name` `VARCHAR(255) NOT`
+    - `package_image` `VARCHAR(255) NULL`
+- **`db_services`** — 19 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `TEXT`
+  - VARCHAR(255) columns:
+    - `service_image` `VARCHAR(255)`
+- **`db_shippingaddress`** — 10 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `address` `text CHARACTER`
+    - `location_link` `text CHARACTER`
+- **`db_sitesettings`** — 7 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `logo` `mediumtext COLLATE`
+    - `machine_id` `text COLLATE`
+    - `domain` `text COLLATE`
+    - `unique_code` `text COLLATE`
+- **`db_smstemplates`** — 7 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `content` `text COLLATE`
+    - `variables` `text COLLATE`
+- **`db_sobpayments`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `mediumtext COLLATE`
+- **`db_stockadjustment`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `adjustment_note` `mediumtext COLLATE`
+- **`db_stockadjustmentitems`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text COLLATE`
+- **`db_stocktransfer`** — 13 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `note` `text CHARACTER`
+- **`db_store`** — 77 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `store_logo` `text COLLATE`
+    - `logo` `mediumtext COLLATE`
+    - `upi_code` `text COLLATE`
+    - `bank_details` `mediumtext COLLATE`
+    - `fav_icon` `text COLLATE`
+    - `purchase_code` `text COLLATE`
+    - `sales_invoice_footer_text` `text COLLATE`
+    - `sms_url` `text COLLATE`
+    - `invoice_terms` `text COLLATE`
+- **`db_store_business_profile`** — 11 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `feature_flags_json` `TEXT DEFAULT`
+    - `label_overrides_json` `TEXT DEFAULT`
+    - `industry_settings_json` `TEXT DEFAULT`
+- **`db_store_credit`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT DEFAULT`
+- **`db_storefront_analytics`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `user_agent` `VARCHAR(255) DEFAULT`
+- **`db_storefront_banners`** — 14 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `banner_title` `VARCHAR(255)`
+    - `desktop_image` `VARCHAR(255)`
+    - `mobile_image` `VARCHAR(255)`
+- **`db_storefront_brands`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `brand_logo` `VARCHAR(255) DEFAULT`
+- **`db_storefront_domains`** — 10 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `dns_instructions` `TEXT`
+  - VARCHAR(255) columns:
+    - `domain_value` `VARCHAR(255) NOT`
+- **`db_storefront_faqs`** — 7 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `answer` `TEXT NOT`
+  - VARCHAR(255) columns:
+    - `question` `VARCHAR(255) NOT`
+- **`db_storefront_homepage_sections`** — 7 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `config_json` `TEXT`
+- **`db_storefront_instagram`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `image_url` `VARCHAR(255) NOT`
+    - `caption` `VARCHAR(255) DEFAULT`
+- **`db_storefront_settings`** — 56 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `store_description` `TEXT`
+    - `store_address` `TEXT`
+    - `business_hours` `TEXT DEFAULT`
+    - `footer_about_us` `TEXT DEFAULT`
+    - `custom_head_scripts` `TEXT DEFAULT`
+  - VARCHAR(255) columns:
+    - `store_banner` `VARCHAR(255)`
+    - `store_logo` `VARCHAR(255)`
+    - `store_headline` `VARCHAR(255) DEFAULT`
+    - `favicon` `VARCHAR(255) DEFAULT`
+    - `desktop_banner` `VARCHAR(255) DEFAULT`
+    - `mobile_banner` `VARCHAR(255) DEFAULT`
+    - `meta_title` `VARCHAR(255) DEFAULT`
+    - `meta_keywords` `VARCHAR(255) DEFAULT`
+- **`db_storefront_testimonials`** — 9 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `testimonial_text` `TEXT NOT`
+  - VARCHAR(255) columns:
+    - `customer_photo` `VARCHAR(255) DEFAULT`
+- **`db_storefront_themes`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `TEXT`
+  - VARCHAR(255) columns:
+    - `preview_image` `VARCHAR(255)`
+- **`db_stripe`** — 8 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `publishable_key` `text CHARACTER`
+    - `api_secret` `text CHARACTER`
+- **`db_subscription`** — 28 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text CHARACTER`
+- **`db_subscription_license`** — 33 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `suspension_reason` `text COLLATE`
+  - VARCHAR(255) columns:
+    - `domain` `varchar(255) COLLATE`
+- **`db_subscription_plans`** — 16 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `text DEFAULT`
+- **`db_supplier_payments`** — 13 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `payment_note` `text CHARACTER`
+- **`db_system_updates`** — 15 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `log` `TEXT DEFAULT`
+    - `error_message` `TEXT DEFAULT`
+- **`db_tables`** — 11 columns, engine=`innodb`, charset=`utf8`
+  - VARCHAR(255) columns:
+    - `qr_code_url` `VARCHAR(255) NULL`
+- **`db_treatment_note_items`** — 7 columns, engine=`innodb`, charset=`utf8mb4`
+  - VARCHAR(255) columns:
+    - `item_name` `VARCHAR(255) NULL`
+- **`db_treatment_notes`** — 12 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `notes` `TEXT NULL`
+    - `products_used` `TEXT NULL`
+    - `recommendations` `TEXT NULL`
+  - VARCHAR(255) columns:
+    - `service_type` `VARCHAR(255) NOT`
+    - `staff_name` `VARCHAR(255) NULL`
+- **`db_units`** — 6 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `mediumtext COLLATE`
+- **`db_users`** — 31 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `password` `blob DEFAULT`
+    - `photo` `blob DEFAULT`
+    - `address` `blob DEFAULT`
+    - `profile_picture` `text COLLATE`
+- **`db_variants`** — 6 columns, engine=`innodb`, charset=`utf8mb4`
+  - TEXT/BLOB/LONGTEXT columns:
+    - `description` `mediumtext COLLATE`
+
+### 5.2 Schema Recommendations
+
+- Convert fixed-length settings/json/theme data into a key-value table (`db_settings` or similar) rather than adding more `TEXT` columns to core tables.
+- Replace unnecessary `TEXT` columns with `VARCHAR(255)` or `VARCHAR(500)` where the data is known to be short (e.g., short URLs, identifiers, short notes).
+- Avoid creating indexes on full `TEXT`/`BLOB` columns; use prefix indexes (e.g., `KEY idx_name (name(100))`).
+- Review tables with > 50 columns for normalization opportunities.
+- Ensure `CHARACTER SET` and `COLLATE` are consistent; avoid mixing `latin1` and `utf8mb4` in the same table.
+
+---
+
+## 6. Installer Weaknesses
+
+1. **Main schema file is `db.txt` (not `.sql`)**: The installer reads `setup/install/includes/db.txt` as a SQL dump. This is non-standard and makes the file easy to miss during maintenance.
+2. **Hidden runtime table creation**: Several tables are created by controllers/models (`Updates.php`, `Operations.php`, `Recipe_model.php`, `Service_package_model.php`, `Storefront_model.php`) instead of being in the installer. A fresh install should not rely on runtime `CREATE TABLE IF NOT EXISTS`.
+3. **ALTER TABLE migrations needed for fresh install**: Some migrations contain `ALTER TABLE ADD COLUMN` that should be folded into the original `CREATE TABLE` definitions.
+4. **Installer error reporting is coarse**: `databaseLibrary.php` reports `mysqli_error($con1)` after `mysqli_multi_query`, but does not identify which exact statement failed or log the error. Failed installs can appear to succeed because the UI consumes all results before checking the error.
+5. **Mixed charset/collation**: `db.txt` contains a mix of `utf8mb4_unicode_ci` and `latin1` columns. This can cause collation errors and wastes space.
+6. **No idempotency for seed data**: The installer uses plain `INSERT` without `INSERT IGNORE` or `ON DUPLICATE KEY UPDATE`, so re-running the installer can fail on duplicate primary keys.
+
+---
+
+## 7. Recommended Fixes
+
+### 7.1 Consolidate the installer schema
+
+- Rename `db.txt` to `db.sql` (or keep the name but document it clearly) and make it the single authoritative source of truth.
+- Merge the contents of `db_install_extensions.sql` and `db_models_schema_part2.sql` into the main installer file.
+- Apply `db_models_schema_part3.sql` ALTER statements directly into the original `CREATE TABLE` definitions.
+- Convert all `CREATE TABLE` to `CREATE TABLE IF NOT EXISTS` and all `INSERT` seed data to `INSERT IGNORE` or `ON DUPLICATE KEY UPDATE` for idempotency.
+
+### 7.2 Remove runtime table creation from application code
+
+Move the following runtime table creation logic into the installer SQL:
+
+- `db_loyalty_settings` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_loyalty_migration.php`)
+- `db_loyalty_tiers` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_loyalty_migration.php`)
+- `db_loyalty_points` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_loyalty_migration.php`)
+- `db_loyalty_bonus_rules` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_loyalty_migration.php`)
+- `db_loyalty_product_points` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_loyalty_migration.php`)
+- `db_service_staff` (currently in `/Users/ralphmore/Herd/martpointretailapp/migrate_staff_assignment.php`)
+- `db_tables` (currently in `/Users/ralphmore/Herd/martpointretailapp/fix_tables_table.php`)
+- `db_laundry_order_items` (currently in `/Users/ralphmore/Herd/martpointretailapp/fix_laundry_items_table.php`)
+- `db_gift_cards` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_gift_credit_migration.php`)
+- `db_store_credit` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_gift_credit_migration.php`)
+- `db_store_credit_usage` (currently in `/Users/ralphmore/Herd/martpointretailapp/run_gift_credit_migration.php`)
+- `db_kitchen_orders` (currently in `/Users/ralphmore/Herd/martpointretailapp/fix_kitchen_orders_table.php`)
+- `db_system_updates` (currently in `/Users/ralphmore/Herd/martpointretailapp/fix_update_channel.php`)
+- `db_schema_migrations` (currently in `/Users/ralphmore/Herd/martpointretailapp/fix_update_channel.php`)
+- `db_laundry_orders` (currently in `/Users/ralphmore/Herd/martpointretailapp/fix_laundry_table.php`)
+- `db_service_packages` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/migrations/007_add_service_packages.php`)
+- `db_service_package_items` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/migrations/007_add_service_packages.php`)
+- `db_customer_packages` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/migrations/007_add_service_packages.php`)
+- `db_customer_package_redemptions` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/migrations/007_add_service_packages.php`)
+- `db_subscription_license` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/migrations/001_add_subscription_license.php`)
+- `db_production_batches` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Production_batches_model.php`)
+- `db_production_batch_items` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Production_batches_model.php`)
+- `db_delivery_schedules` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Delivery_model.php`)
+- `db_delivery_schedule_items` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Delivery_model.php`)
+- `db_delivery_drivers` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Delivery_model.php`)
+- `db_custom_orders` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Custom_orders_model.php`)
+- `db_custom_order_history` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Custom_orders_model.php`)
+- `db_email_settings` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Email_settings_model.php`)
+- `db_treatment_notes` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Treatment_notes_model.php`)
+- `db_treatment_note_items` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Treatment_notes_model.php`)
+- `db_membership_plans` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Membership_model.php`)
+- `db_customer_memberships` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Membership_model.php`)
+- `db_membership_payments` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Membership_model.php`)
+- `db_shifts` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Attendance_model.php`)
+- `db_user_shifts` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Attendance_model.php`)
+- `db_attendance` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Attendance_model.php`)
+- `db_storefront_settings` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_services` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_online_orders` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_online_order_items` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_themes` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_banners` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_homepage_sections` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_domains` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_qr_codes` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_brands` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_testimonials` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_instagram` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_faqs` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_storefront_analytics` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php`)
+- `db_recipe_categories` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Recipe_model.php`)
+- `db_recipes` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Recipe_model.php`)
+- `db_recipe_ingredients` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Recipe_model.php`)
+- `db_recipe_production_runs` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/models/Recipe_model.php`)
+- `db_shippingaddress` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_coupons` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_customer_coupons` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_bankdetails` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_fivemojo` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_license_otps` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_license_history` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+- `db_brevo` (currently in `/Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php`)
+
+### 7.3 Add missing tables
+
+- Add `db_expiry_settings` to the installer schema.
+
+### 7.4 Fix BLOB/TEXT/row-size issues
+
+- Audit the high-risk tables listed in section 5 and convert oversized columns where possible.
+- Add prefix indexes for any searchable `TEXT` columns.
+- Normalize large tables into related child tables.
+
+### 7.5 Improve installer execution
+
+- Update `setup/install/includes/databaseLibrary.php` to:
+  - Split the SQL file into individual statements and execute them one by one.
+  - Capture the exact statement and error message on failure.
+  - Stop immediately on error and report the failing statement to the UI.
+  - Optionally write a setup log file to `/application/logs/` for support diagnosis.
+
+---
+
+## 8. Files Modified
+
+- `setup/install/includes/db.txt` — folded `approval_pin`, `publish_online`, `online_price`, `location_lat`, and `location_lng` into base CREATE TABLE definitions.
+- `setup/install/includes/db_install_extensions.sql` — added `db_expiry_settings`; folded subscription-license override and meta fields into `db_subscription_license`; commented out redundant `ALTER TABLE` / `PREPARE` blocks.
+- `setup/install/includes/db_models_schema_part3.sql` — commented out redundant `ALTER TABLE` columns now folded into `db.txt`.
+- `setup/install/includes/databaseLibrary.php` — consolidated all schema files, split SQL safely, executed statements one-by-one with exact error reporting, set `utf8mb4` database charset, `DYNAMIC` row format, and disabled PHP timeout.
+- `setup/install/index.php` — no changes; error messages from `databaseLibrary.php` are already surfaced by the existing installer UI.
+- Runtime `CREATE TABLE IF NOT EXISTS` logic in `application/controllers/Updates.php`, `Operations.php`, and models (`Recipe_model.php`, `Service_package_model.php`, `Storefront_model.php`) was **left unchanged** for backward compatibility with upgrades; it is now redundant on fresh installs because the installer creates those tables.
+
+---
+
+## 9. Appendix: All Tables Created by Installer SQL
+
+- `ac_accounts` (21 columns)
+- `ac_moneydeposits` (14 columns)
+- `ac_moneytransfer` (16 columns)
+- `ac_transactions` (23 columns)
+- `ci_sessions` (4 columns)
+- `db_approval_logs` (78 columns)
+- `db_approval_settings` (52 columns)
+- `db_attendance` (17 columns)
+- `db_bankdetails` (12 columns)
+- `db_brands` (6 columns)
+- `db_brevo` (5 columns)
+- `db_category` (8 columns)
+- `db_cities` (5 columns)
+- `db_cobpayments` (12 columns)
+- `db_company` (35 columns)
+- `db_country` (4 columns)
+- `db_coupons` (14 columns)
+- `db_currency` (6 columns)
+- `db_custadvance` (15 columns)
+- `db_custom_order_history` (8 columns)
+- `db_custom_orders` (23 columns)
+- `db_customer_coupons` (16 columns)
+- `db_customer_memberships` (12 columns)
+- `db_customer_package_redemptions` (9 columns)
+- `db_customer_packages` (14 columns)
+- `db_customer_payments` (13 columns)
+- `db_customers` (39 columns)
+- `db_debt_reminder_history` (9 columns)
+- `db_debt_reminder_settings` (52 columns)
+- `db_delivery_drivers` (22 columns)
+- `db_delivery_schedule_items` (14 columns)
+- `db_delivery_schedules` (15 columns)
+- `db_email_logs` (14 columns)
+- `db_email_settings` (10 columns)
+- `db_email_templates` (11 columns)
+- `db_emailtemplates` (9 columns)
+- `db_expense` (18 columns)
+- `db_expense_category` (7 columns)
+- `db_fivemojo` (6 columns)
+- `db_gift_card_usage` (8 columns)
+- `db_gift_cards` (15 columns)
+- `db_hold` (19 columns)
+- `db_holditems` (15 columns)
+- `db_installment_payments` (16 columns)
+- `db_installment_plans` (20 columns)
+- `db_instamojo` (8 columns)
+- `db_instamojopayments` (20 columns)
+- `db_item_barcodes` (14 columns)
+- `db_items` (39 columns)
+- `db_kitchen_orders` (6 columns)
+- `db_languages` (3 columns)
+- `db_laundry_order_items` (8 columns)
+- `db_laundry_orders` (9 columns)
+- `db_license_history` (9 columns)
+- `db_license_limit_overrides` (12 columns)
+- `db_license_otps` (7 columns)
+- `db_loyalty_bonus_rules` (13 columns)
+- `db_loyalty_points` (11 columns)
+- `db_loyalty_product_points` (7 columns)
+- `db_loyalty_settings` (16 columns)
+- `db_loyalty_tiers` (13 columns)
+- `db_membership_payments` (12 columns)
+- `db_membership_plans` (13 columns)
+- `db_nin_verification_logs` (12 columns)
+- `db_offline_purchase_queue` (22 columns)
+- `db_online_order_items` (11 columns)
+- `db_online_orders` (28 columns)
+- `db_package` (20 columns)
+- `db_payment_modes` (20 columns)
+- `db_paymenttypes` (4 columns)
+- `db_paypal` (7 columns)
+- `db_paypalpaylog` (8 columns)
+- `db_paystack_payments` (17 columns)
+- `db_paystack_settings` (12 columns)
+- `db_permissions` (4 columns)
+- `db_production_batch_items` (9 columns)
+- `db_production_batches` (14 columns)
+- `db_purchase` (29 columns)
+- `db_purchaseitems` (19 columns)
+- `db_purchaseitemsreturn` (20 columns)
+- `db_purchasepayments` (18 columns)
+- `db_purchasepaymentsreturn` (19 columns)
+- `db_purchasereturn` (29 columns)
+- `db_qr_codes` (47 columns)
+- `db_quotation` (34 columns)
+- `db_quotationitems` (18 columns)
+- `db_recipe_categories` (5 columns)
+- `db_recipe_ingredients` (9 columns)
+- `db_recipe_production_runs` (11 columns)
+- `db_recipes` (16 columns)
+- `db_referrals` (13 columns)
+- `db_report_schedules` (16 columns)
+- `db_rewards_history` (12 columns)
+- `db_roles` (5 columns)
+- `db_sales` (38 columns)
+- `db_salesitems` (19 columns)
+- `db_salesitemsreturn` (19 columns)
+- `db_salespayments` (23 columns)
+- `db_salespaymentsreturn` (20 columns)
+- `db_salesreturn` (33 columns)
+- `db_schema_migrations` (4 columns)
+- `db_service_package_items` (6 columns)
+- `db_service_packages` (20 columns)
+- `db_service_staff` (6 columns)
+- `db_services` (19 columns)
+- `db_shifts` (12 columns)
+- `db_shippingaddress` (10 columns)
+- `db_sitesettings` (7 columns)
+- `db_smsapi` (6 columns)
+- `db_smstemplates` (7 columns)
+- `db_sobpayments` (12 columns)
+- `db_states` (10 columns)
+- `db_stockadjustment` (12 columns)
+- `db_stockadjustmentitems` (8 columns)
+- `db_stockentry` (5 columns)
+- `db_stocktransfer` (13 columns)
+- `db_stocktransferitems` (9 columns)
+- `db_store` (77 columns)
+- `db_store_business_profile` (11 columns)
+- `db_store_credit` (14 columns)
+- `db_store_credit_usage` (8 columns)
+- `db_storefront_analytics` (9 columns)
+- `db_storefront_banners` (14 columns)
+- `db_storefront_brands` (8 columns)
+- `db_storefront_domains` (10 columns)
+- `db_storefront_faqs` (7 columns)
+- `db_storefront_homepage_sections` (7 columns)
+- `db_storefront_instagram` (8 columns)
+- `db_storefront_settings` (56 columns)
+- `db_storefront_testimonials` (9 columns)
+- `db_storefront_themes` (12 columns)
+- `db_stripe` (8 columns)
+- `db_stripepayments` (9 columns)
+- `db_subscription` (28 columns)
+- `db_subscription_license` (33 columns)
+- `db_subscription_plans` (16 columns)
+- `db_supplier_payments` (13 columns)
+- `db_suppliers` (26 columns)
+- `db_system_updates` (15 columns)
+- `db_tables` (11 columns)
+- `db_tax` (7 columns)
+- `db_timezone` (3 columns)
+- `db_treatment_note_items` (7 columns)
+- `db_treatment_notes` (12 columns)
+- `db_twilio` (6 columns)
+- `db_units` (6 columns)
+- `db_user_shifts` (5 columns)
+- `db_users` (31 columns)
+- `db_userswarehouses` (3 columns)
+- `db_variants` (6 columns)
+- `db_warehouse` (7 columns)
+- `db_warehouseitems` (5 columns)
+- `temp_holdinvoice` (15 columns)
+
+---
+
+## 10. Fixes Applied (Post-Report)
+
+After generating this report, the following changes were made to improve fresh-install stability and schema correctness:
+
+- **Installer SQL consolidation**
+  - `setup/install/includes/databaseLibrary.php` now loads all four schema files in order:
+    - `db.txt` (core schema)
+    - `db_install_extensions.sql` (extensions + approval system + loyalty + email settings)
+    - `db_models_schema_part2.sql` (model schema extensions)
+    - `db_models_schema_part3.sql` (model schema additions, now folded into base schema)
+
+- **Missing table added**
+  - Added `db_expiry_settings` to `db_install_extensions.sql` so `Expiry_settings_model` no longer fails on a fresh install.
+
+- **ALTER TABLE columns folded into base CREATE TABLE**
+  - `db_users.approval_pin` → added to `db_users` CREATE TABLE in `db.txt`.
+  - `db_customers` → folded NIN/BVN columns (`nin_bvn`, `nin_verified`, `nin_verified_at`, `nin_waived`, `nin_waived_by`, `nin_waived_at`) and loyalty/referral columns (`loyalty_points`, `lifetime_spend`, `loyalty_tier`, `store_credit_balance`, `gift_card_balance`, `referral_code`, `referred_by`, `referral_count`, `birthday`, `last_purchase_date`, `average_order_value`, `favourite_products`, `photo`).
+  - `db_items` → folded `batch_lot`, `serial_number`, `imei_number`, `warranty_months`, `laundry_service_type`, `deposit_required`, `deposit_percent`, `publish_online`, `online_price`.
+  - `db_purchaseitems` → folded `batch_lot`, `sold_serial_number`, `sold_imei_number`, `received_qty`, `barcode`, `expire_date`, `mfg_date`.
+  - `db_salesitems` → folded `barcode_id`, `sold_serial_number`, `sold_imei_number`, `batch_lot`, `price_type`.
+  - `db_holditems` → folded `barcode_id`, `sold_serial_number`, `sold_imei_number`, `batch_lot`, `price_type`.
+  - `db_salesitemsreturn` → folded `barcode_id`.
+  - `db_store` → folded `location_lat`, `location_lng`, `nin_api_enabled`, `nin_api_url`, `nin_api_key`, `nin_api_provider`, `nin_api_cost`.
+  - `db_sitesettings` → folded `update_channel_url` and seeded the default update channel URL.
+  - `db_approval_settings` → folded `bnpl_approval_enabled`, `bnpl_approval_method`.
+  - `db_salespayments` → folded `payment_mode_id`, `payment_reference`, `confirmation_status`, `confirmed_by`, `confirmed_date` and their indexes.
+  - `db_services` → folded `assigned_staff_id`, `staff_commission_percent`.
+  - `db_subscription_license` → folded override and plan-limit meta fields.
+  - Redundant `ALTER TABLE ... ADD COLUMN`, `ADD INDEX`, and `PREPARE ... EXECUTE` statements were commented out in `db_install_extensions.sql` and `db_models_schema_part3.sql` to avoid duplicate-column/index errors on fresh installs and MySQL/MariaDB syntax differences.
+
+- **Installer execution improved**
+  - Replaced `mysqli_multi_query` with a robust SQL statement splitter that respects quoted strings and SQL comments.
+  - Statements are now executed one by one, so the exact failing statement and error are reported.
+  - Added `SET FOREIGN_KEY_CHECKS = 0`, `SET SESSION SQL_MODE`, and `SET SESSION innodb_default_row_format = 'DYNAMIC'` to avoid common row-size and FK errors during setup.
+  - Installer now uses absolute paths (`__DIR__`) for schema files, so it works regardless of the working directory.
+
+- **Row-size strategy**
+  - Installer defaults to `DYNAMIC` row format so variable-length columns can be stored off-page, raising the practical row-size limit for tables like `db_store` and `db_storefront_settings`.
+
+- **Remaining work (post-fix scope)**
+  - Runtime `CREATE TABLE IF NOT EXISTS` logic in models/controllers was left in place for backward compatibility with older installations being upgraded; it is now redundant on fresh installs because the installer creates those tables.
+  - BLOB/TEXT column type changes were limited to recommendations; aggressive type changes were avoided to prevent data-loss or application-logic regressions. The `DYNAMIC` row-format default mitigates most row-size risks for fresh installs.
+  - Migration files outside the installer (`updates/migrations/`, `martpoint_*.sql`, root fix scripts) are still needed for upgrading existing installations but should no longer be required for fresh installs.
+
+---
+
+*End of report.*

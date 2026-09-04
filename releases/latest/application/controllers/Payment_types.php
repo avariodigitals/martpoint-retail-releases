@@ -12,7 +12,20 @@ class Payment_types extends MY_Controller {
 		$this->permission_check('payment_types_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('payment_types');
-		$this->load->view('payment_types', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('payment_types'),
+			'page_sub' => 'Create a new payment type',
+			'form_id' => 'payment-types-form',
+			'save_url' => 'payment_types/new_payment_type',
+			'update_url' => 'payment_types/update_payment_type',
+			'list_url' => base_url('payment_types'),
+			'module' => 'payment_types',
+			'fields' => [
+				['name' => 'payment_type_name', 'label' => 'Payment Type Name', 'type' => 'text', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function new_payment_type(){
 
@@ -33,7 +46,20 @@ class Payment_types extends MY_Controller {
 		$result=$this->payment_types->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('payment_types');
-		$this->load->view('payment_types', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('payment_types'),
+			'page_sub' => 'Update payment type',
+			'form_id' => 'payment-types-form',
+			'save_url' => 'payment_types/new_payment_type',
+			'update_url' => 'payment_types/update_payment_type',
+			'list_url' => base_url('payment_types'),
+			'module' => 'payment_types',
+			'fields' => [
+				['name' => 'payment_type_name', 'label' => 'Payment Type Name', 'type' => 'text', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_payment_type(){
 		$this->form_validation->set_rules('payment_type_name', 'Payment Type Name', 'trim|required');
@@ -50,7 +76,28 @@ class Payment_types extends MY_Controller {
 		$this->permission_check('payment_types_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('payment_types');
-		$this->load->view('payment_types_list', $data);
+		$data['rows'] = $this->payment_types->get_datatables();
+		$data['crud'] = [
+			'page_title' => $this->lang->line('payment_types'),
+			'page_sub' => 'Manage payment types',
+			'add_url' => base_url('payment_types/add'),
+			'add_label' => 'New Payment Type',
+			'add_permission' => 'payment_types_add',
+			'columns' => [
+				['title' => 'Payment Type', 'field' => 'payment_type', 'type' => 'text'],
+				['title' => 'Status', 'field' => 'status', 'type' => 'status'],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'payment_types',
+			'status_url' => 'payment_types/update_status',
+			'delete_url' => 'payment_types/delete_payment_type',
+			'edit_url' => base_url('payment_types/update/{id}'),
+			'delete_permission' => 'payment_types_delete',
+			'edit_permission' => 'payment_types_edit',
+			'bulk_delete' => false,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

@@ -16,6 +16,7 @@ class Expired_items_report extends MY_Controller {
 		$data['settings'] = $this->expiry->get_settings();
 		$data['expired'] = $this->expiry->get_expired_items();
 		$data['expiring'] = $this->expiry->get_expiring_items();
-		$this->load->view('expired_items_report', $data);
+		$data['content'] = $this->load->view('reports/desktop/expired_items_report', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 }

@@ -357,6 +357,13 @@ class Pos_model extends CI_Model {
 		//end 
 
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+
+		// Serialize invoice-number generation per store for concurrent POS users.
+		if($command == 'save' && !empty($store_id)){
+			$this->db->query("SELECT 1 FROM db_store WHERE id = ? FOR UPDATE", [(int)$store_id]);
+			$count_id = autosynch_sales_code();
+		}
+
 		$rowcount 			=$hidden_rowcount;
 		$sales_date 		=date("Y-m-d",strtotime($CUR_DATE));
 		//$points 			= (empty($points_use)) ? 'NULL' : $points_use;
@@ -386,7 +393,56 @@ class Pos_model extends CI_Model {
 		    	if($coupon_details->row()->customer_id==$customer_id){
 		    		$customer_coupon_id = $coupon_details->row()->id;		
 		    	}
+		    } else {
+		    	// Fallback: check if this is a promotion code
+		    	// Reject walk-in customers for promotion codes
+		    	$walkin_id = get_walk_in_customer_id();
+		    	$is_walkin = (!empty($walkin_id) && (int)$customer_id === (int)$walkin_id);
+		    	if($is_walkin){
+		    		// Walk-in customers cannot use promotion codes
+		    		$coupon_code = '';
+		    	} else {
+		    	try {
+		    		if($this->db->table_exists('db_promotions')){
+		    			$promo = $this->db->where('store_id', $store_id)
+		    				->where('status', 1)
+		    				->where('promotion_code', strtoupper($coupon_code))
+		    				->where('start_date <=', date('Y-m-d'))
+		    				->where('end_date >=', date('Y-m-d'))
+		    				->get('db_promotions')->row();
+					if($promo){
+						// Recalculate coupon_discount_amt from the promotion if not provided
+						if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
+							$subtotal = 0;
+							// Try cart array (mobile POS / desktop POS JSON payload)
+							$cart_json = $this->input->post('cart', TRUE);
+							if(!empty($cart_json)){
+								$cart_items = is_array($cart_json) ? $cart_json : json_decode($cart_json, true);
+								if(is_array($cart_items)){
+									foreach($cart_items as $ci){
+										$subtotal += (float)$ci['price'] * (float)$ci['qty'];
+									}
+								}
+							}
+							// Fallback: try td_data_*_9 fields (legacy POS form)
+							if($subtotal == 0){
+								foreach($this->input->post() as $k => $v){
+									if(strpos($k, 'td_data_') === 0 && substr($k, -2) === '_9'){
+										$subtotal += (float)$v;
+									}
+								}
+							}
+							if($promo->discount_type == 'Percentage'){
+								$coupon_discount_amt = $subtotal * ($promo->discount_value / 100);
+							} else {
+								$coupon_discount_amt = (float)$promo->discount_value;
+							}
+						}
+					}
+					}
+		    	} catch (Exception $e) { /* Promotions table not available */ }
 		    }
+		    } // end else (not walk-in)
 	    }
 
 
@@ -863,8 +919,9 @@ class Pos_model extends CI_Model {
 		
 
 		//Dont save if invoice credit limit exceeds
-		if(!check_credit_limit_with_invoice($customer_id,$sales_id)){
-			return 'failed';
+		$credit_check = check_credit_limit_with_invoice($customer_id,$sales_id);
+		if($credit_check !== true){
+			return $credit_check;
 		}
 
 		
@@ -873,13 +930,34 @@ class Pos_model extends CI_Model {
 			$this->load->model('loyalty_model');
 			$settings = $this->loyalty_model->get_settings();
 			if($settings && $settings->loyalty_enabled){
-				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_grand);
+				$sale_items = $this->db->select('item_id, sales_qty, price_per_unit, discount_amt')
+							->where('sales_id', $sales_id)
+							->get('db_salesitems')
+							->result();
+				$loyalty_items = array();
+				foreach($sale_items as $si){
+					$loyalty_items[] = array(
+						'item_id' => (int)$si->item_id,
+						'qty' => (float)$si->sales_qty,
+						'line_value' => max(0, (float)$si->price_per_unit * (float)$si->sales_qty - (float)($si->discount_amt ?? 0))
+					);
+				}
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_grand, $loyalty_items);
 				if($points > 0){
 					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from POS sale');
 				}
 			}
 		}
 		//end
+
+		// Record promotion usage if a promotion code was used
+		if(!empty($coupon_code)){
+			$promo = $this->db->where('store_id', $store_id)->where('UPPER(promotion_code)', strtoupper($coupon_code))->get('db_promotions')->row();
+			if($promo){
+				$this->load->model('Promotions_model','promotions_m');
+				$this->promotions_m->record_usage($promo->id, $customer_id, $sales_id, $store_id);
+			}
+		}
 
 		//COMMIT RECORD
 		$this->db->trans_commit();
@@ -1076,12 +1154,16 @@ class Pos_model extends CI_Model {
 	}
 	public function hold_invoice_delete($id){
 		$this->db->trans_begin();
-		$q1=$this->db->query("DELETE from db_hold where id='$id' and store_id=".get_current_store_id());
-		if(!$q1){
+		$this->db->where('id', (int)$id);
+		$this->db->where('store_id', get_current_store_id());
+		$this->db->delete('db_hold');
+		if($this->db->affected_rows() == 0){
+			$this->db->trans_rollback();
 			return "failed";
 		}
 		// Also delete related hold items
-		$this->db->query("DELETE from db_holditems where hold_id='$id'");
+		$this->db->where('hold_id', (int)$id);
+		$this->db->delete('db_holditems');
 		//COMMIT RECORD
 		$this->db->trans_commit();
         return "success";

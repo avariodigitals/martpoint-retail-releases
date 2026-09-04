@@ -1,42 +1,38 @@
-<!DOCTYPE html>
-<html>
-<head><?php $this->load->view('comman/code_css.php'); ?></head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar'); ?>
-<div class="content-wrapper">
-  <section class="content-header">
-    <h1><?= $page_title; ?><small>Configure recipe category types</small></h1>
-    <ol class="breadcrumb"><li><a href="<?= base_url('dashboard'); ?>"><i class="fa fa-dashboard"></i> Home</a></li><li><a href="<?= base_url('operations/recipes'); ?>">Recipes</a></li><li class="active"><?= $page_title; ?></li></ol>
-  </section>
-  <section class="content">
-    <?= form_open('#', ['id' => 'table_form']); ?>
-    <div class="row"><div class="col-xs-12">
-      <div class="box box-primary">
-        <div class="box-header with-border">
-          <h3 class="box-title"><?= $page_title; ?></h3>
-          <div class="box-tools">
-            <a class="btn btn-block btn-info" href="<?= base_url('operations/recipe_category_update'); ?>"><i class="fa fa-plus"></i> New Category</a>
-          </div>
-        </div>
-        <div class="box-body">
-          <table id="example2" class="table table-bordered custom_hover" width="100%">
-            <thead class="bg-gray"><tr><th class="text-center"><input type="checkbox" class="group_check checkbox"></th><th>Category Name</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div></div>
-    <?= form_close(); ?>
-  </section>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub">Configure recipe category types</div>
+  </div>
+  <a href="<?= base_url('operations/recipe_category_update'); ?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> New Category</a>
 </div>
+
+<?= form_open('#', ['id' => 'table_form']); ?>
+<div class="mp-table-wrap">
+  <div class="mp-card-head"><h3><?= htmlspecialchars($page_title); ?></h3></div>
+  <div class="mp-dt-scroll">
+    <table id="example2" class="table mp-dt-table" width="100%">
+      <thead>
+        <tr>
+          <th class="text-center"><input type="checkbox" class="group_check checkbox"></th>
+          <th>Category Name</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
-<?php $this->load->view('comman/code_js.php'); ?>
+<?= form_close(); ?>
+
 <script>
 $(document).ready(function() {
   var table = $('#example2').DataTable({
     "aLengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
-    dom:'<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr><"pull-right margin-left-10 "B>>>tip',
+    dom:'<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr><"pull-right margin-left-10 "B>>>t<"row mp-dt-footer"<"col-sm-5"i><"col-sm-7"p>>',
     buttons: {
       buttons: [
         { className: 'btn bg-red color-palette btn-flat hidden delete_btn pull-left', text: 'Delete', action: function(e,dt,node,config){ multi_delete(); } },
@@ -85,6 +81,3 @@ function multi_delete() {
   }
 }
 </script>
-<script>$(".recipe-categories-active-li").addClass("active");</script>
-</body>
-</html>

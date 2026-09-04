@@ -1,66 +1,54 @@
-<!DOCTYPE html>
-<html>
-<head><?php $this->load->view('comman/code_css.php'); ?></head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar'); ?>
-<div class="content-wrapper">
-  <section class="content-header">
-    <h1><?= $page_title; ?><small>Active Members &amp; Renewals</small></h1>
-    <ol class="breadcrumb">
-      <li><a href="<?= base_url('dashboard'); ?>"><i class="fa fa-dashboard"></i> Home</a></li>
-      <li><a href="<?= base_url('operations/memberships'); ?>">Memberships</a></li>
-      <li class="active"><?= $page_title; ?></li>
-    </ol>
-  </section>
-  <section class="content">
-    <div class="row">
-      <div class="col-lg-6 col-xs-6">
-        <div class="small-box bg-green">
-          <div class="inner"><h3><?= $active_count; ?></h3><p>Active Members</p></div>
-          <div class="icon"><i class="fa fa-users"></i></div>
-        </div>
-      </div>
-      <div class="col-lg-6 col-xs-6">
-        <div class="small-box bg-yellow">
-          <div class="inner"><h3><?= $expiring_count; ?></h3><p>Expiring Soon</p></div>
-          <div class="icon"><i class="fa fa-clock-o"></i></div>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-12">
-        <div class="box box-info">
-          <div class="box-header with-border">
-            <h3 class="box-title">Customer Memberships</h3>
-            <div class="box-tools pull-right">
-              <a class="btn btn-sm btn-primary" href="<?= base_url('operations/assign_membership'); ?>"><i class="fa fa-user-plus"></i> Assign Membership</a>
-              <a class="btn btn-sm btn-default" href="<?= base_url('operations/memberships'); ?>"><i class="fa fa-cog"></i> Plans</a>
-            </div>
-          </div>
-          <div class="box-body">
-            <table id="members-table" class="table table-bordered table-striped" width="100%">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Customer</th>
-                  <th>Plan</th>
-                  <th>Period</th>
-                  <th>Status</th>
-                  <th>Auto-Renew</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub">Active Members &amp; Renewals</div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <a class="mp-qa-btn green" href="<?= base_url('operations/assign_membership'); ?>"><i class="fa fa-user-plus"></i> Assign Membership</a>
+    <a class="mp-qa-btn blue" href="<?= base_url('operations/memberships'); ?>"><i class="fa fa-cog"></i> Plans</a>
+  </div>
 </div>
+
+<div class="mp-kpi-grid">
+  <div class="mp-kpi-card profit">
+    <div class="mp-kpi-icon"><i class="fa fa-users"></i></div>
+    <div class="mp-kpi-label">Active Members</div>
+    <div class="mp-kpi-value"><?= $active_count; ?></div>
+  </div>
+  <div class="mp-kpi-card warn">
+    <div class="mp-kpi-icon"><i class="fa fa-clock-o"></i></div>
+    <div class="mp-kpi-label">Expiring Soon</div>
+    <div class="mp-kpi-value"><?= $expiring_count; ?></div>
+  </div>
 </div>
-<?php $this->load->view('comman/code_js.php'); ?>
+
+<div class="mp-table-wrap">
+  <div class="mp-card-head">
+    <h3>Customer Memberships</h3>
+  </div>
+  <div class="box-body">
+    <div class="mp-dt-scroll">
+      <table id="members-table" class="table mp-dt-table" width="100%">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>Plan</th>
+            <th>Period</th>
+            <th>Status</th>
+            <th>Auto-Renew</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <script>
 $(function(){
   $('#members-table').DataTable({
@@ -82,8 +70,4 @@ function cancel_membership(id) {
     else { toastr.error(res.message); }
   }, 'json');
 }
-
-$(".memberships-active-li").addClass("active");
 </script>
-</body>
-</html>

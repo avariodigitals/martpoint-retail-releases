@@ -360,8 +360,7 @@
 
   </div>
 
-  <script src="<?= $theme_link; ?>js/assist.js?v=12"></script>
-  <?php $this->load->view('assist/panel'); ?>
+  <?php // MartPoint Assist loaded via mobile/chat at bottom ?>
   <script>
     (function(){
       var fromInput = document.querySelector('input[name="from"]');

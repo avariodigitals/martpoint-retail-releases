@@ -126,8 +126,8 @@ class Stock_adjustment_model extends CI_Model {
 
 	    $prev_item_ids = array();
 	    
-	    $store_id = (store_module() && is_admin()) ? $store_id : get_current_store_id();  
-	    $warehouse_id=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id(); 	
+	    $store_id = (store_module() && is_admin()) ? $this->input->post('store_id', TRUE) : get_current_store_id();  
+	    $warehouse_id=(warehouse_module() && warehouse_count()>1) ? $this->input->post('warehouse_id', TRUE) : get_store_warehouse_id(); 	
 	    if($command=='save'){//Create purchase code unique if first time entry
 		    
 			
@@ -330,6 +330,9 @@ class Stock_adjustment_model extends CI_Model {
 		$item_name = isset($info['item_name']) ? $info['item_name'] : '';
 		$stock = isset($info['stock']) ? $info['stock'] : '';
 		$available_qty = isset($info['available_qty']) ? $info['available_qty'] : '';
+		$item_adjustment_qty = isset($info['item_adjustment_qty']) ? $info['item_adjustment_qty'] : 1;
+		$description = isset($info['description']) ? $info['description'] : '';
+		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
 		
 		
 	

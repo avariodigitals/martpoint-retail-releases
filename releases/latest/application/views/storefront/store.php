@@ -47,7 +47,7 @@
     .sf-card:active { transform:scale(.98); }
     .sf-card-img { width:100%; height:140px; object-fit:cover; background:var(--light-gray); }
     .sf-card-body { padding:10px; }
-    .sf-card-name { font-size:13px; font-weight:600; color:var(--dark); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px; }
+    .sf-card-name { font-size:13px; font-weight:600; color:var(--dark); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px; }
     .sf-card-price { font-size:15px; font-weight:700; color:var(--primary); }
     .sf-card-old { font-size:12px; color:var(--gray); text-decoration:line-through; margin-left:4px; }
     .sf-card-stock { font-size:11px; color:var(--danger); font-weight:600; margin-top:4px; }

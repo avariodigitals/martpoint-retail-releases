@@ -12,7 +12,21 @@ class Roles extends MY_Controller {
 		$this->permission_check('roles_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('new_role');
-		$this->load->view('role', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('new_role'),
+			'page_sub' => 'Create a new role',
+			'form_id' => 'role-form',
+			'save_url' => 'roles/newrole',
+			'update_url' => 'roles/update_role',
+			'list_url' => base_url('roles/view'),
+			'module' => 'roles',
+			'fields' => [
+				['name' => 'role_name', 'label' => 'Role Name', 'type' => 'text', 'required' => true],
+				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newrole(){
 		$this->form_validation->set_rules('role_name', 'Role Name', 'trim|required');
@@ -38,7 +52,21 @@ class Roles extends MY_Controller {
 		$result=$this->roles_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('roles');
-		$this->load->view('role', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('roles'),
+			'page_sub' => 'Update role details',
+			'form_id' => 'role-form',
+			'save_url' => 'roles/newrole',
+			'update_url' => 'roles/update_role',
+			'list_url' => base_url('roles/view'),
+			'module' => 'roles',
+			'fields' => [
+				['name' => 'role_name', 'label' => 'Role Name', 'type' => 'text', 'required' => true],
+				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_role(){
 		$this->form_validation->set_rules('role_name', 'Role Name', 'trim|required');
@@ -56,7 +84,75 @@ class Roles extends MY_Controller {
 		$this->permission_check('roles_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('roles_list');
-		$this->load->view('roles-list', $data);
+
+		// Fetch roles directly for inline rendering
+		$this->db->select('r.*, s.store_name');
+		$this->db->from('db_roles r');
+		$this->db->join('db_store s', 's.id = r.store_id', 'left');
+		if(!is_admin()){
+			$this->db->where('r.store_id', get_current_store_id());
+		}
+		$this->db->order_by('r.id', 'ASC');
+		$q = $this->db->get();
+		$rows = [];
+		$no = 0;
+		foreach($q->result() as $role){
+			$no++;
+			$row = new stdClass();
+			$row->id = $role->id;
+			$row->no = $no;
+			$row->store_name = $role->store_name ?? '-';
+			$row->role_name = $role->role_name;
+			$row->description = $role->description;
+			$row->status = $role->status;
+			$row->restricted = ($role->id == 1);
+			$rows[] = $row;
+		}
+		$data['rows'] = $rows;
+
+		$columns = [
+			['title' => '#', 'field' => 'no', 'type' => 'text'],
+		];
+		if(is_admin()){
+			$columns[] = ['title' => 'Store', 'field' => 'store_name', 'type' => 'text'];
+		}
+		$columns[] = ['title' => 'Role Name', 'field' => 'role_name', 'type' => 'text'];
+		$columns[] = ['title' => 'Description', 'field' => 'description', 'type' => 'text'];
+		$columns[] = ['title' => 'Status', 'type' => 'custom', 'callback' => function($row){
+			if($row->restricted) return "<span class='label label-warning'>Restricted</span>";
+			if($row->status == 1) return "<span onclick='update_status(".$row->id.",0)' id='span_".$row->id."' class='label label-success' style='cursor:pointer'>Active</span>";
+			return "<span onclick='update_status(".$row->id.",1)' id='span_".$row->id."' class='label label-danger' style='cursor:pointer'>Inactive</span>";
+		}];
+		$columns[] = ['title' => 'Action', 'type' => 'custom', 'callback' => function($row){
+			$CI =& get_instance();
+			$out = '<div class="mp-actions">';
+			if($CI->permissions('roles_edit') && !$row->restricted){
+				$out .= '<a href="'.base_url('roles/update/'.$row->id).'" class="mp-edit" title="Edit"><i class="fa fa-pencil"></i></a>';
+			}
+			if($CI->permissions('roles_delete') && $row->id != store_admin_id()){
+				$out .= '<button type="button" class="mp-delete" title="Delete" onclick="delete_roles('.$row->id.')"><i class="fa fa-trash"></i></button>';
+			}
+			$out .= '</div>';
+			return $out;
+		}];
+
+		$data['crud'] = [
+			'page_title' => $this->lang->line('roles_list'),
+			'page_sub' => 'Manage user roles',
+			'add_url' => base_url('roles/add'),
+			'add_label' => 'New Role',
+			'add_permission' => 'roles_add',
+			'columns' => $columns,
+			'module' => 'roles',
+			'status_url' => 'roles/update_status',
+			'delete_url' => 'roles/delete_roles',
+			'edit_url' => base_url('roles/update/{id}'),
+			'delete_permission' => 'roles_delete',
+			'edit_permission' => 'roles_edit',
+			'bulk_delete' => false,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

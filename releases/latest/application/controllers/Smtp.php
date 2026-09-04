@@ -33,7 +33,8 @@ class Smtp extends MY_Controller {
 		$this->permission_check('sms_api_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sms_api');
-		$this->load->view('sms-api', $data);
+		$data['content'] = $this->load->view('sms-api', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	//UPDATE SMS API

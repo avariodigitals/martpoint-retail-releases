@@ -385,7 +385,7 @@
 
 	<center class="no-print" style="margin-top: 12px;">
         <div style="padding: 0 10px; max-width: 300px; margin: 0 auto;">
-            <button type="button" class="btn btn-success btn-block" onclick="window.print();" style="white-space: normal; width: 100%; font-size: 14px; padding: 10px 0;">
+            <button type="button" class="btn btn-success btn-block" onclick="window.print();" style="white-space: normal; width: 100%; font-size: 14px; padding: 10px 0; display: none;">
                 Print Receipt
             </button>
             <?php if(isset($_GET['redirect'])){ ?>

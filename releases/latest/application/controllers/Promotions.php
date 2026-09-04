@@ -13,14 +13,16 @@ class Promotions extends MY_Controller {
 		$this->permission_check('promotions_manage');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('promotion_list');
-		$this->load->view('promotions/promotions_list', $data);
+		$data['content'] = $this->load->view('promotions/promotions_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function add(){
 		$this->permission_check('promotions_manage');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('promotion_add');
-		$this->load->view('promotions/promotion_form', $data);
+		$data['content'] = $this->load->view('promotions/promotion_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function edit($id){
@@ -30,7 +32,8 @@ class Promotions extends MY_Controller {
 		$result = $this->promotions_m->get_details($id, $data);
 		$data = array_merge($data, $result);
 		$data['page_title'] = $this->lang->line('promotion_edit');
-		$this->load->view('promotions/promotion_form', $data);
+		$data['content'] = $this->load->view('promotions/promotion_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save(){
@@ -68,11 +71,41 @@ class Promotions extends MY_Controller {
 			$no++;
 			$row = array();
 			$row[] = '<input type="checkbox" name="checkbox[]" value="'.$p->id.'" class="checkbox column_checkbox">';
-			$row[] = htmlspecialchars($p->promotion_name);
-			$row[] = htmlspecialchars($p->promotion_code ?: '-');
-			$row[] = ($p->discount_type == 'Percentage') ? $p->discount_value.'%' : store_number_format($p->discount_value);
-			$row[] = !empty($p->min_price_rule) ? store_number_format($p->min_price_rule) : '<span class="text-muted">-</span>';
-			$row[] = !empty($p->min_margin_pct) ? $p->min_margin_pct.'%' : '<span class="text-muted">-</span>';
+			$row[] = '<div class="promo-name">'.htmlspecialchars($p->promotion_name).'</div>'
+				. ($p->promotion_code ? '<div class="promo-code">'.htmlspecialchars($p->promotion_code).'</div>' : '');
+			$row[] = ($p->discount_type == 'Percentage') ? '<span class="discount-val">'.$p->discount_value.'%</span>' : '<span class="discount-val">'.store_number_format($p->discount_value).'</span>';
+			$applies_label = 'All Items';
+			if($p->applies_to == 'category'){
+				$cat = $this->db->select('category_name')->where('id', $p->category_id)->get('db_category')->row();
+				$applies_label = 'Category: ' . ($cat ? htmlspecialchars($cat->category_name) : 'Unknown');
+			} elseif($p->applies_to == 'brand'){
+				$brand = $this->db->select('brand_name')->where('id', $p->brand_id)->get('db_brands')->row();
+				$applies_label = 'Brand: ' . ($brand ? htmlspecialchars($brand->brand_name) : 'Unknown');
+			} elseif($p->applies_to == 'items'){
+				$count = $this->db->where('promotion_id', $p->id)->from('db_promotion_items')->count_all_results();
+				$applies_label = $count . ' Item' . ($count != 1 ? 's' : '');
+			}
+			$row[] = '<span class="text-muted">' . $applies_label . '</span>';
+			// Build rules column: mode badge + advanced rules
+			$rules_parts = array();
+			$mode = $p->mode ?? 'simple';
+			$rules_parts[] = '<span class="label ' . ($mode == 'advanced' ? 'label-info' : 'label-default') . '">' . ucfirst($mode) . '</span>';
+			if(!empty($p->min_spend)){
+				$rules_parts[] = 'Min Spend: ' . store_number_format($p->min_spend);
+			}
+			if(!empty($p->usage_limit_per_customer)){
+				$rules_parts[] = '1 cust × ' . $p->usage_limit_per_customer;
+			}
+			if(!empty($p->usage_limit_total)){
+				$rules_parts[] = 'Total × ' . $p->usage_limit_total;
+			}
+			if(!empty($p->min_price_rule)){
+				$rules_parts[] = 'Min Price: ' . store_number_format($p->min_price_rule);
+			}
+			if(!empty($p->min_margin_pct)){
+				$rules_parts[] = 'Min Margin: ' . $p->min_margin_pct . '%';
+			}
+			$row[] = '<div style="font-size:12px;line-height:1.6;">' . implode('<br>', $rules_parts) . '</div>';
 			$row[] = show_date($p->start_date);
 			$row[] = show_date($p->end_date);
 
@@ -84,10 +117,10 @@ class Promotions extends MY_Controller {
 				: '<span class="label label-info">Scheduled</span>'));
 			$row[] = $badge;
 
-			$str = '<div class="btn-group"><a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">Action <span class="caret"></span></a><ul role="menu" class="dropdown-menu dropdown-light pull-right">';
-			$str .= '<li><a href="'.base_url('promotions/edit/'.$p->id).'"><i class="fa fa-fw fa-edit text-blue"></i>Edit</a></li>';
-			$str .= '<li><a style="cursor:pointer" onclick="delete_promotion('.$p->id.')"><i class="fa fa-fw fa-trash text-red"></i>Delete</a></li>';
-			$str .= '</ul></div>';
+			$str = '<div class="pr-actions">'
+				. '<a href="'.base_url('promotions/edit/'.$p->id).'" class="pr-edit" title="Edit"><i class="fa fa-pencil"></i></a>'
+				. '<button type="button" class="pr-delete" onclick="delete_promotion('.$p->id.')" title="Delete"><i class="fa fa-trash-o"></i></button>'
+				. '</div>';
 			$row[] = $str;
 			$data[] = $row;
 		}
@@ -108,13 +141,12 @@ class Promotions extends MY_Controller {
 	 * @return array ['has_promo'=>bool, 'price'=>float, 'promo_name'=>string, 'blocked_by_rule'=>string|null]
 	 */
 	public function get_effective_price($item_id, $original_price = null){
-		$this->load->model('promotions_model');
 		$item_id = (int)$item_id;
 		if(empty($original_price)){
 			$item = $this->db->select('sales_price, purchase_price')->where('id',$item_id)->get('db_items')->row();
 			$original_price = $item ? $item->sales_price : 0;
 		}
-		$result = $this->promotions_model->compute_effective_price($item_id, $original_price);
+		$result = $this->promotions_m->compute_effective_price($item_id, $original_price);
 		echo json_encode($result);
 	}
 }

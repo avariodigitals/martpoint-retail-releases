@@ -1,0 +1,206 @@
+# MartPoint Performance Audit Report
+
+**Generated:** 2026-07-04 13:06:52
+
+- **[low]** Table exceeds 50 columns (`db_approval_settings`)
+  - Root cause: Wide tables reduce performance and maintainability
+  - Fix: Normalize rarely used columns into related tables
+- **[low]** Table exceeds 50 columns (`db_customers`)
+  - Root cause: Wide tables reduce performance and maintainability
+  - Fix: Normalize rarely used columns into related tables
+- **[low]** Table exceeds 50 columns (`db_items`)
+  - Root cause: Wide tables reduce performance and maintainability
+  - Fix: Normalize rarely used columns into related tables
+- **[low]** Table exceeds 50 columns (`db_store`)
+  - Root cause: Wide tables reduce performance and maintainability
+  - Fix: Normalize rarely used columns into related tables
+- **[low]** Table exceeds 50 columns (`db_storefront_settings`)
+  - Root cause: Wide tables reduce performance and maintainability
+  - Fix: Normalize rarely used columns into related tables
+- **[low]** Potential N+1 query patterns in PHP code (``)
+  - Root cause: Loops contain database queries
+  - Fix: Refactor to batch queries or use joins
+
+## Large Tables
+
+- `ac_transactions`: 0.22 MB (rows: 61)
+- `db_customer_memberships`: 0.11 MB (rows: unknown)
+- `db_stocktransferitems`: 0.11 MB (rows: 1)
+- `ac_accounts`: 0.09 MB (rows: 2)
+- `db_approval_logs`: 0.09 MB (rows: unknown)
+- `db_custom_orders`: 0.09 MB (rows: unknown)
+- `db_installment_plans`: 0.09 MB (rows: unknown)
+- `db_permissions`: 0.09 MB (rows: 953)
+- `db_salespayments`: 0.09 MB (rows: 59)
+- `db_customer_packages`: 0.08 MB (rows: unknown)
+- `db_email_logs`: 0.08 MB (rows: unknown)
+- `db_recipe_production_runs`: 0.08 MB (rows: unknown)
+- `db_sales`: 0.08 MB (rows: 58)
+- `db_stockadjustmentitems`: 0.08 MB (rows: 3)
+- `db_stocktransfer`: 0.08 MB (rows: 1)
+- `db_treatment_notes`: 0.08 MB (rows: unknown)
+- `ac_moneydeposits`: 0.06 MB (rows: unknown)
+- `ac_moneytransfer`: 0.06 MB (rows: unknown)
+- `ci_sessions`: 0.06 MB (rows: 21)
+- `db_attendance`: 0.06 MB (rows: unknown)
+- `db_customer_coupons`: 0.06 MB (rows: unknown)
+- `db_delivery_schedule_items`: 0.06 MB (rows: unknown)
+- `db_delivery_schedules`: 0.06 MB (rows: unknown)
+- `db_gift_cards`: 0.06 MB (rows: unknown)
+- `db_hold`: 0.06 MB (rows: unknown)
+- `db_holditems`: 0.06 MB (rows: unknown)
+- `db_installment_payments`: 0.06 MB (rows: unknown)
+- `db_item_barcodes`: 0.06 MB (rows: unknown)
+- `db_kitchen_orders`: 0.06 MB (rows: unknown)
+- `db_laundry_orders`: 0.06 MB (rows: unknown)
+- `db_membership_payments`: 0.06 MB (rows: unknown)
+- `db_membership_plans`: 0.06 MB (rows: unknown)
+- `db_online_orders`: 0.06 MB (rows: unknown)
+- `db_paystack_payments`: 0.06 MB (rows: unknown)
+- `db_production_batches`: 0.06 MB (rows: unknown)
+- `db_purchaseitemsreturn`: 0.06 MB (rows: unknown)
+- `db_purchasepayments`: 0.06 MB (rows: 2)
+- `db_purchasepaymentsreturn`: 0.06 MB (rows: unknown)
+- `db_quotation`: 0.06 MB (rows: unknown)
+- `db_recipes`: 0.06 MB (rows: unknown)
+- `db_salespaymentsreturn`: 0.06 MB (rows: unknown)
+- `db_salesreturn`: 0.06 MB (rows: unknown)
+- `db_service_staff`: 0.06 MB (rows: unknown)
+- `db_shippingaddress`: 0.06 MB (rows: 2)
+- `db_timezone`: 0.06 MB (rows: 548)
+- `db_warehouseitems`: 0.06 MB (rows: 4)
+- `db_custadvance`: 0.05 MB (rows: unknown)
+- `db_customer_package_redemptions`: 0.05 MB (rows: unknown)
+- `db_customer_payments`: 0.05 MB (rows: unknown)
+- `db_debt_reminder_history`: 0.05 MB (rows: unknown)
+- `db_delivery_drivers`: 0.05 MB (rows: unknown)
+- `db_expense`: 0.05 MB (rows: unknown)
+- `db_laundry_order_items`: 0.05 MB (rows: unknown)
+- `db_license_history`: 0.05 MB (rows: unknown)
+- `db_license_limit_overrides`: 0.05 MB (rows: unknown)
+- `db_license_otps`: 0.05 MB (rows: unknown)
+- `db_loyalty_points`: 0.05 MB (rows: unknown)
+- `db_nin_verification_logs`: 0.05 MB (rows: unknown)
+- `db_offline_purchase_queue`: 0.05 MB (rows: unknown)
+- `db_production_batch_items`: 0.05 MB (rows: unknown)
+- `db_purchase`: 0.05 MB (rows: 2)
+- `db_purchaseitems`: 0.05 MB (rows: 2)
+- `db_purchasereturn`: 0.05 MB (rows: unknown)
+- `db_quotationitems`: 0.05 MB (rows: unknown)
+- `db_recipe_categories`: 0.05 MB (rows: unknown)
+- `db_recipe_ingredients`: 0.05 MB (rows: unknown)
+- `db_referrals`: 0.05 MB (rows: unknown)
+- `db_rewards_history`: 0.05 MB (rows: unknown)
+- `db_salesitems`: 0.05 MB (rows: 64)
+- `db_salesitemsreturn`: 0.05 MB (rows: unknown)
+- `db_service_package_items`: 0.05 MB (rows: unknown)
+- `db_service_packages`: 0.05 MB (rows: unknown)
+- `db_store_credit`: 0.05 MB (rows: unknown)
+- `db_store_credit_usage`: 0.05 MB (rows: unknown)
+- `db_storefront_analytics`: 0.05 MB (rows: unknown)
+- `db_storefront_domains`: 0.05 MB (rows: unknown)
+- `db_subscription_license`: 0.05 MB (rows: unknown)
+- `db_supplier_payments`: 0.05 MB (rows: unknown)
+- `db_system_updates`: 0.05 MB (rows: unknown)
+- `db_treatment_note_items`: 0.05 MB (rows: unknown)
+- `db_userswarehouses`: 0.05 MB (rows: 1)
+- `db_approval_settings`: 0.03 MB (rows: unknown)
+- `db_bankdetails`: 0.03 MB (rows: 1)
+- `db_brands`: 0.03 MB (rows: unknown)
+- `db_brevo`: 0.03 MB (rows: unknown)
+- `db_category`: 0.03 MB (rows: 1)
+- `db_coupons`: 0.03 MB (rows: unknown)
+- `db_custom_order_history`: 0.03 MB (rows: unknown)
+- `db_customers`: 0.03 MB (rows: 2)
+- `db_debt_reminder_settings`: 0.03 MB (rows: unknown)
+- `db_email_templates`: 0.03 MB (rows: unknown)
+- `db_emailtemplates`: 0.03 MB (rows: 2)
+- `db_expense_category`: 0.03 MB (rows: 29)
+- `db_expiry_settings`: 0.03 MB (rows: unknown)
+- `db_fivemojo`: 0.03 MB (rows: unknown)
+- `db_gift_card_usage`: 0.03 MB (rows: unknown)
+- `db_instamojo`: 0.03 MB (rows: 1)
+- `db_items`: 0.03 MB (rows: 3)
+- `db_loyalty_bonus_rules`: 0.03 MB (rows: unknown)
+- `db_loyalty_product_points`: 0.03 MB (rows: unknown)
+- `db_loyalty_settings`: 0.03 MB (rows: unknown)
+- `db_loyalty_tiers`: 0.03 MB (rows: 24)
+- `db_online_order_items`: 0.03 MB (rows: unknown)
+- `db_package`: 0.03 MB (rows: 3)
+- `db_payment_modes`: 0.03 MB (rows: 13)
+- `db_paymenttypes`: 0.03 MB (rows: 1)
+- `db_paypal`: 0.03 MB (rows: 1)
+- `db_paystack_settings`: 0.03 MB (rows: unknown)
+- `db_qr_codes`: 0.03 MB (rows: unknown)
+- `db_report_schedules`: 0.03 MB (rows: unknown)
+- `db_roles`: 0.03 MB (rows: 6)
+- `db_schema_migrations`: 0.03 MB (rows: 1)
+- `db_services`: 0.03 MB (rows: unknown)
+- `db_smsapi`: 0.03 MB (rows: 6)
+- `db_smstemplates`: 0.03 MB (rows: 4)
+- `db_states`: 0.03 MB (rows: 32)
+- `db_stockadjustment`: 0.03 MB (rows: 3)
+- `db_store_business_profile`: 0.03 MB (rows: 1)
+- `db_storefront_banners`: 0.03 MB (rows: unknown)
+- `db_storefront_brands`: 0.03 MB (rows: unknown)
+- `db_storefront_faqs`: 0.03 MB (rows: unknown)
+- `db_storefront_homepage_sections`: 0.03 MB (rows: 34)
+- `db_storefront_instagram`: 0.03 MB (rows: unknown)
+- `db_storefront_settings`: 0.03 MB (rows: unknown)
+- `db_storefront_testimonials`: 0.03 MB (rows: unknown)
+- `db_storefront_themes`: 0.03 MB (rows: 8)
+- `db_stripe`: 0.03 MB (rows: unknown)
+- `db_subscription_plans`: 0.03 MB (rows: 4)
+- `db_suppliers`: 0.03 MB (rows: 1)
+- `db_tables`: 0.03 MB (rows: unknown)
+- `db_tax`: 0.03 MB (rows: 1)
+- `db_twilio`: 0.03 MB (rows: 2)
+- `db_units`: 0.03 MB (rows: 2)
+- `db_users`: 0.03 MB (rows: 3)
+- `db_variants`: 0.03 MB (rows: unknown)
+- `db_warehouse`: 0.03 MB (rows: 3)
+- `db_cities`: 0.02 MB (rows: 70)
+- `db_cobpayments`: 0.02 MB (rows: unknown)
+- `db_company`: 0.02 MB (rows: 1)
+- `db_country`: 0.02 MB (rows: 206)
+- `db_currency`: 0.02 MB (rows: 55)
+- `db_email_settings`: 0.02 MB (rows: 2)
+- `db_instamojopayments`: 0.02 MB (rows: unknown)
+- `db_languages`: 0.02 MB (rows: 6)
+- `db_paypalpaylog`: 0.02 MB (rows: unknown)
+- `db_shifts`: 0.02 MB (rows: unknown)
+- `db_sitesettings`: 0.02 MB (rows: 1)
+- `db_sobpayments`: 0.02 MB (rows: unknown)
+- `db_stockentry`: 0.02 MB (rows: unknown)
+- `db_store`: 0.02 MB (rows: 2)
+- `db_stripepayments`: 0.02 MB (rows: unknown)
+- `db_subscription`: 0.02 MB (rows: 6)
+- `db_user_shifts`: 0.02 MB (rows: unknown)
+- `temp_holdinvoice`: 0.02 MB (rows: unknown)
+
+## Potential N+1 Patterns
+
+- /Users/ralphmore/Herd/martpointretailapp/application/migrations/004_add_unit_tracking_to_barcodes.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Production_batches_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Email_template_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Delivery_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Payment_modes_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Laundry_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Installments_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Report_schedule_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Treatment_notes_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Default_data_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Kitchen_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Store_credit_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Service_package_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Storefront_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Assist_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/models/Recipe_model.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Debt_reminder.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Online_store.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Cron.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Operations.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Warehouse.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Updates.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Units.php
+- /Users/ralphmore/Herd/martpointretailapp/application/controllers/Subscription_license.php

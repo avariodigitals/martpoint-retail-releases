@@ -1,0 +1,862 @@
+{
+    "database": "martpoint",
+    "timestamp": "2026-07-04 12:45:45",
+    "findings": {
+        "phase1": [],
+        "phase2": [],
+        "phase3": [
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "ac_accounts",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "ac_moneydeposits",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "ac_moneytransfer",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "ac_transactions",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Table not using utf8mb4 collation",
+                "root_cause": "Mixed collation can cause join errors",
+                "fix": "Consider converting to utf8mb4_unicode_ci",
+                "table": "db_bankdetails",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_cobpayments",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_cobpayments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_coupons",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_custadvance",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_custadvance",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_customer_coupons",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_customer_packages",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_customer_payments",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_customer_payments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_customers",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_delivery_drivers",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_delivery_schedules",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_expense",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_expiry_settings",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_gift_card_usage",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_gift_cards",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_hold",
+                "column": "sales_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_installment_payments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_installment_plans",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_item_barcodes",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_items",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Table not using utf8mb4 collation",
+                "root_cause": "Mixed collation can cause join errors",
+                "fix": "Consider converting to utf8mb4_unicode_ci",
+                "table": "db_laundry_orders",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_license_limit_overrides",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_loyalty_bonus_rules",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_loyalty_points",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_loyalty_product_points",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_loyalty_settings",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_loyalty_tiers",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_offline_purchase_queue",
+                "column": "purchase_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_offline_purchase_queue",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_package",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_payment_modes",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_paystack_settings",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchase",
+                "column": "purchase_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchase",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchasepayments",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchasepayments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchasepaymentsreturn",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchasepaymentsreturn",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_purchasereturn",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_quotation",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_referrals",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_rewards_history",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_sales",
+                "column": "sales_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_sales",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_salespayments",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_salespayments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_salespaymentsreturn",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_salespaymentsreturn",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_salesreturn",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_service_packages",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_sobpayments",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_sobpayments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_stockadjustment",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_stocktransfer",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_store",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_store_credit",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_store_credit_usage",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_subscription",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_subscription_license",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_subscription_plans",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_supplier_payments",
+                "column": "payment_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_supplier_payments",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_suppliers",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Table not using utf8mb4 collation",
+                "root_cause": "Mixed collation can cause join errors",
+                "fix": "Consider converting to utf8mb4_unicode_ci",
+                "table": "db_tables",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "db_users",
+                "column": "created_date"
+            },
+            {
+                "severity": "low",
+                "issue": "Date column nullable without default",
+                "root_cause": "Could allow NULL where business expects a date",
+                "fix": "Consider NOT NULL DEFAULT CURRENT_TIMESTAMP or proper nullable handling",
+                "table": "temp_holdinvoice",
+                "column": "created_date"
+            }
+        ],
+        "phase4": [
+            {
+                "severity": "medium",
+                "issue": "Zero-date literals found in source files",
+                "root_cause": "Source files still reference '0000-00-00'",
+                "fix": "Replace with NULL or CURRENT_TIMESTAMP defaults",
+                "table": "",
+                "column": ""
+            }
+        ],
+        "phase5": [
+            {
+                "severity": "low",
+                "issue": "Table exceeds 50 columns",
+                "root_cause": "Wide tables reduce performance and maintainability",
+                "fix": "Normalize rarely used columns into related tables",
+                "table": "db_approval_settings",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Table exceeds 50 columns",
+                "root_cause": "Wide tables reduce performance and maintainability",
+                "fix": "Normalize rarely used columns into related tables",
+                "table": "db_customers",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Table exceeds 50 columns",
+                "root_cause": "Wide tables reduce performance and maintainability",
+                "fix": "Normalize rarely used columns into related tables",
+                "table": "db_items",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Table exceeds 50 columns",
+                "root_cause": "Wide tables reduce performance and maintainability",
+                "fix": "Normalize rarely used columns into related tables",
+                "table": "db_store",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Table exceeds 50 columns",
+                "root_cause": "Wide tables reduce performance and maintainability",
+                "fix": "Normalize rarely used columns into related tables",
+                "table": "db_storefront_settings",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "Potential N+1 query patterns in PHP code",
+                "root_cause": "Loops contain database queries",
+                "fix": "Refactor to batch queries or use joins",
+                "table": "",
+                "column": ""
+            }
+        ],
+        "phase6": [
+            {
+                "severity": "medium",
+                "issue": "Runtime CREATE TABLE IF NOT EXISTS found in application code",
+                "root_cause": "Fresh installer should be the single source of truth",
+                "fix": "Move table creation to installer; keep runtime checks only for backward-compatible upgrades",
+                "table": "",
+                "column": ""
+            },
+            {
+                "severity": "low",
+                "issue": "ALTER TABLE statements found in application code",
+                "root_cause": "Schema changes should be in migrations or installer",
+                "fix": "Review and move to migration files",
+                "table": "",
+                "column": ""
+            }
+        ],
+        "phase7": [
+            {
+                "severity": "high",
+                "issue": "Stress test database selection failed",
+                "root_cause": "Access denied for user 'martpoint'@'localhost' to database 'martpoint_stress_20260704_124545'",
+                "fix": "Check database permissions",
+                "table": "",
+                "column": ""
+            }
+        ]
+    },
+    "fixes": [],
+    "files_modified": [],
+    "zero_date_files": [
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Delivery_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Laundry_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Pos_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Items_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Sales_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Services_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Service_package_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Storefront_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Assist_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Import.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Operations.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/views\/operations\/laundry.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/views\/operations\/driver_profile.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/views\/operations\/warranty_lookup.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/views\/expired_items_report.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/views\/customer-packages.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/helpers\/custom_helper.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/helpers\/inventory_helper.php"
+    ],
+    "governance_files": [
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Production_batches_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Email_template_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Delivery_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Custom_orders_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Email_settings_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Report_schedule_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Treatment_notes_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Membership_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Email_log_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Attendance_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Debt_reminder_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Service_package_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Storefront_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Recipe_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Operations.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Updates.php"
+    ],
+    "nplus_files": [
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/migrations\/004_add_unit_tracking_to_barcodes.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Production_batches_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Email_template_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Delivery_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Payment_modes_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Laundry_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Installments_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Report_schedule_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Treatment_notes_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Default_data_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Kitchen_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Store_credit_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Service_package_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Storefront_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Assist_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/models\/Recipe_model.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Debt_reminder.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Online_store.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Cron.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Operations.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Warehouse.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Updates.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Units.php",
+        "\/Users\/ralphmore\/Herd\/martpointretailapp\/application\/controllers\/Subscription_license.php"
+    ],
+    "large_tables": [
+        {
+            "TABLE_NAME": "ac_transactions",
+            "TABLE_ROWS": "61",
+            "AVG_ROW_LENGTH": "268",
+            "total_bytes": "229376"
+        },
+        {
+            "TABLE_NAME": "db_customer_memberships",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "114688"
+        },
+        {
+            "TABLE_NAME": "db_stocktransferitems",
+            "TABLE_ROWS": "1",
+            "AVG_ROW_LENGTH": "16384",
+            "total_bytes": "114688"
+        },
+        {
+            "TABLE_NAME": "ac_accounts",
+            "TABLE_ROWS": "2",
+            "AVG_ROW_LENGTH": "8192",
+            "total_bytes": "98304"
+        },
+        {
+            "TABLE_NAME": "db_approval_logs",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "98304"
+        },
+        {
+            "TABLE_NAME": "db_custom_orders",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "98304"
+        },
+        {
+            "TABLE_NAME": "db_installment_plans",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "98304"
+        },
+        {
+            "TABLE_NAME": "db_permissions",
+            "TABLE_ROWS": "953",
+            "AVG_ROW_LENGTH": "85",
+            "total_bytes": "98304"
+        },
+        {
+            "TABLE_NAME": "db_salespayments",
+            "TABLE_ROWS": "59",
+            "AVG_ROW_LENGTH": "277",
+            "total_bytes": "98304"
+        },
+        {
+            "TABLE_NAME": "db_customer_packages",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "db_email_logs",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "db_recipe_production_runs",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "db_sales",
+            "TABLE_ROWS": "58",
+            "AVG_ROW_LENGTH": "282",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "db_stockadjustmentitems",
+            "TABLE_ROWS": "3",
+            "AVG_ROW_LENGTH": "5461",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "db_stocktransfer",
+            "TABLE_ROWS": "1",
+            "AVG_ROW_LENGTH": "16384",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "db_treatment_notes",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "81920"
+        },
+        {
+            "TABLE_NAME": "ac_moneydeposits",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "65536"
+        },
+        {
+            "TABLE_NAME": "ac_moneytransfer",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "65536"
+        },
+        {
+            "TABLE_NAME": "ci_sessions",
+            "TABLE_ROWS": "21",
+            "AVG_ROW_LENGTH": "2340",
+            "total_bytes": "65536"
+        },
+        {
+            "TABLE_NAME": "db_attendance",
+            "TABLE_ROWS": "0",
+            "AVG_ROW_LENGTH": "0",
+            "total_bytes": "65536"
+        }
+    ]
+}

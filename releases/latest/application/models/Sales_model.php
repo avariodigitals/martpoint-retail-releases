@@ -211,6 +211,7 @@ class Sales_model extends CI_Model {
 		$cheque_number = $this->input->post('cheque_number', TRUE);
 		$cheque_period = $this->input->post('cheque_period', TRUE);
 		$allow_tot_advance = $this->input->post('allow_tot_advance', TRUE);
+		$send_sms = $this->input->post('send_sms', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
 		// Check if pharmacy business type for customer notes tracking
@@ -223,6 +224,14 @@ class Sales_model extends CI_Model {
 		//END
 
 		$this->db->trans_begin();
+
+		// Serialize invoice-number generation per store so concurrent POS users
+		// cannot be assigned the same sales_code.
+		if($command == 'save' && !empty($store_id)){
+			$this->db->query("SELECT 1 FROM db_store WHERE id = ? FOR UPDATE", [(int)$store_id]);
+			$count_id = autosynch_sales_code();
+		}
+
 		$sales_date=system_fromatted_date($sales_date);
 
 		$due_date=(!empty($due_date)) ? system_fromatted_date($due_date) : NULL;
@@ -260,6 +269,38 @@ class Sales_model extends CI_Model {
 		    	if($coupon_details->row()->customer_id==$customer_id){
 		    		$customer_coupon_id = $coupon_details->row()->id;		
 		    	}
+		    } else {
+		    	// Fallback: check if this is a promotion code
+		    	// Reject walk-in customers for promotion codes
+		    	$walkin_id = get_walk_in_customer_id();
+		    	$is_walkin = (!empty($walkin_id) && (int)$customer_id === (int)$walkin_id);
+		    	if($is_walkin){
+		    		$coupon_code = '';
+		    	} else {
+		    	try {
+		    		if($this->db->table_exists('db_promotions')){
+		    			$promo = $this->db->where('store_id', $store_id)
+		    				->where('status', 1)
+		    				->where('promotion_code', strtoupper($coupon_code))
+		    				->where('start_date <=', date('Y-m-d'))
+		    				->where('end_date >=', date('Y-m-d'))
+		    				->get('db_promotions')->row();
+		    			if($promo){
+		    				// Recalculate coupon_discount_amt from the promotion if not provided
+		    				if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
+		    					$tot_subtotal_amt = (float)$this->input->post_get('tot_subtotal_amt', TRUE);
+		    					if($tot_subtotal_amt > 0){
+		    						if($promo->discount_type == 'Percentage'){
+		    							$coupon_discount_amt = $tot_subtotal_amt * ($promo->discount_value / 100);
+		    						} else {
+		    							$coupon_discount_amt = (float)$promo->discount_value;
+		    						}
+		    					}
+		    				}
+		    			}
+		    		}
+		    	} catch (Exception $e) { /* Promotions table not available */ }
+		    	} // end else (not walk-in)
 		    }
 	    }
 
@@ -653,8 +694,9 @@ class Sales_model extends CI_Model {
 		}*/
 		
 		//Dont save if invoice credit limit exceeds
-		if(!check_credit_limit_with_invoice($customer_id,$sales_id)){
-			return 'failed';
+		$credit_check = check_credit_limit_with_invoice($customer_id,$sales_id);
+		if($credit_check !== true){
+			return $credit_check;
 		}
 
 
@@ -693,13 +735,34 @@ class Sales_model extends CI_Model {
 			$this->load->model('loyalty_model');
 			$settings = $this->loyalty_model->get_settings();
 			if($settings && $settings->loyalty_enabled){
-				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_total_amt);
+				$sale_items = $this->db->select('item_id, sales_qty, price_per_unit, discount_amt')
+							->where('sales_id', $sales_id)
+							->get('db_salesitems')
+							->result();
+				$loyalty_items = array();
+				foreach($sale_items as $si){
+					$loyalty_items[] = array(
+						'item_id' => (int)$si->item_id,
+						'qty' => (float)$si->sales_qty,
+						'line_value' => max(0, (float)$si->price_per_unit * (float)$si->sales_qty - (float)($si->discount_amt ?? 0))
+					);
+				}
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_total_amt, $loyalty_items);
 				if($points > 0){
 					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from sale');
 				}
 			}
 		}
 		//end
+
+		// Record promotion usage if a promotion code was used
+		if(!empty($coupon_code)){
+			$promo = $this->db->where('store_id', $store_id)->where('UPPER(promotion_code)', strtoupper($coupon_code))->get('db_promotions')->row();
+			if($promo){
+				$this->load->model('Promotions_model','promotions_m');
+				$this->promotions_m->record_usage($promo->id, $customer_id, $sales_id, $store_id);
+			}
+		}
 
 		$this->db->trans_commit();
 
@@ -1085,6 +1148,22 @@ class Sales_model extends CI_Model {
 				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
 				$sales_price = get_price_level_price($customer_id,$sales_price);
 				$sales_price = number_format($sales_price,decimals(),'.','');
+
+				// Apply active promotion (with margin protection) if module is available
+				$bc_promo_name = '';
+				$bc_promo_discount = 0;
+				try {
+					if($this->db->table_exists('db_promotions')){
+						$this->load->model('promotions_model');
+						$bc_promo = $this->promotions_model->compute_effective_price($item_id, $sales_price);
+						if($bc_promo['has_promo']){
+							$sales_price = number_format($bc_promo['price'], decimals(), '.', '');
+							$bc_promo_name = $bc_promo['promo_name'];
+							$bc_promo_discount = $bc_promo['discount_amount'];
+						}
+					}
+				} catch (Exception $e) { /* Promotions module not ready yet */ }
+
 				$item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price,$bc_data->tax) :calculate_exclusive($sales_price,$bc_data->tax);
 				$info = array(
 					'item_id' => $item_id,
@@ -1106,6 +1185,8 @@ class Sales_model extends CI_Model {
 					'batch_lot' => $bc_data->batch_lot,
 					'barcode' => $barcode,
 					'price_type' => $price_type,
+					'promo_name' => $bc_promo_name,
+					'promo_discount' => $bc_promo_discount,
 				);
 				$this->return_row_with_data($rowcount,$info);
 				return;
@@ -1132,9 +1213,23 @@ class Sales_model extends CI_Model {
 		$sales_price = get_price_level_price($customer_id,$base_price);
 		$sales_price = number_format($sales_price,decimals(),'.','');
 
-		
+		// Apply active promotion (with margin protection) if module is available
+		$promo_name = '';
+		$promo_discount = 0;
+		try {
+			if($this->db->table_exists('db_promotions')){
+				$this->load->model('promotions_model');
+				$promo = $this->promotions_model->compute_effective_price($item_id, $sales_price);
+				if($promo['has_promo']){
+					$sales_price = number_format($promo['price'], decimals(), '.', '');
+					$promo_name = $promo['promo_name'];
+					$promo_discount = $promo['discount_amount'];
+				}
+			}
+		} catch (Exception $e) { /* Promotions module not ready yet */ }
+
 		$item_available_qty = total_available_qty_items_of_warehouse($warehouse_id,null,$res1->id);// $res1->stock;
-		
+
 		$item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($sales_price,$q3->tax) :calculate_exclusive($sales_price,$q3->tax);
 
 		$info = array(
@@ -1155,6 +1250,8 @@ class Sales_model extends CI_Model {
 							'item_discount_input' 		=> $res1->discount,
 							'service_bit' 				=> $res1->service_bit,
 							'price_type' 				=> $price_type,
+							'promo_name' 				=> $promo_name,
+							'promo_discount' 			=> $promo_discount,
 						);
 
 		$this->return_row_with_data($rowcount,$info);
@@ -1243,58 +1340,49 @@ class Sales_model extends CI_Model {
 		$item_discount_input = isset($info['item_discount_input']) ? $info['item_discount_input'] : '';
 		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
 		$item_amount = ($item_sales_price * $item_sales_qty) + $item_tax_amt;
+		$promo_name = isset($info['promo_name']) ? $info['promo_name'] : '';
 		?>
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
+               <!-- Item Name -->
                <td id="td_<?=$rowcount;?>_1">
-                  <label class='form-control' style='height:auto;' data-toggle="tooltip" title='Edit ?' >
-                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_sales_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a> 
-                  		<i onclick="show_sales_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
-                  	</label>
-               </td>
-
-               <!-- description  -->
-               <!-- <td id="td_<?=$rowcount;?>_17">
-                  
-                  <textarea rows="1" type="text" style="font-weight: bold; height=34px;" id="td_data_<?=$rowcount;?>_17" name="td_data_<?=$rowcount;?>_17" class="form-control no-padding"><?=$description;?></textarea>
-               </td> -->
-
-               <!-- Qty -->
-               <td id="td_<?=$rowcount;?>_3">
-                  <div class="input-group ">
-                     <span class="input-group-btn">
-                     <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-minus text-danger"></i></button></span>
-                     <input typ="text" value="<?=format_qty($item_sales_qty);?>" class="form-control no-padding text-center" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
-                     <span class="input-group-btn">
-                     <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-plus text-success"></i></button></span>
+                  <div class="si-name">
+                     <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_sales_item_modal(<?=$rowcount;?>)" class="si-name-link" title="Edit item details"><?=$item_name;?></a>
+                     <?php if(!empty($promo_name)): ?>
+                        <span class="si-promo"><?= htmlspecialchars($promo_name); ?></span>
+                     <?php endif; ?>
+                     <span class="si-meta">In stock: <span id="tr_available_qty_<?=$rowcount;?>_13_disp"><?= $item_available_qty; ?></span></span>
                   </div>
                </td>
-               
-               <!-- Unit Cost Without Tax-->
-               <td id="td_<?=$rowcount;?>_10"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="form-control text-right no-padding only_currency text-center" onkeyup="calculate_tax(<?=$rowcount;?>)" value="<?=store_number_format($item_sales_price,0);?>"></td>
+
+               <!-- Qty -->
+               <td id="td_<?=$rowcount;?>_3" class="num">
+                  <div class="qty-stepper">
+                     <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="qty-btn" title="Decrease"><i class="fa fa-minus"></i></button>
+                     <input type="text" value="<?=format_qty($item_sales_qty);?>" class="qty-input" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
+                     <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="qty-btn" title="Increase"><i class="fa fa-plus"></i></button>
+                  </div>
+               </td>
+
+               <!-- Unit Price -->
+               <td id="td_<?=$rowcount;?>_10" class="num"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="cell-input num" onkeyup="calculate_tax(<?=$rowcount;?>)" value="<?=store_number_format($item_sales_price);?>"></td>
 
                <!-- Discount -->
-               <td id="td_<?=$rowcount;?>_8">
-                  <input type="text" data-toggle="tooltip" title="Click to Change" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="pointer form-control text-right no-padding only_currency text-center item_discount" value="<?=store_number_format($item_discount,0);?>" onclick="show_sales_item_modal(<?=$rowcount;?>)" readonly>
+               <td id="td_<?=$rowcount;?>_8" class="num">
+                  <input type="text" data-toggle="tooltip" title="Click to Change" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="cell-input num item_discount" value="<?=store_number_format($item_discount);?>" onclick="show_sales_item_modal(<?=$rowcount;?>)" readonly>
                </td>
 
-               <!-- Tax Amount -->
-               <td id="td_<?=$rowcount;?>_11">
-                  <input type="text" name="td_data_<?=$rowcount;?>_11" id="td_data_<?=$rowcount;?>_11" class="form-control text-right no-padding only_currency text-center" value="<?=store_number_format($item_tax_amt,0);?>" readonly>
+               <!-- Tax (amount + name) -->
+               <td id="td_<?=$rowcount;?>_11" class="num">
+                  <input type="text" name="td_data_<?=$rowcount;?>_11" id="td_data_<?=$rowcount;?>_11" class="cell-input num" value="<?=store_number_format($item_tax_amt);?>" readonly>
+                  <a id="td_data_<?=$rowcount;?>_12" href="javascript:void()" data-toggle="tooltip" title='Click to Change' onclick="show_sales_item_modal(<?=$rowcount;?>)" class="si-tax-name"><?=$item_tax_name ;?></a>
                </td>
 
-               <!-- Tax Details -->
-               <td id="td_<?=$rowcount;?>_12">
-                  <label class='form-control ' style='width:100%;padding-left:0px;padding-right:0px;'>
-                  <a id="td_data_<?=$rowcount;?>_12" href="javascript:void()" data-toggle="tooltip" title='Click to Change' onclick="show_sales_item_modal(<?=$rowcount;?>)" title=""><?=$item_tax_name ;?></a>
-                  	</label>
-               </td>
+               <!-- Total -->
+               <td id="td_<?=$rowcount;?>_9" class="num total"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="cell-input num total" readonly value="<?=store_number_format($item_amount);?>"></td>
 
-               <!-- Amount -->
-               <td id="td_<?=$rowcount;?>_9"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-right no-padding only_currency text-center" style="border-color: #f39c12;" readonly value="<?=store_number_format($item_amount,0);?>"></td>
-               
-               <!-- ADD button -->
-               <td id="td_<?=$rowcount;?>_16" style="text-align: center;">
-                  <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
+               <!-- Remove -->
+               <td id="td_<?=$rowcount;?>_16" class="action-col">
+                  <a class="remove-btn" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"><i class="fa fa-trash"></i></a>
                </td>
                <input type="hidden" id="td_data_<?=$rowcount;?>_4" name="td_data_<?=$rowcount;?>_4" value="<?=$item_sales_price;?>">
                <input type="hidden" id="td_data_<?=$rowcount;?>_15" name="td_data_<?=$rowcount;?>_15" value="<?=$item_tax_id;?>">
@@ -1869,5 +1957,82 @@ class Sales_model extends CI_Model {
 		  <!-- /.modal-dialog -->
 		</div>
 		<?php
+	}
+
+	public function get_customer_trends($customer_id, $store_id = null){
+		if(empty($store_id)) $store_id = get_current_store_id();
+		$trends = array();
+
+		$sales = $this->db->where('customer_id', $customer_id)
+						   ->where('store_id', $store_id)
+						   ->where('sales_status', 'Final')
+						   ->get('db_sales');
+
+		$trends['invoice_count'] = $sales->num_rows();
+		$trends['total_amount'] = 0;
+		$trends['paid_amount'] = 0;
+		$trends['due_amount'] = 0;
+		$paid_count = 0;
+		$partial_count = 0;
+		$unpaid_count = 0;
+		$payment_days = array();
+
+		foreach($sales->result() as $s){
+			$trends['total_amount'] += floatval($s->grand_total);
+			$trends['paid_amount'] += floatval($s->paid_amount);
+			$trends['due_amount'] += (floatval($s->grand_total) - floatval($s->paid_amount));
+
+			if($s->payment_status == 'Paid') $paid_count++;
+			else if($s->payment_status == 'Partial') $partial_count++;
+			else $unpaid_count++;
+
+			if($s->paid_amount > 0 && !empty($s->due_date)){
+				$payment_row = $this->db->where('sales_id', $s->id)
+										->order_by('id', 'desc')
+										->get('db_salespayments')
+										->row();
+				$paid_date = !empty($payment_row) ? $payment_row->payment_date : $s->sales_date;
+				if(!empty($paid_date)){
+					$payment_days[] = date_difference($s->due_date, $paid_date);
+				}
+			}
+		}
+
+		$trends['paid_count'] = $paid_count;
+		$trends['partial_count'] = $partial_count;
+		$trends['unpaid_count'] = $unpaid_count;
+		$trends['avg_payment_days'] = count($payment_days) ? round(array_sum($payment_days) / count($payment_days), 0) : 0;
+
+		$last_sale = $this->db->where('customer_id', $customer_id)
+							  ->where('store_id', $store_id)
+							  ->where('sales_status', 'Final')
+							  ->order_by('id', 'desc')
+							  ->get('db_sales')
+							  ->row();
+
+		$trends['last_sale_date'] = !empty($last_sale) ? show_date($last_sale->sales_date) : '-';
+		$trends['last_sale_amount'] = !empty($last_sale) ? floatval($last_sale->grand_total) : 0;
+
+		$top_items = $this->db->query("
+			SELECT i.item_name, SUM(si.sales_qty) as total_qty, SUM(si.total_cost) as total_amount
+			FROM db_salesitems si
+			JOIN db_items i ON si.item_id = i.id
+			JOIN db_sales s ON si.sales_id = s.id
+			WHERE s.customer_id = ? AND s.store_id = ? AND s.sales_status = 'Final'
+			GROUP BY si.item_id, i.item_name
+			ORDER BY total_qty DESC
+			LIMIT 3
+		", array($customer_id, $store_id))->result();
+
+		$trends['top_items'] = array();
+		foreach($top_items as $t){
+			$trends['top_items'][] = array(
+				'name' => $t->item_name,
+				'qty' => $t->total_qty,
+				'amount' => floatval($t->total_amount)
+			);
+		}
+
+		return $trends;
 	}
 }

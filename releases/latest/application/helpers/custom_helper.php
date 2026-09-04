@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.8';
+    return '4.0.9';
   }
   function required_php_version(){
     return 7.4;
@@ -622,7 +622,6 @@
     }
   }
   function get_store_name($id=''){
-    if(empty($id)){ return true;}
     $CI =& get_instance();
     if(empty($id)){
       $id=get_current_store_id();
@@ -1117,6 +1116,11 @@
       $privileged_warehouses[] = $res3->warehouse_id;
     }
     return $privileged_warehouses;
+  }
+
+  // Alias for getArrayOfWarehouseIds (branch = warehouse in this app)
+  function getArrayOfBranchIds(){
+    return getArrayOfWarehouseIds();
   }
 
   function get_privileged_warehouses_ids(){
@@ -1722,26 +1726,10 @@
   }
 
   function check_credit_limit_with_invoice($customer_id,$sales_id){
-    // Walk-in check already handled in Pos_model.php before this is called
-    // If the current invoice is fully paid, allow the sale regardless of old debt
-    $sales_details = get_sales_details($sales_id);
-    $current_invoice_paid = $sales_details->paid_amount ?? 0;
-    $current_invoice_total = $sales_details->grand_total ?? 0;
-    if($current_invoice_paid >= $current_invoice_total){
-      return true; // Customer paid cash for this sale — always allow
-    }
-
-    $credit_limit = get_customer_details($customer_id)->credit_limit;
-    // -1 = No Limit
-    if($credit_limit == -1){
-      return true;
-    }
-
-    $balance = get_customer_details($customer_id)->sales_due;
-    if($balance > $credit_limit){
-      echo 'This Customer Credit Limit exceeds! Credit Limit :'.store_number_format($credit_limit)."\nCrossing Credit Amount(Previous+Current Invoice) :".store_number_format($balance);
-      exit;
-    }
+    // Credit limit is now a WARNING only, not a hard block.
+    // A customer must never be stopped from buying — their debt is their debt.
+    // Blocking them just sends them to a competitor.
+    // The sale always proceeds; the cashier can see the balance and decide.
     return true;
   }
 
@@ -2242,5 +2230,10 @@
   function is_mobile(){
     $ua = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
     return (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|Windows Phone|webOS|BlackBerry|Tablet|Kindle|PlayBook|SM-T|Nexus 7|Nexus 9|KFTT|Silk/i', $ua);
+  }
+
+  function is_tablet(){
+    $ua = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+    return (bool) preg_match('/iPad|Tablet|Kindle|PlayBook|SM-T|Nexus 7|Nexus 9|KFTT|Silk|Lenovo.*Tab|Galaxy.*Tab|Tab/i', $ua);
   }
  

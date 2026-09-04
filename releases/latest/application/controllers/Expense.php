@@ -11,17 +11,21 @@ class Expense extends MY_Controller {
 	/* ######################################## EXPENSE START ############################# */
 	public function index()
 	{
+		if(is_mobile()){ redirect('mobile/finance/expenses'); }
 		$this->permission_check('expense_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expenses_list');
-		$this->load->view('expense-list',$data);
+		$data['content']=$this->load->view('finance/desktop/expense/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{
+		if(is_mobile()){ redirect('mobile/finance/expenses/form'); }
 		$this->permission_check('expense_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expenses');
-		$this->load->view('expense',$data);
+		$data['content']=$this->load->view('finance/desktop/expense/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	
@@ -30,7 +34,7 @@ class Expense extends MY_Controller {
 		$this->form_validation->set_rules('category_id', 'Category Name', 'trim|required');
 		$this->form_validation->set_rules('expense_amt', 'Expense Amount', 'trim|required');
 		$this->form_validation->set_rules('expense_for', 'Expense for', 'trim|required');
-		$this->form_validation->set_rules('payment_type', 'Payment Type', 'trim|required');
+		$this->form_validation->set_rules('payment_type', 'Payment Mode', 'trim|required');
 
 		
 		if ($this->form_validation->run() == TRUE) {
@@ -41,20 +45,22 @@ class Expense extends MY_Controller {
 		}
 	}
 	public function update($id){
+		if(is_mobile()){ redirect('mobile/finance/expenses/form/'.$id); }
 		$this->belong_to('db_expense',$id);
 		$this->permission_check('expense_edit');
 		$data=$this->data;
 		$result=$this->expense->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('expenses');
-		$this->load->view('expense', $data);
+		$data['content']=$this->load->view('finance/desktop/expense/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function update_expense(){
 		$this->form_validation->set_rules('expense_date', 'Expense Date', 'trim|required');
 		$this->form_validation->set_rules('category_id', 'Category Name', 'trim|required');
 		$this->form_validation->set_rules('expense_amt', 'Expense Amount', 'trim|required');
 		$this->form_validation->set_rules('expense_for', 'Expense for', 'trim|required');
-		$this->form_validation->set_rules('payment_type', 'Payment Type', 'trim|required');
+		$this->form_validation->set_rules('payment_type', 'Payment Mode', 'trim|required');
 
 		if ($this->form_validation->run() == TRUE) {
 			$result=$this->expense->update_expense();
@@ -148,14 +154,16 @@ class Expense extends MY_Controller {
 		$this->permission_check('expense_category_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expense_category_list');
-		$this->load->view('expense-category-list',$data);
+		$data['content']=$this->load->view('finance/desktop/expense/category_list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function category_add()
 	{
 		$this->permission_check('expense_category_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expense_category');
-		$this->load->view('expense-category',$data);
+		$data['content']=$this->load->view('finance/desktop/expense/category_form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function newcategory(){
 		$this->form_validation->set_rules('category', 'Category', 'trim|required');
@@ -230,7 +238,8 @@ class Expense extends MY_Controller {
 		$result=$this->category->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('expense_category');
-		$this->load->view('expense-category', $data);
+		$data['content']=$this->load->view('finance/desktop/expense/category_form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function update_category(){
 		$this->form_validation->set_rules('category', 'Category', 'trim|required');

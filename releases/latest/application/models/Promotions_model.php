@@ -77,13 +77,33 @@ class Promotions_model extends CI_Model {
 		$start_date       = $this->input->post('start_date', TRUE);
 		$end_date         = $this->input->post('end_date', TRUE);
 		$item_ids         = $this->input->post('item_ids', TRUE);
+		$mode             = $this->input->post('mode', TRUE) === 'advanced' ? 'advanced' : 'simple';
+		$min_spend        = $this->input->post('min_spend', TRUE);
+		$usage_limit_per_customer = $this->input->post('usage_limit_per_customer', TRUE);
+		$usage_limit_total        = $this->input->post('usage_limit_total', TRUE);
 
 		$store_id = get_current_store_id();
 		$start_db = system_fromatted_date($start_date);
 		$end_db   = system_fromatted_date($end_date);
 
+		// Validate date range
+		if(strtotime($end_db) < strtotime($start_db)){
+			return "End Date cannot be before Start Date.";
+		}
+
+		// Validate percentage range
+		if($discount_type == 'Percentage' && $discount_value > 100){
+			return "Percentage discount cannot exceed 100%.";
+		}
+		if($discount_value <= 0){
+			return "Discount Value must be greater than 0.";
+		}
+
 		$min_price_val = ($min_price_rule !== '' && $min_price_rule !== null) ? (float)$min_price_rule : null;
 		$min_margin_val = ($min_margin_pct !== '' && $min_margin_pct !== null) ? (float)$min_margin_pct : null;
+		$min_spend_val = ($min_spend !== '' && $min_spend !== null) ? (float)$min_spend : null;
+		$usage_per_cust_val = ($usage_limit_per_customer !== '' && $usage_limit_per_customer !== null) ? (int)$usage_limit_per_customer : null;
+		$usage_total_val = ($usage_limit_total !== '' && $usage_limit_total !== null) ? (int)$usage_limit_total : null;
 
 		$entry = array(
 			'store_id'        => $store_id,
@@ -100,10 +120,15 @@ class Promotions_model extends CI_Model {
 			'start_date'      => $start_db,
 			'end_date'        => $end_db,
 			'status'          => 1,
+			'mode'            => $mode,
+			'min_spend'       => $min_spend_val,
+			'usage_limit_per_customer' => $usage_per_cust_val,
+			'usage_limit_total'        => $usage_total_val,
 		);
 
-		$this->db->trans_begin();
+	$this->db->trans_begin();
 
+		try {
 		if($command == 'save'){
 			$entry['created_date'] = date('Y-m-d');
 			$entry['created_time'] = date('H:i:s');
@@ -130,9 +155,18 @@ class Promotions_model extends CI_Model {
 			}
 		}
 
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return "Failed to save promotion. Please try again.";
+		}
+
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success! Promotion saved successfully.');
 		return "success<<<###>>>".$promotion_id;
+		} catch (Exception $e) {
+		$this->db->trans_rollback();
+		return "Failed to save promotion: " . $e->getMessage();
+		}
 	}
 
 	public function get_details($id, $data){
@@ -152,6 +186,10 @@ class Promotions_model extends CI_Model {
 		$data['brand_id']          = $row->brand_id;
 		$data['start_date']        = show_date($row->start_date);
 		$data['end_date']          = show_date($row->end_date);
+		$data['mode']              = $row->mode ?? 'simple';
+		$data['min_spend']         = $row->min_spend ?? '';
+		$data['usage_limit_per_customer'] = $row->usage_limit_per_customer ?? '';
+		$data['usage_limit_total']        = $row->usage_limit_total ?? '';
 		// Fetch linked item ids
 		$data['linked_item_ids'] = array();
 		if($row->applies_to == 'items'){
@@ -213,8 +251,26 @@ class Promotions_model extends CI_Model {
 		$this->db->or_group_start()->where('applies_to','items')->where("id IN (SELECT promotion_id FROM db_promotion_items WHERE item_id = ".(int)$item_id.")", null, false)->group_end();
 		$this->db->group_end();
 		$this->db->order_by('discount_value','desc');
-		$promo = $this->db->get('db_promotions')->row();
+		$promos = $this->db->get('db_promotions')->result();
 
+		if(empty($promos)){ return $result; }
+
+		// Pick the promotion that gives the best actual discount for this item's price
+		$best = null;
+		$best_discount = 0;
+		foreach($promos as $p){
+			$d = 0;
+			if($p->discount_type == 'Percentage'){
+				$d = $original_price * ($p->discount_value / 100);
+			} else {
+				$d = (float)$p->discount_value;
+			}
+			if($d > $best_discount){
+				$best_discount = $d;
+				$best = $p;
+			}
+		}
+		$promo = $best;
 		if(!$promo){ return $result; }
 
 		// Calculate discounted price
@@ -250,5 +306,61 @@ class Promotions_model extends CI_Model {
 		$result['promo_name'] = $promo->promotion_name;
 		$result['discount_amount'] = round($original_price - $discounted, 4);
 		return $result;
+	}
+
+	/**
+	 * Check if a promotion code can be used by a customer given their cart total.
+	 * Returns array with 'ok' (bool) and 'message' (string).
+	 */
+	public function check_promotion_eligibility($promo, $customer_id, $cart_subtotal = 0){
+		$result = array('ok' => true, 'message' => '');
+
+		// Min spend check
+		if(!empty($promo->min_spend) && $cart_subtotal < (float)$promo->min_spend){
+			$result['ok'] = false;
+			$result['message'] = 'Minimum spend of ' . store_number_format($promo->min_spend) . ' required. Cart total is ' . store_number_format($cart_subtotal) . '.';
+			return $result;
+		}
+
+		// Usage limit per customer
+		if(!empty($promo->usage_limit_per_customer) && $promo->usage_limit_per_customer > 0){
+			$used = $this->db->where('promotion_id', $promo->id)
+				->where('customer_id', $customer_id)
+				->count_all_results('db_promotion_usage');
+			if($used >= (int)$promo->usage_limit_per_customer){
+				$result['ok'] = false;
+				$result['message'] = 'You have already used this promotion ' . $used . ' time(s). Limit is ' . $promo->usage_limit_per_customer . '.';
+				return $result;
+			}
+		}
+
+		// Total usage limit
+		if(!empty($promo->usage_limit_total) && $promo->usage_limit_total > 0){
+			$total_used = $this->db->where('promotion_id', $promo->id)
+				->count_all_results('db_promotion_usage');
+			if($total_used >= (int)$promo->usage_limit_total){
+				$result['ok'] = false;
+				$result['message'] = 'This promotion has reached its total usage limit of ' . $promo->usage_limit_total . '.';
+				return $result;
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Record that a promotion was used in a sale.
+	 */
+	public function record_usage($promotion_id, $customer_id, $sales_id, $store_id = null){
+		if(empty($promotion_id) || empty($sales_id)) return;
+		$store_id = $store_id ?: get_current_store_id();
+		$this->db->insert('db_promotion_usage', array(
+			'promotion_id' => (int)$promotion_id,
+			'customer_id'  => (int)$customer_id,
+			'sales_id'     => (int)$sales_id,
+			'store_id'     => (int)$store_id,
+			'used_date'    => date('Y-m-d'),
+			'used_time'    => date('H:i:s'),
+		));
 	}
 }

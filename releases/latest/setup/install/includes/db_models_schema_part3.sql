@@ -1,0 +1,13 @@
+
+-- --------------------------------------------------------
+-- ALTER TABLE statements from models (adding columns to existing tables)
+-- --------------------------------------------------------
+-- NOTE: These columns are now folded into the db.txt CREATE TABLE definitions
+-- to keep the installer compatible with both MySQL and MariaDB.
+-- The statements below are kept commented for historical reference.
+--
+-- ALTER TABLE db_items ADD COLUMN publish_online TINYINT(1) NOT NULL DEFAULT 1 AFTER status;
+-- ALTER TABLE db_items ADD COLUMN online_price DECIMAL(12,2) NULL AFTER sales_price;
+--
+-- ALTER TABLE db_store ADD COLUMN location_lat DECIMAL(10,8) DEFAULT NULL AFTER address;
+-- ALTER TABLE db_store ADD COLUMN location_lng DECIMAL(11,8) DEFAULT NULL AFTER location_lat;

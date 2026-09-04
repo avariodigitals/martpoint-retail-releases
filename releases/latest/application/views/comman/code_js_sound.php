@@ -1,3 +1,4 @@
+<?php if (!empty($GLOBALS['__mp_code_js_sound_loaded'])) { return; } $GLOBALS['__mp_code_js_sound_loaded'] = true; ?>
 <!-- Notification sound -->
 <audio id="failed">
   <source src="<?php echo $theme_link; ?>sound/failed.mp3" type="audio/mpeg">

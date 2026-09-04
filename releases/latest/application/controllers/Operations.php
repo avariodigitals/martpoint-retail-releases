@@ -60,7 +60,8 @@ class Operations extends MY_Controller {
         $d['description']     = $description;
         $d['enable_url']      = base_url('business_profile');
         $d['back_url']        = base_url('dashboard');
-        $this->load->view('operations/feature_not_activated.php', $d);
+        $d['content']         = $this->load->view('operations/feature_not_activated.php', $d, TRUE);
+        $this->load->view('mp_layout', $d);
         exit;
     }
 
@@ -68,7 +69,8 @@ class Operations extends MY_Controller {
         $d = $this->data ?? [];
         $d['page_title'] = $page_title;
         $d = array_merge($d, $data);
-        $this->load->view($view, $d);
+        $d['content'] = $this->load->view($view, $d, TRUE);
+        $this->load->view('mp_layout', $d);
     }
 
     /* ===================== CUSTOM ORDERS ===================== */
@@ -1578,7 +1580,7 @@ class Operations extends MY_Controller {
         $this->db->select('a.id, a.item_name, a.item_code, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.status, b.category_name, c.brand_name');
         $this->db->from('db_items a');
         $this->db->join('db_category b', 'b.id = a.category_id', 'left');
-        $this->db->join('db_brand c', 'c.id = a.brand_id', 'left');
+        $this->db->join('db_brands c', 'c.id = a.brand_id', 'left');
         $this->db->where('a.store_id', $store_id);
         $this->db->where('a.status', 1);
         if($categoryId){
@@ -2019,7 +2021,7 @@ class Operations extends MY_Controller {
         $data['routes'] = $history['routes'];
         $data['stats'] = $history['stats'];
 
-        $this->load->view('operations/driver_profile', $data);
+        $this->_render($data['page_title'], 'operations/driver_profile', $data);
     }
 
     // AJAX: Mark item delivered

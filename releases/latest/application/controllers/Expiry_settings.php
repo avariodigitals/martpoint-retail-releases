@@ -18,7 +18,8 @@ class Expiry_settings extends MY_Controller {
 		$data = $this->data;
 		$data['settings'] = $this->expiry->get_settings();
 		$data['page_title'] = 'Expiry Settings';
-		$this->load->view('expiry_settings', $data);
+		$data['content'] = $this->load->view('inventory/desktop/expiry_settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save(){

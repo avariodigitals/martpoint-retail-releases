@@ -22,8 +22,10 @@ class Business_profile extends MY_Controller {
         $data['label_defaults'] = mp_get_label_defaults();
         $data['workflow_templates'] = mp_get_workflow_templates();
         $data['dashboard_templates'] = mp_get_dashboard_templates();
-        $data['storefront_themes'] = mp_get_storefront_themes();
-        $this->load->view('business_profile', $data);
+        $this->load->model('storefront_model');
+        $data['storefront_themes'] = $this->storefront_model->getThemesByIndustryForStore($data['profile']['industry_type'] ?? null, true);
+        $data['content'] = $this->load->view('business_profile', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save() {
@@ -36,18 +38,31 @@ class Business_profile extends MY_Controller {
         $dashboard_template_key = $this->input->post('dashboard_template_key', TRUE);
         $storefront_theme_key = $this->input->post('storefront_theme_key', TRUE);
 
+        // Load storefront model so we can validate the selected theme against the industry.
+        $this->load->model('storefront_model');
+
         // When the business type changes, make sure the storefront theme follows the new preset
         // unless the user explicitly picked a different theme.
         $old = $this->bp_model->get_profile($store_id);
         $oldIndustry = $old['industry_type'] ?? '';
         $oldThemeKey = $old['storefront_theme_key'] ?? '';
         if (!empty($industry_type) && $industry_type !== $oldIndustry) {
-            $newPreset = $this->bp_model->get_preset($industry_type);
-            if ($newPreset && !empty($newPreset['theme_key'])) {
-                if (empty($storefront_theme_key) || $storefront_theme_key === $oldThemeKey) {
-                    $storefront_theme_key = $newPreset['theme_key'];
-                }
+            $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
+            if(empty($storefront_theme_key) || $storefront_theme_key === $oldThemeKey || !isset($allowed[$storefront_theme_key])){
+                // Default to the first allowed theme for the new industry
+                $storefront_theme_key = array_keys($allowed)[0];
             }
+        }
+
+        // Final validation: the selected theme must be in the allowed set for the industry.
+        if (!empty($storefront_theme_key)) {
+            $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
+            if (!isset($allowed[$storefront_theme_key])) {
+                $storefront_theme_key = array_keys($allowed)[0];
+            }
+        } else {
+            $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
+            $storefront_theme_key = array_keys($allowed)[0];
         }
 
         // Feature flags JSON

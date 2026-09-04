@@ -57,7 +57,7 @@
       <div class="menu-list">
         <div class="menu-card">
           <?php foreach($marketing_items as $item): ?>
-            <a href="<?= base_url($item['url']); ?>" class="menu-item">
+            <a href="<?= base_url($item['url_mobile']); ?>" class="menu-item">
               <div class="icon <?= $item['color']; ?>"><i class="fa <?= $item['icon']; ?>"></i></div>
               <div class="text">
                 <div class="title"><?= $item['title']; ?></div>

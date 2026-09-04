@@ -14,7 +14,8 @@ class Paystack extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']='Paystack Settings';
 		$data['settings']=$this->paystack->get_settings();
-		$this->load->view('paystack_settings', $data);
+		$data['content'] = $this->load->view('paystack_settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	// Save settings

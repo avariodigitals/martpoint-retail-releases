@@ -33,6 +33,7 @@
     .choice input { position: absolute; opacity: 0; }
     .choice:has(input:checked) { background: var(--mp-primary); color: #fff; border-color: var(--mp-primary); }
     .error-msg { color: var(--mp-danger); font-size: 12px; display: none; }
+    .field-hint { color: var(--mp-muted); font-size: 12px; margin-top: 4px; }
     .btn-primary { display: block; width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--mp-primary); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
     .btn-primary:disabled { opacity: 0.6; }
     @media (min-width: 600px) { .screen { padding: 16px 24px 140px; } }
@@ -56,8 +57,9 @@
         <?php if($coupon->id): ?><input type="hidden" name="q_id" value="<?= (int)$coupon->id; ?>"><?php endif; ?>
 
         <div class="form-group">
-          <label>Coupon Name <span class="req">*</span></label>
-          <input type="text" name="coupon_name" class="form-control" value="<?= htmlspecialchars($coupon->name); ?>" placeholder="e.g. Summer Sale">
+          <label>Coupon Name / Occasion <span class="req">*</span></label>
+          <input type="text" name="coupon_name" class="form-control" value="<?= htmlspecialchars($coupon->name); ?>" placeholder="e.g. Christmas, Easter, Black Friday">
+          <div class="field-hint">This name becomes the "occasion" shown at POS.</div>
           <div class="error-msg" id="coupon_name_msg">Please enter a coupon name.</div>
         </div>
 
@@ -77,7 +79,7 @@
           <label>Coupon Type <span class="req">*</span></label>
           <div class="choice-group">
             <label class="choice"><input type="radio" name="coupon_type" value="Percentage" <?= ($coupon->type ?? 'Percentage') === 'Percentage' ? 'checked' : ''; ?>>Percentage</label>
-            <label class="choice"><input type="radio" name="coupon_type" value="Amount" <?= ($coupon->type ?? '') === 'Amount' ? 'checked' : ''; ?>>Amount</label>
+            <label class="choice"><input type="radio" name="coupon_type" value="Fixed" <?= ($coupon->type ?? '') === 'Fixed' ? 'checked' : ''; ?>>Fixed</label>
           </div>
           <div class="error-msg" id="coupon_type_msg">Please select a type.</div>
         </div>

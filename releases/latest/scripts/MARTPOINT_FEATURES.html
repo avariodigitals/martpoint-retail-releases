@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MartPoint Retail — Complete Feature Overview</title>
+<style>
+:root{ --accent:#6200ea; --accent2:#1976d2; --text:#1e293b; --muted:#64748b; --bg:#f8fafc; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+.container{ max-width:960px; margin:0 auto; padding:40px 24px; }
+header{ text-align:center; padding:60px 20px 40px; background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%); color:#fff; border-radius:16px; margin-bottom:48px; box-shadow:0 8px 32px rgba(98,0,234,0.25); }
+header h1{ font-size:42px; font-weight:800; margin-bottom:12px; letter-spacing:-0.5px; }
+header p{ font-size:18px; opacity:0.92; max-width:560px; margin:0 auto; }
+.module{ background:#fff; border-radius:14px; padding:32px; margin-bottom:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border:1px solid #eef0f4; }
+.module h2{ font-size:20px; font-weight:700; color:var(--accent); margin-bottom:6px; display:flex; align-items:center; gap:10px; }
+.module .tagline{ font-size:13px; color:var(--muted); font-weight:500; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:18px; }
+.module ul{ list-style:none; }
+.module li{ padding:10px 0 10px 28px; position:relative; border-bottom:1px solid #f1f5f9; font-size:14.5px; }
+.module li:last-child{ border-bottom:none; }
+.module li::before{ content:"✓"; position:absolute; left:0; color:#10b981; font-weight:700; font-size:15px; }
+.module li strong{ color:var(--text); font-weight:600; }
+.sub-list{ margin:10px 0 0 0; padding-left:20px; }
+.sub-list li{ padding:6px 0 6px 24px; border-bottom:none; font-size:13.5px; color:var(--muted); }
+.sub-list li::before{ content:"›"; color:var(--accent2); font-size:16px; }
+.comparison{ background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%); color:#fff; border-radius:14px; padding:40px 32px; margin-top:40px; }
+.comparison h2{ font-size:22px; font-weight:700; margin-bottom:24px; text-align:center; }
+.comparison table{ width:100%; border-collapse:collapse; font-size:14px; }
+.comparison th{ text-align:left; padding:14px 16px; background:rgba(255,255,255,0.06); font-weight:600; color:#94a3b8; text-transform:uppercase; font-size:11px; letter-spacing:0.8px; border-bottom:1px solid rgba(255,255,255,0.08); }
+.comparison td{ padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.comparison tr:last-child td{ border-bottom:none; }
+.comparison td:first-child{ font-weight:600; color:#e2e8f0; width:28%; }
+.comparison td:last-child{ color:#cbd5e1; }
+footer{ text-align:center; padding:40px 20px; color:var(--muted); font-size:13px; }
+footer strong{ color:var(--text); }
+@media print{
+  body{ background:#fff; }
+  .module{ box-shadow:none; border:1px solid #ddd; break-inside:avoid; }
+  header{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .comparison{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+@media(max-width:640px){
+  header h1{ font-size:28px; }
+  .module{ padding:24px; }
+  .comparison{ padding:28px 20px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>MartPoint Retail</h1>
+  <p>Everything your retail business needs to sell smarter, manage better, and grow faster.</p>
+</header>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#6200ea,#1976d2);border-radius:8px;color:#fff;font-size:15px;">💳</span> Point of Sale (POS)</h2>
+  <div class="tagline">Sell faster. Sell smarter.</div>
+  <ul>
+    <li><strong>Touch-Friendly POS Screen</strong> — Fast, responsive checkout designed for real-world retail speed.</li>
+    <li><strong>Barcode Scanning</strong> — Instant product lookup by barcode. No typing, no delays.</li>
+    <li><strong>Multi-Payment Support</strong> — Accept Cash, Bank Transfer, POS Terminal, and Credit sales in a single transaction.</li>
+    <li><strong>Sales Orders &amp; Invoicing</strong> — Generate professional invoices with auto-numbering.</li>
+    <li><strong>Quotations &amp; Estimates</strong> — Create quotes and convert them to sales orders with one click.</li>
+    <li><strong>Sales Returns &amp; Refunds</strong> — Handle partial or full returns seamlessly, with automatic stock updates.</li>
+    <li><strong>Customer Profiles</strong> — Track purchase history, outstanding balances, and buying behavior per customer.</li>
+    <li><strong>Receipt Printing</strong> — Print thermal receipts instantly. Compatible with standard POS printers.</li>
+    <li><strong>Hold &amp; Recall Sales</strong> — Park a sale, serve another customer, return and complete anytime.</li>
+    <li><strong>Offline Mode</strong> — POS works without internet. Sales queue and sync automatically when back online.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#10b981,#059669);border-radius:8px;color:#fff;font-size:15px;">📦</span> Inventory Management</h2>
+  <div class="tagline">Know exactly what you have, where it is, and when it expires.</div>
+  <ul>
+    <li><strong>Product Catalog</strong> — Organize products by category, brand, and unit of measure.</li>
+    <li><strong>Barcode Generation</strong> — Auto-generate and print barcodes for every product.</li>
+    <li><strong>Batch Tracking</strong> — Track every batch number from purchase to sale. Full traceability.</li>
+    <li><strong>Expiry Date Management</strong> — Set expiry dates per batch. Get alerts before stock expires.</li>
+    <li><strong>Expired Stock Blocking</strong> — Automatically block expired items from being sold.</li>
+    <li><strong>Multi-Warehouse Support</strong> — Manage stock across multiple warehouses or storage locations.</li>
+    <li><strong>Stock Transfers</strong> — Move stock between warehouses with full audit trails.</li>
+    <li><strong>Stock Adjustments</strong> — Add, remove, or correct stock levels with reason tracking.</li>
+    <li><strong>Low Stock Alerts</strong> — Get notified when items fall below reorder levels.</li>
+    <li><strong>Product Variants</strong> — Support for size, color, and other product variations.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:8px;color:#fff;font-size:15px;">🛒</span> Purchasing &amp; Suppliers</h2>
+  <div class="tagline">Buy better. Track every order.</div>
+  <ul>
+    <li><strong>Purchase Orders</strong> — Create, send, and track purchase orders from draft to receipt.</li>
+    <li><strong>Multi-Status Purchases</strong> — Draft → Ordered → Partially Received → Received. Full lifecycle tracking.</li>
+    <li><strong>Purchase Returns</strong> — Return defective or excess stock to suppliers with proper documentation.</li>
+    <li><strong>Supplier Management</strong> — Maintain supplier profiles, contact info, and payment history.</li>
+    <li><strong>Cost Price &amp; Profit Margin</strong> — Auto-calculate profit margins based on purchase cost vs selling price.</li>
+    <li><strong>Batch &amp; Expiry on Receipt</strong> — Capture batch numbers and expiry dates when receiving stock.</li>
+    <li><strong>Supplier Payment Tracking</strong> — Record payments to suppliers and track outstanding purchase dues.</li>
+    <li><strong>Purchase List &amp; Filtering</strong> — Search and filter purchases by status, date, supplier, or reference.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border-radius:8px;color:#fff;font-size:15px;">🌐</span> Online Store &amp; eCommerce</h2>
+  <div class="tagline">Sell online without building a separate website.</div>
+  <ul>
+    <li><strong>Built-In Online Store</strong> — Launch a branded online storefront directly from MartPoint. No coding required.</li>
+    <li><strong>Homepage Builder</strong> — Drag-and-drop builder to design your store homepage with banners, featured products, and categories.</li>
+    <li><strong>Product Showcase</strong> — Choose which products appear online with custom descriptions and images.</li>
+    <li><strong>Service Listings</strong> — List services (not just products) for booking or inquiry.</li>
+    <li><strong>Online Orders Management</strong> — Receive, process, and fulfill online orders from the same dashboard.</li>
+    <li><strong>Order Tracking</strong> — Customers can track order status from placement to delivery.</li>
+    <li><strong>Brand Pages</strong> — Dedicated pages for each brand you stock.</li>
+    <li><strong>Testimonials</strong> — Collect and display customer reviews and testimonials.</li>
+    <li><strong>Instagram Integration</strong> — Link your Instagram feed to your online store.</li>
+    <li><strong>FAQ Section</strong> — Built-in FAQ builder for common customer questions.</li>
+    <li><strong>Custom Domains</strong> — Use your own domain name for the online store.</li>
+    <li><strong>Store Analytics</strong> — Track visits, orders, conversion rates, and popular products.</li>
+    <li><strong>Appearance Customization</strong> — Customize colors, fonts, layout, and branding.</li>
+    <li><strong>PDF Catalog Export</strong> — Generate downloadable product catalogs.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:8px;color:#fff;font-size:15px;">📱</span> QR Menu &amp; QR Ordering</h2>
+  <div class="tagline">Let customers scan, browse, and order — contactless and modern.</div>
+  <ul>
+    <li><strong>QR Code Generator</strong> — Create QR codes for Store Front, Product Pages, Service Bookings, Category Browsing, Table Ordering, and Attendance Marking.</li>
+    <li><strong>Print-Ready QR Codes</strong> — Download high-resolution QR codes for printing on menus, table tents, posters, and flyers.</li>
+    <li><strong>Dynamic QR Updates</strong> — Change what the QR links to without reprinting.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#06b6d4,#0891b2);border-radius:8px;color:#fff;font-size:15px;">🏢</span> Multi-Branch &amp; Multi-Store</h2>
+  <div class="tagline">One system. Many locations.</div>
+  <ul>
+    <li><strong>Multi-Store Support</strong> — Run multiple stores from a single MartPoint instance. Each store is independent.</li>
+    <li><strong>Centralized Reporting</strong> — View consolidated reports across all branches or filter by individual store.</li>
+    <li><strong>Branch-Based Inventory</strong> — Each branch manages its own stock, warehouses, and suppliers.</li>
+    <li><strong>Inter-Branch Stock Transfers</strong> — Move inventory between branches with full tracking.</li>
+    <li><strong>Role-Based Access Per Branch</strong> — Assign users to specific branches with tailored permissions.</li>
+    <li><strong>Store-Specific Settings</strong> — Currency, tax rates, branding, and payment methods per store.</li>
+    <li><strong>Warehouse Privileges</strong> — Control which staff can access which warehouses.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#ec4899,#db2777);border-radius:8px;color:#fff;font-size:15px;">📊</span> Daily Business Summary &amp; Reports</h2>
+  <div class="tagline">Your business heartbeat, every single day.</div>
+  <ul>
+    <li><strong>Daily Business Summary Dashboard</strong> — One-page overview: Total Sales, Gross Profit, Expenses, Net Position, Outstanding Debts, Cash Expected, Staff Attendance, Top Products, Low Stock, Expiry Alerts, Payment Breakdown.</li>
+    <li><strong>Date Range Filtering</strong> — View summaries for any date range, not just today.</li>
+    <li><strong>One-Click Sharing</strong> — Share the daily summary via WhatsApp, Email, or PDF in seconds.</li>
+    <li><strong>Sales Reports</strong> — Filter by date, product, customer, payment method, or staff.</li>
+    <li><strong>Purchase Reports</strong> — Analyze purchasing patterns by supplier, date, or product.</li>
+    <li><strong>Stock Movement Reports</strong> — Track every stock-in, stock-out, and adjustment.</li>
+    <li><strong>Profit &amp; Loss Analysis</strong> — Understand true profitability after all costs.</li>
+    <li><strong>Expiry &amp; Low Stock Reports</strong> — Proactive inventory health monitoring.</li>
+    <li><strong>Attendance Reports</strong> — Staff presence and punctuality tracking.</li>
+    <li><strong>PDF Export</strong> — Generate print-ready PDFs of any report.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:8px;color:#fff;font-size:15px;">🔒</span> Approvals &amp; Security</h2>
+  <div class="tagline">Control who can do what. Protect your business.</div>
+  <ul>
+    <li><strong>Approval Workflow System</strong> — Enable approval gates for discounts, expenses, stock adjustments, price changes, purchase orders, and sales returns.</li>
+    <li><strong>Multi-Level Approvers</strong> — Assign specific approvers by role or individual user.</li>
+    <li><strong>Approval Logs</strong> — Full audit trail of every approval request, approval, and rejection.</li>
+    <li><strong>Business Control Modes</strong> — Simple mode (basic checks) or Advanced mode (full workflow).</li>
+    <li><strong>Self-Approval Control</strong> — Optionally prevent staff from approving their own requests.</li>
+    <li><strong>Discount Limits</strong> — Cap the maximum discount any staff member can give.</li>
+    <li><strong>Expense Thresholds</strong> — Require approval for expenses above a set amount.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#2563eb);border-radius:8px;color:#fff;font-size:15px;">📢</span> Communication &amp; Notifications</h2>
+  <div class="tagline">Stay connected to your customers and your team.</div>
+  <ul>
+    <li><strong>Email System (SMTP + Resend)</strong> — Send professional emails via your own SMTP server or Resend.com API.</li>
+    <li><strong>Email Templates</strong> — Pre-built templates for invoices, receipts, reports, and alerts. Fully customizable.</li>
+    <li><strong>Email Logs &amp; Retry</strong> — Track every email sent. Retry failed deliveries automatically.</li>
+    <li><strong>Test Email Function</strong> — Verify email settings before going live.</li>
+    <li><strong>WhatsApp Integration</strong> — Share reports, invoices, and alerts directly to WhatsApp.</li>
+    <li><strong>SMS Alerts</strong> — Send SMS notifications for low stock, payments due, and more.</li>
+    <li><strong>Scheduled Reports</strong> — Automate daily summary emails and low stock alerts. Daily, Weekly, or Monthly. Email, WhatsApp, or both.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#14b8a6,#0d9488);border-radius:8px;color:#fff;font-size:15px;">🤖</span> MartPoint Assist — AI Chat Bot</h2>
+  <div class="tagline">Your virtual business assistant, always online.</div>
+  <ul>
+    <li><strong>Smart Chat Interface</strong> — Floating chat panel accessible from any screen in the app.</li>
+    <li><strong>Natural Language Queries</strong> — Ask "What were my sales today?" or "Show low stock items."</li>
+    <li><strong>Quick Actions</strong> — One-click shortcuts for creating sales, adding products, viewing summaries, checking stock, and more.</li>
+    <li><strong>Knowledge Base Search</strong> — Search help articles and guides without leaving the app.</li>
+    <li><strong>Role-Based Responses</strong> — Cashiers see cashier guides. Admins see admin guides.</li>
+    <li><strong>Support Request Form</strong> — Submit support tickets directly to MartPoint support team.</li>
+    <li><strong>WhatsApp Support Link</strong> — Direct connection to MartPoint support via WhatsApp.</li>
+    <li><strong>Session Memory</strong> — Assist remembers context across your conversation.</li>
+    <li><strong>Draft Execution</strong> — Assist can prepare actions for your confirmation.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:8px;color:#fff;font-size:15px;">👥</span> Attendance &amp; HR</h2>
+  <div class="tagline">Track your team. Automatically.</div>
+  <ul>
+    <li><strong>Staff Management</strong> — Maintain employee profiles with roles and contact info.</li>
+    <li><strong>Daily Attendance Marking</strong> — Mark staff as Present or Absent each day.</li>
+    <li><strong>Attendance in Daily Reports</strong> — See who's present right in your daily business summary.</li>
+    <li><strong>Attendance QR Codes</strong> — Staff scan a QR code to mark themselves present.</li>
+    <li><strong>Staff Performance Context</strong> — Correlate attendance with sales and operational performance.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#84cc16,#65a30d);border-radius:8px;color:#fff;font-size:15px;">💰</span> Financials &amp; Accounting</h2>
+  <div class="tagline">Know your numbers. All of them.</div>
+  <ul>
+    <li><strong>Chart of Accounts</strong> — Full double-entry accounting structure.</li>
+    <li><strong>Account Transactions</strong> — Journal entries, transfers between accounts.</li>
+    <li><strong>Expense Tracking</strong> — Record and categorize all business expenses.</li>
+    <li><strong>Payment Recording</strong> — Log every incoming and outgoing payment.</li>
+    <li><strong>Customer Debt Tracking</strong> — See who owes what, for how long.</li>
+    <li><strong>Supplier Balance Tracking</strong> — Know what you owe to each supplier.</li>
+    <li><strong>Cash Flow Monitoring</strong> — Track cash in hand vs bank/POS collections separately.</li>
+    <li><strong>Daily Net Position</strong> — Instant view of profit after expenses, every single day.</li>
+    <li><strong>Financial Reports</strong> — Profit &amp; Loss, balance sheet, and cash flow statements.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#64748b,#475569);border-radius:8px;color:#fff;font-size:15px;">⚙️</span> System Administration</h2>
+  <div class="tagline">Complete control over your system.</div>
+  <ul>
+    <li><strong>One-Click Auto-Updates</strong> — Update MartPoint directly from GitHub. No technical skills needed.</li>
+    <li><strong>Update Channel Configuration</strong> — Point to your own GitHub repository for custom updates.</li>
+    <li><strong>Database Backup &amp; Restore</strong> — Manual and scheduled backups. One-click restore.</li>
+    <li><strong>Company Branding</strong> — Upload your logo, set company name, customize POS backgrounds.</li>
+    <li><strong>Currency &amp; Tax Settings</strong> — Configure per-store currency, tax rates, and number formats.</li>
+    <li><strong>Multi-Language Support</strong> — Run the system in your preferred language.</li>
+    <li><strong>User Management</strong> — Create, edit, deactivate, and assign roles to users.</li>
+    <li><strong>Role &amp; Permission System</strong> — Granular control over what each user can see and do.</li>
+    <li><strong>System Activity Logs</strong> — Track who did what, and when.</li>
+    <li><strong>POS Background Customization</strong> — Upload custom backgrounds for the POS screen.</li>
+  </ul>
+</div>
+
+<div class="module">
+  <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#f43f5e,#e11d48);border-radius:8px;color:#fff;font-size:15px;">🛍️</span> Customer-Facing Features</h2>
+  <div class="tagline">Give your customers a modern experience.</div>
+  <ul>
+    <li><strong>Online Storefront</strong> — Customers browse and buy from any device.</li>
+    <li><strong>QR Code Menus</strong> — Scan and browse. No app download needed.</li>
+    <li><strong>Table Ordering (QR)</strong> — Dine-in customers order directly from their phones.</li>
+    <li><strong>Order Status Tracking</strong> — Customers see real-time updates on their orders.</li>
+    <li><strong>WhatsApp Ordering</strong> — Customers can inquire or place orders via WhatsApp.</li>
+    <li><strong>Testimonials &amp; Reviews</strong> — Build trust with public customer feedback.</li>
+    <li><strong>FAQ Section</strong> — Reduce support load with self-service answers.</li>
+  </ul>
+</div>
+
+<div class="comparison">
+  <h2>What Makes MartPoint Different?</h2>
+  <table>
+    <tr><th>Feature</th><th>MartPoint Retail</th></tr>
+    <tr><td>All-in-One</td><td>POS + Inventory + Online Store + Accounting in one platform</td></tr>
+    <tr><td>No Coding Required</td><td>Online store builder, QR codes, and workflows — all point-and-click</td></tr>
+    <tr><td>AI Assistant</td><td>MartPoint Assist helps you navigate, query, and act faster</td></tr>
+    <tr><td>Offline Capable</td><td>POS works even without internet; syncs when back online</td></tr>
+    <tr><td>Approval Workflows</td><td>Built-in security gates to prevent fraud and errors</td></tr>
+    <tr><td>Multi-Everything</td><td>Multi-store, multi-warehouse, multi-user, multi-currency</td></tr>
+    <tr><td>Communication Hub</td><td>Email, WhatsApp, and SMS — all integrated</td></tr>
+    <tr><td>Auto-Updates</td><td>Stay current with one-click updates from GitHub</td></tr>
+    <tr><td>QR-First</td><td>QR menus, QR ordering, QR attendance — modern and contactless</td></tr>
+    <tr><td>Daily Insights</td><td>Know your business health every single morning</td></tr>
+  </table>
+</div>
+
+<footer>
+  <strong>MartPoint Retail</strong> — Built for retailers who want to grow.<br>
+  Powered by Avario Digitals
+</footer>
+
+</div>
+</body>
+</html>

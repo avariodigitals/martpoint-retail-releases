@@ -1,250 +1,6 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-<!-- FORM CSS CODE -->
-<?php include"comman/code_css.php"; ?>
-<!-- </copy> -->
-<!-- bootstrap wysihtml5 - text editor -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css">
-<style type="text/css">
-table.table-bordered > thead > tr > th {
-/* border:1px solid black;*/
-text-align: center;
-}
-.table > tbody > tr > td, 
-.table > tbody > tr > th, 
-.table > tfoot > tr > td, 
-.table > tfoot > tr > th, 
-.table > thead > tr > td, 
-.table > thead > tr > th 
-{
-padding-left: 2px;
-padding-right: 2px;  
-
-}
-
-/* ===== MOBILE RESPONSIVE (below 992px) ===== */
-@media (max-width: 991px) {
-  /* Stack all form columns vertically */
-  #sales-form .form-group > [class*="col-"],
-  #sales-form .row > [class*="col-"],
-  #sales-form [class*="col-sm-"],
-  #sales-form [class*="col-md-"] {
-    width: 100% !important;
-    float: none !important;
-    display: block !important;
-    padding-left: 8px;
-    padding-right: 8px;
-    box-sizing: border-box;
-  }
-  /* Left-align labels */
-  #sales-form .control-label {
-    text-align: left !important;
-    padding-top: 8px;
-    padding-bottom: 4px;
-    font-size: 13px;
-    margin-bottom: 0;
-    display: block;
-  }
-  /* Touch-friendly inputs */
-  #sales-form .form-control,
-  #sales-form .select2-container--default .select2-selection--single {
-    min-height: 44px;
-    font-size: 15px;
-    width: 100% !important;
-  }
-  #sales-form .input-group {
-    display: flex;
-    width: 100%;
-  }
-  #sales-form .input-group .form-control {
-    min-height: 44px;
-    flex: 1;
-  }
-  #sales-form .btn {
-    min-height: 44px;
-    padding: 10px 14px;
-    font-size: 14px;
-  }
-  /* Item search header: stack */
-  #sales-form .col-md-8.col-md-offset-2 {
-    width: 100% !important;
-    margin-left: 0 !important;
-    float: none !important;
-  }
-  #sales-form .col-md-8.col-md-offset-2 .input-group {
-    margin-bottom: 8px;
-  }
-  /* Item table: horizontal scroll, no min-width */
-  #sales-form .table-responsive {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    width: 100% !important;
-    max-width: 100% !important;
-    border: none !important;
-    display: block !important;
-  }
-  /* Make the box containing the table not overflow */
-  #sales-form .box .box-body {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    padding: 8px;
-  }
-  #sales_table {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-  }
-  #sales_table th,
-  #sales_table td {
-    min-width: 0 !important;
-    white-space: nowrap;
-    padding: 4px 4px;
-    font-size: 12px;
-  }
-  #sales_table th { white-space: normal; }
-  #sales_table input,
-  #sales_table select,
-  #sales_table .form-control {
-    width: 100% !important;
-    min-width: 0 !important;
-    font-size: 12px;
-    min-height: 34px;
-  }
-  #sales_table .input-group {
-    width: 100%;
-  }
-  /* Customer input group: make room for addon */
-  #sales-form #customer_id + .input-group-addon,
-  #sales-form .input-group-addon {
-    width: auto;
-    min-width: 38px;
-    text-align: center;
-  }
-  #sales-form .input-group .select2-container {
-    flex: 1;
-  }
-  /* Coupon row: stack */
-  #sales-form .coupon_type,
-  #sales-form .coupon_value {
-    display: block;
-    width: 100%;
-    float: none !important;
-    text-align: left;
-  }
-  /* Item table cell inputs */
-  #sales_table .input-group {
-    width: 100%;
-    min-width: 0 !important;
-  }
-  #sales_table .input-group .form-control,
-  #sales_table .input-group .input-group-addon,
-  #sales_table .input-group .btn {
-    min-width: 0 !important;
-    padding-left: 4px;
-    padding-right: 4px;
-    height: 34px;
-  }
-  /* Fix the price_type select min-width */
-  #price_type {
-    min-width: 0 !important;
-    width: 100% !important;
-  }
-  /* Totals table: full width, no float */
-  #sales-form table.col-md-9 {
-    width: 100% !important;
-    float: none !important;
-    display: table;
-  }
-  #sales-form table.col-md-9 th {
-    padding-left: 10px !important;
-  }
-  /* Payment section: stack all columns */
-  #sales-form .payments_div .col-md-4,
-  #sales-form .payments_div .col-md-6,
-  #sales-form .payments_div .col-md-8,
-  #sales-form .payments_div .col-md-12 {
-    width: 100% !important;
-    float: none !important;
-    display: block !important;
-    margin-bottom: 10px;
-  }
-  #sales-form .payments_div .row {
-    margin-left: 0;
-    margin-right: 0;
-  }
-  #sales-form .payments_div .select2-container {
-    width: 100% !important;
-  }
-  /* Payments table: horizontal scroll */
-  #payments_table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
-  }
-  #payments_table th,
-  #payments_table td {
-    white-space: nowrap;
-    padding: 8px 6px;
-  }
-  /* Box footer buttons: stack */
-  #sales-form .box-footer .btn,
-  #sales-form .box-footer .btn-group .btn {
-    display: block;
-    width: 100%;
-    margin-bottom: 8px;
-    min-height: 48px;
-    font-size: 15px;
-  }
-  #sales-form .box-footer .btn:last-child,
-  #sales-form .box-footer .btn-group .btn:last-child {
-    margin-bottom: 0;
-  }
-}
-
-  #sales-form { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-  #sales_table { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-  #sales_table thead.custom_thead .bg-primary { background: #F1F5F9 !important; color: #334155 !important; border-bottom: 2px solid #E2E8F0; }
-  #sales_table thead th { font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748B; }
-  #sales_table tbody td { color: #334155; }
-
-/* ===== Extra mobile fixes ===== */
-@media (max-width: 767px) {
-  #sales-form .control-label.pull-left,
-  #sales-form .control-label.pull-right {
-    float: none !important;
-    display: block !important;
-    width: 100% !important;
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-  #sales-form .form-group > .col-sm-4,
-  #sales-form .form-group > .col-md-4,
-  #sales-form .form-group > .col-xs-4,
-  #sales-form .form-group > .col-sm-3,
-  #sales-form .form-group > .col-md-3,
-  #sales-form .form-group > .col-xs-3 {
-    width: 100% !important;
-    float: none !important;
-    display: block !important;
-  }
-  .mp-fab-wrapper {
-    display: none !important;
-  }
-}
-</style>
-</head>
-
-
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
- 
- 
- <?php include"sidebar.php"; ?>
- 
- <?php
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+<?php
     if(isset($sales_id)){
 
       //Edit
@@ -321,561 +77,11 @@ padding-right: 2px;
    
     ?>
 
- 
-
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- **********************MODALS***************** -->
-    <?php include"modals/modal_customer.php"; ?>
-    <?php include"modals/modal_item.php"; ?>
-    <?php include"modals/modal_item_or_service.php"; ?>
-   <?php /*include"modals/modal_service.php";*/ ?>
-    <!-- **********************MODALS END***************** -->
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-         <h1>
-            <?=$page_title;?>
-            <small>Add/Update Sales</small>
-         </h1>
-         <ol class="breadcrumb">
-            <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-            <li><a href="<?php echo $base_url; ?>sales"><?= $this->lang->line('sales_list'); ?></a></li>
-            <li><a href="<?php echo $base_url; ?>sales/add"><?= $this->lang->line('new_sales'); ?></a></li>
-            <li class="active"><?=$page_title;?></li>
-         </ol>
-      </section>
-
-    <!-- Main content -->
-     <section class="content">
-               <div class="row">
-                <!-- ********** ALERT MESSAGE START******* -->
-               <?php include"comman/code_flashdata.php"; ?>
-               <?php include"modals/modal_sales_item.php"; ?>
-               
-               <!-- ********** ALERT MESSAGE END******* -->
-                  <!-- right column -->
-                  <div class="col-xs-12 col-md-12">
-                     <!-- Horizontal Form -->
-                     <div class="box box-primary " >
-                        <!-- style="background: #68deac;" -->
-                        
-                        <!-- form start -->
-                         <!-- OK START -->
-                        <?= form_open('#', array('class' => 'form-horizontal', 'id' => 'sales-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
-                           <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
-                           <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
-                           <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
-                           <input type="hidden" value='Final' id="sales_status" name="sales_status">
-
-                          <?php if(isset($quotation_id)) {?>
-                           <input type="hidden" id="quotation_id" name="quotation_id" value="<?php echo $quotation_id;; ?>">
-                           <?php } ?>
-
-                           <div class="box-body">
-                              <!-- Store Code -->
-                              <?php 
-                              /*if(store_module() && is_admin()) {$this->load->view('store/store_code',array('show_store_select_box'=>true,'store_id'=>$store_id,'div_length'=>'col-sm-3')); }else{*/
-                                echo "<input type='hidden' name='store_id' id='store_id' value='".get_current_store_id()."'>";
-                              /*}*/
+<?php 
+                              echo "<input type='hidden' name='store_id' id='store_id' value='".get_current_store_id()."'>";
                               ?>
-                              <!-- Store Code end -->
-                              <!-- Branch Code -->
-                              
-                              <!-- Branch Code end -->
-                              <div class="form-group">
-                                 <label for="warehouse_id" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('branch'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-xs-12 col-sm-3">
-                                    <select class="form-control select2 " id="warehouse_id" name="warehouse_id" >
-                                       <?= get_warehouse_select_list($warehouse_id,get_current_store_id());?>
-                                    </select>
-                                    <span id="warehouse_id_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                                 <label for="init_code" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('sales_code'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-xs-12 col-sm-2" style="padding-right:0;">
-                                    <input type="text" value="<?= $init_code; ?>" class="form-control" style='font-size:18px; padding:6px 8px;' id="init_code" name="init_code" placeholder="" <?= !is_admin() ? 'readonly' : ''; ?>>
-                                       <span id="init_code_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                                 <div class="col-xs-12 col-sm-1" style="padding-left:1;">
-                                    <input type="text" style='font-size:18px; padding:6px 8px;' value="<?php echo  $count_id; ?>" class="form-control no_special_char" id="count_id" name="count_id" placeholder="" <?= !is_admin() ? 'readonly' : ''; ?>>
-                                       <span id="count_id_msg" style="display:none" class="text-danger"></span>
-                                 </div>
 
-                                 
-                            <!-- <div class="col-xs-12 col-sm-2">
-                                <div class="checkbox">
-                                    <label toggle='tooltip' title="Check for Non GST Bill Creation">
-                                        <input type="checkbox" name="" checked="" />
-                                        <span></span>
-                                        Non GST
-                                    </label>
-                                </div>
-                            </div> -->
-
-
-                                 
-                              </div>
-                              <div class="form-group">
-                                 <label for="customer_id" class="col-xs-12 col-sm-2 control-label"><?= mp_label('customer'); ?> Name<label class="text-danger">*</label></label>
-                                 <div class="col-xs-12 col-sm-3">
-                                    <div class="input-group">
-                                       <select class="form-control select2" id="customer_id" name="customer_id"  style="width: 100%;">
-                                       </select>
-                                       <span class="input-group-addon pointer" data-toggle="modal" data-target="#customer-modal" title="New <?= mp_label('customer'); ?>?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
-                                    </div>
-                                    <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
-                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
-                                    </div>
-                                    <span id="customer_id_msg" style="display:none" class="text-danger"></span>
-                                    <lable><?= $this->lang->line('previous_due'); ?> :<label class="customer_previous_due text-red" style="font-size: 18px;">0.00</label></lable>
-                                 </div>
-                                 <label for="sales_date" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('sales_date'); ?> <label class="text-danger">*</label></label>
-                                 <div class="col-xs-12 col-sm-3">
-                                    <div class="input-group date">
-                                       <div class="input-group-addon">
-                                          <i class="fa fa-calendar"></i>
-                                       </div>
-                                       <input type="text" class="form-control pull-right datepicker"  id="sales_date" name="sales_date" readonly onkeyup="shift_cursor(event,'sales_status')" value="<?= $sales_date;?>">
-                                    </div>
-                                    <span id="sales_date_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                              </div>
-                              <div class="form-group">
-                                 <label for="reference_no" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('reference_no'); ?> </label>
-                                 <div class="col-xs-12 col-sm-3">
-                                    <input type="text" value="<?php echo  $reference_no; ?>" class="form-control " id="reference_no" name="reference_no" placeholder="" >
-                  <span id="reference_no_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                                <label for="due_date" class="col-xs-12 col-sm-2 control-label"><?= $this->lang->line('due_date'); ?></label>
-                                 <div class="col-xs-12 col-sm-3">
-                                    <div class="input-group date">
-                                       <div class="input-group-addon">
-                                          <i class="fa fa-calendar"></i>
-                                       </div>
-                                       <input type="text" class="form-control pull-right datepicker"  id="due_date" name="due_date"  value="<?= $due_date;?>">
-                                    </div>
-                                    <span id="due_date_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                              </div>
-                              
-                           </div>
-                           <!-- /.box-body -->
-                           
-                           <div class="row">
-                              <div class="col-xs-12 col-md-12">
-                                <div class="col-xs-12 col-md-12">
-                                  <div class="box">
-                                    <div class="box-info">
-                                      <div class="box-header">
-                                        <div class="col-xs-12 col-md-8 col-md-offset-2 d-flex justify-content" >
-                                          <div class="input-group">
-                                                <span class="input-group-addon" title="Price Type"><i class="fa fa-tag"></i></span>
-                                                <select class="form-control" id="price_type" name="price_type" style="min-width:120px;">
-                                                  <option value="wholesale" selected>Wholesale</option>
-                                                  <option value="retail">Retail (MRP)</option>
-                                                </select>
-                                          </div>
-                                          <div class="input-group" style="margin-top:4px;">
-                                                <span class="input-group-addon" title="Select Items"><i class="fa fa-barcode"></i></span>
-                                                 <input type="text" class="form-control " placeholder="Item name/Barcode/Itemcode" autofocus id="item_search">
-                                                 <span class="input-group-addon pointer text-green show_item_service" title="Click to Add New Item or Service"><i class="fa fa-plus"></i></span>
-
-                                                 
-
-
-                                              </div>
-                                        </div>
-                                      </div>
-                                      <div class="box-body">
-                                        <div class="table-responsive" style="width: 100%">
-                                        <table class="table table-hover table-bordered" style="width:100%" id="sales_table">
-                                             <thead class="custom_thead">
-                                                <tr class="bg-primary" >
-                                                   <th rowspan='2' style="width:15%"><?= $this->lang->line('item_name'); ?></th>
-                                                 
-                                                   <th rowspan='2' style="width:10%;"><?= $this->lang->line('quantity'); ?></th>
-                                                   <th rowspan='2' style="width:10%"><?= $this->lang->line('unit_price'); ?></th> 
-                                                   <th rowspan='2' style="width:10%"><?= $this->lang->line('discount'); ?>(<?= $CI->currency() ?>)</th>
-                                                   <th rowspan='2' style="width:10%"><?= $this->lang->line('tax_amount'); ?></th>
-                                                   <th rowspan='2' style="width:5%"><?= $this->lang->line('tax'); ?></th>
-                                                   <th rowspan='2' style="width:7.5%"><?= $this->lang->line('total_amount'); ?></th>
-                                                   <th rowspan='2' style="width:7.5%"><?= $this->lang->line('action'); ?></th>
-                                                </tr>
-                                             </thead>
-                                             <tbody>
-                                               
-                                             </tbody>
-                                          </table>
-                                      </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-
-                                </div>
-                              </div>
-                              
-                              <div class="col-xs-12 col-md-6">
-                                <div class="row">
-                                    <div class="col-xs-12 col-md-12">
-                                       <div class="form-group">
-                                          <label for="" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('quantity'); ?></label>    
-                                          <div class="col-xs-12 col-sm-4">
-                                             <label class="control-label total_quantity text-success" style="font-size: 15pt;">0</label>
-                                          </div>
-                                       </div>
-                                    </div>
-                                 </div>
-
-                                 
-
-                                 <div class="row">
-                                    <div class="col-xs-12 col-md-12">
-                                       <div class="form-group">
-                                          <label for="other_charges_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('other_charges'); ?></label>    
-                                          <div class="col-xs-12 col-sm-4">
-                                             <input type="text" class="form-control text-right only_currency" id="other_charges_input" name="other_charges_input" onkeyup="final_total();" value="<?php echo  $other_charges_input; ?>">
-                                          </div>
-                                          <div class="col-xs-12 col-sm-4">
-                                             <select class="form-control " id="other_charges_tax_id" name="other_charges_tax_id" onchange="final_total();" style="width: 100%;">
-                                                <?= get_tax_select_list($other_charges_tax_id,get_current_store_id());?>
-                                             </select>
-                                          </div>
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="row">
-                                    <div class="col-xs-12 col-md-12">
-                                       <div class="form-group">
-                                          <label for="other_charges_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('discountCouponCode'); ?></label>    
-                                          <div class="col-xs-12 col-sm-8">
-                                             <input type="text" class="form-control" id="coupon_code" name="coupon_code" value="<?=$coupon_code; ?>">
-
-                                             <label class="control-label pull-left"><?= $this->lang->line('couponType'); ?>:<span class="coupon_type">---</span></label>
-                                             <label class="control-label pull-right"><?= $this->lang->line('couponValue'); ?>:<span class="coupon_value">0.00</span></label>
-                                          </div>
-                                       </div>
-                                    </div>
-                                    <div class="col-xs-12 col-md-12 div1 hide">
-                                       <div class="form-group">    
-                                          <div class="col-xs-12 col-sm-8 col-sm-offset-4">
-                                             <div class="alert text-left msg_color">
-                                              <strong id="coupon_code_msg">
-                                              </strong>
-                                            </div>
-                                          </div>
-                                       </div>
-                                    </div>
-
-                                 </div>
-
-                                 
-                                 <div class="row">
-                                    <div class="col-xs-12 col-md-12">
-                                       <div class="form-group">
-                                          <label for="discount_to_all_input" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('discount_on_all'); ?></label>    
-                                          <div class="col-xs-12 col-sm-4">
-                                             <input type="text" class="form-control  text-right only_currency" id="discount_to_all_input" name="discount_to_all_input" onkeyup="enable_or_disable_item_discount();" value="<?= store_number_format($discount_input,0); ?>">
-                                          </div>
-                                          <div class="col-xs-12 col-sm-4">
-                                             <select class="form-control" onchange="final_total();" id='discount_to_all_type' name="discount_to_all_type">
-                                                <option value='in_percentage'>Per%</option>
-                                                <option value='in_fixed'>Fixed</option>
-                                             </select>
-                                          </div>
-                                          <!-- Dynamicaly select Supplier name -->
-                                          <script type="text/javascript">
-                                             <?php if($discount_type!=''){ ?>
-                                                 document.getElementById('discount_to_all_type').value='<?php echo  $discount_type; ?>';
-                                             <?php }?>
-                                          </script>
-                                          <!-- Dynamicaly select Supplier name end-->
-                                       </div>
-                                    </div>
-                                 </div>
-                                <div class="row">
-                                    <div class="col-xs-12 col-md-12">
-                                       <div class="form-group">
-                                          <label for="sales_note" class="col-xs-12 col-sm-4 control-label"><?= $this->lang->line('note'); ?></label>    
-                                          <div class="col-xs-12 col-sm-8">
-                                             <textarea class="form-control text-left" id='sales_note' name="sales_note"><?= $sales_note; ?></textarea>
-                                            <span id="sales_note_msg" style="display:none" class="text-danger"></span>
-                                          </div>
-                                       </div>
-                                    </div>
-                                 </div>
-
-                                 
-                              </div>
-                              
-
-                              <div class="col-xs-12 col-md-6">
-                                 <div class="row">
-                                    <div class="col-xs-12 col-md-12">
-                                       <div class="form-group">
-                                           
-                                          <table  class="col-xs-12 col-md-9">
-                                             <tr>
-                                                <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('subtotal'); ?></th>
-                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
-                                                   <h4><b id="subtotal_amt" name="subtotal_amt">0.00</b></h4>
-                                                </th>
-                                             </tr>
-                                             <tr>
-                                                <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('other_charges'); ?></th>
-                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
-                                                   <h4><b id="other_charges_amt" name="other_charges_amt">0.00</b></h4>
-                                                </th>
-                                             </tr>
-                                             <tr>
-                                                <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('couponDiscount'); ?></th>
-                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
-                                                   <h4><b id="coupon_discount_amt" name="coupon_discount_amt">0.00</b></h4>
-                                                </th>
-                                             </tr>
-                                             <tr>
-                                                <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('discount_on_all'); ?></th>
-                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
-                                                   <h4><b id="discount_to_all_amt" name="discount_to_all_amt">0.00</b></h4>
-                                                </th>
-                                             </tr>
-                                             <tr style="<?= (!is_enabled_round_off()) ? 'display: none;' : '';?>">
-                                                <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('round_off'); ?>
-                                                <i class="hover-q " data-container="body" data-toggle="popover" data-placement="top" data-content="Go to Site Settings-> Site -> Disable the Round Off(Checkbox)." data-html="true" data-trigger="hover" data-original-title="" title="Do you wants to Disable Round Off ?">
-                                                      <i class="fa fa-info-circle text-maroon text-black hover-q"></i>
-                                                    </i>
-                                                  
-                                                </th>
-                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
-                                                   <h4><b id="round_off_amt" name="tot_round_off_amt">0.00</b></h4>
-                                                </th>
-                                             </tr>
-                                             <tr>
-                                                <th class="text-right" style="font-size: 17px;"><?= $this->lang->line('grand_total'); ?></th>
-                                                <th class="text-right" style="padding-left:10px;font-size: 17px;">
-                                                   <h4><b id="total_amt" name="total_amt">0.00</b></h4>
-                                                </th>
-                                             </tr>
-                                          </table>
-                                       </div>
-                                    </div>
-                                 </div>
-                              </div>
-
-                              <div class="col-xs-12 ">
-                                 <div class="col-xs-12 col-sm-12">
-                                       <div class="box-body ">
-                                        <div class="col-xs-12 col-md-12">
-                                          <div class="table-responsive" style="width:100%;">
-                                          <table class="table table-hover table-bordered" style="width:100%" id="payments_table"><h4 class="box-title text-info"><?= $this->lang->line('previous_payments_information'); ?> : </h4>
-                                             <thead>
-                                                <tr class="bg-gray " >
-                                                   <th>#</th>
-                                                   <th><?= $this->lang->line('date'); ?></th>
-                                                   <th><?= $this->lang->line('payment_type'); ?></th>
-                                                   <th><?= $this->lang->line('payment_note'); ?></th>
-                                                   <th><?= $this->lang->line('payment'); ?></th>
-                                                   <th><?= $this->lang->line('action'); ?></th>
-                                                </tr>
-                                             </thead>
-                                             <tbody>
-                                                <?php 
-                                                  if(isset($sales_id)){
-                                                    $q3 = $this->db->query("select * from db_salespayments where sales_id=$sales_id");
-                                                    if($q3->num_rows()>0){
-                                                      $i=1;
-                                                      $total_paid = 0;
-                                                      foreach ($q3->result() as $res3) {
-                                                        echo "<tr class='text-center text-bold' id='payment_row_".$res3->id."'>";
-                                                        echo "<td>".$i."</td>";
-                                                        echo "<td>".show_date($res3->payment_date)."</td>";
-                                                        echo "<td>".$res3->payment_type."</td>";
-                                                        echo "<td>".$res3->payment_note."</td>";
-                                                        echo "<td class='text-right' id='paid_amt_$i'>".store_number_format($res3->payment)."</td>";
-                                                        echo '<td><i class="fa fa-trash text-red pointer" onclick="delete_payment('.$res3->id.')"> Delete</i></td>';
-                                                        echo "</tr>";
-                                                        $total_paid +=$res3->payment;
-                                                        $i++;
-                                                      }
-                                                      echo "<tr class='text-right text-bold'><td colspan='4' >Total</td><td data-rowcount='$i' id='paid_amt_tot'>".store_number_format($total_paid)."</td><td></td></tr>";
-                                                    }
-                                                    else{
-                                                      echo "<tr><td colspan='6' class='text-center text-bold'>No Previous Payments Found!!</td></tr>";
-                                                    }
-
-                                                  }
-                                                  else{
-                                                    echo "<tr><td colspan='6' class='text-center text-bold'>Payments Pending!!</td></tr>";
-                                                  }
-                                                ?>
-                                             </tbody>
-                                          </table>
-                                          </div>
-                                        </div>
-                                       </div>
-                                       <!-- /.box-body -->
-                                    </div>
-                                 <!-- /.box -->
-                              </div>
-
-
-                              <div class="col-xs-12 ">
-
-                                 <div class="col-xs-12 col-sm-12">
-
-
-
-                                    <div class="col-xs-12 col-md-12">
-                                       
-                                       <!-- /.box-header -->
-                                       <div class="box-body">
-                                         
-
-                                         <div class="box box-default collapsed-box">
-                                       <div class="box-header with-border">
-                                         <h3 class="box-title"><?= $this->lang->line('invoiceTermsAndConditions')?></h3>
-
-                                         <div class="box-tools pull-right">
-                                           <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus text-danger"></i>
-                                           </button>
-                                       </div>
-                                    </div>
-                                       <!-- /.box-header -->
-                                       <div class="box-body">
-                                        <textarea id="invoice_terms" name="invoice_terms" class="textarea" placeholder="Place some text here" style="width: 100%; height: 100px; font-size: 14px; border: 1px solid #dddddd; padding: 10px;"><?= $invoice_terms;?></textarea>
-                                       </div>
-                                       <!-- /.box-body -->
-                                      
-                                     </div>
-
-                                       </div>
-                                       <!-- /.box-body -->
-                                    
-                                     <!-- /.box -->
-                                   </div>
-
-
-
-                                       <div class="box-body ">
-
-                                          <div class="col-xs-12 col-md-12 payments_div payments_div_">
-                                            <h4 class="box-title text-info"><?= $this->lang->line('payment'); ?> : </h4>
-
-                                            <div class="row">
-                                                 <div class="col-xs-12 col-md-4">
-
-                                                  <span for="">
-                                                    <label>
-                                                    <?= $this->lang->line('advance'); ?> : <label class='customer_tot_advance'></label>
-                                                  </label>
-                                                  </span>
-                                                  
-                                                  <div class="checkbox">
-                                                    <label>
-                                                      <input type="checkbox" id="allow_tot_advance" name="allow_tot_advance"> <?= $this->lang->line('adjust_advance_payment'); ?>
-                                                    </label>
-                                                  </div>
-                                                 </div>
-                                                  
-                                              <div class="clearfix"></div>
-                                          </div>
-                                          <br>
-
-                                          <div class="box box-solid bg-gray">
-                                            <div class="box-body">
-                                               
-                                              <div class="row">
-                                         
-                                                <div class="col-xs-12 col-md-4">
-                                                  <div class="">
-                                                  <label for="amount"><?= $this->lang->line('amount'); ?></label>
-                                                    <input type="text" class="form-control text-right paid_amt only_currency" id="amount" name="amount" placeholder="" >
-                                                      <span id="amount_msg" style="display:none" class="text-danger"></span>
-                                                </div>
-                                               </div>
-                                                <div class="col-xs-12 col-md-4">
-                                                  <div class="">
-                                                    <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
-                                                    <select class="form-control select2 payment-mode-select" id='payment_type' name="payment_type">
-                                                      <option value=''>-Select-</option>
-                                                      <?= get_payment_modes_select_list(get_current_store_id()); ?>
-                                                    </select>
-                                                    <span id="payment_type_msg" style="display:none" class="text-danger"></span>
-                                                  </div>
-                                                </div>
-                                                <div class="col-xs-12 col-md-4">
-                                                    <label for="account_id"><?= $this->lang->line('account'); ?></label>
-                                                    <select class="form-control select2" id='account_id' name="account_id">
-                                                      <option value="">-None-</option>
-                                                        <?= get_accounts_select_list(get_store_details()->default_account_id);?>
-                                                    </select>
-                                                    <span id="account_id_msg" style="display:none" class="text-danger"></span>
-                                                </div>
-                                            <div class="clearfix"></div>
-                                        </div>
-                                        <div class="row payment-reference-row" style="display: none;">
-                                            <div class="col-xs-12 col-md-6">
-                                                <div class="">
-                                                    <label for="payment_reference">Reference</label>
-                                                    <input type="text" class="form-control" id="payment_reference" name="payment_reference" placeholder="Enter reference number...">
-                                                    <span id="payment_reference_msg" style="display:none" class="text-danger"></span>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-md-6">
-                                                <div class="">
-                                                    <label for="confirmation_status">Confirmation Status</label>
-                                                    <select class="form-control" id="confirmation_status" name="confirmation_status">
-                                                        <option value="1">Confirmed</option>
-                                                        <option value="0">Pending</option>
-                                                    </select>
-                                                    <span id="confirmation_status_msg" style="display:none" class="text-danger"></span>
-                                                </div>
-                                            </div>
-                                            <div class="clearfix"></div>
-                                        </div>
-
-                                        <div class="row cheque_div" style="display: none;">
-                                         
-                                                <div class="col-xs-12 col-md-8">
-                                                  <div class="">
-                                                  <label for="cheque_number"><?= $this->lang->line('cheque_number'); ?></label>
-                                                    <input type="text" class="form-control" id="cheque_number" name="cheque_number" placeholder="" >
-                                                      <span id="cheque_number_msg" style="display:none" class="text-danger"></span>
-                                                </div>
-                                               </div>
-                                                
-                                               <div class="col-xs-12 col-md-4">
-                                                  <div class="">
-                                                  <label for="cheque_period"><?= $this->lang->line('cheque_period_days'); ?></label>
-                                                    <input type="text" class="form-control only_currency" id="cheque_period" name="cheque_period" placeholder="" >
-                                                      <span id="cheque_period_msg" style="display:none" class="text-danger"></span>
-                                                </div>
-                                               </div>
-
-                                            <div class="clearfix"></div>
-                                        </div> 
-
-                                        <div class="row">
-                                               <div class="col-xs-12 col-md-12">
-                                                  <div class="">
-                                                    <label for="payment_note"><?= $this->lang->line('payment_note'); ?></label>
-                                                    <textarea type="text" class="form-control" id="payment_note" name="payment_note" placeholder="" ></textarea>
-                                                    <span id="payment_note_msg" style="display:none" class="text-danger"></span>
-                                                  </div>
-                                               </div>
-                                                
-                                            <div class="clearfix"></div>
-                                        </div>   
-                                        </div>
-                                        </div>
-                                        </div><!-- col-md-12 -->
-                                       </div>
-                                       <!-- /.box-body -->
-                                    </div>
-                                 <!-- /.box -->
-                              </div>
-
-                              <!-- SMS Sender while saving -->
-                                <?php 
+<?php 
                                    //Change Return
                                     $send_sms_checkbox='disabled';
                                     if($CI->is_sms_enabled()){
@@ -887,32 +93,8 @@ padding-right: 2px;
                                     }
 
                               ?>
-                             
-                              <div class="col-xs-12 ">
-                                 <div class="col-xs-12 col-sm-12">
-                                       <div class="box-body ">
-                                          <div class="col-xs-12 col-md-12">
-                                            <div class="checkbox icheck">
-                                      <label>
-                                        <input type="checkbox" <?=$send_sms_checkbox;?> class="form-control" id="send_sms" name="send_sms" > <label for="sales_discount" class=" control-label"><?= $this->lang->line('send_sms_to_customer'); ?>
-                                          <i class="hover-q " data-container="body" data-toggle="popover" data-placement="top" data-content="If checkbox is Disabled! You need to enable it from SMS -> SMS API <br><b>Note:<i>Walk-in Customer will not receive SMS!</i></b>" data-html="true" data-trigger="hover" data-original-title="" title="Do you wants to send SMS ?">
-                                  <i class="fa fa-info-circle text-maroon text-black hover-q"></i>
-                                </i>
-                                        </label>
-                                      </label>
-                                    </div>
-                                        </div><!-- col-md-12 -->
-                                       </div>
-                                       <!-- /.box-body -->
-                                    </div>
-                                 <!-- /.box -->
-                              </div> 
-                           </div>
-                           
-                           <!-- /.box-body -->
-                           <div class="box-footer col-sm-12">
-                              <center>
-                                <?php
+
+<?php
                                 if(isset($sales_id)){
                                   $btn_id='update';
                                   $btn_name="Update";
@@ -924,56 +106,643 @@ padding-right: 2px;
                                 }
 
                                 ?>
-                                 <div class="col-xs-12 col-md-3 col-md-offset-3">
-                                    <button type="button" id="<?php echo $btn_id;?>" class="btn btn-block btn-success payments_modal" title="Save Data"><?php echo $btn_name;?></button>
-                                 </div>
-                                 <div class="col-xs-12 col-sm-3"><a href="<?= base_url()?>dashboard">
-                                    <button type="button" class="btn btn-block btn-warning" title="Go Dashboard">Close</button>
-                                  </a>
-                                </div>
-                              </center>
-                           </div>
+
+<style type="text/css">
+* { box-sizing: border-box; }
+.nav-item.active { background: #EDF4FF; color: var(--mp-primary); font-weight: 600; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 18px; border-radius: 10px; border: 1px solid transparent;
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.btn-primary { background: var(--mp-primary); color: #fff; }
+.btn-primary:hover { background: var(--mp-primary-dark); }
+.btn-secondary { background: var(--mp-surface); color: var(--mp-ink); border-color: var(--mp-border); }
+.btn-ghost { background: transparent; color: var(--mp-muted); border-color: var(--mp-border); }
+
+.content { padding: 0; overflow-x: hidden; }
+.invoice-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 360px);
+  gap: 24px;
+  align-items: start;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.left-column, .right-column { min-width: 0; }
+@media (max-width: 1200px) {
+  .invoice-grid { grid-template-columns: 1fr; }
+  .content { padding: 16px; }
+}
+
+.card {
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-border);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--mp-shadow-sm);
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 14px; font-weight: 700; color: var(--mp-text);
+  margin-bottom: 16px; letter-spacing: -0.01em;
+}
+.form-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+.form-group { flex: 1 1 220px; min-width: 180px; }
+.form-group.wide { flex: 2 1 300px; }
+.form-group.half { flex: 1 1 45%; }
+.content label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--mp-muted);
+  margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em;
+}
+/* Scope form styles to sales content only — prevent leaking into MartPoint Assist */
+.content input, .content select, .content textarea {
+  width: 100%; border: 1px solid var(--mp-border); border-radius: 10px; padding: 10px 12px;
+  font-size: 14px; font-family: inherit; color: var(--mp-text); background-color: var(--mp-surface);
+  outline: none; transition: border .15s, box-shadow .15s;
+}
+.content input:focus, .content select:focus, .content textarea:focus { border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,.08); }
+.content input:disabled, .content select:disabled, .content textarea:disabled { background: var(--mp-bg); color: var(--mp-muted); cursor: not-allowed; }
+.content .input-group { display: flex; }
+.content .input-group .addon {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 14px; background: var(--mp-bg); border: 1px solid var(--mp-border);
+  border-right: none; border-radius: 10px 0 0 10px; color: var(--mp-muted); font-size: 14px;
+}
+.content .input-group input, .content .input-group select { border-radius: 0 10px 10px 0; }
+.select-custom, .payment-mode-select { -webkit-appearance: none !important; -moz-appearance: none !important; appearance: none !important; background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2378716C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right 12px center !important; padding-right: 34px !important; width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+
+/* Item search */
+.search-card { padding: 18px 20px; }
+.search-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.price-toggle { display: flex; border: 1px solid var(--mp-border); border-radius: 10px; overflow: hidden; }
+.price-toggle .pt-btn {
+  border: none; background: var(--mp-surface); color: var(--mp-muted); padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.price-toggle .pt-btn.active { background: var(--mp-primary); color: #fff; }
+.search-input { flex: 1; min-width: 220px; position: relative; }
+.search-input input { padding-left: 40px; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--mp-muted); }
+.btn-add { width: 40px; height: 40px; border: 1px solid var(--mp-border); border-radius: 10px; background: var(--mp-surface); color: var(--mp-success); font-size: 18px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+
+/* Items table */
+.items-table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  border: 1px solid var(--mp-border); border-radius: 12px; overflow: hidden;
+  font-size: 13px;
+}
+.items-table th, .items-table td { padding: 12px 14px; text-align: left; vertical-align: middle; }
+.items-table thead th {
+  background: var(--mp-bg); color: var(--mp-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+.items-table td { border-bottom: 1px solid var(--mp-border); }
+.items-table tbody tr:last-child td { border-bottom: none; }
+.items-table .num { text-align: right; }
+.items-table .total { font-weight: 700; color: var(--mp-text); }
+.remove-btn { color: var(--mp-danger); cursor: pointer; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; transition: background .15s; }
+.remove-btn:hover { background: rgba(220,38,38,.1); }
+.empty-row td { padding: 36px; text-align: center; color: var(--mp-muted); font-size: 13px; }
+.empty-row .empty-icon { font-size: 28px; color: var(--mp-muted); opacity: .5; display: block; margin-bottom: 8px; }
+
+/* Item row cells */
+.si-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.si-name-link { font-size: 13px; font-weight: 600; color: var(--mp-ink); text-decoration: none; cursor: pointer; }
+.si-name-link:hover { color: var(--mp-primary); }
+.si-promo { display: inline-block; font-size: 10px; font-weight: 700; color: var(--mp-pay); background: rgba(217,119,6,.1); padding: 1px 6px; border-radius: 4px; width: fit-content; }
+.si-meta { font-size: 11px; color: var(--mp-muted); }
+.si-tax-name { display: block; font-size: 10px; color: var(--mp-muted); margin-top: 2px; text-decoration: none; cursor: pointer; }
+.si-tax-name:hover { color: var(--mp-primary); }
+.action-col { text-align: center; }
+
+/* Qty stepper */
+.qty-stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--mp-border); border-radius: 8px; overflow: hidden; }
+.qty-btn { border: none; background: var(--mp-surface); color: var(--mp-muted); width: 30px; cursor: pointer; font-size: 11px; transition: background .12s; }
+.qty-btn:hover { background: var(--mp-bg); color: var(--mp-ink); }
+.qty-input { border: none; border-left: 1px solid var(--mp-border); border-right: 1px solid var(--mp-border); text-align: center; width: 52px; padding: 6px 4px; font-size: 13px; font-weight: 600; color: var(--mp-text); outline: none; }
+
+/* Cell inputs (inside table) */
+.cell-input { width: 100%; min-width: 85px; border: 1px solid var(--mp-border); border-radius: 8px; padding: 7px 10px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--mp-text); background: var(--mp-surface); outline: none; transition: border .15s, box-shadow .15s; }
+.cell-input:focus { border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,.08); }
+.cell-input[readonly] { background: var(--mp-bg); color: var(--mp-ink); cursor: default; }
+.cell-input.num { text-align: right; }
+.cell-input.total { font-weight: 700; color: var(--mp-text); border-color: transparent; background: rgba(0,87,255,.04); }
+.items-table td.num { white-space: nowrap; }
+.qty-input { width: 64px; min-width: 58px; padding: 6px 6px; }
+.si-name { min-width: 0; word-break: break-word; }
+.si-name-link { display: inline-block; max-width: 100%; }
+
+/* Totals side */
+.sidebar-sticky { position: sticky; top: 24px; }
+.total-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--mp-border); font-size: 14px; }
+.total-row:last-child { border-bottom: none; }
+.total-row .label { color: var(--mp-muted); font-weight: 500; }
+.total-row .value { font-weight: 700; color: var(--mp-text); }
+.total-row.grand { padding: 18px 0; margin-top: 4px; border-top: 2px solid var(--mp-border); }
+.total-row.grand .label { font-size: 16px; font-weight: 700; color: var(--mp-text); }
+.total-row.grand .value { font-size: 22px; font-weight: 800; color: var(--mp-primary); }
+
+/* Payment */
+.payment-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media (max-width: 600px) { .payment-fields { grid-template-columns: 1fr; } }
+.payment-note textarea { min-height: 80px; resize: vertical; }
+.cheque-fields { display: flex; gap: 14px; margin-top: 14px; }
+
+/* Toggle boxes */
+.toggle-section { border: 1px solid var(--mp-border); border-radius: 10px; padding: 14px; margin-bottom: 14px; cursor: pointer; }
+.toggle-section:hover { border-color: var(--mp-primary); }
+.sms-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--mp-ink); }
+
+/* Footer actions */
+.actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+
+/* Status chip */
+.status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.status-chip.open { background: #FEF3C7; color: #92400E; }
+
+/* Customer trends */
+.trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.trend-cell { display: flex; flex-direction: column; gap: 2px; padding: 10px; background: var(--mp-bg); border-radius: 8px; }
+.trend-label { font-size: 11px; font-weight: 600; color: var(--mp-muted); text-transform: uppercase; letter-spacing: .03em; }
+.trend-value { font-size: 15px; font-weight: 700; color: var(--mp-text); }
+.trend-cell.full { grid-column: 1 / -1; }
+
+/* Other charges & tax card */
+.charges-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .charges-row { grid-template-columns: 1fr; } }
+
+/* Existing helpers */
+.only_currency { text-align: right; }
+.paid_amt { text-align: right; }
+.hide { display: none; }
+.select2 { width: 100%; }
+.datepicker { cursor: pointer; }
+
+/* Previous payments table */
+#payments_table .pm-num { color: var(--mp-muted); font-weight: 600; width: 36px; }
+#payments_table .pm-note { color: var(--mp-muted); font-size: 12px; }
+#payments_table .pm-total td { font-weight: 700; color: var(--mp-text); border-top: 2px solid var(--mp-border); }
+#payments_table .amt { font-variant-numeric: tabular-nums; }
+
+/* Payment mode select consistency */
+
+/* jQuery UI Autocomplete modern skin */
+.ui-autocomplete { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.08), 0 4px 10px -4px rgba(0,0,0,.04); padding: 8px 0; max-height: 320px; overflow-y: auto; overflow-x: hidden; z-index: 2000; font-family: inherit; font-size: 13px; width: auto !important; min-width: 320px; max-width: 90vw; }
+.ui-autocomplete .ui-menu-item { padding: 0; }
+.ui-autocomplete .ui-menu-item a, .ui-autocomplete .ui-menu-item div { display: block; padding: 10px 14px; color: var(--mp-ink); text-decoration: none; cursor: pointer; border: none; background: transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-autocomplete .ui-menu-item a.ui-state-focus, .ui-autocomplete .ui-menu-item a.ui-state-active, .ui-autocomplete .ui-menu-item a.ui-state-hover, .ui-autocomplete .ui-menu-item a:hover { background: var(--mp-bg); color: var(--mp-text); margin: 0; border-radius: 0; border: none; }
+.ui-autocomplete-loading { background-image: none !important; }
+
+</style>
+
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($this->session->userdata('store_name') ?: 'MartPoint'); ?> &mdash; <?= isset($sales_id) ? 'Edit Sales Invoice' : 'New Sales Invoice'; ?></div>
+    </div>
+    <a href="<?= $base_url; ?>sales" class="mp-qa-btn blue"><i class="fa fa-list"></i> Sales List</a>
+  </div>
+</div>
+<?php include "comman/code_flashdata.php"; ?>
+<?php include "modals/modal_customer.php"; ?>
+<?php include "modals/modal_item.php"; ?>
+<?php include "modals/modal_item_or_service.php"; ?>
+<?php include "modals/modal_sales_item.php"; ?>
+<section class="content">
+<?= form_open('#', array('class' => 'mp-sales-form', 'id' => 'sales-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
+
+                           <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
+                           <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
+                           <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
+                           <input type="hidden" value='Final' id="sales_status" name="sales_status">
+
+                           <input type="hidden" value="" id="hidden_total_amt" name="hidden_total_amt">
+                           <input type="hidden" value="" id="hidden_discount_to_all_amt" name="hidden_discount_to_all_amt">
+                           <input type="hidden" value="" id="hidden_other_charges_amt" name="hidden_other_charges_amt">
+                           <input type="hidden" value="" id="hidden_coupon_discount_amt" name="hidden_coupon_discount_amt">
+                           <input type="hidden" value="" id="hidden_round_off_amt" name="hidden_round_off_amt">
+                           <input type="hidden" value="" id="hidden_subtotal_amt" name="hidden_subtotal_amt">
+
+
+                          <?php if(isset($quotation_id)) {?>
+                           <input type="hidden" id="quotation_id" name="quotation_id" value="<?php echo $quotation_id;; ?>">
+                           <?php } ?>
+
                            
 
-                           <?= form_close(); ?>
-                           <!-- OK END -->
-                     </div>
-                  </div>
-                  <!-- /.box-footer -->
-                 
-               </div>
-               <!-- /.box -->
-             </section>
-            <!-- /.content -->
-  </div>
-  <!-- /.content-wrapper -->
-  
- <?php include"footer.php"; ?>
-<!-- SOUND CODE -->
-<?php include"comman/code_js_sound.php"; ?>
-<!-- GENERAL CODE -->
-<?php include"comman/code_js.php"; ?>
+      <div class="invoice-grid">
+        <!-- LEFT COLUMN -->
+        <div class="left-column">
 
-<script src="<?php echo $theme_link; ?>js/modals.js"></script>
-<script src="<?php echo $theme_link; ?>js/modals/modal_item.js"></script>
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
-</div>
-<!-- ./wrapper -->
+          <!-- Invoice details -->
+          <div class="card">
+            <div class="card-title">Invoice Details</div>
+            <div class="form-row">
+              <div class="form-group wide">
+                <label for="customer_id">Customer</label>
+                <select class="form-control select2" id="customer_id" name="customer_id" style="width:100%;">
+                  <option value="">Select Customer</option>
+                </select>
+                <span id="customer_id_msg" style="display:none" class="text-danger"></span>
+                <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;border-radius:8px;">
+                  <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in Customer:</strong> Must pay in full — credit not allowed.
+                </div>
+                <div style="margin-top:6px;font-size:13px;color:var(--mp-muted);">
+                  Previous Due: <span class="customer_previous_due text-danger" style="font-weight:700;">0.00</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="warehouse_id">Branch</label>
+                <select class="form-control select2" id="warehouse_id" name="warehouse_id" style="width:100%;">
+                  <?= get_warehouse_select_list($warehouse_id, get_current_store_id()); ?>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="init_code">Invoice Code</label>
+                <input type="text" class="form-control" id="init_code" name="init_code" value="<?= $init_code; ?>" readonly>
+                <span id="init_code_msg" style="display:none" class="text-danger"></span>
+              </div>
+              <div class="form-group">
+                <label for="count_id">Count #</label>
+                <input type="text" class="form-control" id="count_id" name="count_id" value="<?= $count_id; ?>" readonly>
+                <span id="count_id_msg" style="display:none" class="text-danger"></span>
+              </div>
+              <div class="form-group">
+                <label for="sales_date">Sales Date</label>
+                <div class="input-group">
+                  <span class="addon"><i class="fa fa-calendar"></i></span>
+                  <input type="text" class="form-control datepicker" id="sales_date" name="sales_date" readonly value="<?= $sales_date; ?>">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="due_date">Due Date</label>
+                <div class="input-group">
+                  <span class="addon"><i class="fa fa-calendar"></i></span>
+                  <input type="text" class="form-control datepicker" id="due_date" name="due_date" readonly value="<?= $due_date; ?>">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reference_no">Reference No.</label>
+                <input type="text" class="form-control" id="reference_no" name="reference_no" value="<?= $reference_no; ?>" placeholder="Optional reference...">
+                <span id="reference_no_msg" style="display:none" class="text-danger"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item search -->
+          <div class="card search-card">
+            <div class="search-row">
+              <input type="hidden" id="price_type" name="price_type" value="<?= (!isset($price_type) || $price_type == "wholesale") ? "wholesale" : "retail"; ?>">
+              <div class="price-toggle">
+                <button type="button" class="pt-btn <?= (!isset($price_type) || $price_type == 'wholesale') ? 'active' : ''; ?>" data-val="wholesale" onclick="setPriceType(this)">Wholesale</button>
+                <button type="button" class="pt-btn <?= (isset($price_type) && $price_type == 'retail') ? 'active' : ''; ?>" data-val="retail" onclick="setPriceType(this)">Retail</button>
+              </div>
+              <div class="search-input">
+                <span class="search-icon"><i class="fa fa-search"></i></span>
+                <input type="text" id="item_search" placeholder="Scan barcode, type item name or code..." autocomplete="off">
+              </div>
+              <button type="button" class="btn-add show_item_service" title="Add Item/Service"><i class="fa fa-plus"></i></button>
+            </div>
+          </div>
+
+          <!-- Items table -->
+          <div class="card" style="padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table class="items-table" id="sales_table">
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th class="num" style="width:90px;">Qty</th>
+                  <th class="num" style="width:100px;">Unit Price</th>
+                  <th class="num" style="width:90px;">Discount</th>
+                  <th class="num" style="width:100px;">Tax</th>
+                  <th class="num" style="width:110px;">Total</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="empty-row" id="items_empty_state">
+                  <td colspan="7">
+                    <span class="empty-icon"><i class="fa fa-shopping-basket"></i></span>
+                    No items added yet. Search or scan a barcode above to start the sale.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Other Charges & Tax -->
+          <div class="card">
+            <div class="card-title">Other Charges &amp; Tax</div>
+            <div class="charges-row">
+              <div class="form-group">
+                <label for="other_charges_input">Other Charges</label>
+                <input type="text" class="form-control text-right only_currency" id="other_charges_input" name="other_charges_input" onkeyup="final_total();" value="<?= $other_charges_input; ?>">
+                <span id="other_charges_input_msg" style="display:none" class="text-danger"></span>
+              </div>
+              <div class="form-group">
+                <label for="other_charges_tax_id">Tax</label>
+                <select class="form-control select2" id="other_charges_tax_id" name="other_charges_tax_id" onchange="final_total();" style="width:100%;">
+                  <?= get_tax_select_list($other_charges_tax_id, get_current_store_id()); ?>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          
+          <!-- Discount and Coupon -->
+          <div class="card">
+            <div class="card-title">Discount & Coupon</div>
+            <div class="form-group">
+              <label for="coupon_code">Coupon Code</label>
+              <input type="text" class="form-control" id="coupon_code" name="coupon_code" onkeyup="get_coupon_details();" value="<?= $coupon_code; ?>">
+              <span id="coupon_code_msg" style="display:none" class="text-danger"></span>
+              <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:12px; color:var(--mp-muted);">
+                <span>Coupon Type: <span class="coupon_type">---</span></span>
+                <span>Coupon Value: <span class="coupon_value">0.00</span></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="discount_to_all_input">Discount on All</label>
+              <div style="display:flex; gap:12px;">
+                <input type="text" class="form-control text-right only_currency" id="discount_to_all_input" name="discount_to_all_input" onkeyup="enable_or_disable_item_discount();" value="<?= store_number_format($discount_input,0); ?>" style="flex:1;">
+                <span id="discount_to_all_input_msg" style="display:none" class="text-danger"></span>
+                <select class="form-control" id="discount_to_all_type" name="discount_to_all_type" onchange="final_total();" style="width:120px;">
+                  <option value="in_percentage" <?= ($discount_type == 'in_percentage') ? 'selected' : '' ?>>%</option>
+                  <option value="in_fixed" <?= ($discount_type == 'in_fixed') ? 'selected' : '' ?>>Fixed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="card">
+            <div class="card-title">Invoice Note</div>
+            <textarea id="sales_note" name="sales_note" rows="3" placeholder="Internal note for this invoice..."><?= $sales_note; ?></textarea>
+          </div>
+
+          <!-- Customer Buying Trends -->
+          <div class="card trends-card" id="customer-trends-card">
+            <div class="card-title">Customer Buying Trends</div>
+            <div class="trends-grid">
+              <div class="trend-cell">
+                <span class="trend-label">Total Invoices</span>
+                <span class="trend-value" id="trend_invoices">-</span>
+              </div>
+              <div class="trend-cell">
+                <span class="trend-label">Total Bought</span>
+                <span class="trend-value" id="trend_bought">-</span>
+              </div>
+              <div class="trend-cell">
+                <span class="trend-label">Total Paid</span>
+                <span class="trend-value" id="trend_paid">-</span>
+              </div>
+              <div class="trend-cell">
+                <span class="trend-label">Total Due</span>
+                <span class="trend-value" id="trend_due">-</span>
+              </div>
+              <div class="trend-cell">
+                <span class="trend-label">Paid / Partial / Unpaid</span>
+                <span class="trend-value" id="trend_status">-</span>
+              </div>
+              <div class="trend-cell">
+                <span class="trend-label">Avg Payment Days</span>
+                <span class="trend-value" id="trend_avg_days">-</span>
+              </div>
+              <div class="trend-cell full">
+                <span class="trend-label">Last Invoice</span>
+                <span class="trend-value" id="trend_last">-</span>
+              </div>
+              <div class="trend-cell full">
+                <span class="trend-label">Top Items</span>
+                <span class="trend-value" id="trend_top">-</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="right-column sidebar-sticky">
+
+          <!-- Totals -->
+          <div class="card">
+            <div class="card-title">Summary</div>
+            <div class="total-row">
+              <span class="label">Total Qty</span>
+              <span class="value" id="total_quantity">0</span>
+            </div>
+            <div class="total-row">
+              <span class="label">Subtotal</span>
+              <span class="value" id="subtotal_amt">0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="label">Other Charges</span>
+              <span class="value" id="other_charges_amt">0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="label">Coupon</span>
+              <span class="value" id="coupon_discount_amt">0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="label">Discount</span>
+              <span class="value" id="discount_to_all_amt">0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="label">Round Off</span>
+              <span class="value" id="round_off_amt">0.00</span>
+            </div>
+            <div class="total-row grand">
+              <span class="label">Grand Total</span>
+              <span class="value" id="total_amt">0.00</span>
+            </div>
+          </div>
+
+
+          <!-- Previous Payments -->
+          <div class="card" id="previous-payments-card"<?= !isset($sales_id) ? ' style="display:none;"' : '' ?>>
+            <div class="card-title">Previous Payments</div>
+            <table class="items-table" id="payments_table" style="font-size:12px;">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Mode</th>
+                  <th>Note</th>
+                  <th class="num">Amount</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody id="payments_tbody"><?php
+if(isset($sales_id)){
+  $q3 = $this->db->query("select * from db_salespayments where sales_id=$sales_id");
+  if($q3->num_rows()>0){
+    $i=1; $total_paid = 0;
+    foreach ($q3->result() as $res3) {
+      echo "<tr id='payment_row_".$res3->id."'>";
+      echo "<td class='pm-num'>".$i."</td>";
+      echo "<td>".show_date($res3->payment_date)."</td>";
+      echo "<td><span class='mp-pill paid'>".$res3->payment_type."</span></td>";
+      echo "<td class='pm-note'>".$res3->payment_note."</td>";
+      echo "<td class='num amt' id='paid_amt_$i'>".store_number_format($res3->payment)."</td>";
+      echo "<td class='action-col'><a class='remove-btn' onclick='delete_payment(".$res3->id.")' title='Delete ?'><i class='fa fa-trash'></i></a></td>";
+      echo "</tr>";
+      $total_paid +=$res3->payment;
+      $i++;
+    }
+    echo "<tr class='pm-total'><td colspan='4'>Total Paid</td><td class='num amt' data-rowcount='$i' id='paid_amt_tot'>".store_number_format($total_paid)."</td><td></td></tr>";
+  } else {
+    echo "<tr class='empty-row'><td colspan='6'>No previous payments recorded for this invoice.</td></tr>";
+  }
+}
+?></tbody>
+            </table>
+          </div>
+
+          <!-- Payment -->
+          <div class="card">
+            <div class="card-title">Payment</div>
+            <div class="payment-fields" style="grid-template-columns: 1fr;">
+              <div class="form-group" style="margin:0;">
+                <label for="amount">Amount</label>
+                <input type="text" class="form-control text-right paid_amt only_currency" id="amount" name="amount" placeholder="">
+                <span id="amount_msg" style="display:none" class="text-danger"></span>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label for="payment_type">Mode</label>
+                <select class="form-control select2" id="payment_type" name="payment_type" style="width:100%;" data-placeholder="-Select-">
+                  <option value="">-Select-</option>
+                  <?= get_payment_modes_select_list(get_current_store_id()); ?>
+                </select>
+              </div>
+            </div>
+            <div class="form-group payment-account" style="margin: 14px 0 0 0;">
+              <label for="account_id">Account</label>
+              <select class="form-control select2" id="account_id" name="account_id" style="width:100%;" data-placeholder="-None-">
+                  <option value="">-None-</option>
+                  <?= get_accounts_select_list(get_store_details()->default_account_id); ?>
+                </select>
+                <span id="account_id_msg" style="display:none" class="text-danger"></span>
+            </div>
+
+              <div class="form-group payment-reference-row" style="display:none;">
+                <label for="payment_reference">Reference</label>
+                <input type="text" class="form-control" id="payment_reference" name="payment_reference" placeholder="Enter reference number...">
+                <span id="payment_reference_msg" style="display:none" class="text-danger"></span>
+              </div>
+              <div class="form-group confirmation-status-row" style="display:none;">
+                <label for="confirmation_status">Confirmation Status</label>
+                <select class="form-control select-custom" id="confirmation_status" name="confirmation_status" style="width:100%;">
+                  <option value="1">Confirmed</option>
+                  <option value="0">Not Confirmed</option>
+                </select>
+                <span id="confirmation_status_msg" style="display:none" class="text-danger"></span>
+              </div>
+              <div class="form-group cheque_div" style="display:none;">
+                <div style="display:flex; gap:12px;">
+                  <div style="flex:1;">
+                    <label for="cheque_number"><?= $this->lang->line('cheque_number'); ?></label>
+                    <input type="text" class="form-control" id="cheque_number" name="cheque_number" placeholder="">
+                    <span id="cheque_number_msg" style="display:none" class="text-danger"></span>
+                  </div>
+                  <div style="flex:1;">
+                    <label for="cheque_period"><?= $this->lang->line('cheque_period_days'); ?></label>
+                    <input type="text" class="form-control only_currency" id="cheque_period" name="cheque_period" placeholder="">
+                    <span id="cheque_period_msg" style="display:none" class="text-danger"></span>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-bottom:10px;font-size:13px;color:var(--mp-muted);">Advance Available: <span class="customer_tot_advance" style="font-weight:700;color:var(--mp-success);">0.00</span></div>
+              <div class="form-group advance-row" style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="allow_tot_advance" name="allow_tot_advance" style="width:auto;"> 
+                <label for="allow_tot_advance" style="margin:0;"><?= $this->lang->line('adjust_advance_payment'); ?></label>
+              </div>
+            <div class="form-group payment-note" style="margin: 14px 0 0 0;">
+              <label for="payment_note">Payment Note</label>
+              <textarea id="payment_note" name="payment_note" rows="2"></textarea>
+                <span id="payment_note_msg" style="display:none" class="text-danger"></span>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <div class="card">
+            <div class="card-title">Terms & Conditions</div>
+            <textarea id="invoice_terms" name="invoice_terms" rows="3" placeholder="Enter invoice terms..."><?= $invoice_terms; ?></textarea>
+                <span id="invoice_terms_msg" style="display:none" class="text-danger"></span>
+          </div>
+
+          <!-- SMS -->
+          <div class="card" style="padding: 14px 20px;">
+            <label class="sms-row" for="send_sms" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="send_sms" name="send_sms" <?=$send_sms_checkbox;?> style="width:auto; margin:0;">
+              Send SMS to customer
+            </label>
+          </div>
+
+          <!-- Actions -->
+          <div class="actions">
+            <a href="<?= base_url() ?>dashboard" class="btn btn-ghost close_btn" style="flex:1;text-decoration:none;">Close</a>
+            <button type="button" id="<?= $btn_id; ?>" name="<?= $btn_name; ?>" class="btn btn-primary" style="flex:2;"><?= $btn_name; ?></button>
+          </div>
+
+        </div>
+      </div>
+    
+<?= form_close(); ?>
+</section>
+
+<?php include "comman/code_js_sound.php"; ?>
+
 <script type="text/javascript">
   var walk_in_customer_name ='<?= get_walk_in_customer_name();?>';
   var walkin_customer_id = <?=json_encode($walkin_customer_id ?? null);?>;
+  var mp_currency = <?= json_encode($this->session->userdata('currency') ?: ''); ?>;
+  var mp_currency_placement = <?= json_encode($this->session->userdata('currency_placement') ?: 'Left'); ?>;
+  function money(res){
+    var raw = format_money(res);
+    if(!mp_currency){ return raw; }
+    return (mp_currency_placement === 'Left') ? (mp_currency + ' ' + raw) : (raw + ' ' + mp_currency);
+  }
+  
+function setPriceType(btn){
+  $('#price_type').val($(btn).data('val'));
+  $(btn).siblings().removeClass('active');
+  $(btn).addClass('active');
+}
+
+function loadCustomerTrends(customer_id){
+  if(!customer_id){ resetCustomerTrends(); return; }
+  $.ajax({
+    url: base_url + "sales/get_customer_trends",
+    type: "POST",
+    dataType: "json",
+    data: { customer_id: customer_id, store_id: $("#store_id").val() },
+    success: function(res){
+      if(res.error){ resetCustomerTrends(); return; }
+      $("#trend_invoices").text(res.invoice_count || 0);
+      $("#trend_bought").text(money(res.total_amount));
+      $("#trend_paid").text(money(res.paid_amount));
+      $("#trend_due").text(money(res.due_amount));
+      $("#trend_status").text((res.paid_count || 0) + ' / ' + (res.partial_count || 0) + ' / ' + (res.unpaid_count || 0));
+      $("#trend_avg_days").text((res.avg_payment_days || 0) + ' days');
+      $("#trend_last").text((res.last_sale_date || '-') + ' (' + money(res.last_sale_amount) + ')');
+      if(res.top_items && res.top_items.length > 0){ $("#trend_top").html(res.top_items.map(function(i){ return i.name + ' (' + i.qty + ')'; }).join(', ')); }
+      else { $("#trend_top").text('-'); }
+    },
+    error: function(){ resetCustomerTrends(); }
+  });
+}
+function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','trend_due','trend_status','trend_avg_days','trend_last','trend_top'].forEach(function(i){ $('#'+i).text('-'); }); }
+
   function isWalkInCustomer(){
     var cid = $(getCustomerSelectionId()).val();
     return (walkin_customer_id && cid == walkin_customer_id);
   }
 </script>
-<!-- Bootstrap WYSIHTML5 -->
-<script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
-
-<script src="<?php echo $theme_link; ?>js/sales.js?v=12"></script>  
-<script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=2"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
+<script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
       <script>
 
          //Customer Selection Box Search
@@ -983,18 +752,28 @@ padding-right: 2px;
 
          $(document).ready(function () {
 
-            var customer_id = "<?= (!empty($customer_id)) ? $customer_id : '';  ?>";
+            var customer_id = "<?= (!empty($customer_id)) ? $customer_id : ($walkin_customer_id ?? '');  ?>";
 
             autoLoadFirstCustomer(customer_id);
 
             // Toggle walk-in warning on customer change
-            $("#customer_id").on('change', function(){
+            function refreshCustomerData(){
+              var cid = $('#customer_id').val();
+              loadCustomerTrends(cid);
               if(isWalkInCustomer()){
                 $("#walkin-warning").show();
               } else {
                 $("#walkin-warning").hide();
               }
-            });
+            }
+            $("#customer_id").on('change', refreshCustomerData);
+            $("#customer_id").on('select2:select', refreshCustomerData);
+            refreshCustomerData();
+
+            // Show walk-in warning on initial load if walk-in customer is preselected/loaded
+            if(isWalkInCustomer()){
+              $("#walkin-warning").show();
+            }
 
          });
          //Customer Selection Box Search - END
@@ -1038,8 +817,8 @@ padding-right: 2px;
 
        
         function set_previous_due(previous_due,tot_advance){
-          $(".customer_previous_due").html(previous_due);
-          $(".customer_tot_advance").html(tot_advance);
+          if(typeof previous_due !== 'undefined' && previous_due !== null){ $(".customer_previous_due").html(previous_due); }
+          if(typeof tot_advance !== 'undefined' && tot_advance !== null){ $(".customer_tot_advance").html(tot_advance); }
         }
 
         var base_url=$("#base_url").val();
@@ -1107,22 +886,22 @@ padding-right: 2px;
 
            //Find the Tax type and Tax amount
            var tax_type = $("#tr_tax_type_"+i).val();
-           var tax_amount = $("#td_data_"+i+"_11").val();
+           var tax_amount = parseFloat(($("#td_data_"+i+"_11").val() || '').replace(/,/g,''));
 
            var qty=$("#td_data_"+i+"_3").val();
-           var sales_price=parseFloat($("#td_data_"+i+"_10").val());
+           var sales_price=parseFloat(($("#td_data_"+i+"_10").val() || '').replace(/,/g,''));
            $("#td_data_"+i+"_4").val(sales_price);
            /*Discounr*/
-           var discount_amt=$("#td_data_"+i+"_8").val();
+           var discount_amt=$("#td_data_"+i+"_8").val().replace(/,/g,'');
                discount_amt   =(isNaN(parseFloat(discount_amt)))    ? 0 : parseFloat(discount_amt);
 
            var amt=parseFloat(qty) * sales_price;//Taxable
 
            var total_amt=amt-discount_amt;
-           total_amt = (tax_type=='Inclusive') ? total_amt : parseFloat(total_amt) + parseFloat(tax_amount);
+           total_amt = (tax_type=='Inclusive') ? total_amt : parseFloat(total_amt) + tax_amount;
            
            //Set Unit cost
-           $("#td_data_"+i+"_9").val('').val(to_Fixed(total_amt));
+           $("#td_data_"+i+"_9").val('').val(format_money(total_amt));
         
            final_total();
          }
@@ -1186,7 +965,7 @@ padding-right: 2px;
                //customer_id must exist
                if($("#td_data_"+i+"_3").val()!=null && $("#td_data_"+i+"_3").val()!=''){
                     actual_taxable=actual_taxable+ + +(parseFloat($("#td_data_"+i+"_13").val()) * parseFloat($("#td_data_"+i+"_3").val()));
-                    subtotal=subtotal+ + +parseFloat($("#td_data_"+i+"_9").val());
+                    subtotal=subtotal+ + +parseFloat(($("#td_data_"+i+"_9").val() || '').replace(/,/g,''));
                     if($("#td_data_"+i+"_7").val()>=0){
                       tax_amt=tax_amt+ + +$("#td_data_"+i+"_7").val();
                     }   
@@ -1198,17 +977,17 @@ padding-right: 2px;
            
           
           //Show total Sales Quantitys
-           $(".total_quantity").html(format_qty(total_quantity));
+           $("#total_quantity").html(format_qty(total_quantity));
 
            //Apply Output on screen
            //subtotal
            if((subtotal!=null || subtotal!='') && (subtotal!=0)){
              
              //subtotal
-             $("#subtotal_amt").html(to_Fixed(subtotal));
+             $("#subtotal_amt").html(money(subtotal));
              
              //other charges total amount
-             $("#other_charges_amt").html(to_Fixed(other_charges_total_amt));
+             $("#other_charges_amt").html(money(other_charges_total_amt));
              
              //other charges total amount
             
@@ -1242,32 +1021,31 @@ padding-right: 2px;
                  }
                    discount=parseFloat(discount);
                    
-                    $("#coupon_discount_amt").html(to_Fixed(coupon_amt));  
-                    $("#discount_to_all_amt").html(to_Fixed(discount));  
+                    $("#coupon_discount_amt").html(money(coupon_amt));  
+                    $("#discount_to_all_amt").html(money(discount));  
                     $("#hidden_discount_to_all_amt").val(to_Fixed(discount));  
              //}
              //subtotal_round=Math.round(taxable);
              subtotal_round=round_off(taxable);//round_off() method custom defined
              subtotal_diff=subtotal_round-taxable;
          
-             $("#round_off_amt").html(to_Fixed(subtotal_diff)); 
-             $("#total_amt").html(to_Fixed(subtotal_round)); 
+             $("#round_off_amt").html(money(subtotal_diff)); 
+             $("#total_amt").html(money(subtotal_round)); 
              if(save_operation()){
                $("#amount").val(to_Fixed(subtotal_round));
              }
              $("#hidden_total_amt").val(to_Fixed(subtotal_round)); 
            }
            else{
-             $("#subtotal_amt").html('0.00'); 
-             $("#tax_amt").html('0.00'); 
-             $("#round_off_amt").html('0.00'); 
-             $("#total_amt").html('0.00'); 
-             $("#hidden_total_amt").html('0.00'); 
-             $("#discount_to_all_amt").html('0.00'); 
-             $("#hidden_discount_to_all_amt").html('0.00'); 
-             $("#subtotal_amt").html('0.00'); 
-             $("#other_charges_amt").html('0.00');
-               $("#amount").val('0.00');
+             $("#subtotal_amt").html(money(0)); 
+             $("#tax_amt").html(money(0)); 
+             $("#round_off_amt").html(money(0)); 
+             $("#total_amt").html(money(0)); 
+             $("#hidden_total_amt").val(to_Fixed(0)); 
+             $("#discount_to_all_amt").html(money(0)); 
+             $("#hidden_discount_to_all_amt").val(to_Fixed(0)); 
+             $("#other_charges_amt").html(money(0));
+             $("#amount").val(to_Fixed(0));
            }
            
           // adjust_payments();
@@ -1278,6 +1056,9 @@ padding-right: 2px;
          function removerow(id){//id=Rowid
            
          $("#row_"+id).remove();
+         if($("#sales_table tbody tr:not(.empty-row)").length === 0){
+           $("#sales_table tbody").append('<tr class="empty-row" id="items_empty_state"><td colspan="7"><span class="empty-icon"><i class="fa fa-shopping-basket"></i></span>No items added yet. Search or scan a barcode above to start the sale.</td></tr>');
+         }
          final_total();
          failed.currentTime = 0;
         failed.play();
@@ -1315,7 +1096,7 @@ padding-right: 2px;
 
     //Sale Items Modal Operations Start
     function show_sales_item_modal(row_id){
-      $('#sales_item').modal('toggle');
+      $('#sales_item').modal('show');
       $("#popup_tax_id").select2();
 
       //Find the item details
@@ -1370,7 +1151,7 @@ padding-right: 2px;
       var tax = $("#tr_tax_value_"+row_id).val(); //%
       var qty=$("#td_data_"+row_id+"_3").val();
           qty = (isNaN(qty)) ? 0 :qty;
-      var sales_price = parseFloat($("#td_data_"+row_id+"_10").val());
+      var sales_price = parseFloat(($("#td_data_"+row_id+"_10").val() || '').replace(/,/g,''));
           sales_price = (isNaN(sales_price)) ? 0 :sales_price;
           sales_price = sales_price * qty;
 
@@ -1385,9 +1166,9 @@ padding-right: 2px;
 
       var tax_amount = (tax_type=='Inclusive') ? calculate_inclusive(sales_price,tax) : calculate_exclusive(sales_price,tax);
       
-      $("#td_data_"+row_id+"_8").val(to_Fixed(discount_amt));
+      $("#td_data_"+row_id+"_8").val(format_money(discount_amt));
 
-      $("#td_data_"+row_id+"_11").val(to_Fixed(tax_amount));
+      $("#td_data_"+row_id+"_11").val(format_money(tax_amount));
     }
     //Sale Items Modal Operations End
       </script>
@@ -1414,6 +1195,7 @@ padding-right: 2px;
                 $.post(base_url+"sales/"+path+"/"+id,{},function(result){
                 //  alert(result);
                   $('#sales_table tbody').append(result);
+                  $("#items_empty_state").remove();
                   $("#hidden_rowcount").val(parseInt(<?=$items_count;?>)+1);
                   success.currentTime = 0;
                   success.play();
@@ -1434,5 +1216,3 @@ padding-right: 2px;
 
       <!-- Make sidebar menu hughlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-</body>
-</html>

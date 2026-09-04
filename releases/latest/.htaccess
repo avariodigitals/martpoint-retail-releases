@@ -1,0 +1,75 @@
+RewriteEngine On
+
+# ---- URL Rewriting ----
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?/$1 [QSA,L]
+
+# ---- Gzip Compression ----
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
+  AddOutputFilterByType DEFLATE application/javascript application/x-javascript application/json
+  AddOutputFilterByType DEFLATE application/xml application/rss+xml image/svg+xml
+  AddOutputFilterByType DEFLATE font/woff font/woff2 application/font-woff application/font-woff2
+  AddOutputFilterByType DEFLATE application/vnd.ms-fontobject application/x-font-ttf
+  # Don't compress images (already compressed)
+  SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|ico|webp)$ no-gzip dont-vary
+  # Handle proxy encoding
+  Header append Vary User-Agent env=!dont-vary
+</IfModule>
+
+# ---- Browser Caching ----
+<IfModule mod_expires.c>
+  ExpiresActive On
+  # Images: 1 month
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/gif "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/x-icon "access plus 1 year"
+  # CSS/JS: 1 month
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType application/x-javascript "access plus 1 month"
+  # Fonts: 1 year
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/font-woff "access plus 1 year"
+  ExpiresByType application/font-woff2 "access plus 1 year"
+  ExpiresByType application/vnd.ms-fontobject "access plus 1 year"
+  ExpiresByType application/x-font-ttf "access plus 1 year"
+  # HTML/XML/JSON: short cache
+  ExpiresByType text/html "access plus 5 minutes"
+  ExpiresByType application/json "access plus 5 minutes"
+  ExpiresByType application/xml "access plus 5 minutes"
+  ExpiresByType application/rss+xml "access plus 1 hour"
+</IfModule>
+
+# ---- Cache-Control headers (fallback for servers without mod_expires) ----
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js|woff|woff2|ttf|eot|svg|ico)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "\.(html|json|xml)$">
+    Header set Cache-Control "public, max-age=300"
+  </FilesMatch>
+  # Don't cache dynamic PHP pages aggressively
+  <FilesMatch "\.php$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+  </FilesMatch>
+</IfModule>
+
+# ---- Security headers (bonus, no performance impact) ----
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# ---- Disable ETags for static files (reduces request overhead) ----
+<IfModule mod_headers.c>
+  FileETag None
+</IfModule>

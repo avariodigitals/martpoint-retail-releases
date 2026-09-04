@@ -12,7 +12,9 @@ class Category extends MY_Controller {
 		$this->permission_check('items_category_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('category');
-		$this->load->view('category', $data);
+		$data['extra_js_files'] = ['js/category.js'];
+		$data['content'] = $this->load->view('category', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newcategory(){
 		$this->form_validation->set_rules('category', 'Category', 'trim|required');
@@ -34,7 +36,9 @@ class Category extends MY_Controller {
 		$result=$this->category_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('category');
-		$this->load->view('category', $data);
+		$data['extra_js_files'] = ['js/category.js'];
+		$data['content'] = $this->load->view('category', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_category(){
 		$this->form_validation->set_rules('category', 'Category', 'trim|required');
@@ -52,7 +56,9 @@ class Category extends MY_Controller {
 		$this->permission_check('items_category_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('categories_list');
-		$this->load->view('category-view', $data);
+		$data['extra_js_files'] = ['js/category.js'];
+		$data['content'] = $this->load->view('category-view', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

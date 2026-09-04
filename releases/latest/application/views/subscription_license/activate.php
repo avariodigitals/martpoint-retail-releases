@@ -1,95 +1,78 @@
-<!DOCTYPE html>
-<html>
-   <head>
-      <?php $this->load->view('comman/code_css.php');?>
-      <style>
-        .box-body .form-control { min-height: 38px; padding: 8px 12px; }
-        .box-body input[type="text"].form-control { height: 38px; }
-      </style>
-   </head>
-   <body class="hold-transition skin-blue sidebar-mini">
-      <div class="wrapper">
-         <?php $this->load->view('sidebar');?>
+<?php
+/* License activation form — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<style>
+  .box-body .form-control { min-height: 38px; padding: 8px 12px; }
+  .box-body input[type="text"].form-control { height: 38px; }
+</style>
 
-<div class="content-wrapper">
-  <section class="content-header">
-    <h1><?= ($license && !empty($license->license_code)) ? 'Renew Subscription' : 'Activate MartPoint Retail'; ?></h1>
-    <ol class="breadcrumb">
-      <li><a href="<?=base_url('dashboard');?>"><i class="fa fa-dashboard"></i> Home</a></li>
-      <li><a href="<?=base_url('subscription_license');?>">Subscription Control</a></li>
-      <li class="active"><?= ($license && !empty($license->license_code)) ? 'Renew' : 'Activate'; ?></li>
-    </ol>
-  </section>
+<div class="mp-page-head"><h1 class="mp-page-title"><?= ($license && !empty($license->license_code)) ? 'Renew Subscription' : 'Activate MartPoint Retail'; ?></h1></div>
 
-  <section class="content">
-    <div class="row">
-      <div class="col-md-6 col-md-offset-3">
+<div class="row">
+  <div class="col-md-6 col-md-offset-3">
 
-        <!-- Activation Form -->
-        <div class="box box-primary" id="activation-box">
-          <div class="box-header with-border">
-            <h3 class="box-title"><i class="fa fa-key"></i> Enter License Key</h3>
+    <!-- Activation Form -->
+    <div class="mp-card">
+    <div class="mp-card-body">
+    <div class="box box-primary" id="activation-box">
+      <div class="box-header with-border">
+        <h3 class="box-title"><i class="fa fa-key"></i> Enter License Key</h3>
+      </div>
+      <form id="activation-form">
+        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name();?>" value="<?php echo $this->security->get_csrf_hash();?>">
+        <div class="box-body">
+          <div class="form-group">
+            <label>License Key <span class="text-danger">*</span></label>
+            <input type="text" name="license_code" id="license_code" class="form-control" placeholder="Paste your license key here (e.g. MP-XXXX...-XXXX)" required>
+            <p class="help-block text-muted">Your license key was generated in License Management.</p>
           </div>
-          <form id="activation-form">
-            <input type="hidden" name="<?php echo $this->security->get_csrf_token_name();?>" value="<?php echo $this->security->get_csrf_hash();?>">
-            <div class="box-body">
-              <div class="form-group">
-                <label>License Key <span class="text-danger">*</span></label>
-                <input type="text" name="license_code" id="license_code" class="form-control" placeholder="Paste your license key here (e.g. MP-XXXX...-XXXX)" required>
-                <p class="help-block text-muted">Your license key was generated in License Management.</p>
-              </div>
-              <div class="form-group" id="act-otp-group" style="display:none;">
-                <label>OTP Code <span class="text-danger">*</span></label>
-                <div class="input-group">
-                  <input type="text" name="otp_code" id="act_otp_code" class="form-control" placeholder="Enter 6-character OTP" maxlength="6" style="text-transform: uppercase;">
-                  <span class="input-group-btn">
-                    <button type="button" class="btn btn-default" onclick="requestActOTP()">Request OTP</button>
-                  </span>
-                </div>
-                <p class="help-block text-muted">OTP sent to authorized email. Expires in 10 minutes.</p>
-              </div>
+          <div class="form-group" id="act-otp-group" style="display:none;">
+            <label>OTP Code <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="text" name="otp_code" id="act_otp_code" class="form-control" placeholder="Enter 6-character OTP" maxlength="6" style="text-transform: uppercase;">
+              <span class="input-group-btn">
+                <button type="button" class="btn btn-default" onclick="requestActOTP()">Request OTP</button>
+              </span>
             </div>
-            <div class="box-footer">
-              <button type="submit" class="btn btn-primary btn-block">
-                <i class="fa fa-check"></i> Activate Subscription
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Activation Success Result (hidden initially) -->
-        <div class="box box-success" id="activation-result" style="display:none;">
-          <div class="box-header with-border">
-            <h3 class="box-title"><i class="fa fa-check-circle"></i> Subscription Activated Successfully</h3>
-          </div>
-          <div class="box-body">
-            <table class="table table-bordered">
-              <tr><td style="width:35%"><strong>Plan</strong></td><td id="res-plan"></td></tr>
-              <tr><td><strong>Start Date</strong></td><td id="res-start"></td></tr>
-              <tr><td><strong>End Date</strong></td><td id="res-end"></td></tr>
-              <tr><td><strong>Branch Limit</strong></td><td id="res-branch"></td></tr>
-              <tr><td><strong>User Limit</strong></td><td id="res-user"></td></tr>
-              <tr><td><strong>Days Left</strong></td><td id="res-days"></td></tr>
-            </table>
-          </div>
-          <div class="box-footer">
-            <a href="<?=base_url('subscription_license');?>" class="btn btn-success btn-block">
-              <i class="fa fa-arrow-right"></i> Go to License Management
-            </a>
+            <p class="help-block text-muted">OTP sent to authorized email. Expires in 10 minutes.</p>
           </div>
         </div>
+        <div class="box-footer">
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fa fa-check"></i> Activate Subscription
+          </button>
+        </div>
+      </form>
+    </div>
 
+    <!-- Activation Success Result (hidden initially) -->
+    <div class="box box-success" id="activation-result" style="display:none;">
+      <div class="box-header with-border">
+        <h3 class="box-title"><i class="fa fa-check-circle"></i> Subscription Activated Successfully</h3>
+      </div>
+      <div class="box-body">
+        <table class="table table-bordered">
+          <tr><td style="width:35%"><strong>Plan</strong></td><td id="res-plan"></td></tr>
+          <tr><td><strong>Start Date</strong></td><td id="res-start"></td></tr>
+          <tr><td><strong>End Date</strong></td><td id="res-end"></td></tr>
+          <tr><td><strong>Branch Limit</strong></td><td id="res-branch"></td></tr>
+          <tr><td><strong>User Limit</strong></td><td id="res-user"></td></tr>
+          <tr><td><strong>Days Left</strong></td><td id="res-days"></td></tr>
+        </table>
+      </div>
+      <div class="box-footer">
+        <a href="<?=base_url('subscription_license');?>" class="mp-btn-primary">
+          <i class="fa fa-arrow-right"></i> Go to License Management
+        </a>
       </div>
     </div>
-  </section>
+    </div>
+    </div>
+
+  </div>
 </div>
 
-      </div>
-      <?php $this->load->view('footer.php');?>
-      <div class="control-sidebar-bg"></div>
-      </div>
-      <?php $this->load->view('comman/code_js_sound.php');?>
-      <?php $this->load->view('comman/code_js.php');?>
 <script>
 var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
 var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
@@ -163,7 +146,7 @@ $(function(){
   });
 });
 </script>
-      <!-- Make sidebar menu highlighter/selector -->
-      <script>$(".subscription-license-active-li").addClass("active");</script>
-   </body>
-</html>
+<script>
+$(".subscription-license-active-li").addClass("active");
+$(".subscription-license-active-li").closest(".mp-nav-group").addClass("open");
+</script>

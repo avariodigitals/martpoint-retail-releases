@@ -16,7 +16,8 @@
 			$this->permission_check('users_add');
 			$data=$this->data;//My_Controller constructor data accessed here
 			$data['page_title']=$this->lang->line('create_users');
-			$this->load->view('users',$data);
+			$data['content'] = $this->load->view('admin/desktop/users_form', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		public function save_or_update(){
 			$data=$this->data;//My_Controller constructor data accessed here
@@ -77,15 +78,90 @@
 		}
 		public function view(){
 			$this->permission_check('users_view');
-			$data=$this->data;//My_Controller constructor data accessed here
+			$data=$this->data;
 			$data['page_title']=$this->lang->line('users_list');
-			// Debug: catch and display any view rendering errors
-			try {
-				$this->load->view('users-view',$data);
-			} catch (Exception $e) {
-				log_message('error', 'Users view error: ' . $e->getMessage());
-				show_error('Error loading users view: ' . $e->getMessage());
+
+			// Replicate the original user list query
+			if(!is_admin() && !is_store_admin()){
+				$this->db->where(" role_id not in (2)");
 			}
+			$this->db->select("a.*,b.role_name");
+			$this->db->where("b.id=a.role_id");
+			if(!is_admin()){
+				$this->db->where("a.store_id",get_current_store_id());
+			}
+			$q1=$this->db->from('db_users as a, db_roles as b')->order_by('a.id','desc')->get();
+
+			$rows = [];
+			foreach($q1->result() as $res1){
+				$store_rec = get_store_details($res1->store_id);
+				$wh_q = $this->db->select('w.warehouse_name')
+					->from('db_userswarehouses uw')
+					->join('db_warehouse w','w.id=uw.warehouse_id','left')
+					->where('uw.user_id',$res1->id)
+					->get();
+				$wnames = $wh_q->num_rows()>0 ? array_map(function($w){ return $w->warehouse_name; }, $wh_q->result()) : [];
+				$warehouses = $wnames ? '<span class="label label-info">' . implode('</span> <span class="label label-info">', $wnames) . '</span>' : '<span class="text-muted">-</span>';
+				$store_name = $store_rec ? $store_rec->store_name : '-';
+				$store_admin_badge = ($store_rec && $store_rec->user_id==$res1->id) ? " <span class='label label-success' title='Store Admin'>Store Admin</span>" : '';
+				$row = new stdClass();
+				$row->id = $res1->id;
+				$row->store_name = $store_name;
+				$row->username = $res1->username;
+				$row->full_name = $res1->first_name.' '.$res1->last_name.$store_admin_badge;
+				$row->mobile = $res1->mobile;
+				$row->email = $res1->email;
+				$row->role_name = $res1->role_name;
+				$row->warehouses = $warehouses;
+				$row->created_date = show_date($res1->created_date);
+				$row->status = $res1->status;
+				$rows[] = $row;
+			}
+			$data['rows'] = $rows;
+
+			$data['crud'] = [
+				'page_title' => $this->lang->line('users_list'),
+				'page_sub' => 'Manage staff and store users',
+				'add_url' => base_url('users/'),
+				'add_label' => 'Create User',
+				'add_permission' => 'users_add',
+				'columns' => [
+					['title' => 'Store', 'field' => 'store_name', 'type' => 'text'],
+					['title' => 'Username', 'field' => 'username', 'type' => 'text'],
+					['title' => 'Name', 'field' => 'full_name', 'type' => 'text'],
+					['title' => 'Mobile', 'field' => 'mobile', 'type' => 'text'],
+					['title' => 'Email', 'field' => 'email', 'type' => 'text'],
+					['title' => 'Role', 'field' => 'role_name', 'type' => 'text'],
+					['title' => mp_label('warehouse','Branches'), 'field' => 'warehouses', 'type' => 'raw'],
+					['title' => 'Created', 'field' => 'created_date', 'type' => 'text'],
+					['title' => 'Status', 'type' => 'custom', 'callback' => function($row){
+						if($row->id == 1) return "<span class='label label-default' disabled style='cursor:disabled'>Restricted</span>";
+						if($row->status == 1) return "<span onclick='update_status(".$row->id.",0)' id='span_".$row->id."' class='label label-success' style='cursor:pointer'>Active</span>";
+						return "<span onclick='update_status(".$row->id.",1)' id='span_".$row->id."' class='label label-danger' style='cursor:pointer'>Inactive</span>";
+					}],
+					['title' => 'Action', 'type' => 'custom', 'callback' => function($row){
+						$CI =& get_instance();
+						$out = '<div class="mp-actions">';
+						if($CI->permissions('users_edit')){
+							$out .= '<a href="'.base_url('users/edit/'.$row->id).'" class="mp-edit" title="Edit"><i class="fa fa-pencil"></i></a>';
+						}
+						if($CI->permissions('users_delete') && $row->id != 1){
+							$out .= '<button type="button" class="mp-delete" title="Delete" onclick="delete_user('.$row->id.')"><i class="fa fa-trash"></i></button>';
+						}
+						$out .= '</div>';
+						return $out;
+					}],
+				],
+				'module' => 'users',
+				'status_url' => 'users/status_update',
+				'delete_url' => 'users/delete_user',
+				'edit_url' => base_url('users/edit/{id}'),
+				'delete_permission' => 'users_delete',
+				'edit_permission' => 'users_edit',
+				'bulk_delete' => false,
+			];
+			$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		public function status_update(){
 			$this->permission_check_with_msg('users_edit');
@@ -100,7 +176,8 @@
 		public function password_reset(){
 			$data=$this->data;//My_Controller constructor data accessed here
 			$data['page_title']=$this->lang->line('change_password');
-			$this->load->view('change-pass',$data);
+			$data['content'] = $this->load->view('change-pass', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 		}
 		public function password_update(){
 			if($this->session->userdata('inv_username')=='admin' && demo_app()){
@@ -166,7 +243,8 @@
 			$this->load->model('users_model');
 			$data=$this->users_model->get_details($id);
 			$data['page_title']=$this->lang->line('edit_user');
-			$this->load->view('users', $data);
+			$data['content'] = $this->load->view('admin/desktop/users_form', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		public function delete_user(){
 			$this->permission_check_with_msg('users_delete');

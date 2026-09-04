@@ -5,8 +5,10 @@ class Stock_transfer_model extends CI_Model {
 
 	//Datatable start
 	var $table = 'db_stocktransfer as a';
-	var $column_order = array( 'a.id','a.transfer_date','a.note','a.warehouse_from','a.warehouse_to','a.created_by','a.store_id'); //set column field database for datatable orderable
-	var $column_search = array('a.id','a.transfer_date','a.note','a.warehouse_from','a.warehouse_to','a.created_by','a.store_id'); //set column field database for datatable searchable 
+	// Column order mapping aligns with the DataTables display order:
+	// [checkbox, transfer_date, from_warehouse, to_warehouse, details, note, created_by, action]
+	var $column_order = array( 'a.id','a.transfer_date','wf.warehouse_name','wt.warehouse_name','a.id','a.note','a.created_by','a.id'); //set column field database for datatable orderable
+	var $column_search = array('a.id','a.transfer_date','a.note','wf.warehouse_name','wt.warehouse_name','a.created_by'); //set column field database for datatable searchable 
 	var $order = array('a.id' => 'desc'); // default order  
 
 	public function __construct()
@@ -18,8 +20,19 @@ class Stock_transfer_model extends CI_Model {
 	private function _get_datatables_query()
 	{
 		
-		$this->db->select($this->column_order);
+		$this->db->select('a.*, wf.warehouse_name as warehouse_from_name, wt.warehouse_name as warehouse_to_name');
 		$this->db->from($this->table);
+		$this->db->join('db_warehouse as wf','wf.id = a.warehouse_from','left');
+		$this->db->join('db_warehouse as wt','wt.id = a.warehouse_to','left');
+
+		/*If warehouse selected*/
+		$warehouse_id = $this->input->post('warehouse_id');
+		if(!empty($warehouse_id)){
+			$this->db->group_start();
+			$this->db->where('a.warehouse_from',$warehouse_id);
+			$this->db->or_where('a.warehouse_to',$warehouse_id);
+			$this->db->group_end();
+		}
 		
 		//if(!is_admin()){
 	      $this->db->where("a.store_id",get_current_store_id());
@@ -341,6 +354,8 @@ class Stock_transfer_model extends CI_Model {
 		$item_name = isset($info['item_name']) ? $info['item_name'] : '';
 		$stock = isset($info['stock']) ? $info['stock'] : '';
 		$available_qty = isset($info['available_qty']) ? $info['available_qty'] : '';
+		$item_stock_qty = isset($info['item_stock_qty']) ? $info['item_stock_qty'] : 1;
+		$item_available_qty = isset($info['item_available_qty']) ? $info['item_available_qty'] : '';
 		
 		?>
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>

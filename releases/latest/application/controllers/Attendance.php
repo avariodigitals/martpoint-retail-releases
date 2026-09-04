@@ -21,14 +21,15 @@ class Attendance extends MY_Controller {
 	// ============== SHIFTS ==============
 
 	public function shifts(){
-		if(!$this->_can_view()){ show_404(); exit; }
+		if(!$this->_can_view()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$shifts = $this->attendance_model->getShifts($storeId);
 		$data = array_merge($this->data, [
 			'page_title' => 'Shifts',
 			'shifts' => $shifts
 		]);
-		$this->load->view('attendance/shifts', $data);
+		$data['content'] = $this->load->view('attendance/shifts', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function shift_form($id = 0){
@@ -39,7 +40,8 @@ class Attendance extends MY_Controller {
 			'page_title' => $id ? 'Edit Shift' : 'New Shift',
 			'shift' => $shift
 		]);
-		$this->load->view('attendance/shift_form', $data);
+		$data['content'] = $this->load->view('attendance/shift_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_shift(){
@@ -75,7 +77,7 @@ class Attendance extends MY_Controller {
 	// ============== USER ASSIGNMENTS ==============
 
 	public function assign_shifts(){
-		if(!$this->_can_edit()){ show_404(); exit; }
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$users = $this->db->where('store_id', $storeId)->where('status', 1)->get('db_users')->result();
 		$shifts = $this->attendance_model->getShifts($storeId);
@@ -87,7 +89,8 @@ class Attendance extends MY_Controller {
 			'users' => $users,
 			'shifts' => $shifts
 		]);
-		$this->load->view('attendance/assign_shifts', $data);
+		$data['content'] = $this->load->view('attendance/assign_shifts', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function get_user_shifts_ajax(){
@@ -149,7 +152,7 @@ class Attendance extends MY_Controller {
 	// ============== DAILY ATTENDANCE ==============
 
 	public function daily(){
-		if(!$this->_can_view()){ show_404(); exit; }
+		if(!$this->_can_view()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$date = $this->input->get('date') ?: date('Y-m-d');
 		$report = $this->attendance_model->getDailyReport($storeId, $date);
@@ -158,13 +161,14 @@ class Attendance extends MY_Controller {
 			'report' => $report,
 			'date' => $date
 		]);
-		$this->load->view('attendance/daily', $data);
+		$data['content'] = $this->load->view('attendance/daily', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	// ============== REPORTS ==============
 
 	public function report(){
-		if(!$this->_can_view()){ show_404(); exit; }
+		if(!$this->_can_view()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$start = $this->input->get('start') ?: date('Y-m-d', strtotime('-7 days'));
 		$end = $this->input->get('end') ?: date('Y-m-d');
@@ -191,28 +195,26 @@ class Attendance extends MY_Controller {
 			'end' => $end,
 			'user_id' => $userId
 		]);
-		$this->load->view('attendance/report', $data);
+		$data['content'] = $this->load->view('attendance/report', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	// ============== CLOCK IN / OUT (POS / AJAX) ==============
 
 	public function clock_in(){
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
 		$userId = (int)$this->session->userdata('inv_userid');
 		if(!$userId){
 			echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
-			return;
+			exit;
 		}
 		$storeId = get_current_store_id();
-		$shift = $this->attendance_model->isOnDuty($userId, $storeId);
-		if(!$shift){
-			echo json_encode(['status' => 'error', 'message' => 'You are not scheduled for any shift right now']);
-			return;
-		}
 
 		$date = date('Y-m-d');
 		if($this->attendance_model->needsClockOut($userId, $date)){
 			echo json_encode(['status' => 'error', 'message' => 'Already clocked in']);
-			return;
+			exit;
 		}
 
 		$faceImage = $this->input->post('face_image');
@@ -229,10 +231,12 @@ class Attendance extends MY_Controller {
 			file_put_contents('./' . $facePath, $imgData);
 		}
 
+		$shift = $this->attendance_model->isOnDuty($userId, $storeId);
+
 		$result = $this->attendance_model->clockIn([
 			'store_id' => $storeId,
 			'user_id' => $userId,
-			'shift_id' => $shift->id,
+			'shift_id' => $shift ? $shift->id : null,
 			'attendance_date' => $date,
 			'clock_in' => date('H:i:s'),
 			'clock_in_lat' => $lat,
@@ -240,14 +244,20 @@ class Attendance extends MY_Controller {
 			'face_image' => $facePath,
 			'status' => 'present'
 		]);
+		if(!empty($result['status']) && $result['status'] === 'success'){
+			$result['clock_in'] = date('H:i');
+		}
 		echo json_encode($result);
+		exit;
 	}
 
 	public function clock_out(){
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
 		$userId = (int)$this->session->userdata('inv_userid');
 		if(!$userId){
 			echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
-			return;
+			exit;
 		}
 		$date = date('Y-m-d');
 		$lat = $this->input->post('lat') ?: null;
@@ -270,7 +280,11 @@ class Attendance extends MY_Controller {
 			'clock_out_lng' => $lng,
 			'face_image_out' => $facePath
 		]);
+		if(!empty($result['status']) && $result['status'] === 'success'){
+			$result['clock_out'] = date('H:i');
+		}
 		echo json_encode($result);
+		exit;
 	}
 
 	public function clockin(){
@@ -283,8 +297,10 @@ class Attendance extends MY_Controller {
 	}
 
 	public function status_ajax(){
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
 		$userId = (int)$this->session->userdata('inv_userid');
-		if(!$userId){ echo json_encode(['clocked_in'=>false]); return; }
+		if(!$userId){ echo json_encode(['clocked_in'=>false]); exit; }
 		$storeId = get_current_store_id();
 		$date = date('Y-m-d');
 		$record = $this->attendance_model->getAttendanceRecord($userId, $date);
@@ -297,5 +313,6 @@ class Attendance extends MY_Controller {
 			'on_duty' => $shift ? true : false,
 			'shift_name' => $shift ? $shift->shift_name : null
 		]);
+		exit;
 	}
 }

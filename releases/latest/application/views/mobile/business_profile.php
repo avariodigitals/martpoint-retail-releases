@@ -141,14 +141,27 @@
               <div class="mp-select" data-select="storefront_theme_key">
                 <select name="storefront_theme_key" id="storefront_theme_key" class="hidden-select">
                   <option value="">Select Theme</option>
-                  <?php foreach($storefront_themes as $k => $label): ?>
-                    <option value="<?= $k; ?>" <?= ($selectedTheme == $k) ? 'selected' : ''; ?>><?= $label; ?></option>
+                  <?php foreach($storefront_themes as $k => $theme):
+                    $tk = isset($theme->theme_key) ? $theme->theme_key : $k; ?>
+                    <option value="<?= htmlspecialchars($tk); ?>" <?= ($selectedTheme == $tk) ? 'selected' : ''; ?>><?= htmlspecialchars($theme->theme_name); ?></option>
                   <?php endforeach; ?>
                 </select>
-                <div class="trigger"><span class="selected-text"><?= !empty($selectedTheme) && isset($storefront_themes[$selectedTheme]) ? $storefront_themes[$selectedTheme] : 'Select Theme'; ?></span><i class="fa fa-chevron-down"></i></div>
+                <div class="trigger"><span class="selected-text"><?php
+                  $selected_theme_name = 'Select Theme';
+                  if (!empty($selectedTheme)) {
+                    foreach ($storefront_themes as $t) {
+                      if ((isset($t->theme_key) ? $t->theme_key : null) === $selectedTheme) {
+                        $selected_theme_name = $t->theme_name;
+                        break;
+                      }
+                    }
+                  }
+                  echo htmlspecialchars($selected_theme_name);
+                ?></span><i class="fa fa-chevron-down"></i></div>
                 <div class="options">
-                  <?php foreach($storefront_themes as $k => $label): ?>
-                    <div class="option <?= ($selectedTheme == $k) ? 'selected' : ''; ?>" data-value="<?= $k; ?>"><?= $label; ?></div>
+                  <?php foreach($storefront_themes as $k => $theme):
+                    $tk = isset($theme->theme_key) ? $theme->theme_key : $k; ?>
+                    <div class="option <?= ($selectedTheme == $tk) ? 'selected' : ''; ?>" data-value="<?= htmlspecialchars($tk); ?>"><?= htmlspecialchars($theme->theme_name); ?></div>
                   <?php endforeach; ?>
                 </div>
               </div>

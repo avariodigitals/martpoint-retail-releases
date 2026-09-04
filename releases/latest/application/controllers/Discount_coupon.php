@@ -10,7 +10,10 @@ class Discount_coupon extends MY_Controller {
 
 	public function add() {
 		$this->permission_check('discountCouponAdd');
-		redirect('mobile/discount_coupon/add');
+		$data = $this->data;
+		$data['page_title'] = $this->lang->line('createCoupon') ?: 'Create Coupon';
+		$data['content'] = $this->load->view('marketing/desktop/coupons/discount_coupon_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	public function save() {
@@ -36,7 +39,8 @@ class Discount_coupon extends MY_Controller {
 		$result = $this->discount_coupon_model->get_details($id, $data);
 		$data = array_merge($data, $result);
 		$data['page_title'] = $this->lang->line('discountCoupon');
-		$this->load->view('coupons/create', $data);
+		$data['content'] = $this->load->view('marketing/desktop/coupons/discount_coupon_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_discount_coupon() {
 		$this->form_validation->set_rules('discount_coupon', 'discount_coupon', 'trim|required');
@@ -52,7 +56,10 @@ class Discount_coupon extends MY_Controller {
 	}
 	public function view() {
 		$this->permission_check('discountCouponView');
-		redirect('mobile/discount_coupon/view');
+		$data = $this->data;
+		$data['page_title'] = $this->lang->line('couponsMaster') ?: 'Coupons Master';
+		$data['content'] = $this->load->view('marketing/desktop/coupons/discount_coupons_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list() {
@@ -76,30 +83,14 @@ class Discount_coupon extends MY_Controller {
 				$str = "<span onclick='update_status(" . $discount_coupon->id . ",1)' id='span_" . $discount_coupon->id . "'  class='label label-danger' style='cursor:pointer'> Inactive </span>";
 			}
 			$row[] = $str;
-			$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
-											Action <span class="caret"></span>
-										</a>
-										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
-
+			$str2 = '<div class="mp-actions">';
 			if ($this->permissions('discountCouponEdit')) {
-				$str2 .= '<li>
-												<a title="Edit Record ?" href="' . base_url() . 'discount_coupon/update/' . $discount_coupon->id . '">
-													<i class="fa fa-fw fa-edit text-blue"></i>Edit
-												</a>
-											</li>';
+				$str2 .= '<a class="mp-edit" title="Edit" href="' . base_url() . 'discount_coupon/update/' . $discount_coupon->id . '"><i class="fa fa-edit"></i></a>';
 			}
-
 			if ($this->permissions('discountCouponDelete')) {
-				$str2 .= '<li>
-												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_coupon(' . $discount_coupon->id . ')">
-													<i class="fa fa-fw fa-trash text-red"></i>Delete
-												</a>
-											</li>
-
-										</ul>
-									</div>';
+				$str2 .= '<button class="mp-delete" title="Delete" onclick="delete_coupon(' . $discount_coupon->id . ')"><i class="fa fa-trash"></i></button>';
 			}
+			$str2 .= '</div>';
 
 			$row[] = $str2;
 			$data[] = $row;
@@ -120,9 +111,7 @@ class Discount_coupon extends MY_Controller {
 		$id = $this->input->post('id');
 		$status = $this->input->post('status');
 
-		$this->load->model('discount_coupon_model');
-		$result = $this->discount_coupon_model->update_status($id, $status);
-		return $result;
+		$this->discount_coupon->update_status($id, $status);
 	}
 
 	public function delete_coupon() {
@@ -132,8 +121,8 @@ class Discount_coupon extends MY_Controller {
 	}
 	public function multi_delete() {
 		$this->permission_check_with_msg('discountCouponDelete');
-		$ids = implode(",", $_POST['checkbox']);
-		return $this->discount_coupon->delete_coupons($ids);
+		$ids = implode(",", array_map('intval', $_POST['checkbox'] ?? []));
+		$this->discount_coupon->delete_coupons($ids);
 	}
 
 }

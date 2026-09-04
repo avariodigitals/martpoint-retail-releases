@@ -220,7 +220,7 @@ if (!function_exists('mp_get_business_presets')) {
             'laundry' => [
                 'business_model'=>'service_based',
                 'features'=>['accounts','online_store','qr_ordering','service_workflow','laundry_workflow','loyalty','delivery_scheduling','staff_assignment','staff_commission','public_catalogue'],
-                'theme_key'=>'service_pro','dashboard_template'=>'laundry','workflow_template'=>'laundry_standard',
+                'theme_key'=>'laundry','dashboard_template'=>'laundry','workflow_template'=>'laundry_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Laundry Order','customer'=>'Customer','delivery'=>'Pickup/Delivery'],
             ],
             'bakery_cake_studio' => [
@@ -567,17 +567,12 @@ if (!function_exists('mp_get_dashboard_templates')) {
 }
 
 if (!function_exists('mp_get_storefront_themes')) {
-    function mp_get_storefront_themes() {
-        return [
-            'general_retail'  => 'General Retail',
-            'fresh_market'    => 'Fresh Market',
-            'healthcare_pro'  => 'Healthcare Pro',
-            'food_express'    => 'Food Express',
-            'tech_hub'        => 'Tech Hub',
-            'urban_fashion'   => 'Urban Fashion',
-            'beauty_luxe'     => 'Beauty Luxe',
-            'service_pro'     => 'Service Pro',
-        ];
+    function mp_get_storefront_themes($industry_type = null) {
+        $CI =& get_instance();
+        if (!isset($CI->storefront_model)) {
+            $CI->load->model('storefront_model');
+        }
+        return $CI->storefront_model->getThemesByIndustryForStore($industry_type, false);
     }
 }
 

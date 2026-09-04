@@ -754,7 +754,7 @@ class Purchase_model extends CI_Model {
 	}
 	public function search_item($q){
 		$json_array=array();
-        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%')) and store_id=$store_id";
+        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";
 
         $q1=$this->db->query($query1);
         if($q1->num_rows()>0){
@@ -896,54 +896,49 @@ class Purchase_model extends CI_Model {
 		$item_amount = $item_unit_cost * $item_purchase_qty;
 	
 		?>
-            <!-- PURCHASE ITEM CARD -->
-            <div class="purchase-item-card" id="row_<?=$rowcount;?>" data-row="<?=$rowcount;?>">
-               <div class="card-main">
-                  <div class="item-image-wrap"><i class="fa fa-cube item-icon"></i></div>
-                  <div class="item-info">
-                     <div class="item-name">
-                        <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
-                        <i onclick="show_purchase_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
-                     </div>
-                     <div class="item-meta"><?=$item_tax_name;?></div>
+            <!-- PURCHASE ITEM CARD (compact) -->
+            <div class="mp-purchase-item" id="row_<?=$rowcount;?>" data-row="<?=$rowcount;?>">
+               <div class="mp-pi-head">
+                  <div class="mp-pi-icon"><i class="fa fa-cube"></i></div>
+                  <div class="mp-pi-name">
+                     <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
+                     <div class="mp-pi-meta"><?=$item_tax_name;?></div>
                   </div>
-                  <div class="item-total">
+                  <div class="mp-pi-total">
                      <small>Total</small>
                      <span id="td_data_<?=$rowcount;?>_9_display"><?=store_number_format($item_amount,true);?></span>
                   </div>
-                  <div class="item-actions">
-                     <a class="btn-delete fa fa-minus-square" onclick="removerow(<?=$rowcount;?>)" title="Delete" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
-                  </div>
+                  <a class="mp-pi-del fa fa-trash" onclick="removerow(<?=$rowcount;?>)" title="Delete" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
                </div>
-               <div class="card-body">
+               <div class="mp-pi-body">
                   <!-- Qty -->
-                  <div class="field-group">
+                  <div class="mp-pi-field">
                      <label>Qty</label>
-                     <div class="qty-control">
+                     <div class="mp-qty">
                         <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="btn-qty"><i class="fa fa-minus text-danger"></i></button>
                         <input type="text" value="<?=format_qty($item_purchase_qty);?>" class="qty-input" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
                         <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="btn-qty"><i class="fa fa-plus text-success"></i></button>
                      </div>
                   </div>
                   <!-- Purchase Price -->
-                  <div class="field-group">
+                  <div class="mp-pi-field">
                      <label>Cost Price</label>
                      <input type="text" name="td_data_<?=$rowcount;?>_4" id="td_data_<?=$rowcount;?>_4" class="form-control only_currency" onkeyup="calculate_tax(<?=$rowcount;?>)" value="<?=store_number_format($item_purchase_price,0);?>">
                   </div>
                   <!-- Discount -->
-                  <div class="field-group">
+                  <div class="mp-pi-field">
                      <label>Discount</label>
                      <input type="text" data-toggle="tooltip" title="Click to Change" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="form-control only_currency item_discount" value="<?=store_number_format($item_discount,0);?>" onclick="show_purchase_item_modal(<?=$rowcount;?>)" readonly>
                   </div>
                   <!-- Tax Amount -->
-                  <div class="field-group">
+                  <div class="mp-pi-field">
                      <label>Tax</label>
                      <input type="text" name="td_data_<?=$rowcount;?>_5" id="td_data_<?=$rowcount;?>_5" class="form-control only_currency" readonly value="<?=store_number_format($item_tax_amt,0);?>">
                   </div>
                   <!-- Total -->
-                  <div class="field-group">
+                  <div class="mp-pi-field">
                      <label>Total</label>
-                     <input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control only_currency" style="border-color:#f39c12;" title="Total" readonly value="<?=store_number_format($item_amount,0);?>">
+                     <input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control only_currency" title="Total" readonly value="<?=store_number_format($item_amount,0);?>">
                   </div>
                </div>
                <!-- Hidden inputs -->
@@ -961,38 +956,38 @@ class Purchase_model extends CI_Model {
                <span style="display:none;" id="td_data_<?=$rowcount;?>_15"><?=$item_tax_name;?></span>
 
                <?php if(mp_feature_enabled('batch_tracking') || $batch_lot || $barcode || $expire_date || $mfg_date || $received_qty || $serial_number || $imei_number){ ?>
-               <button type="button" class="btn-expand"><i class="fa fa-chevron-down"></i> Additional Details</button>
+               <button type="button" class="mp-pi-expand"><i class="fa fa-chevron-down"></i> Additional Details</button>
 
                <!-- BATCH / RECEIPT ROW -->
-               <div class="card-advanced" id="row_<?=$rowcount;?>_batch">
-                  <div class="card-advanced-grid">
-                     <div class="field-group">
+               <div class="mp-pi-advanced" id="row_<?=$rowcount;?>_batch">
+                  <div class="mp-pi-advanced-grid">
+                     <div class="mp-pi-field">
                         <label>Batch/Lot</label>
                         <input type="text" name="batch_lot_<?=$rowcount;?>" id="batch_lot_<?=$rowcount;?>" class="form-control" value="<?=$batch_lot;?>" placeholder="Batch/Lot">
                      </div>
-                     <div class="field-group">
+                     <div class="mp-pi-field">
                         <label>Barcode</label>
                         <input type="text" name="barcode_<?=$rowcount;?>" id="barcode_<?=$rowcount;?>" class="form-control" value="<?=$barcode;?>" placeholder="Barcode">
                      </div>
                      <?php if($track_serial || $track_imei || $serial_number || $imei_number){ ?>
-                     <div class="field-group">
+                     <div class="mp-pi-field">
                         <label>Serial Number</label>
                         <input type="text" name="serial_number_<?=$rowcount;?>" id="serial_number_<?=$rowcount;?>" class="form-control" value="<?=htmlspecialchars($serial_number);?>" placeholder="Serial">
                      </div>
-                     <div class="field-group">
+                     <div class="mp-pi-field">
                         <label>IMEI</label>
                         <input type="text" name="imei_number_<?=$rowcount;?>" id="imei_number_<?=$rowcount;?>" class="form-control" value="<?=htmlspecialchars($imei_number);?>" placeholder="IMEI">
                      </div>
                      <?php } ?>
-                     <div class="field-group">
+                     <div class="mp-pi-field">
                         <label>Rcv Qty</label>
                         <input type="text" name="received_qty_<?=$rowcount;?>" id="received_qty_<?=$rowcount;?>" class="form-control" value="<?=($received_qty!=='' && $received_qty!==null) ? format_qty($received_qty) : '';?>" placeholder="Received">
                      </div>
-                     <div class="field-group">
+                     <div class="mp-pi-field">
                         <label>Expiry</label>
                         <input type="text" name="expire_date_<?=$rowcount;?>" id="expire_date_<?=$rowcount;?>" class="form-control datepicker" value="<?=is_valid_date($expire_date) ? show_date($expire_date) : ''?>" placeholder="Expiry" readonly>
                      </div>
-                     <div class="field-group">
+                     <div class="mp-pi-field">
                         <label>MFG Date</label>
                         <input type="text" name="mfg_date_<?=$rowcount;?>" id="mfg_date_<?=$rowcount;?>" class="form-control datepicker" value="<?=is_valid_date($mfg_date) ? show_date($mfg_date) : ''?>" placeholder="MFG Date" readonly>
                      </div>
@@ -1000,7 +995,7 @@ class Purchase_model extends CI_Model {
                </div>
                <?php } ?>
             </div>
-		<?php
+	<?php
 
 	}
 

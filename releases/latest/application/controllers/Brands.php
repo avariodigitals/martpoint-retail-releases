@@ -12,7 +12,9 @@ class Brands extends MY_Controller {
 		$this->permission_check('brand_add');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('brand');
-		$this->load->view('brand', $data);
+		$data['extra_js_files'] = ['js/brand.js'];
+		$data['content'] = $this->load->view('brand', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newbrand() {
 		$this->form_validation->set_rules('brand', 'Brand', 'trim|required');
@@ -34,7 +36,9 @@ class Brands extends MY_Controller {
 		$result = $this->brand_model->get_details($id, $data);
 		$data = array_merge($data, $result);
 		$data['page_title'] = $this->lang->line('brand');
-		$this->load->view('brand', $data);
+		$data['extra_js_files'] = ['js/brand.js'];
+		$data['content'] = $this->load->view('brand', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_brand() {
 		$this->form_validation->set_rules('brand', 'Brand', 'trim|required');
@@ -52,7 +56,9 @@ class Brands extends MY_Controller {
 		$this->permission_check('brand_view');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('brands_list');
-		$this->load->view('brand-view', $data);
+		$data['extra_js_files'] = ['js/brand.js'];
+		$data['content'] = $this->load->view('brand-view', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list() {

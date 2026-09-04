@@ -169,6 +169,11 @@ class Sms_model extends CI_Model {
 			$this->load->model('brevo_model');
 			return $this->brevo_model->index($mobile,$message);
 		}
+		if($sms_status==5){
+			//Sendchamp SMS API
+			$this->load->model('sendchamp_model');
+			return $this->sendchamp_model->index($mobile, $message, $store_id);
+		}
 		
 
 	}

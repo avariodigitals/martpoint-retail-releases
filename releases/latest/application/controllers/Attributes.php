@@ -13,14 +13,16 @@ class Attributes extends MY_Controller {
 		$this->permission_check('attributes_view');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('attributes_list');
-		$this->load->view('attributes/attributes-list', $data);
+		$data['content'] = $this->load->view('attributes/attributes-list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function add(){
 		$this->permission_check('attributes_add');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('attributes_add');
-		$this->load->view('attributes/attributes', $data);
+		$data['content'] = $this->load->view('attributes/attributes', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function edit($id){
@@ -34,7 +36,8 @@ class Attributes extends MY_Controller {
 		$data['attribute_value'] = $detail->attribute_value;
 		$data['sort_order'] = $detail->sort_order;
 		$data['page_title'] = $this->lang->line('attributes_edit');
-		$this->load->view('attributes/attributes', $data);
+		$data['content'] = $this->load->view('attributes/attributes', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save(){

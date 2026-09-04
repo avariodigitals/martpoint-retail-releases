@@ -221,3 +221,6 @@ ERROR - 2026-08-31 16:34:57 --> sales_note not saved: sales_note=, customer_id=2
 ERROR - 2026-08-31 16:34:58 --> Could not find the language line "cashier"
 ERROR - 2026-08-31 15:34:58 --> 404 Page Not Found: Uploads/store
 ERROR - 2026-08-31 21:40:37 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-08-31 22:58:10 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-08-31 23:51:16 --> Severity: Core Warning --> Module 'herd' already loaded Unknown 0
+ERROR - 2026-08-31 23:53:15 --> 404 Page Not Found: Faviconico/index

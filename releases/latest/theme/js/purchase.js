@@ -8,7 +8,8 @@ function shift_cursor(kevent,target){
 
 }
 
-$("#item_search").bind("paste", function(e){
+$(document).ready(function(){
+  $("#item_search").bind("paste", function(e){
     $("#item_search").autocomplete('search');
 } );
 
@@ -97,10 +98,11 @@ $("#item_search").autocomplete({
         },   
         //loader end
 });
+});
 
 function check_same_item(item_id){
 
-  if($("#purchase_items_container .purchase-item-card").length>=1){
+  if($("#purchase_items_container .mp-purchase-item").length>=1){
     var rowcount=$("#hidden_rowcount").val();
     for(i=0;i<=rowcount;i++){
             if($("#tr_item_id_"+i).val()==item_id){
@@ -128,7 +130,7 @@ function return_row_with_data(item_id){
         $("#purchase_items_empty").hide();
         $('#purchase_items_container').append(result);
         // Initialize datepickers on new batch date fields
-        $('#purchase_items_container .purchase-item-card:last .datepicker').datepicker({
+        $('#purchase_items_container .mp-purchase-item:last .datepicker').datepicker({
             autoclose: true,
             format: 'dd-mm-yyyy',
             todayHighlight: true
@@ -450,27 +452,29 @@ function delete_purchase_payment(payment_id){
    });
 }
 
+$(document).ready(function(){
   $('#item_search').keypress(function (e) {
- var key = e.which;
- // the enter key code
- if(key == 13){
-    $("#item_search").autocomplete('search');
-  }
+    var key = e.which;
+    // the enter key code
+    if(key == 13){
+      $("#item_search").autocomplete('search');
+    }
+  });
 });
 
 function toggle_batch_fields(){
     var status = $("#purchase_status").val();
     if(status == 'Partially Received' || status == 'Received'){
-        $(".card-advanced").addClass('expanded');
-        $(".btn-expand").addClass('expanded').html('<i class="fa fa-chevron-down"></i> Hide Details');
+        $(".mp-pi-advanced").addClass('expanded');
+        $(".mp-pi-expand").addClass('expanded').html('<i class="fa fa-chevron-down"></i> Hide Details');
     } else {
-        $(".card-advanced").removeClass('expanded');
-        $(".btn-expand").removeClass('expanded').html('<i class="fa fa-chevron-down"></i> Additional Details');
+        $(".mp-pi-advanced").removeClass('expanded');
+        $(".mp-pi-expand").removeClass('expanded').html('<i class="fa fa-chevron-down"></i> Additional Details');
     }
     if(status == 'Partially Received'){
-        $("[id^='received_qty_']").closest('.field-group').show();
+        $("[id^='received_qty_']").closest('.mp-pi-field').show();
     } else {
-        $("[id^='received_qty_']").closest('.field-group').hide();
+        $("[id^='received_qty_']").closest('.mp-pi-field').hide();
     }
 }
 

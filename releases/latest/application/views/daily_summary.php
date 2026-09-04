@@ -1,16 +1,15 @@
+<?php $this->load->view('admin/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
-<!DOCTYPE html>
-<html>
-<head>
-<!-- FORM CSS CODE -->
-<?php include"comman/code_css.php"; ?>
 <style>
-  .ds-wrapper { padding: 20px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  .ds-wrapper { width:100%; box-sizing:border-box; }
+  .ds-wrapper .mp-page-head { width:100%!important; display:flex!important; justify-content:space-between!important; align-items:flex-start!important; }
+  .ds-wrapper .mp-page-head > div:first-child { flex:0 1 auto!important; }
+  .ds-wrapper .mp-page-head .ds-date-form { flex:0 0 auto!important; }
   .ds-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
   .ds-header h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1E293B; letter-spacing: -0.3px; }
   .ds-header .meta { color: #64748B; font-size: 14px; }
   .ds-date-form { display: flex; gap: 8px; align-items: center; }
-  .ds-date-pickers { display: flex; gap: 8px; align-items: flex-end; }
+  .ds-date-pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
   .ds-date-picker { display: flex; flex-direction: column; gap: 4px; }
   .ds-date-picker span { font-size: 12px; color: #64748B; white-space: nowrap; }
   .ds-date-form input[type="date"] { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; height: 38px; font-size: 14px; }
@@ -56,7 +55,6 @@
   .ds-payment-totals .label { white-space: normal; line-height: 1.4; }
 
   @media (max-width: 767px) {
-    .ds-wrapper { padding: 14px; }
     .ds-header { flex-direction: column; }
     .ds-header h1 { font-size: 20px; }
     .ds-actions .btn { width: 100%; justify-content: center; }
@@ -79,32 +77,20 @@
   @media print {
     .main-header, .main-sidebar, .ds-actions, .ds-date-form, .btn { display: none !important; }
     .content-wrapper { margin-left: 0 !important; }
-    .ds-wrapper { padding: 0; }
     .ds-section, .ds-kpi-card { box-shadow: none; border: 1px solid #ddd; }
   }
 </style>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
 
-<div class="wrapper">
-  <?php include"sidebar.php"; ?>
-
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?=$page_title;?></h1>
-    </section>
-
-    <div class="row">
-    <div class="col-md-12">
     <div class="ds-wrapper">
 
-      <!-- Actions & Date -->
-      <div class="ds-header">
+      <!-- Page Header -->
+      <div class="mp-page-head">
         <div>
-          <div class="meta"><?=htmlspecialchars($store_name);?> &mdash; <?=($selected_date !== $selected_date_to) ? show_date($selected_date).' — '.show_date($selected_date_to) : show_date($selected_date);?></div>
+          <h2><?= $page_title; ?></h2>
+          <div class="mp-page-sub"><?=htmlspecialchars($store_name);?> &mdash; <?=($selected_date !== $selected_date_to) ? show_date($selected_date).' — '.show_date($selected_date_to) : show_date($selected_date);?></div>
         </div>
         <div class="ds-date-form">
-          <form method="get" action="<?=base_url('dashboard/daily_summary');?>" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <form method="get" action="<?=base_url('dashboard/daily_summary');?>" style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
             <div class="ds-date-pickers">
               <div class="ds-date-picker">
                 <span>From</span>
@@ -115,7 +101,7 @@
                 <input type="date" name="date_to" value="<?=$selected_date_to;?>" class="form-control" style="width:140px;">
               </div>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="fa fa-filter"></i> View</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:18px;"><i class="fa fa-filter"></i> View</button>
           </form>
         </div>
       </div>
@@ -136,38 +122,42 @@
       <?php else: ?>
 
       <!-- KPI Cards -->
-      <div class="ds-kpi-grid">
-        <div class="ds-kpi-card">
-          <div class="label">Total Sales</div>
-          <div class="value orange"><?=kmb($summary['sales']['total']);?></div>
-          <div class="sub"><?=$summary['sales']['transactions'];?> transactions</div>
+      <div class="mp-kpi-grid">
+        <div class="mp-kpi-card sales">
+          <div class="mp-kpi-icon"><i class="fa fa-money"></i></div>
+          <div class="mp-kpi-label">Total Sales</div>
+          <div class="mp-kpi-value"><?=$CI->currency($summary['sales']['total']);?></div>
+          <div class="mp-kpi-sub neutral"><?=$summary['sales']['transactions'];?> transactions</div>
         </div>
-        <div class="ds-kpi-card">
-          <div class="label">Profit</div>
-          <div class="value <?=$summary['profit']['available'] && $summary['profit']['gross_profit'] >= 0 ? 'positive' : 'negative';?>">
-            <?=$summary['profit']['available'] ? kmb($summary['profit']['gross_profit']) : 'Not Available';?>
-          </div>
-          <div class="sub"><?=$summary['profit']['available'] ? $summary['profit']['margin'].'% margin' : '';?></div>
+        <div class="mp-kpi-card profit">
+          <div class="mp-kpi-icon"><i class="fa fa-line-chart"></i></div>
+          <div class="mp-kpi-label">Profit</div>
+          <div class="mp-kpi-value"><?=$summary['profit']['available'] ? $CI->currency($summary['profit']['gross_profit']) : 'Not Available';?></div>
+          <div class="mp-kpi-sub <?=$summary['profit']['gross_profit'] >= 0 ? 'up' : 'down' ;?>"><?=$summary['profit']['available'] ? $summary['profit']['margin'].'% margin' : 'Cost data not available';?></div>
         </div>
-        <div class="ds-kpi-card">
-          <div class="label">Expenses</div>
-          <div class="value negative"><?=kmb($summary['expenses']['total']);?></div>
-          <div class="sub"><?=$summary['is_range'] ? 'Recorded in period' : 'Recorded today';?></div>
+        <div class="mp-kpi-card expense">
+          <div class="mp-kpi-icon"><i class="fa fa-minus-square"></i></div>
+          <div class="mp-kpi-label">Expenses</div>
+          <div class="mp-kpi-value"><?=$CI->currency($summary['expenses']['total']);?></div>
+          <div class="mp-kpi-sub neutral"><?=$summary['is_range'] ? 'Recorded in period' : 'Recorded today';?></div>
         </div>
-        <div class="ds-kpi-card">
-          <div class="label">Net Position</div>
-          <div class="value <?=$summary['net_position'] >= 0 ? 'positive' : 'negative';?>"><?=kmb($summary['net_position']);?></div>
-          <div class="sub">Sales &minus; Expenses</div>
+        <div class="mp-kpi-card summary">
+          <div class="mp-kpi-icon"><i class="fa fa-balance-scale"></i></div>
+          <div class="mp-kpi-label">Net Position</div>
+          <div class="mp-kpi-value"><?=$CI->currency($summary['net_position']);?></div>
+          <div class="mp-kpi-sub <?=$summary['net_position'] >= 0 ? 'up' : 'down' ;?>">Sales &minus; Expenses</div>
         </div>
-        <div class="ds-kpi-card">
-          <div class="label">Outstanding Debts</div>
-          <div class="value negative"><?=kmb($summary['outstanding_debts']['total']);?></div>
-          <div class="sub"><?=$summary['outstanding_debts']['count'];?> customers owing</div>
+        <div class="mp-kpi-card debt">
+          <div class="mp-kpi-icon"><i class="fa fa-users"></i></div>
+          <div class="mp-kpi-label">Outstanding Debts</div>
+          <div class="mp-kpi-value"><?=$CI->currency($summary['outstanding_debts']['total']);?></div>
+          <div class="mp-kpi-sub down"><?=$summary['outstanding_debts']['customers'];?> customers owing</div>
         </div>
-        <div class="ds-kpi-card">
-          <div class="label">Cash Expected</div>
-          <div class="value orange"><?=kmb($summary['sales']['cash_expected']);?></div>
-          <div class="sub">Total collected today</div>
+        <div class="mp-kpi-card cash">
+          <div class="mp-kpi-icon"><i class="fa fa-credit-card"></i></div>
+          <div class="mp-kpi-label">Cash Expected</div>
+          <div class="mp-kpi-value"><?=$CI->currency($summary['sales']['cash_expected']);?></div>
+          <div class="mp-kpi-sub neutral"><?=$summary['is_range'] ? 'Cash collected in period' : 'Cash collected today';?></div>
         </div>
       </div>
 
@@ -320,7 +310,7 @@
       <?php if($summary['purchase_due'] > 0): ?>
       <div class="ds-section">
         <h3><i class="fa fa-truck text-muted"></i> Purchase Due</h3>
-        <p style="margin:0;font-size:16px;color:#1E293B;"><strong><?=$CI->currency(kmb($summary['purchase_due']));?></strong> owed to suppliers.</p>
+        <p style="margin:0;font-size:16px;color:#1E293B;"><strong><?=$CI->currency($summary['purchase_due']);?></strong> owed to suppliers.</p>
       </div>
       <?php endif; ?>
 
@@ -331,15 +321,6 @@
       </div>
 
     </div><!-- /.ds-wrapper -->
-    </div><!-- /.col-md-12 -->
-    </div><!-- /.row -->
-  </div><!-- /.content-wrapper -->
-
-  <?php $this->load->view('footer'); ?>
-  <div class="control-sidebar-bg"></div>
-</div><!-- ./wrapper -->
-
-<?php include"comman/code_js.php"; ?>
 
 <script>
   var summaryData = <?=json_encode($summary);?>;
@@ -520,5 +501,3 @@
   });
 </script>
 
-</body>
-</html>

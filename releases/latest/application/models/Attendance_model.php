@@ -227,6 +227,11 @@ class Attendance_model extends CI_Model {
 		return $this->db
 			->where('user_id', $userId)
 			->where('attendance_date', $date)
+			->group_start()
+				->where('clock_out IS NULL')
+				->or_where('clock_out', '')
+			->group_end()
+			->order_by('id', 'DESC')
 			->get('db_attendance')
 			->row();
 	}

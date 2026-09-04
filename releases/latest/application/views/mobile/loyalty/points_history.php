@@ -65,8 +65,8 @@
             <div class="txn-card" data-customer="<?= htmlspecialchars(strtolower($h->customer_name ?? '')); ?>" data-desc="<?= htmlspecialchars(strtolower($h->description ?? '')); ?>">
               <div class="txn-header">
                 <div class="customer"><?= htmlspecialchars($h->customer_name ?? 'Unknown'); ?></div>
-                <div class="points <?= in_array($h->transaction_type, ['earn','bonus','birthday','referral','tier_upgrade']) ? 'earn' : 'redeem'; ?>">
-                  <?= in_array($h->transaction_type, ['redeem','adjust']) ? '-' : '+'; ?><?= number_format($h->points ?? 0, 2); ?>
+                <div class="points <?= in_array($h->transaction_type, ['earn','bonus','birthday','referral','tier_upgrade','adjust']) ? 'earn' : 'redeem'; ?>">
+                  <?= in_array($h->transaction_type, ['redeem','adjust_sub']) ? '-' : '+'; ?><?= number_format($h->points ?? 0, 2); ?>
                 </div>
               </div>
               <div class="txn-meta">Balance: <?= number_format($h->points_balance ?? 0, 2); ?></div>

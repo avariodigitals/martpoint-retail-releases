@@ -12,13 +12,39 @@
 		public function index(){
 			$this->permission_check('warehouse_view');
 			$data=$this->data;//My_Controller constructor data accessed here
-			$data['page_title']='Branch List';
-			$this->load->view('warehouse/warehouse-list',$data);
+			$branch_label = mp_label('warehouse','Branch');
+			$branch_label_plural = mp_label('branch','Branches');
+			$data['page_title']=$branch_label_plural.' List';
+			$data['rows'] = $this->db->where('store_id', get_current_store_id())->order_by('id','desc')->get('db_warehouse')->result();
+			$data['crud'] = [
+				'page_title' => $branch_label_plural.' List',
+				'page_sub' => 'Manage '.$branch_label_plural.' and stock locations',
+				'add_url' => base_url('warehouse/add'),
+				'add_label' => 'New '.$branch_label,
+				'add_permission' => 'warehouse_add',
+				'columns' => [
+					['title' => $branch_label.' Name', 'field' => 'warehouse_name', 'type' => 'text'],
+					['title' => 'Mobile', 'field' => 'mobile', 'type' => 'text'],
+					['title' => 'Email', 'field' => 'email', 'type' => 'text'],
+					['title' => 'Status', 'field' => 'status', 'type' => 'status'],
+					['title' => 'Action', 'type' => 'actions'],
+				],
+				'module' => 'warehouse',
+				'status_url' => 'warehouse/status_update',
+				'delete_url' => 'warehouse/delete_warehouse',
+				'delete_param' => 'id',
+				'edit_url' => base_url('warehouse/edit/{id}'),
+				'delete_permission' => 'warehouse_delete',
+				'edit_permission' => 'warehouse_edit',
+				'bulk_delete' => false,
+			];
+			$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		public function save_or_update(){
 			
 			$data=$this->data;//My_Controller constructor data accessed here
-			$this->form_validation->set_rules('warehouse_name', 'Branch Name', 'required|trim');
+			$this->form_validation->set_rules('warehouse_name', mp_label('warehouse','Branch').' Name', 'required|trim');
 			
 			if ($this->form_validation->run() == TRUE) {
 				if($this->input->post('command')=='save'){
@@ -44,10 +70,27 @@
 		}
 		public function add(){
 			$this->permission_check('warehouse_add');
-			$data=$this->data;//My_Controller constructor data accessed here
-			$data['page_title']='Create/Update Branch';
-			$data['page_title']='Branch';
-			$this->load->view('warehouse/warehouse',$data);
+			$data=$this->data;
+			$branch_label = mp_label('warehouse','Branch');
+			$data['page_title']=$branch_label;
+			$data['command']='save';
+			$data['crud'] = [
+				'page_title' => $branch_label,
+				'page_sub' => 'Create a new '.$branch_label,
+				'form_id' => 'warehouse-form',
+				'save_url' => 'warehouse/save_or_update',
+				'update_url' => 'warehouse/save_or_update',
+				'list_url' => base_url('warehouse'),
+				'module' => 'warehouse',
+				'fields' => [
+					['name' => 'warehouse_name', 'label' => $branch_label.' Name', 'type' => 'text', 'required' => true],
+					['name' => 'mobile', 'label' => 'Mobile', 'type' => 'text'],
+					['name' => 'email', 'label' => 'Email', 'type' => 'email'],
+					['name' => 'command', 'type' => 'hidden'],
+				],
+			];
+			$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		public function status_update(){
 			$this->permission_check('warehouse_edit');
@@ -61,8 +104,26 @@
 			$this->belong_to('db_warehouse',$id);
 			$this->permission_check('warehouse_edit');
 			$data=$this->warehouse->get_details($id);
-			$data['page_title']='Branch';
-			$this->load->view('warehouse/warehouse', $data);
+			$branch_label = mp_label('warehouse','Branch');
+			$data['page_title']=$branch_label;
+			$data['command']='update';
+			$data['crud'] = [
+				'page_title' => $branch_label,
+				'page_sub' => 'Update '.$branch_label.' details',
+				'form_id' => 'warehouse-form',
+				'save_url' => 'warehouse/save_or_update',
+				'update_url' => 'warehouse/save_or_update',
+				'list_url' => base_url('warehouse'),
+				'module' => 'warehouse',
+				'fields' => [
+					['name' => 'warehouse_name', 'label' => $branch_label.' Name', 'type' => 'text', 'required' => true],
+					['name' => 'mobile', 'label' => 'Mobile', 'type' => 'text'],
+					['name' => 'email', 'label' => 'Email', 'type' => 'email'],
+					['name' => 'command', 'type' => 'hidden'],
+				],
+			];
+			$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		public function delete_warehouse(){
 			$this->permission_check('warehouse_delete');

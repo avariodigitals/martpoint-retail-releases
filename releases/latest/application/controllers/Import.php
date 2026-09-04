@@ -12,7 +12,8 @@ class Import extends MY_Controller {
 		$this->permission_check('import_customers');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('import_customers');
-		$this->load->view('import/import_customers', $data);
+		$data['content']=$this->load->view('customers/desktop/import_customers', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
     public function xss_html_filter($input){
@@ -194,7 +195,8 @@ class Import extends MY_Controller {
         $this->permission_check('import_suppliers');
         $data=$this->data;
         $data['page_title']=$this->lang->line('import_suppliers');
-        $this->load->view('import/import_suppliers', $data);
+        $data['content']=$this->load->view('customers/desktop/import_suppliers', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
     public function import_suppliers_csv() {
                 $filename = $_FILES["import_file"]["name"];
@@ -306,7 +308,8 @@ class Import extends MY_Controller {
         $this->permission_check('import_items');
         $data=$this->data;
         $data['page_title']=$this->lang->line('import_items');
-        $this->load->view('import/import_items', $data);
+        $data['content'] = $this->load->view('import/import_items', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
     public function import_items_csv() {
 
@@ -544,7 +547,8 @@ public function services(){
             $this->permission_check('import_services');
             $data=$this->data;
             $data['page_title']=$this->lang->line('import_services');
-            $this->load->view('import/import_services', $data);
+            $data['content'] = $this->load->view('import/import_services', $data, TRUE);
+            $this->load->view('mp_layout', $data);
         }
 
         public function import_services_csv() {

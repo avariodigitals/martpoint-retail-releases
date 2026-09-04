@@ -10,29 +10,30 @@ class Tills extends MY_Controller {
 	}
 
 	public function index(){
-		ini_set('display_errors', 1);
-		error_reporting(E_ALL);
+		if(is_mobile()){ redirect('mobile/finance/tills'); }
 		$this->permission_check('tills_view');
 		$data = $this->data;
 		$data['page_title'] = 'Tills / Cash-in-Hand';
 		$data['tills'] = $this->tills->get_all();
 		$data['users'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
 		$data['accounts'] = get_accounts_select_list();
-		// DEBUG: log to verify this method runs
-		log_message('debug', '[Tills DEBUG] index() called, tills count='.count($data['tills']).' store_id='.get_current_store_id().' user_id='.$this->session->userdata('inv_userid'));
-		$this->load->view('tills/list', $data);
+		$data['content'] = $this->load->view('finance/desktop/tills/list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function new_form(){
+		if(is_mobile()){ redirect('mobile/finance/tills/form'); }
 		$this->permission_check('tills_add');
 		$data = $this->data;
 		$data['page_title'] = 'Add Till';
 		$data['users'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
 		$data['accounts'] = get_accounts_select_list();
-		$this->load->view('tills/form', $data);
+		$data['content'] = $this->load->view('finance/desktop/tills/form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function edit_form($id){
+		if(is_mobile()){ redirect('mobile/finance/tills/form/'.$id); }
 		$this->permission_check('tills_edit');
 		$data = $this->data;
 		$data['page_title'] = 'Edit Till';
@@ -40,7 +41,8 @@ class Tills extends MY_Controller {
 		if(empty($data['till'])){ show_404(); }
 		$data['users'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
 		$data['accounts'] = get_accounts_select_list();
-		$this->load->view('tills/form', $data);
+		$data['content'] = $this->load->view('finance/desktop/tills/form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save(){

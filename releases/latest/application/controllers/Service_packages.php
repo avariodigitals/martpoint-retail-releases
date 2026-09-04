@@ -15,7 +15,8 @@ class Service_packages extends MY_Controller {
     public function index() {
         $data = $this->data;
         $data['page_title'] = 'Service Packages';
-        $this->load->view('service-packages-list', $data);
+        $data['content'] = $this->load->view('service-packages-list', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function add() {
@@ -25,7 +26,8 @@ class Service_packages extends MY_Controller {
         $data = $this->data;
         $data['page_title'] = 'New Service Package';
         $data['command'] = 'save';
-        $this->load->view('service-packages', $data);
+        $data['content'] = $this->load->view('service-packages', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function update($id) {
@@ -36,7 +38,8 @@ class Service_packages extends MY_Controller {
         $data = $this->service_package_model->get_details($id, $data);
         $data['page_title'] = 'Edit Service Package';
         $data['command'] = 'update';
-        $this->load->view('service-packages', $data);
+        $data['content'] = $this->load->view('service-packages', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function newpackage() {
@@ -62,7 +65,8 @@ class Service_packages extends MY_Controller {
         $data = $this->service_package_model->get_details($id, $data);
         $data['package_items'] = $this->service_package_model->get_package_items($id);
         $data['page_title'] = 'View Service Package';
-        $this->load->view('service-packages-view', $data);
+        $data['content'] = $this->load->view('service-packages-view', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     // AJAX: Datatable

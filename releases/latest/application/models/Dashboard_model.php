@@ -456,18 +456,62 @@ class Dashboard_model extends CI_Model
 	}
 
 	/**
-	 * Get outstanding customer debts
+	 * Get outstanding customer debts.
+	 *
+	 * Outstanding = opening_balance
+	 *              - opening-balance payments received
+	 *              + SUM(grand_total - paid_amount) over ALL final sales invoices
+	 *              - SUM(grand_total - paid_amount) over ALL sales returns
+	 *
+	 * The sales/return totals are computed directly from the invoice tables
+	 * (db_sales / db_salesreturn) so the figure always reflects every invoice,
+	 * even if the denormalized db_customers.sales_due / sales_return_due
+	 * columns are out of sync.
 	 */
 	public function get_outstanding_debts($warehouse_id = ''){
 		$store_id = get_current_store_id();
+		$wh_clause = '';
+		if(!empty($warehouse_id)){
+			$wh_id = (int)$warehouse_id;
+			$wh_clause = " AND warehouse_id = {$wh_id}";
+		}
 
-		$this->db->select("COALESCE(SUM(grand_total - paid_amount),0) as total_debt, COUNT(*) as debtor_count");
-		$this->db->from("db_sales");
-		$this->db->where("sales_status", "Final");
-		$this->db->where("(grand_total - paid_amount) >", 0);
-		$this->db->where("store_id", $store_id);
-		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
-		$result = $this->db->get()->row();
+		$sql = "
+			SELECT
+				COALESCE(SUM(
+					COALESCE(c.opening_balance, 0)
+					- COALESCE(ob_paid.payment, 0)
+					+ COALESCE(sales_due.inv_due, 0)
+					- COALESCE(sales_return_due.return_due, 0)
+				), 0) AS total_debt,
+				COUNT(*) AS debtor_count
+			FROM db_customers c
+			LEFT JOIN (
+				SELECT customer_id, COALESCE(SUM(payment), 0) AS payment
+				FROM db_salespayments
+				WHERE store_id = ? AND short_code = 'OPENING BALANCE PAID'
+				GROUP BY customer_id
+			) ob_paid ON ob_paid.customer_id = c.id
+			LEFT JOIN (
+				SELECT customer_id, COALESCE(SUM(grand_total - paid_amount), 0) AS inv_due
+				FROM db_sales
+				WHERE store_id = ? AND sales_status = 'Final'$wh_clause
+				GROUP BY customer_id
+			) sales_due ON sales_due.customer_id = c.id
+			LEFT JOIN (
+				SELECT customer_id, COALESCE(SUM(grand_total - paid_amount), 0) AS return_due
+				FROM db_salesreturn
+				WHERE store_id = ?$wh_clause
+				GROUP BY customer_id
+			) sales_return_due ON sales_return_due.customer_id = c.id
+			WHERE c.store_id = ?
+				AND (COALESCE(c.opening_balance, 0)
+				     - COALESCE(ob_paid.payment, 0)
+				     + COALESCE(sales_due.inv_due, 0)
+				     - COALESCE(sales_return_due.return_due, 0)) > 0
+		";
+		$params = [$store_id, $store_id, $store_id, $store_id];
+		$result = $this->db->query($sql, $params)->row();
 
 		return array('total'=>$result->total_debt, 'count'=>$result->debtor_count);
 	}
@@ -541,22 +585,54 @@ class Dashboard_model extends CI_Model
 	}
 
 	/**
-	 * Get top debtors
+	 * Get top debtors.
+	 * Computes the net amount owing per customer from ALL invoices (db_sales)
+	 * and sales returns (db_salesreturn) directly, plus opening balance less
+	 * opening-balance payments, so it matches the Outstanding Debts KPI.
 	 */
 	public function get_top_debtors($warehouse_id = ''){
 		$store_id = get_current_store_id();
+		$wh_clause = '';
+		if(!empty($warehouse_id)){
+			$wh_id = (int)$warehouse_id;
+			$wh_clause = " AND warehouse_id = {$wh_id}";
+		}
 
-		$this->db->select("b.customer_name, SUM(a.grand_total - a.paid_amount) as amount_owing");
-		$this->db->from("db_sales a");
-		$this->db->join("db_customers b", "a.customer_id = b.id", "left");
-		$this->db->where("a.sales_status", "Final");
-		$this->db->where("(a.grand_total - a.paid_amount) >", 0);
-		$this->db->where("a.store_id", $store_id);
-		if(!empty($warehouse_id)){ $this->db->where("a.warehouse_id", $warehouse_id); }
-		$this->db->group_by("a.customer_id");
-		$this->db->order_by("amount_owing", "desc");
-		$this->db->limit(5);
-		$query = $this->db->get();
+		$sql = "
+			SELECT c.customer_name,
+				(COALESCE(c.opening_balance, 0)
+				 - COALESCE(ob_paid.payment, 0)
+				 + COALESCE(sales_due.inv_due, 0)
+				 - COALESCE(sales_return_due.return_due, 0)) AS amount_owing
+			FROM db_customers c
+			LEFT JOIN (
+				SELECT customer_id, COALESCE(SUM(payment), 0) AS payment
+				FROM db_salespayments
+				WHERE store_id = ? AND short_code = 'OPENING BALANCE PAID'
+				GROUP BY customer_id
+			) ob_paid ON ob_paid.customer_id = c.id
+			LEFT JOIN (
+				SELECT customer_id, COALESCE(SUM(grand_total - paid_amount), 0) AS inv_due
+				FROM db_sales
+				WHERE store_id = ? AND sales_status = 'Final'$wh_clause
+				GROUP BY customer_id
+			) sales_due ON sales_due.customer_id = c.id
+			LEFT JOIN (
+				SELECT customer_id, COALESCE(SUM(grand_total - paid_amount), 0) AS return_due
+				FROM db_salesreturn
+				WHERE store_id = ?$wh_clause
+				GROUP BY customer_id
+			) sales_return_due ON sales_return_due.customer_id = c.id
+			WHERE c.store_id = ?
+				AND (COALESCE(c.opening_balance, 0)
+				     - COALESCE(ob_paid.payment, 0)
+				     + COALESCE(sales_due.inv_due, 0)
+				     - COALESCE(sales_return_due.return_due, 0)) > 0
+			ORDER BY amount_owing DESC
+			LIMIT 5
+		";
+		$params = [$store_id, $store_id, $store_id, $store_id];
+		$query = $this->db->query($sql, $params);
 
 		$debtors = array();
 		if($query->num_rows() > 0){
@@ -1422,5 +1498,70 @@ class Dashboard_model extends CI_Model
 		$this->db->where("store_id", $store_id);
 		$this->apply_range_where('expense_date', $range);
 		return $this->db->get()->row()->total;
+	}
+
+	/**
+	 * Get invoice count for a date range with comparison vs previous period.
+	 * Only counts Final sales (actual invoices), not quotes/holds.
+	 */
+	public function get_invoices_by_range($range, $warehouse_id = ''){
+		$store_id = get_current_store_id();
+		$info = $this->get_range_info($range);
+
+		$this->db->from("db_sales");
+		$this->db->where("sales_status", "Final");
+		$this->db->where("store_id", $store_id);
+		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
+		$this->apply_range_where('sales_date', $range);
+		$current = $this->db->count_all_results();
+
+		$this->db->from("db_sales");
+		$this->db->where("sales_status", "Final");
+		$this->db->where("store_id", $store_id);
+		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
+		if($info['prev_from'] === $info['prev_to']){
+			$this->db->where("sales_date", $info['prev_from']);
+		} else {
+			$this->db->where("sales_date >=", $info['prev_from']);
+			$this->db->where("sales_date <=", $info['prev_to']);
+		}
+		$previous = $this->db->count_all_results();
+
+		$change = 0;
+		if($previous > 0){
+			$change = round((($current - $previous) / $previous) * 100, 1);
+		}
+
+		return array('count'=>$current, 'previous'=>$previous, 'change'=>$change);
+	}
+
+	/**
+	 * Get new customers count for a date range with comparison vs previous period.
+	 */
+	public function get_new_customers_by_range($range, $warehouse_id = ''){
+		$store_id = get_current_store_id();
+		$info = $this->get_range_info($range);
+
+		$this->db->from("db_customers");
+		$this->db->where("store_id", $store_id);
+		$this->apply_range_where('created_date', $range);
+		$current = $this->db->count_all_results();
+
+		$this->db->from("db_customers");
+		$this->db->where("store_id", $store_id);
+		if($info['prev_from'] === $info['prev_to']){
+			$this->db->where("created_date", $info['prev_from']);
+		} else {
+			$this->db->where("created_date >=", $info['prev_from']);
+			$this->db->where("created_date <=", $info['prev_to']);
+		}
+		$previous = $this->db->count_all_results();
+
+		$change = 0;
+		if($previous > 0){
+			$change = round((($current - $previous) / $previous) * 100, 1);
+		}
+
+		return array('count'=>$current, 'previous'=>$previous, 'change'=>$change);
 	}
 }

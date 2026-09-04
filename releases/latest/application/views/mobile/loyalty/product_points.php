@@ -80,7 +80,7 @@
             </div>
             <div class="field">
               <label>Bonus Type</label>
-              <?= renderMpSelect('bonus_type', 'fixed', ['fixed' => 'Fixed points', 'percentage' => 'Percentage of base'], 'btSelect'); ?>
+              <?= renderMpSelect('bonus_type', 'fixed', ['fixed' => 'Fixed points', 'multiplier' => 'Multiplier of base'], 'btSelect'); ?>
             </div>
             <button type="submit" class="save-btn" id="ppSave"><i class="fa fa-save"></i> Save Product Points</button>
             <button type="button" class="btn-link" onclick="resetPpForm()">Cancel / New</button>
@@ -210,8 +210,10 @@
     function resetPpForm(){
       document.getElementById('ppForm').reset();
       document.getElementById('pp_id').value = '';
-      setMpSelect('itemSelect', '');
-      setMpSelect('btSelect', 'fixed');
+      var itemReal = document.querySelector('.mp-select[data-select="itemSelect"] .hidden-select');
+      if(itemReal) setMpSelect('itemSelect', itemReal.value);
+      var btReal = document.querySelector('.mp-select[data-select="btSelect"] .hidden-select');
+      if(btReal) setMpSelect('btSelect', btReal.value);
     }
 
     const searchInput = document.getElementById('ppSearch');

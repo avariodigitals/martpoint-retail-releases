@@ -18,7 +18,8 @@ class Installments extends MY_Controller {
 		$this->permission_check('installment_plans');
 		$data = $this->data;
 		$data['page_title'] = 'Installment Plans';
-		$this->load->view('installments/list', $data);
+		$data['content']=$this->load->view('installments/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	/* ─── AJAX LIST FOR DATATABLES ─── */
@@ -73,7 +74,8 @@ class Installments extends MY_Controller {
 		if(!$data['plan']){
 			show_404();
 		}
-		$this->load->view('installments/view', $data);
+		$data['content']=$this->load->view('installments/view',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	/* ─── PAYMENT FORM ─── */
@@ -87,7 +89,8 @@ class Installments extends MY_Controller {
 		}
 		$data['accounts'] = $this->db->where('store_id', get_current_store_id())
 			->where('status', 1)->get('ac_accounts')->result();
-		$this->load->view('installments/pay', $data);
+		$data['content']=$this->load->view('installments/pay',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	/* ─── SAVE PAYMENT ─── */

@@ -13,14 +13,16 @@ class Customers extends MY_Controller {
 		$this->permission_check('customers_view');
 		$data=$this->data;
 		$data['page_title']=mp_label('customer').'s List';
-		$this->load->view('customers-view',$data);
+		$data['content']=$this->load->view('customers/desktop/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{
 		$this->permission_check('customers_add');
 		$data=$this->data;
 		$data['page_title']=mp_label('customer');
-		$this->load->view('customers',$data);
+		$data['content']=$this->load->view('customers/desktop/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function newcustomers(){
@@ -43,6 +45,44 @@ class Customers extends MY_Controller {
 			echo "Please Fill Compulsory(* marked) Fields.";
 		}
 	}
+
+	public function add_customer_ajax(){
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		
+		$customer_name = $this->input->post('customer_name', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		
+		if (empty($customer_name)) {
+			echo json_encode(['status' => 'error', 'message' => 'Customer name is required']);
+			exit;
+		}
+		
+		$store_id = get_current_store_id();
+		
+		// Insert customer
+		$customer_data = [
+			'customer_name' => $customer_name,
+			'mobile' => $mobile,
+			'store_id' => $store_id,
+			'status' => 1
+		];
+		
+		$this->db->insert('db_customers', $customer_data);
+		$customer_id = $this->db->insert_id();
+		
+		if ($customer_id) {
+			echo json_encode([
+				'status' => 'success',
+				'message' => 'Customer added successfully',
+				'customer_id' => (int)$customer_id,
+				'customer_name' => $customer_name
+			]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Failed to add customer']);
+		}
+		exit;
+	}
 	public function update($id){
 		$this->belong_to('db_customers',$id);
 		$this->permission_check('customers_edit');
@@ -50,7 +90,8 @@ class Customers extends MY_Controller {
 		$result=$this->customers->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=mp_label('customer');
-		$this->load->view('customers', $data);
+		$data['content']=$this->load->view('customers/desktop/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function update_customers(){
 		$this->form_validation->set_rules('customer_name', 'Customer Name', 'trim|required');
@@ -122,68 +163,33 @@ class Customers extends MY_Controller {
 						$str = "<span onclick='update_status(".$customers->id.",1)' id='span_".$customers->id."'  class='label label-danger' style='cursor:pointer'> Inactive </span>";
 					}
 			$row[] = $str;			
-					$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
-											Action <span class="caret"></span>
-										</a>
-										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
+					$str2 = '<div class="mp-actions">';
 
-											if(is_store_admin())
-											$str2.='<li>
-												<a title="Discount Coupon" href="'.base_url().'customer_coupon/generate/'.$customers->id.'">
-													<i class="fa fa-fw fa-tags text-blue"></i>Generate Discount Coupon
-												</a>
-											</li>';
+					if(is_store_admin())
+					$str2.='<a title="Discount Coupon" href="'.base_url().'customer_coupon/generate/'.$customers->id.'"><i class="fa fa-tags"></i></a>';
 
-											if($this->permissions('customers_view')&& $customers->delete_bit!=1)
-											$str2.='<li>
-												<a title="View Profile" href="'.base_url().'customers/profile/'.$customers->id.'">
-													<i class="fa fa-fw fa-user-circle text-blue"></i>Profile
-												</a>
-											</li>';
+					if($this->permissions('customers_view')&& $customers->delete_bit!=1)
+					$str2.='<a title="View Profile" href="'.base_url().'customers/profile/'.$customers->id.'"><i class="fa fa-user-circle"></i></a>';
 
-											if($this->permissions('customers_edit')&& $customers->delete_bit!=1)
-											$str2.='<li>
-												<a title="Edit Record ?" href="'.base_url().'customers/update/'.$customers->id.'">
-													<i class="fa fa-fw fa-edit text-blue"></i>Edit
-												</a>
-											</li>';
+					if($this->permissions('customers_edit')&& $customers->delete_bit!=1)
+					$str2.='<a title="Edit Record ?" class="mp-edit" href="'.base_url().'customers/update/'.$customers->id.'"><i class="fa fa-edit"></i></a>';
 
-											if($this->permissions('cust_adv_payments_view'))
-											$str2.='<li>
-												<a title="Advance Payments View" href="'.base_url().'customers_advance">
-													<i class="fa fa-fw fa-edit text-blue"></i>Advance Payments
-												</a>
-											</li>';
+					if($this->permissions('cust_adv_payments_view'))
+					$str2.='<a title="Advance Payments View" href="'.base_url().'customers_advance"><i class="fa fa-credit-card"></i></a>';
 
-											if($this->permissions('sales_payment_view'))
-											$str2.='<li>
-												<a title="Pay" class="pointer" onclick="view_payments('.$customers->id.')" >
-													<i class="fa fa-fw fa-money text-blue"></i>View Payments
-												</a>
-											</li>';
+					if($this->permissions('sales_payment_view'))
+					$str2.='<a title="Pay" class="pointer" onclick="view_payments('.$customers->id.')"><i class="fa fa-list"></i></a>';
 
-											if($this->permissions('sales_payment_add'))
-											$str2.='<li>
-												<a title="Receive Previous Balance & Sales Due Payments" class="pointer" onclick="pay_now('.$customers->id.')" >
-													<i class="fa fa-fw fa-money text-blue"></i>Receive Due Payments
-												</a>
-											</li>';
-											if($this->permissions('sales_return_payment_add'))
-											$str2.='<li>
-												<a title="Pay Return Due" class="pointer" onclick="pay_return_due('.$customers->id.')" >
-													<i class="fa fa-fw fa-money text-blue"></i>Pay Return Due
-												</a>
-											</li>';
-											if($this->permissions('customers_delete') && $customers->delete_bit!=1)
-											$str2.='<li>
-												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_customers('.$customers->id.')">
-													<i class="fa fa-fw fa-trash text-red"></i>Delete
-												</a>
-											</li>
-											
-										</ul>
-									</div>';			
+					if($this->permissions('sales_payment_add'))
+					$str2.='<a title="Receive Previous Balance & Sales Due Payments" class="pointer" onclick="pay_now('.$customers->id.')"><i class="fa fa-money"></i></a>';
+
+					if($this->permissions('sales_return_payment_add'))
+					$str2.='<a title="Pay Return Due" class="pointer" onclick="pay_return_due('.$customers->id.')"><i class="fa fa-undo"></i></a>';
+
+					if($this->permissions('customers_delete') && $customers->delete_bit!=1)
+					$str2.='<a title="Delete Record ?" class="mp-delete" style="cursor:pointer" onclick="delete_customers('.$customers->id.')"><i class="fa fa-trash"></i></a>';
+
+					$str2.='</div>';
 			$row[] =  $str2;
 			
 
@@ -216,7 +222,8 @@ class Customers extends MY_Controller {
 		$data['customer'] = $this->db->where('id', $id)->get('db_customers')->row();
 		$statement = $this->customers->get_statement($id);
 		$data = array_merge($data, $statement);
-		$this->load->view('customers/statement', $data);
+		$data['content']=$this->load->view('customers/desktop/statement',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	public function delete_customers(){
@@ -393,7 +400,8 @@ class Customers extends MY_Controller {
 		}
 
 		$data['page_title'] = 'Customer Profile';
-		$this->load->view('customers/profile', $data);
+		$data['content']=$this->load->view('customers/desktop/profile',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function get_customer_by_barcode(){

@@ -78,7 +78,8 @@ class Online_store extends MY_Controller {
 			'recent_orders' => $this->storefront_model->getOrders(null, null, 10, 0),
 			'top_products' => $this->storefront_model->getTopOnlineProducts(null, 5)
 		]);
-		$this->load->view('online_store/dashboard', $data);
+		$data['content'] = $this->load->view('online_store/dashboard', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	// ============== SETTINGS ==============
@@ -95,7 +96,8 @@ class Online_store extends MY_Controller {
 			'warehouses' => $this->db->where('store_id', $storeId)->where('status', 1)->get('db_warehouse')->result(),
 			'paystack_enabled' => $this->paystack->is_enabled()
 		]);
-		$this->load->view('online_store/settings', $data);
+		$data['content'] = $this->load->view('online_store/settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_settings(){
@@ -224,7 +226,8 @@ class Online_store extends MY_Controller {
 			'total' => $this->storefront_model->countOrders(null, $status ?: null),
 			'current_status' => $status ?: 'all'
 		]);
-		$this->load->view('online_store/orders', $data);
+		$data['content'] = $this->load->view('online_store/orders', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function order_detail($orderId = 0){
@@ -239,7 +242,8 @@ class Online_store extends MY_Controller {
 			'order' => $order,
 			'items' => $this->storefront_model->getOrderItems($orderId)
 		]);
-		$this->load->view('online_store/order_detail', $data);
+		$data['content'] = $this->load->view('online_store/order_detail', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function update_order_status(){
@@ -301,7 +305,8 @@ class Online_store extends MY_Controller {
 			'services' => $this->storefront_model->getOnlineServices(null, null, '', 100, 0),
 			'categories' => $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_category')->result()
 		]);
-		$this->load->view('online_store/services', $data);
+		$data['content'] = $this->load->view('online_store/services', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_service(){
@@ -361,7 +366,8 @@ class Online_store extends MY_Controller {
 			'services' => $this->storefront_model->getOnlineServices(null, null, '', 100),
 			'categories' => $this->storefront_model->getCategoriesWithItems()
 		]);
-		$this->load->view('online_store/qr_codes', $data);
+		$data['content'] = $this->load->view('online_store/qr_codes', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function generate_qr(){
@@ -469,7 +475,8 @@ class Online_store extends MY_Controller {
 			'products' => $products,
 			'search' => $search
 		]);
-		$this->load->view('online_store/products_online', $data);
+		$data['content'] = $this->load->view('online_store/products_online', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function toggle_product_online(){
@@ -524,14 +531,19 @@ class Online_store extends MY_Controller {
 		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
 		$storeId = get_current_store_id();
 		$settings = $this->storefront_model->getSettings($storeId);
+		$profile = mp_get_store_profile($storeId);
+		$industryType = $profile['industry_type'] ?? 'general_retail';
+
 		$data = array_merge($this->data, [
 			'page_title' => 'Appearance',
 			'settings' => $settings,
-			'themes' => $this->storefront_model->getAllThemes(),
+			'themes' => $this->storefront_model->getThemesByIndustryForStore($industryType, true),
 			'current_theme' => $this->storefront_model->getTheme($settings->theme_id),
-			'store' => get_store_details($storeId)
+			'store' => get_store_details($storeId),
+			'industry_type' => $industryType
 		]);
-		$this->load->view('online_store/appearance', $data);
+		$data['content'] = $this->load->view('online_store/appearance', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_appearance(){
@@ -540,8 +552,20 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$storeId = get_current_store_id();
+
+		// Validate theme_id belongs to the store's industry
+		$themeId = (int)$this->input->post('theme_id') ?: null;
+		if($themeId){
+			$profile = mp_get_store_profile($storeId);
+			$allowed = $this->storefront_model->getThemesByIndustryForStore($profile['industry_type'] ?? null, true);
+			$allowedIds = array_column($allowed, 'id');
+			if(!in_array($themeId, $allowedIds)){
+				$themeId = $allowedIds[0] ?? null;
+			}
+		}
+
 		$data = [
-			'theme_id' => (int)$this->input->post('theme_id') ?: null,
+			'theme_id' => $themeId,
 			'primary_color' => $this->input->post('primary_color') ?: '#3B82F6',
 			'secondary_color' => $this->input->post('secondary_color') ?: '#10B981',
 			'footer_bg_color' => $this->input->post('footer_bg_color') ?: '#0F172A',
@@ -589,7 +613,8 @@ class Online_store extends MY_Controller {
 			'page_title' => 'Banners',
 			'banners' => $this->storefront_model->getBanners($storeId)
 		]);
-		$this->load->view('online_store/banners', $data);
+		$data['content'] = $this->load->view('online_store/banners', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function banner_form($id = 0){
@@ -600,7 +625,8 @@ class Online_store extends MY_Controller {
 			'page_title' => $banner ? 'Edit Banner' : 'Add Banner',
 			'banner' => $banner
 		]);
-		$this->load->view('online_store/banner_form', $data);
+		$data['content'] = $this->load->view('online_store/banner_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_banner(){
@@ -683,7 +709,8 @@ class Online_store extends MY_Controller {
 			'settings' => $this->storefront_model->getSettings($storeId),
 			'store' => get_store_details($storeId)
 		]);
-		$this->load->view('online_store/homepage_builder', $data);
+		$data['content'] = $this->load->view('online_store/homepage_builder', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_homepage_sections(){
@@ -828,7 +855,8 @@ class Online_store extends MY_Controller {
 			'start_date' => date('Y-m-d', strtotime($startDate)),
 			'end_date' => date('Y-m-d', strtotime($endDate))
 		]);
-		$this->load->view('online_store/analytics', $data);
+		$data['content'] = $this->load->view('online_store/analytics', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function export_analytics(){
@@ -938,7 +966,8 @@ class Online_store extends MY_Controller {
 			'domains' => $this->storefront_model->getDomains($storeId),
 			'settings' => $this->storefront_model->getSettings($storeId)
 		]);
-		$this->load->view('online_store/domains', $data);
+		$data['content'] = $this->load->view('online_store/domains', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_domain(){
@@ -1006,13 +1035,14 @@ class Online_store extends MY_Controller {
 	// ============== STOREFRONT BRANDS ==============
 
 	public function brands(){
-		if(!$this->_can_edit()){ show_404(); exit; }
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$data = array_merge($this->data, [
 			'page_title' => 'Storefront Brands',
 			'brands' => $this->storefront_model->getStorefrontBrands($storeId, false)
 		]);
-		$this->load->view('online_store/brands', $data);
+		$data['content'] = $this->load->view('online_store/brands', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_brand(){
@@ -1072,13 +1102,14 @@ class Online_store extends MY_Controller {
 	// ============== STOREFRONT TESTIMONIALS ==============
 
 	public function testimonials(){
-		if(!$this->_can_edit()){ show_404(); exit; }
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$data = array_merge($this->data, [
 			'page_title' => 'Storefront Testimonials',
 			'testimonials' => $this->storefront_model->getStorefrontTestimonials($storeId, false)
 		]);
-		$this->load->view('online_store/testimonials', $data);
+		$data['content'] = $this->load->view('online_store/testimonials', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_testimonial(){
@@ -1139,13 +1170,14 @@ class Online_store extends MY_Controller {
 	// ============== STOREFRONT INSTAGRAM ==============
 
 	public function instagram(){
-		if(!$this->_can_edit()){ show_404(); exit; }
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$data = array_merge($this->data, [
 			'page_title' => 'Instagram Gallery',
 			'posts' => $this->storefront_model->getStorefrontInstagram($storeId, false)
 		]);
-		$this->load->view('online_store/instagram', $data);
+		$data['content'] = $this->load->view('online_store/instagram', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_instagram(){
@@ -1207,13 +1239,14 @@ class Online_store extends MY_Controller {
 	// ============== STOREFRONT FAQS ==============
 
 	public function faqs(){
-		if(!$this->_can_edit()){ show_404(); exit; }
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
 		$data = array_merge($this->data, [
 			'page_title' => 'Storefront FAQs',
 			'faqs' => $this->storefront_model->getStorefrontFaqs($storeId, false)
 		]);
-		$this->load->view('online_store/faqs', $data);
+		$data['content'] = $this->load->view('online_store/faqs', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function save_faq(){

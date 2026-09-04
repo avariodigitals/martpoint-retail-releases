@@ -86,7 +86,8 @@ class Customer_coupon_model extends CI_Model {
 		$code = $this->input->post('code', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post('command', TRUE) ?: $this->input->get('command', TRUE);
+		$q_id = $this->input->post('q_id', TRUE);
 		$CI =& get_instance();
 		$global = property_exists($CI, 'data') && is_array($CI->data) ? $CI->data : [];
 		$CUR_DATE = $this->data['CUR_DATE'] ?? $global['CUR_DATE'] ?? date('Y-m-d');
@@ -97,9 +98,12 @@ class Customer_coupon_model extends CI_Model {
 
 		$expire_date=system_fromatted_date($expire_date);
 		//Validate This customers already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
-		
+		$store_id = get_current_store_id();
+
 		$coupon_details = get_coupon_master_details($coupon_id);
+		if(!$coupon_details){
+			echo "Invalid Coupon selected!!";exit;
+		}
 
 		$info = array(
 	                'store_id'         	=> $store_id,
@@ -113,7 +117,7 @@ class Customer_coupon_model extends CI_Model {
 	              );
 		if($command=='save'){
 			//Verify code already exists ?
-			$count = $this->db->select("count(*) as tot")->where("upper(code)=".strtoupper($code))->get("db_customer_coupons")->row()->tot;
+			$count = $this->db->select("count(*) as tot")->where("store_id", $store_id)->where("UPPER(code)", strtoupper(trim($code)))->get("db_customer_coupons")->row()->tot;
 			if($count>0){
 				echo "This Coupon Code already exists!!";exit;
 			}
@@ -152,7 +156,7 @@ class Customer_coupon_model extends CI_Model {
 	//Get brand_details
 	public function get_details($id,$data){
 		//Validate This brand already exist or not
-		$query=$this->db->query("select * from db_customer_coupons where upper(id)=upper('$id')");
+		$query=$this->db->query("select * from db_customer_coupons where id=" . (int)$id);
 		if($query->num_rows()==0){
 			show_404();exit;
 		}
@@ -179,6 +183,9 @@ class Customer_coupon_model extends CI_Model {
 	}
 	public function delete_coupons($ids){
 		$this->db->trans_begin();
+
+		// Sanitize IDs to prevent SQL injection
+		$ids = implode(',', array_filter(array_map('intval', explode(',', $ids))));
 
 		$q12=$this->db->select("*")->where("coupon_id in ($ids)")->get("db_sales");
       	if($q12->num_rows()>0){

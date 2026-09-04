@@ -50,12 +50,12 @@
   <!-- MartPoint Retail Reskin -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=32">
   <!-- Prototype-matching overrides -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-prototype.css?v=24">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-prototype.css?v=25">
 
   <!-- Autocomplete -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
   <!-- MartPoint Assist -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=7">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=13">
   <!-- Pace Loader -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
   <?php 

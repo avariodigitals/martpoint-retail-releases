@@ -12,15 +12,17 @@ class Stock_transfer extends MY_Controller {
 	{
 		$this->permission_check('stock_transfer_view');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('stock_transfer_list');
-		$this->load->view('warehouse/stock_transfer_list',$data);
+		$data['page_title']=$this->lang->line('stock_transfer_list') ?: 'Stock Transfer List';
+		$data['content']=$this->load->view('inventory/desktop/stock_transfer_list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{	
 		$this->permission_check('stock_transfer_add');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('stock_transfer');
-		$this->load->view('warehouse/stock_transfer',$data);
+		$data['page_title']=$this->lang->line('stock_transfer') ?: 'Stock Transfer';
+		$data['content']=$this->load->view('inventory/desktop/stock_transfer_form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 
@@ -43,8 +45,9 @@ class Stock_transfer extends MY_Controller {
 		$this->permission_check('stock_transfer_edit');
 		$data=$this->data;
 		$data=array_merge($data,array('stocktransfer_id'=>$id));
-		$data['page_title']=$this->lang->line('stock_transfer');
-		$this->load->view('warehouse/stock_transfer', $data);
+		$data['page_title']=$this->lang->line('stock_transfer') ?: 'Stock Transfer';
+		$data['content']=$this->load->view('inventory/desktop/stock_transfer_form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 
@@ -74,39 +77,17 @@ class Stock_transfer extends MY_Controller {
 			
 			$row[] = ($stock_transfer->created_by);
 
-					
-					
-					$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
-											Action <span class="caret"></span>
-										</a>
-										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
-											if($this->permissions('stock_transfer_view'))
-											$str2.='<li>
-												<a title="View Invoice" href="'.base_url('stock_transfer/info/'.$stock_transfer->id).'" >
-													<i class="fa fa-fw fa-eye text-blue"></i>View Transfer
-												</a>
-											</li>';
+					$str2 = '<div class="mp-actions">';
+					if($this->permissions('stock_transfer_view'))
+					$str2.='<a class="mp-edit" title="View" href="'.base_url('stock_transfer/info/'.$stock_transfer->id).'"><i class="fa fa-eye"></i></a>';
 
-											if($this->permissions('stock_transfer_edit'))
-											$str2.='<li>
-												<a title="Update Record ?" href="'.base_url('stock_transfer/update/').$stock_transfer->id.'">
-													<i class="fa fa-fw fa-edit text-blue"></i>Edit
-												</a>
-											</li>';
+					if($this->permissions('stock_transfer_edit'))
+					$str2.='<a class="mp-edit" title="Edit" href="'.base_url('stock_transfer/update/'.$stock_transfer->id).'"><i class="fa fa-pencil"></i></a>';
 
-										
-										
+					if($this->permissions('stock_transfer_delete'))
+					$str2.='<button type="button" class="mp-delete" title="Delete" onclick="delete_stock(\''.$stock_transfer->id.'\')"><i class="fa fa-trash"></i></button>';
 
-											if($this->permissions('stock_transfer_delete'))
-											$str2.='<li>
-												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_stock(\''.$stock_transfer->id.'\')">
-													<i class="fa fa-fw fa-trash text-red"></i>Delete
-												</a>
-											</li>
-											
-										</ul>
-									</div>';			
+					$str2 .= '</div>';
 
 			$row[] = $str2;
 
@@ -126,13 +107,14 @@ class Stock_transfer extends MY_Controller {
 	public function info($id)
 	{	
 		$this->belong_to('db_stocktransfer',$id);
-		if(!$this->permissions('stock_transfer_add') && !$this->permissions('stock_transfer_edit')){
+		if(!$this->permissions('stock_transfer_view') && !$this->permissions('stock_transfer_add') && !$this->permissions('stock_transfer_edit')){
 			$this->show_access_denied_page();
 		}
 		$data=$this->data;
 		$data=array_merge($data,array('stocktransfer_id'=>$id));
-		$data['page_title']=$this->lang->line('stock_transfer_details');
-		$this->load->view('warehouse/stock_transfer_info',$data);
+		$data['page_title']=$this->lang->line('stock_transfer_details') ?: 'Stock Transfer Details';
+		$data['content']=$this->load->view('inventory/desktop/stock_transfer_info',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function delete_stock(){
@@ -170,7 +152,7 @@ class Stock_transfer extends MY_Controller {
 	public function print_invoice($transfer_id)
 	{
 		$this->belong_to('db_stocktransfer',$transfer_id);
-		if(!$this->permissions('stock_transfer_add') && !$this->permissions('stock_transfer_edit')){
+		if(!$this->permissions('stock_transfer_view') && !$this->permissions('stock_transfer_add') && !$this->permissions('stock_transfer_edit')){
 			$this->show_access_denied_page();
 		}
 		$data=$this->data;
@@ -183,12 +165,12 @@ class Stock_transfer extends MY_Controller {
 
 	public function pdf($stocktransfer_id){
 		$this->belong_to('db_stocktransfer',$stocktransfer_id);
-		if(!$this->permissions('stock_transfer_add') && !$this->permissions('stock_transfer_edit')){
+		if(!$this->permissions('stock_transfer_view') && !$this->permissions('stock_transfer_add') && !$this->permissions('stock_transfer_edit')){
 			$this->show_access_denied_page();
 		}
 		
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('stock_transfer');
+		$data['page_title']=$this->lang->line('stock_transfer') ?: 'Stock Transfer';
         $data=array_merge($data,array('stocktransfer_id'=>$stocktransfer_id));
         $this->load->view('warehouse/print-stock-transfer-invoice',$data);
        

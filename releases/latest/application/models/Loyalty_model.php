@@ -57,15 +57,19 @@ class Loyalty_model extends CI_Model {
     public function save_settings()
     {
         $store_id = get_current_store_id();
+        $post = function($key, $default) {
+            $val = $this->input->post($key, TRUE);
+            return ($val === null || $val === '') ? $default : $val;
+        };
         $data = array(
             'loyalty_enabled' => $this->input->post('loyalty_enabled', TRUE) ? 1 : 0,
             'earning_type' => $this->input->post('earning_type', TRUE),
-            'spend_amount' => $this->input->post('spend_amount', TRUE) ?: 1000,
-            'points_earned' => $this->input->post('points_earned', TRUE) ?: 1,
-            'percentage_rate' => $this->input->post('percentage_rate', TRUE) ?: 2,
-            'redemption_rate' => $this->input->post('redemption_rate', TRUE) ?: 10,
-            'minimum_redemption_points' => $this->input->post('minimum_redemption_points', TRUE) ?: 100,
-            'maximum_redemption_per_sale' => $this->input->post('maximum_redemption_per_sale', TRUE) ?: 0,
+            'spend_amount' => $post('spend_amount', 1000),
+            'points_earned' => $post('points_earned', 1),
+            'percentage_rate' => $post('percentage_rate', 2),
+            'redemption_rate' => $post('redemption_rate', 10),
+            'minimum_redemption_points' => $post('minimum_redemption_points', 100),
+            'maximum_redemption_per_sale' => $post('maximum_redemption_per_sale', 0),
             'allow_partial_redemption' => $this->input->post('allow_partial_redemption', TRUE) ? 1 : 0,
             'tier_calculation' => $this->input->post('tier_calculation', TRUE),
             'flexpay_points_timing' => $this->input->post('flexpay_points_timing', TRUE),
@@ -146,15 +150,19 @@ class Loyalty_model extends CI_Model {
         if(!$this->db->table_exists('db_loyalty_bonus_rules')) return 'failed';
         $id = $this->input->post('rule_id', TRUE);
         $store_id = get_current_store_id();
+        $post_val = function($key, $default) {
+            $val = $this->input->post($key, TRUE);
+            return ($val === null || $val === '') ? $default : $val;
+        };
         $data = array(
             'store_id' => $store_id,
             'rule_name' => $this->input->post('rule_name', TRUE),
             'rule_type' => $this->input->post('rule_type', TRUE),
-            'multiplier' => $this->input->post('multiplier', TRUE) ?: 2,
-            'bonus_points' => $this->input->post('bonus_points', TRUE) ?: 0,
-            'start_date' => $this->input->post('start_date', TRUE) ?: null,
-            'end_date' => $this->input->post('end_date', TRUE) ?: null,
-            'days_of_week' => $this->input->post('days_of_week', TRUE) ?: null,
+            'multiplier' => $post_val('multiplier', 2),
+            'bonus_points' => $post_val('bonus_points', 0),
+            'start_date' => $post_val('start_date', null),
+            'end_date' => $post_val('end_date', null),
+            'days_of_week' => $post_val('days_of_week', null),
             'status' => 1
         );
         if(!empty($id)){
@@ -209,6 +217,42 @@ class Loyalty_model extends CI_Model {
             }
         } elseif($settings->earning_type == 'percentage_based'){
             $points = ($sale_total * $settings->percentage_rate) / 100;
+        }
+
+        // Apply product-specific bonus points
+        if(!empty($items) && $this->db->table_exists('db_loyalty_product_points')){
+            $item_ids = array();
+            foreach($items as $it){
+                if(!empty($it['item_id'])) $item_ids[] = (int)$it['item_id'];
+            }
+            if(!empty($item_ids)){
+                $product_bonuses = $this->db->where_in('item_id', $item_ids)
+                                    ->where('store_id', get_current_store_id())
+                                    ->where('status', 1)
+                                    ->get('db_loyalty_product_points')
+                                    ->result();
+                $bonus_map = array();
+                foreach($product_bonuses as $pb){
+                    $bonus_map[(int)$pb->item_id] = $pb;
+                }
+                foreach($items as $it){
+                    $iid = (int)$it['item_id'];
+                    if(!isset($bonus_map[$iid])) continue;
+                    $pb = $bonus_map[$iid];
+                    if($pb->bonus_type == 'fixed'){
+                        $points += (float)$pb->bonus_points * (float)$it['qty'];
+                    } elseif($pb->bonus_type == 'multiplier'){
+                        $line_value = (float)($it['line_value'] ?? 0);
+                        $line_points = 0;
+                        if($settings->earning_type == 'spend_based' && $settings->spend_amount > 0){
+                            $line_points = floor($line_value / $settings->spend_amount) * $settings->points_earned;
+                        } elseif($settings->earning_type == 'percentage_based'){
+                            $line_points = ($line_value * $settings->percentage_rate) / 100;
+                        }
+                        $points += $line_points * ((float)$pb->bonus_points - 1);
+                    }
+                }
+            }
         }
 
         // Apply bonus rules
@@ -266,14 +310,14 @@ class Loyalty_model extends CI_Model {
 
     public function record_points($customer_id, $sales_id, $points, $type='earn', $description='')
     {
-        if($points == 0) return true;
+        if($points == 0 && $type != 'tier_upgrade') return true;
         if(!$this->db->table_exists('db_customers')) return false;
         $store_id = get_current_store_id();
         $customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
         if(!$customer) return false;
 
         $current_points = property_exists($customer, 'loyalty_points') ? (float)$customer->loyalty_points : 0;
-        $new_balance = $current_points + ($type == 'earn' || $type == 'bonus' || $type == 'birthday' || $type == 'referral' || $type == 'tier_upgrade' ? $points : -$points);
+        $new_balance = $current_points + ($type == 'earn' || $type == 'bonus' || $type == 'birthday' || $type == 'referral' || $type == 'tier_upgrade' || $type == 'adjust' ? $points : -$points);
         if($new_balance < 0) $new_balance = 0;
 
         if($this->db->table_exists('db_loyalty_points')){
@@ -353,7 +397,7 @@ class Loyalty_model extends CI_Model {
         if(empty($customer_id) || empty($points)) return 'failed';
 
         $points_val = abs($points);
-        $txn_type = ($type == 'add') ? 'adjust' : 'adjust';
+        $txn_type = ($type == 'add') ? 'adjust' : 'adjust_sub';
         $this->record_points($customer_id, null, $points_val, $txn_type, $reason ?: 'Manual adjustment');
         return 'success';
     }
@@ -383,8 +427,8 @@ class Loyalty_model extends CI_Model {
             $stats['active_members'] = $this->db->where('store_id', $store_id)->where('loyalty_points >', 0)->count_all_results('db_customers');
         }
         if($this->db->table_exists('db_loyalty_points')){
-            $stats['total_points_issued'] = $this->db->select('COALESCE(SUM(points),0) as total')->where('store_id', $store_id)->where_in('transaction_type', array('earn','bonus','birthday','referral'))->get('db_loyalty_points')->row()->total;
-            $stats['total_points_redeemed'] = $this->db->select('COALESCE(SUM(points),0) as total')->where('store_id', $store_id)->where('transaction_type', 'redeem')->get('db_loyalty_points')->row()->total;
+            $stats['total_points_issued'] = $this->db->select('COALESCE(SUM(points),0) as total')->where('store_id', $store_id)->where_in('transaction_type', array('earn','bonus','birthday','referral','adjust'))->get('db_loyalty_points')->row()->total;
+            $stats['total_points_redeemed'] = $this->db->select('COALESCE(SUM(points),0) as total')->where('store_id', $store_id)->where_in('transaction_type', array('redeem','adjust_sub'))->get('db_loyalty_points')->row()->total;
             $stats['points_available'] = (int)$stats['total_points_issued'] - (int)$stats['total_points_redeemed'];
         }
         if($this->db->table_exists('db_store_credit')){
@@ -407,6 +451,17 @@ class Loyalty_model extends CI_Model {
         $this->db->where('a.store_id', $store_id);
         if(isset($_POST['length']) && $_POST['length'] != -1) $this->db->limit($_POST['length'], $_POST['start']);
         return $this->db->get()->result();
+    }
+    public function get_product_point($id)
+    {
+        if(!$this->db->table_exists('db_loyalty_product_points')) return null;
+        return $this->db->select('a.*, b.item_name')
+                        ->from('db_loyalty_product_points a')
+                        ->join('db_items b', 'b.id = a.item_id', 'left')
+                        ->where('a.id', $id)
+                        ->where('a.store_id', get_current_store_id())
+                        ->get()
+                        ->row();
     }
     public function count_product_points_filtered(){ return $this->get_product_points_datatables_query()->num_rows(); }
     public function count_product_points_all()
@@ -435,11 +490,11 @@ class Loyalty_model extends CI_Model {
             'bonus_points' => $this->input->post('bonus_points', TRUE) ?: 0,
             'bonus_type' => $this->input->post('bonus_type', TRUE),
             'status' => 1,
-            'created_date' => date('Y-m-d')
         );
         if(!empty($id)){
             $this->db->where('id', $id)->update('db_loyalty_product_points', $data);
         } else {
+            $data['created_date'] = date('Y-m-d');
             $this->db->insert('db_loyalty_product_points', $data);
         }
         return ($this->db->affected_rows() >= 0) ? "success" : "failed";

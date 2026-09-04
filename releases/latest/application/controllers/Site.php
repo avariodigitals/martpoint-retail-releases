@@ -16,7 +16,8 @@ class Site extends MY_Controller {
 		//$this->permission_check('site_edit');
         $data=$this->site_model->get_details();
         $data['page_title']=$this->lang->line('site_settings');
-		$this->load->view('site-settings', $data);
+		$data['content'] = $this->load->view('site-settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function update_site(){

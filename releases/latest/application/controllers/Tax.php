@@ -12,7 +12,31 @@ class Tax extends MY_Controller {
 		$this->permission_check('tax_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('tax_list');
-		$this->load->view('tax-list', $data);
+		$data['rows'] = $this->tax->get_datatables();
+		$data['crud'] = [
+			'page_title' => $this->lang->line('tax_list'),
+			'page_sub' => 'Manage tax rates and groups',
+			'add_url' => base_url('tax/add'),
+			'add_label' => 'New Tax',
+			'add_permission' => 'tax_add',
+			'columns' => [
+				['title' => '', 'type' => 'checkbox'],
+				['title' => 'Tax Name', 'field' => 'tax_name', 'type' => 'text'],
+				['title' => 'Tax (%)', 'field' => 'tax', 'type' => 'text'],
+				['title' => 'Status', 'field' => 'status', 'type' => 'status'],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'tax',
+			'status_url' => 'tax/update_status',
+			'delete_url' => 'tax/delete_tax',
+			'multi_delete_url' => 'tax/multi_delete',
+			'edit_url' => base_url('tax/update/{id}'),
+			'delete_permission' => 'tax_delete',
+			'edit_permission' => 'tax_edit',
+			'bulk_delete' => true,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newtax(){
 		$this->form_validation->set_rules('tax_name', 'Tax Name', 'trim|required');
@@ -30,7 +54,21 @@ class Tax extends MY_Controller {
 		$result=$this->tax->get_details($id);
 		$data=array_merge($this->data,$result);
 		$data['page_title']=$this->lang->line('tax_update');
-		$this->load->view('tax', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('tax_update'),
+			'page_sub' => 'Update tax rate details',
+			'form_id' => 'tax-form',
+			'save_url' => 'tax/newtax',
+			'update_url' => 'tax/update_tax',
+			'list_url' => base_url('tax'),
+			'module' => 'tax',
+			'fields' => [
+				['name' => 'tax_name', 'label' => 'Tax Name', 'type' => 'text', 'required' => true],
+				['name' => 'tax', 'label' => 'Tax (%)', 'type' => 'number', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_tax(){
 		$this->form_validation->set_rules('tax_name', 'Tax Name', 'trim|required');
@@ -48,7 +86,21 @@ class Tax extends MY_Controller {
 		$this->permission_check('tax_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('new_tax');
-		$this->load->view('tax', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('new_tax'),
+			'page_sub' => 'Create a new tax rate',
+			'form_id' => 'tax-form',
+			'save_url' => 'tax/newtax',
+			'update_url' => 'tax/update_tax',
+			'list_url' => base_url('tax'),
+			'module' => 'tax',
+			'fields' => [
+				['name' => 'tax_name', 'label' => 'Tax Name', 'type' => 'text', 'required' => true],
+				['name' => 'tax', 'label' => 'Tax (%)', 'type' => 'number', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

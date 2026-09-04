@@ -9,10 +9,12 @@ class Accounts extends MY_Controller {
 	}
 	public function index()
 	{
+		if(is_mobile()){ redirect('mobile/finance/accounts'); }
 		$this->permission_check('accounts_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('accounts_list');
-		$this->load->view('accounts/accounts_list',$data);
+		$data['content']=$this->load->view('finance/desktop/accounts/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function book($account_id)
@@ -25,14 +27,17 @@ class Accounts extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('account_book');
 		$data['account_id']=$account_id;
-		$this->load->view('accounts/account_book',$data);
+		$data['content']=$this->load->view('finance/desktop/accounts/book',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function cash_transactions()
 	{
+		if(is_mobile()){ redirect('mobile/finance/cash_transactions'); }
 		$this->permission_check('accounts_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('cash_transactions');
-		$this->load->view('accounts/cash_transactions',$data);
+		$data['content']=$this->load->view('finance/desktop/cash_transactions/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function cash_ledger()
@@ -85,10 +90,12 @@ class Accounts extends MY_Controller {
 
 	public function add()
 	{
+		if(is_mobile()){ redirect('mobile/finance/accounts/form'); }
 		$this->permission_check('accounts_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('add_account');
-		$this->load->view('accounts/accounts',$data);
+		$data['content']=$this->load->view('finance/desktop/accounts/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	
@@ -106,13 +113,15 @@ class Accounts extends MY_Controller {
 		}
 	}
 	public function update($id){
+		if(is_mobile()){ redirect('mobile/finance/accounts/form/'.$id); }
 		$this->permission_check('accounts_edit');
 		$this->belong_to('ac_accounts',$id);
 		$data=$this->data;
 		$result=$this->accounts->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('accounts');
-		$this->load->view('accounts/accounts', $data);
+		$data['content']=$this->load->view('finance/desktop/accounts/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function update_accounts(){
 		$this->form_validation->set_rules('account_code', 'Account Code', 'trim|required');

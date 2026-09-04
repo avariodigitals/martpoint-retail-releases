@@ -54,7 +54,7 @@
     .cat-card-noimg { width:100%; height:140px; display:flex; align-items:center; justify-content:center; background:var(--light); color:#94A3B8; font-size:28px; }
     .cat-card-body { padding:10px 12px; }
     .cat-card-cat { font-size:11px; font-weight:600; color:var(--gray); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:2px; }
-    .cat-card-name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px; }
+    .cat-card-name { font-size:13px; font-weight:600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px; }
     .cat-card-price { font-size:15px; font-weight:700; color:var(--primary); }
     .cat-card-old { font-size:12px; color:var(--gray); text-decoration:line-through; margin-left:4px; }
     .cat-card-wa { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; margin-top:8px; padding:7px; border:none; border-radius:7px; background:#25D366; color:#fff; font-size:12px; font-weight:600; cursor:pointer; transition:opacity .15s; }

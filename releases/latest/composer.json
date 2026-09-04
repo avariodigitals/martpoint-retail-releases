@@ -1,0 +1,8 @@
+{
+    "require": {
+        "twilio/sdk": "^6.16",
+        "laminas/laminas-barcode": "^2.11",
+        "dompdf/dompdf": "^2.0",
+        "chillerlan/php-qrcode": "^4.3"
+    }
+}

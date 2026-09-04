@@ -16,7 +16,10 @@ class Purchase_return extends MY_Controller {
 		$this->permission_check('purchase_return_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_returns_list');
-		$this->load->view('purchase-returns-list',$data);
+		$data['extra_css_files'] = ['plugins/iCheck/square/orange.css'];
+		$data['extra_js_files'] = ['js/purchase_return.js?v=3'];
+		$data['content'] = $this->load->view('mp_purchase_returns_list',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	public function create(){
@@ -25,7 +28,10 @@ class Purchase_return extends MY_Controller {
 		$data['page_title']=$this->lang->line('purchase_return');
 		$data['oper']='create_new_return';
 		$data['subtitle']=$this->lang->line('create_new_return');;
-		$this->load->view('purchase_return', $data);
+		$data['extra_css_files'] = ['dist/css/AdminLTE.min.css'];
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/purchase_return.js?v=3','js/ajaxselect/supplier_select_ajax.js?v=2'];
+		$data['content'] = $this->load->view('mp_purchase_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function add($id){
@@ -50,7 +56,10 @@ class Purchase_return extends MY_Controller {
 		$data['page_title']=$this->lang->line('purchase_return');
 		$data['oper']='return_against_purchase';
 		$data['subtitle']=$this->lang->line('return_against_purchase');;
-		$this->load->view('purchase_return', $data);
+		$data['extra_css_files'] = ['dist/css/AdminLTE.min.css'];
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/purchase_return.js?v=3','js/ajaxselect/supplier_select_ajax.js?v=2'];
+		$data['content'] = $this->load->view('mp_purchase_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function purchase_save_and_update(){
@@ -74,7 +83,10 @@ class Purchase_return extends MY_Controller {
 		$data['oper']='edit_existing_return';
 		$data['subtitle']=$this->lang->line('edit_return_purchase_entry');;
 		$data['page_title']=$this->lang->line('edit_purchase_return');
-		$this->load->view('purchase_return', $data);
+		$data['extra_css_files'] = ['dist/css/AdminLTE.min.css'];
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/purchase_return.js?v=3','js/ajaxselect/supplier_select_ajax.js?v=2'];
+		$data['content'] = $this->load->view('mp_purchase_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	//adding new item from Modal
@@ -239,7 +251,8 @@ class Purchase_return extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('return_id'=>$id));
 		$data['page_title']=$this->lang->line('purchase_return_invoice');
-		$this->load->view('pur-return-invoice',$data);
+		$data['content'] = $this->load->view('pur-return-invoice',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	//Print Purchase invoice 

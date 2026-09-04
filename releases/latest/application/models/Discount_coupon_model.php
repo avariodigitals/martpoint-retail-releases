@@ -82,7 +82,7 @@ class Discount_coupon_model extends CI_Model {
 		$coupon_type = $this->input->post('coupon_type', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post('command', TRUE) ?: $this->input->get('command', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
 		$CI =& get_instance();
 		$global = property_exists($CI, 'data') && is_array($CI->data) ? $CI->data : [];
@@ -94,7 +94,7 @@ class Discount_coupon_model extends CI_Model {
 
 		$expire_date=system_fromatted_date($expire_date);
 		//Validate This customers already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+		$store_id = get_current_store_id();  	
 		
 		$info = array(
 	                'store_id'         	=> $store_id,
@@ -139,7 +139,7 @@ class Discount_coupon_model extends CI_Model {
 	//Get brand_details
 	public function get_details($id,$data){
 		//Validate This brand already exist or not
-		$query=$this->db->query("select * from db_coupons where upper(id)=upper('$id')");
+		$query=$this->db->query("select * from db_coupons where id=" . (int)$id);
 		if($query->num_rows()==0){
 			show_404();exit;
 		}
@@ -166,6 +166,10 @@ class Discount_coupon_model extends CI_Model {
 	}
 	public function delete_coupons($ids){
 			$this->db->trans_begin();
+
+			// Sanitize IDs to prevent SQL injection
+			$ids = implode(',', array_filter(array_map('intval', explode(',', $ids))));
+			if(!$ids){ echo "failed"; exit; }
 
 			$this->db->where("id in ($ids)");
 			//if not admin

@@ -36,7 +36,7 @@
     .group-bubble.purple { background: #F3E8FF; color: #7C3AED; }
     .group-bubble.teal { background: #CCFBF1; color: #0F766E; }
     .group-bubble.yellow { background: #FFFBEB; color: #D97706; }
-    .menu-card .label { font-size: 14px; font-weight: 600; color: var(--mp-ink); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; }
+    .menu-card .label { font-size: 14px; font-weight: 600; color: var(--mp-ink); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; }
     .group-detail .menu-list { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--mp-border); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
     .menu-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--mp-border); text-decoration: none; color: var(--mp-ink); }
     .menu-item:last-child { border-bottom: none; }

@@ -2,10 +2,10 @@
       border-radius: 0px;
     }
     /*LEFT SIDE: ITEMS TABLE*/
-    . > tbody > tr:nth-of-type(2n+1) {
+    .items_table > tbody > tr:nth-of-type(2n+1) {
       background-color: #ede3e3;
     }
-    . > tbody > tr {
+    .items_table > tbody > tr {
       background-color: #ddc8c8;
     }
 
@@ -41,6 +41,7 @@
       text-overflow: hidden;
       display: -webkit-box;
       -webkit-line-clamp: 3;
+      line-clamp: 3;
       -webkit-box-orient: vertical;
     }
     .item_image{
@@ -59,9 +60,7 @@
     .min_width{
       min-width: 70px;
     }
-    .skin-blue-light .main-header .navbar {
-        /*background: linear-gradient(45deg,#6200ea,#1976d2)!important;*/
-    }
+    /* .skin-blue-light .main-header .navbar background intentionally omitted */
     .bg-primary {
     color: #fff;
     background-color: #1b3585!important;

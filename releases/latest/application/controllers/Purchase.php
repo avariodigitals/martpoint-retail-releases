@@ -16,7 +16,10 @@ class Purchase extends MY_Controller {
 		$this->permission_check('purchase_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase_list');
-		$this->load->view('purchase-list',$data);
+		$data['extra_css_files'] = ['plugins/iCheck/square/orange.css'];
+		$data['extra_js_files'] = ['js/purchase.js?v=4'];
+		$data['content'] = $this->load->view('mp_purchase_list',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	public function add()
@@ -24,7 +27,10 @@ class Purchase extends MY_Controller {
 		$this->permission_check('purchase_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('purchase');
-		$this->load->view('purchase',$data);
+		$data['extra_css_files'] = ['dist/css/AdminLTE.min.css','css/newcustom.css'];
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/mp-offline-db.js?v=3','js/purchase.js?v=4','js/ajaxselect/supplier_select_ajax.js?v=2'];
+		$data['content'] = $this->load->view('mp_purchase',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function purchase_save_and_update(){
@@ -55,7 +61,10 @@ class Purchase extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('purchase_id'=>$id));
 		$data['page_title']=$this->lang->line('purchase');
-		$this->load->view('purchase', $data);
+		$data['extra_css_files'] = ['dist/css/AdminLTE.min.css','css/newcustom.css'];
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/mp-offline-db.js?v=3','js/purchase.js?v=4','js/ajaxselect/supplier_select_ajax.js?v=2'];
+		$data['content'] = $this->load->view('mp_purchase', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	//adding new item from Modal
@@ -254,7 +263,8 @@ class Purchase extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('purchase_id'=>$id));
 		$data['page_title']=$this->lang->line('purchase_invoice');
-		$this->load->view('pur-invoice',$data);
+		$data['content'] = $this->load->view('pur-invoice',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 	//Print Purchase invoice 

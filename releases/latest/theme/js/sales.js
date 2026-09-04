@@ -340,6 +340,7 @@ function return_row_with_data(item_id, barcodeData){
           // Not JSON, proceed normally
         }
         $('#sales_table tbody').append(result);
+        $("#items_empty_state").remove();
         $("#hidden_rowcount").val(parseInt(rowcount)+1);
         success.currentTime = 0;
         success.play();
@@ -382,7 +383,7 @@ function update_paid_payment_total() {
       tot += parseFloat($("#paid_amt_"+i).html());
     }
   }
-  $("#paid_amt_tot").html(to_Fixed(tot));
+  $("#paid_amt_tot").html(format_money(tot));
 }
 function delete_payment(payment_id){
    swal({

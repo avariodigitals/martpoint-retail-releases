@@ -1,57 +1,42 @@
-<!DOCTYPE html>
-<html>
-<head><?php $this->load->view('comman/code_css.php'); ?></head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar'); ?>
-<div class="content-wrapper">
-  <section class="content-header">
-    <h1><?= $page_title; ?><small>Per-Customer Service History</small></h1>
-    <ol class="breadcrumb"><li><a href="<?= base_url('dashboard'); ?>"><i class="fa fa-dashboard"></i> Home</a></li><li class="active"><?= $page_title; ?></li></ol>
-  </section>
-  <section class="content">
-    <div class="row">
-      <div class="col-lg-3 col-xs-6">
-        <div class="small-box bg-green">
-          <div class="inner"><h3><?= $this_month_count; ?></h3><p>This Month</p></div>
-          <div class="icon"><i class="fa fa-calendar"></i></div>
-          <span class="small-box-footer">Treatments recorded</span>
-        </div>
-      </div>
-      <div class="col-lg-3 col-xs-6">
-        <div class="small-box bg-blue">
-          <div class="inner"><h3><?= count($latest_notes); ?></h3><p>Recent Entries</p></div>
-          <div class="icon"><i class="fa fa-file-text-o"></i></div>
-          <span class="small-box-footer">Last 5 notes</span>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-12">
-        <div class="box box-info">
-          <div class="box-header with-border">
-            <h3 class="box-title">Treatment Notes</h3>
-            <div class="box-tools pull-right">
-              <a href="<?= base_url('operations/treatment_note'); ?>" class="btn btn-sm btn-success"><i class="fa fa-plus"></i> Add Note</a>
-            </div>
-          </div>
-          <div class="box-body">
-            <div class="table-responsive">
-              <table id="notes-table" class="table table-bordered table-striped">
-                <thead><tr><th>#</th><th>Customer</th><th>Service</th><th>Notes</th><th>Staff</th><th>Date</th><th>Action</th></tr></thead>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub">Per-Customer Service History</div>
+  </div>
+  <a href="<?= base_url('operations/treatment_note'); ?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> Add Note</a>
 </div>
-<?php $this->load->view('footer'); ?>
+
+<div class="mp-kpi-grid">
+  <div class="mp-kpi-card profit">
+    <div class="mp-kpi-icon"><i class="fa fa-calendar"></i></div>
+    <div class="mp-kpi-label">This Month</div>
+    <div class="mp-kpi-value"><?= $this_month_count; ?></div>
+    <div class="mp-form-hint" style="margin-top:6px;">Treatments recorded</div>
+  </div>
+  <div class="mp-kpi-card sales">
+    <div class="mp-kpi-icon"><i class="fa fa-file-text-o"></i></div>
+    <div class="mp-kpi-label">Recent Entries</div>
+    <div class="mp-kpi-value"><?= count($latest_notes); ?></div>
+    <div class="mp-form-hint" style="margin-top:6px;">Last 5 notes</div>
+  </div>
 </div>
-<?php $this->load->view('comman/code_js.php'); ?>
-<script src="<?= base_url(); ?>theme/plugins/DataTables-1.10.18/js/jquery.dataTables.min.js"></script>
-<script src="<?= base_url(); ?>theme/plugins/DataTables-1.10.18/js/dataTables.bootstrap.min.js"></script>
+
+<div class="mp-table-wrap">
+  <div class="mp-card-head">
+    <h3>Treatment Notes</h3>
+  </div>
+  <div class="box-body">
+    <div class="mp-dt-scroll">
+      <table id="notes-table" class="table mp-dt-table">
+        <thead><tr><th>#</th><th>Customer</th><th>Service</th><th>Notes</th><th>Staff</th><th>Date</th><th>Action</th></tr></thead>
+      </table>
+    </div>
+  </div>
+</div>
+
 <script>
 $(function(){
   var table = $('#notes-table').DataTable({
@@ -77,5 +62,3 @@ function delete_note(id) {
   }, 'json');
 }
 </script>
-</body>
-</html>

@@ -1,126 +1,110 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <?php include "comman/code_css.php"; ?>
-  <style>
-    .update-card { border: 1px solid #d2d6de; border-radius: 6px; padding: 24px; background: #fff; }
-    .step-list { list-style: none; padding: 0; margin: 20px 0; }
-    .step-list li { display: flex; align-items: center; padding: 10px 12px; border-radius: 4px; margin-bottom: 6px; background: #f5f5f5; }
-    .step-list li.active { background: #e3f2fd; font-weight: bold; }
-    .step-list li.success { background: #e8f5e9; }
-    .step-list li.error { background: #ffebee; }
-    .step-icon { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 12px; }
-    .step-icon.pending { background: #ddd; color: #666; }
-    .step-icon.running { background: #2196f3; color: #fff; animation: pulse 1.2s infinite; }
-    .step-icon.done { background: #4caf50; color: #fff; }
-    .step-icon.fail { background: #f44336; color: #fff; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: .5; } 100% { opacity: 1; } }
-    .progress-wrap { margin: 20px 0; }
-    .log-box { background: #263238; color: #aed581; padding: 14px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; }
-    .version-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-    .badge-current { background: #e3f2fd; color: #1565c0; }
-    .badge-remote { background: #e8f5e9; color: #2e7d32; }
-    .preview-table { font-size: 13px; }
-    .preview-table th { background: #f5f5f5; }
-  </style>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-  <div class="wrapper">
-    <?php include "sidebar.php"; ?>
-    <div class="content-wrapper">
-      <section class="content-header">
-        <h1>System Update <small>One-Click Auto Updater</small></h1>
-        <ol class="breadcrumb">
-          <li><a href="<?= base_url('dashboard'); ?>"><i class="fa fa-dashboard"></i> Home</a></li>
-          <li class="active">System Update</li>
-        </ol>
-      </section>
+<?php
+/* System Updates — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<style>
+  .update-card { border: 1px solid #d2d6de; border-radius: 6px; padding: 24px; background: #fff; }
+  .step-list { list-style: none; padding: 0; margin: 20px 0; }
+  .step-list li { display: flex; align-items: center; padding: 10px 12px; border-radius: 4px; margin-bottom: 6px; background: #f5f5f5; }
+  .step-list li.active { background: #e3f2fd; font-weight: bold; }
+  .step-list li.success { background: #e8f5e9; }
+  .step-list li.error { background: #ffebee; }
+  .step-icon { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 12px; }
+  .step-icon.pending { background: #ddd; color: #666; }
+  .step-icon.running { background: #2196f3; color: #fff; animation: pulse 1.2s infinite; }
+  .step-icon.done { background: #4caf50; color: #fff; }
+  .step-icon.fail { background: #f44336; color: #fff; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: .5; } 100% { opacity: 1; } }
+  .progress-wrap { margin: 20px 0; }
+  .log-box { background: #263238; color: #aed581; padding: 14px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; }
+  .version-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+  .badge-current { background: #e3f2fd; color: #1565c0; }
+  .badge-remote { background: #e8f5e9; color: #2e7d32; }
+  .preview-table { font-size: 13px; }
+  .preview-table th { background: #f5f5f5; }
+</style>
 
-      <section class="content">
-        <?php include "comman/code_flashdata.php"; ?>
-        <div class="row">
-          <div class="col-md-8">
-            <div class="update-card">
-              <div class="clearfix">
-                <h3 class="pull-left" style="margin-top:0">Update Status</h3>
-                <div class="pull-right">
-                  <span class="version-badge badge-current">Current: <span id="currentVersion">checking...</span></span>
-                  <span class="version-badge badge-remote" style="margin-left:6px">Remote: <span id="remoteVersion">checking...</span></span>
-                </div>
-              </div>
+<?php include "comman/code_flashdata.php"; ?>
 
-              <div id="statusMessage" class="alert alert-info" style="margin-top:12px">Checking for updates...</div>
+<div class="mp-page-head">
+  <h1 class="mp-page-title">System Update</h1>
+</div>
 
-              <div class="progress-wrap" style="display:none" id="progressWrap">
-                <div class="progress">
-                  <div id="progressBar" class="progress-bar progress-bar-primary progress-bar-striped active" role="progressbar" style="width: 0%">0%</div>
-                </div>
-              </div>
-
-              <ol class="step-list" id="stepList" style="display:none">
-                <li data-step="1"><span class="step-icon pending">1</span> Backup Database</li>
-                <li data-step="2"><span class="step-icon pending">2</span> Backup Files</li>
-                <li data-step="3"><span class="step-icon pending">3</span> Download Changed Files</li>
-                <li data-step="4"><span class="step-icon pending">4</span> Verify File Integrity</li>
-                <li data-step="5"><span class="step-icon pending">5</span> Apply File Changes</li>
-                <li data-step="6"><span class="step-icon pending">6</span> Run Database Migrations</li>
-                <li data-step="7"><span class="step-icon pending">7</span> Finalize Update</li>
-                <li data-step="8"><span class="step-icon pending">8</span> Cleanup</li>
-              </ol>
-
-              <div id="actionArea" style="margin-top:16px">
-                <button id="btnCheck" class="btn btn-primary"><i class="fa fa-refresh"></i> Check for Updates</button>
-                <button id="btnPreview" class="btn btn-info" style="display:none;margin-left:6px"><i class="fa fa-eye"></i> Preview Changes</button>
-                <button id="btnUpdate" class="btn btn-success" style="display:none;margin-left:6px"><i class="fa fa-cloud-download"></i> Start Update</button>
-                <button id="btnRestore" class="btn btn-danger" style="display:none;margin-left:6px"><i class="fa fa-undo"></i> Restore Previous</button>
-              </div>
-
-              <div id="previewArea" style="margin-top:20px; display:none">
-                <h4>What will change</h4>
-                <div id="previewContent"></div>
-              </div>
-
-              <div style="margin-top:20px">
-                <h4>Live Log</h4>
-                <div class="log-box" id="liveLog">Ready.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-md-4">
-            <div class="update-card">
-              <h4 style="margin-top:0"><i class="fa fa-cog"></i> Update Channel</h4>
-              <p class="text-muted" style="font-size:12px">Where updates are pulled from (GitHub raw URL)</p>
-              <div class="input-group">
-                <input type="text" id="channelUrl" class="form-control" placeholder="https://raw.githubusercontent.com/..." />
-                <span class="input-group-btn">
-                  <button id="btnSaveChannel" class="btn btn-default" type="button">Save</button>
-                </span>
-              </div>
-              <hr style="margin: 16px 0">
-              <h5><i class="fa fa-shield"></i> Protected Files</h5>
-              <ul class="text-muted" style="font-size:12px; padding-left:18px">
-                <li>application/config/database.php</li>
-                <li>application/config/config.php</li>
-                <li>uploads/ folder</li>
-                <li>backups/ folder</li>
-              </ul>
-              <hr style="margin: 16px 0">
-              <h5><i class="fa fa-history"></i> Recent Jobs</h5>
-              <div id="recentJobs" class="text-muted" style="font-size:12px">Loading...</div>
-            </div>
-          </div>
+<div class="row">
+  <div class="col-md-8">
+    <div class="update-card">
+      <div class="clearfix">
+        <h3 class="pull-left" style="margin-top:0">Update Status</h3>
+        <div class="pull-right">
+          <span class="version-badge badge-current">Current: <span id="currentVersion">checking...</span></span>
+          <span class="version-badge badge-remote" style="margin-left:6px">Remote: <span id="remoteVersion">checking...</span></span>
         </div>
-      </section>
+      </div>
+
+      <div id="statusMessage" class="alert alert-info" style="margin-top:12px">Checking for updates...</div>
+
+      <div class="progress-wrap" style="display:none" id="progressWrap">
+        <div class="progress">
+          <div id="progressBar" class="progress-bar progress-bar-primary progress-bar-striped active" role="progressbar" style="width: 0%">0%</div>
+        </div>
+      </div>
+
+      <ol class="step-list" id="stepList" style="display:none">
+        <li data-step="1"><span class="step-icon pending">1</span> Backup Database</li>
+        <li data-step="2"><span class="step-icon pending">2</span> Backup Files</li>
+        <li data-step="3"><span class="step-icon pending">3</span> Download Changed Files</li>
+        <li data-step="4"><span class="step-icon pending">4</span> Verify File Integrity</li>
+        <li data-step="5"><span class="step-icon pending">5</span> Apply File Changes</li>
+        <li data-step="6"><span class="step-icon pending">6</span> Run Database Migrations</li>
+        <li data-step="7"><span class="step-icon pending">7</span> Finalize Update</li>
+        <li data-step="8"><span class="step-icon pending">8</span> Cleanup</li>
+      </ol>
+
+      <div id="actionArea" style="margin-top:16px">
+        <button id="btnCheck" class="btn btn-primary"><i class="fa fa-refresh"></i> Check for Updates</button>
+        <button id="btnPreview" class="btn btn-info" style="display:none;margin-left:6px"><i class="fa fa-eye"></i> Preview Changes</button>
+        <button id="btnUpdate" class="btn btn-success" style="display:none;margin-left:6px"><i class="fa fa-cloud-download"></i> Start Update</button>
+        <button id="btnRestore" class="btn btn-danger" style="display:none;margin-left:6px"><i class="fa fa-undo"></i> Restore Previous</button>
+      </div>
+
+      <div id="previewArea" style="margin-top:20px; display:none">
+        <h4>What will change</h4>
+        <div id="previewContent"></div>
+      </div>
+
+      <div style="margin-top:20px">
+        <h4>Live Log</h4>
+        <div class="log-box" id="liveLog">Ready.</div>
+      </div>
     </div>
-    <?php include "footer.php"; ?>
   </div>
 
-  <?php include "comman/code_js_language.php"; ?>
-  <?php include "comman/code_js_sound.php"; ?>
-  <?php include "comman/code_js.php"; ?>
+  <div class="col-md-4">
+    <div class="update-card">
+      <h4 style="margin-top:0"><i class="fa fa-cog"></i> Update Channel</h4>
+      <p class="text-muted" style="font-size:12px">Where updates are pulled from (GitHub raw URL)</p>
+      <div class="input-group">
+        <input type="text" id="channelUrl" class="form-control" placeholder="https://raw.githubusercontent.com/..." />
+        <span class="input-group-btn">
+          <button id="btnSaveChannel" class="btn btn-default" type="button">Save</button>
+        </span>
+      </div>
+      <hr style="margin: 16px 0">
+      <h5><i class="fa fa-shield"></i> Protected Files</h5>
+      <ul class="text-muted" style="font-size:12px; padding-left:18px">
+        <li>application/config/database.php</li>
+        <li>application/config/config.php</li>
+        <li>uploads/ folder</li>
+        <li>backups/ folder</li>
+      </ul>
+      <hr style="margin: 16px 0">
+      <h5><i class="fa fa-history"></i> Recent Jobs</h5>
+      <div id="recentJobs" class="text-muted" style="font-size:12px">Loading...</div>
+    </div>
+  </div>
+</div>
 
-  <script>
+<script>
   (function(){
     var isUpdating = false;
     var currentStep = 0;
@@ -209,7 +193,7 @@
           return;
         }
         previewData = res.preview;
-        var html = '<table class="table table-bordered preview-table">';
+        var html = '<table class="mp-static-table preview-table">';
         html += '<tr><th>Files to Update</th><td>' + (res.preview.files_to_update.length || 0) + '</td></tr>';
         html += '<tr><th>Files to Add</th><td>' + (res.preview.files_to_add.length || 0) + '</td></tr>';
         html += '<tr><th>Migrations</th><td>' + (res.preview.migrations.length || 0) + '</td></tr>';
@@ -399,6 +383,4 @@
     checkUpdates();
   })();
   </script>
-  <script>$(".system-updates-active-li").addClass("active");</script>
-</body>
-</html>
+  <script>$(".system-updates-active-li").addClass("active");$(".system-updates-active-li").closest(".mp-nav-group").addClass("open");</script>

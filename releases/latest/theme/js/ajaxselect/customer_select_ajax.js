@@ -1,12 +1,13 @@
 //var selectionBoxId = $('#customer_id');
 
-var base_url = $("#base_url").val();
-
-var url_ = base_url+"customers/getCustomers/";
+var url_ = '';
 
 var searchFor = "Search Name/Mobile";
 
 $(document).ready(function(){
+
+         var base_url = $("#base_url").val() || '';
+         url_ = base_url + "customers/getCustomers/";
 
          let init_customer_select2 = (typeof load_customer_select2 === 'function') ? load_customer_select2() : true;
 

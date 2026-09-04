@@ -1336,6 +1336,29 @@ class Mobile extends MY_Controller {
 			$this->db->limit($limit);
 		}
 		$rows = $this->db->get()->result();
+
+		// Apply active promotions (with margin protection) if module is available
+		$has_promotions = FALSE;
+		try { $has_promotions = $this->db->table_exists('db_promotions'); } catch(Exception $e) {}
+		if($has_promotions){
+			$this->load->model('promotions_model');
+			$today = date('Y-m-d');
+			foreach($rows as &$row){
+				$base_price = ($price_type == 'retail' && !empty($row->mrp_price) && $row->mrp_price > 0) ? $row->mrp_price : $row->sales_price;
+				try {
+					$promo = $this->promotions_model->compute_effective_price($row->id, $base_price);
+					if($promo['has_promo']){
+						$row->sales_price = $promo['price'];
+						$row->mrp_price = $promo['price'];
+						$row->promo_name = $promo['promo_name'];
+						$row->promo_discount = $promo['discount_amount'];
+						$row->original_price = $base_price;
+					}
+				} catch(Exception $e) {}
+			}
+			unset($row);
+		}
+
 		header('Content-Type: application/json');
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
@@ -1387,10 +1410,22 @@ class Mobile extends MY_Controller {
 
 	public function hold()
 	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		ob_start();
 		$this->permission_check('sales_add');
+
 		$input = json_decode(file_get_contents('php://input'), true);
 		if(empty($input)){
 			$input = $this->input->post();
+		}
+
+		$csrf_token = $input['csrf_test_name'] ?? '';
+		$csrf_cookie = $this->input->cookie('csrf_cookie_name');
+		if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed']);
+			exit;
 		}
 
 		$store_id = get_current_store_id();
@@ -1401,13 +1436,15 @@ class Mobile extends MY_Controller {
 		$sales_note = $input['sales_note'] ?? '';
 
 		if(empty($cart) || count($cart) === 0){
+			ob_end_clean();
 			echo json_encode(['status' => 'error', 'message' => 'Cart is empty']);
-			return;
+			exit;
 		}
 
 		if(empty($warehouse_id)){
+			ob_end_clean();
 			echo json_encode(['status' => 'error', 'message' => 'No warehouse found for this store. Please set up a warehouse in Settings.']);
-			return;
+			exit;
 		}
 
 		$this->load->model('pos_model');
@@ -1425,8 +1462,9 @@ class Mobile extends MY_Controller {
 			$tax_id = (int) ($item['tax_id'] ?? 0);
 
 			if($item_id <= 0){
+				ob_end_clean();
 				echo json_encode(['status' => 'error', 'message' => 'Invalid item in cart']);
-				return;
+				exit;
 			}
 
 			$line = $qty * $price;
@@ -1443,14 +1481,16 @@ class Mobile extends MY_Controller {
 
 			$item_details = get_item_details($item_id);
 			if(!$item_details){
+				ob_end_clean();
 				echo json_encode(['status' => 'error', 'message' => 'Item not found: '.$item_id]);
-				return;
+				exit;
 			}
 			$service_bit = $item_details->service_bit ?? 0;
 			$current_stock = total_available_qty_items_of_warehouse($warehouse_id, null, $item_id);
 			if($current_stock < $qty && $service_bit == 0){
+				ob_end_clean();
 				echo json_encode(['status' => 'error', 'message' => $item_details->item_name.' has only '.$current_stock.' in stock']);
-				return;
+				exit;
 			}
 
 			$unit_total_cost = ($tax_type == 'Exclusive') ? ($price + ($tax_value * $price / 100)) : $price;
@@ -1482,8 +1522,13 @@ class Mobile extends MY_Controller {
 
 		$this->db->trans_begin();
 
+		$reference_id = trim($input['reference_id'] ?? '');
+		if(empty($reference_id)){
+			$reference_id = 'MOB-' . date('YmdHis') . '-' . mt_rand(100, 999);
+		}
+
 		$hold_entry = [
-			'reference_id' => 'MOB-' . date('YmdHis') . '-' . mt_rand(100, 999),
+			'reference_id' => $reference_id,
 			'store_id' => $store_id,
 			'sales_date' => date('Y-m-d'),
 			'sales_status' => 'Final',
@@ -1503,8 +1548,9 @@ class Mobile extends MY_Controller {
 			$err = $this->db->error();
 			$this->db->trans_rollback();
 			log_message('error', 'Mobile hold() db_hold insert failed: ' . ($err['message'] ?? 'unknown'));
+			ob_end_clean();
 			echo json_encode(['status' => 'error', 'message' => 'Failed to create hold: ' . ($err['message'] ?? 'unknown')]);
-			return;
+			exit;
 		}
 
 		$hold_id = $this->db->insert_id();
@@ -1515,33 +1561,38 @@ class Mobile extends MY_Controller {
 				$err = $this->db->error();
 				$this->db->trans_rollback();
 				log_message('error', 'Mobile hold() db_holditems insert failed: ' . ($err['message'] ?? 'unknown'));
+				ob_end_clean();
 				echo json_encode(['status' => 'error', 'message' => 'Failed to save hold items: ' . ($err['message'] ?? 'unknown')]);
-				return;
+				exit;
 			}
 			$this->pos_model->update_items_quantity($it['item_id']);
 		}
 
 		$this->db->trans_commit();
 
+		ob_end_clean();
 		echo json_encode(['status' => 'success', 'message' => 'Sale held.', 'redirect' => base_url('mobile')]);
+		exit;
 	}
 
 	public function get_hold($hold_id = 0)
 	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
 		$this->permission_check('sales_add');
 		$hold_id = (int) ($hold_id ?: ($this->input->get('hold_id', TRUE) ?: 0));
 		if($hold_id <= 0){
-			header('Content-Type: application/json');
-			echo json_encode(null);
-			return;
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Invalid hold ID']);
+			exit;
 		}
 		$store_id = get_current_store_id();
 		$this->db->where('id', $hold_id)->where('store_id', $store_id);
 		$hold = $this->db->get('db_hold')->row();
 		if(!$hold){
-			header('Content-Type: application/json');
-			echo json_encode(null);
-			return;
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Hold not found']);
+			exit;
 		}
 		$this->db->select('hi.*, i.item_name, i.purchase_price, t.tax, t.tax_name');
 		$this->db->from('db_holditems hi');
@@ -1573,12 +1624,16 @@ class Mobile extends MY_Controller {
 				'qty' => (float) $it->sales_qty,
 			];
 		}
-		header('Content-Type: application/json');
+		ob_end_clean();
 		echo json_encode($hold_data, JSON_INVALID_UTF8_SUBSTITUTE);
+		exit;
 	}
 
 	public function save()
 	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		ob_start();
 		// For JSON requests, manually verify CSRF token before permission check
 		$input = json_decode(file_get_contents('php://input'), true);
 		if(!empty($input) && isset($input['csrf_test_name'])){
@@ -1586,17 +1641,17 @@ class Mobile extends MY_Controller {
 			$csrf_token = $input['csrf_test_name'];
 			$csrf_cookie = $this->input->cookie('csrf_cookie_name');
 			if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
-				header('Content-Type: application/json');
+				ob_end_clean();
 				echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed']);
-				return;
+				exit;
 			}
 		}
 		
 		$this->permission_check('sales_add');
 		if(!$this->is_cashier_clocked_in()){
-			header('Content-Type: application/json');
+			ob_end_clean();
 			echo json_encode(['status' => 'error', 'message' => 'Please clock in before making a sale.']);
-			return;
+			exit;
 		}
 		if(empty($input)){
 			$input = $this->input->post();
@@ -1621,9 +1676,9 @@ class Mobile extends MY_Controller {
 		$is_pay = ($action === 'pay');
 
 		if(empty($warehouse_id)){
-			header('Content-Type: application/json');
+			ob_end_clean();
 			echo json_encode(['status' => 'error', 'message' => 'No warehouse found for this store. Please set up a warehouse in Settings.']);
-			return;
+			exit;
 		}
 
 		$subtotal = 0;
@@ -1735,8 +1790,13 @@ class Mobile extends MY_Controller {
 		$_POST['tot_round_off_amt'] = number_format($round_off, 2, '.', '');
 		$_POST['tot_total_amt'] = number_format($grand_total, 2, '.', '');
 		if($is_split && !empty($payment_rows) && is_array($payment_rows)){
-			// For split payments, set amount to 0 so Sales_model doesn't create a payment record
-			$_POST['amount'] = '0';
+			// For split payments, calculate total paid from all rows for validation
+			$split_total_paid = 0;
+			foreach($payment_rows as $pr){
+				$split_total_paid += (float) ($pr['amount'] ?? 0);
+			}
+			// Pass the actual paid amount for walk-in customer validation
+			$_POST['amount'] = number_format(min($split_total_paid, $grand_total), 2, '.', '');
 			$_POST['payment_type'] = '';
 			$_POST['account_id'] = '';
 			$_POST['payment_note'] = '';
@@ -1821,7 +1881,7 @@ class Mobile extends MY_Controller {
 						'payment_mode_id'     => $payment_mode_id,
 						'payment'             => number_format($pm, 2, '.', ''),
 						'payment_note'        => '',
-						'payment_reference'   => '',
+						'payment_reference'   => ($pr['payment_reference'] ?? ''),
 						'confirmation_status' => 1,
 						'created_date'        => date('Y-m-d'),
 						'created_time'        => date('H:i:s'),
@@ -1849,6 +1909,8 @@ class Mobile extends MY_Controller {
 				$redeem_gift_card_id = (int) ($input['redeem_gift_card_id'] ?? 0);
 				$old_post = $_POST;
 
+				// Capture any output from redemption calls to prevent JSON corruption
+				ob_start();
 				if($redeem_points > 0){
 					$this->load->model('loyalty_model','loyalty');
 					$_POST = array('customer_id' => $customer_id, 'points' => $redeem_points, 'sales_id' => $sales_id);
@@ -1865,14 +1927,17 @@ class Mobile extends MY_Controller {
 					$this->gift_cards->redeem_ajax();
 				}
 
+				ob_end_clean();
 				$_POST = $old_post;
 			}
 
 			$msg = $plan_id ? 'Sale and PayPlan saved.' : 'Sale saved.';
 			$whatsapp = ($sales_id) ? get_whatsapp_share_url('sales', $sales_id) : array('url' => '');
-			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]);
+			ob_end_clean();
+			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]); exit;
 		} else {
-			echo json_encode(['status' => 'error', 'message' => (string) $result]);
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => (string) $result]); exit;
 		}
 	}
 
@@ -2812,19 +2877,26 @@ class Mobile extends MY_Controller {
 				['title' => 'Analytics', 'desc' => 'Store traffic & sales', 'icon' => 'fa-bar-chart', 'url' => 'mobile/online_store/analytics', 'perm' => 'online_store_view', 'color' => 'blue'],
 				['title' => 'Store Settings', 'desc' => 'Configure online store', 'icon' => 'fa-cog', 'url' => 'mobile/online_store/settings', 'perm' => 'online_store_view', 'color' => 'primary'],
 			],
-			'Marketing' => [
-				['title' => 'Create Customer Coupon', 'desc' => 'Generate a customer coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/customer_coupon/generate', 'perm' => 'customerCouponAdd', 'color' => 'primary'],
-				['title' => 'Customer Coupons List', 'desc' => 'All customer coupons', 'icon' => 'fa-list', 'url' => 'mobile/customer_coupon', 'perm' => 'customerCouponView', 'color' => 'blue'],
-				['title' => 'Create General Coupon', 'desc' => 'Create a discount coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/discount_coupon/add', 'perm' => 'discountCouponAdd', 'color' => 'primary'],
-				['title' => 'Coupons Master', 'desc' => 'Manage all coupons', 'icon' => 'fa-list', 'url' => 'mobile/discount_coupon/view', 'perm' => 'discountCouponView', 'color' => 'blue'],
-				['title' => 'Loyalty Dashboard', 'desc' => 'Loyalty overview', 'icon' => 'fa-dashboard', 'url' => 'mobile/loyalty', 'perm' => 'loyalty_view', 'feature' => 'loyalty', 'color' => 'purple'],
-				['title' => 'Loyalty Settings', 'desc' => 'Configure loyalty rules', 'icon' => 'fa-cog', 'url' => 'mobile/loyalty/settings', 'perm' => 'loyalty_view', 'feature' => 'loyalty', 'color' => 'purple'],
-				['title' => 'Customer Tiers', 'desc' => 'Loyalty customer tiers', 'icon' => 'fa-sitemap', 'url' => 'mobile/loyalty/tiers', 'perm' => 'loyalty_view', 'feature' => 'loyalty', 'color' => 'purple'],
-				['title' => 'Points History', 'desc' => 'Loyalty points history', 'icon' => 'fa-history', 'url' => 'mobile/loyalty/points_history', 'perm' => 'loyalty_view', 'feature' => 'loyalty', 'color' => 'orange'],
-				['title' => 'Referral Program', 'desc' => 'Customer referrals', 'icon' => 'fa-share-alt', 'url' => 'mobile/loyalty/referral_program', 'perm' => 'loyalty_view', 'feature' => 'loyalty', 'color' => 'orange'],
-				['title' => 'Gift Cards', 'desc' => 'Issue & manage gift cards', 'icon' => 'fa-ticket', 'url' => 'gift_cards', 'perm' => 'gift_cards_view', 'feature' => 'gift_cards', 'color' => 'purple'],
-				['title' => 'Store Credit', 'desc' => 'Customer store credit', 'icon' => 'fa-credit-card', 'url' => 'mobile/store_credit', 'perm' => 'store_credit_view', 'feature' => 'store_credit', 'color' => 'red'],
-			],
+			'Marketing' => (
+					function_exists('marketing_menu_items')
+						? array_map(function($item){
+							return [
+								'title' => $item['title'],
+								'desc'  => $item['desc'],
+								'icon'  => $item['icon'],
+								'url'   => isset($item['url_mobile']) ? $item['url_mobile'] : (isset($item['url_desktop']) ? $item['url_desktop'] : ''),
+								'perm'  => isset($item['perm']) ? $item['perm'] : '',
+								'feature' => isset($item['feature']) ? $item['feature'] : null,
+								'color' => isset($item['color']) ? $item['color'] : 'blue',
+							];
+						}, marketing_menu_items())
+					: [
+						['title' => 'Create Customer Coupon', 'desc' => 'Generate a customer coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/customer_coupon/generate', 'perm' => 'customerCouponAdd', 'color' => 'primary'],
+						['title' => 'Customer Coupons List', 'desc' => 'All customer coupons', 'icon' => 'fa-list', 'url' => 'mobile/customer_coupon', 'perm' => 'customerCouponView', 'color' => 'blue'],
+						['title' => 'Create Coupon', 'desc' => 'Create a discount coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/discount_coupon/add', 'perm' => 'discountCouponAdd', 'color' => 'primary'],
+						['title' => 'Coupons Master', 'desc' => 'Manage all coupons', 'icon' => 'fa-list', 'url' => 'mobile/discount_coupon/view', 'perm' => 'discountCouponView', 'color' => 'blue'],
+					]
+				),
 			'Customers' => [
 				['title' => 'Customers', 'desc' => 'Customer directory', 'icon' => 'fa-users', 'url' => 'mobile/customers', 'perm' => 'customers_view', 'color' => 'purple'],
 				['title' => 'Add Customer', 'desc' => 'Register a new customer', 'icon' => 'fa-user-plus', 'url' => 'mobile/add_customer', 'perm' => 'customers_add', 'color' => 'purple'],
@@ -2907,26 +2979,7 @@ class Mobile extends MY_Controller {
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name();
 
-		$marketing_items = [
-			['title' => 'Create Customer Coupon', 'desc' => 'Generate a customer coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/customer_coupon/generate', 'perm' => 'customerCouponAdd', 'color' => 'primary'],
-			['title' => 'Customer Coupons List', 'desc' => 'All customer coupons', 'icon' => 'fa-list', 'url' => 'mobile/customer_coupon', 'perm' => 'customerCouponView', 'color' => 'blue'],
-			['title' => 'Create Coupon', 'desc' => 'Create a discount coupon', 'icon' => 'fa-plus-square', 'url' => 'discount_coupon/add', 'perm' => 'discountCouponAdd', 'color' => 'primary'],
-			['title' => 'Coupons Master', 'desc' => 'Manage all coupons', 'icon' => 'fa-list', 'url' => 'discount_coupon/view', 'perm' => 'discountCouponView', 'color' => 'blue'],
-			['title' => 'Loyalty Dashboard', 'desc' => 'Loyalty overview', 'icon' => 'fa-dashboard', 'url' => 'mobile/loyalty', 'perm' => 'loyalty_view', 'color' => 'purple'],
-			['title' => 'Loyalty Settings', 'desc' => 'Configure loyalty rules', 'icon' => 'fa-cog', 'url' => 'mobile/loyalty/settings', 'perm' => 'loyalty_view', 'color' => 'purple'],
-			['title' => 'Customer Tiers', 'desc' => 'Loyalty customer tiers', 'icon' => 'fa-sitemap', 'url' => 'mobile/loyalty/tiers', 'perm' => 'loyalty_view', 'color' => 'purple'],
-			['title' => 'Points History', 'desc' => 'Loyalty points history', 'icon' => 'fa-history', 'url' => 'mobile/loyalty/points_history', 'perm' => 'loyalty_view', 'color' => 'orange'],
-			['title' => 'Referral Program', 'desc' => 'Customer referrals', 'icon' => 'fa-share-alt', 'url' => 'mobile/loyalty/referral_program', 'perm' => 'loyalty_view', 'color' => 'orange'],
-			['title' => 'Gift Cards', 'desc' => 'Issue & manage gift cards', 'icon' => 'fa-ticket', 'url' => 'gift_cards', 'perm' => 'gift_cards_view', 'color' => 'purple'],
-			['title' => 'Store Credit', 'desc' => 'Customer store credit', 'icon' => 'fa-credit-card', 'url' => 'mobile/store_credit', 'perm' => 'store_credit_view', 'color' => 'red'],
-		];
-
-		$data['marketing_items'] = [];
-		foreach($marketing_items as $item){
-			if(empty($item['perm']) || $this->permissions($item['perm'])){
-				$data['marketing_items'][] = $item;
-			}
-		}
+		$data['marketing_items'] = function_exists('marketing_menu_items') ? marketing_menu_items() : [];
 
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
@@ -3016,7 +3069,8 @@ class Mobile extends MY_Controller {
 		$data['label_defaults'] = mp_get_label_defaults();
 		$data['workflow_templates'] = mp_get_workflow_templates();
 		$data['dashboard_templates'] = mp_get_dashboard_templates();
-		$data['storefront_themes'] = mp_get_storefront_themes();
+		$this->load->model('storefront_model');
+		$data['storefront_themes'] = $this->storefront_model->getThemesByIndustryForStore($data['profile']['industry_type'] ?? null, true);
 
 		$data['current_flags'] = [];
 		if (!empty($data['profile']['feature_flags_json'])) {
@@ -3259,7 +3313,8 @@ class Mobile extends MY_Controller {
 			case 'appearance':
 				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
 				$data['settings'] = $this->storefront_model->getSettings($store_id);
-				$data['themes'] = $this->storefront_model->getAllThemes();
+				$profile = mp_get_store_profile($store_id);
+				$data['themes'] = $this->storefront_model->getThemesByIndustryForStore($profile['industry_type'] ?? null, true);
 				$data['current_theme'] = $this->storefront_model->getTheme($data['settings']->theme_id ?? 0);
 				$view = 'mobile/online_store/appearance';
 				break;

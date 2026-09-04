@@ -15,7 +15,9 @@ class Items extends MY_Controller {
 		}
 		$data=$this->data;
 		$data['page_title']=mp_label('item').' List';
-		$this->load->view('items-list',$data);
+		$data['extra_js_files'] = ['plugins/lightbox/ekko-lightbox.js','js/items.js'];
+		$data['content'] = $this->load->view('items-list',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function add()
 	{
@@ -32,14 +34,21 @@ class Items extends MY_Controller {
 			}
 			$data['recipes_list'] = $recipes;
 		}
-		$this->load->view('items',$data);
+		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=15'];
+		$data['content'] = $this->load->view('items',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function newitems(){
 		$this->form_validation->set_rules('item_name', 'Item Name', 'trim|required');
 		$this->form_validation->set_rules('category_id', 'Category Name', 'trim|required');
-		$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
 		$this->form_validation->set_rules('tax_id', 'Tax', 'trim|required');
+
+		// Services don't require unit_id; items do
+		$item_type_post = $this->input->post('item_type', TRUE);
+		if($item_type_post !== 'service'){
+			$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
+		}
 
 		if($this->input->post('item_group')=='Single'){
 		$this->form_validation->set_rules('price', 'Item Price', 'trim|required');
@@ -50,9 +59,11 @@ class Items extends MY_Controller {
 			if($this->input->get_post('hidden_rowcount')==1){
 				$_POST['item_group']='Single';
 			}
-		}		
+		}
 		if ($this->form_validation->run() == TRUE) {
-			$product_check = check_subscription_limit('product_limit');
+			// Use the correct subscription limit based on item type
+			$limit_key = ($item_type_post === 'service') ? 'service_limit' : 'product_limit';
+			$product_check = check_subscription_limit($limit_key);
 			if($product_check !== true){
 				echo $product_check;
 				return;
@@ -174,13 +185,20 @@ class Items extends MY_Controller {
 			}
 		}
 		//$data['variant_tbody']=$this->items_model->get_variants_list_in_row($id);
-		$this->load->view('items', $data);
+		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=15'];
+		$data['content'] = $this->load->view('items', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_items(){
 		$this->form_validation->set_rules('item_name', 'Item Name', 'trim|required');
 		$this->form_validation->set_rules('category_id', 'Category Name', 'trim|required');
-		$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
 		$this->form_validation->set_rules('tax_id', 'Tax', 'trim|required');
+
+		// Services don't require unit_id; items do
+		$item_type_post = $this->input->post('item_type', TRUE);
+		if($item_type_post !== 'service'){
+			$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
+		}
 
 		if($this->input->post('item_group')=='Single'){
 		$this->form_validation->set_rules('price', 'Item Price', 'trim|required');
@@ -193,7 +211,7 @@ class Items extends MY_Controller {
 			}
 		}
 
-		
+
 		if ($this->form_validation->run() == TRUE) {
 			try{
 				// Release session lock before the potentially long save (image uploads, DB writes)
@@ -578,7 +596,9 @@ class Items extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('print_labels');
 		$data['purchase_id']=$purchase_id;
-		$this->load->view('labels',$data);
+		$data['extra_js_files'] = ['js/labels.js?v=2'];
+		$data['content'] = $this->load->view('labels',$data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/*Labels Print request*/

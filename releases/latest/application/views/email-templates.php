@@ -1,91 +1,61 @@
-<!DOCTYPE html>
-<html>
-<head>
-<?php include"comman/code_css.php"; ?>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+<?php
+/* Email Templates list — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<div class="mp-page-head"><h1 class="mp-page-title"><?= $page_title ?></h1></div>
 
- <?php include"sidebar.php"; ?>
-
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?= $page_title ?></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?php echo $base_url; ?>email_settings">Email Settings</a></li>
-        <li class="active"><?= $page_title; ?></li>
-      </ol>
-    </section>
-
-    <section class="content">
-      <div class="row">
-        <div class="col-md-12">
-
-          <div class="box box-primary">
-            <div class="box-header with-border">
-              <h3 class="box-title">Email Templates</h3>
-              <div class="box-tools pull-right">
-                <a href="<?=base_url('email_settings/seed_templates');?>" class="btn btn-sm btn-warning"><i class="fa fa-refresh"></i> Restore Defaults</a>
-                <a href="<?=base_url('email_settings');?>" class="btn btn-sm btn-default"><i class="fa fa-cog"></i> Settings</a>
-              </div>
-            </div>
-            <div class="box-body">
-              <p class="text-muted">Use placeholders like <code>{customer_name}</code>, <code>{invoice_number}</code>, <code>{amount_due}</code> and <code>{payment_link}</code> to automatically insert business data into emails.</p>
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>Template</th>
-                    <th>Key</th>
-                    <th>Subject</th>
-                    <th>Status</th>
-                    <th>Copy to Owner</th>
-                    <th style="width:180px;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach($templates as $t): ?>
-                  <tr>
-                    <td><?=htmlspecialchars($t->template_name);?></td>
-                    <td><code><?=htmlspecialchars($t->template_key);?></code></td>
-                    <td><?=htmlspecialchars($t->subject);?></td>
-                    <td>
-                      <?php if($t->status): ?>
-                        <span class="label label-success">Enabled</span>
-                      <?php else: ?>
-                        <span class="label label-default">Disabled</span>
-                      <?php endif; ?>
-                    </td>
-                    <td>
-                      <?php if($t->send_copy_to_owner): ?>
-                        <span class="label label-info">Yes</span>
-                      <?php else: ?>
-                        <span class="label label-default">No</span>
-                      <?php endif; ?>
-                    </td>
-                    <td>
-                      <a href="<?=base_url('email_settings/template_edit/'.$t->id);?>" class="btn btn-xs btn-primary"><i class="fa fa-edit"></i> Edit</a>
-                      <button class="btn btn-xs btn-info btn-preview" data-id="<?=$t->id;?>"><i class="fa fa-eye"></i> Preview</button>
-                      <button class="btn btn-xs btn-success btn-test-template" data-id="<?=$t->id;?>"><i class="fa fa-paper-plane"></i> Test</button>
-                    </td>
-                  </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
+<div class="box box-primary">
+  <div class="box-header with-border">
+    <h3 class="box-title">Email Templates</h3>
+    <div class="box-tools pull-right">
+      <a href="<?=base_url('email_settings/seed_templates');?>" class="btn btn-sm btn-warning"><i class="fa fa-refresh"></i> Restore Defaults</a>
+      <a href="<?=base_url('email_settings');?>" class="btn btn-sm btn-default"><i class="fa fa-cog"></i> Settings</a>
+    </div>
   </div>
-
- <?php include"footer.php"; ?>
-  <div class="control-sidebar-bg"></div>
+  <div class="box-body">
+    <p class="text-muted">Use placeholders like <code>{customer_name}</code>, <code>{invoice_number}</code>, <code>{amount_due}</code> and <code>{payment_link}</code> to automatically insert business data into emails.</p>
+    <table class="table table-bordered table-striped">
+      <thead>
+        <tr>
+          <th>Template</th>
+          <th>Key</th>
+          <th>Subject</th>
+          <th>Status</th>
+          <th>Copy to Owner</th>
+          <th style="width:180px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach($templates as $t): ?>
+        <tr>
+          <td><?=htmlspecialchars($t->template_name);?></td>
+          <td><code><?=htmlspecialchars($t->template_key);?></code></td>
+          <td><?=htmlspecialchars($t->subject);?></td>
+          <td>
+            <?php if($t->status): ?>
+              <span class="label label-success">Enabled</span>
+            <?php else: ?>
+              <span class="label label-default">Disabled</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <?php if($t->send_copy_to_owner): ?>
+              <span class="label label-info">Yes</span>
+            <?php else: ?>
+              <span class="label label-default">No</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <a href="<?=base_url('email_settings/template_edit/'.$t->id);?>" class="btn btn-xs btn-primary"><i class="fa fa-edit"></i> Edit</a>
+            <button class="btn btn-xs btn-info btn-preview" data-id="<?=$t->id;?>"><i class="fa fa-eye"></i> Preview</button>
+            <button class="btn btn-xs btn-success btn-test-template" data-id="<?=$t->id;?>"><i class="fa fa-paper-plane"></i> Test</button>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
 </div>
-
-<?php include"comman/code_js_sound.php"; ?>
-<?php include"comman/code_js.php"; ?>
 
 <!-- Test Template Modal -->
 <div class="modal fade" id="modal-test-template">
@@ -227,6 +197,4 @@ $('#btn-refresh-preview').on('click', function(){
   });
 });
 </script>
-<script>$('.smtp-active-li').addClass('active');</script>
-</body>
-</html>
+<script>$('.smtp-active-li').addClass('active');$('.smtp-active-li').closest('.mp-nav-group').addClass('open');</script>

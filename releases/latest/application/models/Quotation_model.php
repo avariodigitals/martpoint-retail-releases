@@ -575,4 +575,47 @@ class Quotation_model extends CI_Model {
 
 	}
 
+	public function search_item($q){
+		$json_array=array();
+        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";
+
+        $q1=$this->db->query($query1);
+        if($q1->num_rows()>0){
+            foreach ($q1->result() as $value) {
+            	$json_array[]=['id'=>(int)$value->id, 'text'=>$value->item_name];
+            }
+        }
+
+        // Also search db_item_barcodes by barcode, serial, or imei
+        $this->db->select('b.item_id, a.item_name, b.barcode, b.serial_number, b.imei_number');
+        $this->db->from('db_item_barcodes b');
+        $this->db->join('db_items a', 'a.id = b.item_id', 'left');
+        $this->db->where('b.status', 1);
+        $this->db->where("(LOWER(b.barcode) LIKE '%$q%' OR LOWER(b.serial_number) LIKE '%$q%' OR LOWER(b.imei_number) LIKE '%$q%')", null, false);
+        $this->db->group_by('b.item_id');
+        $q2 = $this->db->get();
+        if($q2->num_rows()>0){
+            foreach ($q2->result() as $value) {
+                $label = $value->item_name;
+                if($value->barcode) $label .= ' [BC:'.$value->barcode.']';
+                if($value->serial_number) $label .= ' [S/N:'.$value->serial_number.']';
+                if($value->imei_number) $label .= ' [IMEI:'.$value->imei_number.']';
+                $json_array[]=['id'=>(int)$value->item_id, 'text'=>$label];
+            }
+        }
+        return json_encode($json_array);
+	}
+
+	public function find_item_details($id){
+		$json_array=array();
+		$query1="select * from db_items where id=$id";
+		$q1=$this->db->query($query1);
+		if($q1->num_rows()>0){
+			foreach ($q1->result() as $value) {
+				$json_array[]=['id'=>$value->id, 'item_name'=>$value->item_name,'item_code'=>$value->item_code,'item_purchase_price'=>$value->purchase_price,'item_sales_price'=>$value->sales_price,'item_tax_id'=>$value->tax_id,'item_description'=>$value->description];
+			}
+		}
+		return json_encode($json_array);
+	}
+
 }

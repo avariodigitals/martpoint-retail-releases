@@ -23,7 +23,8 @@ class System_updates extends MY_Controller {
     public function index() {
         $data = $this->data;
         $data['page_title'] = 'System Update';
-        $this->load->view('system-updates', $data);
+        $data['content'] = $this->load->view('system-updates', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     /**

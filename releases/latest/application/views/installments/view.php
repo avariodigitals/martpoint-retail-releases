@@ -1,109 +1,115 @@
-<!DOCTYPE html>
-<html>
-<head>
-<?php $this->load->view('comman/code_css');?>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+<?php $this->load->view('finance/desktop/_styles'); ?>
+<?php $balance = floatval($plan->total_amount) - floatval($plan->total_paid); ?>
 
-<?php $this->load->view('sidebar');?>
-
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Installment Plan <small><?= $plan->plan_code; ?></small></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?php echo $base_url; ?>installments">Installments</a></li>
-        <li class="active">Plan #<?= $plan->plan_code; ?></li>
-      </ol>
-    </section>
-    <section class="content">
-      <div class="row">
-        <div class="col-md-4">
-          <div class="box box-primary">
-            <div class="box-header with-border"><h3 class="box-title"><i class="fa fa-user"></i> Customer</h3></div>
-            <div class="box-body">
-              <p><strong><?= $plan->customer_name; ?></strong></p>
-              <p><?= $plan->mobile; ?></p>
-              <p>Current Due: <?= number_format($plan->sales_due, 2); ?></p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="box box-info">
-            <div class="box-header with-border"><h3 class="box-title"><i class="fa fa-file-text-o"></i> Plan Summary</h3></div>
-            <div class="box-body no-padding">
-              <table class="table table-bordered">
-                <tr><td>Total Amount</td><td class="text-right text-bold"><?= number_format($plan->total_amount, 2); ?></td></tr>
-                <tr><td>Down Payment</td><td class="text-right"><?= number_format($plan->down_payment_amount, 2); ?> <?= $plan->down_payment_paid ? '<i class="fa fa-check text-green"></i>' : ''; ?></td></tr>
-                <tr><td>Total Paid</td><td class="text-right"><?= number_format($plan->total_paid, 2); ?></td></tr>
-                <tr><td>Balance</td><td class="text-right text-bold text-red"><?= number_format($plan->total_amount - $plan->total_paid, 2); ?></td></tr>
-                <tr><td>Frequency</td><td class="text-right"><?= ucfirst($plan->frequency); ?></td></tr>
-                <tr><td>Status</td><td class="text-right"><span class="label label-<?= $plan->status == 'active' ? 'info' : ($plan->status == 'completed' ? 'success' : 'danger'); ?>"><?= ucfirst($plan->status); ?></span></td></tr>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="box box-success">
-            <div class="box-header with-border"><h3 class="box-title"><i class="fa fa-bolt"></i> Actions</h3></div>
-            <div class="box-body">
-              <?php if($plan->status == 'active'){ ?>
-                <a href="<?= base_url('installments/pay/'.$plan->id); ?>" class="btn btn-success btn-block"><i class="fa fa-money"></i> Record Payment</a>
-              <?php } ?>
-              <a href="<?= base_url('sales/invoice/'.$plan->sales_id); ?>" target="_blank" class="btn btn-primary btn-block"><i class="fa fa-eye"></i> View Sale Invoice</a>
-              <a href="<?= base_url('installments'); ?>" class="btn btn-default btn-block"><i class="fa fa-arrow-left"></i> Back to Plans</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col-md-12">
-          <div class="box box-warning">
-            <div class="box-header with-border"><h3 class="box-title"><i class="fa fa-list"></i> Installment Schedule</h3></div>
-            <div class="box-body table-responsive no-padding">
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Due Date</th>
-                    <th class="text-right">Amount Due</th>
-                    <th class="text-right">Amount Paid</th>
-                    <th class="text-right">Late Fee</th>
-                    <th>Status</th>
-                    <th>Paid Date</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach($plan->payments as $p){ ?>
-                  <tr>
-                    <td><?= $p->installment_number; ?></td>
-                    <td><?= show_date($p->due_date); ?></td>
-                    <td class="text-right"><?= number_format($p->amount_due, 2); ?></td>
-                    <td class="text-right"><?= number_format($p->amount_paid, 2); ?></td>
-                    <td class="text-right"><?= number_format($p->late_fee, 2); ?></td>
-                    <td><span class="label label-<?= $p->status == 'paid' ? 'success' : ($p->status == 'overdue' ? 'danger' : ($p->status == 'partial' ? 'warning' : 'default')); ?>"><?= ucfirst($p->status); ?></span></td>
-                    <td><?= $p->paid_date ? show_date($p->paid_date) : '-'; ?></td>
-                    <td>
-                      <?php if($p->status != 'paid' && $plan->status == 'active'){ ?>
-                        <a href="<?= base_url('installments/pay/'.$plan->id.'?payment_id='.$p->id); ?>" class="btn btn-xs btn-success"><i class="fa fa-money"></i> Pay</a>
-                      <?php } ?>
-                    </td>
-                  </tr>
-                  <?php } ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+<div class="mp-page-head">
+  <div>
+    <h2>Installment Plan <?= htmlspecialchars($plan->plan_code); ?></h2>
+    <div class="mp-page-sub"><?= htmlspecialchars($plan->customer_name); ?> — <?= htmlspecialchars($plan->mobile); ?></div>
   </div>
-<?php $this->load->view('footer'); ?>
+  <a class="mp-qa-btn" href="<?= base_url('installments'); ?>"><i class="fa fa-arrow-left"></i> Back to Plans</a>
 </div>
-<?php $this->load->view('comman/code_js');?>
-<!-- Make sidebar menu highlighter/selector -->
+
+<div class="mp-kpi-grid">
+  <div class="mp-kpi-card sales">
+    <div class="mp-kpi-icon"><i class="fa fa-money"></i></div>
+    <div class="mp-kpi-label">Total Amount</div>
+    <div class="mp-kpi-value"><?= store_number_format($plan->total_amount); ?></div>
+  </div>
+  <div class="mp-kpi-card profit">
+    <div class="mp-kpi-icon"><i class="fa fa-check"></i></div>
+    <div class="mp-kpi-label">Total Paid</div>
+    <div class="mp-kpi-value"><?= store_number_format($plan->total_paid); ?></div>
+  </div>
+  <div class="mp-kpi-card <?= $balance > 0 ? 'debt' : 'profit'; ?>">
+    <div class="mp-kpi-icon"><i class="fa fa-balance-scale"></i></div>
+    <div class="mp-kpi-label">Balance</div>
+    <div class="mp-kpi-value"><?= store_number_format($balance); ?></div>
+  </div>
+  <div class="mp-kpi-card cash">
+    <div class="mp-kpi-icon"><i class="fa fa-clock-o"></i></div>
+    <div class="mp-kpi-label">Status</div>
+    <div class="mp-kpi-value" style="font-size:16px;text-transform:capitalize;"><?= ucfirst($plan->status); ?></div>
+  </div>
+</div>
+
+<div class="mp-card-form">
+  <div class="mp-card-head">
+    <h3><i class="fa fa-user"></i> Customer &amp; Plan Details</h3>
+  </div>
+  <div class="mp-card-body">
+    <div class="mp-form-grid">
+      <div class="mp-form-group">
+        <label>Customer</label>
+        <p class="mp-form-hint"><strong><?= htmlspecialchars($plan->customer_name); ?></strong><br><?= htmlspecialchars($plan->mobile); ?></p>
+      </div>
+      <div class="mp-form-group">
+        <label>Current Due</label>
+        <p class="mp-form-hint"><?= store_number_format($plan->sales_due); ?></p>
+      </div>
+      <div class="mp-form-group">
+        <label>Down Payment</label>
+        <p class="mp-form-hint"><?= store_number_format($plan->down_payment_amount); ?> <?= $plan->down_payment_paid ? '<span class="text-success"><i class="fa fa-check"></i> Paid</span>' : '<span class="text-warning">Pending</span>'; ?></p>
+      </div>
+      <div class="mp-form-group">
+        <label>Schedule</label>
+        <p class="mp-form-hint"><?= $plan->installment_count; ?> x <?= store_number_format($plan->installment_amount); ?> (<?= ucfirst($plan->frequency); ?>)</p>
+      </div>
+      <div class="mp-form-group">
+        <label>First Due Date</label>
+        <p class="mp-form-hint"><?= show_date($plan->first_due_date); ?></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mp-card">
+  <div class="mp-card-head">
+    <h3><i class="fa fa-list"></i> Installment Schedule</h3>
+    <?php if($plan->status == 'active'){ ?>
+      <a class="mp-qa-btn green" href="<?= base_url('installments/pay/'.$plan->id); ?>"><i class="fa fa-money"></i> Record Payment</a>
+    <?php } ?>
+  </div>
+  <div class="mp-card-body" style="padding:0;">
+    <div class="mp-dt-scroll">
+      <table class="table mp-dt-table" style="margin:0;" width="100%">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Due Date</th>
+            <th class="text-right">Amount Due</th>
+            <th class="text-right">Amount Paid</th>
+            <th class="text-right">Late Fee</th>
+            <th>Status</th>
+            <th>Paid Date</th>
+            <th class="text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach($plan->payments as $p){ ?>
+          <tr>
+            <td><?= $p->installment_number; ?></td>
+            <td><?= show_date($p->due_date); ?></td>
+            <td class="text-right"><?= store_number_format($p->amount_due); ?></td>
+            <td class="text-right"><?= store_number_format($p->amount_paid); ?></td>
+            <td class="text-right"><?= store_number_format($p->late_fee); ?></td>
+            <td><span class="label label-<?= $p->status == 'paid' ? 'success' : ($p->status == 'overdue' ? 'danger' : ($p->status == 'partial' ? 'warning' : 'default')); ?>"><?= ucfirst($p->status); ?></span></td>
+            <td><?= $p->paid_date ? show_date($p->paid_date) : '-'; ?></td>
+            <td class="text-center">
+              <?php if($p->status != 'paid' && $plan->status == 'active'){ ?>
+                <a href="<?= base_url('installments/pay/'.$plan->id.'?payment_id='.$p->id); ?>" class="btn btn-xs btn-success"><i class="fa fa-money"></i> Pay</a>
+              <?php } ?>
+            </td>
+          </tr>
+          <?php } ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mp-form-actions" style="justify-content:flex-end;margin-top:0;">
+  <a href="<?= base_url('sales/invoice/'.$plan->sales_id); ?>" target="_blank" class="mp-btn-primary"><i class="fa fa-eye"></i> View Sale Invoice</a>
+  <a href="<?= base_url('installments'); ?>" class="mp-btn-secondary"><i class="fa fa-arrow-left"></i> Back to Plans</a>
+</div>
+
 <script>$(".installments-active-li").addClass("active");</script>
-</body>
-</html>

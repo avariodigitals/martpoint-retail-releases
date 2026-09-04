@@ -12,16 +12,18 @@ class Stock_adjustment extends MY_Controller {
 	{
 		$this->permission_check('stock_adjustment_view');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('stock_adjustment_list');
-		$this->load->view('stock_adjustment/stock_adjustment_list',$data);
+		$data['page_title']=$this->lang->line('stock_adjustment_list') ?: 'Stock Adjustment List';
+		$data['content']=$this->load->view('inventory/desktop/stock_adjustment_list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	public function add()
 	{
 		$this->permission_check('stock_adjustment_add');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('stock_adjustment');
-		$this->load->view('stock_adjustment/stock_adjustment',$data);
+		$data['page_title']=$this->lang->line('stock_adjustment') ?: 'Stock Adjustment';
+		$data['content']=$this->load->view('inventory/desktop/stock_adjustment_form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function stock_adjustment_save_and_update(){
@@ -40,8 +42,9 @@ class Stock_adjustment extends MY_Controller {
 		$this->permission_check('stock_adjustment_edit');
 		$data=$this->data;
 		$data=array_merge($data,array('adjustment_id'=>$id));
-		$data['page_title']=$this->lang->line('stock_adjustment');
-		$this->load->view('stock_adjustment/stock_adjustment', $data);
+		$data['page_title']=$this->lang->line('stock_adjustment') ?: 'Stock Adjustment';
+		$data['content']=$this->load->view('inventory/desktop/stock_adjustment_form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	
@@ -60,33 +63,17 @@ class Stock_adjustment extends MY_Controller {
 			$row[] = show_date($stock_adjustment->adjustment_date);
 			$row[] = $stock_adjustment->reference_no;
 			$row[] = ($stock_adjustment->created_by);
-					$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
-											Action <span class="caret"></span>
-										</a>
-										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
-											if($this->permissions('stock_adjustment_view'))
-											$str2.='<li>
-												<a title="View Invoice" href="'.base_url().'stock_adjustment/details/'.$stock_adjustment->id.'" ><i class="fa fa-fw fa-eye text-blue"></i>View Stock Adjustment
-												</a>
-											</li>';
+					$str2 = '<div class="mp-actions">';
+					if($this->permissions('stock_adjustment_view'))
+					$str2.='<a class="mp-edit" title="View" href="'.base_url('stock_adjustment/details/'.$stock_adjustment->id).'"><i class="fa fa-eye"></i></a>';
 
-											if($this->permissions('stock_adjustment_edit'))
-											$str2.='<li>
-												<a title="Update Record ?" href="'.base_url().'stock_adjustment/update/'.$stock_adjustment->id.'">
-													<i class="fa fa-fw fa-edit text-blue"></i>Edit
-												</a>
-											</li>';
+					if($this->permissions('stock_adjustment_edit'))
+					$str2.='<a class="mp-edit" title="Edit" href="'.base_url('stock_adjustment/update/'.$stock_adjustment->id).'"><i class="fa fa-pencil"></i></a>';
 
-											if($this->permissions('stock_adjustment_delete'))
-											$str2.='<li>
-												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_stock_adjustment(\''.$stock_adjustment->id.'\')">
-													<i class="fa fa-fw fa-trash text-red"></i>Delete
-												</a>
-											</li>
-											
-										</ul>
-									</div>';			
+					if($this->permissions('stock_adjustment_delete'))
+					$str2.='<button type="button" class="mp-delete" title="Delete" onclick="delete_stock_adjustment(\''.$stock_adjustment->id.'\')"><i class="fa fa-trash"></i></button>';
+
+					$str2 .= '</div>';
 
 			$row[] = $str2;
 			$data[] = $row;
@@ -125,8 +112,9 @@ class Stock_adjustment extends MY_Controller {
 		}
 		$data=$this->data;
 		$data=array_merge($data,array('adjustment_id'=>$id));
-		$data['page_title']=$this->lang->line('stock_adjustment_details');
-		$this->load->view('stock_adjustment/stock-adjustment-invoice',$data);
+		$data['page_title']=$this->lang->line('stock_adjustment_details') ?: 'Stock Adjustment Details';
+		$data['content']=$this->load->view('inventory/desktop/stock_adjustment_invoice',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	

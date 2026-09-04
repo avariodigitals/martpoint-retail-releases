@@ -619,7 +619,7 @@ class Purchase_returns_model extends CI_Model {
 	}
 	public function search_item($q){
 		$json_array=array();
-        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%')) and store_id=$store_id";
+        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";
 
         $q1=$this->db->query($query1);
         if($q1->num_rows()>0){
@@ -801,7 +801,7 @@ class Purchase_returns_model extends CI_Model {
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
                <td id="td_<?=$rowcount;?>_1">
                   <label class='form-control' style='height:auto;' data-toggle="tooltip" title='Edit ?' >
-                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a> 
+                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
                   		<i onclick="show_purchase_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
                   	</label>
                </td>
@@ -829,12 +829,12 @@ class Purchase_returns_model extends CI_Model {
                <td id="td_<?=$rowcount;?>_10"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="form-control text-right no-padding only_currency text-center" readonly value="<?=store_number_format($item_unit_cost,0);?>"></td>
 
                <!-- Amount -->
-               <td id="td_<?=$rowcount;?>_9"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-right no-padding only_currency text-center" style="border-color: #f39c12;" readonly value="<?=store_number_format($item_amount,0);?>"></td>
+               <td id="td_<?=$rowcount;?>_9"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-right no-padding only_currency text-center" readonly value="<?=store_number_format($item_amount,0);?>"></td>
 
-              
+
                <!-- ADD button -->
                <td id="td_<?=$rowcount;?>_16" style="text-align: center;">
-                  <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
+                  <i class="fa fa-trash mp-row-del" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></i>
                </td>
                <input type="hidden" id="tr_available_qty_<?=$rowcount;?>_13" value="<?=$item_available_qty;?>">
                <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
@@ -844,13 +844,13 @@ class Purchase_returns_model extends CI_Model {
                <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
 
                <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=$description;?>">
-               
+
 
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">
                <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">
 
             </tr>
-		<?php
+	<?php
 
 	}
 

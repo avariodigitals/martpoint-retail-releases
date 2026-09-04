@@ -1,314 +1,188 @@
-<!DOCTYPE html>
-<html>
+<?php
+$this->load->view('admin/desktop/_styles');
 
-<head>
-<!-- FORM CSS CODE -->
-<?php include"comman/code_css.php"; ?>
-<!-- </copy> -->  
-<style type="text/css">
-  .inner-div-2{
-      margin-top: 0.5in !important;
-      margin-bottom: 0.5in !important;
-      margin-left: 0.5in !important;
-      margin-right: 0.5in !important;
-  }
-  .label_border{
+$CI =& get_instance();
+$store_name = $this->session->userdata('store_name') ?: 'MartPoint';
+?>
 
-    border: 0.1px dotted grey !important;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
+<style>
+.mp-card-form { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 16px; box-shadow: var(--mp-shadow-sm); overflow: hidden; margin-bottom: 24px; }
+.mp-card-form .mp-card-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--mp-border); }
+.mp-card-form .mp-card-head h3 { font-size: 15px; font-weight: 700; margin: 0; color: var(--mp-text); }
+.mp-card-form .mp-card-body { padding: 20px; }
+.mp-form-control { width: 100%; padding: 11px 14px; border: 1px solid var(--mp-border); border-radius: 10px; background: var(--mp-surface); color: var(--mp-ink); font-size: 14px; font-weight: 500; font-family: inherit; transition: all .15s ease; }
+.mp-form-control:focus { outline: none; border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,.1); }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); }
+.mp-search-row { display: flex; align-items: center; gap: 10px; max-width: 560px; margin: 0 auto 20px; }
+.mp-search-row .mp-search-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--mp-bg); border: 1px solid var(--mp-border); display: flex; align-items: center; justify-content: center; color: var(--mp-muted); flex-shrink: 0; }
+.mp-search-row .mp-form-control { flex: 1; }
+
+/* Labels table */
+#sales_table { width: 100%; max-width: 720px; margin: 0 auto; border-collapse: collapse; font-size: 13px; }
+#sales_table th { text-align: center; font-size: 11px; font-weight: 700; color: var(--mp-muted); text-transform: uppercase; letter-spacing: .04em; padding: 10px 12px; border-bottom: 1px solid var(--mp-border); background: var(--mp-bg); }
+#sales_table td { padding: 8px 12px; border-bottom: 1px solid var(--mp-border); color: var(--mp-ink); }
+#sales_table tr:hover td { background: var(--mp-bg); }
+.label_border { border: 1px dotted var(--mp-border) !important; overflow: hidden; box-sizing: border-box; }
+
+.mp-totals-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--mp-muted); margin: 16px 0; }
+.mp-totals-row .total_quantity { font-weight: 700; color: var(--mp-success); font-size: 15px; }
+
+.mp-empty-state { text-align: center; padding: 32px 16px; color: var(--mp-muted); font-size: 13px; }
+
+#preview_data { overflow: auto; padding: 16px; }
+.mp-preview-card { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 16px; box-shadow: var(--mp-shadow-sm); overflow: hidden; margin-bottom: 24px; }
+.mp-preview-card .mp-card-body { padding: 16px; }
 </style>
-</head>
 
-
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
- 
- 
- <?php include"sidebar.php"; ?>
- 
-
-
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-         <h1>
-            <?=$page_title;?>
-            <small>Add/Update Sales</small>
-         </h1>
-         <ol class="breadcrumb">
-            <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-            <li class="active"><?=$page_title;?></li>
-         </ol>
-      </section>
-
-    <!-- Main content -->
-     <section class="content">
-               <div class="row">
-               
-                  <!-- right column -->
-                  <div class="col-md-12">
-                     <!-- Horizontal Form -->
-                     
-                        <!-- style="background: #68deac;" -->
-                        
-                        <!-- form start -->
-                         <!-- OK START -->
-                        <?= form_open('#', array('class' => 'form-horizontal', 'id' => 'labels-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
-                           <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
-                           <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
-                           <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
-
-                           <div class="row">
-                              <div class="col-xs-12 ">
-                                 
-                                    <div class="box box-primary">
-                                       <!-- /.box-header -->
-                                       <div class="box-body ">
-                                        <!-- <div class="form-group">
-                                 <label for="label_type" class="col-sm-2 control-label"><?= $this->lang->line('label_settings'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-3">
-                                       <select class="form-control select2" id="label_type" name="label_type"  style="width: 100%;" onkeyup="shift_cursor(event,'mobile')">
-                                          <option value='20'>20 Lables 8"x11"</option>
-                                          <option value='30'>30 Lables 8"x11"</option>
-                                       </select>
-                                   
-                                    <span id="customer_id_msg" style="display:none" class="text-danger"></span>
-                                 </div>
-                                 
-                              </div> -->
-                              <div class="row">
-                              <div class="col-md-12">
-                                <!-- Store Code -->
-                                <?php $store_id=''; ?>
-                                <?php /*if(store_module() && is_admin()) {$this->load->view('store/store_code',array('show_store_select_box'=>true,'store_id'=>$store_id,'label_length'=>'col-sm-2','div_length'=>'col-sm-4')); }else{*/
-                                echo "<input type='hidden' name='store_id' id='store_id' value='".get_current_store_id()."'>";
-                              /*}*/ ?>
-                                <!-- Store Code end -->
-                                <!-- Warehouse Code -->
-                              <?php
-                              
-                               /*if(warehouse_module() && warehouse_count()>1) {$this->load->view('warehouse/warehouse_code',array('show_warehouse_select_box'=>true,'warehouse_id'=>
-                                get_store_warehouse_id(),'label_length'=>'col-sm-2','div_length'=>'col-sm-3')); }else{
-                                echo "<input type='hidden' name='warehouse_id' id='warehouse_id' value='".get_store_warehouse_id()."'>";
-                               }*/
-                              ?>
-                              <!-- Warehouse Code end -->
-                              </div>
-                            </div>
-
-                                          
-                                          
-                                            <div class="col-md-8 col-md-offset-2 d-flex justify-content" >
-                                              <div class="input-group">
-                                                <span class="input-group-addon" title="Select Items"><i class="fa fa-barcode"></i></span>
-                                                 <input type="text" class="form-control " placeholder="Item name/Barcode/Itemcode" id="item_search">
-                                              </div>
-                                            </div>
-                                            <br>
-                                            <br>
-                                          
-                                          <style type="text/css">
-                                             table.table-bordered > thead > tr > th {
-                                             /* border:1px solid black;*/
-                                             text-align: center;
-                                             }
-                                             .table > tbody > tr > td, 
-                                             .table > tbody > tr > th, 
-                                             .table > tfoot > tr > td, 
-                                             .table > tfoot > tr > th, 
-                                             .table > thead > tr > td, 
-                                             .table > thead > tr > th 
-                                             {
-                                             padding-left: 2px;
-                                             padding-right: 2px;  
-
-                                             }
-                                          </style>
-                                          <table class="table table-hover table-bordered col-md-8 col-md-offset-2 d-flex justify-content" style="width:67%" id="sales_table">
-                                             <thead class="custom_thead">
-                                                <tr class="bg-primary" >
-                                                   <th rowspan='2' style="width:45%"><?= $this->lang->line('item_name'); ?></th>
-                                                   <th rowspan='2' style="width:45%"><?= $this->lang->line('quantity'); ?></th>
-                                                   <th rowspan='2' style="width:10%"><?= $this->lang->line('action'); ?></th>
-                                                </tr>
-                                             </thead>
-                                             <tbody>
-                                               
-                                             </tbody>
-                                             
-                                          </table>
-                                          <div class="col-md-6">
-                                              <div class="row">
-                                                  <div class="col-md-12">
-                                                     <div class="form-group">
-                                                        <label for="" class="col-sm-4 control-label"><?= $this->lang->line('total_labels'); ?></label>    
-                                                        <div class="col-sm-4">
-                                                           <label class="control-label total_quantity text-success" style="">0</label>
-                                                        </div>
-                                                     </div>
-                                                  </div>
-                                               </div>
-                                            </div>
-                                       </div>
-                                       <!-- /.box-body -->
-
-                                       <!-- /.box-body -->
-                                       <div class="box-footer col-sm-12">
-                                          <center>
-                                           
-                                             <div class="col-md-3 col-md-offset-3">
-                                                <button type="button" id="preview" class="btn btn-block btn-success payments_modal" title="Preview Labels">Preview</button>
-                                             </div>
-                                             <div class="col-sm-3"><a href="<?= base_url()?>dashboard">
-                                                <button type="button" class="btn btn-block btn-warning" title="Go Dashboard">Close</button>
-                                              </a>
-                                            </div>
-                                          </center>
-                                       </div>
-                                    </div>
-                                 
-                                 <!-- /.box -->
-                              </div>
-
-                           </div>
-                           <div class="row">
-                              <div class="col-xs-12 ">
-                                    <div class="box box-info">
-                                       <!-- /.box-body -->
-                                       <div class="box-footer col-sm-12">
-                                          <span id="preview_data" class=" col-md-offset-1 col-sm-10" style="overflow: auto;" >
-                                            
-                                          </span>
-                                          <div class="col-sm-1">
-                                            <input type="button" class="btn btn-primary btn-flat" id="print" value="Print">
-                                          </div>
-                                       </div>
-                                    </div>
-                                 
-                                 <!-- /.box -->
-                              </div>
-
-                           </div>
-                           <?= form_close(); ?>
-                           <!-- OK END -->
-                     
-                  </div>
-                  <!-- /.box-footer -->
-                 
-               </div>
-               <!-- /.box -->
-             </section>
-            <!-- /.content -->
-  </div>
-  <!-- /.content-wrapper -->
-  
- <?php include"footer.php"; ?>
-<!-- SOUND CODE -->
-<?php include"comman/code_js_sound.php"; ?>
-<!-- GENERAL CODE -->
-<?php include"comman/code_js.php"; ?>
-
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
+<div class="mp-section">
+  <?php include "comman/code_flashdata.php"; ?>
 </div>
-<!-- ./wrapper -->
 
-      <script src="<?php echo $theme_link; ?>js/labels.js"></script>  
-      <script>
-       
-        var base_url=$("#base_url").val();
-        $("#store_id").on("change",function(){
-          var store_id=$(this).val();
-          $.post(base_url+"sales/get_customers_select_list",{store_id:store_id},function(result){
-              $("#sales_table > tbody").empty();
-              final_total();
-          });
-        });
+<!-- Page Header -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; Print product barcode labels</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Items
+      </a>
+    </div>
+  </div>
+</div>
 
-         /* ---------- Final Description of amount ------------*/
-         function final_total(){
-          var rowcount=$("#hidden_rowcount").val();
-           var total_quantity=0;
-         
-           for(i=1;i<=rowcount;i++){
-         
-             if(document.getElementById("td_data_"+i+"_1")){
-               //customer_id must exist
-               if($("#td_data_"+i+"_1").val()!=null && $("#td_data_"+i+"_1").val()!=''){
-                     
-                    total_quantity +=parseInt($("#td_data_"+i+"_3").val());
-                }
-                   
-             }//if end
-           }//for end
-          //Show total Sales Quantitys
-           $(".total_quantity").html(total_quantity);
-         }
-         /* ---------- Final Description of amount end ------------*/
-          
-         function removerow(id){//id=Rowid
-           
-         $("#row_"+id).remove();
-         final_total();
-         failed.currentTime = 0;
-        failed.play();
-         }
+<!-- Label Builder -->
+<div class="mp-section">
+  <?= form_open('#', array('class' => '', 'id' => 'labels-form', 'enctype'=>'multipart/form-data', 'method'=>'POST')); ?>
+  <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
+  <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
+  <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
+  <input type="hidden" name="store_id" id="store_id" value="<?php echo htmlspecialchars(get_current_store_id()); ?>">
 
-         /*Print Div*/
-         $("#print").on("click",function(event) {
-            PrintMe("preview_data");
-            
-         });
+  <div class="mp-card-form box">
+    <div class="mp-card-head">
+      <h3>Build Your Labels</h3>
+    </div>
+    <div class="mp-card-body">
+      <div class="mp-search-row">
+        <div class="mp-search-icon">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <input type="text" class="mp-form-control" placeholder="Search by item name, barcode or item code" id="item_search">
+      </div>
 
-         function PrintMe(DivID) {
-            var disp_setting="toolbar=yes,location=no,";
-            disp_setting+="directories=yes,menubar=yes,";
-            disp_setting+="scrollbars=yes,width=800, height=600, left=100, top=25";
-               var content_vlue = document.getElementById(DivID).innerHTML;
-               var docprint=window.open("","",disp_setting);
-               docprint.document.open();
-               docprint.document.write('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"');
-               docprint.document.write('"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">');
-               docprint.document.write('<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">');
-               docprint.document.write('<head><title>My Title</title>');
-               docprint.document.write('<style type="text/css">body{ margin:0px;');
-               docprint.document.write('font-family:verdana,Arial;color:#000;');
-               docprint.document.write('font-family:Verdana, Geneva, sans-serif; font-size:12px;}');
-               docprint.document.write('a{color:#000;text-decoration:none;} </style>');
-               docprint.document.write('</head><body onLoad="self.print()">');
-               docprint.document.write(content_vlue);
-               docprint.document.write('</body></html>');
-               docprint.document.close();
-               docprint.focus();
-            }
-      </script>
-      <!-- Purchase List Barcode -->
-      <script type="text/javascript">
-        jQuery(document).ready(function($) {
-          <?php
-          if(isset($purchase_id)){ ?>
-               $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-              var base_url=$("#base_url").val();
-              var rowcount=$("#hidden_rowcount").val();
-              $.post(base_url+"items/show_labels/"+<?=$purchase_id;?>,{},function(result){
-                    $('#sales_table tbody').append(result);
-                    $("#hidden_rowcount").val($('#sales_table tbody tr').length+1);
-                    $("#preview").trigger('click');
-                    success.currentTime = 0;
-                    success.play();
-                    final_total();
-                    $(".overlay").remove();
-                });
-          <?php }
-          ?>  
-        });
-      </script>
-      <!-- Purchase List Barcode end-->
-      <!-- Make sidebar menu hughlighter/selector -->
-      <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-</body>
-</html>
+      <table id="sales_table">
+        <thead>
+          <tr>
+            <th style="width:45%"><?= $this->lang->line('item_name'); ?></th>
+            <th style="width:45%"><?= $this->lang->line('quantity'); ?></th>
+            <th style="width:10%"><?= $this->lang->line('action'); ?></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="mp-empty-state"><td colspan="3">Search for an item above to add it to the label sheet.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="mp-totals-row">
+        <span><?= $this->lang->line('total_labels'); ?>:</span>
+        <span class="total_quantity">0</span>
+      </div>
+    </div>
+    <div class="mp-form-actions">
+      <button type="button" id="preview" class="mp-qa-btn green" title="Preview Labels">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Preview Labels
+      </button>
+      <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Close</a>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="mp-preview-card box">
+    <div class="mp-card-body">
+      <span id="preview_data" style="display:block;min-height:80px;">
+        <div class="mp-empty-state">Preview will appear here after you click “Preview Labels”.</div>
+      </span>
+      <div style="margin-top:16px;text-align:right;">
+        <input type="button" class="mp-qa-btn blue" id="print" value="Print">
+      </div>
+    </div>
+  </div>
+
+  <?= form_close(); ?>
+</div>
+
+<script>
+  var base_url = $("#base_url").val();
+  $("#store_id").on("change", function(){
+    var store_id = $(this).val();
+    $.post(base_url + "sales/get_customers_select_list", {store_id: store_id}, function(result){
+      $("#sales_table > tbody").empty();
+      final_total();
+    });
+  });
+
+  /* ---------- Final total quantity ------------*/
+  function final_total(){
+    var rowcount = $("#hidden_rowcount").val();
+    var total_quantity = 0;
+    for (var i = 1; i <= rowcount; i++) {
+      if (document.getElementById("td_data_" + i + "_1")) {
+        if ($("#td_data_" + i + "_1").val() != null && $("#td_data_" + i + "_1").val() != '') {
+          total_quantity += parseInt($("#td_data_" + i + "_3").val()) || 0;
+        }
+      }
+    }
+    $(".total_quantity").html(total_quantity);
+  }
+
+  function removerow(id){
+    $("#row_" + id).remove();
+    final_total();
+    if (typeof failed !== 'undefined') { failed.currentTime = 0; failed.play(); }
+  }
+
+  /* Print */
+  $("#print").on("click", function(event){
+    PrintMe("preview_data");
+  });
+
+  function PrintMe(DivID){
+    var disp_setting = "toolbar=yes,location=no,directories=yes,menubar=yes,scrollbars=yes,width=800,height=600,left=100,top=25";
+    var content_vlue = document.getElementById(DivID).innerHTML;
+    var docprint = window.open("", "", disp_setting);
+    if (!docprint) { toastr && toastr["error"] ? toastr["error"]("Please allow pop-ups to print labels.") : alert("Please allow pop-ups to print labels."); return; }
+    docprint.document.open();
+    docprint.document.write('<!DOCTYPE html><html><head><title><?php echo htmlspecialchars($store_name); ?> — Labels</title>');
+    docprint.document.write('<style type="text/css">body{margin:0px;font-family:Verdana,Arial;color:#000;font-size:12px;}a{color:#000;text-decoration:none;}</style>');
+    docprint.document.write('</head><body onLoad="self.print()">');
+    docprint.document.write(content_vlue);
+    docprint.document.write('</body></html>');
+    docprint.document.close();
+    docprint.focus();
+  }
+</script>
+
+<!-- Purchase list barcode auto-load -->
+<script type="text/javascript">
+  jQuery(document).ready(function($){
+    <?php if(isset($purchase_id)): ?>
+    $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+    var base_url = $("#base_url").val();
+    $.post(base_url + "items/show_labels/<?= (int)$purchase_id; ?>", {}, function(result){
+      $('#sales_table tbody').append(result);
+      $("#hidden_rowcount").val($('#sales_table tbody tr').length + 1);
+      $("#preview").trigger('click');
+      if (typeof success !== 'undefined') { success.currentTime = 0; success.play(); }
+      final_total();
+      $(".overlay").remove();
+    });
+    <?php endif; ?>
+  });
+</script>
+<!-- Make sidebar menu highlighter/selector -->
+<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>

@@ -17,6 +17,8 @@ class MY_Controller extends CI_Controller{
       {
         parent::__construct();
 
+        $this->source_version = app_version();
+
         //$this->output->enable_profiler(TRUE);
 
         //Before Login Update check
@@ -89,7 +91,7 @@ class MY_Controller extends CI_Controller{
             $this->data = array('theme_link'    => base_url().'theme/',
                                 'base_url'      => base_url(),
                                 'SITE_TITLE'    => $query->row()->site_name,
-                                'VERSION'       => $query->row()->version,
+                                'VERSION'       => app_version(),
                                 'CURRENCY'      => $this->session->userdata('currency'),
                                 'CURRENCY_PLACE'=> $this->session->userdata('currency_placement'),
                                 'CURRENCY_CODE' => $this->session->userdata('currency_code'),
@@ -148,6 +150,34 @@ class MY_Controller extends CI_Controller{
             // to prevent it from reappearing on every page load
 
             $this->load_info();
+
+            // Re-seed any missing default permissions once per session so role
+            // fixes take effect immediately without forcing every user to log out.
+            $this->reseed_role_permissions();
+      }
+
+      private function reseed_role_permissions(){
+            // Use a versioned session flag so the reseed runs again after each
+            // deployment where the default permission sets have changed.
+            $flag = 'mp_perms_reseeded_v2';
+            if($this->session->userdata($flag)){
+                return;
+            }
+
+            // Make sure the latest Default_data_model is loaded for the reseed
+            $model_file = APPPATH . 'models/Default_data_model.php';
+            if(function_exists('opcache_invalidate') && file_exists($model_file)){
+                @opcache_invalidate($model_file, true);
+                @opcache_invalidate(__FILE__, true);
+            }
+
+            try {
+                $this->load->model('default_data_model','default_data');
+                $this->default_data->reseed_missing_permissions();
+                $this->session->set_userdata($flag, 1);
+            } catch (Throwable $e) {
+                log_message('error', 'reseed_role_permissions failed: ' . $e->getMessage());
+            }
       }
 
       public function enforce_subscription(){
@@ -279,22 +309,24 @@ class MY_Controller extends CI_Controller{
           }
           return true;
         }
-        public function show_access_denied_page()
+        public function show_access_denied_page($message = '')
         {
           // AJAX requests get JSON, not a redirect
           if($this->input->is_ajax_request() || $this->input->post('is_ajax')){
             header('Content-Type: application/json');
-            echo json_encode(array('status'=>'error','message'=>'You don\'t have permission to access this feature.'));
+            echo json_encode(array('status'=>'error','message'=> $message ?: 'You don\'t have permission to access this feature.'));
             exit;
           }
-          // Normal page requests: redirect back with a toastr notification
-          $this->session->set_flashdata('error', 'You don\'t have permission to access that feature.');
-          $referrer = $this->input->server('HTTP_REFERER', TRUE);
-          if(!empty($referrer)){
-            redirect($referrer);
-          } else {
-            redirect(base_url('dashboard'));
-          }
+
+          set_status_header(403);
+          $d = $this->data ?? [];
+          $d['theme_link'] = $d['theme_link'] ?? base_url().'theme/';
+          $d['base_url']   = $d['base_url'] ?? base_url();
+          $d['page_title'] = 'Access Denied';
+          $d['message']    = $message ?: 'You don\'t have permission to access this feature. Contact your administrator if you believe this is a mistake.';
+          $d['content']    = $this->load->view('errors/access_denied', $d, TRUE);
+          $this->load->view('mp_layout', $d);
+          exit;
         }
 
         /**
@@ -343,8 +375,9 @@ class MY_Controller extends CI_Controller{
           ];
           $icon = isset($icons[$flag]) ? $icons[$flag] : 'fa-lock';
 
-          set_status_header(403);
           $d = $this->data ?? [];
+          $d['theme_link']      = $d['theme_link'] ?? base_url().'theme/';
+          $d['base_url']        = $d['base_url'] ?? base_url();
           $d['page_title']      = function_exists('mp_feature_label') ? mp_feature_label($flag) : ucwords(str_replace(['_','-'],' ',$flag));
           $d['feature_label']   = $d['page_title'];
           $d['feature_key']     = $flag;
@@ -353,7 +386,8 @@ class MY_Controller extends CI_Controller{
           $d['description']     = $description;
           $d['enable_url']      = base_url('business_profile');
           $d['back_url']        = base_url('dashboard');
-          $this->load->view('operations/feature_not_activated.php', $d);
+          $d['content']         = $this->load->view('errors/feature_not_activated', $d, TRUE);
+          $this->load->view('mp_layout', $d);
           exit;
         }
             //end
@@ -363,7 +397,7 @@ class MY_Controller extends CI_Controller{
         
         public function belong_to($table,$rec_id){
           if(!is_it_belong_to_store($table,$rec_id)){
-            show_error("Data may not avaialable!!", 403, $heading = "Something Went Wrong!!");
+            $this->show_access_denied_page('This record does not belong to your store or you do not have permission to access it.');
           }
         }
 

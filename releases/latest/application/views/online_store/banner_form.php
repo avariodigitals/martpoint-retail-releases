@@ -1,106 +1,71 @@
-<!DOCTYPE html>
-<html>
-<head>
-<?php $this->load->view('comman/code_css.php');?>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar');?>
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?= $page_title ?></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?=base_url('dashboard');?>"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?=base_url('online_store/banners');?>">Banners</a></li>
-        <li class="active"><?= $page_title; ?></li>
-      </ol>
-    </section>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+<style>
+.os-form-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px 24px!important}
+.os-form-grid .full{grid-column:1/-1!important}
+.os-form-grid .mp-form-group{display:flex!important;flex-direction:column!important;gap:6px!important}
+.os-form-grid .mp-form-group>label{font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;margin:0!important}
+.os-form-narrow{max-width:760px!important}
+.os-image-preview{margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid var(--mp-border);max-width:240px}
+.os-image-preview img{display:block;width:100%;height:auto}
+</style>
 
-    <section class="content">
-      <div class="row">
-        <div class="col-md-8">
-          <form class="form-horizontal" id="banner-form" method="post" enctype="multipart/form-data" onsubmit="return false;">
-            <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
-            <input type="hidden" name="banner_id" value="<?= $banner ? $banner->id : ''; ?>">
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub"><a href="<?= base_url('online_store/banners'); ?>"><i class="fa fa-arrow-left"></i> Back to Banners</a></div>
+  </div>
+</div>
 
-            <div class="box box-primary">
-              <div class="box-header with-border"><h3 class="box-title">Banner Details</h3></div>
-              <div class="box-body">
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Banner Type</label>
-                  <div class="col-sm-6">
-                    <select class="form-control" name="banner_type">
-                      <option value="hero" <?= ($banner->banner_type ?? 'hero') == 'hero' ? 'selected' : ''; ?>>Homepage Hero (slideshow)</option>
-                      <option value="promo" <?= ($banner->banner_type ?? '') == 'promo' ? 'selected' : ''; ?>>Promotional</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Banner Title</label>
-                  <div class="col-sm-6"><input type="text" class="form-control" name="banner_title" value="<?= htmlspecialchars($banner->banner_title ?? ''); ?>"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Banner Subtitle</label>
-                  <div class="col-sm-6"><input type="text" class="form-control" name="banner_subtitle" value="<?= htmlspecialchars($banner->banner_subtitle ?? ''); ?>"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Button Text</label>
-                  <div class="col-sm-6"><input type="text" class="form-control" name="button_text" value="<?= htmlspecialchars($banner->button_text ?? ''); ?>"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Button URL</label>
-                  <div class="col-sm-6"><input type="text" class="form-control" name="button_url" value="<?= htmlspecialchars($banner->button_url ?? ''); ?>"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Display Order</label>
-                  <div class="col-sm-2"><input type="number" class="form-control" name="display_order" value="<?= (int)($banner->display_order ?? 0); ?>"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Start Date</label>
-                  <div class="col-sm-3"><input type="date" class="form-control" name="start_date" value="<?= $banner->start_date ?? ''; ?>"></div>
-                  <label class="col-sm-2 control-label">End Date</label>
-                  <div class="col-sm-3"><input type="date" class="form-control" name="end_date" value="<?= $banner->end_date ?? ''; ?>"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Active</label>
-                  <div class="col-sm-6">
-                    <label class="checkbox-inline"><input type="checkbox" name="status" value="1" <?= (!isset($banner) || $banner->status) ? 'checked' : ''; ?>> Yes</label>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Desktop Image</label>
-                  <div class="col-sm-6"><input type="file" name="desktop_image" accept="image/*"></div>
-                </div>
-                <div class="form-group">
-                  <label class="col-sm-3 control-label">Mobile Image</label>
-                  <div class="col-sm-6"><input type="file" name="mobile_image" accept="image/*"></div>
-                </div>
-              </div>
-              <div class="box-footer">
-                <button type="button" class="btn btn-primary" onclick="saveBanner()">Save Banner</button>
-                <a href="<?= base_url('online_store/banners'); ?>" class="btn btn-default">Back</a>
-              </div>
-            </div>
-          </form>
+<form id="banner-form" method="post" enctype="multipart/form-data" onsubmit="return false;" class="os-form-narrow">
+  <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+  <input type="hidden" name="banner_id" value="<?= $banner ? (int)$banner->id : ''; ?>">
+
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3>Banner Details</h3></div>
+    <div class="mp-card-body">
+      <div class="os-form-grid">
+        <div class="mp-form-group full"><label for="banner_type">Banner Type</label>
+          <select class="mp-form-control" name="banner_type" id="banner_type">
+            <option value="hero" <?= ($banner->banner_type ?? 'hero') == 'hero' ? 'selected' : ''; ?>>Homepage Hero (slideshow)</option>
+            <option value="promo" <?= ($banner->banner_type ?? '') == 'promo' ? 'selected' : ''; ?>>Promotional</option>
+          </select>
+        </div>
+        <div class="mp-form-group full"><label for="banner_title">Banner Title</label><input type="text" class="mp-form-control" name="banner_title" id="banner_title" value="<?= htmlspecialchars($banner->banner_title ?? ''); ?>"></div>
+        <div class="mp-form-group full"><label for="banner_subtitle">Banner Subtitle</label><input type="text" class="mp-form-control" name="banner_subtitle" id="banner_subtitle" value="<?= htmlspecialchars($banner->banner_subtitle ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="button_text">Button Text</label><input type="text" class="mp-form-control" name="button_text" id="button_text" value="<?= htmlspecialchars($banner->button_text ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="button_url">Button URL</label><input type="text" class="mp-form-control" name="button_url" id="button_url" value="<?= htmlspecialchars($banner->button_url ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="display_order">Display Order</label><input type="number" class="mp-form-control" name="display_order" id="display_order" value="<?= (int)($banner->display_order ?? 0); ?>"></div>
+        <div class="mp-form-group"><label for="status">Active</label><label class="os-check-inline" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--mp-ink);margin:0;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);"><input type="checkbox" name="status" value="1" <?= (!isset($banner) || $banner->status) ? 'checked' : ''; ?>> Yes, display this banner</label></div>
+        <div class="mp-form-group"><label for="start_date">Start Date</label><input type="date" class="mp-form-control" name="start_date" id="start_date" value="<?= htmlspecialchars($banner->start_date ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="end_date">End Date</label><input type="date" class="mp-form-control" name="end_date" id="end_date" value="<?= htmlspecialchars($banner->end_date ?? ''); ?>"></div>
+        <div class="mp-form-group full"><label for="desktop_image">Desktop Image</label><input type="file" name="desktop_image" id="desktop_image" accept="image/*" class="mp-form-control" style="padding:8px!important;">
+          <?php if($banner && !empty($banner->desktop_image) && file_exists($banner->desktop_image)): ?><div class="os-image-preview"><img src="<?= base_url($banner->desktop_image); ?>" alt="Desktop preview"></div><?php endif; ?>
+        </div>
+        <div class="mp-form-group full"><label for="mobile_image">Mobile Image</label><input type="file" name="mobile_image" id="mobile_image" accept="image/*" class="mp-form-control" style="padding:8px!important;">
+          <?php if($banner && !empty($banner->mobile_image) && file_exists($banner->mobile_image)): ?><div class="os-image-preview"><img src="<?= base_url($banner->mobile_image); ?>" alt="Mobile preview"></div><?php endif; ?>
         </div>
       </div>
-    </section>
+    </div>
   </div>
-  <?php $this->load->view('footer'); ?>
-</div>
-<?php $this->load->view('comman/code_js.php'); ?>
+
+  <div class="mp-form-actions" style="margin-top:20px;">
+    <button type="button" class="mp-btn-primary" onclick="saveBanner()"><i class="fa fa-check"></i> Save Banner</button>
+    <a href="<?= base_url('online_store/banners'); ?>" class="mp-btn-secondary"><i class="fa fa-arrow-left"></i> Back</a>
+  </div>
+</form>
+
 <script>
 toastr.options = { positionClass: 'toast-top-center', closeButton: true, progressBar: true, timeOut: 3000 };
 function saveBanner(){
-  const btn = document.querySelector('#banner-form button[type=button]');
+  const btn = document.querySelector('#banner-form .mp-btn-primary');
   btn.disabled = true; btn.textContent = 'Saving...';
   const fd = new FormData(document.getElementById('banner-form'));
   fetch('<?= base_url('online_store/save_banner'); ?>', {method:'POST', body:fd})
   .then(r=>r.json()).then(res=>{
     if(res.status==='success'){ toastr.success(res.message); location.href='<?= base_url('online_store/banners'); ?>'; }
-    else { toastr.error(res.message || 'Failed to save'); btn.disabled = false; btn.textContent = 'Save Banner'; }
-  }).catch(()=>{ toastr.error('Error saving banner'); btn.disabled = false; btn.textContent = 'Save Banner'; });
+    else { toastr.error(res.message || 'Failed to save'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Banner'; }
+  }).catch(()=>{ toastr.error('Error saving banner'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Banner'; });
 }
 </script>
-</body>
-</html>
+<script>$(".online_store-banners-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

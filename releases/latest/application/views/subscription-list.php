@@ -1,125 +1,73 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-<!-- TABLES CSS CODE -->
-<?php include"comman/code_css.php"; ?>
+<?php
+/* Subscription list — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
 <link rel="stylesheet" href="<?php echo $theme_link; ?>css/subscription.css">
-<style type="text/css">
-  
-</style>
-</head>
 
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+<div class="mp-page-head"><h1 class="mp-page-title"><?= $page_title; ?></h1></div>
 
-  <!-- Left side column. contains the logo and sidebar -->
-  
-  <?php include"sidebar.php"; ?>
-
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <h1>
-        <?=$page_title;?>
-        <small>View/Search Subscription</small>
-      </h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        
-        <li class="active"><?=$page_title;?></li>
-      </ol>
-    </section>
-    <div class="pay_now_modal">
-    </div>
-    <div class="pay_return_due_modal">
-    </div>
-    <!-- Main content -->
-    <?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
-    <input type="hidden" id='base_url' value="<?=$base_url;?>">
-    <section class="content">
-      <!-- /.row -->
-      <div class="row">
-        <!-- ********** ALERT MESSAGE START******* -->
-        <?php include"comman/code_flashdata.php"; ?>
-        <!-- ********** ALERT MESSAGE END******* -->
-        
-        <div class="col-xs-12 text-center">
-          <div class="btn-group">
-            <button type="button" class="btn btn-success" id='monthly_plan'>Monthly</button>
-            <button type="button" class="btn btn-default" id='annually_plan'> Annually </button>
-          </div>
-        </div>
-        <div class="col-xs-12">
-          <div class="">
-            <div class="planContainer">
-              
-            </div>
-          </div>
-        </div>
-        <div class="col-xs-12">
-          <div class="box">
-            <div class="box-header with-border">
-              <div class="col-lg-3 col-xs-6">
-                <?= $this->lang->line('subscriptions'); ?>
-                </div>
-              <?php if(is_admin()) { ?>
-              <div class="box-tools">
-                <a class="btn btn-block btn-info" href="<?php echo $base_url; ?>subscription/add">
-                <i class="fa fa-plus"></i> <?= $this->lang->line('manual_subscription'); ?></a>
-              </div>
-              <?php } ?>
-            </div>
-            <!-- /.box-header -->
-            <div class="box-body">
-              <table id="example2" class="table table-bordered custom_hover" width="100%">
-                <thead class="bg-gray ">
-                <tr>
-                  
-                  <th><?= $this->lang->line('package_name'); ?></th>
-                  <th><?= $this->lang->line('subscription_date'); ?></th>
-                  <th><?= $this->lang->line('trial_days'); ?></th>
-                  <th><?= $this->lang->line('expire_date'); ?></th>
-                  <th><?= $this->lang->line('max_warehouses'); ?></th>
-                  <th><?= $this->lang->line('max_users'); ?></th>
-                  <th><?= $this->lang->line('max_items'); ?></th>
-                  <th><?= $this->lang->line('max_invoices'); ?></th>
-                  <th><?= $this->lang->line('payment_status'); ?></th>
-                  <!-- <th><?= $this->lang->line('package_status'); ?></th> -->
-                  <th><?= $this->lang->line('action'); ?></th>
-                </tr>
-                </thead>
-                <tbody>
-        
-                </tbody>
-                
-
-              </table>
-            </div>
-            <!-- /.box-body -->
-          </div>
-          <!-- /.box -->
-        </div>
-        <!-- /.col -->
-      </div>
-      <!-- /.row -->
-    </section>
-    <!-- /.content -->
-    <?= form_close();?>
-  </div>
-  <!-- /.content-wrapper -->
-  <?php include"footer.php"; ?>
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
+<div class="pay_now_modal">
 </div>
-<!-- ./wrapper -->
+<div class="pay_return_due_modal">
+</div>
+<?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
+<input type="hidden" id='base_url' value="<?=$base_url;?>">
 
-<!-- SOUND CODE -->
-<?php include"comman/code_js_sound.php"; ?>
-<!-- TABLES CODE -->
-<?php include"comman/code_js.php"; ?>
+<?php include"comman/code_flashdata.php"; ?>
+
+<div class="col-xs-12 text-center">
+  <div class="btn-group">
+    <button type="button" class="btn btn-success" id='monthly_plan'>Monthly</button>
+    <button type="button" class="btn btn-default" id='annually_plan'> Annually </button>
+  </div>
+</div>
+<div class="col-xs-12">
+  <div class="">
+    <div class="planContainer">
+      
+    </div>
+  </div>
+</div>
+
+<div class="mp-card">
+  <div class="mp-card-head">
+    <h3 class="mp-card-title"><?= $this->lang->line('subscriptions'); ?></h3>
+    <?php if(is_admin()) { ?>
+    <a class="mp-qa-btn green" href="<?php echo $base_url; ?>subscription/add">
+    <i class="fa fa-plus"></i> <?= $this->lang->line('manual_subscription'); ?></a>
+    <?php } ?>
+  </div>
+  <div class="mp-card-body">
+    <div class="mp-dt-scroll">
+    <table id="example2" class="mp-dt-table" width="100%">
+      <thead class="bg-gray ">
+      <tr>
+        
+        <th><?= $this->lang->line('package_name'); ?></th>
+        <th><?= $this->lang->line('subscription_date'); ?></th>
+        <th><?= $this->lang->line('trial_days'); ?></th>
+        <th><?= $this->lang->line('expire_date'); ?></th>
+        <th><?= $this->lang->line('max_warehouses'); ?></th>
+        <th><?= $this->lang->line('max_users'); ?></th>
+        <th><?= $this->lang->line('max_items'); ?></th>
+        <th><?= $this->lang->line('max_invoices'); ?></th>
+        <th><?= $this->lang->line('payment_status'); ?></th>
+        <!-- <th><?= $this->lang->line('package_status'); ?></th> -->
+        <th><?= $this->lang->line('action'); ?></th>
+      </tr>
+      </thead>
+      <tbody>
+
+      </tbody>
+      
+
+    </table>
+    </div>
+  </div>
+</div>
+
+<?= form_close();?>
+
 <!-- bootstrap datepicker -->
 <script src="<?php echo $theme_link; ?>plugins/datepicker/bootstrap-datepicker.js"></script>
 <script type="text/javascript">
@@ -263,7 +211,4 @@ function ajax_package_list(plan_type) {
 <script src="<?php echo $theme_link; ?>js/subscription.js"></script>
 
 <!-- Make sidebar menu hughlighter/selector -->
-<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-    
-</body>
-</html>
+<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

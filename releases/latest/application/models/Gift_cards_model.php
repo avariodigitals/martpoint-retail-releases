@@ -111,10 +111,29 @@ class Gift_cards_model extends CI_Model {
     {
         $id = $this->input->post('card_id', TRUE);
         $store_id = get_current_store_id();
+        $card = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_gift_cards')->row();
+        if(!$card) return 'failed: card not found';
+
+        $initial_value = $this->input->post('initial_value', TRUE);
+        $expiry_days = $this->input->post('expiry_days', TRUE);
+
         $data = array(
             'customer_id' => $this->input->post('customer_id', TRUE) ?: null,
+            'card_type' => $this->input->post('card_type', TRUE) ?: $card->card_type,
             'notes' => $this->input->post('notes', TRUE),
         );
+
+        // Only update initial_value if the card hasn't been partially redeemed
+        if($initial_value !== null && $initial_value !== '' && $card->current_balance == $card->initial_value){
+            $data['initial_value'] = $initial_value;
+            $data['current_balance'] = $initial_value;
+        }
+
+        // Recalculate expiry if expiry_days is provided
+        if($expiry_days !== null && $expiry_days !== ''){
+            $data['expiry_date'] = ((int)$expiry_days > 0) ? date('Y-m-d', strtotime("+$expiry_days days")) : null;
+        }
+
         $this->db->where('id', $id)->where('store_id', $store_id)->update('db_gift_cards', $data);
         if($this->db->error()['code'] != 0) return 'failed: ' . $this->db->error()['message'];
         return ($this->db->affected_rows() >= 0) ? "success" : "failed: no rows affected";
@@ -146,21 +165,25 @@ class Gift_cards_model extends CI_Model {
             'status' => $status
         ));
 
-        $this->db->insert('db_gift_card_usage', array(
-            'store_id' => $store_id,
-            'card_id' => $card_id,
-            'customer_id' => $customer_id,
-            'sales_id' => $sales_id,
-            'amount_used' => $amount,
-            'created_date' => date('Y-m-d'),
-            'created_time' => date('H:i:s')
-        ));
+        if($this->db->table_exists('db_gift_card_usage')){
+            $this->db->insert('db_gift_card_usage', array(
+                'store_id' => $store_id,
+                'card_id' => $card_id,
+                'customer_id' => $customer_id,
+                'sales_id' => $sales_id,
+                'amount_used' => $amount,
+                'created_date' => date('Y-m-d'),
+                'created_time' => date('H:i:s')
+            ));
+        }
 
         // Update customer gift card balance
-        $customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
-        if($customer){
-            $new_cust_balance = max(0, $customer->gift_card_balance - $amount);
-            $this->db->where('id', $customer_id)->update('db_customers', array('gift_card_balance' => $new_cust_balance));
+        if($customer_id && $this->db->field_exists('gift_card_balance', 'db_customers')){
+            $customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+            if($customer){
+                $new_cust_balance = max(0, $customer->gift_card_balance - $amount);
+                $this->db->where('id', $customer_id)->update('db_customers', array('gift_card_balance' => $new_cust_balance));
+            }
         }
         return 'success';
     }

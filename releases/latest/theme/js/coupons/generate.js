@@ -224,14 +224,26 @@ function set_coupon_value(){
 	var value = input.attr("data-value");
 	var type = input.attr("data-type");
 	var expire_date = input.attr("data-expire_date");
+	var occasion_name = input.text();
 
-	if(value=='undefined'){
-		expire_date=type=value='';
+	if(value === undefined || value === false || value === '' || occasion_name === '-Select-'){
+		expire_date = '';
+		value = '';
+		type = '';
+		occasion_name = '';
+		$("#occasion_name_display").hide();
+	} else {
+		$("#occasion_name_display").html('<i class="fa fa-tag"></i> Occasion: <strong>' + escapeHtml(occasion_name) + '</strong>').show();
 	}
 
 	$("#expire_date").val(expire_date);
-	$("#coupon_value").val(value);	
-	$("#coupon_type").val(type);	
+	$("#coupon_value").val(value);
+	$("#coupon_type").val(type);
+}
+
+function escapeHtml(str){
+	if(!str) return '';
+	return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 $("#coupon_id").on("change", function(){

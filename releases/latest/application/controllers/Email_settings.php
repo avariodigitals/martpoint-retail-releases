@@ -28,7 +28,8 @@ class Email_settings extends MY_Controller {
 		$this->load->model('email_settings_model');
 		$data['settings'] = $this->email_settings_model->getSettings();
 
-		$this->load->view('email-settings', $data);
+		$data['content'] = $this->load->view('email-settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/* ---------- Save Settings ---------- */
@@ -89,7 +90,8 @@ class Email_settings extends MY_Controller {
 		$this->load->model('email_template_model');
 		$data['templates'] = $this->email_template_model->getAll();
 
-		$this->load->view('email-templates', $data);
+		$data['content'] = $this->load->view('email-templates', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function template_edit($id = NULL){
@@ -105,7 +107,8 @@ class Email_settings extends MY_Controller {
 			$data['template'] = NULL;
 		}
 
-		$this->load->view('email-template-form', $data);
+		$data['content'] = $this->load->view('email-template-form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function template_save(){
@@ -223,7 +226,8 @@ class Email_settings extends MY_Controller {
 		$this->load->model('email_log_model');
 		$data['logs'] = $this->email_log_model->getLogs(NULL, [], 100, 0);
 
-		$this->load->view('email-logs', $data);
+		$data['content'] = $this->load->view('email-logs', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function logs_ajax(){
@@ -267,7 +271,8 @@ class Email_settings extends MY_Controller {
 		$this->report_schedule_model->seedDefaults();
 		$data['schedules'] = $this->report_schedule_model->getAll();
 
-		$this->load->view('email-schedules', $data);
+		$data['content'] = $this->load->view('email-schedules', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function seed_schedules(){

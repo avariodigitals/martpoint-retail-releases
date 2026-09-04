@@ -1,129 +1,126 @@
-<!DOCTYPE html>
-<html>
-<head>
-<?php $this->load->view('comman/code_css');?>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+<?php $this->load->view('finance/desktop/_styles'); ?>
+<?php $balance = floatval($plan->total_amount) - floatval($plan->total_paid); ?>
+<?php
+$payment_id = $this->input->get('payment_id');
+$selected_payment = null;
+foreach($plan->payments as $p){
+  if(!$payment_id || $p->id == $payment_id){
+    if(!$selected_payment && $p->status != 'paid'){
+      $selected_payment = $p;
+    }
+  }
+}
+if(!$selected_payment) $selected_payment = isset($plan->payments[0]) ? $plan->payments[0] : null;
+?>
 
-<?php $this->load->view('sidebar');?>
+<div class="mp-page-head">
+  <div>
+    <h2>Record Installment Payment</h2>
+    <div class="mp-page-sub"><?= htmlspecialchars($plan->customer_name); ?> — Plan <?= htmlspecialchars($plan->plan_code); ?></div>
+  </div>
+  <a class="mp-qa-btn" href="<?= base_url('installments/view/'.$plan->id); ?>"><i class="fa fa-arrow-left"></i> Back to Plan</a>
+</div>
 
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Record Installment Payment <small><?= $plan->plan_code; ?></small></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?php echo $base_url; ?>installments">Installments</a></li>
-        <li><a href="<?php echo $base_url; ?>installments/view/<?= $plan->id; ?>">Plan #<?= $plan->plan_code; ?></a></li>
-        <li class="active">Record Payment</li>
-      </ol>
-    </section>
-    <section class="content">
-      <div class="row">
-        <div class="col-md-6 col-md-offset-3">
-          <div class="box box-success">
-            <div class="box-header with-border"><h3 class="box-title"><i class="fa fa-money"></i> Payment Details</h3></div>
-            <form id="installment-payment-form">
-              <div class="box-body">
-                <div class="form-group">
-                  <label>Customer</label>
-                  <input type="text" class="form-control" value="<?= $plan->customer_name; ?>" readonly>
-                </div>
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label>Total Plan Amount</label>
-                      <input type="text" class="form-control text-right" value="<?= number_format($plan->total_amount, 2); ?>" readonly>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label>Total Paid So Far</label>
-                      <input type="text" class="form-control text-right" value="<?= number_format($plan->total_paid, 2); ?>" readonly>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Balance</label>
-                  <input type="text" class="form-control text-right text-bold text-red" value="<?= number_format($plan->total_amount - $plan->total_paid, 2); ?>" readonly>
-                </div>
-                <hr>
-                <?php
-                $payment_id = $this->input->get('payment_id');
-                $selected_payment = null;
-                foreach($plan->payments as $p){
-                  if(!$payment_id || $p->id == $payment_id){
-                    if(!$selected_payment && $p->status != 'paid'){
-                      $selected_payment = $p;
-                    }
-                  }
-                }
-                if(!$selected_payment) $selected_payment = isset($plan->payments[0]) ? $plan->payments[0] : null;
-                ?>
-                <input type="hidden" name="payment_id" value="<?= $selected_payment ? $selected_payment->id : ''; ?>">
-                <div class="form-group">
-                  <label>Installment #</label>
-                  <select class="form-control" name="payment_id_select" onchange="window.location='<?= base_url('installments/pay/'.$plan->id); ?>?payment_id='+this.value">
-                    <?php foreach($plan->payments as $p){ ?>
-                      <option value="<?= $p->id; ?>" <?= ($selected_payment && $selected_payment->id == $p->id) ? 'selected' : ''; ?>>
-                        #<?= $p->installment_number; ?> — Due <?= show_date($p->due_date); ?> — <?= number_format($p->amount_due, 2); ?> (<?= ucfirst($p->status); ?>)
-                      </option>
-                    <?php } ?>
-                  </select>
-                </div>
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label>Amount Due</label>
-                      <input type="text" class="form-control text-right" value="<?= $selected_payment ? number_format($selected_payment->amount_due, 2) : '0.00'; ?>" readonly>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label>Amount to Pay <span class="text-danger">*</span></label>
-                      <input type="number" step="0.01" class="form-control text-right" name="amount_paid" value="<?= $selected_payment ? number_format($selected_payment->amount_due, 2, '.', '') : '0.00'; ?>" required>
-                    </div>
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label>Payment Type</label>
-                      <select class="form-control" name="payment_type">
-                        <?= get_payment_modes_select_list(get_current_store_id()); ?>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label>Account</label>
-                      <select class="form-control" name="account_id">
-                        <option value="">-Select-</option>
-                        <?= get_accounts_select_list(); ?>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Note</label>
-                  <textarea class="form-control" name="payment_note" rows="2"></textarea>
-                </div>
-              </div>
-              <div class="box-footer">
-                <a href="<?= base_url('installments/view/'.$plan->id); ?>" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back</a>
-                <button type="button" class="btn btn-success pull-right" onclick="savePayment()">
-                  <i class="fa fa-save"></i> Save Payment
-                </button>
-              </div>
-            </form>
-          </div>
+<div class="mp-kpi-grid">
+  <div class="mp-kpi-card sales">
+    <div class="mp-kpi-icon"><i class="fa fa-money"></i></div>
+    <div class="mp-kpi-label">Total Amount</div>
+    <div class="mp-kpi-value"><?= store_number_format($plan->total_amount); ?></div>
+  </div>
+  <div class="mp-kpi-card profit">
+    <div class="mp-kpi-icon"><i class="fa fa-check"></i></div>
+    <div class="mp-kpi-label">Total Paid</div>
+    <div class="mp-kpi-value"><?= store_number_format($plan->total_paid); ?></div>
+  </div>
+  <div class="mp-kpi-card <?= $balance > 0 ? 'debt' : 'profit'; ?>">
+    <div class="mp-kpi-icon"><i class="fa fa-balance-scale"></i></div>
+    <div class="mp-kpi-label">Balance</div>
+    <div class="mp-kpi-value"><?= store_number_format($balance); ?></div>
+  </div>
+</div>
+
+<div style="max-width:960px;margin:0 auto 24px;">
+<div class="mp-card-form">
+  <div class="mp-card-head">
+    <h3><i class="fa fa-money"></i> Payment Details</h3>
+  </div>
+  <div class="mp-card-body">
+    <form id="installment-payment-form">
+      <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+      <div class="mp-form-grid">
+        <div class="mp-form-group">
+          <label>Customer</label>
+          <input type="text" class="form-control mp-form-control" value="<?= htmlspecialchars($plan->customer_name); ?>" readonly>
+        </div>
+
+        <div class="mp-form-group">
+          <label>Total Plan Amount</label>
+          <input type="text" class="form-control mp-form-control text-right" value="<?= store_number_format($plan->total_amount); ?>" readonly>
+        </div>
+
+        <div class="mp-form-group">
+          <label>Total Paid So Far</label>
+          <input type="text" class="form-control mp-form-control text-right" value="<?= store_number_format($plan->total_paid); ?>" readonly>
+        </div>
+
+        <div class="mp-form-group">
+          <label>Balance</label>
+          <input type="text" class="form-control mp-form-control text-right text-danger" style="font-weight:700;" value="<?= store_number_format($balance); ?>" readonly>
+        </div>
+
+        <div class="mp-form-group full">
+          <label for="payment_id_select">Installment #</label>
+          <select class="form-control select2 mp-form-control" style="width:100%;" id="payment_id_select" onchange="window.location='<?= base_url('installments/pay/'.$plan->id); ?>?payment_id='+this.value">
+            <?php foreach($plan->payments as $p){ ?>
+              <option value="<?= $p->id; ?>" <?= ($selected_payment && $selected_payment->id == $p->id) ? 'selected' : ''; ?>>
+                #<?= $p->installment_number; ?> — Due <?= show_date($p->due_date); ?> — <?= store_number_format($p->amount_due); ?> (<?= ucfirst($p->status); ?>)
+              </option>
+            <?php } ?>
+          </select>
+        </div>
+
+        <input type="hidden" name="payment_id" id="payment_id" value="<?= $selected_payment ? $selected_payment->id : ''; ?>">
+
+        <div class="mp-form-group">
+          <label>Amount Due</label>
+          <input type="text" class="form-control mp-form-control text-right" value="<?= $selected_payment ? store_number_format($selected_payment->amount_due) : '0.00'; ?>" readonly>
+        </div>
+
+        <div class="mp-form-group">
+          <label for="amount_paid">Amount to Pay <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" class="form-control mp-form-control text-right" name="amount_paid" id="amount_paid" value="<?= $selected_payment ? number_format($selected_payment->amount_due, 2, '.', '') : '0.00'; ?>" required>
+        </div>
+
+        <div class="mp-form-group">
+          <label for="payment_type">Payment Type</label>
+          <select class="form-control select2 mp-form-control" style="width:100%;" name="payment_type" id="payment_type">
+            <?= get_payment_modes_select_list(get_current_store_id()); ?>
+          </select>
+        </div>
+
+        <div class="mp-form-group">
+          <label for="account_id">Account</label>
+          <select class="form-control select2 mp-form-control" style="width:100%;" name="account_id" id="account_id">
+            <option value="">-Select-</option>
+            <?= get_accounts_select_list(); ?>
+          </select>
+        </div>
+
+        <div class="mp-form-group full">
+          <label for="payment_note">Note</label>
+          <textarea class="form-control mp-form-control" name="payment_note" id="payment_note" rows="2"></textarea>
         </div>
       </div>
-    </section>
+    </form>
   </div>
-<?php $this->load->view('footer'); ?>
 </div>
-<?php $this->load->view('comman/code_js');?>
+
+<div class="mp-form-actions" style="justify-content:flex-end;">
+  <a href="<?= base_url('installments/view/'.$plan->id); ?>" class="mp-btn-secondary"><i class="fa fa-arrow-left"></i> Back</a>
+  <button type="button" class="mp-btn-primary" onclick="savePayment()"><i class="fa fa-save"></i> Save Payment</button>
+</div>
+</div>
+
 <script>
 function savePayment(){
   var form = $('#installment-payment-form').serialize();
@@ -134,10 +131,14 @@ function savePayment(){
     } else {
       toastr.error(res);
     }
+  }).fail(function(){
+    toastr.error('Payment failed. Please try again.', 'Error');
   });
 }
 </script>
-<!-- Make sidebar menu highlighter/selector -->
+<script>
+$(document).ready(function(){
+  $(".select2").select2();
+});
+</script>
 <script>$(".installments-active-li").addClass("active");</script>
-</body>
-</html>

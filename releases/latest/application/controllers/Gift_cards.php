@@ -18,7 +18,8 @@ class Gift_cards extends MY_Controller {
         $this->permission_check('gift_cards_view');
         $data=$this->data;
         $data['page_title']='Gift Cards';
-        $this->load->view('gift_cards/list',$data);
+        $data['content'] = $this->load->view('marketing/desktop/gift_cards/list', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function add()
@@ -26,7 +27,8 @@ class Gift_cards extends MY_Controller {
         $this->permission_check('gift_cards_add');
         $data=$this->data;
         $data['page_title']='Add Gift Card';
-        $this->load->view('gift_cards/form',$data);
+        $data['content'] = $this->load->view('marketing/desktop/gift_cards/form', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function edit($id)
@@ -35,7 +37,8 @@ class Gift_cards extends MY_Controller {
         $data=$this->data;
         $data['page_title']='Edit Gift Card';
         $data['card']=$this->gift_cards->get_card($id);
-        $this->load->view('gift_cards/form',$data);
+        $data['content'] = $this->load->view('marketing/desktop/gift_cards/form', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     public function save()
@@ -73,16 +76,17 @@ class Gift_cards extends MY_Controller {
             $row[] = show_date($card->expiry_date) ?: 'Never';
             $row[] = ucfirst($card->card_type);
             $row[] = $status_label;
-            $action = '';
+            $action = '<div class="mp-actions">';
             if($this->permissions('gift_cards_view') && $card->status == 'active'){
-                $action .= '<a href="'.base_url('gift_cards/print_card/'.$card->id).'" class="btn btn-sm btn-default" target="_blank" title="Print Card"><i class="fa fa-print"></i></a> ';
+                $action .= '<a href="'.base_url('gift_cards/print_card/'.$card->id).'" class="mp-edit" target="_blank" title="Print Card"><i class="fa fa-print"></i></a>';
             }
             if($this->permissions('gift_cards_edit') && $card->status == 'active'){
-                $action .= '<a href="'.base_url('gift_cards/edit/'.$card->id).'" class="btn btn-sm btn-primary"><i class="fa fa-edit"></i></a> ';
+                $action .= '<a href="'.base_url('gift_cards/edit/'.$card->id).'" class="mp-edit" title="Edit"><i class="fa fa-edit"></i></a>';
             }
             if($this->permissions('gift_cards_delete') && $card->status == 'active'){
-                $action .= '<button class="btn btn-sm btn-danger" onclick="cancel_card('.$card->id.')"><i class="fa fa-ban"></i></button>';
+                $action .= '<button class="mp-delete" title="Cancel Card" onclick="cancel_card('.$card->id.')"><i class="fa fa-ban"></i></button>';
             }
+            $action .= '</div>';
             $row[] = $action;
             $data[] = $row;
         }

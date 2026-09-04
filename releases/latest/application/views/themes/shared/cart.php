@@ -4,6 +4,26 @@
 
 <div class="mp-section mp-cart-section" id="cart-container"></div>
 
+<!-- Order Success Overlay -->
+<div class="mp-order-success-overlay" id="order-success-overlay">
+  <div class="mp-order-success-card">
+    <div class="mp-success-icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </div>
+    <div class="mp-success-title" id="success-title">Order Received!</div>
+    <div class="mp-success-msg" id="success-msg">Your order has been received and is being processed. We'll contact you shortly.</div>
+    <div class="mp-success-order-code" id="success-code">Order #---</div>
+    <div id="success-wa-note" style="display:none;" class="mp-success-wa-note">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
+      <span>Your order has also been sent to the store on WhatsApp.</span>
+    </div>
+    <div class="mp-success-actions">
+      <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" class="mp-success-btn mp-success-btn-secondary">Continue Shopping</a>
+      <a href="#" id="success-track-btn" class="mp-success-btn mp-success-btn-primary">View Order</a>
+    </div>
+  </div>
+</div>
+
 <style>
   .mp-sticky-cart { display:none !important; }
   .mp-cart-section { padding-top:24px !important; }
@@ -74,6 +94,26 @@
 
   /* Empty cart */
   .mp-empty { text-align:center; padding:60px 16px; color:var(--mp-gray); }
+
+  /* Order success overlay */
+  .mp-order-success-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:2000; display:none; align-items:center; justify-content:center; padding:16px; }
+  .mp-order-success-overlay.show { display:flex; }
+  .mp-order-success-card { background:#fff; border-radius:16px; max-width:440px; width:100%; padding:40px 28px; text-align:center; box-shadow:0 24px 64px rgba(0,0,0,0.2); animation:mpSuccessIn .4s ease; }
+  @keyframes mpSuccessIn { from{opacity:0;transform:scale(0.92) translateY(12px);} to{opacity:1;transform:scale(1) translateY(0);} }
+  .mp-success-icon-wrap { width:72px; height:72px; border-radius:50%; background:#D1FAE5; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; animation:mpSuccessPop .5s ease .15s both; }
+  @keyframes mpSuccessPop { 0%{transform:scale(0);} 60%{transform:scale(1.15);} 100%{transform:scale(1);} }
+  .mp-success-icon-wrap svg { width:36px; height:36px; color:#059669; }
+  .mp-success-title { font-size:22px; font-weight:800; color:#0F172A; margin-bottom:8px; }
+  .mp-success-msg { font-size:15px; color:#64748B; line-height:1.6; margin-bottom:20px; }
+  .mp-success-order-code { display:inline-block; background:#EFF6FF; color:#2563EB; padding:10px 20px; border-radius:10px; font-size:15px; font-weight:700; font-family:monospace; margin-bottom:20px; letter-spacing:0.02em; }
+  .mp-success-actions { display:flex; gap:10px; }
+  .mp-success-btn { flex:1; padding:14px; border-radius:10px; font-weight:700; border:none; cursor:pointer; font-size:14px; text-decoration:none; text-align:center; display:block; }
+  .mp-success-btn-primary { background:var(--mp-primary); color:#fff; }
+  .mp-success-btn-primary:hover { background:var(--mp-primary-dark); }
+  .mp-success-btn-secondary { background:#fff; color:#0F172A; border:1px solid #E2E8F0; }
+  .mp-success-btn-secondary:hover { background:#F8FAFC; }
+  .mp-success-wa-note { margin-top:16px; padding:12px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; font-size:13px; color:#166534; display:flex; align-items:center; gap:8px; justify-content:center; }
+  .mp-success-wa-note svg { width:18px; height:18px; flex-shrink:0; }
 </style>
 
 <script src="https://js.paystack.co/v1/inline.js"></script>
@@ -292,9 +332,8 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
       if(res.payment_required&&res.public_key){
         payWithPaystack(res.public_key,res.email,res.amount_kobo,res.reference,res.order_id);
       } else {
-        showToast('Order placed! Order #'+res.order_code);
-        cartData=[]; localStorage.removeItem('sf_cart_'+STORE_ID); updateCartUI();
-        setTimeout(()=>{window.location.href='<?= base_url('store/' . ($settings->store_slug ?? '')); ?>';},2000);
+        showOrderSuccess(res.order_code, res.redirect_url, pm);
+        cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); updateCartUI();
       }
     } else { showToast(res.message||'Failed to place order'); btn.disabled=false; btn.textContent='Place Order'; }
   }).catch(err=>{ showToast(err.message || 'Network error. Please try again.'); btn.disabled=false; btn.textContent='Place Order'; });
@@ -303,10 +342,37 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
 function payWithPaystack(key,email,amount,reference,orderId){
   const handler=PaystackPop.setup({
     key:key, email:email, amount:amount, currency:'NGN', ref:reference,
-    callback:function(response){ showToast('Payment successful!'); cartData=[]; localStorage.removeItem('sf_cart_'+STORE_ID); updateCartUI(); setTimeout(()=>{window.location.href='<?= base_url('store/' . ($settings->store_slug ?? '')); ?>';},1500); },
+    callback:function(response){ showOrderSuccess(response.reference, '<?= base_url('store/' . ($settings->store_slug ?? '') . '/order_received/'); ?>' + response.reference, 'paystack'); cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); updateCartUI(); },
     onClose:function(){ showToast('Payment cancelled'); const btn=document.getElementById('checkout-btn'); if(btn){ btn.disabled=false; btn.textContent='Place Order'; } }
   });
   handler.openIframe();
+}
+
+function showOrderSuccess(orderCode, redirectUrl, paymentMethod){
+  const overlay = document.getElementById('order-success-overlay');
+  const codeEl = document.getElementById('success-code');
+  const titleEl = document.getElementById('success-title');
+  const msgEl = document.getElementById('success-msg');
+  const waNote = document.getElementById('success-wa-note');
+  const trackBtn = document.getElementById('success-track-btn');
+  if(!overlay) return;
+  if(codeEl) codeEl.textContent = 'Order #' + orderCode;
+  if(paymentMethod === 'whatsapp'){
+    if(titleEl) titleEl.textContent = 'Order Sent!';
+    if(msgEl) msgEl.innerHTML = 'Your order has been received and sent to the store on WhatsApp.<br>The store will contact you to confirm your order.';
+    if(waNote) waNote.style.display = 'flex';
+  } else if(paymentMethod === 'paystack'){
+    if(titleEl) titleEl.textContent = 'Payment Successful!';
+    if(msgEl) msgEl.innerHTML = 'Your payment has been confirmed and your order is being processed.<br>We\'ll contact you shortly with delivery details.';
+    if(waNote) waNote.style.display = 'none';
+  } else {
+    if(titleEl) titleEl.textContent = 'Order Received!';
+    if(msgEl) msgEl.innerHTML = 'Your order has been received and is being processed.<br>We\'ll contact you shortly with delivery details.';
+    if(waNote) waNote.style.display = 'none';
+  }
+  if(trackBtn && redirectUrl) trackBtn.href = redirectUrl;
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
 renderCart();

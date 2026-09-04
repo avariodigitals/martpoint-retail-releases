@@ -9,13 +9,27 @@ class Currency extends MY_Controller {
 	}
 
 	public function add(){
-		//$this->permission_check('currency_add');
 		if(!special_access()){
 			$this->show_access_denied_page();exit;
 		}
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('currency');
-		$this->load->view('currency', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('currency'),
+			'page_sub' => 'Create a new currency',
+			'form_id' => 'currency-form',
+			'save_url' => 'currency/newcurrency',
+			'update_url' => 'currency/update_currency',
+			'list_url' => base_url('currency/view'),
+			'module' => 'currency',
+			'fields' => [
+				['name' => 'currency_name', 'label' => 'Currency Name', 'type' => 'text', 'required' => true],
+				['name' => 'currency_code', 'label' => 'Currency Code', 'type' => 'text', 'required' => true],
+				['name' => 'currency', 'label' => 'Symbol', 'type' => 'text', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newcurrency(){
 		$this->form_validation->set_rules('currency_name', 'Currency Name', 'trim|required');
@@ -31,7 +45,6 @@ class Currency extends MY_Controller {
 		}
 	}
 	public function update($id){
-		//$this->permission_check('currency_edit');
 		if(!special_access()){
 			$this->show_access_denied_page();exit;
 		}
@@ -41,7 +54,22 @@ class Currency extends MY_Controller {
 		$result=$this->currency_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('currency');
-		$this->load->view('currency', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('currency'),
+			'page_sub' => 'Update currency details',
+			'form_id' => 'currency-form',
+			'save_url' => 'currency/newcurrency',
+			'update_url' => 'currency/update_currency',
+			'list_url' => base_url('currency/view'),
+			'module' => 'currency',
+			'fields' => [
+				['name' => 'currency_name', 'label' => 'Currency Name', 'type' => 'text', 'required' => true],
+				['name' => 'currency_code', 'label' => 'Currency Code', 'type' => 'text', 'required' => true],
+				['name' => 'currency', 'label' => 'Symbol', 'type' => 'text', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_currency(){
 		$this->form_validation->set_rules('currency_name', 'Currency Name', 'trim|required');
@@ -57,13 +85,34 @@ class Currency extends MY_Controller {
 		}
 	}
 	public function view(){
-		//$this->permission_check('currency_view');
 		if(!special_access()){
 			$this->show_access_denied_page();exit;
 		}
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('currencies_list');
-		$this->load->view('currency-view', $data);
+		$data['rows'] = $this->currency->get_datatables();
+		$data['crud'] = [
+			'page_title' => $this->lang->line('currencies_list'),
+			'page_sub' => 'Manage global currencies',
+			'add_url' => base_url('currency/add'),
+			'add_label' => 'New Currency',
+			'columns' => [
+				['title' => '', 'type' => 'checkbox'],
+				['title' => 'Currency Name', 'field' => 'currency_name', 'type' => 'text'],
+				['title' => 'Currency Code', 'field' => 'currency_code', 'type' => 'text'],
+				['title' => 'Symbol', 'field' => 'currency', 'type' => 'text'],
+				['title' => 'Status', 'field' => 'status', 'type' => 'status'],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'currency',
+			'status_url' => 'currency/update_status',
+			'delete_url' => 'currency/delete_currency',
+			'multi_delete_url' => 'currency/multi_delete',
+			'edit_url' => base_url('currency/update/{id}'),
+			'bulk_delete' => true,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

@@ -675,7 +675,8 @@ class Ninverify extends MY_Controller {
         ", [$store_id])->result();
         
         $data['page_title'] = 'NIN/BVN Usage Summary';
-        $this->load->view('ninverify_usage', $data);
+        $data['content'] = $this->load->view('ninverify_usage', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 
     /**
@@ -699,6 +700,7 @@ class Ninverify extends MY_Controller {
         $data['mock_count'] = $this->db->where('store_id', $store_id)->where('is_mock', 1)->count_all_results('db_nin_verification_logs');
         
         $data['page_title'] = 'NIN/BVN Verification Log';
-        $this->load->view('ninverify_log', $data);
+        $data['content'] = $this->load->view('ninverify_log', $data, TRUE);
+        $this->load->view('mp_layout', $data);
     }
 }

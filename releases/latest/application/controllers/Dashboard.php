@@ -85,6 +85,10 @@ class Dashboard extends MY_Controller {
 		$data['insights']        = $this->dashboard_model->get_insights($selected_branch);
 		$data['branch_performance'] = $this->dashboard_model->get_branch_performance($range);
 		$data['best_selling_variant'] = $this->dashboard_model->get_best_selling_variant($selected_branch, $range);
+		// Range-aware invoice + new-customer counts (respond to the date filter)
+		$data['invoices_range']  = $this->dashboard_model->get_invoices_by_range($range, $selected_branch);
+		$data['new_customers_range'] = $this->dashboard_model->get_new_customers_by_range($range, $selected_branch);
+		$data['range_info']      = $range_info;
 		$data['page_title']=$this->lang->line('dashboard');
 
 		// Clock-in status for dashboard (all non-admin staff)
@@ -101,7 +105,8 @@ class Dashboard extends MY_Controller {
 			$this->load->view('role/dashboard_empty',$data);
 		}
 		else{
-			$this->load->view('dashboard',$data);
+			$data['content'] = $this->load->view('dashboard',$data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 		
 	}
@@ -256,7 +261,8 @@ class Dashboard extends MY_Controller {
 		if($force_mobile){
 			$this->load->view('mobile/daily_summary', $data);
 		} else {
-			$this->load->view('daily_summary', $data);
+			$data['content'] = $this->load->view('daily_summary', $data, TRUE);
+			$this->load->view('mp_layout', $data);
 		}
 	}
 

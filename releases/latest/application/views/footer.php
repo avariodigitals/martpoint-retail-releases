@@ -1,8 +1,5 @@
-<footer class="main-footer">
-    <div class="pull-right hidden-xs">
-      <b>MartPoint Retail - v<?= isset($VERSION) ? $VERSION : '4.0.0'; ?></b>
-    </div>
-    <strong>Copyright &copy; <?=date("Y")?> MartPoint Retail. All rights reserved.</strong>
+<footer class="copyright">
+    &copy; <?=date("Y")?> <?= isset($SITE_TITLE) ? htmlspecialchars($SITE_TITLE) : 'MartPoint Retail' ?>. Powered by MartPoint Retail v<?= isset($VERSION) ? $VERSION : app_version(); ?>.
   </footer>
   <!-- Control Sidebar -->
   

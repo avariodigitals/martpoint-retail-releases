@@ -12,14 +12,16 @@ class Customers_advance extends MY_Controller {
 		$this->permission_check('cust_adv_payments_add');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('advance_payments_list');
-		$this->load->view('customers_advance/list', $data);
+		$data['content'] = $this->load->view('customers/desktop/advance_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function add() {
 		$this->permission_check('cust_adv_payments_add');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('new_advance');
-		$this->load->view('customers_advance/create', $data);
+		$data['content'] = $this->load->view('customers/desktop/advance_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function new_advance() {
 		$this->form_validation->set_rules('payment_date', 'Advance Date', 'trim|required');
@@ -43,7 +45,8 @@ class Customers_advance extends MY_Controller {
 		$result = $this->advance->get_details($id, $data);
 		$data = array_merge($data, $result);
 		$data['page_title'] = $this->lang->line('edit_advance');
-		$this->load->view('customers_advance/create', $data);
+		$data['content'] = $this->load->view('customers/desktop/advance_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_advance() {
 		$this->form_validation->set_rules('payment_date', 'Advance Date', 'trim|required');

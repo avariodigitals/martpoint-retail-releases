@@ -1,3 +1,4 @@
+$(function(){
 /*Email validation code*/
 function validateEmail(sEmail) {
     var filter = /^([\w-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([\w-]+\.)+))([a-zA-Z]{2,9}|[0-9]{1,3})(\]?)$/;
@@ -710,4 +711,4 @@ $(".add_tax").on("click",function(e){
         }
       });
 });
-/* taxs modal end */
+}); /* taxs modal end */

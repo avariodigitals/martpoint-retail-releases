@@ -929,3 +929,19 @@ body.sidebar-mini.sidebar-collapse .main-header .logo .logo-mini {
     margin-left: 70px !important;
   }
 }
+
+/* ===== MartPoint Copyright Footer (POS desktop style, app-wide) ===== */
+footer.copyright {
+  text-align: center;
+  padding: 10px 24px;
+  background: var(--mp-surface, #FFFFFF);
+  border-top: 1px solid var(--mp-border, #E7E5E4);
+  color: var(--mp-muted, #78716C);
+  font-size: 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+/* When inside AdminLTE layout, ensure it sits at bottom of content */
+.content-wrapper footer.copyright {
+  margin-left: 0;
+  clear: both;
+}

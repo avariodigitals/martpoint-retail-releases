@@ -10,6 +10,7 @@ class Theme_engine {
     private $theme = null;
     private $settings = null;
     private $store = null;
+    private $industry = null;
 
     public function __construct(){
         $this->CI =& get_instance();
@@ -28,62 +29,59 @@ class Theme_engine {
         $this->settings = $this->CI->storefront_model->getSettings($storeId);
         $this->store = get_store_details($storeId);
 
-        // Determine active theme
-        // 1. Preview mode takes precedence
-        if($previewTheme){
-            $this->theme = $this->getTheme($previewTheme);
+        $businessProfile = mp_get_store_profile($storeId);
+        $this->industry = $businessProfile['industry_type'] ?? 'general_retail';
+
+        // Build the allowed theme set for this industry. This is the single source
+        // of truth: any stored theme (preview, profile, settings, legacy) that is
+        // not in this set is rejected and the engine falls back to an allowed theme.
+        $allowedThemes = $this->CI->storefront_model->getThemesByIndustryForStore($this->industry, true);
+        $allowedById = [];
+        $allowedByKey = [];
+        foreach($allowedThemes as $t){
+            $allowedById[$t->id] = $t;
+            $allowedByKey[$t->theme_key] = $t;
+        }
+
+        // 1. Preview mode takes precedence, but it must belong to the industry
+        if($previewTheme && isset($allowedById[$previewTheme])){
+            $this->theme = $allowedById[$previewTheme];
         }
 
         // 2. Business Profile is the source of truth for the active theme
         if(!$this->theme){
-            $businessProfile = mp_get_store_profile($storeId);
-            $businessIndustry = $businessProfile['industry_type'] ?? 'general_retail';
             $businessThemeKey = !empty($businessProfile['theme_key']) ? $businessProfile['theme_key'] : null;
-            if($businessThemeKey){
-                $businessTheme = $this->getThemeByKey($businessThemeKey);
-                if($businessTheme){
-                    // Validate the chosen theme still matches the current industry;
-                    // a stale laundry theme for a retail profile should fall back to the retail preset.
-                    $themeIndustry = isset($businessTheme->industry) ? $businessTheme->industry : '';
-                    $match = empty($themeIndustry)
-                        || strtolower($themeIndustry) === 'general'
-                        || stripos(strtolower($themeIndustry), strtolower($businessIndustry)) !== false
-                        || stripos(strtolower($businessIndustry), strtolower($themeIndustry)) !== false;
-                    if($match){
-                        $this->theme = $businessTheme;
-                    }
-                }
-            }
-            // If the stored theme does not match the industry, use the industry preset
-            if(!$this->theme && !empty($businessIndustry)){
-                $presets = mp_get_business_presets();
-                $preset = $presets[$businessIndustry] ?? $presets['general_retail'];
-                $fallbackThemeKey = $preset['theme_key'] ?? 'general_retail';
-                $this->theme = $this->getThemeByKey($fallbackThemeKey);
-            }
-            if($this->theme){
-                // Keep db_storefront_settings in sync so Appearance and public preview stay consistent
-                if($this->settings->theme_id != $this->theme->id){
-                    $this->CI->storefront_model->saveSettings($storeId, ['theme_id' => $this->theme->id]);
-                    $this->settings = $this->CI->storefront_model->getSettings($storeId);
-                }
+            if($businessThemeKey && isset($allowedByKey[$businessThemeKey])){
+                $this->theme = $allowedByKey[$businessThemeKey];
             }
         }
 
         // 3. Legacy: explicit theme_id in storefront settings
-        if(!$this->theme && $this->settings->theme_id){
-            $this->theme = $this->getTheme($this->settings->theme_id);
+        if(!$this->theme && !empty($this->settings->theme_id) && isset($allowedById[$this->settings->theme_id])){
+            $this->theme = $allowedById[$this->settings->theme_id];
         }
 
-        // 4. Fallback: if no theme_id in storefront settings, check db_store.storefront_theme_key
-        if(!$this->theme && $this->store && !empty($this->store->storefront_theme_key)){
-            $this->theme = $this->getThemeByKey($this->store->storefront_theme_key);
+        // 4. Fallback: db_store.storefront_theme_key
+        if(!$this->theme && $this->store && !empty($this->store->storefront_theme_key) && isset($allowedByKey[$this->store->storefront_theme_key])){
+            $this->theme = $allowedByKey[$this->store->storefront_theme_key];
         }
 
+        // 5. Final fallback: first allowed theme, or general_retail if nothing else
         if(!$this->theme){
-            $this->theme = $this->getDefaultTheme();
+            $this->theme = !empty($allowedThemes) ? $allowedThemes[0] : $this->getDefaultTheme();
         }
+
+        // Keep db_storefront_settings.theme_id in sync with the resolved theme
+        if($this->theme && $this->settings->theme_id != $this->theme->id){
+            $this->CI->storefront_model->saveSettings($storeId, ['theme_id' => $this->theme->id]);
+            $this->settings = $this->CI->storefront_model->getSettings($storeId);
+        }
+
         return $this;
+    }
+
+    public function getIndustry(){
+        return $this->industry;
     }
 
     public function getTheme($themeId){
@@ -127,7 +125,8 @@ class Theme_engine {
             'theme' => $this->theme,
             'settings' => $this->settings,
             'store' => $this->store,
-            'theme_key' => $themeKey
+            'theme_key' => $themeKey,
+            'logo_url' => $this->logoUrl()
         ]);
 
         $viewPath = null;

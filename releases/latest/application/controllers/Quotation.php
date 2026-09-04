@@ -21,14 +21,16 @@ class Quotation extends MY_Controller {
 		$this->permission_check('quotation_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('quotation_list');
-		$this->load->view('quotation/quotation_list',$data);
+		$data['content']=$this->load->view('quotation/quotation_list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{	
 		$this->permission_check('quotation_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('quotation');
-		$this->load->view('quotation/quotation',$data);
+		$data['content']=$this->load->view('quotation/quotation',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 
@@ -52,7 +54,8 @@ class Quotation extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('quotation_id'=>$id));
 		$data['page_title']=$this->lang->line('quotation');
-		$this->load->view('quotation/quotation', $data);
+		$data['content']=$this->load->view('quotation/quotation',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 
@@ -200,7 +203,8 @@ class Quotation extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('quotation_id'=>$id));
 		$data['page_title']=$this->lang->line('quotation_invoice');
-		$this->load->view('quotation/quotation-invoice',$data);
+		$data['content']=$this->load->view('quotation/quotation-invoice',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	//Print quotation invoice 

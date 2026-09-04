@@ -13,14 +13,16 @@ class Suppliers extends MY_Controller {
 		$this->permission_check('suppliers_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('suppliers_list');
-		$this->load->view('suppliers-list',$data);
+		$data['content']=$this->load->view('suppliers/desktop/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{
 		$this->permission_check('suppliers_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('suppliers');
-		$this->load->view('suppliers',$data);
+		$data['content']=$this->load->view('suppliers/desktop/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 
 	public function newsuppliers(){
@@ -40,7 +42,8 @@ class Suppliers extends MY_Controller {
 		$result=$this->suppliers->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('suppliers');
-		$this->load->view('suppliers', $data);
+		$data['content']=$this->load->view('suppliers/desktop/form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function view($id){
 		$this->belong_to('db_suppliers',$id);
@@ -49,7 +52,8 @@ class Suppliers extends MY_Controller {
 		$result=$this->suppliers->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('suppliers');
-		$this->load->view('suppliers', $data);
+		$data['content']=$this->load->view('suppliers/desktop/form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_suppliers(){
 		$this->form_validation->set_rules('supplier_name', 'Customer Name', 'trim|required');

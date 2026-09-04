@@ -1,3 +1,4 @@
+$(function(){
 $("#item_search").autocomplete({
     source: function(data, cb){
         $.ajax({
@@ -68,6 +69,7 @@ $("#item_search").autocomplete({
             }
         },   
         //loader end
+});
 });
 
 function return_row_with_data(item_id){
@@ -145,7 +147,7 @@ function update_paid_payment_total() {
 
 
 
-$('#preview').on("click",function (e) {
+$(document).on("click", "#preview", function (e) {
   var base_url=$("#base_url").val();
 
     var base_url=$("#base_url").val();

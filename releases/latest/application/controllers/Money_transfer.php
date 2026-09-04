@@ -9,17 +9,21 @@ class Money_transfer extends MY_Controller {
 	}
 	public function index()
 	{
+		if(is_mobile()){ redirect('mobile/finance/money_transfers'); }
 		$this->permission_check('money_transfer_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('money_transfer_list');
-		$this->load->view('accounts/money_transfer_list',$data);
+		$data['content']=$this->load->view('finance/desktop/money_transfer/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{
+		if(is_mobile()){ redirect('mobile/finance/money_transfers/form'); }
 		$this->permission_check('money_transfer_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('money_transfer');
-		$this->load->view('accounts/money_transfer',$data);
+		$data['content']=$this->load->view('finance/desktop/money_transfer/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	
@@ -39,13 +43,15 @@ class Money_transfer extends MY_Controller {
 		}
 	}
 	public function update($id){
+		if(is_mobile()){ redirect('mobile/finance/money_transfers/form/'.$id); }
 		$this->belong_to('ac_moneytransfer',$id);
 		$this->permission_check('money_transfer_edit');
 		$data=$this->data;
 		$result=$this->money_transfer->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('money_transfer');
-		$this->load->view('accounts/money_transfer', $data);
+		$data['content']=$this->load->view('finance/desktop/money_transfer/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function update_money_transfer(){
 		$this->form_validation->set_rules('transfer_date', 'Transfer date', 'trim|required');

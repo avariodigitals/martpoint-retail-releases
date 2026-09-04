@@ -1,12 +1,13 @@
 //var selectionBoxId = $('#supplier_id');
 
-var base_url = $("#base_url").val();
-
-var url_ = base_url+"suppliers/getsuppliers/";
+var url_ = '';
 
 var searchFor = "Search Name/Mobile";
 
 $(document).ready(function(){
+
+         var base_url = $("#base_url").val() || '';
+         url_ = base_url + "suppliers/getsuppliers/";
 
          let init_supplier_select2 = (typeof load_supplier_select2 === 'function') ? load_supplier_select2() : true;
 

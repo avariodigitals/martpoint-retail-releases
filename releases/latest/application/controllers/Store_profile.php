@@ -19,7 +19,8 @@ class Store_profile extends MY_Controller {
 		$this->permission_check('store_edit');
 		$data=$this->store->get_details($id);
 		$data['page_title']=$this->lang->line('store');
-		$this->load->view('store', $data);
+		$data['content'] = $this->load->view('store', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_store(){
 		// Always save NIN fields — model may not include them in its $data array

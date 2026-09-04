@@ -12,7 +12,7 @@ class Migrate extends MY_Controller {
 
 	private function _guard(){
 		if(!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
-			show_404();
+			$this->show_access_denied_page();
 			exit;
 		}
 	}
@@ -27,7 +27,8 @@ class Migrate extends MY_Controller {
 		$data['analysis'] = $this->session->userdata('migrate_analysis');
 		$data['import_log'] = $this->session->userdata('migrate_import_log');
 		$data['stores'] = $this->db->get('db_store')->result();
-		$this->load->view('migrate/index', $data);
+		$data['content'] = $this->load->view('migrate/index', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function upload(){

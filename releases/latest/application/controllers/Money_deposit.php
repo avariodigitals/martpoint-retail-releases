@@ -9,17 +9,21 @@ class Money_deposit extends MY_Controller {
 	}
 	public function index()
 	{
+		if(is_mobile()){ redirect('mobile/finance/money_deposits'); }
 		$this->permission_check('money_deposit_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('deposit_list');
-		$this->load->view('accounts/money_deposit_list',$data);
+		$data['content']=$this->load->view('finance/desktop/money_deposit/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function add()
 	{
+		if(is_mobile()){ redirect('mobile/finance/money_deposits/form'); }
 		$this->permission_check('money_deposit_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('deposit');
-		$this->load->view('accounts/money_deposit',$data);
+		$data['content']=$this->load->view('finance/desktop/money_deposit/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	
@@ -37,13 +41,15 @@ class Money_deposit extends MY_Controller {
 		}
 	}
 	public function update($id){
+		if(is_mobile()){ redirect('mobile/finance/money_deposits/form/'.$id); }
 		$this->belong_to('ac_moneydeposits',$id);
 		$this->permission_check('money_deposit_edit');
 		$data=$this->data;
 		$result=$this->money_deposit->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('money_deposit');
-		$this->load->view('accounts/money_deposit', $data);
+		$data['content']=$this->load->view('finance/desktop/money_deposit/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	public function update_money_deposit(){
 		$this->form_validation->set_rules('deposit_date', 'Deposit date', 'trim|required');

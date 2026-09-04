@@ -1,76 +1,48 @@
-<!DOCTYPE html>
-<html>
-<head><?php $this->load->view('comman/code_css.php'); ?></head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar'); ?>
-<div class="content-wrapper">
-  <section class="content-header">
-    <h1><?= $page_title; ?><small>Feature Preview — Full engine coming in Phase 4</small></h1>
-    <ol class="breadcrumb"><li><a href="<?= base_url('dashboard'); ?>"><i class="fa fa-dashboard"></i> Home</a></li><li class="active"><?= $page_title; ?></li></ol>
-  </section>
-  <section class="content">
-    <div class="row"><div class="col-md-12">
-      <div class="box box-info">
-        <div class="box-header with-border"><h3 class="box-title">Custom Orders</h3></div>
-        <div class="box-body">
-          <div class="row">
-            <div class="col-lg-2 col-xs-6"><div class="small-box bg-gray"><div class="inner"><h3><?= $counts['new'] ?? 0; ?></h3><p>New</p></div><div class="icon"><i class="fa fa-file-o"></i></div></div></div>
-            <div class="col-lg-2 col-xs-6"><div class="small-box bg-aqua"><div class="inner"><h3><?= $counts['quoted'] ?? 0; ?></h3><p>Quoted</p></div><div class="icon"><i class="fa fa-calculator"></i></div></div></div>
-            <div class="col-lg-2 col-xs-6"><div class="small-box bg-yellow"><div class="inner"><h3><?= $counts['deposit_paid'] ?? 0; ?></h3><p>Deposit Paid</p></div><div class="icon"><i class="fa fa-money"></i></div></div></div>
-            <div class="col-lg-2 col-xs-6"><div class="small-box bg-blue"><div class="inner"><h3><?= $counts['in_production'] ?? 0; ?></h3><p>In Production</p></div><div class="icon"><i class="fa fa-cogs"></i></div></div></div>
-            <div class="col-lg-2 col-xs-6"><div class="small-box bg-green"><div class="inner"><h3><?= $counts['ready'] ?? 0; ?></h3><p>Ready</p></div><div class="icon"><i class="fa fa-check-circle"></i></div></div></div>
-            <div class="col-lg-2 col-xs-6"><div class="small-box bg-teal"><div class="inner"><h3><?= $counts['delivered'] ?? 0; ?></h3><p>Delivered</p></div><div class="icon"><i class="fa fa-truck"></i></div></div></div>
-          </div>
-          <div class="row">
-            <div class="col-md-12">
-              <div class="box box-info">
-                <div class="box-header with-border">
-                  <h3 class="box-title">Custom Orders</h3>
-                  <div class="box-tools pull-right">
-                    <a href="<?= base_url('operations/custom_order'); ?>" class="btn btn-sm btn-success"><i class="fa fa-plus"></i> New Order</a>
-                  </div>
-                </div>
-                <div class="box-body">
-                  <div class="table-responsive">
-                    <table id="orders-table" class="table table-bordered table-striped">
-                      <thead><tr><th>#</th><th>Order #</th><th>Customer</th><th>Item</th><th>Status</th><th>Due Date</th><th>Total</th><th>Action</th></tr></thead>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div></div>
-  </section>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub">Made-to-order workflow — track quotes, deposits, production and delivery</div>
+  </div>
+  <a href="<?= base_url('operations/custom_order'); ?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> New Order</a>
 </div>
+
+<div class="mp-kpi-grid">
+  <div class="mp-kpi-card"><div class="mp-kpi-icon" style="background:var(--mp-bg);color:var(--mp-muted)"><i class="fa fa-file-o"></i></div><div class="mp-kpi-label">New</div><div class="mp-kpi-value"><?= $counts['new'] ?? 0; ?></div></div>
+  <div class="mp-kpi-card"><div class="mp-kpi-icon" style="background:rgba(0,87,255,.1);color:var(--mp-primary)"><i class="fa fa-calculator"></i></div><div class="mp-kpi-label">Quoted</div><div class="mp-kpi-value"><?= $counts['quoted'] ?? 0; ?></div></div>
+  <div class="mp-kpi-card"><div class="mp-kpi-icon" style="background:rgba(245,158,11,.1);color:var(--mp-warning)"><i class="fa fa-money"></i></div><div class="mp-kpi-label">Deposit Paid</div><div class="mp-kpi-value"><?= $counts['deposit_paid'] ?? 0; ?></div></div>
+  <div class="mp-kpi-card"><div class="mp-kpi-icon" style="background:rgba(0,87,255,.1);color:var(--mp-primary)"><i class="fa fa-cogs"></i></div><div class="mp-kpi-label">In Production</div><div class="mp-kpi-value"><?= $counts['in_production'] ?? 0; ?></div></div>
+  <div class="mp-kpi-card"><div class="mp-kpi-icon" style="background:rgba(5,150,105,.1);color:var(--mp-success)"><i class="fa fa-check-circle"></i></div><div class="mp-kpi-label">Ready</div><div class="mp-kpi-value"><?= $counts['ready'] ?? 0; ?></div></div>
+  <div class="mp-kpi-card"><div class="mp-kpi-icon" style="background:rgba(13,148,136,.1);color:#0D9488"><i class="fa fa-truck"></i></div><div class="mp-kpi-label">Delivered</div><div class="mp-kpi-value"><?= $counts['delivered'] ?? 0; ?></div></div>
 </div>
-<?php $this->load->view('comman/code_js.php'); ?>
-<script src="<?= base_url(); ?>theme/plugins/DataTables-1.10.18/js/jquery.dataTables.min.js"></script>
-<script src="<?= base_url(); ?>theme/plugins/DataTables-1.10.18/js/dataTables.bootstrap.min.js"></script>
+
+<div class="mp-table-wrap">
+  <div class="mp-card-head"><h3>Custom Orders</h3></div>
+  <div class="box-body">
+    <div class="mp-dt-scroll">
+      <table id="orders-table" class="table mp-dt-table" width="100%">
+        <thead><tr><th>#</th><th>Order #</th><th>Customer</th><th>Item</th><th>Status</th><th>Due Date</th><th>Total</th><th>Action</th></tr></thead>
+      </table>
+    </div>
+  </div>
+</div>
+
 <script>
 $(function(){
   $('#orders-table').DataTable({
     processing: true, serverSide: true,
-    ajax: { url: "<?= base_url('operations/custom_orders_ajax'); ?>", type: "POST",
-      data: { "<?= $this->security->get_csrf_token_name(); ?>": "<?= $this->security->get_csrf_hash(); ?>" }
-    },
+    ajax: { url: "<?= base_url('operations/custom_orders_ajax'); ?>", type: "POST" },
     columnDefs: [{ orderable: false, targets: [7] }],
     autoWidth: false
   });
 });
 function delete_custom_order(id) {
   if(!confirm('Delete this custom order?')) return;
-  $.post('<?= base_url('operations/custom_order_delete'); ?>', {
-    id: id, "<?= $this->security->get_csrf_token_name(); ?>": "<?= $this->security->get_csrf_hash(); ?>"
-  }, function(res){
+  $.post('<?= base_url('operations/custom_order_delete'); ?>', { id: id }, function(res){
     if(res.success) { toastr.success(res.message); $('#orders-table').DataTable().ajax.reload(); }
     else { toastr.error(res.message || 'Failed'); }
   }, 'json');
 }
 </script>
-<script>$(".custom-orders-active-li").addClass("active");</script>
-</body>
-</html>

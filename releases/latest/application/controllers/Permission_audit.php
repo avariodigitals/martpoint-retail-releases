@@ -33,7 +33,8 @@ class Permission_audit extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Permission Audit';
 		$data['audit'] = $this->run_audit();
-		$this->load->view('permission-audit', $data);
+		$data['content'] = $this->load->view('permission-audit', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/**

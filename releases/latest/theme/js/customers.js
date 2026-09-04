@@ -234,7 +234,7 @@ function delete_customers(q_id)
          if(result=="success")
          {
            toastr["success"]("Record Deleted Successfully!");
-           $('#example2').DataTable().ajax.reload();
+           if($('#example2').length){ $('#example2').DataTable().ajax.reload(); }
          }
          else if(result=="failed"){
            toastr["error"]("Failed to Delete .Try again!");
@@ -277,7 +277,7 @@ function multi_delete(){
              toastr["success"]("Record Deleted Successfully!");
              success.currentTime = 0;
              success.play();
-             $('#example2').DataTable().ajax.reload();
+             if($('#example2').length){ $('#example2').DataTable().ajax.reload(); }
              $(".delete_btn").hide();
              $(".group_check").prop("checked",false).iCheck('update');
            }
@@ -373,7 +373,7 @@ function save_payment(customer_id){
           toastr["success"]("Payment Recorded Successfully!");
           success.currentTime = 0; 
           success.play();
-          $('#example2').DataTable().ajax.reload();
+          if($('#example2').length){ $('#example2').DataTable().ajax.reload(); }
         }
         else if(result=="failed")
         {
@@ -465,7 +465,7 @@ function save_return_due_payment(customer_id){
           toastr["success"]("Payment Recorded Successfully!");
           success.currentTime = 0; 
           success.play();
-          $('#example2').DataTable().ajax.reload();
+          if($('#example2').length){ $('#example2').DataTable().ajax.reload(); }
         }
         else if(result=="failed")
         {

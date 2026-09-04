@@ -1,327 +1,210 @@
-<!DOCTYPE html>
-<html>
-   <head>
-      <!-- TABLES CSS CODE -->
-      <?php $this->load->view('comman/code_css');?>
-      <!-- </copy> -->  
-   </head>
-   <body class="hold-transition skin-blue sidebar-mini">
-      <div class="wrapper">
-         <?php $this->load->view('sidebar');?>
-         <?php
-            if(!isset($brand_name)){
-                 $brand_code=$brand_name=$description="";
-            }
-            ?>
-         <!-- Content Wrapper. Contains page content -->
-         <div class="content-wrapper">
-            <!-- Content Header (Page header) -->
-            <section class="content-header">
-               <h1>
-                  <?=$page_title;?>
-                  <small>Add/Update Brand</small>
-               </h1>
-               <ol class="breadcrumb">
-                  <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-                  <li><a href="<?php echo $base_url; ?>items"><?= $this->lang->line('items_list'); ?></a></li>
-                  <li class="active"><?=$page_title;?></li>
-               </ol>
-            </section>
-            <!-- Main content -->
-            <section class="content">
-               <div class="row">
-                  <!-- right column -->
-                  <div class="col-md-12">
-                     <!-- Horizontal Form -->
-                     <div class="box box-primary ">
-                        <div class="box-header with-border">
-                           <h3 class="box-title">Please Enter Valid Data</h3>
-                        </div>
-                        <!-- /.box-header -->
-                        <!-- form start -->
-                        <form class="form-horizontal" id="import-form" enctype="multipart/form-data" method="POST">
-                           <input type="hidden" name="<?php echo $this->security->get_csrf_token_name();?>" value="<?php echo $this->security->get_csrf_hash();?>">
-                           <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
-                           <div class="box-body">
-                               <!-- Store Code -->
-                                    <?php 
-                                       echo "<input type='hidden' name='store_id' id='store_id' value='".get_current_store_id()."'>";
-                                     ?>
-                                <!-- Store Code end -->
+<?php
+$this->load->view('admin/desktop/_styles');
 
-                              <!-- Warehouse Code -->
-                              <?php 
-                               if(warehouse_module() && warehouse_count()>1) {$this->load->view('warehouse/warehouse_code',array('show_warehouse_select_box'=>true,'div_length'=>'col-sm-3','show_select_option'=>false)); }else{
-                                echo "<input type='hidden' name='warehouse_id' id='warehouse_id' value='".get_store_warehouse_id()."'>";
-                               }
-                              ?>
-                              <!-- Warehouse Code end -->
-                              <div class="form-group">
-                                 <label for="brand" class="col-sm-2 control-label"><?= $this->lang->line('import_items'); ?><label class="text-danger">*</label></label>
-                                 <div class="col-sm-4">
-                                    <input type="file" id="import_file" name="import_file">
-                                    <span id="import_file_msg" style="display:block;" class="text-danger">
-                                      Note: File must be in CSV format.
-                                    </span>
-                                 </div>
-                              </div>
-                           </div>
-                           <!-- /.box-footer -->
-                           <div class="box-footer">
-                              <div class="col-sm-8 text-center">
-                                 <div class="col-md-3 ">
-                                    <button type="button" id="import" class=" btn btn-block btn-success" title="Save Data"><i class="fa fa-arrow-circle-o-left "></i> Import</button>
-                                 </div>
-                                 <div class="col-sm-3">
-                                    <a href="<?=base_url('dashboard');?>">
-                                    <button type="button" class="col-sm-3 btn btn-block btn-warning close_btn" title="Go Dashboard">Close</button>
-                                    </a>
-                                 </div>
-                              </div>
-                           </div>
-                           <!-- /.box-footer -->
-                        </form>
-                     </div>
-                     <!-- /.box -->
-                  </div>
-                  <!--/.col (right) -->
-               </div>
-               <!-- /.row -->
-            </section>
-            <!-- /.content -->
-             <section class="content">
-      <div class="row">
-        <!-- right column -->
-        <div class="col-md-12">
-         
-          <div class="box">
-            <div class="box-header">
-              <h3 class="box-title"><?= $this->lang->line('import_instructions'); ?></h3>
-              <a href="<?= base_url('import/download/items');?>"><button type="button" class="btn btn-info pull-right btnExport" title="Download Data in Excel Format"><?= $this->lang->line('download_example_format'); ?></button>
-              </a>
-            </div>
-            <!-- /.box-header -->
-            <div class="box-body table-responsive no-padding">
+$CI =& get_instance();
+$store_name = $this->session->userdata('store_name') ?: 'MartPoint';
+?>
 
-              <table class="table table-bordered table-hover " id="report-data" >
-                <thead>
-                <tr>
-                  <th style="">#</th>
-                  <th style=""><?= $this->lang->line('column_name'); ?></th>
-                  <th style=""><?= $this->lang->line('value'); ?></th>
-                  <th style=""><?= $this->lang->line('description'); ?></th>
-                </tr>
-                </thead>
-                <tbody id="tbodyid">
-                  <?php $i=1; ?>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('item_name'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('category_name'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('sku'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                    
-                  </tr>
+<style>
+.mp-card-form { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 16px; box-shadow: var(--mp-shadow-sm); overflow: hidden; margin-bottom: 24px; }
+.mp-card-form .mp-card-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--mp-border); }
+.mp-card-form .mp-card-head h3 { font-size: 15px; font-weight: 700; margin: 0; color: var(--mp-text); }
+.mp-card-form .mp-card-body { padding: 20px; }
+.mp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; }
+.mp-form-grid .mp-form-group.full { grid-column: 1 / -1; }
+.mp-form-group { display: flex; flex-direction: column; gap: 6px; }
+.mp-form-group > label { font-size: 13px; font-weight: 600; color: var(--mp-ink); }
+.mp-form-group > label .text-danger { color: var(--mp-danger); }
+.mp-form-hint { font-size: 12px; color: var(--mp-muted); margin: 0; }
+.mp-form-control { width: 100%; padding: 11px 14px; border: 1px solid var(--mp-border); border-radius: 10px; background: var(--mp-surface); color: var(--mp-ink); font-size: 14px; font-weight: 500; font-family: inherit; transition: all .15s ease; }
+.mp-form-control:focus { outline: none; border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,.1); }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); }
+.mp-file-drop { border: 1px dashed var(--mp-border); border-radius: 10px; padding: 22px; text-align: center; color: var(--mp-muted); font-size: 13px; cursor: pointer; transition: all .15s ease; background: var(--mp-bg); }
+.mp-file-drop:hover { border-color: var(--mp-primary); color: var(--mp-primary); }
+.mp-file-drop input[type=file] { display: none; }
+.mp-file-name { margin-top: 10px; font-size: 12px; color: var(--mp-ink); font-weight: 600; }
+.mp-tbl { width: 100%; border-collapse: collapse; }
+.mp-tbl th { text-align: left; font-size: 11px; font-weight: 700; color: var(--mp-muted); text-transform: uppercase; letter-spacing: .04em; padding: 10px 16px; border-bottom: 1px solid var(--mp-border); }
+.mp-tbl td { padding: 12px 16px; font-size: 13px; color: var(--mp-ink); border-bottom: 1px solid var(--mp-border); }
+.mp-tbl tr:last-child td { border-bottom: none; }
+.mp-tbl tr:hover td { background: var(--mp-bg); }
+.mp-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+.mp-pill.ok { background: rgba(5,150,105,.1); color: var(--mp-success); }
+.mp-pill.default { background: rgba(120,113,108,.1); color: var(--mp-muted); }
+@media (max-width:767px){ .mp-form-grid { grid-template-columns: 1fr; } }
+</style>
 
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('unit_name'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('alert_quantity'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                    <td></td>
-                  </tr>
-                
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('brand_name'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('lot_number'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                    <td></td>
-                  </tr>
-                
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('price_before_tax'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('tax_name'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('tax_value'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('tax_type'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td>"Inclusive" or "Exclusive"</td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('sales_price'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('opening_stock'); ?></td>
-                    <td style="color:green;"><span class="label label-success"><?= $this->lang->line('required'); ?></span></td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('barcode'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                      <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('seller_points'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                      <td></td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('description'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                      <td></td>
-                  </tr>
+<div class="mp-section">
+  <?php include "comman/code_flashdata.php"; ?>
+</div>
 
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('discount_type'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                      <td>"Percentage" or "Fixed"</td>
-                  </tr>
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('discount'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                      <td></td>
-                  </tr>
+<!-- Page Header -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; Import products from a CSV file</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Items
+      </a>
+    </div>
+  </div>
+</div>
 
-                  <tr>
-                    <td><?=$i++;?></td>
-                    <td><?= $this->lang->line('mrp'); ?></td>
-                    <td style="font-style: italic;"><span class="label label-default"><?= $this->lang->line('optional'); ?></td>
-                      <td></td>
-                  </tr>
-                  
-                </tbody>
-              </table>
-              
-              
-            </div>
-            <!-- /.box-body -->
+<!-- Import Form -->
+<div class="mp-section">
+  <div class="mp-card-form box">
+    <div class="mp-card-head">
+      <h3>Upload CSV File</h3>
+    </div>
+    <form id="import-form" enctype="multipart/form-data" method="POST">
+      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name();?>" value="<?php echo $this->security->get_csrf_hash();?>">
+      <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
+      <input type="hidden" name="store_id" id="store_id" value="<?php echo htmlspecialchars(get_current_store_id()); ?>">
+      <?php
+      if(warehouse_module() && warehouse_count()>1) {
+        $this->load->view('warehouse/warehouse_code', array('show_warehouse_select_box'=>true, 'div_length'=>'col-sm-3', 'show_select_option'=>false));
+      } else {
+        echo "<input type='hidden' name='warehouse_id' id='warehouse_id' value='".htmlspecialchars(get_store_warehouse_id())."'>";
+      }
+      ?>
+
+      <div class="mp-card-body">
+        <div class="mp-form-grid">
+          <div class="mp-form-group full">
+            <label><?= $this->lang->line('import_items'); ?> <span class="text-danger">*</span></label>
+            <label class="mp-file-drop" for="import_file">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Click to choose a CSV file
+            </label>
+            <input type="file" id="import_file" name="import_file" accept=".csv" style="display:none;" onchange="document.getElementById('import_file_name').textContent = this.files[0] ? this.files[0].name : ''; document.getElementById('import_file_name').style.display = this.files[0] ? 'block' : 'none';">
+            <div id="import_file_name" class="mp-file-name" style="display:none;"></div>
+            <p class="mp-form-hint">File must be in CSV format. <a href="<?= base_url('import/download/items'); ?>" style="color:var(--mp-primary);font-weight:600;">Download example format</a></p>
+            <span id="import_file_msg" style="display:none" class="text-danger"></span>
           </div>
-          <!-- /.box -->
         </div>
       </div>
-    </section>
-         </div>
-         <!-- /.content-wrapper -->
-         <?php $this->load->view('footer');?>
-         <!-- Add the sidebar's background. This div must be placed
-            immediately after the control sidebar -->
-         <div class="control-sidebar-bg"></div>
+
+      <div class="mp-form-actions">
+        <button type="button" id="import" class="mp-qa-btn green" title="Import CSV">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import
+        </button>
+        <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Cancel</a>
       </div>
-      <!-- ./wrapper -->
-      <!-- SOUND CODE -->
-      <?php $this->load->view('comman/code_js_sound');?>
-      <!-- TABLES CODE -->
-      <?php $this->load->view('comman/code_js');?>
-      <script type="text/javascript">
-        //Post the file
-        $("#import").on("click",function(e) {
-          var base_url = $("#base_url").val();
-          if($("#import_file").val()==''){
-            toastr["warning"]("Please select file to Import!");
-            failed.currentTime = 0; 
-            failed.play();
-            return;
+    </form>
+  </div>
+</div>
+
+<!-- Instructions -->
+<div class="mp-section">
+  <div class="mp-card-form">
+    <div class="mp-card-head">
+      <h3><?= $this->lang->line('import_instructions'); ?></h3>
+    </div>
+    <div class="mp-card-body" style="padding:0;">
+      <table class="mp-tbl" id="report-data">
+        <thead>
+        <tr>
+          <th>#</th>
+          <th><?= $this->lang->line('column_name'); ?></th>
+          <th><?= $this->lang->line('value'); ?></th>
+          <th><?= $this->lang->line('description'); ?></th>
+        </tr>
+        </thead>
+        <tbody id="tbodyid">
+          <?php $i=1; ?>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('item_name'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('category_name'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('sku'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('unit_name'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('alert_quantity'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('brand_name'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('lot_number'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('price_before_tax'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('tax_name'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('tax_value'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('tax_type'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td>"Inclusive" or "Exclusive"</td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('sales_price'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('opening_stock'); ?></td><td><span class="mp-pill ok"><?= $this->lang->line('required'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('barcode'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('seller_points'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('description'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('discount_type'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td>"Percentage" or "Fixed"</td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('discount'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+          <tr><td><?= $i++; ?></td><td><?= $this->lang->line('mrp'); ?></td><td><span class="mp-pill default"><?= $this->lang->line('optional'); ?></span></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<script type="text/javascript">
+  $("#import").on("click", function(e) {
+    var base_url = $("#base_url").val();
+    var fileInput = $("#import_file");
+    if (fileInput.val() == '') {
+      toastr["warning"]("Please select a CSV file to import.");
+      if (typeof failed !== 'undefined') { failed.currentTime = 0; failed.play(); }
+      return;
+    }
+    var fileName = fileInput[0].files[0].name;
+    if (fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase() !== 'csv') {
+      toastr["error"]("Only CSV files are allowed.");
+      return;
+    }
+
+    e.preventDefault();
+    function doImportItems() {
+      var data = new FormData($('#import-form')[0]);
+      if (!xss_validation(data)) { return false; }
+      $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+      $("#import").attr('disabled', true);
+      $.ajax({
+        type: 'POST',
+        url: base_url + 'import/import_items_csv',
+        data: data,
+        cache: false,
+        contentType: false,
+        processData: false,
+        success: function(result) {
+          if (result == "success") {
+            toastr["success"]("Items imported successfully.");
+            window.location = base_url + "items";
+          } else if (result == "failed") {
+            toastr["error"]("Sorry! Failed to import. Try again!");
+            $("#import").attr('disabled', false);
+          } else {
+            toastr["error"](result);
+            $("#import").attr('disabled', false);
           }
-
-          e.preventDefault();
-          function doImportItems(){
-            data = new FormData($('#import-form')[0]);//form name
-            /*Check XSS Code*/
-            if(!xss_validation(data)){ return false; }
-            
-            $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-            $("#import").attr('disabled',true);  //Enable Save or Update button
-            $.ajax({
-            type: 'POST',
-            url: base_url+'import/import_items_csv',
-            data: data,
-            cache: false,
-            contentType: false,
-            processData: false,
-            success: function(result){
-              if(result=="success")
-              {
-                window.location=base_url+"items";
-              }
-              else if(result=="failed")
-              {
-                toastr["error"]("Sorry! Failed to save Record.Try again!");
-              }
-              else
-              {
-                toastr["error"](result);
-              }
-              $("#import").attr('disabled',false);  //Enable Save or Update button
-              $(".overlay").remove();
-             }
-             });
+          $(".overlay").remove();
+        },
+        error: function() {
+          toastr["error"]("Something went wrong. Please try again.");
+          $("#import").attr('disabled', false);
+          $(".overlay").remove();
         }
-        if(typeof swal === 'undefined'){
-          if(!confirm("Are you sure ?")) return;
-          doImportItems();
-        } else {
-          swal({
-            title: "Are you sure?",
-            text: "This will import items from the selected CSV file.",
-            icon: "warning",
-            buttons: true,
-            dangerMode: true
-          }).then(function(willImport){
-            if(willImport) doImportItems();
-          });
-        }
-        });
-        
-        
-      </script>
-      <!-- Make sidebar menu hughlighter/selector -->
-      <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-   </body>
-</html>
-
+      });
+    }
+    if (typeof swal === 'undefined') {
+      if (!confirm("Are you sure?")) return;
+      doImportItems();
+    } else {
+      swal({
+        title: "Are you sure?",
+        text: "This will import items from the selected CSV file.",
+        icon: "warning",
+        buttons: true,
+        dangerMode: true
+      }).then(function(willImport) {
+        if (willImport) doImportItems();
+      });
+    }
+  });
+</script>
+<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>

@@ -13,11 +13,13 @@ class Customer_coupon extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('generatecustomerCoupon');
 		$data['customer_id'] = $customer_id;
-		$this->load->view('coupons/generate', $data);
+		$data['content'] = $this->load->view('marketing/desktop/coupons/customer_coupon_generate', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 
 	public function save() {
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|greater_than[0]');
 		$this->form_validation->set_rules('coupon_id', 'Coupon Name', 'trim|required');
 		$this->form_validation->set_rules('code', 'Coupon Code', 'trim|required');
 		
@@ -55,7 +57,8 @@ class Customer_coupon extends MY_Controller {
 		$this->permission_check('customerCouponView');
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('customerCouponsList');
-		$this->load->view('coupons/customer-coupons-list', $data);
+		$data['content'] = $this->load->view('marketing/desktop/coupons/customer_coupons_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list() {
@@ -87,31 +90,12 @@ class Customer_coupon extends MY_Controller {
 			}
 			$row[] = $str;
 
-			$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
-											Action <span class="caret"></span>
-										</a>
-										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
-											
-											if($this->permissions('customerCouponView'))
-											$str2.='<li>
-												<a title="Take Print" target="_blank" href="'.base_url("customer_coupon/print/".$customer_coupon->id).'">
-													<i class="fa fa-fw fa-print text-blue"></i>Print
-												</a>
-											</li>
-											';
-
-											if($this->permissions('customerCouponDelete'))
-											$str2.='<li>
-												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_coupon(\''.$customer_coupon->id.'\')">
-													<i class="fa fa-fw fa-trash text-red"></i>Delete
-												</a>
-											</li>
-											
-										</ul>
-									</div>';
-
-			
+			$str2 = '<div class="mp-actions">';
+			if($this->permissions('customerCouponView'))
+				$str2 .= '<a class="mp-edit" title="Print" target="_blank" href="'.base_url("customer_coupon/print/".$customer_coupon->id).'"><i class="fa fa-print"></i></a>';
+			if($this->permissions('customerCouponDelete'))
+				$str2 .= '<button class="mp-delete" title="Delete" onclick="delete_coupon(\''.$customer_coupon->id.'\')"><i class="fa fa-trash"></i></button>';
+			$str2 .= '</div>';
 
 			$row[] = $str2;
 			$data[] = $row;
@@ -132,9 +116,7 @@ class Customer_coupon extends MY_Controller {
 		$id = $this->input->post('id');
 		$status = $this->input->post('status');
 
-		$this->load->model('customer_coupon_model');
-		$result = $this->customer_coupon_model->update_status($id, $status);
-		return $result;
+		$this->customer_coupon->update_status($id, $status);
 	}
 
 	public function delete_coupon() {
@@ -144,17 +126,18 @@ class Customer_coupon extends MY_Controller {
 	}
 	public function multi_delete() {
 		$this->permission_check_with_msg('customerCouponDelete');
-		$ids = implode(",", $_POST['checkbox']);
-		return $this->customer_coupon->delete_coupons($ids);
+		$ids = implode(",", array_map('intval', $_POST['checkbox'] ?? []));
+		$this->customer_coupon->delete_coupons($ids);
 	}
 	function get_coupon_details(){
 		$coupon_code = $this->input->post('coupon_code');
 		$invoice_type = $this->input->post('invoice_type');
 		$coupon_code = strtoupper($coupon_code);
 		$customer_id = $this->input->post('customer_id');
+		$cart_subtotal = (float)$this->input->post('cart_subtotal');
 		//Get coupon data
 		$this->db->select("a.expire_date,a.value,a.type,b.name,a.customer_id");
-		$this->db->where("upper(a.code) like '$coupon_code'");
+		$this->db->where("UPPER(a.code)", $coupon_code);
 		//$this->db->where("a.customer_id",$customer_id);
 		$this->db->from("db_customer_coupons a");
 		$this->db->join("db_coupons b","b.id=a.coupon_id");
@@ -200,17 +183,113 @@ class Customer_coupon extends MY_Controller {
 							);
 		}
 		else{
-			$expire_status= "Invalid";
-			$message = "Invalid Coupon Code!!";
-
-			$data = array(
-							'expire_date' =>'',
-							'coupon_value' =>0,
-							'coupon_type' =>'',
-							'occasion_name' =>'',
+			// Fallback: check db_promotions for a matching promotion_code
+			$promo_found = false;
+			// Reject walk-in customers for promotion codes (require a real customer)
+			$walkin_id = get_walk_in_customer_id();
+			$is_walkin = (!empty($walkin_id) && (int)$customer_id === (int)$walkin_id);
+			try {
+				if($this->db->table_exists('db_promotions')){
+					// Case-insensitive match on promotion_code
+					$this->db->where('store_id', get_current_store_id());
+					$this->db->where('status', 1);
+					$this->db->where("UPPER(promotion_code)", $coupon_code);
+					$this->db->where('start_date <=', date('Y-m-d'));
+					$this->db->where('end_date >=', date('Y-m-d'));
+					$promo = $this->db->get('db_promotions')->row();
+					if($promo){
+						if($is_walkin){
+							// Promotion codes require a real customer, not walk-in
+							$expire_status = "Invalid";
+							$message = "Promotion codes require a real customer. Please select a customer.";
+							$data = array(
+								'expire_date' => '',
+								'coupon_value' => 0,
+								'coupon_type' => '',
+								'occasion_name' => $promo->promotion_name,
+								'expire_status' => $expire_status,
+								'message' => $message,
+							);
+						} else {
+						// Check advanced rules: min spend, usage limits
+						$this->load->model('Promotions_model','promotions_m');
+						$eligibility = $this->promotions_m->check_promotion_eligibility($promo, $customer_id, $cart_subtotal);
+						if(!$eligibility['ok']){
+							$expire_status = "Invalid";
+							$message = $eligibility['message'];
+							$data = array(
+								'expire_date' => '',
+								'coupon_value' => 0,
+								'coupon_type' => '',
+								'occasion_name' => $promo->promotion_name,
+								'expire_status' => $expire_status,
+								'message' => $message,
+							);
+						} else {
+						$promo_found = true;
+						$expire_status = "Valid";
+						$message = "Promotion code applied: " . $promo->promotion_name;
+						$coupon_value = $promo->discount_value;
+						$coupon_type = ($promo->discount_type == 'Percentage') ? 'Percentage' : 'Fixed';
+						$occasion_name = $promo->promotion_name;
+						$expire_date = $promo->end_date;
+						// If applies_to == 'items', fetch the eligible item IDs
+						$eligible_item_ids = array();
+						if($promo->applies_to == 'items' && $this->db->table_exists('db_promotion_items')){
+							$items = $this->db->select('item_id')->where('promotion_id', $promo->id)->get('db_promotion_items')->result();
+							foreach($items as $it){ $eligible_item_ids[] = (int)$it->item_id; }
+						}
+						$data = array(
+							'expire_date' => $expire_date,
+							'coupon_value' => $coupon_value,
+							'coupon_type' => $coupon_type,
+							'occasion_name' => $occasion_name,
 							'expire_status' => $expire_status,
 							'message' => $message,
-							);
+							'promotion_id' => $promo->id,
+							'applies_to' => $promo->applies_to,
+							'category_id' => $promo->category_id,
+							'brand_id' => $promo->brand_id,
+							'eligible_item_ids' => $eligible_item_ids,
+						);
+						} // end if eligible
+						} // end else (not walk-in)
+					} else {
+						// Debug: check if promotion exists but is inactive/expired
+						$this->db->where('store_id', get_current_store_id());
+						$this->db->where("UPPER(promotion_code)", $coupon_code);
+						$any_promo = $this->db->get('db_promotions')->row();
+						if($any_promo){
+							if($any_promo->status != 1){
+								$expire_status = "Invalid";
+								$message = "Promotion '" . $any_promo->promotion_name . "' is inactive.";
+							} else if($any_promo->start_date > date('Y-m-d')){
+								$expire_status = "Invalid";
+								$message = "Promotion '" . $any_promo->promotion_name . "' starts on " . show_date($any_promo->start_date) . ".";
+							} else if($any_promo->end_date < date('Y-m-d')){
+								$expire_status = "Expired";
+								$message = "Promotion '" . $any_promo->promotion_name . "' expired on " . show_date($any_promo->end_date) . ".";
+							}
+						}
+					}
+				}
+			} catch (Exception $e) { /* Promotions table not available */ }
+
+			if(!$promo_found){
+				if(!isset($expire_status)){
+					$expire_status= "Invalid";
+					$message = "Invalid Coupon Code!!";
+				}
+
+				$data = array(
+								'expire_date' =>'',
+								'coupon_value' =>0,
+								'coupon_type' =>'',
+								'occasion_name' =>'',
+								'expire_status' => $expire_status,
+								'message' => $message,
+								);
+			}
 		}
 		echo json_encode($data);
 	}

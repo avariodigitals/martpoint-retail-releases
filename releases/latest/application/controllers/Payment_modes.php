@@ -12,14 +12,59 @@ class Payment_modes extends MY_Controller {
 		$this->permission_check('payment_modes_view');
 		$data=$this->data;
 		$data['page_title']='Payment Modes';
-		$this->load->view('payment_modes_list', $data);
+		$data['rows'] = $this->payment_modes->get_datatables();
+		$data['crud'] = [
+			'page_title' => 'Payment Modes',
+			'page_sub' => 'Manage payment modes',
+			'add_url' => base_url('payment_modes/add'),
+			'add_label' => 'New Payment Mode',
+			'add_permission' => 'payment_modes_add',
+			'columns' => [
+				['title' => 'Name', 'field' => 'name', 'type' => 'text'],
+				['title' => 'Code', 'field' => 'code', 'type' => 'text'],
+				['title' => 'Enabled', 'field' => 'enabled', 'type' => 'status'],
+				['title' => 'Default', 'field' => 'is_default', 'type' => 'custom', 'callback' => function($row){ return $row->is_default == 1 ? '<span class="label label-info">Default</span>' : ''; }],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'payment_modes',
+			'status_url' => '',
+			'delete_url' => 'payment_modes/delete_payment_mode',
+			'edit_url' => base_url('payment_modes/update/{id}'),
+			'delete_permission' => 'payment_modes_delete',
+			'edit_permission' => 'payment_modes_edit',
+			'bulk_delete' => false,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function add(){
 		$this->permission_check('payment_modes_add');
 		$data=$this->data;
 		$data['page_title']='Payment Modes';
-		$this->load->view('payment_modes', $data);
+		$data['crud'] = [
+			'page_title' => 'Payment Modes',
+			'page_sub' => 'Create a new payment mode',
+			'form_id' => 'payment-modes-form',
+			'save_url' => 'payment_modes/new_payment_mode',
+			'update_url' => 'payment_modes/update_payment_mode',
+			'list_url' => base_url('payment_modes'),
+			'module' => 'payment_modes',
+			'fields' => [
+				['name' => 'code', 'label' => 'Code', 'type' => 'text', 'required' => true],
+				['name' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true],
+				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
+				['name' => 'enabled', 'label' => 'Enabled', 'type' => 'checkbox'],
+				['name' => 'is_default', 'label' => 'Is Default', 'type' => 'checkbox'],
+				['name' => 'requires_reference', 'label' => 'Requires Reference', 'type' => 'checkbox'],
+				['name' => 'requires_confirmation', 'label' => 'Requires Confirmation', 'type' => 'checkbox'],
+				['name' => 'affects_cash_in_hand', 'label' => 'Affects Cash in Hand', 'type' => 'checkbox'],
+				['name' => 'icon_class', 'label' => 'Icon Class', 'type' => 'text'],
+				['name' => 'sort_order', 'label' => 'Sort Order', 'type' => 'number'],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function new_payment_mode(){
@@ -41,8 +86,31 @@ class Payment_modes extends MY_Controller {
 		$data=$this->data;
 		$result=$this->payment_modes->get_details($id,$data);
 		$data=array_merge($data,$result);
+		$data['q_id'] = $id;
 		$data['page_title']='Payment Modes';
-		$this->load->view('payment_modes', $data);
+		$data['crud'] = [
+			'page_title' => 'Payment Modes',
+			'page_sub' => 'Update payment mode',
+			'form_id' => 'payment-modes-form',
+			'save_url' => 'payment_modes/new_payment_mode',
+			'update_url' => 'payment_modes/update_payment_mode',
+			'list_url' => base_url('payment_modes'),
+			'module' => 'payment_modes',
+			'fields' => [
+				['name' => 'code', 'label' => 'Code', 'type' => 'text', 'required' => true],
+				['name' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true],
+				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
+				['name' => 'enabled', 'label' => 'Enabled', 'type' => 'checkbox'],
+				['name' => 'is_default', 'label' => 'Is Default', 'type' => 'checkbox'],
+				['name' => 'requires_reference', 'label' => 'Requires Reference', 'type' => 'checkbox'],
+				['name' => 'requires_confirmation', 'label' => 'Requires Confirmation', 'type' => 'checkbox'],
+				['name' => 'affects_cash_in_hand', 'label' => 'Affects Cash in Hand', 'type' => 'checkbox'],
+				['name' => 'icon_class', 'label' => 'Icon Class', 'type' => 'text'],
+				['name' => 'sort_order', 'label' => 'Sort Order', 'type' => 'number'],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function update_payment_mode(){

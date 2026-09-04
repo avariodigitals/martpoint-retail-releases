@@ -14,7 +14,25 @@ class Country extends MY_Controller {
 		}
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('countries_list');
-		$this->load->view('country-list', $data);
+		$data['rows'] = $this->country->get_datatables();
+		$data['crud'] = [
+			'page_title' => $this->lang->line('countries_list'),
+			'page_sub' => 'Manage countries',
+			'add_url' => base_url('country/add'),
+			'add_label' => 'New Country',
+			'columns' => [
+				['title' => 'Country', 'field' => 'country', 'type' => 'text'],
+				['title' => 'Status', 'field' => 'status', 'type' => 'status'],
+				['title' => 'Action', 'type' => 'actions'],
+			],
+			'module' => 'country',
+			'status_url' => 'country/update_status',
+			'delete_url' => 'country/delete_country',
+			'edit_url' => base_url('country/update/{id}'),
+			'bulk_delete' => false,
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newcountry(){
 		$this->form_validation->set_rules('country_name', 'Country', 'trim|required');
@@ -31,8 +49,22 @@ class Country extends MY_Controller {
 		}
 		$result=$this->country->get_details($id);
 		$data=array_merge($this->data,$result);
+		$data['country_name'] = $result['country'] ?? '';
 		$data['page_title']=$this->lang->line('country');
-		$this->load->view('country', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('country'),
+			'page_sub' => 'Update country',
+			'form_id' => 'country-form',
+			'save_url' => 'country/newcountry',
+			'update_url' => 'country/update_country',
+			'list_url' => base_url('country'),
+			'module' => 'country',
+			'fields' => [
+				['name' => 'country_name', 'label' => 'Country Name', 'type' => 'text', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_country(){
 		
@@ -52,7 +84,20 @@ class Country extends MY_Controller {
 		}
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('country');
-		$this->load->view('country', $data);
+		$data['crud'] = [
+			'page_title' => $this->lang->line('country'),
+			'page_sub' => 'Create a new country',
+			'form_id' => 'country-form',
+			'save_url' => 'country/newcountry',
+			'update_url' => 'country/update_country',
+			'list_url' => base_url('country'),
+			'module' => 'country',
+			'fields' => [
+				['name' => 'country_name', 'label' => 'Country Name', 'type' => 'text', 'required' => true],
+			],
+		];
+		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()

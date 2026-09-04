@@ -7,6 +7,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  */
 class Storefront_model extends CI_Model {
 
+	private static $themesSeeded = false;
+
 	public function __construct(){
 		parent::__construct();
 		$this->ensureTables();
@@ -23,7 +25,7 @@ class Storefront_model extends CI_Model {
 	}
 
 	/**
-	 * Verify storefront tables exist; log a warning if they don't.
+	 * Verify storefront tables exist; create optional portal/Sendchamp tables when missing.
 	 */
 	private function ensureTables(){
 		$tables = [
@@ -36,6 +38,68 @@ class Storefront_model extends CI_Model {
 			if(!$this->db->table_exists($table)){
 				log_message('error', 'Missing required table: ' . $table . '. Run the 4.0.2 migration via login.');
 			}
+		}
+
+		try {
+			// Customer portal schema additions
+			if($this->db->table_exists('db_online_orders') && !$this->db->field_exists('customer_id', 'db_online_orders')){
+				$this->db->query("ALTER TABLE db_online_orders ADD customer_id INT NULL DEFAULT NULL");
+			}
+
+			if(!$this->db->table_exists('db_storefront_customer_otp')){
+				$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_customer_otp (
+					id INT(11) AUTO_INCREMENT PRIMARY KEY,
+					store_id INT(11) NOT NULL,
+					customer_id INT(11) NULL,
+					phone VARCHAR(20) NULL,
+					email VARCHAR(120) NULL,
+					otp VARCHAR(6) NOT NULL,
+					verified TINYINT(1) DEFAULT 0,
+					attempts INT(11) DEFAULT 0,
+					expires_at DATETIME NOT NULL,
+					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+			}
+
+			if($this->db->table_exists('db_storefront_customer_otp') && !$this->db->field_exists('email', 'db_storefront_customer_otp')){
+				$this->db->query("ALTER TABLE db_storefront_customer_otp ADD email VARCHAR(120) NULL AFTER phone");
+			}
+
+			if(!$this->db->table_exists('db_storefront_customer_sessions')){
+				$this->db->query("CREATE TABLE IF NOT EXISTS db_storefront_customer_sessions (
+					id INT(11) AUTO_INCREMENT PRIMARY KEY,
+					store_id INT(11) NOT NULL,
+					customer_id INT(11) NOT NULL,
+					phone VARCHAR(20) NULL,
+					email VARCHAR(120) NULL,
+					session_token VARCHAR(64) NOT NULL,
+					expires_at DATETIME NOT NULL,
+					last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+			}
+
+			if($this->db->table_exists('db_storefront_customer_sessions') && !$this->db->field_exists('email', 'db_storefront_customer_sessions')){
+				$this->db->query("ALTER TABLE db_storefront_customer_sessions ADD email VARCHAR(120) NULL AFTER phone");
+			}
+
+			if(!$this->db->table_exists('db_sendchamp')){
+				$this->db->query("CREATE TABLE IF NOT EXISTS db_sendchamp (
+					id INT(11) AUTO_INCREMENT PRIMARY KEY,
+					store_id INT(11) NOT NULL,
+					api_key TEXT NOT NULL,
+					sender_id VARCHAR(50) NOT NULL DEFAULT 'MartPoint',
+					route VARCHAR(50) NOT NULL DEFAULT 'non_dnd_nigeria',
+					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+			}
+
+			if($this->db->table_exists('db_storefront_settings') && !$this->db->field_exists('sendchamp_json', 'db_storefront_settings')){
+				$this->db->query("ALTER TABLE db_storefront_settings ADD sendchamp_json TEXT NULL DEFAULT NULL");
+			}
+		} catch (Exception $e) {
+			log_message('error', 'Storefront ensureTables optional migration failed: ' . $e->getMessage());
 		}
 	}
 
@@ -604,27 +668,165 @@ class Storefront_model extends CI_Model {
 	}
 
 	/**
+	 * Get active themes for a theme-industry group (e.g. fashion, grocery, services).
+	 */
+	public function getThemesByIndustry($industry, $activeOnly = true){
+		$this->seedThemesIfEmpty();
+		$target = $this->_normalizeThemeIndustry($industry);
+		if($activeOnly){
+			$this->db->where('status', 1);
+		}
+		$rows = $this->db->order_by('sort_order', 'asc')
+			->get('db_storefront_themes')->result();
+		$result = [];
+		foreach($rows as $r){
+			if($this->_normalizeThemeIndustry($r->industry ?? '') === $target){
+				$result[] = $r;
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Map a store industry_type (business profile) to the theme industry group,
+	 * then return the themes that belong to that group.
+	 */
+	public function getThemesByIndustryForStore($industry_type = null, $asObjects = true){
+		if(empty($industry_type)){
+			if(!function_exists('mp_get_store_profile')){
+				$this->load->helper('business_profile');
+			}
+			$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+			$industry_type = $profile['industry_type'] ?? 'general_retail';
+		}
+
+		$themeIndustry = $this->_getThemeIndustryForType($industry_type);
+		$themes = $this->getThemesByIndustry($themeIndustry);
+
+		if(empty($themes)){
+			// Fallback to general retail group so the store never has no theme.
+			$themes = $this->getThemesByIndustry('general');
+		}
+
+		if($asObjects){
+			return $themes;
+		}
+		return array_column($themes, 'theme_name', 'theme_key');
+	}
+
+	/**
+	 * Determine the theme industry group for a business profile industry_type.
+	 * Uses the business preset's base theme and reads its industry column.
+	 */
+	private function _getThemeIndustryForType($industry_type){
+		if(!function_exists('mp_get_business_presets')){
+			$this->load->helper('business_profile');
+		}
+		$presets = function_exists('mp_get_business_presets') ? mp_get_business_presets() : [];
+		$preset = $presets[$industry_type] ?? ($presets['general_retail'] ?? []);
+		$baseKey = $preset['theme_key'] ?? 'general_retail';
+
+		$baseTheme = $this->getThemeByKey($baseKey);
+		if($baseTheme && !empty($baseTheme->industry)){
+			return $this->_normalizeThemeIndustry($baseTheme->industry);
+		}
+
+		// Direct theme key match fallback
+		$direct = $this->getThemeByKey($industry_type);
+		if($direct && !empty($direct->industry)){
+			return $this->_normalizeThemeIndustry($direct->industry);
+		}
+
+		return 'general';
+	}
+
+	/**
+	 * Normalize a theme industry value to a canonical lowercase key.
+	 */
+	private function _normalizeThemeIndustry($industry){
+		$industry = strtolower(trim($industry));
+		$industry = preg_replace('/[^a-z0-9]/', '', $industry);
+		// Map legacy / verbose values to canonical names
+		$map = [
+			'generalretail' => 'general',
+			'general' => 'general',
+			'healthcare' => 'pharmacy',
+			'pharmacy' => 'pharmacy',
+			'beautyandcosmetics' => 'beauty',
+			'beautycosmetics' => 'beauty',
+			'beautyspa' => 'beauty',
+			'salonbarbershop' => 'beauty',
+			'makeupartist' => 'beauty',
+			'fashion' => 'fashion',
+			'apparel' => 'fashion',
+			'electronics' => 'electronics',
+			'tech' => 'electronics',
+			'phoneaccessories' => 'electronics',
+			'grocery' => 'grocery',
+			'supermarket' => 'grocery',
+			'restaurant' => 'restaurant',
+			'food' => 'restaurant',
+			'bakery' => 'restaurant',
+			'services' => 'services',
+			'service' => 'services',
+			'servicebusiness' => 'services',
+			'laundry' => 'laundry',
+			'laundrydrycleaning' => 'laundry',
+			'laundryanddrycleaning' => 'laundry',
+		];
+		return $map[$industry] ?? $industry;
+	}
+
+	/**
 	 * Auto-seed themes if db_storefront_themes is empty
 	 */
 	public function seedThemesIfEmpty(){
+		if(self::$themesSeeded) return;
+		self::$themesSeeded = true;
 		if(!$this->db->table_exists('db_storefront_themes')) return;
 
 		$themes = [
 			['theme_key' => 'general_retail', 'theme_name' => 'General Retail', 'industry' => 'general', 'description' => 'Clean, modern default theme for any retail store.', 'default_primary_color' => '#3B82F6', 'default_secondary_color' => '#10B981', 'default_font_family' => 'Inter', 'sort_order' => 1],
 			['theme_key' => 'healthcare_pro', 'theme_name' => 'HealthCare Pro', 'industry' => 'pharmacy', 'description' => 'Professional pharmacy and healthcare theme with trust-focused design.', 'default_primary_color' => '#005EB8', 'default_secondary_color' => '#00A86B', 'default_font_family' => 'Inter', 'sort_order' => 2],
 			['theme_key' => 'beauty_luxe', 'theme_name' => 'Beauty Luxe', 'industry' => 'beauty', 'description' => 'Elegant beauty and cosmetics theme with soft aesthetics.', 'default_primary_color' => '#F8A4C8', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 3],
-			['theme_key' => 'urban_fashion', 'theme_name' => 'Urban Fashion', 'industry' => 'fashion', 'description' => 'Bold fashion and apparel theme with editorial layouts.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#FF3B30', 'default_font_family' => 'Montserrat', 'sort_order' => 4],
-			['theme_key' => 'tech_hub', 'theme_name' => 'Tech Hub', 'industry' => 'electronics', 'description' => 'Modern electronics and gadgets theme with tech-forward design.', 'default_primary_color' => '#0A2540', 'default_secondary_color' => '#635BFF', 'default_font_family' => 'Inter', 'sort_order' => 5],
-			['theme_key' => 'fresh_market', 'theme_name' => 'Fresh Market', 'industry' => 'grocery', 'description' => 'Warm supermarket and grocery theme with organic feel.', 'default_primary_color' => '#2E7D32', 'default_secondary_color' => '#FF6F00', 'default_font_family' => 'Inter', 'sort_order' => 6],
-			['theme_key' => 'food_express', 'theme_name' => 'Food Express', 'industry' => 'restaurant', 'description' => 'Appetizing restaurant and food ordering theme.', 'default_primary_color' => '#D32F2F', 'default_secondary_color' => '#FBC02D', 'default_font_family' => 'Inter', 'sort_order' => 7],
-			['theme_key' => 'service_pro', 'theme_name' => 'Service Pro', 'industry' => 'services', 'description' => 'Professional services theme for agencies and consultancies.', 'default_primary_color' => '#1A237E', 'default_secondary_color' => '#00BCD4', 'default_font_family' => 'Inter', 'sort_order' => 8],
-			['theme_key' => 'laundry', 'theme_name' => 'Sparkle Laundry', 'industry' => 'laundry', 'description' => 'Clean, fresh laundry and dry cleaning theme for pickup, delivery and wash services.', 'default_primary_color' => '#0EA5E9', 'default_secondary_color' => '#22C55E', 'default_font_family' => 'Inter', 'sort_order' => 9],
-			['theme_key' => 'laundry_fresh', 'theme_name' => 'Fresh', 'industry' => 'Laundry & Dry Cleaning', 'description' => 'A clean, modern storefront designed for laundries, dry cleaners and garment-care businesses.', 'default_primary_color' => '#102A43', 'default_secondary_color' => '#2F80ED', 'default_font_family' => 'Inter', 'sort_order' => 10],
+			// Fashion presets (3-4 designs per industry)
+			['theme_key' => 'urban_fashion', 'theme_name' => 'Urban Editorial', 'industry' => 'fashion', 'description' => 'Bold editorial layout with high-contrast typography and magazine-style hero sections.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#FF3B30', 'default_font_family' => 'Montserrat', 'sort_order' => 4],
+			['theme_key' => 'fashion_modern', 'theme_name' => 'Modern Minimal', 'industry' => 'fashion', 'description' => 'Clean, Shopify-style minimal design with generous whitespace, soft cards and refined typography.', 'default_primary_color' => '#0F172A', 'default_secondary_color' => '#6366F1', 'default_font_family' => 'Inter', 'sort_order' => 5],
+			['theme_key' => 'fashion_boutique', 'theme_name' => 'Boutique Luxe', 'industry' => 'fashion', 'description' => 'Elegant serif-driven boutique experience with refined gold accents and graceful transitions.', 'default_primary_color' => '#7C2D12', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 6],
+			['theme_key' => 'fashion_modest', 'theme_name' => 'Modest Studio', 'industry' => 'fashion', 'description' => 'Warm, modest-wear focused storefront with soft neutrals, calm spacing and inclusive imagery.', 'default_primary_color' => '#1F2937', 'default_secondary_color' => '#C2956A', 'default_font_family' => 'Lora', 'sort_order' => 7],
+			['theme_key' => 'fashion_luxe', 'theme_name' => 'Fashion Luxe', 'industry' => 'fashion', 'description' => 'Editorial luxury fashion theme with dramatic imagery, refined serif typography, and warm gold accents.', 'default_primary_color' => '#1A1A1A', 'default_secondary_color' => '#C9A961', 'default_font_family' => 'Playfair Display', 'sort_order' => 8],
+		['theme_key' => 'tech_hub', 'theme_name' => 'Tech Hub', 'industry' => 'electronics', 'description' => 'Modern electronics and gadgets theme with tech-forward design.', 'default_primary_color' => '#0A2540', 'default_secondary_color' => '#635BFF', 'default_font_family' => 'Inter', 'sort_order' => 9],
+			['theme_key' => 'fresh_market', 'theme_name' => 'Fresh Market', 'industry' => 'grocery', 'description' => 'Warm supermarket and grocery theme with organic feel.', 'default_primary_color' => '#2E7D32', 'default_secondary_color' => '#FF6F00', 'default_font_family' => 'Inter', 'sort_order' => 10],
+			['theme_key' => 'food_express', 'theme_name' => 'Food Express', 'industry' => 'restaurant', 'description' => 'Appetizing restaurant and food ordering theme.', 'default_primary_color' => '#D32F2F', 'default_secondary_color' => '#FBC02D', 'default_font_family' => 'Inter', 'sort_order' => 11],
+			['theme_key' => 'service_pro', 'theme_name' => 'Service Pro', 'industry' => 'services', 'description' => 'Professional services theme for agencies and consultancies.', 'default_primary_color' => '#1A237E', 'default_secondary_color' => '#00BCD4', 'default_font_family' => 'Inter', 'sort_order' => 12],
+			['theme_key' => 'laundry', 'theme_name' => 'Sparkle Laundry', 'industry' => 'laundry', 'description' => 'Clean, fresh laundry and dry cleaning theme for pickup, delivery and wash services.', 'default_primary_color' => '#0EA5E9', 'default_secondary_color' => '#22C55E', 'default_font_family' => 'Inter', 'sort_order' => 13],
+			['theme_key' => 'laundry_fresh', 'theme_name' => 'Fresh', 'industry' => 'laundry', 'description' => 'A clean, modern storefront designed for laundries, dry cleaners and garment-care businesses.', 'default_primary_color' => '#102A43', 'default_secondary_color' => '#2F80ED', 'default_font_family' => 'Inter', 'sort_order' => 14],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
 			$sql = preg_replace('/^INSERT INTO/i', 'INSERT IGNORE INTO', $sql);
 			$this->db->query($sql);
+		}
+
+		// Normalize legacy industry values for built-in themes so the engine can group them correctly
+		$canonical = [
+			'general_retail' => 'general',
+			'healthcare_pro' => 'pharmacy',
+			'beauty_luxe' => 'beauty',
+			'urban_fashion' => 'fashion',
+			'fashion_modern' => 'fashion',
+			'fashion_boutique' => 'fashion',
+			'fashion_modest' => 'fashion',
+			'fashion_luxe' => 'fashion',
+			'tech_hub' => 'electronics',
+			'fresh_market' => 'grocery',
+			'food_express' => 'restaurant',
+			'service_pro' => 'services',
+			'laundry' => 'laundry',
+			'laundry_fresh' => 'laundry',
+		];
+		foreach($canonical as $key => $industry){
+			$this->db->where('theme_key', $key)->update('db_storefront_themes', ['industry' => $industry]);
 		}
 	}
 
@@ -1016,5 +1218,40 @@ class Storefront_model extends CI_Model {
 
 	public function deleteStorefrontFaq($id){
 		return $this->db->where('id', $id)->delete('db_storefront_faqs');
+	}
+
+	// ============== CUSTOMER PORTAL HELPERS ==============
+
+	public function getOrdersByCustomer($customerId, $storeId, $limit = 50, $offset = 0){
+		return $this->db->where('store_id', $storeId)->where('customer_id', $customerId)->order_by('id','desc')->limit($limit, $offset)->get('db_online_orders')->result();
+	}
+
+	public function getCustomerPortalSession($token, $storeId){
+		return $this->db->where('session_token', $token)->where('store_id', $storeId)->where('expires_at >', date('Y-m-d H:i:s'))->get('db_storefront_customer_sessions')->row();
+	}
+
+	public function createPortalSession($data){
+		$this->db->insert('db_storefront_customer_sessions', $data);
+		return $this->db->insert_id();
+	}
+
+	public function cleanupPortalSessions($storeId, $phone, $email = ''){
+		if(!empty($phone)){
+			$this->db->where('store_id', $storeId)->where('phone', $phone)->delete('db_storefront_customer_otp');
+		}
+		if(!empty($email)){
+			$this->db->where('store_id', $storeId)->where('email', $email)->delete('db_storefront_customer_otp');
+		}
+	}
+
+	public function getSendchampCredentials($storeId){
+		$creds = $this->db->where('store_id', $storeId)->get('db_sendchamp')->row();
+		if($creds) return $creds;
+		$settings = $this->getSettings($storeId);
+		if($settings && !empty($settings->sendchamp_json)){
+			$json = json_decode($settings->sendchamp_json, false);
+			if($json) return $json;
+		}
+		return null;
 	}
 }

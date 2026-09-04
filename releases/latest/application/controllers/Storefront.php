@@ -16,6 +16,7 @@ class Storefront extends CI_Controller {
 		header('Expires: Sat, 01 Jan 2000 00:00:00 GMT');
 		$this->load->helper(['url','custom','currency']);
 		$this->load->model('storefront_model');
+		$this->load->model('customers_model');
 		$this->load->model('paystack_model','paystack');
 		$this->load->library('theme_engine');
 	}
@@ -447,6 +448,98 @@ class Storefront extends CI_Controller {
 		$this->theme_engine->view('branches', $data);
 	}
 
+	private function _trackStatusMap($industryType = '', $shippingMethod = ''){
+		$industry = strtolower(trim($industryType ?: 'general_retail'));
+		$method = strtolower(trim($shippingMethod ?: ''));
+		$isPickup = in_array($method, ['pickup', 'pick up', 'self pick up', 'self pickup', 'collect', 'collection']);
+
+		$readyLabel = $isPickup ? 'Ready for pickup' : 'Ready for delivery';
+		$completedLabel = $isPickup ? 'Picked up' : 'Delivered';
+		$readyDesc = $isPickup ? 'Your order is ready for collection.' : 'Your order is on its way.';
+		$completedDesc = $isPickup ? 'You have collected your order.' : 'Your order has been delivered.';
+		// Laundry / dry cleaning
+		if(in_array($industry, ['laundry', 'dry_cleaning', 'cleaning'])){
+			return [
+				'pending' => ['label' => 'Order received', 'desc' => 'We have received your order.'],
+				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+				'processing' => ['label' => 'Cleaning in progress', 'desc' => 'Your items are being cleaned.'],
+				'ready' => ['label' => $readyLabel, 'desc' => $readyDesc],
+				'completed' => ['label' => $completedLabel, 'desc' => $completedDesc],
+				'cancelled' => ['label' => 'Cancelled', 'desc' => 'This order was cancelled.'],
+			];
+		}
+
+		// Food / restaurant
+		if(in_array($industry, ['restaurant', 'fast_food', 'food_delivery', 'cafe', 'bakery'])){
+			return [
+				'pending' => ['label' => 'Order received', 'desc' => 'We have received your order.'],
+				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+				'processing' => ['label' => 'Preparing your meal', 'desc' => 'Your food is being prepared.'],
+				'ready' => ['label' => $isPickup ? 'Ready for pickup' : 'Ready to serve', 'desc' => $isPickup ? 'Your meal is ready.' : 'Your meal is being served.'],
+				'completed' => ['label' => $completedLabel, 'desc' => $completedDesc],
+				'cancelled' => ['label' => 'Cancelled', 'desc' => 'This order was cancelled.'],
+			];
+		}
+
+		// Healthcare / pharmacy
+		if(in_array($industry, ['pharmacy', 'healthcare', 'clinic', 'medical'])){
+			return [
+				'pending' => ['label' => 'Order received', 'desc' => 'We have received your request.'],
+				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+				'processing' => ['label' => 'Dispensing order', 'desc' => 'Your items are being prepared.'],
+				'ready' => ['label' => $readyLabel, 'desc' => $readyDesc],
+				'completed' => ['label' => $completedLabel, 'desc' => $completedDesc],
+				'cancelled' => ['label' => 'Cancelled', 'desc' => 'This order was cancelled.'],
+			];
+		}
+
+		// Fashion / boutique
+		if(in_array($industry, ['fashion', 'clothing', 'boutique', 'apparel', 'tailoring'])){
+			return [
+				'pending' => ['label' => 'Order received', 'desc' => 'We have received your order.'],
+				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+				'processing' => ['label' => 'Processing order', 'desc' => 'Your items are being prepared.'],
+				'ready' => ['label' => $readyLabel, 'desc' => $readyDesc],
+				'completed' => ['label' => $completedLabel, 'desc' => $completedDesc],
+				'cancelled' => ['label' => 'Cancelled', 'desc' => 'This order was cancelled.'],
+			];
+		}
+
+		// Beauty / salon / spa
+		if(in_array($industry, ['beauty', 'salon', 'spa', 'wellness'])){
+			return [
+				'pending' => ['label' => 'Booking received', 'desc' => 'We have received your booking.'],
+				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+				'processing' => ['label' => 'Preparing appointment', 'desc' => 'Your appointment is being prepared.'],
+				'ready' => ['label' => 'Ready for service', 'desc' => 'Everything is set for you.'],
+				'completed' => ['label' => 'Completed', 'desc' => 'Your appointment is complete.'],
+				'cancelled' => ['label' => 'Cancelled', 'desc' => 'This booking was cancelled.'],
+			];
+		}
+
+		// Services / bookings
+		if(in_array($industry, ['services', 'consulting', 'repair', 'automotive'])){
+			return [
+				'pending' => ['label' => 'Request received', 'desc' => 'We have received your request.'],
+				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+				'processing' => ['label' => 'Work in progress', 'desc' => 'We are working on your request.'],
+				'ready' => ['label' => $readyLabel, 'desc' => $readyDesc],
+				'completed' => ['label' => $completedLabel, 'desc' => $completedDesc],
+				'cancelled' => ['label' => 'Cancelled', 'desc' => 'This request was cancelled.'],
+			];
+		}
+
+		// Default / retail
+		return [
+			'pending' => ['label' => 'Order received', 'desc' => 'We have received your order.'],
+			'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
+			'processing' => ['label' => 'Processing order', 'desc' => 'Your order is being prepared.'],
+			'ready' => ['label' => $readyLabel, 'desc' => $readyDesc],
+			'completed' => ['label' => $completedLabel, 'desc' => $completedDesc],
+			'cancelled' => ['label' => 'Cancelled', 'desc' => 'This order was cancelled.'],
+		];
+	}
+
 	/**
 	 * Track Order
 	 * URL: /store/{store_slug}/track
@@ -474,15 +567,18 @@ class Storefront extends CI_Controller {
 			}
 		}
 
-		$statusMap = [
-			'pending' => ['label' => 'Order received', 'desc' => 'We have received your order.'],
-			'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],
-			'processing' => ['label' => 'Cleaning in progress', 'desc' => 'Your items are being cleaned.'],
-			'ready' => ['label' => 'Ready for collection', 'desc' => 'Your items are ready.'],
-			'completed' => ['label' => 'Delivered', 'desc' => 'Your order has been completed.'],
-			'cancelled' => ['label' => 'Cancelled', 'desc' => 'This order was cancelled.'],
-		];
+		$shippingMethod = $order->shipping_method ?? '';
+		$statusMap = $this->_trackStatusMap($store->industry_type ?? '', $shippingMethod);
 		$currentStatus = $statusMap[$order->order_status ?? 'pending'] ?? $statusMap['pending'];
+		$allStatuses = ['pending','paid','processing','ready','completed'];
+		$currentIndex = array_search($order->order_status ?? 'pending', $allStatuses);
+		if($currentIndex === false) $currentIndex = 0;
+		$visibleStatuses = ($order->order_status ?? 'pending') === 'completed' ? $allStatuses : array_slice($allStatuses, 0, $currentIndex + 1);
+
+		$testimonialSubmitted = false;
+		if(!empty($order->customer_name)){
+			$testimonialSubmitted = $this->db->where('store_id', $storeId)->where('customer_name', $order->customer_name)->where('is_enabled', 0)->get('db_storefront_testimonials')->num_rows() > 0;
+		}
 
 		$data = [
 			'settings' => $settings,
@@ -492,6 +588,10 @@ class Storefront extends CI_Controller {
 			'error' => $error,
 			'current_status' => $currentStatus,
 			'status_map' => $statusMap,
+			'visible_statuses' => $visibleStatuses,
+			'all_statuses' => $allStatuses,
+			'can_testimonial' => !empty($order) && ($order->order_status ?? '') === 'completed',
+			'testimonial_submitted' => $testimonialSubmitted,
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
@@ -504,6 +604,43 @@ class Storefront extends CI_Controller {
 			'csrf_hash' => $this->security->get_csrf_hash(),
 		];
 		$this->theme_engine->view('track', $data);
+	}
+
+	/**
+	 * Submit testimonial from tracking page
+	 * URL: /store/{store_slug}/track/testimonial
+	 */
+	public function submit_testimonial($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+
+		$orderCode = trim($this->input->post('order_code', TRUE) ?: '');
+		$customerPhone = trim($this->input->post('customer_phone', TRUE) ?: '');
+		$customerName = trim($this->input->post('customer_name', TRUE) ?: '');
+		$testimonialText = trim($this->input->post('testimonial_text', TRUE) ?: '');
+		$rating = (int)($this->input->post('rating', TRUE) ?: 5);
+
+		if(empty($orderCode) || empty($customerName) || empty($testimonialText)){
+			echo json_encode(['status' => false, 'message' => 'All fields are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$order = $this->storefront_model->getOrderByCode($orderCode, $storeId);
+		if(!$order || $order->customer_phone !== $customerPhone || $order->order_status !== 'completed'){
+			echo json_encode(['status' => false, 'message' => 'Order not found or not completed', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$this->storefront_model->saveStorefrontTestimonial([
+			'store_id' => $storeId,
+			'customer_name' => $customerName,
+			'testimonial_text' => $testimonialText,
+			'rating' => max(1, min(5, $rating)),
+			'sort_order' => 0,
+			'is_enabled' => 0
+		]);
+
+		echo json_encode(['status' => true, 'message' => 'Testimonial submitted for approval', 'csrf_hash' => $this->security->get_csrf_hash()]);
 	}
 
 	/**
@@ -721,6 +858,12 @@ class Storefront extends CI_Controller {
 
 		$orderId = $this->storefront_model->createOrder($orderData);
 
+		// Link or create customer record
+		$customerId = $this->customers_model->getOrCreateStorefrontCustomer($storeId, $customerName, $customerPhone, $customerEmail);
+		if($customerId){
+			$this->db->where('id', $orderId)->update('db_online_orders', ['customer_id' => $customerId]);
+		}
+
 		foreach($itemsToInsert as $item){
 			$item['order_id'] = $orderId;
 			$this->storefront_model->addOrderItem($item);
@@ -872,6 +1015,333 @@ class Storefront extends CI_Controller {
 		}
 	}
 
+	private function _buildOtpEmail($otp, $settings, $store, $name = ''){
+		$storeName = htmlspecialchars($settings->store_name ?? ($store->store_name ?? 'Store'));
+		$firstName = htmlspecialchars($name ?: 'there');
+		$storeEmail = htmlspecialchars($settings->store_email ?? ($store->email ?? ''));
+		$storePhone = htmlspecialchars($settings->store_phone ?? ($store->mobile ?? ''));
+		$storeAddress = htmlspecialchars($settings->store_address ?? ($store->address ?? ''));
+		$supportLink = !empty($storeEmail) ? 'mailto:' . $storeEmail : '#';
+		$logo = '';
+		if(!empty($settings->store_logo) && file_exists($settings->store_logo)){
+			$logo = base_url($settings->store_logo);
+		} elseif(!empty($store->store_logo) && file_exists($store->store_logo)){
+			$logo = base_url($store->store_logo);
+		} else {
+			$logo = base_url('theme/dist/img/logo1.png');
+		}
+		$otpDigits = str_split($otp);
+		$otpBoxes = '';
+		foreach($otpDigits as $d){
+			$otpBoxes .= '<td style="width:48px;height:60px;border:1px solid #E2E8F0;border-radius:10px;background:#fff;text-align:center;vertical-align:middle;font-size:28px;font-weight:800;color:#10B981;">' . $d . '</td>';
+		}
+		return '<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>' . $storeName . ' - Verification Code</title>
+  <style type="text/css">
+    body { margin:0; padding:0; background-color:#F1F5F9; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .wrapper { width:100%; padding:40px 0; background-color:#F1F5F9; }
+    .container { width:100%; max-width:520px; margin:0 auto; background:#ffffff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.06); overflow:hidden; }
+    .header { padding:32px 40px 24px; text-align:center; background:#ffffff; border-bottom:1px solid #F1F5F9; }
+    .header img { max-height:48px; display:inline-block; }
+    .brand-name { margin-top:12px; font-size:18px; font-weight:800; color:#0F172A; letter-spacing:-0.2px; }
+    .body { padding:40px; }
+    .tag { display:inline-block; padding:6px 14px; border-radius:999px; background:#E0E7FF; color:#3B82F6; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:20px; }
+    .greeting { font-size:18px; font-weight:700; color:#0F172A; margin-bottom:10px; }
+    .message { font-size:15px; line-height:1.6; color:#475569; margin-bottom:28px; }
+    .code-section { text-align:center; margin-bottom:28px; }
+    .code-table { margin:0 auto; border-spacing:8px; }
+    .expires { font-size:13px; color:#64748B; text-align:center; }
+    .footer { padding:24px 40px; text-align:center; background:#F8FAFC; border-top:1px solid #F1F5F9; }
+    .footer p { margin:4px 0; font-size:13px; color:#64748B; line-height:1.5; }
+    .footer a { color:#3B82F6; text-decoration:none; }
+    .help { margin-top:16px; font-size:13px; color:#64748B; }
+    .copyright { margin-top:20px; padding-top:16px; border-top:1px solid #E2E8F0; font-size:12px; color:#94A3B8; }
+  </style>
+</head>
+<body>
+  <table class="wrapper" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center">
+    <table class="container" role="presentation" width="520" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td class="header">
+          <img src="' . $logo . '" alt="' . $storeName . '" onerror="this.style.display=\'none\'">
+          <div class="brand-name">' . $storeName . '</div>
+        </td>
+      </tr>
+      <tr>
+        <td class="body">
+          <span class="tag">Security &amp; System</span>
+          <div class="greeting">Hi ' . $firstName . ',</div>
+          <div class="message">Thanks for signing in to your account. Your verification code is <strong>' . $otp . '</strong>. This code expires in <strong>10 minutes</strong>.</div>
+          <div class="code-section">
+            <table class="code-table" role="presentation" cellspacing="0" cellpadding="0" border="0">
+              <tr>' . $otpBoxes . '</tr>
+            </table>
+          </div>
+          <div class="expires">If you did not request this code, you can safely ignore this email.</div>
+        </td>
+      </tr>
+      <tr>
+        <td class="footer">
+          ' . (!empty($storeAddress) ? '<p>' . $storeAddress . '</p>' : '') . '
+          ' . (!empty($storePhone) ? '<p><a href="tel:' . preg_replace("/[^0-9]/", "", $storePhone) . '">' . $storePhone . '</a></p>' : '') . '
+          ' . (!empty($storeEmail) ? '<p><a href="' . $supportLink . '">' . $storeEmail . '</a></p>' : '') . '
+          <div class="copyright">&copy; ' . date('Y') . ' ' . $storeName . '. All rights reserved.<br>Powered by MartPoint.</div>
+        </td>
+      </tr>
+    </table>
+  </td></tr></table>
+</body>
+</html>';
+	}
+
+	// ============== CUSTOMER PORTAL ==============
+
+	public function verify($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$prefillPhone = $this->input->get('phone');
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'seo_title' => 'Verify Phone - ' . ($store->store_name ?? 'Store'),
+			'prefill_phone' => $prefillPhone,
+			'csrf_name' => $this->security->get_csrf_token_name(),
+			'csrf_hash' => $this->security->get_csrf_hash()
+		];
+		$this->load->view('storefront/verify', $data);
+	}
+
+	public function send_otp($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$method = trim($this->input->post('method', TRUE) ?: 'phone');
+		$phone = trim($this->input->post('phone', TRUE) ?: '');
+		$email = trim($this->input->post('email', TRUE) ?: '');
+		$name = trim($this->input->post('name', TRUE) ?: '');
+
+		$contactField = ($method === 'email') ? 'email' : 'phone';
+		$contactValue = ($method === 'email') ? $email : $phone;
+
+		if($method === 'email'){
+			if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)){
+				echo json_encode(['status' => false, 'message' => 'Enter a valid email address', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+		} else {
+			if(empty($phone) || strlen(preg_replace('/[^0-9]/', '', $phone)) < 7){
+				echo json_encode(['status' => false, 'message' => 'Enter a valid phone number', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$phone = preg_replace('/[^0-9]/', '', $phone);
+		}
+
+		$otp = sprintf('%06d', random_int(0, 999999));
+		$expires = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+
+		// Clear previous OTPs for this contact
+		$this->storefront_model->cleanupPortalSessions($storeId, $phone, $email);
+
+		$insert = [
+			'store_id' => $storeId,
+			'customer_id' => null,
+			'otp' => $otp,
+			'expires_at' => $expires
+		];
+		if($method === 'email'){
+			$insert['email'] = $email;
+			$insert['phone'] = '';
+		} else {
+			$insert['phone'] = $phone;
+			$insert['email'] = '';
+		}
+		$this->db->insert('db_storefront_customer_otp', $insert);
+
+		$message = 'Your ' . ($settings->store_name ?? 'MartPoint') . ' verification code is ' . $otp . '. Valid for 10 minutes.';
+		$sent = false;
+
+		if($method === 'email'){
+			$this->load->model('email_service');
+			$this->email_service->setStoreId($storeId);
+			$html = $this->_buildOtpEmail($otp, $settings, $store, $name);
+			$text = 'Hi ' . ($name ?: 'there') . ',\n\nYour ' . ($settings->store_name ?? 'MartPoint') . ' verification code is ' . $otp . '. It expires in 10 minutes.\n\nIf you did not request this, please ignore it.';
+			$result = $this->email_service->sendRaw($email, 'Your ' . ($settings->store_name ?? 'Store') . ' verification code', $html, $text);
+			if($result['success']){ $sent = true; }
+		} else {
+			$this->load->model('sendchamp_model');
+			$sms = $this->sendchamp_model->index($phone, $message, $storeId);
+			if($sms === 'success'){ $sent = true; }
+		}
+
+		if($sent){
+			echo json_encode(['status' => true, 'message' => 'OTP sent', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		} else {
+			$msg = ($method === 'email') ? 'Could not send email. Please try again or use phone.' : 'Could not send OTP. Please try again or use email.';
+			echo json_encode(['status' => false, 'message' => $msg, 'csrf_hash' => $this->security->get_csrf_hash()]);
+		}
+	}
+
+	public function verify_otp($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$method = trim($this->input->post('method', TRUE) ?: 'phone');
+		$phone = preg_replace('/[^0-9]/', '', trim($this->input->post('phone', TRUE) ?: ''));
+		$email = trim($this->input->post('email', TRUE) ?: '');
+		$otp = trim($this->input->post('otp', TRUE) ?: '');
+		$name = trim($this->input->post('name', TRUE) ?: 'Customer');
+
+		$contactField = ($method === 'email') ? 'email' : 'phone';
+		$contactValue = ($method === 'email') ? $email : $phone;
+
+		if(empty($contactValue) || empty($otp)){
+			echo json_encode(['status' => false, 'message' => 'Contact and OTP are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$this->db->where('store_id', $storeId)->where($contactField, $contactValue)->where('verified', 0)->where('expires_at >', date('Y-m-d H:i:s'));
+		$row = $this->db->order_by('id', 'desc')->get('db_storefront_customer_otp')->row();
+		if(!$row){
+			echo json_encode(['status' => false, 'message' => 'Invalid or expired OTP', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		if($row->attempts >= 5){
+			echo json_encode(['status' => false, 'message' => 'Too many attempts. Request a new OTP.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		if($otp !== $row->otp){
+			$this->db->where('id', $row->id)->set('attempts', 'attempts + 1', false)->update('db_storefront_customer_otp');
+			echo json_encode(['status' => false, 'message' => 'Invalid OTP', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		// Mark verified and create customer if missing
+		$this->db->where('id', $row->id)->update('db_storefront_customer_otp', ['verified' => 1]);
+
+		if($method === 'email'){
+			$customer = $this->db->where('store_id', $storeId)->where('email', $email)->get('db_customers')->row();
+			$customerId = $customer ? $customer->id : $this->customers_model->getOrCreateStorefrontCustomer($storeId, $name, '', $email);
+		} else {
+			$customer = $this->db->where('store_id', $storeId)->where('mobile', $phone)->get('db_customers')->row();
+			$customerId = $customer ? $customer->id : $this->customers_model->getOrCreateStorefrontCustomer($storeId, $name, $phone, '');
+		}
+
+		$token = bin2hex(random_bytes(32));
+		$expires = date('Y-m-d H:i:s', strtotime('+7 days'));
+		$this->storefront_model->createPortalSession([
+			'store_id' => $storeId,
+			'customer_id' => $customerId,
+			'phone' => $phone,
+			'email' => $email,
+			'session_token' => $token,
+			'expires_at' => $expires
+		]);
+
+		$this->load->helper('cookie');
+		set_cookie([
+			'name' => 'customer_token',
+			'value' => $token,
+			'expire' => 7 * 24 * 60 * 60,
+			'path' => '/',
+			'prefix' => '',
+			'secure' => FALSE,
+			'httponly' => TRUE
+		]);
+
+		echo json_encode([
+			'status' => true,
+			'message' => 'Verified',
+			'csrf_hash' => $this->security->get_csrf_hash()
+		]);
+	}
+
+	public function account($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$token = $this->input->cookie('customer_token', TRUE);
+		if(!$token){
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+
+		$session = $this->storefront_model->getCustomerPortalSession($token, $storeId);
+		if(!$session){
+			$this->load->helper('cookie');
+			delete_cookie('customer_token');
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+
+		$customer = $this->db->where('id', $session->customer_id)->get('db_customers')->row();
+		$orders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 5);
+
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'customer' => $customer,
+			'orders' => $orders,
+			'csrf_name' => $this->security->get_csrf_token_name(),
+			'csrf_hash' => $this->security->get_csrf_hash()
+		];
+		$this->load->view('storefront/account', $data);
+	}
+
+	public function account_orders($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$token = $this->input->cookie('customer_token', TRUE);
+		if(!$token){
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+
+		$session = $this->storefront_model->getCustomerPortalSession($token, $storeId);
+		if(!$session){
+			$this->load->helper('cookie');
+			delete_cookie('customer_token');
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+
+		$orders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 50);
+
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'orders' => $orders,
+			'csrf_name' => $this->security->get_csrf_token_name(),
+			'csrf_hash' => $this->security->get_csrf_hash()
+		];
+		$this->load->view('storefront/account_orders', $data);
+	}
+
+	public function account_logout($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$token = $this->input->cookie('customer_token', TRUE);
+		if($token){
+			$this->db->where('session_token', $token)->where('store_id', $storeId)->delete('db_storefront_customer_sessions');
+		}
+		$this->load->helper('cookie');
+		delete_cookie('customer_token');
+		redirect(base_url('store/' . $settings->store_slug));
+	}
+
 	// ============== HELPERS ==============
 
 	private function _getSettingsOr404($slug){
@@ -919,6 +1389,9 @@ class Storefront extends CI_Controller {
 			$this->load->model('email_settings_model');
 			$this->load->model('email_template_model');
 
+			// Email service must run in the order's store context (public storefront has no session store)
+			$this->email_service->setStoreId($order->store_id);
+
 			// Skip if email provider is not configured
 			if(!$this->email_settings_model->isReady($order->store_id)){
 				log_message('debug', 'Storefront: Email provider not ready, skipping order emails for order ' . $order->order_code);
@@ -932,7 +1405,7 @@ class Storefront extends CI_Controller {
 			$curRow = $this->db->query("SELECT a.currency as symbol, b.currency_placement as placement FROM db_currency a, db_store b WHERE a.id = b.currency_id AND b.id = ? LIMIT 1", [$order->store_id])->row();
 			$currency = $curRow ? $curRow->symbol : '';
 			$storeName = $store->store_name ?? 'MartPoint Retail';
-			$storeEmail = $store->email ?? '';
+			$storeEmail = !empty($settings->store_email) ? $settings->store_email : ($store->email ?? '');
 			$paymentMethodLabel = ucfirst(str_replace('_', ' ', $order->payment_method));
 
 			// Build item list HTML and text

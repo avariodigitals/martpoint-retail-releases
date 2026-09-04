@@ -31,7 +31,8 @@ class Debt_reminder extends MY_Controller {
 			'history' => $this->debt_reminder_model->getHistory(NULL, 50, 0),
 			'total_history' => $this->debt_reminder_model->countHistory()
 		]);
-		$this->load->view('debt_reminder_settings', $data);
+		$data['content'] = $this->load->view('debt_reminder_settings', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/**
@@ -88,7 +89,8 @@ class Debt_reminder extends MY_Controller {
 			'customers' => $this->debt_reminder_model->getCustomersWithDebt(),
 			'store_defaults' => $this->debt_reminder_model->getStoreSettings()
 		]);
-		$this->load->view('debt_reminder_customers', $data);
+		$data['content'] = $this->load->view('debt_reminder_customers', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/**
