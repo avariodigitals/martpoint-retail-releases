@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metro Mart — Point of Sale</title>
+  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — Point of Sale</title>
   <link rel="icon" href="<?= $favicon_url ?>">
   <link rel="apple-touch-icon" href="<?= $favicon_url ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -373,8 +373,12 @@
     .catalog-header {
       padding: 16px;
       border-bottom: 1px solid var(--mp-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .search-bar {
+      flex: 1;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -393,6 +397,122 @@
       color: var(--mp-text);
     }
     .search-bar input::placeholder { color: var(--mp-muted); }
+    .view-toggle {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      border: 1px solid var(--mp-border);
+      border-radius: 12px;
+      background: var(--mp-bg);
+      flex-shrink: 0;
+    }
+    .view-toggle button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--mp-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .view-toggle button.active {
+      background: var(--mp-surface);
+      color: var(--mp-primary);
+      box-shadow: var(--shadow-sm);
+    }
+    .view-toggle button:hover:not(.active) { color: var(--mp-text); }
+
+    .products.list-mode {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border: 1px solid var(--mp-border);
+      border-radius: 12px;
+      background: var(--mp-surface);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .product-row:hover {
+      border-color: var(--mp-primary);
+      box-shadow: var(--shadow-sm);
+    }
+    .product-row.out { opacity: 0.6; cursor: not-allowed; }
+    .product-row .row-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--mp-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--mp-muted);
+      flex-shrink: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .product-row .row-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .product-row .row-info { flex: 1; min-width: 0; }
+    .product-row .row-name {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .product-row .row-meta {
+      font-size: 12px;
+      color: var(--mp-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stock-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .stock-chip.in { background: rgba(5,150,105,.1); color: var(--mp-success); }
+    .stock-chip.low { background: rgba(217,119,6,.12); color: var(--mp-warning); }
+    .stock-chip.out { background: rgba(220,38,38,.1); color: var(--mp-danger, #dc2626); }
+    .product-row .row-price {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--mp-primary);
+      white-space: nowrap;
+    }
+    .product-row .add-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 9px;
+      background: var(--mp-primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .product-row .add-btn:hover { background: var(--mp-primary-dark); }
+    .product-row .add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .products {
       flex: 1;
       overflow-y: auto;
@@ -1029,6 +1149,77 @@
     .payment-ref { width: 100%; padding: 10px 12px; border: 1px solid var(--mp-border); border-radius: 10px; font-size: 13px; outline: none; box-sizing: border-box; }
     .payment-amount:focus,
     .payment-ref:focus { border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,0.10); }
+
+    /* Compact POS layout for 1366x768 and similar POS terminals */
+    @media (min-width: 1101px) and (max-width: 1400px) and (max-height: 800px) {
+      .app-header { padding: 8px 16px; gap: 12px; }
+      .brand h1 { font-size: 16px; }
+      .brand .sub { font-size: 11px; }
+      .intelligence { padding: 6px 10px; border-radius: 10px; }
+      .marquee-item { margin-right: 32px; font-size: 12px; }
+      .header-actions { gap: 8px; }
+      .header-btn { padding: 8px 10px; font-size: 13px; }
+      .header-btn:not(.primary) span { display: none; }
+      .user-chip { padding: 4px 10px 4px 4px; font-size: 13px; }
+      .user-avatar { width: 28px; height: 28px; font-size: 12px; }
+      .workspace { grid-template-columns: 200px 1fr 360px; gap: 12px; padding: 12px; }
+      .sidebar { gap: 10px; overflow-y: auto; min-height: 0; }
+      .panel { border-radius: 12px; min-height: 0; }
+      .panel-title { padding: 10px 10px 0; font-size: 13px; }
+      .category-list { padding: 6px; max-height: 240px; overflow-y: auto; }
+      .category-list li { padding: 9px 10px; font-size: 14px; line-height: 1.35; }
+      .insight-list { gap: 8px; padding: 0 10px 10px; max-height: 140px; overflow-y: auto; }
+      .insight-top { font-size: 12px; }
+      .insight-top .name { white-space: normal; overflow: visible; text-overflow: clip; padding: 0 4px; font-size: 12px; line-height: 1.3; }
+      .insight-top .rank, .insight-top .sold { font-size: 11px; }
+      .insight-bar { height: 4px; }
+      .target-amount { font-size: 20px; }
+      #posClock { font-size: 20px !important; }
+      .catalog { border-radius: 12px; }
+      .catalog-header { padding: 12px; }
+      .search-bar { padding: 8px 12px; border-radius: 10px; }
+      .products { padding: 12px; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .product-card { padding: 12px; border-radius: 12px; }
+      .product-thumb { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 8px; }
+      .product-name { font-size: 12px; min-height: 2.2em; }
+      .product-price { font-size: 13px; margin: 6px 0 10px; }
+      .product-card .add-btn { width: 32px; height: 32px; border-radius: 8px; }
+      .cart { border-radius: 12px; overflow-y: auto; }
+      .cart-header { padding: 6px; }
+      .cart-header h2 { font-size: 13px; }
+      .price-type { margin-top: 4px; }
+      .option-chips button { padding: 6px 6px; font-size: 11px; }
+      .customer-select { margin-top: 4px; }
+      #customerNameDisplay { font-size: 12px !important; padding: 2px 0 !important; }
+      .customer-search { padding: 6px 8px; font-size: 12px; }
+      .cart-items { padding: 6px 12px; min-height: 240px; }
+      .cart-item { padding: 8px 0; }
+      .cart-item .item-name { font-size: 12px; }
+      .cart-item .item-meta { font-size: 11px; }
+      .cart-item .item-total { font-size: 12px; }
+      .qty-control { border-radius: 8px; padding: 2px; }
+      .qty-control button { width: 24px; height: 24px; font-size: 15px; }
+      .qty-control span { font-size: 13px; }
+      .cart-summary { padding: 6px; }
+      .summary-row { font-size: 12px; margin-bottom: 4px; }
+      .summary-row.total { font-size: 16px; margin-top: 4px; padding-top: 4px; }
+      .discount-control { margin: 4px 0; }
+      .discount-control input { padding: 6px 8px; font-size: 12px; }
+      .discount-control .header-btn { padding: 6px 8px; font-size: 12px; }
+      .coupon-control { margin-top: 4px; }
+      .coupon-control input { padding: 6px 8px; font-size: 12px; }
+      .coupon-control .header-btn { padding: 6px 8px; font-size: 12px; }
+      #couponInfo { margin-top: 4px; padding: 4px 8px; font-size: 11px; }
+      #redeemBtn { margin-top: 4px; padding: 7px 4px; font-size: 12px; }
+      #clockNotice { margin: 4px 0; font-size: 11px; }
+      .payment-methods { margin: 4px 0; gap: 4px; }
+      .method-chip { padding: 5px 8px; font-size: 11px; }
+      .pay-btn { padding: 10px; font-size: 14px; }
+      .pay-actions { margin-top: 4px; gap: 4px; }
+      .pay-action { padding: 7px 4px; font-size: 11px; }
+      .cart-actions { margin: 4px 0; }
+      .copyright { padding: 8px 16px; font-size: 11px; }
+    }
   </style>
 </head>
 <body>
@@ -1053,10 +1244,12 @@
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
         Sales List
       </a>
+      <?php $CI =& get_instance(); if($CI->permissions('customers_add')): ?>
       <button class="header-btn" onclick="openAddCustomer()">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
       Add Customer
     </button>
+    <?php endif; ?>
     <button class="header-btn" id="themeBtn" onclick="toggleTheme()" style="color: var(--mp-text);">
       <span id="themeIcon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
       <span id="themeLabel" style="color: var(--mp-text);">Dark</span>
@@ -1136,6 +1329,14 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" id="searchInput" placeholder="Scan barcode or search product...">
         </div>
+        <div class="view-toggle" role="group" aria-label="Product view">
+          <button type="button" id="gridViewBtn" class="active" onclick="setProductView('grid')" title="Thumbnail view" aria-label="Thumbnail view">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button type="button" id="listViewBtn" onclick="setProductView('list')" title="List view" aria-label="List view">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="products" id="productGrid"></div>
     </section>
@@ -1179,7 +1380,7 @@
       </div>
       <div class="cart-summary">
         <div class="summary-row"><span>Subtotal</span><span id="subtotal">₦0.00</span></div>
-        <div class="summary-row"><span>Tax (7.5%)</span><span id="tax">₦0.00</span></div>
+        <div class="summary-row" id="taxRow" style="display:none"><span id="taxLabel">Tax</span><span id="tax">₦0.00</span></div>
         <div class="summary-row" id="discountRow" style="display:none"><span>Discount</span><span id="discount">₦0.00</span></div>
         <div class="summary-row total"><span>Total</span><span id="grandTotal">₦0.00</span></div>
         <div class="discount-control">
@@ -1213,7 +1414,7 @@
   </main>
 
   <footer class="copyright">
-    &copy; 2026 Metro Mart. Powered by MartPoint.
+    &copy; <?= date('Y'); ?> <?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?>. Powered by MartPoint.
   </footer>
 
   <div class="toast-container" id="toastContainer"></div>
@@ -1305,7 +1506,16 @@
         <video id="clockVideo" autoplay playsinline style="width: 100%; display: block; transform: scaleX(-1);"></video>
         <canvas id="clockCanvas" style="display: none;"></canvas>
       </div>
+      <div style="text-align:center; margin: 4px 0 12px;">
+        <button type="button" id="clockPinToggle" class="btn btn-link" onclick="showClockPinFallback()" style="font-size: 13px; color: var(--mp-primary); background: none; border: none; cursor: pointer; padding: 0;">No camera? Use password or PIN</button>
+      </div>
       <div id="clockNoticeBox" style="display:none; padding: 10px; border-radius: 10px; background: var(--mp-bg); color: var(--mp-muted); font-size: 13px; margin-bottom: 12px;"></div>
+      <div id="clockPinBox" style="display:none; padding: 12px; border-radius: 10px; background: var(--mp-bg); margin-bottom: 12px;">
+        <div class="form-group" style="margin: 0;">
+          <label for="clockPin" style="font-size: 13px; color: var(--mp-muted);">Account password or approval PIN</label>
+          <input type="password" id="clockPin" class="form-control" placeholder="Enter password or PIN" style="margin-top: 6px; padding: 10px 12px; border: 1px solid var(--mp-border); border-radius: 8px; font-size: 14px; width: 100%;">
+        </div>
+      </div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeClockModal()">Cancel</button>
         <button class="btn-primary" id="clockCaptureBtn" onclick="captureClockFace()">Capture</button>
@@ -1428,6 +1638,7 @@
     let selectedCategory = 'All';
     let priceType = 'retail';
     let searchQuery = '';
+    let productView = localStorage.getItem('posProductView') || 'grid';
     let discountAmount = 0;
     let couponCode = '';
     let couponValue = 0;
@@ -1443,8 +1654,11 @@
     let clockedAt = '<?= $clock_in_time ?>';
     let clockInTime = '<?= $clock_in_time ?>';
     let clockImage = null;
+    let clockPinMode = false;
     let clockStream = null;
     const cart = [];
+    let cartSubtotal = 0;
+    let cartTax = 0;
     const customers = <?= json_encode($customers ?? []) ?>;
     const customerRedeemables = <?= json_encode($customer_redeemables ?? (object)[]) ?>;
     const customerNameMap = <?= json_encode(array_column($customers ?? [], 'customer_name', 'id')) ?>;
@@ -1507,6 +1721,8 @@
       renderInsights();
       renderIntelligenceBar();
       renderProducts();
+      document.getElementById('gridViewBtn').classList.toggle('active', productView === 'grid');
+      document.getElementById('listViewBtn').classList.toggle('active', productView === 'list');
       updateCart();
       updateTarget();
       updateClock();
@@ -1601,6 +1817,37 @@
         return matchesCategory && matchesSearch;
       });
 
+      grid.classList.toggle('list-mode', productView === 'list');
+
+      if (productView === 'list') {
+        grid.innerHTML = filtered.map(p => {
+          const displayPrice = getPrice(p);
+          const stockChip = p.outOfStock
+            ? '<span class="stock-chip out">Out of stock</span>'
+            : (p.alert_qty > 0 && p.stock <= p.alert_qty
+              ? `<span class="stock-chip low">Low · ${p.stock}${p.unit ? ' ' + p.unit : ''}</span>`
+              : `<span class="stock-chip in">${p.stock}${p.unit ? ' ' + p.unit : ''} in stock</span>`);
+          const rowThumb = p.image
+            ? `<div class="row-thumb"><img src="${baseUrl}/${p.image}" alt="" onerror="this.remove();"></div>`
+            : `<div class="row-thumb"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`;
+          const meta = [p.category, p.unit, p.sku].filter(Boolean).join(' · ');
+          return `
+          <div class="product-row${p.outOfStock ? ' out' : ''}" onclick="${p.outOfStock ? '' : 'addToCart(' + p.id + ')'}">
+            ${rowThumb}
+            <div class="row-info">
+              <div class="row-name">${p.name}</div>
+              <div class="row-meta">${meta}</div>
+            </div>
+            ${stockChip}
+            <div class="row-price">${formatMoney(displayPrice)}</div>
+            <button class="add-btn" ${p.outOfStock ? 'disabled' : ''} onclick="event.stopPropagation(); addToCart(${p.id})">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        `;}).join('');
+        return;
+      }
+
       grid.innerHTML = filtered.map(p => {
         const displayPrice = getPrice(p);
         const newTag = isNew(p.createdAt) ? '<div class="new-tag">New</div>' : '';
@@ -1621,6 +1868,14 @@
           </button>
         </div>
       `;}).join('');
+    }
+
+    function setProductView(mode) {
+      productView = mode === 'list' ? 'list' : 'grid';
+      localStorage.setItem('posProductView', productView);
+      document.getElementById('gridViewBtn').classList.toggle('active', productView === 'grid');
+      document.getElementById('listViewBtn').classList.toggle('active', productView === 'list');
+      renderProducts();
     }
 
     function addToCart(id) {
@@ -1716,13 +1971,20 @@
       const confirmBtn = document.getElementById('clockConfirmBtn');
       const captureBtn = document.getElementById('clockCaptureBtn');
       const notice = document.getElementById('clockNoticeBox');
+      const video = document.getElementById('clockVideo');
       title.textContent = clockedIn ? 'Clock Out' : 'Clock In';
       statusText.textContent = clockedIn ? 'Position your face and click Capture to clock out.' : 'Position your face and click Capture to clock in.';
       confirmBtn.style.display = 'none';
+      confirmBtn.disabled = false;
       captureBtn.style.display = '';
       notice.style.display = 'none';
       notice.textContent = '';
+      document.getElementById('clockPinBox').style.display = 'none';
+      document.getElementById('clockPinToggle').style.display = '';
+      document.getElementById('clockPin').value = '';
+      video.style.display = 'block';
       clockImage = null;
+      clockPinMode = false;
       closeAllPopups();
       modal.classList.add('active');
       startClockCamera();
@@ -1731,7 +1993,8 @@
     function startClockCamera() {
       const video = document.getElementById('clockVideo');
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showToast('No camera', 'Camera access is required for clock in/out', 'danger');
+        showToast('No camera', 'No camera detected. Use the PIN fallback.', 'warning');
+        showClockPinFallback();
         return;
       }
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
@@ -1740,7 +2003,8 @@
           video.srcObject = stream;
         })
         .catch(err => {
-          showToast('Camera error', 'Could not access camera: ' + (err.message || err), 'danger');
+          showToast('Camera error', 'Could not access camera: ' + (err.message || err), 'warning');
+          showClockPinFallback();
         });
     }
 
@@ -1751,6 +2015,22 @@
       }
       const video = document.getElementById('clockVideo');
       video.srcObject = null;
+    }
+
+    function showClockPinFallback() {
+      const video = document.getElementById('clockVideo');
+      stopClockCamera();
+      video.style.display = 'none';
+      document.getElementById('clockPinBox').style.display = 'block';
+      document.getElementById('clockPinToggle').style.display = 'none';
+      document.getElementById('clockCaptureBtn').style.display = 'none';
+      document.getElementById('clockConfirmBtn').style.display = '';
+      document.getElementById('clockConfirmBtn').disabled = false;
+      document.getElementById('clockPin').value = '';
+      document.getElementById('clockPin').focus();
+      document.getElementById('clockStatusText').textContent = clockedIn ? 'Enter your account password or PIN to clock out.' : 'Enter your account password or PIN to clock in.';
+      clockImage = null;
+      clockPinMode = true;
     }
 
     function closeClockModal() {
@@ -1786,21 +2066,28 @@
     }
 
     function confirmClockAction() {
-      if (!clockImage) {
-        showToast('No face captured', 'Please capture your face first', 'danger');
+      const pin = clockPinMode ? document.getElementById('clockPin').value.trim() : '';
+      if (!clockImage && !pin) {
+        showToast('No confirmation', 'Capture your face or enter your PIN to proceed', 'danger');
+        return;
+      }
+      if (clockPinMode && pin.length < 4) {
+        showToast('PIN too short', 'Enter at least 4 characters', 'warning');
         return;
       }
       const notice = document.getElementById('clockNoticeBox');
       const confirmBtn = document.getElementById('clockConfirmBtn');
       notice.textContent = 'Getting location...';
       confirmBtn.disabled = true;
-      
+
       const doPost = (lat, lng) => {
         // Send as form-encoded to match jQuery $.post() behavior
         const params = new URLSearchParams();
-        params.append('face_image', clockImage);
+        if (clockImage) params.append('face_image', clockImage);
+        if (pin) params.append('pin', pin);
         if (lat != null) params.append('lat', lat);
         if (lng != null) params.append('lng', lng);
+        params.append('csrf_test_name', csrfToken);
         
         const url = clockedIn ? baseUrl + '/attendance/clock_out' : baseUrl + '/attendance/clock_in';
         const wasClockedIn = clockedIn;
@@ -1917,9 +2204,7 @@
         showToast('Invalid amount', 'Enter a discount amount greater than 0', 'warning');
         return;
       }
-      const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
-      const tax = subtotal * 0.075;
-      const maxDiscount = subtotal + tax;
+      const maxDiscount = cartSubtotal + cartTax;
       if (amount > maxDiscount) {
         showToast('Amount too high', 'Discount cannot exceed ₦' + formatMoney(maxDiscount), 'warning');
         return;
@@ -2016,6 +2301,19 @@
           tax += lineTotal * taxValue;
         }
       });
+
+      // Expose totals for other functions and hide tax row when there's no tax
+      cartSubtotal = subtotal;
+      cartTax = tax;
+      const taxRow = document.getElementById('taxRow');
+      if (taxRow) {
+        taxRow.style.display = (tax > 0) ? 'flex' : 'none';
+        const taxLabel = document.getElementById('taxLabel');
+        if (taxLabel && subtotal > 0) {
+          const avgTaxRate = (tax / subtotal * 100).toFixed(2);
+          taxLabel.textContent = (tax > 0) ? 'Tax (' + avgTaxRate + '%)' : 'Tax';
+        }
+      }
       
       discountAmount = Math.min(discountAmount, subtotal + tax);
       couponDiscountAmt = computeCouponDiscount(subtotal);
@@ -2106,9 +2404,7 @@
     function buildRedeemOptions(customerId) {
       const opts = customerRedeemables[customerId];
       const rate = parseFloat(loyaltySettings.redemption_rate) || 0;
-      const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
-      const tax = subtotal * 0.075;
-      const maxDiscount = subtotal + tax;
+      const maxDiscount = cartSubtotal + cartTax;
       let html = '';
 
       // Loyalty points
@@ -2152,7 +2448,7 @@
           const couponValue = parseFloat(c.value) || 0;
           let discount = 0;
           if ((c.type || '').toLowerCase() === 'percentage') {
-            discount = Math.min(subtotal * couponValue / 100, maxDiscount);
+            discount = Math.min(cartSubtotal * couponValue / 100, maxDiscount);
           } else {
             discount = Math.min(couponValue, maxDiscount);
           }
@@ -2172,9 +2468,7 @@
     }
 
     function applyRedeem(type, ref, amount, value) {
-      const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
-      const tax = subtotal * 0.075;
-      const maxDiscount = subtotal + tax;
+      const maxDiscount = cartSubtotal + cartTax;
       const available = Math.max(0, maxDiscount - discountAmount);
       if (amount <= 0 || available <= 0) {
         showToast('Nothing to redeem', 'Cart total is already covered', 'warning');

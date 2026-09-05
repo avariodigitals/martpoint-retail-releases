@@ -431,3 +431,8 @@ ERROR - 2026-09-04 12:39:57 --> Sales db_salesitems OK: id=703 sales_id=6169 ite
 ERROR - 2026-09-04 12:39:57 --> sales_note not saved: sales_note=, customer_id=3027, is_walkin=no
 ERROR - 2026-09-04 12:41:41 --> Could not find the language line "quotation_details"
 ERROR - 2026-09-04 12:52:15 --> Could not find the language line "quotation_details"
+ERROR - 2026-09-04 14:46:11 --> 404 Page Not Found: Faviconico/index
+ERROR - 2026-09-04 15:47:56 --> Updater httpGet failed for https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/release-manifest.json: unknown
+ERROR - 2026-09-04 15:47:56 --> Severity: Core Warning --> Module 'herd' already loaded Unknown 0
+ERROR - 2026-09-04 15:48:12 --> Updater httpGet failed for https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/release-manifest.json: Module 'herd' already loaded
+ERROR - 2026-09-04 15:48:12 --> Severity: Core Warning --> Module 'herd' already loaded Unknown 0

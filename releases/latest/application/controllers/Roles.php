@@ -12,20 +12,7 @@ class Roles extends MY_Controller {
 		$this->permission_check('roles_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('new_role');
-		$data['crud'] = [
-			'page_title' => $this->lang->line('new_role'),
-			'page_sub' => 'Create a new role',
-			'form_id' => 'role-form',
-			'save_url' => 'roles/newrole',
-			'update_url' => 'roles/update_role',
-			'list_url' => base_url('roles/view'),
-			'module' => 'roles',
-			'fields' => [
-				['name' => 'role_name', 'label' => 'Role Name', 'type' => 'text', 'required' => true],
-				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
-			],
-		];
-		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$data['content'] = $this->load->view('admin/desktop/roles_form', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
 	public function newrole(){
@@ -52,20 +39,7 @@ class Roles extends MY_Controller {
 		$result=$this->roles_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('roles');
-		$data['crud'] = [
-			'page_title' => $this->lang->line('roles'),
-			'page_sub' => 'Update role details',
-			'form_id' => 'role-form',
-			'save_url' => 'roles/newrole',
-			'update_url' => 'roles/update_role',
-			'list_url' => base_url('roles/view'),
-			'module' => 'roles',
-			'fields' => [
-				['name' => 'role_name', 'label' => 'Role Name', 'type' => 'text', 'required' => true],
-				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
-			],
-		];
-		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
+		$data['content'] = $this->load->view('admin/desktop/roles_form', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
 	public function update_role(){

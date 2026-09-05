@@ -39,13 +39,13 @@
 
         <div class="mp-form-field">
           <label for="username"><?= $this->lang->line('username'); ?><span class="req">*</span></label>
-          <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($username ?? ''); ?>" autocomplete="off" <?= (!empty($q_id)) ? 'readonly' : ''; ?> autofocus>
+          <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($username ?? ''); ?>" autocomplete="off" autofocus>
           <span id="username_msg" class="field-msg"></span>
         </div>
 
         <div class="mp-form-field">
           <label for="new_user"><?= $this->lang->line('first_name'); ?><span class="req">*</span></label>
-          <input type="text" class="form-control" id="new_user" name="new_user" value="<?= htmlspecialchars($first_name ?? ''); ?>" autocomplete="off" <?= (!empty($q_id)) ? 'readonly' : ''; ?>>
+          <input type="text" class="form-control" id="new_user" name="new_user" value="<?= htmlspecialchars($first_name ?? ''); ?>" autocomplete="off">
           <span id="new_user_msg" class="field-msg"></span>
         </div>
 
@@ -94,20 +94,20 @@
 
         <div class="mp-form-field">
           <label for="pass"><?= $this->lang->line('password'); ?><?php if(empty($q_id)): ?><span class="req">*</span><?php endif; ?></label>
-          <input type="password" class="form-control" id="pass" name="pass" placeholder="" autocomplete="off" <?= (!empty($q_id)) ? 'readonly' : ''; ?>>
+          <input type="password" class="form-control" id="pass" name="pass" placeholder="<?= (!empty($q_id)) ? 'Leave blank to keep current' : ''; ?>" autocomplete="off">
           <span id="pass_msg" class="field-msg"></span>
         </div>
 
         <div class="mp-form-field">
           <label for="confirm"><?= $this->lang->line('confirm_password'); ?><?php if(empty($q_id)): ?><span class="req">*</span><?php endif; ?></label>
-          <input type="password" class="form-control" id="confirm" name="confirm" placeholder="" autocomplete="off" <?= (!empty($q_id)) ? 'readonly' : ''; ?>>
+          <input type="password" class="form-control" id="confirm" name="confirm" placeholder="<?= (!empty($q_id)) ? 'Leave blank to keep current' : ''; ?>" autocomplete="off">
           <span id="confirm_msg" class="field-msg"></span>
         </div>
 
         <?php if(mp_feature_enabled('manager_approvals')): ?>
         <div class="mp-form-field">
           <label for="approval_pin">Approval PIN <i class="fa fa-info-circle text-info" title="4-6 digit PIN for manager/owner approval overrides. Leave blank to disable." data-toggle="tooltip"></i></label>
-          <input type="password" class="form-control" id="approval_pin" name="approval_pin" maxlength="10" placeholder="4-6 digits" autocomplete="off" <?= (!empty($q_id)) ? 'readonly' : ''; ?>>
+          <input type="password" class="form-control" id="approval_pin" name="approval_pin" maxlength="10" placeholder="4-6 digits" autocomplete="off">
           <span id="approval_pin_msg" class="field-msg"></span>
         </div>
         <?php endif; ?>

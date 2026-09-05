@@ -138,7 +138,7 @@
     $overall_discounted = $tot_discount_to_all_amt + $coupon_amt;
 
     if($this->db->table_exists('db_store_receipt_settings')){
-      $q1=$this->db->query("SELECT s.*, r.sales_invoice_footer_text FROM db_store s LEFT JOIN db_store_receipt_settings r ON r.store_id=s.id WHERE s.id=".$res3->store_id." ");
+      $q1=$this->db->query("SELECT s.*, r.sales_invoice_footer_text, r.t_and_c_status_pos, r.pos_invoice_format_id, r.sales_invoice_format_id, r.previous_balance_bit, r.invoice_terms FROM db_store s LEFT JOIN db_store_receipt_settings r ON r.store_id=s.id WHERE s.id=".$res3->store_id." ");
     }else{
       $q1=$this->db->query("select * from db_store where id=".$res3->store_id." ");
     }
@@ -162,8 +162,18 @@
     $t_and_c_status_pos	=$res1->t_and_c_status_pos ?? 0;
     $sales_invoice_footer_text	=isset($res1->sales_invoice_footer_text) ? $res1->sales_invoice_footer_text : 'Thank you for shopping with us!';
 
-    $pm = $this->db->query("SELECT payment_type FROM db_salespayments WHERE sales_id=$sales_id GROUP BY payment_type LIMIT 1");
-    $payment_method = ($pm->num_rows()>0) ? $pm->row()->payment_type : 'Unpaid';
+    $payments = $this->db->query("SELECT payment_type, COALESCE(payment,0) AS amount FROM db_salespayments WHERE sales_id=$sales_id ORDER BY id")->result();
+    $mode_names = array();
+    if($this->db->table_exists('db_payment_modes')){
+      foreach($this->db->select('code,name')->where('store_id', $res3->store_id)->get('db_payment_modes')->result() as $m){
+        $mode_names[strtolower($m->code)] = $m->name;
+      }
+    }
+    foreach($payments as $p){
+      $key = strtolower($p->payment_type);
+      $p->method_label = !empty($mode_names[$key]) ? $mode_names[$key] : ucwords(str_replace(array('_','-'), ' ', $key));
+    }
+    $payment_method = !empty($payments) ? $payments[0]->method_label : 'Unpaid';
 
     $printed_by = $CI->session->userdata('display_name');
     if(empty($printed_by)){
@@ -197,8 +207,7 @@
         </tr>
         <?php endif; ?>
         <tr>
-            <td><?= $this->lang->line('seller'); ?>: <?= ucfirst($res3->created_by); ?></td>
-            <td style="text-align:right;"><?= ($this->lang->line('cashier') ?: 'Cashier') ?>: <?= $printed_by; ?></td>
+            <td colspan="2" style="text-align:left;"><?= $this->lang->line('seller'); ?>: <?= ucfirst($res3->created_by); ?></td>
         </tr>
     </table>
 
@@ -261,19 +270,25 @@
     </table>
 
     <table class="totals">
+        <?php
+            $has_tax = !empty($tax_amt) && $tax_amt != 0;
+            $show_tax_breakdown = ($pos_invoice_format_id != 3) && $has_tax;
+            $subtotal_label = ($pos_invoice_format_id == 3 || !$has_tax) ? $this->lang->line('subtotal') : $this->lang->line('before_tax');
+        ?>
         <tr>
-            <td><?= $this->lang->line('before_tax'); ?></td>
+            <td><?= $subtotal_label; ?></td>
             <td><?= $CI->currency($before_tax); ?></td>
         </tr>
 
-        <?php
-            if(get_store_details()->pos_invoice_format_id == 1){
-        ?>
-            <tr>
-                <td><?= $this->lang->line('tax_amount'); ?></td>
-                <td><?= $CI->currency($tax_amt); ?></td>
-            </tr>
-        <?php
+        <?php if($show_tax_breakdown): ?>
+            <?php
+            if($pos_invoice_format_id == 1){
+            ?>
+                <tr>
+                    <td><?= $this->lang->line('tax_amount'); ?></td>
+                    <td><?= $CI->currency($tax_amt); ?></td>
+                </tr>
+            <?php
             }
             else{
                 $this->db->select("
@@ -286,10 +301,10 @@
                 $this->db->from("db_salesitems a");
                 $this->db->join("db_tax b","b.id=a.tax_id","left");
                 $this->db->join("db_items c","c.id=a.item_id","left");
-                $this->db->group_by("a.tax_id");
+                $this->db->group_by("a.tax_id, b.tax, b.tax_name, c.tax_type");
                 $q5=$this->db->get();
 
-                if($q5->num_rows()>0){
+                if($q5 && $q5->num_rows()>0){
                     foreach($q5->result() as $row){
                         $tax_per = $row->tax;
                         $sum_of_tax_amt = $row->sum_of_tax_amt;
@@ -320,7 +335,8 @@
                     }
                 }
             }
-        ?>
+            ?>
+        <?php endif; ?>
 
         <?php if(!empty($coupon_code)) {?>
         <tr>
@@ -340,10 +356,17 @@
             <td><?= $this->lang->line('total'); ?></td>
             <td><?= $CI->currency($grand_total); ?></td>
         </tr>
+        <?php if(!empty($payments)) { foreach($payments as $pay) { ?>
+        <tr>
+            <td><?= $this->lang->line('paid_amount'); ?> - <?= $pay->method_label; ?></td>
+            <td><?= $CI->currency($pay->amount); ?></td>
+        </tr>
+        <?php } } else { ?>
         <tr>
             <td><?= $this->lang->line('paid_amount'); ?> - <?= $payment_method; ?></td>
             <td><?= $CI->currency($paid_amount); ?></td>
         </tr>
+        <?php } ?>
 
         <?php if(change_return_status()) {
             $change_return_amount = get_change_return_amount($sales_id); ?>

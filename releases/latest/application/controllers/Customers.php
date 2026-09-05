@@ -26,6 +26,7 @@ class Customers extends MY_Controller {
 	}
 
 	public function newcustomers(){
+		$this->permission_check_with_msg('customers_add');
 		$this->form_validation->set_rules('customer_name', 'Customer Name', 'trim|required');
 		$this->form_validation->set_rules('mobile', 'Mobile', 'trim|required');
 		
@@ -47,6 +48,11 @@ class Customers extends MY_Controller {
 	}
 
 	public function add_customer_ajax(){
+		if(!$this->permissions('customers_add')){
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode(['status' => 'error', 'message' => 'You don\'t have permission to add customers.']);
+			exit;
+		}
 		header('Content-Type: application/json; charset=utf-8');
 		header('Cache-Control: no-cache, no-store, must-revalidate');
 		

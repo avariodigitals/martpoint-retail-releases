@@ -72,7 +72,9 @@
           <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Customers</h1>
         </div>
+        <?php if(permissions('customers_add')): ?>
         <a href="<?= base_url('mobile/add_customer'); ?>" class="add-btn"><i class="fa fa-plus"></i></a>
+        <?php endif; ?>
       </div>
 
       <div class="summary-card">

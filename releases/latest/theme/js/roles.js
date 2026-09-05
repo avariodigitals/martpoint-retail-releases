@@ -43,7 +43,7 @@ $('#save,#update').on("click",function (e) {
 						  if(!confirmed){ return; }
 						  toastr["info"]("Saving record...");
 						  e.preventDefault();
-						  data = new FormData($('#roles-form')[0]);//form name
+						  data = new FormData($('#role-form')[0]);//form name
 						  /*Check XSS Code*/
 						  if(!xss_validation(data)){ return false; }
 						  
@@ -97,7 +97,7 @@ $('#save,#update').on("click",function (e) {
 					}).then(function(confirmed){
 						if(!confirmed){ return; }
 						e.preventDefault();
-						data = new FormData($('#roles-form')[0]);//form name
+						data = new FormData($('#role-form')[0]);//form name
 						/*Check XSS Code*/
 						if(!xss_validation(data)){ return false; }
 						

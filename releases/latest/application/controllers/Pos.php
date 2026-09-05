@@ -89,7 +89,8 @@ class Pos extends MY_Controller {
 		$products_query = $this->db->query("
 			SELECT a.id, a.item_name AS name, COALESCE(NULLIF(a.mrp,0), a.sales_price) AS price,
 			       a.sales_price AS wholesale, c.category_name AS category,
-			       a.category_id, a.brand_id,
+			       a.category_id, a.brand_id, a.sku, u.unit_name AS unit,
+			       COALESCE(a.alert_qty, 0) AS alert_qty,
 			       a.tax_id, a.tax_type,
 			       IF(a.tax_id > 0, 1, 0) AS tax,
 			       a.item_image AS image,
@@ -97,6 +98,7 @@ class Pos extends MY_Controller {
 			FROM db_items a
 			LEFT JOIN db_tax b ON b.id = a.tax_id
 			LEFT JOIN db_category c ON c.id = a.category_id
+			LEFT JOIN db_units u ON u.id = a.unit_id
 			WHERE a.store_id = ?
 			  AND a.status = 1
 			  AND a.service_bit != 1
@@ -120,6 +122,7 @@ class Pos extends MY_Controller {
 			// Add stock information
 			$p['stock'] = (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']);
 			$p['outOfStock'] = $p['stock'] <= 0;
+			$p['alert_qty'] = (int) ($p['alert_qty'] ?? 0);
 		}
 		$data['products'] = $products;
 

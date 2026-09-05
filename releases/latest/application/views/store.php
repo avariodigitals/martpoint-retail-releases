@@ -145,7 +145,7 @@ if(!isset($q_id)){
                                                 <div class="form-group">
                                                    <label for="show_signature" class="col-sm-4 control-label"><?= $this->lang->line('show_signature'); ?></label>
                                                    <div class="col-sm-8">
-                                                      <input type="checkbox" <?=$show_signature_checkbox;?> class="form-control" id="show_signature" name="show_signature" >
+                                                      <input type="checkbox" <?=$show_signature_checkbox;?> id="show_signature" name="show_signature" >
                                                       <span id="show_signature_msg" style="display:none" class="text-danger"></span>
                                                    </div>
                                                 </div>
@@ -503,7 +503,7 @@ if(!isset($q_id)){
                                                 <div class="form-group">
                                                    <label for="round_off" class="col-sm-4 control-label"><?= $this->lang->line('enable_round_off'); ?> ?</label>
                                                    <div class="col-sm-4">
-                                                      <input type="checkbox" <?=$round_off_checkbox;?> class="form-control" id="round_off" name="round_off" >
+                                                      <input type="checkbox" <?=$round_off_checkbox;?> id="round_off" name="round_off" >
                                                       <span id="round_off_msg" style="display:none" class="text-danger"></span>
                                                    </div>
                                                 </div>
@@ -593,6 +593,7 @@ if(!isset($q_id)){
                                                       <select class="form-control select2" id="pos_invoice_format_id" name="pos_invoice_format_id"  style="width: 100%;">
                                                          <option value="1">Default</option>
                                                          <option value="2">AFR Format</option>
+                                                         <option value="3">No Tax</option>
                                                       </select>
                                                       <span id="pos_invoice_format_id_msg" style="display:none" class="text-danger"></span>
                                                    </div>
@@ -604,7 +605,7 @@ if(!isset($q_id)){
                                                 <div class="form-group">
                                                    <label for="mrp_column" class="col-sm-3 control-label"><?= $this->lang->line('show_mrp_column_on_pos_invoice'); ?></label>
                                                    <div class="col-sm-4">
-                                                      <input type="checkbox" <?=$mrp_column_checkbox;?> class="form-control" id="mrp_column" name="mrp_column" >
+                                                      <input type="checkbox" <?=$mrp_column_checkbox;?> id="mrp_column" name="mrp_column" >
                                                       <span id="mrp_column_msg" style="display:none" class="text-danger"></span>
                                                    </div>
                                                 </div>
@@ -614,7 +615,7 @@ if(!isset($q_id)){
                                                 <div class="form-group">
                                                    <label for="sales_discount" class="col-sm-3 control-label"><?= $this->lang->line('show_paid_amount_and_change_return_in_pos'); ?></label>
                                                    <div class="col-sm-4">
-                                                      <input type="checkbox" <?=$change_return_checkbox;?> class="form-control" id="change_return" name="change_return" >
+                                                      <input type="checkbox" <?=$change_return_checkbox;?> id="change_return" name="change_return" >
                                                       <span id="change_return_msg" style="display:none" class="text-danger"></span>
                                                    </div>
                                                 </div>
@@ -624,7 +625,7 @@ if(!isset($q_id)){
                                                 <div class="form-group">
                                                    <label for="mrp_column" class="col-sm-3 control-label"><?= $this->lang->line('show_previous_balance_on_invoice'); ?></label>
                                                    <div class="col-sm-4">
-                                                      <input type="checkbox" <?=$previous_balance_checkbox;?> class="form-control" id="previous_balance_bit" name="previous_balance_bit" >
+                                                      <input type="checkbox" <?=$previous_balance_checkbox;?> id="previous_balance_bit" name="previous_balance_bit" >
                                                       <span id="previous_balance_bit_msg" style="display:none" class="text-danger"></span>
                                                    </div>
                                                 </div>

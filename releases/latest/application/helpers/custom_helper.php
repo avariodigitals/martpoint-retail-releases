@@ -1694,7 +1694,7 @@
   }
 
   function get_invoice_terms_for_pos(){
-    $invoice_terms = get_store_details()->invoice_terms;
+    $invoice_terms = mp_get_store_receipt_setting(get_current_store_id(), 'invoice_terms', get_store_details()->invoice_terms);
     $invoice_terms = html_entity_decode($invoice_terms);
     $invoice_terms = str_replace("<br>","##n##",$invoice_terms);
     $invoice_terms = str_replace("<br />","##n##",$invoice_terms);

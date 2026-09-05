@@ -84,8 +84,11 @@ class Roles_model extends CI_Model {
 		$SYSTEM_IP = $this->data['SYSTEM_IP'];
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
 		
-		//Validate This role_name already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+		// Determine store_id: admin can specify via POST, otherwise use current store
+		$store_id = (store_module() && is_admin()) ? $this->input->post('store_id', TRUE) : get_current_store_id();
+		if(empty($store_id)){
+			$store_id = get_current_store_id();
+		}
 		if(strtoupper(trim($role_name))==strtoupper('Admin')){
 			echo "You Couldn't Create Admin Role!!";exit();
 		}
@@ -106,7 +109,7 @@ class Roles_model extends CI_Model {
 		    				'status' 				=> 1,
 		    			);
 			
-			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+			$info['store_id'] = $store_id;	
 
 			$q1 = $this->db->insert('db_roles', $info);
 			if ($q1){
@@ -150,8 +153,11 @@ class Roles_model extends CI_Model {
 		$SYSTEM_IP = $this->data['SYSTEM_IP'];
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
 
-		//Validate This role_name already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		// Determine store_id: admin can specify via POST, otherwise use current store
+		$store_id = (store_module() && is_admin()) ? $this->input->post('store_id', TRUE) : get_current_store_id();
+		if(empty($store_id)){
+			$store_id = get_current_store_id();
+		}
 		if(strtoupper(trim($role_name))==strtoupper('Admin')){
 			echo "You Couldn't Create Admin Role!!";exit();
 		}
@@ -171,7 +177,7 @@ class Roles_model extends CI_Model {
 		    				'description' 				=> $description,
 		    			);
 			
-			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			$info['store_id'] = $store_id;
 
 			$q1 = $this->db->where('id',$q_id)->update('db_roles', $info);
 		

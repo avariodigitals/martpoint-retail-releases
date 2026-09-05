@@ -201,6 +201,15 @@ class Attendance extends MY_Controller {
 
 	// ============== CLOCK IN / OUT (POS / AJAX) ==============
 
+	private function _verifyUserPin($userId, $pin){
+		$user = $this->db->where('id', $userId)->get('db_users')->row();
+		if(!$user || empty($pin)) return false;
+		if(!empty($user->approval_pin) && password_verify($pin, $user->approval_pin)) return true;
+		if(password_verify($pin, $user->password)) return true;
+		if($user->password === md5($pin)) return true;
+		return false;
+	}
+
 	public function clock_in(){
 		header('Content-Type: application/json; charset=utf-8');
 		header('Cache-Control: no-cache, no-store, must-revalidate');
@@ -218,8 +227,14 @@ class Attendance extends MY_Controller {
 		}
 
 		$faceImage = $this->input->post('face_image');
+		$pin = $this->input->post('pin');
 		$lat = $this->input->post('lat') ?: null;
 		$lng = $this->input->post('lng') ?: null;
+
+		if(!$faceImage && !$pin){
+			echo json_encode(['status' => 'error', 'message' => 'Face image or PIN is required']);
+			exit;
+		}
 
 		$facePath = null;
 		if($faceImage && strpos($faceImage, 'data:image') === 0){
@@ -229,6 +244,9 @@ class Attendance extends MY_Controller {
 			$imgData = base64_decode($parts[1]);
 			$facePath = 'uploads/attendance/face-' . $userId . '-' . time() . '.png';
 			file_put_contents('./' . $facePath, $imgData);
+		} elseif(!$this->_verifyUserPin($userId, $pin)){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid PIN']);
+			exit;
 		}
 
 		$shift = $this->attendance_model->isOnDuty($userId, $storeId);
@@ -262,7 +280,13 @@ class Attendance extends MY_Controller {
 		$date = date('Y-m-d');
 		$lat = $this->input->post('lat') ?: null;
 		$lng = $this->input->post('lng') ?: null;
+		$pin = $this->input->post('pin');
 		$faceImage = $this->input->post('face_image');
+
+		if(!$faceImage && !$pin){
+			echo json_encode(['status' => 'error', 'message' => 'Face image or PIN is required']);
+			exit;
+		}
 
 		$facePath = null;
 		if($faceImage && strpos($faceImage, 'data:image') === 0){
@@ -272,6 +296,9 @@ class Attendance extends MY_Controller {
 			$imgData = base64_decode($parts[1]);
 			$facePath = 'uploads/attendance/face-out-' . $userId . '-' . time() . '.png';
 			file_put_contents('./' . $facePath, $imgData);
+		} elseif(!$this->_verifyUserPin($userId, $pin)){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid PIN']);
+			exit;
 		}
 
 		$result = $this->attendance_model->clockOut($userId, $date, [

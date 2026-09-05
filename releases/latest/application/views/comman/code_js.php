@@ -79,13 +79,18 @@ $(document).ajaxStart(function() { Pace.restart(); });
 <script src="<?php echo $theme_link; ?>plugins/iCheck/icheck.min.js"></script>
 <script>
   $(function () {
-    // Skip checkboxes/radios that opt out with .no-icheck (e.g. custom toggle switches)
-    $('input[type="checkbox"]:not(.no-icheck), input[type="radio"]:not(.no-icheck)').iCheck({
-      checkboxClass: 'icheckbox_square-orange',
-      /*uncheckedClass: 'bg-white',*/
-      radioClass: 'iradio_square-orange',
-      increaseArea: '10%' // optional
-    });
+    // Only run iCheck when its CSS is also loaded (old pages); mp_layout does not load it,
+    // so leave native controls visible there.
+    var hasICheckCss = $('link[rel="stylesheet"][href*="iCheck"]').length > 0;
+    if (hasICheckCss) {
+      // Skip checkboxes/radios that opt out with .no-icheck (e.g. custom toggle switches)
+      $('input[type="checkbox"]:not(.no-icheck), input[type="radio"]:not(.no-icheck)').iCheck({
+        checkboxClass: 'icheckbox_square-orange',
+        /*uncheckedClass: 'bg-white',*/
+        radioClass: 'iradio_square-orange',
+        increaseArea: '10%' // optional
+      });
+    }
   });
 </script>
 <!-- Initialize Select2 Elements -->

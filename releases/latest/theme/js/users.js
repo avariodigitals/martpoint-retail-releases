@@ -45,7 +45,8 @@ $("#save,#update").on("click",function(e){
       }
       check_field("username");
       check_field("new_user");
-      check_field("last_name");
+      // last_name is optional - do not block save
+      //check_field("last_name");
       //check_field("mobile");
       check_field("email");
       if(q_id!=1){
@@ -65,12 +66,12 @@ $("#save,#update").on("click",function(e){
       if(this_id!='update'){
         check_field("pass");
         check_field("confirm");
-        if(newpass!='' && (newpass!=retypepass))
+      }
+      if(newpass!='' && (newpass!=retypepass))
         {
            toastr["warning"]("Warning! Password Mismatched!");
            return;
         }
-      }
       
       
       if(flag==false)
