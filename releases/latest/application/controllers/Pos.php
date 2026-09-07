@@ -85,6 +85,10 @@ class Pos extends MY_Controller {
 			$service_staff_map[$ss->service_id][] = $ss->staff_id;
 		}
 		// Desktop POS data: products and customers
+		// Show sellable items only: single items AND variant children.
+		// Variant parents (child_bit=0 with children) are containers, not sellable, so they are excluded.
+		// No hard LIMIT — the view filters client-side, so capping here would silently hide
+		// products created on mobile/elsewhere.
 		$store_id = get_current_store_id();
 		$products_query = $this->db->query("
 			SELECT a.id, a.item_name AS name, COALESCE(NULLIF(a.mrp,0), a.sales_price) AS price,
@@ -94,6 +98,8 @@ class Pos extends MY_Controller {
 			       a.tax_id, a.tax_type,
 			       IF(a.tax_id > 0, 1, 0) AS tax,
 			       a.item_image AS image,
+			       a.item_group,
+			       a.parent_id,
 			       b.tax AS tax_value
 			FROM db_items a
 			LEFT JOIN db_tax b ON b.id = a.tax_id
@@ -102,13 +108,16 @@ class Pos extends MY_Controller {
 			WHERE a.store_id = ?
 			  AND a.status = 1
 			  AND a.service_bit != 1
+			  AND (a.not_for_sale IS NULL OR a.not_for_sale = 0)
 			  AND (
-			    (a.parent_id IS NULL AND NOT EXISTS (SELECT 1 FROM db_items WHERE parent_id = a.id))
+			    -- Variant children (sellable, have own price/stock)
+			    a.child_bit = 1
 			    OR
-			    (a.parent_id IS NOT NULL)
+			    -- Single items with no children (not a variant parent container)
+			    ((a.child_bit = 0 OR a.child_bit IS NULL) AND a.parent_id IS NULL
+			     AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id))
 			  )
 			ORDER BY a.item_name
-			LIMIT 50
 		", [$store_id]);
 		$products = $products_query->result_array();
 		$warehouse_id = get_store_warehouse_id();
@@ -119,6 +128,7 @@ class Pos extends MY_Controller {
 			$p['tax'] = (bool) $p['tax'];
 			$p['tax_value'] = (float) $p['tax_value'];
 			$p['tax_id'] = (int) $p['tax_id'];
+			$p['parent_id'] = isset($p['parent_id']) ? (int) $p['parent_id'] : null;
 			// Add stock information
 			$p['stock'] = (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']);
 			$p['outOfStock'] = $p['stock'] <= 0;

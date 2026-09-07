@@ -66,7 +66,7 @@ SET @sql = IF(@col_exists IS NULL,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Backfill sku_limit and online_product_limit on existing plans
-UPDATE `db_subscription_plans` SET `sku_limit` = 10000,   `online_product_limit` = 500   WHERE `product_limit` <= 500;
+UPDATE `db_subscription_plans` SET `sku_limit` = 10000,   `online_product_limit` = 500,   `user_limit` = 5  WHERE `plan_code` = 'basic';
 UPDATE `db_subscription_plans` SET `sku_limit` = 50000,   `online_product_limit` = 2000  WHERE `product_limit` > 500  AND `product_limit` <= 2000;
 UPDATE `db_subscription_plans` SET `sku_limit` = 150000,  `online_product_limit` = 5000  WHERE `product_limit` > 2000 AND `product_limit` <= 5000;
 UPDATE `db_subscription_plans` SET `sku_limit` = 500000,  `online_product_limit` = 20000 WHERE `product_limit` > 5000;

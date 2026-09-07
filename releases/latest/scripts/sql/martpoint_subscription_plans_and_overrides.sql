@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `db_subscription_plans` (
 INSERT INTO `db_subscription_plans`
   (`plan_name`, `plan_code`, `description`, `branch_limit`, `user_limit`, `product_limit`, `sku_limit`, `service_limit`, `media_storage_limit_mb`, `storefront_limit`, `custom_domain_limit`, `is_active`, `display_order`, `created_date`, `created_time`, `created_by`)
 VALUES
-  ('Basic', 'basic', 'Starter plan for single-location retailers', 1, 3, 500, 10000, 500, 100, 2048, 1, 1, 1, 1, CURDATE(), CURTIME(), 'system'),
+  ('Basic', 'basic', 'Starter plan for single-location retailers', 1, 5, 500, 10000, 500, 100, 2048, 1, 1, 1, 1, CURDATE(), CURTIME(), 'system'),
   ('Standard', 'standard', 'Growing business with multiple branches', 3, 10, 2000, 50000, 2000, 300, 5120, 1, 1, 1, 2, CURDATE(), CURTIME(), 'system'),
   ('Premium', 'premium', 'Advanced features for established businesses', 5, 25, 5000, 150000, 5000, 500, 10240, 2, 2, 1, 3, CURDATE(), CURTIME(), 'system'),
   ('Enterprise', 'enterprise', 'Unlimited scale for large operations', 10, 50, 10000, 500000, 20000, 1000, 20480, 3, 3, 1, 4, CURDATE(), CURTIME(), 'system')
