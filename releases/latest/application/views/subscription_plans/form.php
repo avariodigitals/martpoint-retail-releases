@@ -54,8 +54,20 @@
                 <input type="number" name="product_limit" class="form-control" min="1" value="<?= $plan ? (int)$plan->product_limit : 500; ?>">
               </div>
             </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>SKU Limit <small class="text-muted">(incl. variants)</small></label>
+                <input type="number" name="sku_limit" class="form-control" min="1" value="<?= $plan ? (int)($plan->sku_limit ?? 10000) : 10000; ?>">
+              </div>
+            </div>
           </div>
           <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>Online Product Limit</label>
+                <input type="number" name="online_product_limit" class="form-control" min="1" value="<?= $plan ? (int)($plan->online_product_limit ?? 500) : 500; ?>">
+              </div>
+            </div>
             <div class="col-md-4">
               <div class="form-group">
                 <label>Service Limit</label>

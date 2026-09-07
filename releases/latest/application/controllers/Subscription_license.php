@@ -53,6 +53,8 @@ class Subscription_license extends MY_Controller {
 		$data['branch_used'] = get_branch_usage();
 		$data['user_used'] = get_user_usage();
 		$data['product_used'] = get_product_usage();
+		$data['sku_used'] = get_sku_usage();
+		$data['online_product_used'] = get_online_product_usage();
 		$data['service_used'] = get_service_usage();
 		$data['media_used'] = get_media_storage_usage_mb();
 		$data['page_title'] = 'License Usage';
@@ -115,6 +117,8 @@ class Subscription_license extends MY_Controller {
 		$branch_limit = (int) $this->input->post('branch_limit');
 		$user_limit = (int) $this->input->post('user_limit');
 		$product_limit = (int) $this->input->post('product_limit');
+		$sku_limit = (int) $this->input->post('sku_limit');
+		$online_product_limit = (int) $this->input->post('online_product_limit');
 		$service_limit = (int) $this->input->post('service_limit');
 		$media_storage_limit_mb = (int) $this->input->post('media_storage_limit_mb');
 		$storefront_limit = (int) $this->input->post('storefront_limit');
@@ -149,6 +153,8 @@ class Subscription_license extends MY_Controller {
 			'branch_limit' => $branch_limit ?: 1,
 			'user_limit' => $user_limit ?: 3,
 			'product_limit' => $product_limit ?: 500,
+			'sku_limit' => $sku_limit ?: 10000,
+			'online_product_limit' => $online_product_limit ?: 500,
 			'service_limit' => $service_limit ?: 100,
 			'media_storage_limit_mb' => $media_storage_limit_mb ?: 2048,
 			'storefront_limit' => $storefront_limit ?: 1,
@@ -223,6 +229,8 @@ class Subscription_license extends MY_Controller {
 			'branch_limit' => $decoded['branch_limit'] ?? 1,
 			'user_limit' => $decoded['user_limit'] ?? 3,
 			'product_limit' => $decoded['product_limit'] ?? 500,
+			'sku_limit' => $decoded['sku_limit'] ?? 10000,
+			'online_product_limit' => $decoded['online_product_limit'] ?? 500,
 			'service_limit' => $decoded['service_limit'] ?? 100,
 			'media_storage_limit_mb' => $decoded['media_storage_limit_mb'] ?? 2048,
 			'storefront_limit' => $decoded['storefront_limit'] ?? 1,
@@ -300,6 +308,8 @@ class Subscription_license extends MY_Controller {
 			'branch_limit' => $decoded['branch_limit'] ?? 1,
 			'user_limit' => $decoded['user_limit'] ?? 3,
 			'product_limit' => $decoded['product_limit'] ?? 500,
+			'sku_limit' => $decoded['sku_limit'] ?? 10000,
+			'online_product_limit' => $decoded['online_product_limit'] ?? 500,
 			'service_limit' => $decoded['service_limit'] ?? 100,
 			'media_storage_limit_mb' => $decoded['media_storage_limit_mb'] ?? 2048,
 			'storefront_limit' => $decoded['storefront_limit'] ?? 1,
@@ -394,6 +404,8 @@ class Subscription_license extends MY_Controller {
 				'branch_limit' => (int) $plan->branch_limit,
 				'user_limit' => (int) $plan->user_limit,
 				'product_limit' => (int) $plan->product_limit,
+				'sku_limit' => (int) ($plan->sku_limit ?? 10000),
+				'online_product_limit' => (int) ($plan->online_product_limit ?? 500),
 				'service_limit' => (int) $plan->service_limit,
 				'media_storage_limit_mb' => (int) $plan->media_storage_limit_mb,
 				'storefront_limit' => (int) $plan->storefront_limit,
@@ -423,7 +435,7 @@ class Subscription_license extends MY_Controller {
 
 		// Only include fields that actually exist in the table
 		$all_fields = [
-			'branch_limit','user_limit','product_limit','service_limit',
+			'branch_limit','user_limit','product_limit','sku_limit','online_product_limit','service_limit',
 			'media_storage_limit_mb','storefront_limit','custom_domain_limit'
 		];
 		$data = ['store_id' => $store_id];
@@ -442,7 +454,7 @@ class Subscription_license extends MY_Controller {
 		if($override_enabled && $has_override_cols){
 			$override_fields = [
 				'override_branch_limit','override_user_limit','override_product_limit',
-				'override_service_limit','override_media_storage_limit_mb'
+				'override_sku_limit','override_online_product_limit','override_service_limit','override_media_storage_limit_mb'
 			];
 			foreach($override_fields as $f){
 				if($this->db->field_exists($f, 'db_subscription_license')){
@@ -470,7 +482,7 @@ class Subscription_license extends MY_Controller {
 		} elseif($has_override_cols) {
 			$override_fields = [
 				'override_branch_limit','override_user_limit','override_product_limit',
-				'override_service_limit','override_media_storage_limit_mb',
+				'override_sku_limit','override_online_product_limit','override_service_limit','override_media_storage_limit_mb',
 				'override_reason','override_expiry'
 			];
 			foreach($override_fields as $f){
@@ -619,6 +631,8 @@ class Subscription_license extends MY_Controller {
 			'branch_limit' => $lic->branch_limit ?? 1,
 			'user_limit' => $lic->user_limit ?? 3,
 			'product_limit' => $lic->product_limit ?? 500,
+			'sku_limit' => $lic->sku_limit ?? 10000,
+			'online_product_limit' => $lic->online_product_limit ?? 500,
 			'service_limit' => $lic->service_limit ?? 100,
 			'media_storage_limit_mb' => $lic->media_storage_limit_mb ?? 2048,
 			'storefront_limit' => $lic->storefront_limit ?? 1,

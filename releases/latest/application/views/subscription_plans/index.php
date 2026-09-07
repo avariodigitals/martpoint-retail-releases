@@ -21,6 +21,8 @@
           <th>Branches</th>
           <th>Users</th>
           <th>Products</th>
+          <th>SKUs</th>
+          <th>Online</th>
           <th>Services</th>
           <th>Media (MB)</th>
           <th>Status</th>
@@ -35,6 +37,8 @@
           <td><?= (int) $p->branch_limit; ?></td>
           <td><?= (int) $p->user_limit; ?></td>
           <td><?= (int) $p->product_limit; ?></td>
+          <td><?= (int) ($p->sku_limit ?? 10000); ?></td>
+          <td><?= (int) ($p->online_product_limit ?? 500); ?></td>
           <td><?= (int) $p->service_limit; ?></td>
           <td><?= number_format((int) $p->media_storage_limit_mb); ?></td>
           <td>

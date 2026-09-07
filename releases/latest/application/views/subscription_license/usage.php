@@ -58,6 +58,8 @@
             ['label' => 'Branches', 'used' => $branch_used, 'limit' => $license->branch_limit ?? 1, 'icon' => 'fa-building', 'color' => 'aqua'],
             ['label' => 'Users', 'used' => $user_used, 'limit' => $license->user_limit ?? 3, 'icon' => 'fa-users', 'color' => 'green'],
             ['label' => 'Products', 'used' => $product_used, 'limit' => $license->product_limit ?? 500, 'icon' => 'fa-cubes', 'color' => 'yellow'],
+            ['label' => 'SKUs', 'used' => $sku_used, 'limit' => $license->sku_limit ?? 10000, 'icon' => 'fa-barcode', 'color' => 'orange'],
+            ['label' => 'Online Products', 'used' => $online_product_used, 'limit' => $license->online_product_limit ?? 500, 'icon' => 'fa-globe', 'color' => 'blue'],
             ['label' => 'Services', 'used' => $service_used, 'limit' => $license->service_limit ?? 100, 'icon' => 'fa-wrench', 'color' => 'purple'],
             ['label' => 'Media Storage', 'used' => $media_used, 'limit' => $license->media_storage_limit_mb ?? 2048, 'icon' => 'fa-hdd-o', 'color' => 'red'],
           ];

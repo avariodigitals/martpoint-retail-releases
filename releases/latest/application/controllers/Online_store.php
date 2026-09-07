@@ -492,6 +492,14 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$newVal = $product->publish_online ? 0 : 1;
+		// Only enforce the online product limit when turning ON (publishing)
+		if($newVal == 1){
+			$online_check = check_online_product_limit(1);
+			if($online_check !== true){
+				echo json_encode(['status' => 'error', 'message' => $online_check]);
+				return;
+			}
+		}
 		$this->db->where('id', $productId)->update('db_items', ['publish_online' => $newVal]);
 		echo json_encode(['status' => 'success', 'publish_online' => $newVal]);
 	}

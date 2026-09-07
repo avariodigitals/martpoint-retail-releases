@@ -65,6 +65,7 @@ class Tax extends MY_Controller {
 			'fields' => [
 				['name' => 'tax_name', 'label' => 'Tax Name', 'type' => 'text', 'required' => true],
 				['name' => 'tax', 'label' => 'Tax (%)', 'type' => 'number', 'required' => true],
+				['name' => 'is_default', 'label' => 'Set as default tax for new items', 'type' => 'checkbox', 'help' => 'Only one tax can be the default per store.'],
 			],
 		];
 		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
@@ -97,6 +98,7 @@ class Tax extends MY_Controller {
 			'fields' => [
 				['name' => 'tax_name', 'label' => 'Tax Name', 'type' => 'text', 'required' => true],
 				['name' => 'tax', 'label' => 'Tax (%)', 'type' => 'number', 'required' => true],
+				['name' => 'is_default', 'label' => 'Set as default tax for new items', 'type' => 'checkbox', 'help' => 'Only one tax can be the default per store.'],
 			],
 		];
 		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
@@ -195,10 +197,10 @@ class Tax extends MY_Controller {
         $res['tax_name']=$query->row()->tax_name;
         $res['tax']=$query->row()->tax;
         $res['result']=$result;
-         
+
          echo json_encode($res);
 
-      } 
+      }
       else {
          echo "Please Fill Compulsory(* marked) Fields.";
       }

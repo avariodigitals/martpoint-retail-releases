@@ -185,11 +185,48 @@
           <div>No activity recorded yet. Sales, purchases, adjustments and transfers will appear here.</div>
         </div>
       <?php endif; ?>
+
+      <?php if(permissions('items_edit') || permissions('items_delete')): ?>
+      <div class='card' style='padding:12px;'>
+        <div style='display:flex; gap:8px;'>
+          <?php if(permissions('items_edit')): ?>
+            <a href='<?= base_url('mobile/product/' . (int)$item->id); ?>' class='action-btn edit-btn' style='flex:1; text-align:center; padding:12px 0; border-radius:10px; background:var(--mp-primary); color:#fff; font-size:14px; font-weight:600; text-decoration:none;'>Edit Product</a>
+          <?php endif; ?>
+          <?php if(permissions('items_delete')): ?>
+            <button type='button' onclick='deleteProduct(<?= (int)$item->id; ?>, "<?= htmlspecialchars($item->item_name, ENT_QUOTES); ?>")' class='action-btn delete-btn' style='flex:1; padding:12px 0; border-radius:10px; background:#FEF2F2; color:var(--mp-danger); border:1px solid #FECACA; font-size:14px; font-weight:600; cursor:pointer;'>Delete</button>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
     </section>
 
     <?php $this->load->view('mobile/bottom_nav', ['active' => 'more']); ?>
   </div>
 
   <?php $this->load->view('mobile/chat'); ?>
+  <script>
+    function deleteProduct(id, name){
+      if(!confirm('Delete "' + name + '"?\nThis action cannot be undone.')) return;
+      var formData = new FormData();
+      formData.append('q_id', id);
+      formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+      fetch('<?= base_url('mobile/delete_product'); ?>', {
+        method: 'POST',
+        body: formData
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if(data.status === 'success'){
+          alert('Product deleted.');
+          window.location.href = '<?= base_url('mobile/catalogue'); ?>';
+        } else {
+          alert(data.message || 'Delete failed.');
+        }
+      })
+      .catch(function(){
+        alert('Network error. Try again.');
+      });
+    }
+  </script>
 </body>
 </html>

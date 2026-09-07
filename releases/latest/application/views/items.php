@@ -33,6 +33,13 @@ if(!isset($item_name)){
   $requires_deposit = 0;
   $workflow_template_key = 'standard';
   $item_group='Single';
+  // Fashion stores create more variable products: default new items to Variants
+  // when the feature flag is on and bundles (Variants) are available.
+  if(mp_feature_enabled('fashion_variants_default')
+     && !empty($store_profile['industry_type']) && $store_profile['industry_type']==='fashion'
+     && mp_feature_enabled('bundles')){
+    $item_group='Variants';
+  }
   $discount='';
   $discount_type='Percentage';
   $warehouse_id='';

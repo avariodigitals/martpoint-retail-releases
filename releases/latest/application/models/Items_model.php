@@ -356,9 +356,10 @@ class Items_model extends CI_Model {
 			if ( $command == 'save' ) {
 				$initial = array(
 			    				'store_id' 					=> $store_id,
-								'count_id' 					=> get_count_id('db_items'), 
-			    				//'item_code' 				=> get_init_code('item'), 
+								'count_id' 					=> get_count_id('db_items'),
+			    				//'item_code' 				=> get_init_code('item'),
 			    				'status' 					=> 1,
+			    				'publish_online'				=> 0,
 			    			);
 				$initial = array_merge($initial,$this->log_details());
 
@@ -579,9 +580,10 @@ class Items_model extends CI_Model {
 			if ( $command == 'save' ) {
 				$initial = array(
 	    								'store_id' 					=> $store_id,
-										'count_id' 					=> get_count_id('db_items'), 
-	    								//'item_code' 				=> get_init_code('item'), 
+										'count_id' 					=> get_count_id('db_items'),
+	    								//'item_code' 				=> get_init_code('item'),
 	    								'status' 					=> 1,
+	    								'publish_online'				=> 0,
 	    							);
 				$initial = array_merge($initial,$this->log_details());
 				$query1 = $this->db->insert('db_items', array_merge($parent_info,$initial));

@@ -83,6 +83,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'manager_approvals'         => 'Manager Approvals',
             'cashier_shifts'            => 'Cashier Shifts / Tills',
             'medical_notes'             => 'Medical Notes (Pharmacy)',
+            'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
         ];
     }
 }
@@ -189,7 +190,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'fashion' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue'],
+                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
                 'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Item','category'=>'Collection','customer'=>'Customer','warehouse'=>'Branch'],
             ],

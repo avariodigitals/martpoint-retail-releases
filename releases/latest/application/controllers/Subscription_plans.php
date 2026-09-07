@@ -62,6 +62,8 @@ class Subscription_plans extends MY_Controller {
 			'branch_limit' => (int) $this->input->post('branch_limit'),
 			'user_limit' => (int) $this->input->post('user_limit'),
 			'product_limit' => (int) $this->input->post('product_limit'),
+			'sku_limit' => (int) $this->input->post('sku_limit'),
+			'online_product_limit' => (int) $this->input->post('online_product_limit'),
 			'service_limit' => (int) $this->input->post('service_limit'),
 			'media_storage_limit_mb' => (int) $this->input->post('media_storage_limit_mb'),
 			'storefront_limit' => (int) $this->input->post('storefront_limit'),

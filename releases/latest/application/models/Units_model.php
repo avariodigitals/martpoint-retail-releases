@@ -84,27 +84,34 @@ class Units_model extends CI_Model {
 		$description = $this->input->post('description', TRUE);
 		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
 		$conversion_factor = $this->input->post('conversion_factor', TRUE);
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+		$is_default = $this->input->post('is_default') ? 1 : 0;
+		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 		//Validate This units already exist or not
 		$this->db->where("upper(unit_name)", strtoupper($unit_name));
 		$this->db->where('store_id', $store_id);
 		$query = $this->db->get('db_units');
 		if($query->num_rows()>0){
 			return "This Units Name Already Exist.";
-			
+
 		}
 		else{
 			$info = array(
-		    				'store_id' 				=> $store_id, 
-		    				'unit_name' 				=> $unit_name, 
+		    				'store_id' 				=> $store_id,
+		    				'unit_name' 				=> $unit_name,
 		    				'description' 				=> $description,
 																				'parent_unit_id' 								=> $parent_unit_id,
 																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
 																				'status' 										=> 1,
 		    			);
-			
+			if($this->db->field_exists('is_default','db_units')){
+				$info['is_default'] = $is_default;
+			}
+
 			$q1 = $this->db->insert('db_units', $info);
 			if ($q1){
+				if($is_default && $this->db->field_exists('is_default','db_units')){
+					$this->_clear_other_defaults($this->db->insert_id(), $store_id);
+				}
 					$this->session->set_flashdata('success', 'Success!! Unit Name Added Successfully!');
 			        return "success";
 			}
@@ -112,6 +119,17 @@ class Units_model extends CI_Model {
 			        return "failed";
 			}
 		}
+	}
+
+	/**
+	 * Remove the default flag from every other unit in the same store.
+	 * Keeps the "one default per store" invariant intact.
+	 */
+	private function _clear_other_defaults($keep_id, $store_id){
+		if(!$this->db->field_exists('is_default','db_units')){ return; }
+		$this->db->where('id !=', $keep_id);
+		$this->db->where('store_id', $store_id);
+		$this->db->update('db_units', array('is_default' => 0));
 	}
 
 	//Get units_details
@@ -129,6 +147,7 @@ class Units_model extends CI_Model {
 			$data['parent_unit_id']=$query->parent_unit_id;
 			$data['conversion_factor']=$query->conversion_factor;
 			$data['store_id']=$query->store_id;
+			$data['is_default']=isset($query->is_default) ? (int)$query->is_default : 0;
 			return $data;
 		}
 	}
@@ -138,7 +157,8 @@ class Units_model extends CI_Model {
 		$description = $this->input->post('description', TRUE);
 		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
 		$conversion_factor = $this->input->post('conversion_factor', TRUE);
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+		$is_default = $this->input->post('is_default') ? 1 : 0;
+		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 		//Validate This units already exist or not
 		$this->db->where("upper(unit_name)", strtoupper($unit_name));
 		$this->db->where("id !=", $q_id);
@@ -156,12 +176,18 @@ class Units_model extends CI_Model {
 	    																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
 	    																				'status' 										=> 1,
 	    																				);
-			
+			if($this->db->field_exists('is_default','db_units')){
+				$info['is_default'] = $is_default;
+			}
+
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 
 			$q1 = $this->db->where('id',$q_id)->where('store_id',$store_id)->update('db_units', $info);
-		
+
 			if ($q1){
+				if($is_default && $this->db->field_exists('is_default','db_units')){
+					$this->_clear_other_defaults($q_id, $store_id);
+				}
 					$this->session->set_flashdata('success', 'Success!! units Updated Successfully!');
 			        return "success";
 			}

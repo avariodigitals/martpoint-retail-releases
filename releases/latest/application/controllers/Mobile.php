@@ -2117,6 +2117,14 @@ class Mobile extends MY_Controller {
 		$data['discount_type'] = 'Percentage';
 		$data['tax_type'] = 'Exclusive';
 		$data['item_group'] = 'Single';
+		// Fashion stores create more variable products: default new items to Variants
+		// when the feature flag is on and bundles (Variants) are available.
+		if(!$is_update && mp_feature_enabled('fashion_variants_default')){
+			$profile = mp_get_store_profile();
+			if(!empty($profile['industry_type']) && $profile['industry_type']==='fashion' && mp_feature_enabled('bundles')){
+				$data['item_group'] = 'Variants';
+			}
+		}
 		$data['track_serial'] = $data['track_imei'] = $data['not_for_sale'] = 0;
 		$data['consumable_unit'] = $data['serial_number'] = $data['imei_number'] = $data['warranty_months'] = '';
 		$data['expire_date'] = $data['mfg_date'] = '';
@@ -2256,6 +2264,31 @@ class Mobile extends MY_Controller {
 			}
 		}
 
+		// SKU fair-usage check: count how many NEW sellable units this operation adds.
+		//   save + Single  → 1 SKU
+		//   save + Variants → N SKUs (children only; parent is a container, counted by product_limit)
+		//   update + Variants → only the children without an existing tr_item_id
+		$item_group_post = $this->input->post('item_group', TRUE);
+		$variant_rows = (int)$this->input->post('hidden_rowcount', TRUE);
+		$new_skus = 0;
+		if($command == 'save'){
+			$new_skus = ($item_group_post === 'Variants') ? $variant_rows : 1;
+		} elseif($command == 'update' && $item_group_post === 'Variants'){
+			for($i = 1; $i <= $variant_rows; $i++){
+				$child_id = $this->input->post('tr_item_id_'.$i, TRUE);
+				if(empty($child_id)){
+					$new_skus++;
+				}
+			}
+		}
+		if($new_skus > 0){
+			$sku_check = check_sku_limit($new_skus);
+			if($sku_check !== true){
+				echo json_encode(['status' => 'error', 'message' => strip_tags($sku_check)]);
+				return;
+			}
+		}
+
 		// For new attribute-generated variants, create db_variants records and rewrite IDs
 		$store_id = get_current_store_id();
 		$rowcount = (int)$this->input->post('hidden_rowcount', TRUE);
@@ -2304,6 +2337,32 @@ class Mobile extends MY_Controller {
 		} catch(Throwable $e){
 			log_message('error', 'mobile save_product error: '.$e->getMessage());
 			echo json_encode(['status' => 'error', 'message' => 'Save failed: '.$e->getMessage()]);
+		}
+	}
+
+	public function delete_product()
+	{
+		$this->permission_check('items_delete');
+		$id = (int)$this->input->post('q_id');
+		if($id <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid product ID.']);
+			return;
+		}
+		$store_id = get_current_store_id();
+		$item = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_items')->row();
+		if(!$item){
+			echo json_encode(['status' => 'error', 'message' => 'Product not found.']);
+			return;
+		}
+		$this->belong_to('db_items', $id);
+		$this->load->model('items_model', 'items');
+		ob_start();
+		$result = $this->items->delete_items_from_table($id);
+		$output = ob_get_clean();
+		if(stripos($output, 'success') !== false || $result === 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Product deleted successfully.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($output ?: 'Delete failed.')]);
 		}
 	}
 

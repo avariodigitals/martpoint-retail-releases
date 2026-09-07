@@ -68,6 +68,19 @@ class Items extends MY_Controller {
 				echo $product_check;
 				return;
 			}
+			// SKU fair-usage check: count how many new sellable units this save adds.
+			// Single product = 1 SKU; variant product = N SKUs (children only,
+			// the parent is just a container and is already counted by product_limit).
+			if($item_type_post !== 'service'){
+				$item_group_val = $this->input->post('item_group', TRUE);
+				$variant_rows = (int)$this->input->post('hidden_rowcount', TRUE);
+				$new_skus = ($item_group_val === 'Variants') ? $variant_rows : 1;
+				$sku_check = check_sku_limit($new_skus);
+				if($sku_check !== true){
+					echo $sku_check;
+					return;
+				}
+			}
 			if(!empty($_FILES['item_image']['name'])){
 				$media_check = check_media_storage_limit();
 				if($media_check !== true){
@@ -213,6 +226,28 @@ class Items extends MY_Controller {
 
 
 		if ($this->form_validation->run() == TRUE) {
+			// SKU fair-usage check on update: only count NEW variant children
+			// (rows without an existing tr_item_id). The parent already exists.
+			if($item_type_post !== 'service'){
+				$item_group_val = $this->input->post('item_group', TRUE);
+				$variant_rows = (int)$this->input->post('hidden_rowcount', TRUE);
+				$new_skus = 0;
+				if($item_group_val === 'Variants'){
+					for($i = 1; $i <= $variant_rows; $i++){
+						$child_id = $this->input->post('tr_item_id_'.$i, TRUE);
+						if(empty($child_id)){
+							$new_skus++;
+						}
+					}
+				}
+				if($new_skus > 0){
+					$sku_check = check_sku_limit($new_skus);
+					if($sku_check !== true){
+						echo $sku_check;
+						return;
+					}
+				}
+			}
 			try{
 				// Release session lock before the potentially long save (image uploads, DB writes)
 				// so the next page load's AJAX requests don't block on the session file.

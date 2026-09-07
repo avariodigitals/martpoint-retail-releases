@@ -1335,6 +1335,8 @@
       'b' => (int) ($data['branch_limit'] ?? 1),
       'u' => (int) ($data['user_limit'] ?? 3),
       'pr' => (int) ($data['product_limit'] ?? 500),
+      'sk' => (int) ($data['sku_limit'] ?? 10000),
+      'op' => (int) ($data['online_product_limit'] ?? 500),
       'sv' => (int) ($data['service_limit'] ?? 100),
       'm' => (int) ($data['media_storage_limit_mb'] ?? 2048),
       'sf' => (int) ($data['storefront_limit'] ?? 1),
@@ -1380,6 +1382,8 @@
       'branch_limit'          => (int) ($data['b'] ?? 1),
       'user_limit'            => (int) ($data['u'] ?? 3),
       'product_limit'         => (int) ($data['pr'] ?? 500),
+      'sku_limit'             => (int) ($data['sk'] ?? 10000),
+      'online_product_limit'  => (int) ($data['op'] ?? 500),
       'service_limit'         => (int) ($data['sv'] ?? 100),
       'media_storage_limit_mb'=> (int) ($data['m'] ?? 2048),
       'storefront_limit'      => (int) ($data['sf'] ?? 1),
@@ -1420,7 +1424,29 @@
   function get_product_usage($store_id=''){
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
-    $total = $CI->db->where('store_id',$store_id)->where('status',1)->count_all_results('db_items');
+    // Count top-level products only (single items + variant parents).
+    // Variant child rows (child_bit=1) are excluded so a variant product
+    // with N variants counts as 1 product, not 1+N.
+    $total = $CI->db->where('store_id',$store_id)
+                     ->where('status',1)
+                     ->where('(child_bit = 0 OR child_bit IS NULL)', null, false)
+                     ->count_all_results('db_items');
+    return (int) $total;
+  }
+
+  function get_sku_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    // Count sellable/stockable units only:
+    //   - Single items (child_bit=0, item_group != 'Variants')
+    //   - Variant children (child_bit=1)
+    // Variant parent rows are excluded — they are just containers, not
+    // sellable units. The product_limit already counts the parent as 1
+    // product, so the SKU limit only counts the actual sellable variants.
+    $total = $CI->db->where('store_id',$store_id)
+                     ->where('status',1)
+                     ->where("NOT (child_bit = 0 AND item_group = 'Variants')", null, false)
+                     ->count_all_results('db_items');
     return (int) $total;
   }
 
@@ -1428,6 +1454,21 @@
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
     $total = $CI->db->where('store_id',$store_id)->where('status',1)->count_all_results('db_services');
+    return (int) $total;
+  }
+
+  function get_online_product_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    // Count products published to the online store (publish_online=1).
+    // Only top-level sellable items (single items + variant parents) —
+    // variant children inherit the parent's online status.
+    $total = $CI->db->where('store_id',$store_id)
+                     ->where('status',1)
+                     ->where('publish_online',1)
+                     ->where('service_bit',0)
+                     ->where('(child_bit = 0 OR child_bit IS NULL)', null, false)
+                     ->count_all_results('db_items');
     return (int) $total;
   }
 
@@ -1484,6 +1525,8 @@
       case 'branch_limit': $used = get_branch_usage($store_id); break;
       case 'user_limit': $used = get_user_usage($store_id); break;
       case 'product_limit': $used = get_product_usage($store_id); break;
+      case 'sku_limit': $used = get_sku_usage($store_id); break;
+      case 'online_product_limit': $used = get_online_product_usage($store_id); break;
       case 'service_limit': $used = get_service_usage($store_id); break;
       case 'media_storage_limit_mb': $used = get_media_storage_usage_mb($store_id); break;
       default: $used = 0;
@@ -1498,6 +1541,8 @@
       'branch_limit' => 'Branch',
       'user_limit' => 'User',
       'product_limit' => 'Product',
+      'sku_limit' => 'SKU',
+      'online_product_limit' => 'Online Product',
       'service_limit' => 'Service',
       'media_storage_limit_mb' => 'Media Storage',
     ];
@@ -1516,6 +1561,58 @@
 
   function check_media_storage_limit($store_id=''){
     return check_subscription_limit('media_storage_limit_mb', $store_id);
+  }
+
+  /**
+   * Check whether adding $new_sku_count new SKU rows would exceed the store's
+   * sku_limit. Unlike check_subscription_limit (which only blocks at 100%),
+   * this accounts for the additional SKUs the current operation will create so
+   * a save that would push the total over the limit is rejected before insert.
+   *
+   * @param int $new_sku_count  Number of new db_items rows this operation adds
+   * @param string $store_id
+   * @return true|string  true if allowed, error message string if blocked
+   */
+  function check_sku_limit($new_sku_count=1, $store_id=''){
+    $limit = get_subscription_limit('sku_limit', $store_id);
+    if($limit <= 0) return true;
+    $used = get_sku_usage($store_id);
+    $projected = $used + (int)$new_sku_count;
+    if($projected > $limit){
+      $plan = '';
+      $CI =& get_instance();
+      if($CI->db->table_exists('db_subscription_license')){
+        $rec = $CI->db->where('store_id', (!empty($store_id)) ? $store_id : get_current_store_id())->get('db_subscription_license')->row();
+        if($rec){ $plan = ' on the ' . ($rec->plan_name ?: 'current') . ' plan'; }
+      }
+      return "Adding " . (int)$new_sku_count . " SKU(s) would bring the total to " . $projected . " (limit: " . $limit . ")" . $plan . ". Please contact MartPoint support to upgrade your plan or increase your limit.";
+    }
+    return true;
+  }
+
+  /**
+   * Check whether publishing another product to the online store would
+   * exceed the store's online_product_limit.
+   *
+   * @param int $new_count  Number of products about to go online (default 1)
+   * @param string $store_id
+   * @return true|string  true if allowed, error message string if blocked
+   */
+  function check_online_product_limit($new_count=1, $store_id=''){
+    $limit = get_subscription_limit('online_product_limit', $store_id);
+    if($limit <= 0) return true;
+    $used = get_online_product_usage($store_id);
+    $projected = $used + (int)$new_count;
+    if($projected > $limit){
+      $plan = '';
+      $CI =& get_instance();
+      if($CI->db->table_exists('db_subscription_license')){
+        $rec = $CI->db->where('store_id', (!empty($store_id)) ? $store_id : get_current_store_id())->get('db_subscription_license')->row();
+        if($rec){ $plan = ' on the ' . ($rec->plan_name ?: 'current') . ' plan'; }
+      }
+      return "Publishing this product would bring the online store total to " . $projected . " (limit: " . $limit . ")" . $plan . ". Remove some products from the online store first, or contact MartPoint support to upgrade your plan.";
+    }
+    return true;
   }
 
   function log_license_override($store_id, $field, $original, $override, $reason, $expiry){

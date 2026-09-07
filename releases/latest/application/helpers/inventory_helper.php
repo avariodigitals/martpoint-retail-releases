@@ -6,19 +6,34 @@
 
 	   $CI->db->where("store_id",$store_id);
 
+	  // Prefer the store's flagged default, then fall back to first-created.
+	  if($CI->db->field_exists('is_default','db_brands')){
+	    $CI->db->order_by('is_default','desc');
+	  }
+	  $CI->db->order_by('id','asc');
+
 	  $q1=$CI->db->select("*")->where("status=1")->from("db_brands")->get();
 	  $str='';
 	   if($q1->num_rows($q1)>0)
-	    {  //$str.='<option value="">-Select-</option>'; 
-	        foreach($q1->result() as $res1)
-	      { 
+	    {
+	        // When no brand is saved yet AND a default is flagged, pre-select it.
+	        // If nothing is flagged, behaviour is unchanged (no option marked selected).
+	        $rows = $q1->result();
+	        if(empty($select_id) && $CI->db->field_exists('is_default','db_brands')){
+	          foreach($rows as $res1){
+	            if(!empty($res1->is_default)){ $select_id = $res1->id; break; }
+	          }
+	        }
+	        //$str.='<option value="">-Select-</option>';
+	        foreach($rows as $res1)
+	      {
 	        $selected = ($select_id==$res1->id)? 'selected' : '';
 	        $str.="<option $selected value='".$res1->id."'>".$res1->brand_name."</option>";
 	      }
 	    }
 	    else
 	    {
-	    	$str.='<option value="">No Records Found</option>'; 
+	    	$str.='<option value="">No Records Found</option>';
 	    }
 	    return $str;
  }
@@ -126,20 +141,35 @@
 	  //if(!is_admin()){
 	    $CI->db->where("store_id",get_current_store_id());
 	  //}
-	  
+
+	  // Prefer the store's flagged default, then fall back to first-created.
+	  if($CI->db->field_exists('is_default','db_units')){
+	    $CI->db->order_by('is_default','desc');
+	  }
+	  $CI->db->order_by('id','asc');
+
 	  $q1=$CI->db->select("*")->where("status=1")->from("db_units")->get();
 	  $str='';
 	   if($q1->num_rows($q1)>0)
-	    {  $str.='<option value="">-Select-</option>'; 
-	        foreach($q1->result() as $res1)
-	      { 
+	    {
+	        // When no unit is saved yet AND a default is flagged, pre-select it.
+	        // If nothing is flagged, behaviour is unchanged (-Select- placeholder shown).
+	        $rows = $q1->result();
+	        if(empty($select_id) && $CI->db->field_exists('is_default','db_units')){
+	          foreach($rows as $res1){
+	            if(!empty($res1->is_default)){ $select_id = $res1->id; break; }
+	          }
+	        }
+	        $str.='<option value="">-Select-</option>';
+	        foreach($rows as $res1)
+	      {
 	        $selected = ($select_id==$res1->id)? 'selected' : '';
 	        $str.="<option $selected value='".$res1->id."'>".$res1->unit_name."</option>";
 	      }
 	    }
 	    else
 	    {
-	    	$str.='<option value="">No Records Found</option>'; 
+	    	$str.='<option value="">No Records Found</option>';
 	    }
 	    return $str;
  }
@@ -150,25 +180,41 @@
 	  if(!empty($store_id)){
 	    $CI->db->where("store_id",$store_id);
 	  }
-	  
+
 	  //if not admin
 	 // if(!is_admin()){
 	    $CI->db->where("store_id",get_current_store_id());
 	  //}
-	  
+
+	  // Prefer the store's flagged default, then fall back to first-created.
+	  if($CI->db->field_exists('is_default','db_tax')){
+	    $CI->db->order_by('is_default','desc');
+	  }
+	  $CI->db->order_by('id','asc');
+
 	  $q1=$CI->db->select("*")->where("status=1")->from("db_tax")->get();
 	  $str='';
 	   if($q1->num_rows($q1)>0)
-	    {  $str.='<option value="">-Select-</option>'; 
-	        foreach($q1->result() as $res1)
-	      { 
+	    {
+	        // When no tax is saved yet AND a default is flagged, pre-select it.
+	        // If nothing is flagged, behaviour is unchanged (-Select- placeholder shown).
+	        $rows = $q1->result();
+	        if(empty($select_id) && $CI->db->field_exists('is_default','db_tax')){
+	          foreach($rows as $res1){
+	            if(!empty($res1->is_default)){ $select_id = $res1->id; break; }
+	          }
+	        }
+
+	        $str.='<option value="">-Select-</option>';
+	        foreach($rows as $res1)
+	      {
 	        $selected = ($select_id==$res1->id)? 'selected' : '';
 	        $str.="<option $selected data-tax='".$res1->tax."' value='".$res1->id."'>".$res1->tax_name."</option>";
 	      }
 	    }
 	    else
 	    {
-	    	$str.='<option value="">No Records Found</option>'; 
+	    	$str.='<option value="">No Records Found</option>';
 	    }
 	    return $str;
  }

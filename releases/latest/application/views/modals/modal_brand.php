@@ -27,6 +27,15 @@
                               </div>
                             </div>
                           </div>
+                          <div class="col-md-12">
+                            <div class="box-body">
+                              <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+                                <input type="hidden" name="is_default" value="0">
+                                <input type="checkbox" id="brand_is_default" name="is_default" value="1" style="width:auto;margin:0;">
+                                <label for="brand_is_default" style="margin:0;font-weight:normal;cursor:pointer;">Set as default brand for new items</label>
+                              </div>
+                            </div>
+                          </div>
 
                         </div>
                        

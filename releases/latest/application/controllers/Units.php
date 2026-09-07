@@ -30,6 +30,7 @@ class Units extends MY_Controller {
 				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
 				['name' => 'parent_unit_id', 'label' => 'Parent Unit', 'type' => 'select', 'options' => $unit_options],
 				['name' => 'conversion_factor', 'label' => 'Conversion Factor', 'type' => 'number'],
+				['name' => 'is_default', 'label' => 'Set as default unit for new items', 'type' => 'checkbox', 'help' => 'Only one unit can be the default per store.'],
 			],
 		];
 		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
@@ -72,6 +73,7 @@ class Units extends MY_Controller {
 				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
 				['name' => 'parent_unit_id', 'label' => 'Parent Unit', 'type' => 'select', 'options' => $unit_options],
 				['name' => 'conversion_factor', 'label' => 'Conversion Factor', 'type' => 'number'],
+				['name' => 'is_default', 'label' => 'Set as default unit for new items', 'type' => 'checkbox', 'help' => 'Only one unit can be the default per store.'],
 			],
 		];
 		$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);

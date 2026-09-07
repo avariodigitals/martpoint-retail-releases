@@ -220,7 +220,7 @@
                       'online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','price_catalogue'
                     ],
                     'Products & Inventory' => [
-                      'multi_unit_inventory','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles'
+                      'multi_unit_inventory','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default'
                     ],
                     'Services & Appointments' => [
                       'appointments','service_workflow','custom_orders','packages','memberships'

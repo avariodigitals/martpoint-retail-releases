@@ -57,8 +57,11 @@
     .cat-item .price-sub { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     .cat-item .online-price { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     .cat-item .stock { font-size: 12px; color: var(--mp-muted); margin-top: 6px; }
-    .cat-item .view-btn { display: inline-block; width: 100%; text-align: center; padding: 8px 0; border-radius: 10px; background: var(--mp-bg); color: var(--mp-primary); border: 1px solid var(--mp-border); font-size: 13px; font-weight: 600; text-decoration: none; margin-top: 8px; }
-    .cat-item .edit-btn { display: inline-block; width: 100%; text-align: center; padding: 8px 0; border-radius: 10px; background: var(--mp-primary); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; margin-top: 8px; }
+    .cat-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .action-btn { flex: 1; text-align: center; padding: 9px 0; border-radius: 10px; font-size: 13px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; }
+    .action-btn.view-btn { background: var(--mp-bg); color: var(--mp-primary); border: 1px solid var(--mp-border); }
+    .action-btn.edit-btn { background: var(--mp-primary); color: #fff; }
+    .action-btn.delete-btn { background: #FEF2F2; color: var(--mp-danger); border: 1px solid #FECACA; }
     .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
     .badge.variants { background: #E0E7FF; color: var(--mp-primary); }
     .load-more { display: block; width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--mp-border); background: #fff; color: var(--mp-primary); font-size: 15px; font-weight: 600; text-align: center; text-decoration: none; }
@@ -146,13 +149,19 @@
                   <?php if((float)$item->online_price > 0): ?>
                     <div class='online-price'>Online: <?= store_number_format($item->online_price); ?></div>
                   <?php endif; ?>
-                  <?php if(permissions('items_view')): ?>
-                    <a href='<?= base_url('mobile/product_view/' . (int)$item->id); ?>' class='view-btn'>View Product</a>
-                  <?php endif; ?>
-                  <?php if(permissions('items_edit')): ?>
-                    <a href='<?= base_url('mobile/product/' . (int)$item->id); ?>' class='edit-btn'>Edit Product</a>
-                  <?php endif; ?>
                 </div>
+              </div>
+              <div class='cat-actions'>
+                <?php if(permissions('items_view')): ?>
+                  <a href='<?= base_url('mobile/product_view/' . (int)$item->id); ?>' class='action-btn view-btn'>View</a>
+                <?php endif; ?>
+                <?php if(permissions('items_edit')): ?>
+                  <a href='<?= base_url('mobile/product/' . (int)$item->id); ?>' class='action-btn edit-btn'>Edit</a>
+                <?php endif; ?>
+                <?php if(permissions('items_delete')): ?>
+                  <button type='button' class='action-btn delete-btn' onclick='deleteProduct(<?= (int)$item->id; ?>, "<?= htmlspecialchars($item->item_name, ENT_QUOTES); ?>")'>Delete</button>
+                <?php endif; ?>
+              </div>
               </div>
             </div>
           <?php endforeach; ?>
@@ -268,6 +277,29 @@
         document.querySelectorAll('.mp-select-options.open').forEach(function(o){ o.classList.remove('open'); });
       });
     })();
+
+    function deleteProduct(id, name){
+      if(!confirm('Delete "' + name + '"?\nThis action cannot be undone.')) return;
+      var formData = new FormData();
+      formData.append('q_id', id);
+      formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+      fetch('<?= base_url('mobile/delete_product'); ?>', {
+        method: 'POST',
+        body: formData
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if(data.status === 'success'){
+          alert('Product deleted.');
+          window.location.reload();
+        } else {
+          alert(data.message || 'Delete failed.');
+        }
+      })
+      .catch(function(){
+        alert('Network error. Try again.');
+      });
+    }
   </script>
 </body>
 </html>

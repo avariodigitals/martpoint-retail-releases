@@ -78,27 +78,34 @@ class Brand_model extends CI_Model {
 	public function verify_and_save(){
 		$brand = $this->input->post('brand', TRUE);
 		$description = $this->input->post('description', TRUE);
-		
+		$is_default = $this->input->post('is_default') ? 1 : 0;
+
 		//Validate This brand already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 		$this->db->where("upper(brand_name)", strtoupper($brand));
 		$this->db->where('store_id', $store_id);
 		$query = $this->db->get('db_brands');
 		if($query->num_rows()>0){
 			return "This Brand Name already Exist.";
-			
+
 		}
 		else{
 			$info = array(
-		    				'brand_name' 				=> $brand, 
+		    				'brand_name' 				=> $brand,
 		    				'description' 				=> $description,
 		    				'status' 				=> 1,
 		    			);
-			
-			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+			if($this->db->field_exists('is_default','db_brands')){
+				$info['is_default'] = $is_default;
+			}
+
+			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 
 			$q1 = $this->db->insert('db_brands', $info);
 			if ($q1){
+				if($is_default && $this->db->field_exists('is_default','db_brands')){
+					$this->_clear_other_defaults($this->db->insert_id(), $info['store_id']);
+				}
 					$this->session->set_flashdata('success', 'Success!! New Brand Added Successfully!');
 			        return "success";
 			}
@@ -106,6 +113,17 @@ class Brand_model extends CI_Model {
 			        return "failed";
 			}
 		}
+	}
+
+	/**
+	 * Remove the default flag from every other brand in the same store.
+	 * Keeps the "one default per store" invariant intact.
+	 */
+	private function _clear_other_defaults($keep_id, $store_id){
+		if(!$this->db->field_exists('is_default','db_brands')){ return; }
+		$this->db->where('id !=', $keep_id);
+		$this->db->where('store_id', $store_id);
+		$this->db->update('db_brands', array('is_default' => 0));
 	}
 
 	//Get brand_details
@@ -121,6 +139,7 @@ class Brand_model extends CI_Model {
 			$data['brand_name']=$query->brand_name;
 			$data['description']=$query->description;
 			$data['store_id']=$query->store_id;
+			$data['is_default']=isset($query->is_default) ? (int)$query->is_default : 0;
 			return $data;
 		}
 	}
@@ -128,28 +147,35 @@ class Brand_model extends CI_Model {
 		$q_id = $this->input->post('q_id', TRUE);
 		$brand = $this->input->post('brand', TRUE);
 		$description = $this->input->post('description', TRUE);
+		$is_default = $this->input->post('is_default') ? 1 : 0;
 
 		//Validate This brand already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 		$this->db->where("upper(brand_name)", strtoupper($brand));
 		$this->db->where("id !=", $q_id);
 		$this->db->where('store_id', $store_id);
 		$query = $this->db->get('db_brands');
 		if($query->num_rows()>0){
 			return "This Brand Name already Exist.";
-			
+
 		}
 		else{
 			$info = array(
-		    				'brand_name' 				=> $brand, 
+		    				'brand_name' 				=> $brand,
 		    				'description' 				=> $description,
 		    			);
-			
+			if($this->db->field_exists('is_default','db_brands')){
+				$info['is_default'] = $is_default;
+			}
+
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 
 			$q1 = $this->db->where('id',$q_id)->update('db_brands', $info);
-		
+
 			if ($q1){
+				if($is_default && $this->db->field_exists('is_default','db_brands')){
+					$this->_clear_other_defaults($q_id, $info['store_id']);
+				}
 					$this->session->set_flashdata('success', 'Success!! Brand Updated Successfully!');
 			        return "success";
 			}

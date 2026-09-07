@@ -1006,7 +1006,7 @@ CREATE TABLE `db_items` (
   `child_bit` int(1) DEFAULT 0,
   `mrp` double(20,4) DEFAULT NULL,
   `batch_lot` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `publish_online` tinyint(1) NOT NULL DEFAULT 1,
+  `publish_online` tinyint(1) NOT NULL DEFAULT 0,
   `is_featured` tinyint(1) NOT NULL DEFAULT 0,
   `online_price` decimal(12,2) DEFAULT NULL,
   `deposit_required` tinyint(1) NOT NULL DEFAULT 0,

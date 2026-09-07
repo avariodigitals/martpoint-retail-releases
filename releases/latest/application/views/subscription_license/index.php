@@ -100,8 +100,22 @@
           <div class="row">
             <div class="col-md-6">
               <div class="form-group">
-                <label>Product Limit</label>
+                <label>Product Limit <small class="text-muted">(top-level items)</small></label>
                 <input type="number" name="product_limit" class="form-control limit-input" min="1" value="500" readonly>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>SKU Limit <small class="text-muted">(total incl. variants)</small></label>
+                <input type="number" name="sku_limit" class="form-control limit-input" min="1" value="10000" readonly>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>Online Product Limit <small class="text-muted">(storefront)</small></label>
+                <input type="number" name="online_product_limit" class="form-control limit-input" min="1" value="500" readonly>
               </div>
             </div>
             <div class="col-md-6">
@@ -110,8 +124,6 @@
                 <input type="number" name="service_limit" class="form-control limit-input" min="1" value="100" readonly>
               </div>
             </div>
-          </div>
-          <div class="row">
             <div class="col-md-6">
               <div class="form-group">
                 <label>Media Storage (MB)</label>
@@ -191,6 +203,8 @@
           <tr><td><strong>Branches</strong></td><td id="gen-branch"></td></tr>
           <tr><td><strong>Users</strong></td><td id="gen-user"></td></tr>
           <tr><td><strong>Products</strong></td><td id="gen-product"></td></tr>
+          <tr><td><strong>SKUs</strong></td><td id="gen-sku"></td></tr>
+          <tr><td><strong>Online Products</strong></td><td id="gen-online"></td></tr>
           <tr><td><strong>Services</strong></td><td id="gen-service"></td></tr>
           <tr><td><strong>Media Storage (MB)</strong></td><td id="gen-media"></td></tr>
           <tr><td><strong>Storefronts</strong></td><td id="gen-storefront"></td></tr>
@@ -264,6 +278,8 @@
           $branch_info = get_subscription_limit_pct('branch_limit');
           $user_info = get_subscription_limit_pct('user_limit');
           $product_info = get_subscription_limit_pct('product_limit');
+          $sku_info = get_subscription_limit_pct('sku_limit');
+          $online_info = get_subscription_limit_pct('online_product_limit');
           $service_info = get_subscription_limit_pct('service_limit');
           $media_info = get_subscription_limit_pct('media_storage_limit_mb');
           function usage_badge($info){
@@ -303,6 +319,28 @@
                 <span class="info-box-text">Products Used</span>
                 <span class="info-box-number"><?= $product_info['used']; ?> / <?= $product_info['limit']; ?></span>
                 <?= usage_badge($product_info); ?>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="info-box">
+              <span class="info-box-icon bg-orange"><i class="fa fa-barcode"></i></span>
+              <div class="info-box-content">
+                <span class="info-box-text">SKUs Used <small>(incl. variants)</small></span>
+                <span class="info-box-number"><?= $sku_info['used']; ?> / <?= $sku_info['limit']; ?></span>
+                <?= usage_badge($sku_info); ?>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="info-box">
+              <span class="info-box-icon bg-blue"><i class="fa fa-globe"></i></span>
+              <div class="info-box-content">
+                <span class="info-box-text">Online Products</span>
+                <span class="info-box-number"><?= $online_info['used']; ?> / <?= $online_info['limit']; ?></span>
+                <?= usage_badge($online_info); ?>
               </div>
             </div>
           </div>
@@ -505,6 +543,20 @@
             <div class="form-group">
               <label>Product Limit</label>
               <input type="number" id="edit_product_limit" class="form-control" min="1" value="<?= $license->product_limit ?? 500; ?>">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>SKU Limit <small class="text-muted">(total incl. variants)</small></label>
+              <input type="number" id="edit_sku_limit" class="form-control" min="1" value="<?= $license->sku_limit ?? 10000; ?>">
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Online Product Limit <small class="text-muted">(storefront)</small></label>
+              <input type="number" id="edit_online_product_limit" class="form-control" min="1" value="<?= $license->online_product_limit ?? 500; ?>">
             </div>
           </div>
           <div class="col-md-6">
@@ -726,6 +778,8 @@ function saveLimits(){
     branch_limit: parseInt($('#edit_branch_limit').val()) || 1,
     user_limit: parseInt($('#edit_user_limit').val()) || 3,
     product_limit: parseInt($('#edit_product_limit').val()) || 500,
+    sku_limit: parseInt($('#edit_sku_limit').val()) || 10000,
+    online_product_limit: parseInt($('#edit_online_product_limit').val()) || 500,
     service_limit: parseInt($('#edit_service_limit').val()) || 100,
     media_storage_limit_mb: parseInt($('#edit_media_storage_limit_mb').val()) || 2048,
     storefront_limit: parseInt($('#edit_storefront_limit').val()) || 1,
@@ -841,7 +895,7 @@ $(function(){
         var r = JSON.parse(res);
         if(r.status === 'success'){
           var ov = $('#override_limits_checkbox').is(':checked');
-          var fields = ['branch_limit','user_limit','product_limit','service_limit','media_storage_limit_mb','storefront_limit','custom_domain_limit'];
+          var fields = ['branch_limit','user_limit','product_limit','sku_limit','online_product_limit','service_limit','media_storage_limit_mb','storefront_limit','custom_domain_limit'];
           fields.forEach(function(f){
             $('input[name="'+f+'"]').val(r.data[f]);
           });
@@ -872,6 +926,8 @@ $(function(){
           $('#gen-branch').text(r.data.branch_limit);
           $('#gen-user').text(r.data.user_limit);
           $('#gen-product').text(r.data.product_limit);
+          $('#gen-sku').text(r.data.sku_limit);
+          $('#gen-online').text(r.data.online_product_limit);
           $('#gen-service').text(r.data.service_limit);
           $('#gen-media').text(r.data.media_storage_limit_mb);
           $('#gen-storefront').text(r.data.storefront_limit);

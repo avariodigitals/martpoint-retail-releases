@@ -6,6 +6,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
 
 if(!isset($brand_name)){
   $brand_code=$brand_name=$description=$store_id="";
+  $is_default = 0;
 }
 // Save vs Update button
 if(isset($q_id)){
@@ -80,6 +81,15 @@ textarea.mp-form-control { min-height: 90px; resize: vertical; }
           <label for="description"><?= $this->lang->line('description'); ?></label>
           <textarea class="mp-form-control" id="description" name="description" placeholder="Short description (optional)"><?php print $description; ?></textarea>
           <span id="description_msg" style="display:none" class="text-danger"></span>
+        </div>
+
+        <div class="mp-form-group full">
+          <input type="hidden" name="is_default" value="0">
+          <label style="display:flex;align-items:center;gap:10px;font-weight:500;cursor:pointer;">
+            <input type="checkbox" name="is_default" id="is_default" value="1" <?= ($is_default == 1) ? 'checked' : ''; ?> style="width:18px;height:18px;cursor:pointer;">
+            <span>Set as default brand for new items</span>
+          </label>
+          <span class="mp-form-hint" style="font-size:12px;color:var(--mp-muted);">Only one brand can be the default per store.</span>
         </div>
       </div>
     </form>

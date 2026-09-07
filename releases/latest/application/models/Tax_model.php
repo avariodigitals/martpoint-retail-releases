@@ -79,6 +79,7 @@ class Tax_model extends CI_Model {
 	public function verify_and_save(){
 		$tax_name = $this->input->post('tax_name', TRUE);
 		$tax = $this->input->post('tax', TRUE);
+		$is_default = $this->input->post('is_default') ? 1 : 0;
 
 		//Validate This tax already exist or not
 		$store_id = (store_module() && is_admin()) ? $store_id : get_current_store_id();
@@ -87,19 +88,25 @@ class Tax_model extends CI_Model {
 		$query = $this->db->get('db_tax');
 		if($query->num_rows()>0){
 			return "Tax Name Already Exist.";
-			
+
 		}
 		else{
 			$info = array(
-		    				'tax_name' 				=> $tax_name, 
+		    				'tax_name' 				=> $tax_name,
 		    				'tax' 				=> $tax,
 		    				'status' 				=> 1,
 		    			);
-			
-			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+
+			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			if($this->db->field_exists('is_default','db_tax')){
+				$info['is_default'] = $is_default;
+			}
 
 			$q1 = $this->db->insert('db_tax', $info);
 			if ($q1){
+				if($is_default && $this->db->field_exists('is_default','db_tax')){
+					$this->_clear_other_defaults($this->db->insert_id(), $info['store_id']);
+				}
 					$this->session->set_flashdata('success', 'Success!! New tax Percentage Added Successfully!');
 			        return "success";
 			}
@@ -107,6 +114,17 @@ class Tax_model extends CI_Model {
 			        return "failed";
 			}
 		}
+	}
+
+	/**
+	 * Remove the default flag from every other tax in the same store.
+	 * Keeps the "one default per store" invariant intact.
+	 */
+	private function _clear_other_defaults($keep_id, $store_id){
+		if(!$this->db->field_exists('is_default','db_tax')){ return; }
+		$this->db->where('id !=', $keep_id);
+		$this->db->where('store_id', $store_id);
+		$this->db->update('db_tax', array('is_default' => 0));
 	}
 
 	//Get tax_details
@@ -124,7 +142,8 @@ class Tax_model extends CI_Model {
 			$data['tax_name']=$query->tax_name;
 			$data['tax']=store_number_format($query->tax,0);
 			$data['store_id']=$query->store_id;
-			
+			$data['is_default']=isset($query->is_default) ? (int)$query->is_default : 0;
+
 			return $data;
 		}
 	}
@@ -132,7 +151,8 @@ class Tax_model extends CI_Model {
 		$q_id = $this->input->post('q_id', TRUE);
 		$tax_name = $this->input->post('tax_name', TRUE);
 		$tax = $this->input->post('tax', TRUE);
-		
+		$is_default = $this->input->post('is_default') ? 1 : 0;
+
 		//Validate This tax already exist or not
 		$store_id = (store_module() && is_admin()) ? $store_id : get_current_store_id();
 		$this->db->where("upper(tax_name)", strtoupper($tax_name));
@@ -141,19 +161,25 @@ class Tax_model extends CI_Model {
 		$query = $this->db->get('db_tax');
 		if($query->num_rows()>0){
 			return "Tax Name Already Exist.";
-			
+
 		}
 		else{
 			$info = array(
-		    				'tax_name' 				=> $tax_name, 
+		    				'tax_name' 				=> $tax_name,
 		    				'tax' 				=> $tax,
 		    			);
-			
+
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			if($this->db->field_exists('is_default','db_tax')){
+				$info['is_default'] = $is_default;
+			}
 
 			$q1 = $this->db->where('id',$q_id)->where('store_id',$store_id)->update('db_tax', $info);
-		
+
 			if ($q1){
+				if($is_default && $this->db->field_exists('is_default','db_tax')){
+					$this->_clear_other_defaults($q_id, $info['store_id']);
+				}
 					$this->session->set_flashdata('success', 'Success!! tax Percentage Updated Successfully!');
 			        return "success";
 			}
