@@ -2862,3 +2862,16 @@ SET @sql = IF(@col_exists = 0,
   'ALTER TABLE `db_sitesettings` ADD COLUMN `sales_target` DOUBLE(20,4) DEFAULT 0',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- is_default columns for tax, units, brands (v4.0.9.3)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_tax' AND column_name = 'is_default');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_tax` ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_units' AND column_name = 'is_default');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_units` ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_brands' AND column_name = 'is_default');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_brands` ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
