@@ -60,6 +60,7 @@ class Store_profile_model extends CI_Model {
 		$gst_no = $this->input->post('gst_no', TRUE);
 		$vat_no = $this->input->post('vat_no', TRUE);
 		$pan_no = $this->input->post('pan_no', TRUE);
+		$can_edit_system_settings = get_instance()->permissions('system_settings');
 		$nin_api_enabled = $this->input->post('nin_api_enabled', TRUE);
 		$nin_api_url = $this->input->post('nin_api_url', TRUE);
 		$nin_api_key = $this->input->post('nin_api_key', TRUE);
@@ -109,7 +110,7 @@ class Store_profile_model extends CI_Model {
 		}
 
 		$idle_flyer='';
-		if(!empty($_FILES['idle_flyer']['name'])){
+		if($can_edit_system_settings && !empty($_FILES['idle_flyer']['name'])){
 			$config2['upload_path']          = './uploads/store/';
 			$config2['allowed_types']        = 'gif|jpg|jpeg|png|webp';
 			$config2['max_size']             = 2048;
@@ -276,13 +277,17 @@ class Store_profile_model extends CI_Model {
 			'bank_details' => $bank_details,
 		);
 
-		// NIN API key/value settings
-		$nin_data = array(
-			'nin_api_enabled' => $nin_api_enabled,
-			'nin_api_url' => $nin_api_url,
-			'nin_api_key' => $nin_api_key,
-			'nin_api_provider' => $nin_api_provider,
-		);
+		// NIN API key/value settings — protected by nin_settings permission
+		$can_edit_nin_settings = get_instance()->permissions('nin_settings');
+		$nin_data = array();
+		if($can_edit_nin_settings){
+			$nin_data = array(
+				'nin_api_enabled' => $nin_api_enabled,
+				'nin_api_url' => $nin_api_url,
+				'nin_api_key' => $nin_api_key,
+				'nin_api_provider' => $nin_api_provider,
+			);
+		}
 
 		// Store code uniqueness check
 			$this->db->select("count(*) as store_code_count");
@@ -330,14 +335,16 @@ class Store_profile_model extends CI_Model {
 					mp_set_store_setting($q_id, 'nin_api', $k, $v, 'string');
 				}
 				// Session Lock (idle timeout + snooze) settings
-				mp_set_store_setting($q_id, 'idle_lock', 'idle_enabled', $this->input->post('idle_enabled') ? 1 : 0, 'int');
-				mp_set_store_setting($q_id, 'idle_lock', 'idle_timeout_minutes', max(1, (int)$this->input->post('idle_timeout_minutes')), 'int');
-				mp_set_store_setting($q_id, 'idle_lock', 'idle_warning_seconds', max(10, (int)$this->input->post('idle_warning_seconds')), 'int');
-				mp_set_store_setting($q_id, 'idle_lock', 'snooze_enabled', $this->input->post('snooze_enabled') ? 1 : 0, 'int');
-				mp_set_store_setting($q_id, 'idle_lock', 'snooze_title', trim((string)$this->input->post('snooze_title', TRUE)), 'string');
-				mp_set_store_setting($q_id, 'idle_lock', 'snooze_message', trim((string)$this->input->post('snooze_message', TRUE)), 'string');
-				if(!empty($idle_flyer)){
-					mp_set_store_setting($q_id, 'idle_lock', 'snooze_image', $idle_flyer, 'string');
+				if($can_edit_system_settings){
+					mp_set_store_setting($q_id, 'idle_lock', 'idle_enabled', $this->input->post('idle_enabled') ? 1 : 0, 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'idle_timeout_minutes', max(1, (int)$this->input->post('idle_timeout_minutes')), 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'idle_warning_seconds', max(10, (int)$this->input->post('idle_warning_seconds')), 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_enabled', $this->input->post('snooze_enabled') ? 1 : 0, 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_title', trim((string)$this->input->post('snooze_title', TRUE)), 'string');
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_message', trim((string)$this->input->post('snooze_message', TRUE)), 'string');
+					if(!empty($idle_flyer)){
+						mp_set_store_setting($q_id, 'idle_lock', 'snooze_image', $idle_flyer, 'string');
+					}
 				}
 			}
 

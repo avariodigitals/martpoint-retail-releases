@@ -270,7 +270,7 @@ class Roles_model extends CI_Model {
 														'currency_edit',
 														'currency_delete',
 														'currency_view',*/
-														'store_edit',
+														'store_edit', 'business_setup',
 														/*'site_edit',*/
 														'units_add',
 														'units_edit',
@@ -507,6 +507,7 @@ class Roles_model extends CI_Model {
                     'nin_settings',
                     'nin_usage',
                     'nin_logs',
+                    'system_settings',
                     'loyalty_view',
                     'loyalty_add',
                     'loyalty_edit',

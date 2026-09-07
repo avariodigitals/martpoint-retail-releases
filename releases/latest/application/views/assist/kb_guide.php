@@ -163,7 +163,7 @@
   </ol>
 
   <h3>Sales Invoice Formats</h3>
-  <p>MartPoint supports multiple layouts: <strong>Standard Invoice</strong> (full A4), <strong>POS Receipt</strong> (thermal), and <strong>GST Invoice</strong> (with tax breakdown). Change the default at <strong>Settings → Invoice Settings</strong>.</p>
+  <p>MartPoint supports multiple layouts: <strong>Standard Invoice</strong> (full A4), <strong>POS Receipt</strong> (thermal), and <strong>FSTR Invoice</strong> (with tax breakdown). Change the default at <strong>Settings → Invoice Settings</strong>.</p>
 
   <h3>Credit Sales</h3>
   <p>Some customers are allowed to buy on credit. At checkout, select <strong>Credit</strong> as the payment mode. The sale is recorded with "Unpaid" status. Later, record a payment against this invoice to settle it. Only customers with a credit limit can use this feature.</p>

@@ -29,7 +29,7 @@
     "required_role": "all",
     "category": "customers",
     "preview": "How to add a new customer",
-    "answer": "To add a new customer:\n\n1. **Quick Add**: Ask me *'Create customer [name] [phone]'*\n2. **Form**: Go to **Customers -> New Customer**.\n3. **Required Info**: Name and phone number.\n4. **Optional**: Email, GST/Tax number, Credit limit, and Shipping address.\n5. **Save**: Click **Save** to add them to the system.\n\nCustomers with credit limits can buy on credit up to their limit."
+    "answer": "To add a new customer:\n\n1. **Quick Add**: Ask me *'Create customer [name] [phone]'*\n2. **Form**: Go to **Customers -> New Customer**.\n3. **Required Info**: Name and phone number.\n4. **Optional**: Email, FSTR/Tax number, Credit limit, and Shipping address.\n5. **Save**: Click **Save** to add them to the system.\n\nCustomers with credit limits can buy on credit up to their limit."
   },
   {
     "id": "record_payment",
@@ -157,7 +157,7 @@
     "required_role": "business_owner",
     "category": "purchases",
     "preview": "How to manage suppliers and vendors",
-    "answer": "Managing suppliers:\n\n1. **Add Supplier**: Go to **Purchase -> Suppliers -> New Supplier**.\n2. **Details**: Name, contact person, phone, email, address, and GST/Tax number.\n3. **View Suppliers**: See all suppliers with total purchases and pending payments.\n4. **Payments**: Record supplier payments under **Purchase -> Supplier Payments**.\n5. **History**: View purchase history per supplier.\n\nSupplier records help you track who you owe and payment terms."
+    "answer": "Managing suppliers:\n\n1. **Add Supplier**: Go to **Purchase -> Suppliers -> New Supplier**.\n2. **Details**: Name, contact person, phone, email, address, and FSTR/Tax number.\n3. **View Suppliers**: See all suppliers with total purchases and pending payments.\n4. **Payments**: Record supplier payments under **Purchase -> Supplier Payments**.\n5. **History**: View purchase history per supplier.\n\nSupplier records help you track who you owe and payment terms."
   },
   {
     "id": "sales_report",
@@ -237,7 +237,7 @@
     "required_role": "business_owner",
     "category": "settings",
     "preview": "How to configure tax settings",
-    "answer": "To configure tax settings:\n\n1. **Go to Store Settings**: **Settings -> Store Settings**.\n2. **Tax Details**: Enter Tax Name (e.g., VAT, GST), Tax Rate, and Registration Number.\n3. **Tax Type**: Choose Inclusive (price includes tax) or Exclusive (tax added on top).\n4. **Apply**: Tax is automatically calculated on invoices and reports.\n5. **Tax Reports**: Go to **Reports -> Tax Report** for filing.\n\nEnsure tax settings comply with your local regulations."
+    "answer": "To configure tax settings:\n\n1. **Go to Store Settings**: **Settings -> Store Settings**.\n2. **Tax Details**: Enter Tax Name (e.g., VAT, FSTR), Tax Rate, and Registration Number.\n3. **Tax Type**: Choose Inclusive (price includes tax) or Exclusive (tax added on top).\n4. **Apply**: Tax is automatically calculated on invoices and reports.\n5. **Tax Reports**: Go to **Reports -> Tax Report** for filing.\n\nEnsure tax settings comply with your local regulations."
   },
   {
     "id": "payment_modes",

@@ -72,6 +72,10 @@ class Default_data_model extends CI_Model {
                 'description' => 'Store Owner / Founder / Managing Director. Full access except Super Admin.',
                 'permissions' => $this->get_business_owner_permissions()
             ),
+            'Partner' => array(
+                'description' => 'Implementation / Setup Partner. Can configure business settings, users and master data.',
+                'permissions' => $this->get_partner_permissions()
+            ),
             'Manager' => array(
                 'description' => 'Store Manager. Access to operations, no Users/Roles/Settings.',
                 'permissions' => $this->get_manager_permissions()
@@ -85,7 +89,7 @@ class Default_data_model extends CI_Model {
                 'permissions' => $this->get_accountant_permissions()
             ),
             'Inventory Officer' => array(
-                'description' => 'Stock & Inventory Staff. Manage items, purchases, stock transfers and adjustments. No POS/Sales, no GST reports.',
+                'description' => 'Stock & Inventory Staff. Manage items, purchases, stock transfers and adjustments. No POS/Sales, no FSTR reports.',
                 'permissions' => $this->get_inventory_officer_permissions()
             )
         );
@@ -179,6 +183,12 @@ class Default_data_model extends CI_Model {
             // Get existing permissions for this role
             $existing = $this->db->where('role_id', $role->id)->get('db_permissions')->result_array();
             $existing_keys = array_column($existing, 'permissions');
+
+            // Do not overwrite existing role permissions (admin changes must persist).
+            // Only seed defaults when the role has no permissions at all.
+            if (!empty($existing_keys)) {
+                continue;
+            }
 
             // Find missing permissions
             $missing = array_diff($default_perms, $existing_keys);
@@ -547,6 +557,106 @@ class Default_data_model extends CI_Model {
     }
 
     /**
+     * Partner: Implementation and setup partner.
+     * Full setup access (users, roles, business setup, master data) plus operational view.
+     */
+    private function get_partner_permissions() {
+        return array(
+            // Dashboard
+            'dashboard_view','dashboard_info_box_1','dashboard_info_box_2',
+            'dashboard_pur_sal_chart','dashboard_recent_items',
+            'dashboard_stock_alert','dashboard_trending_items_chart',
+            'recent_sales_invoice_list',
+            // Users & Roles
+            'users_add','users_edit','users_delete','users_view',
+            'roles_add','roles_edit','roles_delete','roles_view',
+            // Business Setup
+            'business_setup',
+            // Store
+            'store_edit','store_view',
+            // Tax
+            'tax_add','tax_edit','tax_delete','tax_view',
+            // Units
+            'units_add','units_edit','units_delete','units_view',
+            // Payment Types / Modes
+            'payment_types_add','payment_types_edit','payment_types_delete','payment_types_view',
+            'payment_modes_add','payment_modes_edit','payment_modes_delete','payment_modes_view',
+            // Items
+            'items_add','items_edit','items_delete','items_view',
+            'items_category_add','items_category_edit','items_category_delete','items_category_view',
+            'brand_add','brand_edit','brand_delete','brand_view',
+            'attributes_add','attributes_edit','attributes_delete','attributes_view',
+            'variant_add','variant_edit','variant_delete','variant_view',
+            'print_labels',
+            'import_items',
+            // Suppliers / Customers
+            'suppliers_add','suppliers_edit','suppliers_delete','suppliers_view',
+            'import_suppliers',
+            'customers_add','customers_edit','customers_delete','customers_view',
+            'import_customers',
+            // Purchases / Sales (view and manage)
+            'purchase_add','purchase_edit','purchase_delete','purchase_view',
+            'purchase_return_add','purchase_return_edit','purchase_return_delete','purchase_return_view',
+            'purchase_payment_view','purchase_payment_add','purchase_payment_delete',
+            'purchase_return_payment_view','purchase_return_payment_add','purchase_return_payment_delete',
+            'sales_add','sales_edit','sales_delete','sales_view',
+            'sales_return_add','sales_return_edit','sales_return_delete','sales_return_view',
+            'sales_payment_view','sales_payment_add','sales_payment_delete',
+            'sales_return_payment_view','sales_return_payment_add','sales_return_payment_delete',
+            // Stock / Warehouse
+            'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
+            'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
+            'warehouse_add','warehouse_edit','warehouse_delete','warehouse_view',
+            // Accounts
+            'accounts_add','accounts_edit','accounts_delete','accounts_view',
+            'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
+            'money_deposit_add','money_deposit_edit','money_deposit_delete','money_deposit_view',
+            'cash_transactions',
+            'tills_view','tills_add','tills_edit','tills_delete',
+            'cashier_shifts_manage','z_report',
+            // Services / Quotations
+            'services_add','services_edit','services_delete','services_view',
+            'import_services',
+            'quotation_add','quotation_edit','quotation_delete','quotation_view',
+            // Messaging
+            'send_sms','sms_template_view','sms_template_edit',
+            'send_email','email_template_view','email_template_edit',
+            // Coupons
+            'discountCouponAdd','discountCouponEdit','discountCouponDelete','discountCouponView',
+            'customerCouponAdd','customerCouponEdit','customerCouponDelete','customerCouponView',
+            // Reports
+            'sales_report','purchase_report','expense_report','profit_report',
+            'stock_report','item_sales_report','expired_items_report',
+            'purchase_payments_report','sales_payments_report',
+            'sales_tax_report','purchase_tax_report',
+            'supplier_items_report','seller_points_report',
+            'sales_gst_report','purchase_gst_report',
+            'return_items_report','stock_transfer_report',
+            'sales_summary_report','sales_return_payments',
+            'purchase_return_report','sales_return_report',
+            'customer_orders_report',
+            'gstr_1_report','gstr_2_report',
+            // Fashion Intelligence
+            'variant_attribute_report','sell_through_report','reorder_suggestion_report',
+            'promotions_manage',
+            // Advanced
+            'cust_adv_payments_add','cust_adv_payments_edit','cust_adv_payments_delete','cust_adv_payments_view',
+            'show_all_users_sales_invoices','show_all_users_sales_return_invoices',
+            'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
+            'show_all_users_expenses','show_all_users_quotations',
+            'show_purchase_price',
+            // Settings
+            'subscription','sms_settings','sms_api_view','sms_api_edit',
+            'smtp_settings','paystack_settings','expiry_settings',
+            'approval_settings_edit','approval_logs_view','can_approve',
+            'nin_settings','nin_usage','nin_logs','nin_verify',
+            'system_settings',
+            'online_store_view','online_store_edit','online_store_orders',
+            'attendance_edit','attendance_view'
+        );
+    }
+
+    /**
      * Return the default permission list for a standard role name.
      * Used as a fallback when db_permissions is empty for a role.
      */
@@ -558,6 +668,7 @@ class Default_data_model extends CI_Model {
         $role_name = trim($role_name);
         $maps = array(
             'Business Owner' => $this->get_business_owner_permissions(),
+            'Partner'        => $this->get_partner_permissions(),
             'Manager'        => $this->get_manager_permissions(),
             'Cashier'        => $this->get_cashier_permissions(),
             'Accountant'     => $this->get_accountant_permissions(),

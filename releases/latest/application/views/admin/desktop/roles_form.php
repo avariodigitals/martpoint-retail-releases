@@ -102,6 +102,9 @@
         ['Store Settings', 'store', [
           ['store_edit','Edit'],
         ]],
+        ['Business Setup', 'business_setup', [
+          ['business_setup','Can configure'],
+        ]],
         ['Expense', 'expense', [
           ['expense_add','Add'], ['expense_edit','Edit'], ['expense_delete','Delete'], ['expense_view','View'],
         ]],
@@ -214,6 +217,9 @@
         ['NIN/BVN Verification', 'nin', [
           ['nin_verify','Verify'], ['nin_settings','Settings'], ['nin_usage','Usage'], ['nin_logs','Logs'],
         ]],
+        ['System Settings', 'system_settings', [
+          ['system_settings','Can configure'],
+        ]],
         ['Online Store', 'online_store', [
           ['online_store_view','View'], ['online_store_edit','Edit'], ['online_store_orders','Orders'],
         ]],
@@ -241,8 +247,8 @@
           ['sales_return_report','Sales Return'], ['purchase_return_report','Purchase Return'],
           ['return_items_report','Return Items'], ['sales_summary_report','Sales Summary'],
           ['sales_tax_report','Sales Tax'], ['purchase_tax_report','Purchase Tax'],
-          ['sales_gst_report','Sales GST'], ['purchase_gst_report','Purchase GST'],
-          ['gstr_1_report','GSTR-1'], ['gstr_2_report','GSTR-2'],
+          ['sales_gst_report','Sales FSTR'], ['purchase_gst_report','Purchase FSTR'],
+          ['gstr_1_report','FSTR-1'], ['gstr_2_report','FSTR-2'],
           ['customer_orders_report','Customer Orders'], ['load_sheet_report','Load Sheet'],
           ['delivery_sheet_report','Delivery Sheet'], ['sales_return_payments','Sales Return Payments'],
           ['show_purchase_price','Show Purchase Price'],

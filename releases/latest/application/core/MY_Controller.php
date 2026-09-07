@@ -159,7 +159,7 @@ class MY_Controller extends CI_Controller{
       private function reseed_role_permissions(){
             // Use a versioned session flag so the reseed runs again after each
             // deployment where the default permission sets have changed.
-            $flag = 'mp_perms_reseeded_v3';
+            $flag = 'mp_perms_reseeded_v4';
             if($this->session->userdata($flag)){
                 return;
             }
@@ -278,22 +278,7 @@ class MY_Controller extends CI_Controller{
           }
 
           $tot=$this->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$this->db->escape_str($permissions).'" and role_id='.(int)$role_id)->row()->tot;
-          if($tot==1){
-            return true;
-          }
-
-          // Fallback for standard roles whose permissions have not been seeded
-          // Cache the default permissions per role to avoid loading the model on every call
-          static $cached_role_perms = null;
-          if($cached_role_perms === null){
-            $this->load->model('default_data_model','default_data');
-            $cached_role_perms = $this->default_data->get_role_default_permissions($this->session->userdata('role_name'));
-          }
-          if(!empty($cached_role_perms) && in_array($permissions, $cached_role_perms, true)){
-            return true;
-          }
-
-           return false;
+          return ($tot == 1);
         }
         
         public function permission_check($value=''){

@@ -3091,7 +3091,7 @@ class Mobile extends MY_Controller {
 
 	public function business_profile()
 	{
-		$this->permission_check('store_edit');
+		$this->permission_check('business_setup');
 		$data = $this->data;
 		$data['page_title'] = 'Business Profile';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';

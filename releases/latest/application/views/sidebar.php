@@ -797,7 +797,7 @@
             <?php if($CI->permissions('store_edit')) { ?>
             <li class="store_profile-active-li"><a href="<?php echo $base_url; ?>store_profile/update/<?= $this->session->userdata('store_id'); ?>"><i class="fa fa-suitcase "></i> <span>Store Profile</span></a></li>
             <?php } ?>
-            <?php if($CI->permissions('store_edit')) { ?>
+            <?php if($CI->permissions('business_setup')) { ?>
             <li class="business-profile-active-li"><a href="<?php echo $base_url; ?>business_profile"><i class="fa fa-industry"></i> <span>Business Profile</span></a></li>
             <?php } ?>
             <?php } ?><!-- is_user() -->

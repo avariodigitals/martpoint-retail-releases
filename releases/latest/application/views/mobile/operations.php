@@ -82,7 +82,9 @@
         <div class="empty-state">
           <div class="empty-icon"><i class="fa fa-cogs"></i></div>
           <div>No operations workflows are enabled for this business.</div>
+          <?php $CI =& get_instance(); if($CI->permissions('business_setup')): ?>
           <a href="<?= base_url('mobile/business_profile'); ?>" class="setup-link">Open Business Setup</a>
+          <?php endif; ?>
         </div>
       <?php endif; ?>
     </section>

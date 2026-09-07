@@ -4,7 +4,7 @@
 <div class="mp-page-head">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">GSTR-1 outward sales summary</div>
+    <div class="mp-page-sub">FSTR-1 outward sales summary</div>
   </div>
   <div class="mp-report-actions">
     <?php $this->load->view('components/export_btn', ['tableId' => 'report-data']); ?>

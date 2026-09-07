@@ -37,7 +37,8 @@ class Store_profile extends MY_Controller {
 		$can_edit_nin_settings = $this->permissions('nin_settings');
 		$nin_api_enabled = $this->input->post('nin_api_enabled', TRUE);
 		
-		if(!empty($q_id)){
+		// NIN API credentials are sensitive and require a separate permission.
+		if(!empty($q_id) && $can_edit_nin_settings){
 			$nin_data = array(
 				'nin_api_url' => $nin_api_url,
 				'nin_api_key' => $nin_api_key,
@@ -47,14 +48,8 @@ class Store_profile extends MY_Controller {
 				'bvn_provider' => $bvn_provider,
 				'interswitch_client_id' => $interswitch_client_id,
 				'interswitch_client_secret' => $interswitch_client_secret,
+				'nin_api_enabled' => (!empty($nin_api_enabled)) ? 1 : 0,
 			);
-			if($can_edit_nin_settings){
-				$nin_data['nin_api_enabled'] = (!empty($nin_api_enabled)) ? 1 : 0;
-			} else {
-				// Preserve existing enabled state for users without nin_settings permission
-				$existing = $this->db->where('id', $q_id)->get('db_store')->row();
-				$nin_data['nin_api_enabled'] = isset($existing->nin_api_enabled) ? $existing->nin_api_enabled : 0;
-			}
 			$this->db->where('id', $q_id)->update('db_store', $nin_data);
 		}
 

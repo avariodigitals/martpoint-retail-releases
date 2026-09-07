@@ -458,10 +458,10 @@ padding-right: 2px;
                                  
                             <!-- <div class="col-xs-12">
                                 <div class="checkbox">
-                                    <label toggle='tooltip' title="Check for Non GST Bill Creation">
+                                    <label toggle='tooltip' title="Check for Non FSTR Bill Creation">
                                         <input type="checkbox" name="" checked="" />
                                         <span></span>
-                                        Non GST
+                                        Non FSTR
                                     </label>
                                 </div>
                             </div> -->
@@ -1183,7 +1183,7 @@ padding-right: 2px;
          }
 
         
-         /* ---------- CALCULATE GST END -------------*/
+         /* ---------- CALCULATE FSTR END -------------*/
 
          /*Calculate Coupon Discount Amount*/
          const discount_coupon_tot = function(subtotal) {

@@ -52,7 +52,9 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
   <?php if($CI->permissions('nin_settings')){ ?>
   <li><a href="#tab_nin" id='tab_nin_btn' data-toggle="tab">NIN/BVN API</a></li>
   <?php } ?>
+  <?php if($CI->permissions('system_settings')){ ?>
   <li><a href="#tab_session_lock" id='tab_session_lock_btn' data-toggle="tab">Session Lock</a></li>
+  <?php } ?>
   <?php }?>
 </ul>
                         <div class="tab-content">
@@ -984,6 +986,7 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
                               </div>
                            </div>
                            <!-- /.tab-pane -->
+                           <?php if($CI->permissions('system_settings')){ ?>
                            <!-- Session Lock (Idle Timeout + Snooze) Tab -->
                            <div class="tab-pane" id="tab_session_lock">
                               <div class="row">
@@ -1064,6 +1067,7 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
                               </div>
                            </div>
                            <!-- /.tab-pane -->
+                           <?php } ?>
                         </div>
                         <!-- /.tab-content -->
                      </div>

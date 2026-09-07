@@ -44,10 +44,10 @@
 <?php
 $menu_groups = [];
 
-if ($CI->permissions('store_edit') || $CI->permissions('store_view') || $CI->permissions('users_view') || $CI->permissions('roles_view')) {
+if ($CI->permissions('store_edit') || $CI->permissions('business_setup') || $CI->permissions('store_view') || $CI->permissions('users_view') || $CI->permissions('roles_view')) {
   $menu_groups['Store & People'] = [
     ['icon' => 'fa-suitcase', 'label' => 'Store Profile', 'url' => base_url('store_profile/update/'.$this->session->userdata('store_id')), 'perm' => 'store_edit'],
-    ['icon' => 'fa-industry', 'label' => 'Business Profile', 'url' => base_url('business_profile'), 'perm' => 'store_edit'],
+    ['icon' => 'fa-industry', 'label' => 'Business Profile', 'url' => base_url('business_profile'), 'perm' => 'business_setup'],
     ['icon' => 'fa-building', 'label' => 'Branches', 'url' => base_url('warehouse'), 'perm' => 'warehouse_view'],
     ['icon' => 'fa-building-o', 'label' => 'Stores', 'url' => base_url('store/view'), 'perm' => 'store_view'],
     ['icon' => 'fa-users', 'label' => 'Users', 'url' => base_url('users/view'), 'perm' => 'users_view'],

@@ -12,7 +12,7 @@
             <div class="alert alert-info text-left">
                  <a href="javascript:void()" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>
-                  MartPoint Retail new version <?= app_version(); ?> released , Faster and Customizable Application Software. If you have any queries please message <a target='_blank' href='https://codecanyon.net/item/billing-book-ultimate-inventory-management-billing-software-with-pos/23552741/comments'>here</a>.[Some features are disabled in demo and it will be reset after each hour]. <label class="text-blue" >GST Invoice & GSTR-1 & GSTR-2 Reports added, for GST Invoice you need to change settings.<span class="text-uppercase">[Sidebar->Store->Sales Tab->Sales Invoice Format]</span></label>
+                  MartPoint Retail new version <?= app_version(); ?> released , Faster and Customizable Application Software. If you have any queries please message <a target='_blank' href='https://codecanyon.net/item/billing-book-ultimate-inventory-management-billing-software-with-pos/23552741/comments'>here</a>.[Some features are disabled in demo and it will be reset after each hour]. <label class="text-blue" >FSTR Invoice & FSTR-1 & FSTR-2 Reports added, for FSTR Invoice you need to change settings.<span class="text-uppercase">[Sidebar->Store->Sales Tab->Sales Invoice Format]</span></label>
                 </strong>
               </div>
           <?php } ?>

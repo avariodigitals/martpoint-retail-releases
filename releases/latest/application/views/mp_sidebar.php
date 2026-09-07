@@ -285,7 +285,7 @@ $mp_icons = [
       <div class="mp-nav-submenu">
         <a href="<?= base_url('admin'); ?>" class="mp-nav-item admin-dashboard-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Admin Dashboard</a>
         <?php if($CI->permissions('store_edit')): ?><a href="<?= base_url('store_profile/update/'.$this->session->userdata('store_id')); ?>" class="mp-nav-item store_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Store Profile</a><?php endif; ?>
-        <?php if($CI->permissions('store_edit')): ?><a href="<?= base_url('business_profile'); ?>" class="mp-nav-item business_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Business Profile</a><?php endif; ?>
+        <?php if($CI->permissions('business_setup')): ?><a href="<?= base_url('business_profile'); ?>" class="mp-nav-item business_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Business Profile</a><?php endif; ?>
         <?php if(($CI->permissions('warehouse_view') || $CI->permissions('warehouse_add')) && warehouse_module()):
           try { $branch_label_nav = mp_label('branch','Branches'); } catch (Exception $e) { $branch_label_nav = 'Branches'; }
         ?>
