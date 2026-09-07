@@ -1,5 +1,5 @@
 
-$('#save,#update').on("click",function (e) {
+$(document).on("click", "#save, #update", function (e) {
 	var base_url=$("#base_url").val();
     //Initially flag set true
     var flag=true;

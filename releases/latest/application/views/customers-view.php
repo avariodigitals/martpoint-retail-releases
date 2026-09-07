@@ -343,7 +343,7 @@ $("#warehouse_id").on("change",function(){
     load_datatable();
 });
 
-$('#show_account_receivable').on('ifChanged', function(event) {
+$('#show_account_receivable').on('ifChanged change', function(event) {
    $('#example2').DataTable().destroy();
     if(event.target.checked){
       load_datatable('checked');

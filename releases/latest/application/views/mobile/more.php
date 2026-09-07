@@ -87,6 +87,7 @@
             'Team' => 'fa-users',
             'Operations' => 'fa-cogs',
             'Account' => 'fa-user-circle',
+			'Help' => 'fa-question-circle',
           ];
           $group_colors = [
             'Overview' => 'blue',
@@ -102,6 +103,7 @@
             'Team' => 'yellow',
             'Operations' => 'primary',
             'Account' => 'blue',
+            'Help' => 'primary',
           ];
         ?>
         <?php foreach($menu_groups as $group => $items): ?>
@@ -127,7 +129,7 @@
 
         <div class="menu-list">
           <?php foreach($items as $item): ?>
-            <a href="<?= base_url($item['url']); ?>" class="menu-item <?= $item['title'] === 'Log Out' ? 'logout' : ''; ?>" <?php if($item['title'] === 'Log Out'){ ?>onclick="return mpLogout(this, event);"<?php } ?>>
+            <a href="<?= base_url($item['url']); ?>" class="menu-item <?= $item['title'] === 'Log Out' ? 'logout' : ''; ?>" <?php if($item['title'] === 'Log Out'){ ?>onclick="return mpLogout(this, event);"<?php } ?><?= !empty($item['target']) ? ' target="'.htmlspecialchars($item['target']).'" rel="noopener"' : ''; ?>>
               <div class="icon <?= $item['color']; ?>"><i class="fa <?= $item['icon']; ?>"></i></div>
               <div class="text">
                 <div class="title"><?= $item['title']; ?></div>

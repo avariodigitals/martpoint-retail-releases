@@ -11,6 +11,8 @@ $this->load->view('mp_sidebar');
    DataTables, Select2, toastr, xss_validation, etc. in inline scripts.
    mp_footer.php also includes this file, but its load guard prevents duplicates. */
 $this->load->view('comman/code_js.php');
+/* Render flash messages/alerts once, after toastr is loaded, so a single toast/alert appears. */
+$this->load->view('comman/code_flashdata');
 /* Load page-specific JS files before content so inline scripts can use them.
    mp_footer.php also loads extra_js_files, but this guard prevents duplicates. */
 if(!empty($extra_js_files) && is_array($extra_js_files)){

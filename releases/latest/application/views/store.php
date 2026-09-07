@@ -29,6 +29,14 @@ if(!isset($q_id)){
   $interswitch_client_id='';
   $interswitch_client_secret='';
 }
+// Session Lock (idle timeout + snooze) defaults — stored in db_store_settings
+$idle_enabled        = isset($idle_enabled) ? (int)$idle_enabled : 0;
+$idle_timeout_minutes= isset($idle_timeout_minutes) && (int)$idle_timeout_minutes > 0 ? (int)$idle_timeout_minutes : 15;
+$idle_warning_seconds= isset($idle_warning_seconds) && (int)$idle_warning_seconds > 0 ? (int)$idle_warning_seconds : 60;
+$snooze_enabled      = isset($snooze_enabled) ? (int)$snooze_enabled : 0;
+$snooze_title        = isset($snooze_title) ? $snooze_title : '';
+$snooze_message      = isset($snooze_message) ? $snooze_message : '';
+$snooze_image        = isset($snooze_image) ? $snooze_image : '';
 ?>
 <div class="mp-page-head"><h1 class="mp-page-title"><?= $page_title; ?></h1><p class="mp-page-sub"><?= isset($q_id) ? 'Update store profile, system, sales and prefix settings.' : 'Create a new store.'; ?></p></div>
 <?= form_open('#', array('class' => 'form-horizontal', 'id' => 'store-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
@@ -44,6 +52,7 @@ if(!isset($q_id)){
   <?php if($CI->permissions('nin_settings')){ ?>
   <li><a href="#tab_nin" id='tab_nin_btn' data-toggle="tab">NIN/BVN API</a></li>
   <?php } ?>
+  <li><a href="#tab_session_lock" id='tab_session_lock_btn' data-toggle="tab">Session Lock</a></li>
   <?php }?>
 </ul>
                         <div class="tab-content">
@@ -968,6 +977,86 @@ if(!isset($q_id)){
                                        <div class="col-sm-6 col-sm-offset-3">
                                           <div class="alert alert-info">
                                              <i class="fa fa-info-circle"></i> <strong>Note:</strong> If API is not configured, the system will use demo/mock verification mode for testing. All verification settings are stored per-store. Staff cannot see or change these settings.
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <!-- /.tab-pane -->
+                           <!-- Session Lock (Idle Timeout + Snooze) Tab -->
+                           <div class="tab-pane" id="tab_session_lock">
+                              <div class="row">
+                                 <div class="col-md-12">
+                                    <h4 class="text-info"><i class="fa fa-clock-o"></i> Inactivity &amp; Screen Lock</h4>
+                                    <hr>
+                                    <div class="form-group">
+                                       <label for="idle_enabled" class="col-sm-3 control-label">Idle Timeout</label>
+                                       <div class="col-sm-6">
+                                          <div class="checkbox icheck">
+                                             <label>
+                                                <input type="checkbox" id="idle_enabled" name="idle_enabled" <?php if($idle_enabled==1){ ?> checked <?php }?>> Warn users when the system has been idle
+                                             </label>
+                                          </div>
+                                          <span class="text-muted">Shows a "System has been idle" dialog before locking or logging out.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="idle_timeout_minutes" class="col-sm-3 control-label">Idle Time (minutes)</label>
+                                       <div class="col-sm-6">
+                                          <input type="number" min="1" max="480" class="form-control" id="idle_timeout_minutes" name="idle_timeout_minutes" value="<?php echo (int)$idle_timeout_minutes; ?>">
+                                          <span class="text-muted">Minutes of no mouse, keyboard or touch activity before the warning appears.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="idle_warning_seconds" class="col-sm-3 control-label">Warning Countdown (seconds)</label>
+                                       <div class="col-sm-6">
+                                          <input type="number" min="10" max="600" class="form-control" id="idle_warning_seconds" name="idle_warning_seconds" value="<?php echo (int)$idle_warning_seconds; ?>">
+                                          <span class="text-muted">How long the "remain logged in?" dialog counts down before taking action.</span>
+                                       </div>
+                                    </div>
+                                    <h4 class="text-info" style="margin-top:30px;"><i class="fa fa-moon-o"></i> Snooze Screen (Campaign Lock)</h4>
+                                    <hr>
+                                    <div class="form-group">
+                                       <label for="snooze_enabled" class="col-sm-3 control-label">Enable Snooze</label>
+                                       <div class="col-sm-6">
+                                          <div class="checkbox icheck">
+                                             <label>
+                                                <input type="checkbox" id="snooze_enabled" name="snooze_enabled" <?php if($snooze_enabled==1){ ?> checked <?php }?>> Freeze the screen with a flyer instead of logging out
+                                             </label>
+                                          </div>
+                                          <span class="text-muted">When the warning expires, the screen blurs and shows your campaign. The user unlocks with their password or PIN.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="snooze_title" class="col-sm-3 control-label">Campaign Title</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="snooze_title" name="snooze_title" placeholder="e.g. Weekend Mega Sale — up to 40% off" value="<?php echo htmlspecialchars($snooze_title); ?>">
+                                          <span class="text-muted">Leave empty to show the default MartPoint message.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="snooze_message" class="col-sm-3 control-label">Campaign Message</label>
+                                       <div class="col-sm-6">
+                                          <textarea class="form-control" id="snooze_message" name="snooze_message" rows="3" placeholder="e.g. Ask our team about today's deals when you're back."><?php echo htmlspecialchars($snooze_message); ?></textarea>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="idle_flyer" class="col-sm-3 control-label">Flyer Image</label>
+                                       <div class="col-sm-6">
+                                          <?php if(!empty($snooze_image) && file_exists(FCPATH . $snooze_image)){ ?>
+                                             <div style="margin-bottom:8px;">
+                                                <img src="<?php echo base_url($snooze_image); ?>" alt="Snooze flyer" style="max-height:110px;border-radius:8px;border:1px solid #E2E8F0;">
+                                             </div>
+                                          <?php } ?>
+                                          <input type="file" id="idle_flyer" name="idle_flyer" accept="image/*">
+                                          <span class="text-muted">Optional. Upload a campaign/flyer image (JPG/PNG, max 2MB). Without one, a branded MartPoint card is shown.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <div class="col-sm-6 col-sm-offset-3">
+                                          <div class="alert alert-info">
+                                             <i class="fa fa-info-circle"></i> If <strong>Snooze</strong> is off, users are logged out when the warning countdown ends. Snooze keeps the session alive — the user unlocks with their password or approval PIN.
                                           </div>
                                        </div>
                                     </div>

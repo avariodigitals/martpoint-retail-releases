@@ -956,6 +956,219 @@ public function services(){
         }
     }
 
+    public function categories(){
+        $this->permission_check('items_category_add');
+        $data=$this->data;
+        $data['page_title']=$this->lang->line('import_categories');
+        $data['content'] = $this->load->view('import/import_categories', $data, TRUE);
+        $this->load->view('mp_layout', $data);
+    }
+
+    public function import_categories_csv() {
+        $store_id=get_current_store_id();
+
+        if($_FILES['import_file']['size'] > 0)
+        {
+            $config['upload_path']          = './uploads/csv/categories';
+            $config['allowed_types']        = 'csv';
+            $this->load->library('upload', $config);
+
+            if ( ! $this->upload->do_upload('import_file')){
+                    $error = array('error' => $this->upload->display_errors());
+                    print($error['error']);
+                    exit();
+            }
+            else{
+                    $file_name=$this->upload->data('file_name');
+            }
+
+            $file = fopen('uploads/csv/categories/'.$file_name,"r");
+
+            $flag=true;
+            $this->db->trans_begin();
+            $i=1;
+            while(($importdata = fgetcsv($file, NULL, ",")) !== FALSE){
+                if($i++==1){ continue; }
+
+                //Category name should not be empty
+                if(empty($importdata[0])){ continue; }
+
+                $category_name = trim($this->xss_html_filter($importdata[0]));
+
+                //Skip if category already exists for this store
+                $this->db->where("upper(category_name)", strtoupper($category_name));
+                $this->db->where('store_id', $store_id);
+                if($this->db->get('db_category')->num_rows()>0){ continue; }
+
+                $row = array(
+                    'store_id'          =>  $store_id,
+                    'count_id'          =>  get_count_id('db_category'),
+                    'category_code'     =>  get_init_code('category'),
+                    'category_name'     =>  $category_name,
+                    'description'       =>  !empty($importdata[1])?$this->xss_html_filter($importdata[1]):'',
+                    'status'            =>  1,
+                );
+
+                if(!$this->db->insert('db_category',$row)){
+                    $flag=false;
+                }
+            }
+
+            if(!$flag){
+                $this->db->trans_rollback();
+                echo 'failed';
+            }else{
+                $this->db->trans_commit();
+                echo "success";
+                $this->session->set_flashdata('success', 'Success!! Categories Imported Successfully!');
+            }
+            fclose($file);
+        }
+    }
+
+    public function brands(){
+        $this->permission_check('brand_add');
+        $data=$this->data;
+        $data['page_title']=$this->lang->line('import_brands');
+        $data['content'] = $this->load->view('import/import_brands', $data, TRUE);
+        $this->load->view('mp_layout', $data);
+    }
+
+    public function import_brands_csv() {
+        $store_id=get_current_store_id();
+
+        if($_FILES['import_file']['size'] > 0)
+        {
+            $config['upload_path']          = './uploads/csv/brands';
+            $config['allowed_types']        = 'csv';
+            $this->load->library('upload', $config);
+
+            if ( ! $this->upload->do_upload('import_file')){
+                    $error = array('error' => $this->upload->display_errors());
+                    print($error['error']);
+                    exit();
+            }
+            else{
+                    $file_name=$this->upload->data('file_name');
+            }
+
+            $file = fopen('uploads/csv/brands/'.$file_name,"r");
+
+            $flag=true;
+            $this->db->trans_begin();
+            $i=1;
+            while(($importdata = fgetcsv($file, NULL, ",")) !== FALSE){
+                if($i++==1){ continue; }
+
+                //Brand name should not be empty
+                if(empty($importdata[0])){ continue; }
+
+                $brand_name = trim($this->xss_html_filter($importdata[0]));
+
+                //Skip if brand already exists for this store
+                $this->db->where("upper(brand_name)", strtoupper($brand_name));
+                $this->db->where('store_id', $store_id);
+                if($this->db->get('db_brands')->num_rows()>0){ continue; }
+
+                $row = array(
+                    'store_id'          =>  $store_id,
+                    'brand_name'        =>  $brand_name,
+                    'description'       =>  !empty($importdata[1])?$this->xss_html_filter($importdata[1]):'',
+                    'status'            =>  1,
+                );
+
+                if(!$this->db->insert('db_brands',$row)){
+                    $flag=false;
+                }
+            }
+
+            if(!$flag){
+                $this->db->trans_rollback();
+                echo 'failed';
+            }else{
+                $this->db->trans_commit();
+                echo "success";
+                $this->session->set_flashdata('success', 'Success!! Brands Imported Successfully!');
+            }
+            fclose($file);
+        }
+    }
+
+    public function attributes(){
+        $this->permission_check('attributes_add');
+        $data=$this->data;
+        $data['page_title']=$this->lang->line('import_attributes');
+        $data['content'] = $this->load->view('import/import_attributes', $data, TRUE);
+        $this->load->view('mp_layout', $data);
+    }
+
+    public function import_attributes_csv() {
+        $store_id=get_current_store_id();
+
+        if($_FILES['import_file']['size'] > 0)
+        {
+            $config['upload_path']          = './uploads/csv/attributes';
+            $config['allowed_types']        = 'csv';
+            $this->load->library('upload', $config);
+
+            if ( ! $this->upload->do_upload('import_file')){
+                    $error = array('error' => $this->upload->display_errors());
+                    print($error['error']);
+                    exit();
+            }
+            else{
+                    $file_name=$this->upload->data('file_name');
+            }
+
+            $file = fopen('uploads/csv/attributes/'.$file_name,"r");
+
+            $flag=true;
+            $this->db->trans_begin();
+            $i=1;
+            while(($importdata = fgetcsv($file, NULL, ",")) !== FALSE){
+                if($i++==1){ continue; }
+
+                //Attribute type and value should not be empty
+                if(empty($importdata[0]) || empty($importdata[1])){ continue; }
+
+                $attribute_type  = strtolower(trim($this->xss_html_filter($importdata[0])));
+                $attribute_value = trim($this->xss_html_filter($importdata[1]));
+                $sort_order      = (isset($importdata[2]) && is_numeric(trim($importdata[2]))) ? (int)trim($importdata[2]) : 0;
+
+                //Skip if this type/value already exists for this store (matches db unique key)
+                $this->db->where('store_id', $store_id);
+                $this->db->where('attribute_type', $attribute_type);
+                $this->db->where('attribute_value', $attribute_value);
+                if($this->db->get('db_attributes')->num_rows()>0){ continue; }
+
+                $row = array(
+                    'store_id'          =>  $store_id,
+                    'attribute_type'    =>  $attribute_type,
+                    'attribute_value'   =>  $attribute_value,
+                    'sort_order'        =>  $sort_order,
+                    'status'            =>  1,
+                    'created_date'      =>  $CUR_DATE,
+                    'created_time'      =>  $CUR_TIME,
+                    'created_by'        =>  $CUR_USERNAME,
+                );
+
+                if(!$this->db->insert('db_attributes',$row)){
+                    $flag=false;
+                }
+            }
+
+            if(!$flag){
+                $this->db->trans_rollback();
+                echo 'failed';
+            }else{
+                $this->db->trans_commit();
+                echo "success";
+                $this->session->set_flashdata('success', 'Success!! Attributes Imported Successfully!');
+            }
+            fclose($file);
+        }
+    }
+
     public function download_file($fileName){
         $fileLoc = FCPATH.'uploads/csv/examples/'.$fileName;
         if(!file_exists($fileLoc)){
@@ -983,6 +1196,15 @@ public function services(){
             }
             else if($fileOf=='items-variants'){
                 $fileName = 'import-items-variants-example.csv';
+            }
+            else if($fileOf=='categories'){
+                $fileName = 'import-categories-example.csv';
+            }
+            else if($fileOf=='brands'){
+                $fileName = 'import-brands-example.csv';
+            }
+            else if($fileOf=='attributes'){
+                $fileName = 'import-attributes-example.csv';
             }
             else{
                 echo 'Something went wrong!!';exit();

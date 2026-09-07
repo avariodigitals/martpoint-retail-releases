@@ -379,7 +379,7 @@ if (!isset($customer_name)) {
 
     $("#price_level_type").val('<?= $price_level_type; ?>').trigger('change');
 
-    $("#copy_address").on("ifChanged", function(event){
+    $("#copy_address").on("ifChanged change", function(event){
       if (event.target.checked) {
         $("#shipping_country").val($("#country").val()).select2();
         $("#shipping_state").val($("#state").val()).select2();

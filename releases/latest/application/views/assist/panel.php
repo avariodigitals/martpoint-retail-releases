@@ -30,7 +30,8 @@
   @media (max-width: 768px) {
     .mp-assist-panel { width: 100vw !important; right: -100vw !important; height: 75vh !important; max-height: none !important; bottom: 0 !important; }
     .mp-assist-panel.open { right: 0 !important; bottom: 0 !important; border-radius: 0 !important; }
-    .mp-fab-wrapper { right: 14px !important; bottom: 14px !important; }
+    .mp-fab-wrapper { right: auto !important; left: 14px !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-start !important; }
+    .mp-fab-menu { align-items: flex-start !important; }
     .mp-assist-fab-label { display: none !important; }
   }
 </style>
@@ -72,9 +73,15 @@
     <button class="mp-fab-menu-item" onclick="MPAssist.openSupportModal()">
       <i class="fa fa-envelope"></i> <span>Support Request</span>
     </button>
+    <a class="mp-fab-menu-item" href="https://www.martpoint.com.ng/support" target="_blank" rel="noopener">
+      <i class="fa fa-globe"></i> <span>Support Portal</span>
+    </a>
     <a class="mp-fab-menu-item" href="https://wa.me/2348036028069?text=Hi%20MartPoint%20Support" target="_blank">
       <i class="fa fa-whatsapp"></i> <span>WhatsApp Support</span>
     </a>
+    <button class="mp-fab-menu-item mp-fab-cancel" onclick="MPAssist.closeMenu()">
+      <i class="fa fa-times"></i> <span>Cancel</span>
+    </button>
   </div>
   <button id="mp-assist-fab" class="mp-assist-fab" onclick="MPAssist.toggleMenu(event)">
     <i class="fa fa-comment"></i>

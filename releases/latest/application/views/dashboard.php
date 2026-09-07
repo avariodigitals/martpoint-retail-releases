@@ -325,7 +325,7 @@ $this->load->view('admin/desktop/_styles');
             $this->db->select("*");
             $this->db->where("store_id", get_current_store_id());
             $this->db->from("db_sales");
-            if(!is_admin() && !is_store_admin()){ $this->db->where("created_by", $this->session->userdata('inv_username')); }
+            if(is_cashier() && !permissions('show_all_users_sales_invoices')){ $this->db->where("created_by", $this->session->userdata('inv_username')); }
             if(!empty($selected_branch)){ $this->db->where("warehouse_id", $selected_branch); }
             // Filter recent sales by the selected date range
             if(!empty($range_info)){

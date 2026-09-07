@@ -4,13 +4,13 @@
 ?>
 <?php if(!defined('MP_ASSIST_LOADED')): ?>
 <?php define('MP_ASSIST_LOADED', true); ?>
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=13">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=14">
 <script>
   window.csrfName = '<?= $this->security->get_csrf_token_name(); ?>';
   window.csrfHash = '<?= $this->security->get_csrf_hash(); ?>';
 </script>
 <script src="<?= $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
-<script src="<?= $theme_link; ?>js/assist.js?v=13"></script>
+<script src="<?= $theme_link; ?>js/assist.js?v=14"></script>
 <?php $this->load->view('assist/panel'); ?>
 <?php endif; ?>
 

@@ -675,7 +675,8 @@ class Mobile extends MY_Controller {
 		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
 		$this->db->where('a.store_id', $store_id);
 		$this->db->where('a.sales_status', 'Final');
-		if(!$this->permissions('show_all_users_sales_invoices')){
+		// Cashiers without cross-user visibility permission may only view their own sales.
+		if(is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
 			$this->db->where("upper(a.created_by)", strtoupper($this->session->userdata('inv_username')));
 		}
 		$this->db->order_by('a.id', 'desc');
@@ -2942,6 +2943,10 @@ class Mobile extends MY_Controller {
 			'Operations' => [
 			['title' => 'Operations Hub', 'desc' => 'Workflows & tools', 'icon' => 'fa-cogs', 'url' => 'mobile/operations', 'perm' => null, 'color' => 'primary'],
 		],
+		'Help' => [
+			['title' => 'Help Center', 'desc' => 'Guides & resources', 'icon' => 'fa-question-circle', 'url' => 'mobile/help', 'perm' => '', 'color' => 'blue'],
+			['title' => 'Support', 'desc' => 'Contact support channels', 'icon' => 'fa-life-ring', 'url' => 'mobile/support', 'perm' => '', 'color' => 'primary'],
+		],
 		];
 
 		if(!mp_feature_enabled('online_store')){
@@ -2970,6 +2975,38 @@ class Mobile extends MY_Controller {
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 		$this->load->view('mobile/more', $data);
+	}
+
+	public function support()
+	{
+		if(is_cashier()){
+			redirect(base_url('mobile/pos'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Support';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/support', $data);
+	}
+
+	public function help()
+	{
+		if(is_cashier()){
+			redirect(base_url('mobile/pos'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Help Center';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/help', $data);
 	}
 
 	public function marketing()
@@ -4390,7 +4427,8 @@ class Mobile extends MY_Controller {
 			return;
 		}
 		$sale = $this->db->where('id', $id)->get('db_sales')->row();
-		if($sale && !$this->permissions('show_all_users_sales_invoices')){
+		// Cashiers without cross-user visibility permission may only open their own invoices.
+		if($sale && is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
 			if(strtoupper($sale->created_by) !== strtoupper($this->session->userdata('inv_username'))){
 				$this->show_access_denied_page();
 				return;

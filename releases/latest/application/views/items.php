@@ -232,12 +232,38 @@ textarea.mp-form-control { min-height: 80px; }
   display: flex; align-items: center; justify-content: center;
 }
 
-/* Item/Service visibility toggling */
+/* Item/Service visibility toggling — must use !important because the shared
+   finance styles force .mp-form-group{display:flex!important} */
 .mp-item-only { display: block; }
-.mp-service-only { display: none; }
+.mp-service-only { display: none !important; }
 body.mp-mode-service .mp-item-only { display: none !important; }
 body.mp-mode-service .mp-service-only { display: block !important; }
+body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; }
+
+/* The .box class is required (items.js appends its loading .overlay to it),
+   but the card sections inside already carry their own chrome — strip the
+   outer frame so the page head/cards aren't flush against a second border. */
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+
+/* Form actions bar — same pattern as category/customer forms */
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
 </style>
+
+<!-- Page head -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($this->session->userdata('store_name') ?: ($SITE_TITLE ?? 'MartPoint')); ?> &mdash; <?= !empty($q_id) ? 'Update' : 'Add'; ?> <?= mp_label('item'); ?></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to <?= mp_label('item'); ?>s
+      </a>
+    </div>
+  </div>
+</div>
 
 <div class="box mp-items-box">
 <?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST')); ?>
@@ -247,21 +273,6 @@ body.mp-mode-service .mp-service-only { display: block !important; }
 <input type="hidden" name="q_id" id="q_id" value="<?php echo $q_id; ?>">
 <?php endif; ?>
 <input type="hidden" name="hidden_rowcount" id="hidden_rowcount" value="1">
-
-<!-- Page head -->
-<div class="mp-page-head">
-  <div>
-    <h2><?= $page_title; ?></h2>
-    <div class="mp-page-sub">Add/Update <?= mp_label('item'); ?></div>
-  </div>
-  <div style="display:flex;gap:10px;">
-    <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Cancel</a>
-    <button type="button" id="<?php echo $btn_id; ?>" class="mp-qa-btn green" title="Save Data">
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>
-      <?php echo $btn_name; ?>
-    </button>
-  </div>
-</div>
 
 <!-- Item Type (only show toggle if both products and services are enabled) -->
 <?php if($show_item_toggle && $show_service_toggle): ?>
@@ -856,6 +867,13 @@ body.mp-mode-service .mp-service-only { display: block !important; }
     <?php endif; ?>
     <p class="mp-form-hint" style="color:var(--mp-danger);margin-top:8px;">Max Width/Height: 1500px * 1500px &amp; Size: 1MB</p>
     <span id="item_image_msg" style="display:none;" class="text-danger"></span>
+  </div>
+  <div class="mp-form-actions">
+    <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Cancel</a>
+    <button type="button" id="<?php echo $btn_id; ?>" class="mp-qa-btn green" title="Save Data">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>
+      <?php echo $btn_name; ?>
+    </button>
   </div>
 </div>
 

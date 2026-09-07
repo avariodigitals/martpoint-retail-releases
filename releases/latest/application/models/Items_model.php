@@ -1057,63 +1057,123 @@ class Items_model extends CI_Model {
 	}
 
 	public function preview_labels(){
-		//print_r($_POST);exit();
 		$CI =& get_instance();
-		//Filtering XSS and html escape from user inputs 
-		$store_name=$this->db->query("select store_name from db_store where id=".get_current_store_id())->row()->store_name;
+		$store_name = $this->db->query("select store_name from db_store where id=".get_current_store_id())->row()->store_name;
 		$rowcount = $this->input->post('hidden_rowcount');
-
-		$is_roll_paper=true;
-		$page_break = (isset($is_roll_paper) && !empty($is_roll_paper)) ? 'page-break-after: always;' : '';
-
 		?>
-		<div style=" height:5in !important;  width:8.5in !important; line-height: 16px !important; ">
-			<div class="inner-div-2" style=" height:11in !important;  width:8.5in !important; line-height: 16px !important;">
-				<div style="">
+		<style type="text/css">
+			@page { size: 60mm 40mm; margin: 0; }
+			.mp-label-sheet {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 8px;
+				padding: 16px;
+				background: #f7f7f7;
+			}
+			.mp-label-60x40 {
+				width: 60mm;
+				height: 40mm;
+				box-sizing: border-box;
+				padding: 2mm;
+				background: #fff;
+				text-align: center;
+				overflow: hidden;
+				break-after: page;
+				page-break-after: always;
+				display: block;
+				border: 1px dashed #ccc;
+			}
+			.mp-label-60x40:last-child {
+				break-after: auto;
+				page-break-after: auto;
+			}
+			.mp-label-store {
+				font-size: 7pt;
+				font-weight: bold;
+				line-height: 1.1;
+				margin-bottom: 1mm;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.mp-label-name {
+				font-size: 7pt;
+				line-height: 1.1;
+				margin-bottom: 1mm;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.mp-label-price {
+				font-size: 9pt;
+				font-weight: bold;
+				line-height: 1.1;
+				margin-bottom: 1.5mm;
+			}
+			.mp-label-barcode {
+				height: 15mm;
+				width: 56mm;
+				margin: 0 auto 1mm;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.mp-label-barcode img {
+				max-width: 100%;
+				max-height: 100%;
+				width: auto;
+				height: auto;
+				display: block;
+			}
+			.mp-label-code {
+				font-size: 7pt;
+				line-height: 1;
+				letter-spacing: 0.5pt;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			@media print {
+				body { background: #fff; }
+				.mp-label-sheet { padding: 0; background: #fff; gap: 0; align-items: stretch; }
+				.mp-label-60x40 { border: none; }
+			}
+		</style>
+		<div class="mp-label-sheet">
+			<?php
+			for ($i = 1; $i <= $rowcount; $i++) {
+				if (isset($_POST['tr_item_id_'.$i]) && !empty($_POST['tr_item_id_'.$i])) {
+					$item_id    = $this->xss_html_filter(trim($_POST['tr_item_id_'.$i]));
+					$item_count = $this->xss_html_filter(trim($_POST['td_data_'.$i."_3"]));
+					$res1       = $this->db->query("select * from db_items where id=$item_id")->row();
 
-					<?php
-					//Import post data from form
-					for($i=1;$i<=$rowcount;$i++){
-					
-						if(isset($_POST['tr_item_id_'.$i]) && !empty($_POST['tr_item_id_'.$i])){
-							
+					if (! $res1) {
+						continue;
+					}
 
-							$item_id 			=$this->xss_html_filter(trim($_POST['tr_item_id_'.$i]));
-							$item_count 			=$this->xss_html_filter(trim($_POST['td_data_'.$i."_3"]));
-							$res1=$this->db->query("select * from db_items where id=$item_id")->row();
+					$item_name  = $res1->item_name;
+					$item_code  = (!empty($res1->custom_barcode)) ? $res1->custom_barcode : $res1->item_code;
+					$item_price = $res1->sales_price;
 
-							$item_name =$res1->item_name;
-							$item_code = (!empty($res1->custom_barcode)) ? $res1->custom_barcode : $res1->item_code;
-							$item_price =$res1->sales_price;
-
-							for($j=1;$j<=$item_count;$j++){
-							?>
-							<div style="height:1in !important; line-height: 1in; width:2.5in !important; display: inline-block; <?=$page_break;?>  " class="label_border text-center">
-							<div style="display:inline-block;vertical-align:middle;line-height:16px !important;text-align:center;">
-								<b style="display: block !important" class="text-uppercase"><?=$store_name;?></b>
-									<span style="display: block !important">
-									<?= $item_name;?>
-									</span>
-								<b>Price:</b>
-								<span><?= $CI->currency($item_price);?></span>
-								<img class="center-block" style="max-height: 0.35in !important; width: 100%; opacity: 1.0" src="<?php echo base_url();?>barcode/index/<?php echo urldecode($item_code);?>">
-
-							</div>
-							</div>
-							<br>
-							<?php
-							}
-						}
-					
-					}//for end
+					for ($j = 1; $j <= $item_count; $j++) {
 					?>
-					
-					
-				</div>
-			</div>
+					<div class="mp-label-60x40">
+						<div class="mp-label-store"><?= htmlspecialchars($store_name); ?></div>
+						<div class="mp-label-name"><?= htmlspecialchars($item_name); ?></div>
+						<div class="mp-label-price"><?= $CI->currency($item_price); ?></div>
+						<div class="mp-label-barcode">
+							<img src="<?= base_url(); ?>barcode/label/<?= rawurlencode($item_code); ?>" alt="">
+						</div>
+						<div class="mp-label-code"><?= htmlspecialchars($item_code); ?></div>
+					</div>
+					<?php
+					}
+				}
+			}
+			?>
 		</div>
 		<?php
-		
 	}
 
 

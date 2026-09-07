@@ -108,6 +108,27 @@ class Store_profile_model extends CI_Model {
 	        }
 		}
 
+		$idle_flyer='';
+		if(!empty($_FILES['idle_flyer']['name'])){
+			$config2['upload_path']          = './uploads/store/';
+			$config2['allowed_types']        = 'gif|jpg|jpeg|png|webp';
+			$config2['max_size']             = 2048;
+			$config2['encrypt_name']         = TRUE;
+
+			$this->load->library('upload');
+			$this->upload->initialize($config2);
+
+			if ( ! $this->upload->do_upload('idle_flyer'))
+			{
+					$error = array('error' => $this->upload->display_errors());
+					return $error['error'];
+			}
+			else
+			{
+				   $idle_flyer='uploads/store/'.$this->upload->data('file_name');
+			}
+		}
+
 		$signature='';
 		if(!empty($_FILES['signature']['name'])){
 			$config['upload_path']          = './uploads/signature/';
@@ -307,6 +328,16 @@ class Store_profile_model extends CI_Model {
 				mp_set_store_setting($q_id, 'general', 'language_id', $language_id, 'int');
 				foreach($nin_data as $k => $v){
 					mp_set_store_setting($q_id, 'nin_api', $k, $v, 'string');
+				}
+				// Session Lock (idle timeout + snooze) settings
+				mp_set_store_setting($q_id, 'idle_lock', 'idle_enabled', $this->input->post('idle_enabled') ? 1 : 0, 'int');
+				mp_set_store_setting($q_id, 'idle_lock', 'idle_timeout_minutes', max(1, (int)$this->input->post('idle_timeout_minutes')), 'int');
+				mp_set_store_setting($q_id, 'idle_lock', 'idle_warning_seconds', max(10, (int)$this->input->post('idle_warning_seconds')), 'int');
+				mp_set_store_setting($q_id, 'idle_lock', 'snooze_enabled', $this->input->post('snooze_enabled') ? 1 : 0, 'int');
+				mp_set_store_setting($q_id, 'idle_lock', 'snooze_title', trim((string)$this->input->post('snooze_title', TRUE)), 'string');
+				mp_set_store_setting($q_id, 'idle_lock', 'snooze_message', trim((string)$this->input->post('snooze_message', TRUE)), 'string');
+				if(!empty($idle_flyer)){
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_image', $idle_flyer, 'string');
 				}
 			}
 

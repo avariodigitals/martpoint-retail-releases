@@ -102,6 +102,13 @@ class Reports_model extends CI_Model {
 		$category_id = $this->input->post('category_id', TRUE);
 		$view_all = $this->input->post('view_all', TRUE);
 		$created_by = $this->input->post('created_by', TRUE);
+
+		// Cashiers without cross-user visibility permission may only view their own sales;
+		// managers, business owners and other non-cashier roles may view every user's sales.
+		if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+			$created_by = $this->session->userdata('inv_username');
+		}
+
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$within_date = $this->input->post('within_date', TRUE);
 		$from_warehouse = $this->input->post('from_warehouse', TRUE);
@@ -133,7 +140,7 @@ class Reports_model extends CI_Model {
 		$this->db->where("a.`sales_status`= 'Final'");
 
 		if(!empty($created_by)){
-			$this->db->where("upper(a.created_by)=upper('$created_by')");
+			$this->db->where("upper(a.created_by)", strtoupper($created_by));
 		}
 		
 		if(!empty($store_id)){
@@ -1088,6 +1095,13 @@ class Reports_model extends CI_Model {
 		$category_id = $this->input->post('category_id', TRUE);
 		$view_all = $this->input->post('view_all', TRUE);
 		$created_by = $this->input->post('created_by', TRUE);
+
+		// Cashiers without cross-user visibility permission may only view their own sales payments;
+		// managers, business owners and other non-cashier roles may view every user's sales payments.
+		if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+			$created_by = $this->session->userdata('inv_username');
+		}
+
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$within_date = $this->input->post('within_date', TRUE);
 		$from_warehouse = $this->input->post('from_warehouse', TRUE);
@@ -1108,7 +1122,7 @@ class Reports_model extends CI_Model {
 			$this->db->where("c.customer_id",$customer_id);
 		}
 		if(!empty($created_by)){
-			$this->db->where("upper(c.created_by)=upper('$created_by')");
+			$this->db->where("upper(c.created_by)", strtoupper($created_by));
 		}
 		if(!empty($store_id)){
 			$this->db->where("c.store_id",$store_id);
@@ -1188,6 +1202,13 @@ class Reports_model extends CI_Model {
 		$category_id = $this->input->post('category_id', TRUE);
 		$view_all = $this->input->post('view_all', TRUE);
 		$created_by = $this->input->post('created_by', TRUE);
+
+		// Cashiers without cross-user visibility permission may only view their own sales return payments;
+		// managers, business owners and other non-cashier roles may view every user's sales return payments.
+		if(is_cashier() && !permissions('show_all_users_sales_return_invoices')){
+			$created_by = $this->session->userdata('inv_username');
+		}
+
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$within_date = $this->input->post('within_date', TRUE);
 		$from_warehouse = $this->input->post('from_warehouse', TRUE);
@@ -1208,7 +1229,7 @@ class Reports_model extends CI_Model {
 			$this->db->where("c.customer_id",$customer_id);
 		}
 		if(!empty($created_by)){
-			$this->db->where("upper(c.created_by)=upper('$created_by')");
+			$this->db->where("upper(c.created_by)", strtoupper($created_by));
 		}
 		if(!empty($store_id)){
 			$this->db->where("c.store_id",$store_id);
@@ -2032,6 +2053,13 @@ class Reports_model extends CI_Model {
 		$category_id = $this->input->post('category_id', TRUE);
 		$view_all = $this->input->post('view_all', TRUE);
 		$created_by = $this->input->post('created_by', TRUE);
+
+		// Cashiers without cross-user visibility permission may only view their own sales;
+		// managers, business owners and other non-cashier roles may view every user's sales.
+		if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+			$created_by = $this->session->userdata('inv_username');
+		}
+
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$within_date = $this->input->post('within_date', TRUE);
 		$from_warehouse = $this->input->post('from_warehouse', TRUE);
@@ -2066,7 +2094,7 @@ class Reports_model extends CI_Model {
 		$this->db->where("b.`id`= a.`customer_id`");
 		$this->db->from("db_salesitems as c");
 		if(!empty($created_by)){
-			$this->db->where("upper(a.created_by)=upper('$created_by')");
+			$this->db->where("upper(a.created_by)", strtoupper($created_by));
 		}
 		if($item_id!=''){
 			$this->db->where("c.item_id=$item_id");

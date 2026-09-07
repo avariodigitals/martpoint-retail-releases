@@ -62,6 +62,10 @@
       }
     },
 
+    closeMenu: function(){
+      this._closeMenu();
+    },
+
     _closeMenu: function(){
       var menu = document.getElementById('mp-fab-menu');
       if(menu) menu.classList.remove('open');

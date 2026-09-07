@@ -159,7 +159,7 @@ class MY_Controller extends CI_Controller{
       private function reseed_role_permissions(){
             // Use a versioned session flag so the reseed runs again after each
             // deployment where the default permission sets have changed.
-            $flag = 'mp_perms_reseeded_v2';
+            $flag = 'mp_perms_reseeded_v3';
             if($this->session->userdata($flag)){
                 return;
             }

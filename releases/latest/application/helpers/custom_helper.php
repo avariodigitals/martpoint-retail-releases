@@ -657,6 +657,10 @@
   function is_user(){
     return (!is_admin() && !is_store_admin());
   }
+  function is_cashier(){
+    $role_name = trim(get_role_name() ?: '');
+    return (stripos($role_name, 'cashier') !== false);
+  }
   function set_status_of_table($col_id,$status,$table){
     $CI =& get_instance();
     $CI->db->where("id",$col_id);

@@ -44,5 +44,33 @@ class Barcode extends CI_Controller {
     public function get_barcode($code=''){
     	return $this->index($code);
     }
+
+    /**
+     * Optimised SVG barcode for 60mm x 40mm thermal labels.
+     * Vector output scales cleanly to the label width so variable-length
+     * codes still fit and scan.
+     */
+    public function label($code=''){
+        $code = $code ? urldecode($code) : '';
+        if ($code === '') {
+            return;
+        }
+
+        Laminas_barcode::render(
+            'code128',
+            'svg',
+            [
+                'text'           => $code,
+                'font'           => 5,
+                'fontSize'       => 8,
+                'barHeight'      => 35,
+                'barThinWidth'   => 1,
+                'factor'         => 1,
+                'withQuietZones' => true,
+                'drawText'       => false,
+                'stretchText'    => false,
+            ]
+        );
+    }
 }
 

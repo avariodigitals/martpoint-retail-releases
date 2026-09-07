@@ -87,7 +87,7 @@ $(document).ready(function(){
       });
     }
   });
-  $("#select_all").on("ifChanged", function(){
+  $("#select_all").on("ifChanged change", function(){
     $(".column_checkbox").iCheck(this.checked ? 'check' : 'uncheck');
   });
 });

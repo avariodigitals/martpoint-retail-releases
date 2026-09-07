@@ -76,12 +76,9 @@ class Sales_model extends CI_Model {
 		//if(!is_admin()){
 	      $this->db->where("a.store_id",get_current_store_id());
 	    //}
-	      if(!is_admin()){
-	      	if($this->session->userdata('role_id')!='2'){
-	      		if(!permissions('show_all_users_sales_invoices')){
-	      			$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
-	      		}
-	      	}
+	      // Cashiers without cross-user visibility permission may only view their own sales.
+	      if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+	      	$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
 	      }
 	     $sales_from_date = $this->input->post('sales_from_date');
 	     $sales_from_date = system_fromatted_date($sales_from_date);

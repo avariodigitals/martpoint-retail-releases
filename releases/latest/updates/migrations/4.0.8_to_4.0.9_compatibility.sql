@@ -81,6 +81,23 @@ SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_s
 SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_holditems` ADD COLUMN `commission_amount` double(20,2) DEFAULT 0.00', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- db_items: SAC, commission and service-package flags used by Items/Services forms
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'sac');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_items` ADD COLUMN `sac` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER `hsn`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'package_bit');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_items` ADD COLUMN `package_bit` tinyint(1) NOT NULL DEFAULT 0 COMMENT ''0=normal item, 1=service package'' AFTER `service_bit`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'commission_type');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_items` ADD COLUMN `commission_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT ''none'' COMMENT ''none|flat|percent'' AFTER `laundry_service_type`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'commission_value');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_items` ADD COLUMN `commission_value` decimal(18,2) DEFAULT 0.00 AFTER `commission_type`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- db_sitesettings: add sales_target column for dashboard daily target
 SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_sitesettings' AND column_name = 'sales_target');
 SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_sitesettings` ADD COLUMN `sales_target` DOUBLE(20,4) DEFAULT 0', 'SELECT 1');

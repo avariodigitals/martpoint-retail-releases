@@ -2812,7 +2812,7 @@
       const reference = document.getElementById('holdReferenceInput').value.trim();
       const warehouseId = WAREHOUSE_ID ? parseInt(WAREHOUSE_ID) : 0;
       if (!warehouseId) {
-        openAlertModal('Hold failed', 'No warehouse found for this store. Please set up a warehouse first.');
+        openAlertModal('Hold failed', 'No branch found for this store. Please set up a branch first.');
         return;
       }
       const payload = {
@@ -2859,7 +2859,7 @@
             resetCart();
             setTimeout(() => window.location.reload(), 1000);
           } else {
-            openAlertModal('Hold failed', res.message || 'Could not hold sale. Make sure products are in stock and a warehouse is set.');
+            openAlertModal('Hold failed', res.message || 'Could not hold sale. Make sure products are in stock and a branch is set.');
           }
         } catch (e) {
           console.error('Hold response parse error:', text, e);
@@ -3019,6 +3019,7 @@
       const formData = new FormData();
       formData.append('customer_name', name);
       formData.append('mobile', phone);
+      formData.append('csrf_test_name', csrfToken);
       
       fetch(baseUrl + '/customers/add_customer_ajax', {
         method: 'POST',
@@ -3586,5 +3587,6 @@
   })();
 
   </script>
+<?php $this->load->view('idle_lock'); ?>
 </body>
 </html>

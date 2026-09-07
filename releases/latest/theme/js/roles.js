@@ -281,7 +281,7 @@ function multi_delete(){
 }
 
 /*Roles Table*/
-$('.change_me').on('ifChanged', function(event) {
+$('.change_me').on('ifChanged change', function(event) {
 	var id=this.id;
     if(event.target.checked){
      $("."+id+"_all").prop("checked",true).iCheck('update');

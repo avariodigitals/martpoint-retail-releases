@@ -158,7 +158,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
     if (!docprint) { toastr && toastr["error"] ? toastr["error"]("Please allow pop-ups to print labels.") : alert("Please allow pop-ups to print labels."); return; }
     docprint.document.open();
     docprint.document.write('<!DOCTYPE html><html><head><title><?php echo htmlspecialchars($store_name); ?> — Labels</title>');
-    docprint.document.write('<style type="text/css">body{margin:0px;font-family:Verdana,Arial;color:#000;font-size:12px;}a{color:#000;text-decoration:none;}</style>');
+    docprint.document.write('<style type="text/css">@page { size: 60mm 40mm; margin: 0; } body{margin:0px;font-family:Verdana,Arial;color:#000;font-size:12px;background:#fff;}a{color:#000;text-decoration:none;}</style>');
     docprint.document.write('</head><body onLoad="self.print()">');
     docprint.document.write(content_vlue);
     docprint.document.write('</body></html>');

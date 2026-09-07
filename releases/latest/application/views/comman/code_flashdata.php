@@ -1,3 +1,4 @@
+<?php if (!empty($GLOBALS['__mp_flashdata_loaded'])) { return; } $GLOBALS['__mp_flashdata_loaded'] = true; ?>
 <div class="col-md-12">
       <!-- ********** ALERT MESSAGE START******* -->
       <style>
@@ -95,24 +96,7 @@
             $flash_error   = $this->session->flashdata('error');
             $flash_warning = $this->session->flashdata('warning');
             ?>
-            <?php if(!empty($flash_success)): ?>
-                <div class="alert alert-success alert-dismissable text-center">
-                 <a href="javascript:void()" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-                <strong><?= htmlspecialchars($flash_success); ?></strong>
-              </div>
-            <?php endif; ?>
-            <?php if(!empty($flash_error)): ?>
-                <div class="alert alert-danger alert-dismissable text-center">
-                 <a href="javascript:void()" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-                <strong><?= htmlspecialchars($flash_error); ?></strong>
-              </div>
-            <?php endif; ?>
-            <?php if(!empty($flash_warning)): ?>
-                <div class="alert alert-warning alert-dismissable text-center">
-                 <a href="javascript:void()" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-                <strong><?= htmlspecialchars($flash_warning); ?></strong>
-              </div>
-            <?php endif; ?>
+            <!-- flash success/error/warning rendered as toastr below, not as inline alerts -->
             <?php
             // DB update warning: session-flag based, not flashdata
             // Only shows if DB version mismatches AND user hasn't dismissed it

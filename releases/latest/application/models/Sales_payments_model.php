@@ -52,12 +52,9 @@ class Sales_payments_model extends CI_Model {
 		//if(!is_admin()){
 	      $this->db->where("a.store_id",get_current_store_id());
 	    //}
-	      if(!is_admin()){
-	      	if($this->session->userdata('role_id')!='2'){
-	      		if(!permissions('show_all_users_sales_invoices')){
-	      			$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
-	      		}
-	      	}
+	      // Cashiers without cross-user visibility permission may only view their own sales.
+	      if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+	      	$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
 	      }
 
 	     $payment_type_search = $this->input->post('payment_type_search');

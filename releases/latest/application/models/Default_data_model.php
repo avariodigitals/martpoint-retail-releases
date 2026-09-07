@@ -83,6 +83,10 @@ class Default_data_model extends CI_Model {
             'Accountant' => array(
                 'description' => 'Finance & Accounts Officer. View sales/purchases, manage expenses & accounts.',
                 'permissions' => $this->get_accountant_permissions()
+            ),
+            'Inventory Officer' => array(
+                'description' => 'Stock & Inventory Staff. Manage items, purchases, stock transfers and adjustments. No POS/Sales, no GST reports.',
+                'permissions' => $this->get_inventory_officer_permissions()
             )
         );
 
@@ -143,7 +147,7 @@ class Default_data_model extends CI_Model {
 
     /**
      * Re-seed missing default permissions for existing standard roles.
-     * For each standard role (Business Owner, Manager, Cashier, Accountant),
+     * For each standard role (Business Owner, Manager, Cashier, Accountant, Inventory Officer),
      * adds any permissions from the default set that are not already in db_permissions.
      * This fixes roles that were created before new permissions were added.
      *
@@ -159,6 +163,9 @@ class Default_data_model extends CI_Model {
         }
 
         $added = 0;
+
+        // Create any missing standard roles first (idempotent: skips existing)
+        $this->create_default_roles($store_id);
 
         // Get all roles for this store (except Super Admin role id 1)
         $roles = $this->db->where('store_id', $store_id)->where('id !=', 1)->get('db_roles')->result();
@@ -492,6 +499,54 @@ class Default_data_model extends CI_Model {
     }
 
     /**
+     * Inventory Officer: Items, Purchases, Stock, Warehouse, Suppliers.
+     * No POS, no Sales, no Expenses/Accounts, no GST reports.
+     */
+    private function get_inventory_officer_permissions() {
+        return array(
+            // Dashboard
+            'dashboard_view','dashboard_info_box_1','dashboard_info_box_2',
+            'dashboard_recent_items','dashboard_stock_alert',
+            'dashboard_expired_items',
+            // Tax (view only)
+            'tax_view',
+            // Units (view only)
+            'units_view',
+            // Items (full)
+            'items_add','items_edit','items_delete','items_view',
+            'items_category_add','items_category_edit','items_category_delete','items_category_view',
+            'brand_add','brand_edit','brand_delete','brand_view',
+            'attributes_add','attributes_edit','attributes_delete','attributes_view',
+            'variant_add','variant_edit','variant_delete','variant_view',
+            'print_labels',
+            'import_items',
+            // Suppliers
+            'suppliers_add','suppliers_edit','suppliers_delete','suppliers_view',
+            'import_suppliers',
+            // Purchases
+            'purchase_add','purchase_edit','purchase_delete','purchase_view',
+            'purchase_return_add','purchase_return_edit','purchase_return_delete','purchase_return_view',
+            'purchase_payment_view','purchase_payment_add',
+            'purchase_return_payment_view','purchase_return_payment_add',
+            // Stock
+            'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
+            'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
+            // Warehouse
+            'warehouse_add','warehouse_edit','warehouse_delete','warehouse_view',
+            // Reports (inventory-focused, NO GST reports)
+            'purchase_report','stock_report','expired_items_report',
+            'purchase_payments_report',
+            'supplier_items_report',
+            'return_items_report','stock_transfer_report',
+            'purchase_return_report',
+            // Fashion Intelligence reports
+            'variant_attribute_report','reorder_suggestion_report',
+            // Advanced
+            'show_purchase_price'
+        );
+    }
+
+    /**
      * Return the default permission list for a standard role name.
      * Used as a fallback when db_permissions is empty for a role.
      */
@@ -506,6 +561,7 @@ class Default_data_model extends CI_Model {
             'Manager'        => $this->get_manager_permissions(),
             'Cashier'        => $this->get_cashier_permissions(),
             'Accountant'     => $this->get_accountant_permissions(),
+            'Inventory Officer' => $this->get_inventory_officer_permissions(),
             'Admin'          => $this->get_business_owner_permissions(),
         );
 

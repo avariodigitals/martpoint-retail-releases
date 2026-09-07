@@ -334,6 +334,15 @@
             <?php if($CI->permissions('import_items')) { ?>
             <li class="import_items-active-li"><a href="<?php echo $base_url; ?>import/items"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_items'); ?></span></a></li>
             <?php } ?>
+            <?php if($CI->permissions('items_category_add')) { ?>
+            <li class="import_categories-active-li"><a href="<?php echo $base_url; ?>import/categories"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_categories'); ?></span></a></li>
+            <?php } ?>
+            <?php if($CI->permissions('brand_add')) { ?>
+            <li class="import_brands-active-li"><a href="<?php echo $base_url; ?>import/brands"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_brands'); ?></span></a></li>
+            <?php } ?>
+            <?php if($CI->permissions('attributes_add')) { ?>
+            <li class="import_attributes-active-li"><a href="<?php echo $base_url; ?>import/attributes"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_attributes'); ?></span></a></li>
+            <?php } ?>
             <?php if($CI->permissions('import_services') && service_module()) { ?>
             <li class="import_services-active-li"><a href="<?php echo $base_url; ?>import/services"><i class="fa fa-arrow-circle-o-left "></i> <span><?= $this->lang->line('import_services'); ?></span></a></li>
             <?php } ?>
@@ -990,6 +999,17 @@
             <li class="state-list-active-li "><a href="<?php echo $base_url; ?>state"><i class="fa fa-list "></i> <span><?= $this->lang->line('states_list'); ?></span></a></li>
             <li class="city-list-active-li "><a href="<?php echo $base_url; ?>city"><i class="fa fa-list "></i> <span><?= $this->lang->line('cities_list'); ?></span></a></li>
             <?php } ?>
+          </ul>
+        </li>
+        <?php } ?>
+
+        <?php if(!is_cashier()) { ?>
+        <li class="treeview help-active-li">
+          <a href="#"><i class="fa fa-question-circle" style="color:#0057FF;"></i> <span>Help</span><span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>
+          <ul class="treeview-menu">
+            <li class="help-active-li"><a href="<?php echo $base_url; ?>dashboard/help"><i class="fa fa-question-circle"></i> Help Center</a></li>
+            <li><a href="<?php echo $base_url; ?>docs/product-design/customer-guide/index.html" target="_blank" rel="noopener"><i class="fa fa-users"></i> Customer Guide</a></li>
+            <li><a href="<?php echo $base_url; ?>dashboard/support"><i class="fa fa-life-ring"></i> Support</a></li>
           </ul>
         </li>
         <?php } ?>

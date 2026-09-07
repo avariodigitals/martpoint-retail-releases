@@ -154,7 +154,7 @@ $(document).on("click", "#btn_verify_nin", function(){
 /* NIN/BVN Verification End */
 
 
-$("#copy_address").on("ifChanged",function(event){
+$("#copy_address").on("ifChanged change",function(event){
           if(event.target.checked){
            $("#shipping_country").val($("#country").val()).select2();
            $("#shipping_state").val($("#state").val()).select2();

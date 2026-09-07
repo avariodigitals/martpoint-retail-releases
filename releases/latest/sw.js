@@ -1,5 +1,5 @@
 /* MartPoint Retail PWA Service Worker */
-const CACHE_NAME = 'martpoint-v24';
+const CACHE_NAME = 'martpoint-v25';
 const OFFLINE_PAGE = '/offline.html';
 
 /* Core shell pages */

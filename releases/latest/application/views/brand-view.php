@@ -49,6 +49,10 @@ $non_sortable = json_encode([0,4]);
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <?php if($CI->permissions('brand_add')): ?>
+      <a class="mp-qa-btn" href="<?php echo $base_url; ?>import/brands" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <?= $this->lang->line('import_brands'); ?>
+      </a>
       <a class="mp-qa-btn green" href="<?php echo $base_url; ?>brands/add">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <?= $this->lang->line('create_brand'); ?>

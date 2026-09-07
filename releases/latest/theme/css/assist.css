@@ -296,13 +296,21 @@
 }
 .mp-fab-menu-item i { font-size: 16px; width: 18px; text-align: center; }
 .mp-fab-menu-item i.fa-whatsapp { color: #25d366; }
+.mp-fab-menu-item.mp-fab-cancel {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+.mp-fab-menu-item.mp-fab-cancel:hover { background: #fecaca; }
 
 @media (max-width: 768px) {
   .mp-assist-panel { width: 100vw !important; right: -100vw !important; height: 75vh !important; max-height: none !important; }
   .mp-assist-panel.open { right: 0 !important; bottom: 0 !important; border-radius: 0 !important; }
   .mp-assist-fab-label { display: none !important; }
   .mp-assist-fab { padding: 14px !important; border-radius: 50% !important; }
-  .mp-fab-wrapper { right: 14px !important; bottom: 14px !important; }
+  .mp-fab-wrapper { right: auto !important; left: 14px !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-start !important; }
+  .mp-fab-menu { align-items: flex-start !important; }
+  .mp-fab-menu-item:hover { transform: translateX(4px); }
   .mp-msg { max-width: 92% !important; }
   .mp-msg-bubble { padding: 10px 12px !important; font-size: 13px !important; }
   .mp-choice-btn { padding: 8px 12px !important; font-size: 12px !important; }

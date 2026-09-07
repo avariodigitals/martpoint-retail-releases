@@ -137,7 +137,7 @@ $(document).ready(function() {
    load_datatable();
 });
 
-$('#show_account_payble').on('ifChanged', function(event) {
+$('#show_account_payble').on('ifChanged change', function(event) {
    $('#example2').DataTable().destroy();
     if(event.target.checked){
       load_datatable('checked');

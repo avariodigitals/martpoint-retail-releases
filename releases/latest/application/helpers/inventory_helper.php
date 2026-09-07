@@ -433,17 +433,12 @@
 
 	  $str='';
 
-	  	if($role_id==1 || $role_id==2){
-	  		$str.='<option value="">All</option>';
-	    	$CI->db->where("store_id",$store_id);
+	  	if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+	  		$CI->db->where("id",$CI->session->userdata('inv_userid'));
 	    }
-	    else{//other user
-	    		if(permissions('show_all_users_sales_invoices')){
-	    			$str.='<option value="">All</option>';
-      		}
-	    		else{
-	    			$CI->db->where("id",$CI->session->userdata('inv_userid'));
-	    		}
+	    else{
+	    	$str.='<option value="">All</option>';
+	    	$CI->db->where("store_id",$store_id);
 	    }
 
 	    

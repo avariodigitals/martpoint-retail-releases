@@ -57,13 +57,10 @@ class Sales_return_model extends CI_Model {
 			$this->db->where('a.warehouse_id',$warehouse_id);
 		}
 
-		if(!is_admin()){
-	      	if($this->session->userdata('role_id')!='2'){
-	      		if(!permissions('show_all_users_sales_return_invoices')){
-	      			$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
-	      		}
-	      	}
-	      }
+		// Cashiers without cross-user visibility permission may only view their own sales returns.
+		if(is_cashier() && !permissions('show_all_users_sales_return_invoices')){
+			$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
+		}
 
 		/*if(!is_admin()){*/
 	      $this->db->where("a.store_id",get_current_store_id());

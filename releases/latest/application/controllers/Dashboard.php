@@ -426,4 +426,26 @@ class Dashboard extends MY_Controller {
 		}
 	}
 
+	public function help()
+	{
+		if(is_cashier()){
+			redirect(base_url('pos'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Help Center';
+		$data['content'] = $this->load->view('help', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function support()
+	{
+		if(is_cashier()){
+			redirect(base_url('pos'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Support';
+		$data['content'] = $this->load->view('support', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
 }

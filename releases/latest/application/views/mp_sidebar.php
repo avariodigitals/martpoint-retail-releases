@@ -58,6 +58,9 @@ $mp_icons = [
         <?php if($CI->permissions('attributes_view')): ?><a href="<?= base_url('attributes'); ?>" class="mp-nav-item attributes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Attributes</a><?php endif; ?>
         <?php if($CI->permissions('print_labels')): ?><a href="<?= base_url('items/labels'); ?>" class="mp-nav-item labels-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Print Labels</a><?php endif; ?>
         <?php if($CI->permissions('import_items')): ?><a href="<?= base_url('import/items'); ?>" class="mp-nav-item import_items-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Items</a><?php endif; ?>
+        <?php if($CI->permissions('items_category_add')): ?><a href="<?= base_url('import/categories'); ?>" class="mp-nav-item import_categories-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Categories</a><?php endif; ?>
+        <?php if($CI->permissions('brand_add')): ?><a href="<?= base_url('import/brands'); ?>" class="mp-nav-item import_brands-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Brands</a><?php endif; ?>
+        <?php if($CI->permissions('attributes_add')): ?><a href="<?= base_url('import/attributes'); ?>" class="mp-nav-item import_attributes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Attributes</a><?php endif; ?>
         <?php if($CI->permissions('import_services') && service_module()): ?><a href="<?= base_url('import/services'); ?>" class="mp-nav-item import_services-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Services</a><?php endif; ?>
         <?php if(mp_feature_enabled('price_catalogue') && (is_admin() || is_store_admin())): ?><a href="<?= base_url('operations/price_catalogue'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Price Catalogue</a><?php endif; ?>
       </div>
@@ -264,6 +267,18 @@ $mp_icons = [
     </div></div>
     <?php endif; ?>
 
+    <!-- Help -->
+    <?php if(!is_cashier()): ?>
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0057FF;"><i class="fa fa-question-circle"></i></span> Help <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('dashboard/help'); ?>" class="mp-nav-item help-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Help Center</a>
+        <a href="<?= base_url('docs/product-design/customer-guide/index.html'); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Guide</a>
+        <a href="<?= base_url('dashboard/support'); ?>" class="mp-nav-item support-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Support</a>
+      </div>
+    </div></div>
+    <?php endif; ?>
+
     <!-- Administration -->
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#78716C;"><?= $mp_icons['admin']; ?></span> Administration <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
@@ -343,5 +358,4 @@ $mp_icons = [
 
   <!-- ===== MAIN ===== -->
   <main class="mp-main">
-    <?php $this->load->view('comman/code_flashdata.php'); ?>
     <div style="clear:both"></div>

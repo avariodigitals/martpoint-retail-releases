@@ -1,0 +1,5 @@
+item_name,category_name,sku,hsn,unit_name,alert_qty,brand_name,lot_number,price_before_tax,tax_name,tax_value,tax_type,sales_price,opening_stock,custom_barcode,seller_points,description,discount_type,discount,mrp,item_group,parent_sku,variant_name
+"T-Shirt","Apparel","TSHIRT-001","","Pcs",5,"Nike","",100,"VAT",16,"Exclusive",150,20,"","","","Percentage",0,200,"Variants","",""
+"","Apparel","TSHIRT-001-RED-M","","Pcs","","","",80,"VAT",16,"Exclusive",120,10,"BAR001","","","","","","Variant","TSHIRT-001","Red / M"
+"","Apparel","TSHIRT-001-RED-L","","Pcs","","","",85,"VAT",16,"Exclusive",125,8,"BAR002","","","","","","Variant","TSHIRT-001","Red / L"
+"Notebook","Stationery","NB-001","","Pcs",2,"Classmate","",50,"VAT",16,"Exclusive",75,30,"","","","Fixed",0,90,"Single","",""

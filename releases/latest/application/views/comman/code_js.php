@@ -78,20 +78,44 @@ $(document).ajaxStart(function() { Pace.restart(); });
 <!-- iCheck -->
 <script src="<?php echo $theme_link; ?>plugins/iCheck/icheck.min.js"></script>
 <script>
-  $(function () {
+  (function () {
     // Only run iCheck when its CSS is also loaded (old pages); mp_layout does not load it,
     // so leave native controls visible there.
     var hasICheckCss = $('link[rel="stylesheet"][href*="iCheck"]').length > 0;
     if (hasICheckCss) {
-      // Skip checkboxes/radios that opt out with .no-icheck (e.g. custom toggle switches)
-      $('input[type="checkbox"]:not(.no-icheck), input[type="radio"]:not(.no-icheck)').iCheck({
-        checkboxClass: 'icheckbox_square-orange',
-        /*uncheckedClass: 'bg-white',*/
-        radioClass: 'iradio_square-orange',
-        increaseArea: '10%' // optional
+      $(function () {
+        // Skip checkboxes/radios that opt out with .no-icheck (e.g. custom toggle switches)
+        $('input[type="checkbox"]:not(.no-icheck), input[type="radio"]:not(.no-icheck)').iCheck({
+          checkboxClass: 'icheckbox_square-orange',
+          /*uncheckedClass: 'bg-white',*/
+          radioClass: 'iradio_square-orange',
+          increaseArea: '10%' // optional
+        });
       });
+    } else {
+      // Many list views still call $(...).iCheck(...) after every ajax draw.
+      // Without the skin CSS, real iCheck hides the input inside an unstyled
+      // wrapper, so checkboxes render blank. Shim it to plain native behavior.
+      $.fn.iCheck = function (option) {
+        if (option === 'check' || option === 'uncheck' || option === 'toggle') {
+          return this.each(function () {
+            if (this.type === 'checkbox' || this.type === 'radio') {
+              this.checked = (option === 'toggle') ? !this.checked : (option === 'check');
+              $(this).trigger('change');
+            }
+          });
+        }
+        if (option === 'enable' || option === 'disable') {
+          return this.prop('disabled', option === 'disable');
+        }
+        if (option === 'indeterminate' || option === 'determinate') {
+          return this.prop('indeterminate', option === 'indeterminate');
+        }
+        // 'update', 'destroy' and init calls: native controls need nothing.
+        return this;
+      };
     }
-  });
+  })();
 </script>
 <!-- Initialize Select2 Elements -->
 <script type="text/javascript">
@@ -182,7 +206,9 @@ $(function($) { // this script needs to be loaded on every page where an ajax PO
   }
 
 }
-$('.group_check').on('ifChanged', function(event) {
+// iCheck fires 'ifChanged'; native checkboxes (mp_layout pages) fire 'change'.
+// iCheck never emits 'change', so listening to both is safe on every page.
+$(document).on('ifChanged change', '.group_check', function(event) {
     if(event.target.checked){
       $(".column_checkbox").prop("checked",true).iCheck('update');
     }
@@ -195,7 +221,8 @@ $('.group_check').on('ifChanged', function(event) {
 
 
 function call_code(){
-  $('.column_checkbox').on('ifChanged', function(event) {
+  // .off() prevents stacked handlers: call_code() runs after every ajax draw.
+  $('.column_checkbox').off('ifChanged.colcb change.colcb').on('ifChanged.colcb change.colcb', function(event) {
       show_delete_btn();
   });
 }

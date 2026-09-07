@@ -525,7 +525,7 @@
             window.open(imagepath, "_blank");
           }
         }
-        $("#copy_address").on("ifChanged",function(event){
+        $("#copy_address").on("ifChanged change",function(event){
           if(event.target.checked){
            $("#shipping_country").val($("#country").val()).select2();
            $("#shipping_state").val($("#state").val()).select2();

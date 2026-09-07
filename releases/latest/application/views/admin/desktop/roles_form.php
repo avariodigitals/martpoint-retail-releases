@@ -157,7 +157,7 @@
         ['Stock Adjustment', 'stock_adjustment', [
           ['stock_adjustment_add','Add'], ['stock_adjustment_edit','Edit'], ['stock_adjustment_delete','Delete'], ['stock_adjustment_view','View'],
         ]],
-        ['Warehouse / Branch', 'warehouse', [
+        ['Branch', 'warehouse', [
           ['warehouse_add','Add'], ['warehouse_edit','Edit'], ['warehouse_delete','Delete'], ['warehouse_view','View'],
         ]],
         ['Services', 'services', [
