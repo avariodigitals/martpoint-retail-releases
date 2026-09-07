@@ -3348,13 +3348,18 @@ class Mobile extends MY_Controller {
 			case 'products':
 			case 'products_online':
 				$search = trim($this->input->get('search', TRUE) ?: '');
+				$category_id = (int)$this->input->get('category', TRUE);
 				$data['search'] = $search;
-				$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.is_featured, a.status, b.category_name');
+				$data['category_id'] = $category_id;
+				$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.is_featured, a.is_new_arrival, a.status, b.category_name');
 				$this->db->from('db_items a');
 				$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 				$this->db->where('a.store_id', $store_id);
 				$this->db->where('a.service_bit', 0);
 				$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+				if($category_id){
+					$this->db->where('a.category_id', $category_id);
+				}
 				if($search){
 					$this->db->group_start();
 					$this->db->like('a.item_name', $search);
@@ -3362,8 +3367,13 @@ class Mobile extends MY_Controller {
 					$this->db->group_end();
 				}
 				$this->db->order_by('a.id', 'desc');
-				$this->db->limit(100);
 				$data['products'] = $this->db->get()->result();
+				// Categories for filter dropdown
+				$data['categories'] = $this->db->select('id, category_name')
+				                               ->where('store_id', $store_id)
+				                               ->where('status', 1)
+				                               ->order_by('category_name', 'asc')
+				                               ->get('db_category')->result();
 				$view = 'mobile/online_store/products';
 				break;
 			case 'services':

@@ -1010,18 +1010,32 @@ class Storefront_model extends CI_Model {
 
 	public function getNewArrivals($storeId = null, $limit = 8){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, b.category_name');
-		$this->db->from('db_items a');
-		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
-		$this->db->where('a.store_id', $storeId);
-		$this->db->where('a.publish_online', 1);
-		$this->db->where('a.status', 1);
-		$this->db->where('a.service_bit', 0);
-		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
-		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
-		$this->db->order_by('a.id', 'desc');
-		$this->db->limit($limit);
-		return $this->db->get()->result();
+		// Prefer manually flagged "New Arrival" products (is_new_arrival=1).
+		// Fall back to most recently added published products if none are flagged.
+		$buildQuery = function($storeId, $limit, $flaggedOnly) {
+			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, b.category_name');
+			$this->db->from('db_items a');
+			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
+			$this->db->where('a.store_id', $storeId);
+			$this->db->where('a.publish_online', 1);
+			$this->db->where('a.status', 1);
+			$this->db->where('a.service_bit', 0);
+			$this->db->where("(a.item_group IS NULL OR a.item_group='Single')", null, false);
+			if($flaggedOnly){
+				$this->db->where('a.is_new_arrival', 1);
+			}
+			$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
+			$this->db->order_by('a.id', 'desc');
+			$this->db->limit($limit);
+			return $this->db->get()->result();
+		};
+		// Try flagged items first
+		$results = $buildQuery($storeId, $limit, true);
+		if(!empty($results)){
+			return $results;
+		}
+		// Fallback: most recent published products
+		return $buildQuery($storeId, $limit, false);
 	}
 
 	// ============== ANALYTICS ==============

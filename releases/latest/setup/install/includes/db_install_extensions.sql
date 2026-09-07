@@ -2875,3 +2875,17 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_brands' AND column_name = 'is_default');
 SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_brands` ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- is_new_arrival flag for db_items (manual storefront "New Arrival" badge, mirrors is_featured)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'is_new_arrival');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_items` ADD COLUMN `is_new_arrival` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_featured`',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- online_excluded flag for db_items (prevents "Sync All" from re-publishing manually unpublished products)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'online_excluded');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_items` ADD COLUMN `online_excluded` TINYINT(1) NOT NULL DEFAULT 0 AFTER `publish_online`',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

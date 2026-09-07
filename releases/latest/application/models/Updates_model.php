@@ -45,6 +45,8 @@ class Updates_model extends CI_Model {
 			'4.0.9.1' => '4.0.8_to_4.0.9_holditems_staff_commission.sql',
 			'4.0.9.2' => '4.0.9_to_4.0.9.2_promotions_loyalty.sql',
 			'4.0.9.3' => '4.0.9.3_sku_limit.sql',
+			'4.0.9.4' => '4.0.9_new_arrival_products.sql',
+			'4.0.9.5' => '4.0.9_online_excluded.sql',
 		];
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $file){

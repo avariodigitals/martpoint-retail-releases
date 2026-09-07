@@ -454,12 +454,18 @@ class Online_store extends MY_Controller {
 	public function products_online(){
 		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$search = trim($this->input->get('search'));
-		$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.is_featured, a.status, b.category_name');
+		$category_id = (int)$this->input->get('category');
+
+		// Build query with optional category + search filters
+		$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.is_featured, a.is_new_arrival, a.status, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', get_current_store_id());
 		$this->db->where('a.service_bit', 0);
 		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+		if($category_id){
+			$this->db->where('a.category_id', $category_id);
+		}
 		if($search){
 			$this->db->group_start();
 			$this->db->like('a.item_name', $search);
@@ -467,13 +473,21 @@ class Online_store extends MY_Controller {
 			$this->db->group_end();
 		}
 		$this->db->order_by('a.id', 'desc');
-		$this->db->limit(100);
 		$products = $this->db->get()->result();
+
+		// Categories for the filter dropdown (only categories that have products)
+		$categories = $this->db->select('id, category_name')
+		                        ->where('store_id', get_current_store_id())
+		                        ->where('status', 1)
+		                        ->order_by('category_name', 'asc')
+		                        ->get('db_category')->result();
 
 		$data = array_merge($this->data, [
 			'page_title' => 'Online Products',
 			'products' => $products,
-			'search' => $search
+			'search' => $search,
+			'category_id' => $category_id,
+			'categories' => $categories,
 		]);
 		$data['content'] = $this->load->view('online_store/products_online', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -500,7 +514,15 @@ class Online_store extends MY_Controller {
 				return;
 			}
 		}
-		$this->db->where('id', $productId)->update('db_items', ['publish_online' => $newVal]);
+		// When turning OFF manually, mark online_excluded=1 so "Sync All" won't re-publish it.
+		// When turning ON manually, clear the exclusion flag.
+		$updateData = ['publish_online' => $newVal];
+		if($newVal == 0){
+			$updateData['online_excluded'] = 1;
+		} else {
+			$updateData['online_excluded'] = 0;
+		}
+		$this->db->where('id', $productId)->update('db_items', $updateData);
 		echo json_encode(['status' => 'success', 'publish_online' => $newVal]);
 	}
 
@@ -511,14 +533,152 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$storeId = get_current_store_id();
+		// Save featured flags
 		$featured = $this->input->post('featured') ?: [];
 		foreach($featured as $productId => $value){
 			$productId = (int)$productId;
 			$value = (int)$value;
 			$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['is_featured' => $value]);
 		}
-		$this->session->set_flashdata('success', 'Featured products saved');
+		// Save new arrival flags
+		$newArrivals = $this->input->post('new_arrival') ?: [];
+		foreach($newArrivals as $productId => $value){
+			$productId = (int)$productId;
+			$value = (int)$value;
+			$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['is_new_arrival' => $value]);
+		}
+		$this->session->set_flashdata('success', 'Featured & New Arrival flags saved');
 		redirect('online_store/products_online');
+	}
+
+	public function save_new_arrivals(){
+		if(!$this->_can_edit()){
+			$this->session->set_flashdata('error', 'Access denied');
+			redirect('online_store/products_online');
+			return;
+		}
+		$storeId = get_current_store_id();
+		$newArrivals = $this->input->post('new_arrival') ?: [];
+		foreach($newArrivals as $productId => $value){
+			$productId = (int)$productId;
+			$value = (int)$value;
+			$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['is_new_arrival' => $value]);
+		}
+		$this->session->set_flashdata('success', 'New Arrival flags saved');
+		redirect('online_store/products_online');
+	}
+
+	public function toggle_new_arrival(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$productId = (int)$this->input->post('product_id');
+		$storeId = get_current_store_id();
+		$product = $this->db->select('is_new_arrival')->where('id', $productId)->where('store_id', $storeId)->get('db_items')->row();
+		if(!$product){
+			echo json_encode(['status' => 'error', 'message' => 'Product not found']);
+			return;
+		}
+		$newVal = $product->is_new_arrival ? 0 : 1;
+		$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['is_new_arrival' => $newVal]);
+		echo json_encode(['status' => 'success', 'is_new_arrival' => (int)$newVal]);
+	}
+
+	public function toggle_featured(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$productId = (int)$this->input->post('product_id');
+		$storeId = get_current_store_id();
+		$product = $this->db->select('is_featured')->where('id', $productId)->where('store_id', $storeId)->get('db_items')->row();
+		if(!$product){
+			echo json_encode(['status' => 'error', 'message' => 'Product not found']);
+			return;
+		}
+		$newVal = $product->is_featured ? 0 : 1;
+		$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['is_featured' => $newVal]);
+		echo json_encode(['status' => 'success', 'is_featured' => (int)$newVal]);
+	}
+
+	/**
+	 * Sync (batch publish) all eligible products to the online store.
+	 * Only publishes Single items that are currently offline (publish_online=0).
+	 * Respects the online_product_limit quota — stops before exceeding it.
+	 */
+	public function sync_all_online(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		$categoryId = (int)$this->input->post('category_id');
+
+		// Count currently online products
+		$currentlyOnline = get_online_product_usage($storeId);
+		// Get the plan limit
+		$limit = get_subscription_limit('online_product_limit', $storeId);
+
+		// Find eligible offline products (Single, non-service, active).
+		// IMPORTANT: Skip products with online_excluded=1 — those were deliberately
+		// turned off by the user and sync must respect that decision.
+		$this->db->where('store_id', $storeId);
+		$this->db->where('service_bit', 0);
+		$this->db->where('status', 1);
+		$this->db->where('publish_online', 0);
+		$this->db->where('online_excluded', 0);
+		$this->db->where("(item_group IS NULL OR item_group='Single')", null, false);
+		if($categoryId){
+			$this->db->where('category_id', $categoryId);
+		}
+		$this->db->order_by('id', 'asc');
+		$offline = $this->db->get('db_items')->result();
+
+		// Also count how many were excluded (for user feedback)
+		$this->db->where('store_id', $storeId);
+		$this->db->where('service_bit', 0);
+		$this->db->where('status', 1);
+		$this->db->where('publish_online', 0);
+		$this->db->where('online_excluded', 1);
+		$this->db->where("(item_group IS NULL OR item_group='Single')", null, false);
+		if($categoryId){
+			$this->db->where('category_id', $categoryId);
+		}
+		$excludedCount = $this->db->count_all_results('db_items');
+
+		$published = 0;
+		$skipped = 0;
+		$ids = [];
+		foreach($offline as $item){
+			// Enforce quota: stop if publishing this item would exceed the limit
+			if($limit > 0 && ($currentlyOnline + $published) >= $limit){
+				$skipped = count($offline) - $published;
+				break;
+			}
+			$ids[] = (int)$item->id;
+			$published++;
+		}
+
+		if(!empty($ids)){
+			$this->db->where('store_id', $storeId)->where_in('id', $ids)->update('db_items', ['publish_online' => 1]);
+		}
+
+		$msg = $published . ' product' . ($published != 1 ? 's' : '') . ' published to online store';
+		if($skipped > 0){
+			$msg .= ', ' . $skipped . ' skipped (quota limit: ' . $limit . ')';
+		}
+		if($excludedCount > 0){
+			$msg .= ', ' . $excludedCount . ' excluded (manually turned off)';
+		}
+		echo json_encode([
+			'status' => 'success',
+			'message' => $msg,
+			'published' => $published,
+			'skipped' => $skipped,
+			'excluded' => $excludedCount,
+			'limit' => $limit,
+		]);
 	}
 
 	public function update_online_price(){
@@ -531,6 +691,100 @@ class Online_store extends MY_Controller {
 		$storeId = get_current_store_id();
 		$this->db->where('id', $productId)->where('store_id', $storeId)->update('db_items', ['online_price' => $price]);
 		echo json_encode(['status' => 'success', 'message' => 'Price updated']);
+	}
+
+	/**
+	 * Batch update multiple products at once.
+	 * Accepts: product_ids[] (array of IDs) + action (string)
+	 * Actions: publish, unpublish, mark_new, unmark_new, mark_featured, unmark_featured
+	 */
+	public function batch_update(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		$productIds = $this->input->post('product_ids') ?: [];
+		$action = trim($this->input->post('action', TRUE) ?: '');
+
+		if(empty($productIds) || empty($action)){
+			echo json_encode(['status' => 'error', 'message' => 'No products or action selected']);
+			return;
+		}
+
+		// Sanitize IDs
+		$ids = [];
+		foreach($productIds as $pid){
+			$pid = (int)$pid;
+			if($pid > 0){ $ids[] = $pid; }
+		}
+		if(empty($ids)){
+			echo json_encode(['status' => 'error', 'message' => 'No valid product IDs']);
+			return;
+		}
+
+		// For publish: enforce quota — count how many are currently offline in the selection
+		if($action === 'publish'){
+			$currentlyOnline = get_online_product_usage($storeId);
+			$limit = get_subscription_limit('online_product_limit', $storeId);
+			if($limit > 0){
+				// Count how many of the selected IDs are currently offline
+				$offlineInSelection = $this->db->where('store_id', $storeId)
+				                               ->where_in('id', $ids)
+				                               ->where('publish_online', 0)
+				                               ->count_all_results('db_items');
+				$slotsNeeded = $offlineInSelection;
+				if($currentlyOnline + $slotsNeeded > $limit){
+					$available = max(0, $limit - $currentlyOnline);
+					echo json_encode([
+						'status' => 'error',
+						'message' => "Cannot publish all — your plan allows {$limit} online products, you have {$currentlyOnline} online, and {$slotsNeeded} selected are offline. Only {$available} slots available."
+					]);
+					return;
+				}
+			}
+		}
+
+		// Build update based on action
+		$updateData = [];
+		$label = '';
+		switch($action){
+			case 'publish':
+				$updateData = ['publish_online' => 1, 'online_excluded' => 0];
+				$label = 'published online';
+				break;
+			case 'unpublish':
+				$updateData = ['publish_online' => 0, 'online_excluded' => 1];
+				$label = 'unpublished (excluded from sync)';
+				break;
+			case 'mark_new':
+				$updateData = ['is_new_arrival' => 1];
+				$label = 'marked as New Arrival';
+				break;
+			case 'unmark_new':
+				$updateData = ['is_new_arrival' => 0];
+				$label = 'removed from New Arrivals';
+				break;
+			case 'mark_featured':
+				$updateData = ['is_featured' => 1];
+				$label = 'marked as Featured';
+				break;
+			case 'unmark_featured':
+				$updateData = ['is_featured' => 0];
+				$label = 'removed from Featured';
+				break;
+			default:
+				echo json_encode(['status' => 'error', 'message' => 'Unknown action: ' . $action]);
+				return;
+		}
+
+		$this->db->where('store_id', $storeId)->where_in('id', $ids)->update('db_items', $updateData);
+		$count = $this->db->affected_rows();
+		echo json_encode([
+			'status' => 'success',
+			'message' => $count . ' product' . ($count != 1 ? 's' : '') . ' ' . $label,
+			'affected' => $count,
+		]);
 	}
 
 	// ============== APPEARANCE ==============

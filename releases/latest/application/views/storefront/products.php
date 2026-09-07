@@ -18,6 +18,10 @@
     .sf-search-wrap { padding:10px 16px; background:var(--white); border-bottom:1px solid var(--border); }
     .sf-search { max-width:600px; margin:0 auto; position:relative; }
     .sf-search input { width:100%; padding:10px 14px 10px 40px; border:none; border-radius:var(--radius-sm); font-size:14px; background:var(--light-gray); outline:none; }
+    .sf-cat-pills { max-width:600px; margin:0 auto; padding:10px 16px; display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; background:var(--white); border-bottom:1px solid var(--border); }
+    .sf-cat-pills::-webkit-scrollbar { display:none; }
+    .sf-cat-pill { padding:7px 16px; border-radius:20px; font-size:13px; font-weight:600; white-space:nowrap; background:var(--light-gray); border:1px solid var(--border); color:var(--gray); transition:all .15s; }
+    .sf-cat-pill.active { background:var(--primary); color:#fff; border-color:var(--primary); }
     .sf-section { max-width:600px; margin:0 auto; padding:16px; }
     .sf-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; }
     .sf-card { background:var(--white); border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); }
@@ -50,6 +54,15 @@
     <input type="text" id="search-input" value="<?= htmlspecialchars($search ?? ''); ?>" placeholder="Search products..." onkeydown="if(event.key==='Enter')doSearch()">
   </div>
 </div>
+
+<?php if(!empty($categories)): ?>
+<div class="sf-cat-pills">
+  <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?><?= $search ? '?search=' . urlencode($search) : ''; ?>" class="sf-cat-pill <?= empty($category_id) ? 'active' : ''; ?>">All</a>
+  <?php foreach($categories as $cat): ?>
+  <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>?category=<?= (int)$cat->id; ?><?= $search ? '&search=' . urlencode($search) : ''; ?>" class="sf-cat-pill <?= ($category_id == (int)$cat->id) ? 'active' : ''; ?>"><?= htmlspecialchars($cat->category_name); ?></a>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <div class="sf-section">
   <?php if(!empty($products)): ?>
@@ -93,7 +106,13 @@
 <script>
   function doSearch(){
     var q = document.getElementById('search-input').value.trim();
-    if(q) window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>?search=' + encodeURIComponent(q);
+    var cat = <?= (int)($category_id ?? 0); ?>;
+    var url = '<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>';
+    var params = [];
+    if(q) params.push('search=' + encodeURIComponent(q));
+    if(cat) params.push('category=' + cat);
+    if(params.length) url += '?' + params.join('&');
+    window.location.href = url;
   }
 </script>
 

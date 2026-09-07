@@ -1481,14 +1481,15 @@
   function get_online_product_usage($store_id=''){
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
-    // Count products published to the online store (publish_online=1).
-    // Only top-level sellable items (single items + variant parents) —
-    // variant children inherit the parent's online status.
+    // Count products actually visible on the public storefront.
+    // The storefront only shows Single items (item_group IS NULL OR 'Single'),
+    // so the quota must match that criteria — variant parents are containers
+    // that are never displayed directly and should NOT consume a slot.
     $total = $CI->db->where('store_id',$store_id)
                      ->where('status',1)
                      ->where('publish_online',1)
                      ->where('service_bit',0)
-                     ->where('(child_bit = 0 OR child_bit IS NULL)', null, false)
+                     ->where("(item_group IS NULL OR item_group='Single')", null, false)
                      ->count_all_results('db_items');
     return (int) $total;
   }

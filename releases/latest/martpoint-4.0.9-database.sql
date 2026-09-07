@@ -257,3 +257,22 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- ============================================================================
 -- End of v4.0.9 database update
 -- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Migration 6: New Arrival flag + Online Excluded flag (v4.0.9)
+-- Source: updates/migrations/4.0.9_new_arrival_products.sql + 4.0.9_online_excluded.sql
+-- ----------------------------------------------------------------------------
+
+-- db_items: is_new_arrival (manual storefront "New Arrival" badge, mirrors is_featured)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'is_new_arrival');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_items` ADD COLUMN `is_new_arrival` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_featured`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- db_items: online_excluded (prevents "Sync All" from re-publishing manually unpublished products)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'online_excluded');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_items` ADD COLUMN `online_excluded` TINYINT(1) NOT NULL DEFAULT 0 AFTER `publish_online`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ============================================================================
+-- End of v4.0.9 database update
+-- ============================================================================
