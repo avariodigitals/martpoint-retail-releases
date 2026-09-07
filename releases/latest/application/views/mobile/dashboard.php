@@ -92,6 +92,20 @@
     .progress-fill.behind { background: var(--mp-warning); }
     .progress-fill.meet { background: var(--mp-primary); }
     .progress-fill.surpass { background: var(--mp-success); }
+    .license-card { background: #fff; border: 1px solid var(--mp-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .license-card .lic-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+    .license-card .lic-plan { display: flex; flex-direction: column; gap: 2px; }
+    .license-card .lic-plan-label { font-size: 10px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .license-card .lic-plan-name { font-size: 17px; font-weight: 700; color: var(--mp-ink); }
+    .license-card .lic-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .license-card .lic-days { font-size: 11px; color: var(--mp-muted); margin-top: 4px; text-align: right; }
+    .license-card .lic-quota { margin-bottom: 10px; }
+    .license-card .lic-quota:last-child { margin-bottom: 0; }
+    .license-card .lic-quota-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+    .license-card .lic-quota-label { font-size: 12px; font-weight: 600; color: var(--mp-ink); }
+    .license-card .lic-quota-val { font-size: 11px; color: var(--mp-muted); }
+    .license-card .lic-bar { height: 5px; background: var(--mp-bg); border-radius: 3px; overflow: hidden; }
+    .license-card .lic-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
     .section-title { font-size: 15px; font-weight: 700; margin: 14px 0 8px; }
     .intelligence-card { background: #fff; border: 1px solid var(--mp-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
     .intelligence-card ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--mp-ink); line-height: 1.6; }
@@ -124,7 +138,7 @@
     @media (orientation: landscape) and (min-width: 600px) {
       #app { max-width: 100%; margin: 0; box-shadow: none; }
       .screen { column-count: 2; column-gap: 16px; padding: 16px 16px 120px; }
-      .screen > .topbar, .screen > .date-bar, .screen > .hero-cta, .screen > .quick-actions, .screen > .kpi-grid, .screen > .target-card, .screen > .card, .screen > .insights, .screen > .section-title { break-inside: avoid; -webkit-column-break-inside: avoid; }
+      .screen > .topbar, .screen > .date-bar, .screen > .hero-cta, .screen > .quick-actions, .screen > .kpi-grid, .screen > .target-card, .screen > .license-card, .screen > .card, .screen > .insights, .screen > .section-title { break-inside: avoid; -webkit-column-break-inside: avoid; }
       .topbar, .date-bar, .hero-cta, .quick-actions { column-span: all; }
       .quick-actions { grid-template-columns: repeat(5, 1fr); }
       .kpi-grid, .insights { column-span: all; grid-template-columns: repeat(4, 1fr); }
@@ -258,6 +272,61 @@
           <div class="progress-fill <?= $target_status; ?>" style="width:<?= $target_progress; ?>%"></div>
         </div>
       </div>
+
+      <?php
+        $mp_lic = function_exists('mp_get_license_usage_summary') ? mp_get_license_usage_summary() : null;
+        if($mp_lic):
+          $mp_lic_status = $mp_lic['status'];
+          $mp_lic_colors = [
+            'ACTIVE'         => '#059669',
+            'EXPIRING_SOON'  => '#D97706',
+            'EXPIRED'        => '#DC2626',
+            'SUSPENDED'      => '#DC2626',
+            'NOT_ACTIVATED'  => '#6B7280',
+          ];
+          $mp_lic_color = $mp_lic_colors[$mp_lic_status] ?? '#6B7280';
+          $mp_lic_labels = [
+            'ACTIVE'         => 'Active',
+            'EXPIRING_SOON'  => 'Expiring',
+            'EXPIRED'        => 'Expired',
+            'SUSPENDED'      => 'Suspended',
+            'NOT_ACTIVATED'  => 'Not Activated',
+          ];
+          $mp_lic_label = $mp_lic_labels[$mp_lic_status] ?? $mp_lic_status;
+      ?>
+      <div class="license-card">
+        <div class="lic-top">
+          <div class="lic-plan">
+            <span class="lic-plan-label">Plan</span>
+            <span class="lic-plan-name"><?= htmlspecialchars($mp_lic['plan_name'] ?: '—'); ?></span>
+          </div>
+          <div>
+            <span class="lic-badge" style="background:<?= htmlspecialchars($mp_lic_color); ?>22;color:<?= htmlspecialchars($mp_lic_color); ?>;">
+              <i class="fa fa-<?= ($mp_lic_status === 'ACTIVE') ? 'check-circle' : 'exclamation-circle'; ?>"></i>
+              <?= htmlspecialchars($mp_lic_label); ?>
+            </span>
+            <?php if($mp_lic['has_license'] && $mp_lic['end_date']): ?>
+            <div class="lic-days"><?= ($mp_lic['days_left'] > 0) ? $mp_lic['days_left'] . ' days left' : 'Ended ' . show_date($mp_lic['end_date']); ?></div>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php foreach($mp_lic['quotas'] as $mp_q):
+          $mp_q_color = ($mp_q['pct'] >= 100) ? '#DC2626' : (($mp_q['pct'] >= 80) ? '#D97706' : 'var(--mp-primary)');
+          $mp_q_used = $mp_q['unit'] === 'MB' ? number_format($mp_q['used'], 1) . ' MB' : number_format($mp_q['used']);
+          $mp_q_limit = $mp_q['unit'] === 'MB' ? number_format($mp_q['limit']) . ' MB' : number_format($mp_q['limit']);
+        ?>
+        <div class="lic-quota">
+          <div class="lic-quota-head">
+            <span class="lic-quota-label"><?= htmlspecialchars($mp_q['label']); ?></span>
+            <span class="lic-quota-val"><?= $mp_q_used; ?> / <?= $mp_q_limit; ?></span>
+          </div>
+          <div class="lic-bar">
+            <div class="lic-bar-fill" style="width:<?= min($mp_q['pct'], 100); ?>%;background:<?= htmlspecialchars($mp_q_color); ?>;"></div>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
 
       <a href="<?= base_url('dashboard/daily_summary?date_from=' . ($from ?? date('Y-m-d')) . '&date_to=' . ($to ?? date('Y-m-d')) . '&mobile=1'); ?>" style="display:block;text-decoration:none;">
       <div class="card" style="background:var(--mp-success); color:#fff;">

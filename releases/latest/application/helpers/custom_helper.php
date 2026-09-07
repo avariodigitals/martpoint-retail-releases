@@ -1417,7 +1417,28 @@
   function get_user_usage($store_id=''){
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
-    $total = $CI->db->where('store_id',$store_id)->where('status',1)->count_all_results('db_users');
+    // Exclude administrative/setup roles from the billable seat count:
+    //   - Admin (role_id=1, SaaS admin)
+    //   - Store Admin / Business Owner (role_id=2, store_admin_id())
+    //   - Partner (role_name = 'Partner', implementation/setup role)
+    // These roles manage the store but are not operational users (cashiers,
+    // managers, accountants) that consume a paid subscription seat.
+    $excluded_role_ids = [1, (int)store_admin_id()];
+    // Look up Partner role id(s) for this store by name
+    $partner_roles = $CI->db->select('id')
+                             ->where('store_id', $store_id)
+                             ->where('UPPER(role_name)', 'PARTNER')
+                             ->get('db_roles')->result();
+    foreach($partner_roles as $pr){
+      $pid = (int)$pr->id;
+      if(!in_array($pid, $excluded_role_ids)){
+        $excluded_role_ids[] = $pid;
+      }
+    }
+    $CI->db->where('store_id', $store_id)
+           ->where('status', 1)
+           ->where_not_in('role_id', $excluded_role_ids);
+    $total = $CI->db->count_all_results('db_users');
     return (int) $total;
   }
 
@@ -1499,6 +1520,77 @@
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
     $total = $CI->db->where('store_id',$store_id)->where("connection_status != 'deleted'")->count_all_results('db_storefront_domains');
     return (int) $total;
+  }
+
+  /**
+   * Gather all license/subscription status + quota usage data in one call.
+   * Used by the desktop and mobile dashboard "License & Usage" cards.
+   *
+   * Returns an array with:
+   *   'status'        => ACTIVE|EXPIRED|SUSPENDED|EXPIRING_SOON|NOT_ACTIVATED
+   *   'days_left'     => int
+   *   'end_date'      => string|null
+   *   'plan_name'     => string
+   *   'license_code'  => string|null
+   *   'quotas'        => [ ['key','label','used','limit','pct','unit'], ... ]
+   *   'has_license'   => bool
+   */
+  function mp_get_license_usage_summary($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+
+    $result = [
+      'status'        => 'NOT_ACTIVATED',
+      'days_left'     => 0,
+      'end_date'      => null,
+      'plan_name'     => '',
+      'license_code'  => null,
+      'has_license'   => false,
+      'quotas'        => [],
+    ];
+
+    if(!$CI->db->table_exists('db_subscription_license')){
+      return $result;
+    }
+
+    $CI->load->model('subscription_license_model','mp_lic_summary');
+    $status = $CI->mp_lic_summary->get_status($store_id);
+    $result['status']      = $status['status'];
+    $result['days_left']   = $status['days_left'] ?? 0;
+    $result['end_date']    = $status['end_date'] ?? null;
+    $result['plan_name']   = $status['plan'] ?? '';
+
+    $rec = $CI->mp_lic_summary->get_by_store($store_id);
+    if($rec){
+      $result['license_code'] = $rec->license_code ?? null;
+      $result['plan_name']    = $result['plan_name'] ?: ($rec->plan_name ?? '');
+      $result['has_license']  = !empty($rec->license_code);
+    }
+
+    // Build quota list — each entry: key, label, used, limit, pct, unit
+    $quota_defs = [
+      ['key'=>'user_limit',                'label'=>'Users',         'usage_fn'=>'get_user_usage',              'unit'=>''],
+      ['key'=>'product_limit',             'label'=>'Products',      'usage_fn'=>'get_product_usage',           'unit'=>''],
+      ['key'=>'sku_limit',                 'label'=>'Variants',      'usage_fn'=>'get_sku_usage',               'unit'=>''],
+      ['key'=>'online_product_limit',      'label'=>'Online Store',  'usage_fn'=>'get_online_product_usage',    'unit'=>''],
+      ['key'=>'media_storage_limit_mb',    'label'=>'Media Storage', 'usage_fn'=>'get_media_storage_usage_mb',  'unit'=>'MB'],
+    ];
+
+    foreach($quota_defs as $qd){
+      $limit = get_subscription_limit($qd['key'], $store_id);
+      $used  = call_user_func($qd['usage_fn'], $store_id);
+      $pct   = ($limit > 0) ? round(($used / $limit) * 100, 1) : 0;
+      $result['quotas'][] = [
+        'key'   => $qd['key'],
+        'label' => $qd['label'],
+        'used'  => $used,
+        'limit' => $limit,
+        'pct'   => $pct,
+        'unit'  => $qd['unit'],
+      ];
+    }
+
+    return $result;
   }
 
   function get_subscription_limit($field='branch_limit', $store_id=''){

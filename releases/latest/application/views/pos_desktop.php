@@ -1308,10 +1308,17 @@
       </div>
       <div class="panel" style="padding:16px">
         <div class="panel-title" style="padding:0 0 10px">Today's Sales Target</div>
-        <div class="target-amount" id="todaySalesText">₦18,400.00</div>
-        <div class="target-meta"><span>of ₦50,000.00</span><span id="targetPercent">37%</span></div>
+        <?php
+          $pos_initial_pct = ($daily_target > 0) ? min(100, round(($today_sales / $daily_target) * 100)) : 0;
+          $pos_currency = get_store_details();
+          $pos_cur_sym = $pos_currency && $pos_currency->currency_symbol ? $pos_currency->currency_symbol : '₦';
+          $pos_cur_code = $pos_currency && $pos_currency->currency_code ? $pos_currency->currency_code : 'NGN';
+          $pos_decimals = isset($pos_currency->decimals) ? (int)$pos_currency->decimals : 2;
+        ?>
+        <div class="target-amount" id="todaySalesText"><?= $pos_cur_sym . number_format((float)$today_sales, $pos_decimals, '.', ','); ?></div>
+        <div class="target-meta"><span id="targetAmountLabel">of <?= $pos_cur_sym . number_format((float)$daily_target, $pos_decimals, '.', ','); ?></span><span id="targetPercent"><?= $pos_initial_pct; ?>%</span></div>
         <div class="progress-track">
-          <div class="progress-fill" id="targetFill" style="width:37%"></div>
+          <div class="progress-fill" id="targetFill" style="width:<?= $pos_initial_pct; ?>%"></div>
         </div>
       </div>
       <div class="panel" style="padding:16px">
@@ -2984,6 +2991,7 @@
     function updateTarget() {
       const pct = Math.min(100, Math.round((todaySales / dailyTarget) * 100));
       document.getElementById('todaySalesText').textContent = formatMoney(todaySales);
+      document.getElementById('targetAmountLabel').textContent = 'of ' + formatMoney(dailyTarget);
       document.getElementById('targetPercent').textContent = pct + '%';
       document.getElementById('targetFill').style.width = pct + '%';
     }

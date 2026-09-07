@@ -180,6 +180,100 @@ $this->load->view('admin/desktop/_styles');
         </div>
       </div>
 
+      <!-- SECTION 1b: LICENSE & USAGE -->
+      <?php
+        $lic_summary = function_exists('mp_get_license_usage_summary') ? mp_get_license_usage_summary() : null;
+        if($lic_summary):
+          $lic_status = $lic_summary['status'];
+          $lic_status_color = [
+            'ACTIVE'         => 'var(--mp-success)',
+            'EXPIRING_SOON'  => 'var(--mp-warning)',
+            'EXPIRED'        => 'var(--mp-danger)',
+            'SUSPENDED'      => 'var(--mp-danger)',
+            'NOT_ACTIVATED'  => 'var(--mp-muted)',
+          ][$lic_status] ?? 'var(--mp-muted)';
+          $lic_status_label = [
+            'ACTIVE'         => 'Active',
+            'EXPIRING_SOON'  => 'Expiring Soon',
+            'EXPIRED'        => 'Expired',
+            'SUSPENDED'      => 'Suspended',
+            'NOT_ACTIVATED'  => 'Not Activated',
+          ][$lic_status] ?? $lic_status;
+      ?>
+      <div class="mp-section">
+        <div class="mp-card mp-license-card">
+          <div class="mp-card-head">
+            <h3><i class="fa fa-shield" style="color:var(--mp-primary);"></i> License &amp; Usage</h3>
+            <a href="<?= base_url('subscription_license/usage'); ?>" class="mp-card-link">Details</a>
+          </div>
+          <div class="mp-card-body" style="padding:20px;">
+            <div class="mp-license-top">
+              <div class="mp-license-plan">
+                <span class="mp-license-plan-label">Plan</span>
+                <span class="mp-license-plan-name"><?= htmlspecialchars($lic_summary['plan_name'] ?: '—'); ?></span>
+              </div>
+              <div class="mp-license-status">
+                <span class="mp-license-badge" style="background:<?= htmlspecialchars($lic_status_color); ?>22;color:<?= htmlspecialchars($lic_status_color); ?>;">
+                  <i class="fa fa-<?= ($lic_status === 'ACTIVE') ? 'check-circle' : 'exclamation-circle'; ?>"></i>
+                  <?= htmlspecialchars($lic_status_label); ?>
+                </span>
+                <?php if($lic_status === 'ACTIVE' && $lic_summary['days_left'] <= 30 && $lic_summary['days_left'] > 0): ?>
+                  <span class="mp-license-days"><?= $lic_summary['days_left']; ?> days left</span>
+                <?php elseif($lic_summary['has_license'] && $lic_summary['end_date']): ?>
+                  <span class="mp-license-days">Until <?= show_date($lic_summary['end_date']); ?></span>
+                <?php endif; ?>
+              </div>
+            </div>
+            <div class="mp-license-quotas">
+              <?php foreach($lic_summary['quotas'] as $q):
+                $q_color = ($q['pct'] >= 100) ? 'var(--mp-danger)' : (($q['pct'] >= 80) ? 'var(--mp-warning)' : 'var(--mp-primary)');
+                $q_used_fmt = $q['unit'] === 'MB' ? number_format($q['used'], 1) . ' MB' : number_format($q['used']);
+                $q_limit_fmt = $q['unit'] === 'MB' ? number_format($q['limit']) . ' MB' : number_format($q['limit']);
+              ?>
+              <div class="mp-license-quota">
+                <div class="mp-license-quota-head">
+                  <span class="mp-license-quota-label"><?= htmlspecialchars($q['label']); ?></span>
+                  <span class="mp-license-quota-val"><?= $q_used_fmt; ?> <span class="mp-of">of</span> <?= $q_limit_fmt; ?></span>
+                </div>
+                <div class="mp-license-bar">
+                  <div class="mp-license-bar-fill" style="width:<?= min($q['pct'], 100); ?>%;background:<?= htmlspecialchars($q_color); ?>;"></div>
+                </div>
+              </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+      <style>
+        .mp-license-card .mp-license-top {
+          display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+          margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--mp-border);
+        }
+        .mp-license-plan { display:flex;flex-direction:column;gap:2px; }
+        .mp-license-plan-label { font-size:12px;color:var(--mp-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em; }
+        .mp-license-plan-name { font-size:20px;font-weight:700;color:var(--mp-ink); }
+        .mp-license-status { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+        .mp-license-badge {
+          display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+          font-size:13px;font-weight:600;
+        }
+        .mp-license-days { font-size:12px;color:var(--mp-muted); }
+        .mp-license-quotas { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px; }
+        .mp-license-quota-head {
+          display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;
+        }
+        .mp-license-quota-label { font-size:13px;font-weight:600;color:var(--mp-ink); }
+        .mp-license-quota-val { font-size:12px;color:var(--mp-muted); }
+        .mp-license-quota-val .mp-of { opacity:0.6; }
+        .mp-license-bar { height:6px;background:var(--mp-bg);border-radius:3px;overflow:hidden; }
+        .mp-license-bar-fill { height:100%;border-radius:3px;transition:width 0.4s ease; }
+        @media (max-width:768px){
+          .mp-license-quotas { grid-template-columns:1fr; }
+          .mp-license-top { flex-direction:column;align-items:flex-start; }
+        }
+      </style>
+      <?php endif; ?>
+
       <!-- SECTION 2: SALES VS EXPENSES + SALES TARGET (2fr 1fr) -->
       <?php if($CI->permissions('dashboard_view')){ ?>
       <div class="mp-section">
