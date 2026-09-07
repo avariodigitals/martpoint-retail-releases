@@ -6,7 +6,7 @@
   <meta http-equiv='Pragma' content='no-cache'>
   <meta http-equiv='Expires' content='0'>
   <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'>
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — Catalogue</title>
+  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — <?= $page_title; ?></title>
   <link rel='preconnect' href='https://fonts.googleapis.com'>
   <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' rel='stylesheet'>
   <link rel='stylesheet' href='<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css'>
@@ -48,6 +48,7 @@
     .cat-item { padding: 14px 0; border-bottom: 1px solid var(--mp-border); }
     .cat-item:last-child { border-bottom: none; }
     .cat-item .name { font-weight: 700; font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .cat-item .name a { color: var(--mp-ink); text-decoration: none; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cat-item .meta { font-size: 12px; color: var(--mp-muted); line-height: 1.4; }
     .cat-item .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-top: 10px; }
     .cat-item .left { flex: 1; min-width: 0; }
@@ -56,6 +57,7 @@
     .cat-item .price-sub { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     .cat-item .online-price { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     .cat-item .stock { font-size: 12px; color: var(--mp-muted); margin-top: 6px; }
+    .cat-item .view-btn { display: inline-block; width: 100%; text-align: center; padding: 8px 0; border-radius: 10px; background: var(--mp-bg); color: var(--mp-primary); border: 1px solid var(--mp-border); font-size: 13px; font-weight: 600; text-decoration: none; margin-top: 8px; }
     .cat-item .edit-btn { display: inline-block; width: 100%; text-align: center; padding: 8px 0; border-radius: 10px; background: var(--mp-primary); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; margin-top: 8px; }
     .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
     .badge.variants { background: #E0E7FF; color: var(--mp-primary); }
@@ -73,7 +75,7 @@
         <a href='<?= base_url('mobile/more'); ?>' class='back'><i class='fa fa-chevron-left'></i></a>
         <div class='topbar-titles'>
           <div class='store-name'><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
-          <h1>Catalogue</h1>
+          <h1><?= $page_title; ?></h1>
         </div>
       </div>
 
@@ -120,7 +122,7 @@
             <div class='cat-item'>
               <div class='left'>
                 <div class='name'>
-                  <?= htmlspecialchars($item->item_name); ?>
+                  <a href='<?= base_url('mobile/product_view/' . (int)$item->id); ?>'><?= htmlspecialchars($item->item_name); ?></a>
                   <?php if($item->item_group == 'Variants'): ?>
                     <span class='badge variants'>Variants</span>
                   <?php endif; ?>
@@ -143,6 +145,9 @@
                   <?php endif; ?>
                   <?php if((float)$item->online_price > 0): ?>
                     <div class='online-price'>Online: <?= store_number_format($item->online_price); ?></div>
+                  <?php endif; ?>
+                  <?php if(permissions('items_view')): ?>
+                    <a href='<?= base_url('mobile/product_view/' . (int)$item->id); ?>' class='view-btn'>View Product</a>
                   <?php endif; ?>
                   <?php if(permissions('items_edit')): ?>
                     <a href='<?= base_url('mobile/product/' . (int)$item->id); ?>' class='edit-btn'>Edit Product</a>

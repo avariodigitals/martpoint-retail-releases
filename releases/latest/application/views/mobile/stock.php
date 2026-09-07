@@ -42,6 +42,9 @@
     .stock-item .qty.out { color: var(--mp-danger); }
     .stock-item .qty.good { color: var(--mp-success); }
     .stock-item .alert { font-size: 11px; color: var(--mp-muted); margin-top: 2px; }
+    .stock-item .chevron { color: var(--mp-muted); font-size: 14px; margin-left: 8px; }
+    .stock-item { text-decoration: none; color: inherit; cursor: pointer; }
+    .stock-item:active { background: var(--mp-bg); }
     .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; margin-top: 6px; }
     .badge.low { background: #FEF2F2; color: #991B1B; }
     .badge.out { background: #FEF2F2; color: #991B1B; }
@@ -84,7 +87,7 @@
         <div class="section-title">Needs Attention</div>
         <div class="card">
           <?php foreach($low_stock_items as $ls): ?>
-            <div class="stock-item">
+            <a href="<?= base_url('mobile/product_view/' . (int)$ls['id']); ?>" class="stock-item">
               <div class="left">
                 <div class="name"><?= $ls['name']; ?></div>
                 <div class="meta">Alert at <?= number_format($ls['min'], 0); ?></div>
@@ -92,8 +95,9 @@
               <div class="right">
                 <div class="qty low"><?= number_format($ls['qty'], 0); ?></div>
                 <span class="badge out">Low</span>
+                <i class="fa fa-chevron-right chevron"></i>
               </div>
-            </div>
+            </a>
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
@@ -111,7 +115,7 @@
             $is_low = ($item->alert_qty > 0 && (float)$item->stock <= (float)$item->alert_qty);
             $is_out = ((float)$item->stock <= 0);
           ?>
-            <div class="stock-item" data-name="<?= strtolower($item->item_name); ?>" data-code="<?= strtolower($item->item_code ?? ''); ?>" data-category="<?= strtolower($item->category_name ?? ''); ?>">
+            <a href="<?= base_url('mobile/product_view/' . (int)$item->id); ?>" class="stock-item" data-name="<?= strtolower($item->item_name); ?>" data-code="<?= strtolower($item->item_code ?? ''); ?>" data-category="<?= strtolower($item->category_name ?? ''); ?>">
               <div class="left">
                 <div class="name"><?= $item->item_name; ?></div>
                 <div class="meta"><?= $item->item_code ?: '-'; ?> · <?= $item->category_name ?: 'No category'; ?><?= !empty($item->brand_name) ? ' · ' . $item->brand_name : ''; ?></div>
@@ -125,8 +129,9 @@
                 <?php else: ?>
                   <span class="badge good">Good</span>
                 <?php endif; ?>
+                <i class="fa fa-chevron-right chevron"></i>
               </div>
-            </div>
+            </a>
           <?php endforeach; ?>
         <?php else: ?>
           <div class="empty-state">

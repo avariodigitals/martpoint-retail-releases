@@ -59,6 +59,15 @@
     .activity-note { font-size: 11px; color: var(--mp-muted); }
     .empty-state { text-align: center; padding: 40px 20px; color: var(--mp-muted); font-size: 13px; }
     .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; color: var(--mp-border); }
+    .variant-list { margin-top: 12px; }
+    .variant-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--mp-border); }
+    .variant-item:last-child { border-bottom: none; }
+    .variant-item .v-name { font-weight: 600; font-size: 14px; }
+    .variant-item .v-meta { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
+    .variant-item .v-right { text-align: right; flex-shrink: 0; }
+    .variant-item .v-price { font-weight: 700; color: var(--mp-primary); }
+    .variant-item .v-mrp { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
+    .variant-item .v-stock { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 120px; } }
     @media (min-width: 1024px) { .screen { padding: 24px 48px 140px; } }
   </style>
@@ -120,6 +129,27 @@
         <div class='info-row'><span class='label'>Sales Price</span><span class='value'><?= store_number_format($item->sales_price); ?></span></div>
         <div class='info-row'><span class='label'>Online Price</span><span class='value'><?= store_number_format($item->online_price); ?></span></div>
       </div>
+
+      <?php if(!empty($child_items)): ?>
+      <div class='section-title'>Variants</div>
+      <div class='card variant-list'>
+        <?php foreach($child_items as $v): ?>
+          <div class='variant-item'>
+            <div>
+              <div class='v-name'><?= htmlspecialchars($v->variant_name ?? 'Variant'); ?></div>
+              <div class='v-meta'><?= htmlspecialchars($v->sku ?: '-'); ?><?= !empty($v->custom_barcode) ? ' · ' . htmlspecialchars($v->custom_barcode) : ''; ?></div>
+            </div>
+            <div class='v-right'>
+              <div class='v-price'><?= store_number_format($v->sales_price); ?></div>
+              <?php if((float)$v->mrp > 0): ?>
+                <div class='v-mrp'>MRP: <?= store_number_format($v->mrp); ?></div>
+              <?php endif; ?>
+              <div class='v-stock'><?= number_format((float)$v->stock, 0); ?> in stock</div>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
 
       <div class='section-title'>Activity History</div>
       <?php if(!empty($activities)): ?>

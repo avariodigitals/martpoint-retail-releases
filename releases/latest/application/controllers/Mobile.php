@@ -2173,6 +2173,20 @@ class Mobile extends MY_Controller {
 		// Available master variants for this store
 		$data['variants'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('variant_name', 'asc')->get('db_variants')->result();
 
+		// Existing variant children when editing a variant product
+		$data['child_items'] = [];
+		if($is_update){
+			$this->db->select('a.*, b.variant_name');
+			$this->db->from('db_items a');
+			$this->db->join('db_variants b', 'b.id = a.variant_id', 'left');
+			$this->db->where('a.parent_id', $id);
+			$this->db->order_by('a.id', 'asc');
+			$data['child_items'] = $this->db->get()->result();
+			if(!empty($data['child_items'])){
+				$data['item_group'] = 'Variants';
+			}
+		}
+
 		// Attribute map
 		$this->load->model('items_model');
 		$data['attribute_map'] = $this->items_model->get_variant_attribute_map($store_id);
@@ -2190,6 +2204,13 @@ class Mobile extends MY_Controller {
 	{
 		$command = $this->input->post('command', TRUE) ?: 'save';
 		$this->permission_check($command == 'update' ? 'items_edit' : 'items_add');
+
+		// If the form contains any variant rows, force item_group to Variants so the select state does not matter
+		$rowcount = (int)$this->input->post('hidden_rowcount', TRUE);
+		if($rowcount > 0){
+			$_POST['item_group'] = 'Variants';
+			$_REQUEST['item_group'] = 'Variants';
+		}
 
 		// Pre-validate image before items_model::save_record tries an exit-on-fail upload
 		if(!empty($_FILES['item_image']['name'])){
@@ -2253,14 +2274,23 @@ class Mobile extends MY_Controller {
 						'variant_name' => $variant_name,
 						'store_id' => $store_id,
 						'status' => 1,
-						'created_date' => date('Y-m-d'),
-						'created_time' => date('H:i:s')
+						
+						
 					]);
 					$vid = $this->db->insert_id();
 				}
 				$_POST['tr_variant_id_'.$i] = $vid;
 				$_REQUEST['tr_variant_id_'.$i] = $vid;
 			}
+
+			$count_id = $_REQUEST['count_id_'.$i] ?? '';
+			$item_code = $_REQUEST['item_code_'.$i] ?? '';
+			if(empty($count_id)) $count_id = get_count_id('db_items');
+			if(empty($item_code)) $item_code = get_init_code('item');
+			$_POST['count_id_'.$i] = $count_id;
+			$_REQUEST['count_id_'.$i] = $count_id;
+			$_POST['item_code_'.$i] = $item_code;
+			$_REQUEST['item_code_'.$i] = $item_code;
 		}
 
 		$this->load->model('items_model','items');
@@ -2469,7 +2499,7 @@ class Mobile extends MY_Controller {
 	{
 		$this->permission_check('items_view');
 		$data = $this->data;
-		$data['page_title'] = 'Catalogue';
+		$data['page_title'] = 'Items';
 		$data['active'] = 'more';
 		$store_id = get_current_store_id();
 		$page = max(1, (int)$page);
@@ -2561,6 +2591,15 @@ class Mobile extends MY_Controller {
 		$data['item'] = $item;
 		$data['category'] = $this->db->where('id', $item->category_id)->where('store_id', $store_id)->get('db_category')->row();
 		$data['brand'] = $this->db->where('id', $item->brand_id)->where('store_id', $store_id)->get('db_brands')->row();
+
+		// Child variants for this product
+		$data['child_items'] = [];
+		$this->db->select('a.*, b.variant_name');
+		$this->db->from('db_items a');
+		$this->db->join('db_variants b', 'b.id = a.variant_id', 'left');
+		$this->db->where('a.parent_id', $id);
+		$this->db->order_by('a.id', 'asc');
+		$data['child_items'] = $this->db->get()->result();
 
 		$activities = [];
 
@@ -2858,8 +2897,10 @@ class Mobile extends MY_Controller {
 				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
 				['title' => 'Stock Transfers', 'desc' => 'Branch-to-branch transfers', 'icon' => 'fa-exchange', 'url' => 'mobile/stock_transfers', 'perm' => 'stock_transfer_view', 'color' => 'teal'],
 				['title' => 'Price Catalogue', 'desc' => 'Product & service prices', 'icon' => 'fa-tags', 'url' => 'mobile/price_catalogue', 'perm' => 'items_view', 'color' => 'purple'],
-				['title' => 'Catalogue', 'desc' => 'All items with editable prices', 'icon' => 'fa-book', 'url' => 'mobile/catalogue', 'perm' => 'items_view', 'color' => 'purple'],
+				['title' => 'Items', 'desc' => 'View & edit products', 'icon' => 'fa-book', 'url' => 'mobile/catalogue', 'perm' => 'items_view', 'color' => 'purple'],
 				['title' => 'Attributes', 'desc' => 'Product variants & options', 'icon' => 'fa-cogs', 'url' => 'mobile/attributes', 'perm' => 'attributes_view', 'color' => 'purple'],
+				['title' => 'Add Brand', 'desc' => 'Create a new brand', 'icon' => 'fa-copyright', 'url' => 'mobile/brand_form', 'perm' => 'brand_add', 'color' => 'purple'],
+				['title' => 'Add Category', 'desc' => 'Create a new category', 'icon' => 'fa-folder', 'url' => 'mobile/category_form', 'perm' => 'items_category_add', 'color' => 'purple'],
 			],
 			'Online Store' => [
 				['title' => 'Store Dashboard', 'desc' => 'Online store overview', 'icon' => 'fa-dashboard', 'url' => 'mobile/online_store/dashboard', 'perm' => 'online_store_view', 'color' => 'blue'],
@@ -4591,6 +4632,82 @@ class Mobile extends MY_Controller {
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 		$this->load->view('mobile/store_credit', $data);
+	}
+
+	public function brand_form()
+	{
+		$this->permission_check('brand_add');
+		$data = $this->data;
+		$data['page_title'] = 'Add Brand';
+		$data['q_id'] = 0;
+		$data['brand_name'] = '';
+		$data['description'] = '';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/brand_form', $data);
+	}
+
+	public function save_brand()
+	{
+		$this->permission_check('brand_add');
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('brand', 'Brand Name', 'trim|required');
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$this->load->model('brand_model');
+		$result = $this->brand_model->verify_and_save();
+
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Brand saved successfully.', 'redirect' => base_url('mobile/more')]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function category_form()
+	{
+		$this->permission_check('items_category_add');
+		$data = $this->data;
+		$data['page_title'] = 'Add Category';
+		$data['q_id'] = 0;
+		$data['category_name'] = '';
+		$data['description'] = '';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/category_form', $data);
+	}
+
+	public function save_category()
+	{
+		$this->permission_check('items_category_add');
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('category', 'Category Name', 'trim|required');
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$this->load->model('category_model');
+		$result = $this->category_model->verify_and_save();
+
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Category saved successfully.', 'redirect' => base_url('mobile/more')]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
 	}
 
 }

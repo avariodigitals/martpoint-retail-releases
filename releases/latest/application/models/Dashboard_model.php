@@ -524,7 +524,7 @@ class Dashboard_model extends CI_Model
 
 		if(!empty($warehouse_id)){
 			// Per-warehouse stock from db_warehouseitems
-			$this->db->select("a.item_name, b.available_qty as stock, a.alert_qty");
+			$this->db->select("a.id, a.item_name, b.available_qty as stock, a.alert_qty");
 			$this->db->from("db_items a");
 			$this->db->join("db_warehouseitems b", "b.item_id = a.id", "inner");
 			$this->db->where("a.store_id", $store_id);
@@ -536,7 +536,7 @@ class Dashboard_model extends CI_Model
 			$this->db->order_by("b.available_qty", "asc");
 			$this->db->limit(10);
 		} else {
-			$this->db->select("a.item_name, a.stock, a.alert_qty");
+			$this->db->select("a.id, a.item_name, a.stock, a.alert_qty");
 			$this->db->from("db_items a");
 			$this->db->where("a.store_id", $store_id);
 			$this->db->where("a.stock <= a.alert_qty");
@@ -551,6 +551,7 @@ class Dashboard_model extends CI_Model
 		if($query->num_rows() > 0){
 			foreach($query->result() as $row){
 				$items[] = array(
+					'id' => $row->id,
 					'name' => $row->item_name,
 					'qty' => $row->stock,
 					'min' => $row->alert_qty

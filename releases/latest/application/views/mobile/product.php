@@ -86,7 +86,7 @@
       <form id="product-form" action="<?= base_url('mobile/save_product'); ?>" method="post" enctype="multipart/form-data">
         <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
         <input type="hidden" name="store_id" value="<?= get_current_store_id(); ?>">
-        <input type="hidden" id="hidden_rowcount" name="hidden_rowcount" value="0">
+        <input type="hidden" id="hidden_rowcount" name="hidden_rowcount" value="<?= count($child_items); ?>">
         <input type="hidden" id="q_id" name="q_id" value="<?= $q_id; ?>">
         <input type="hidden" id="command" name="command" value="<?= $command; ?>">
 
@@ -103,7 +103,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Category <span class="req">*</span></label>
-              <select class="mp-select" name="category_id" required>
+              <select class="mp-select" name="category_id">
                 <option value="">Select</option>
                 <?= get_categories_select_list($category_id); ?>
               </select>
@@ -119,7 +119,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Unit <span class="req">*</span></label>
-              <select class="mp-select" name="unit_id" required>
+              <select class="mp-select" name="unit_id">
                 <option value="">Select</option>
                 <?= get_units_select_list($unit_id); ?>
               </select>
@@ -131,7 +131,7 @@
           </div>
           <div class="form-group">
             <label>Product Type</label>
-            <select class="mp-select" name="item_group" id="item_group" required>
+            <select class="mp-select" name="item_group" id="item_group">
               <option value="Single" <?= $item_group == 'Single' ? 'selected' : ''; ?>>Single Product</option>
               <?php if(mp_feature_enabled('bundles')): ?>
               <option value="Variants" <?= $item_group == 'Variants' ? 'selected' : ''; ?>>Variant Product</option>
@@ -194,14 +194,14 @@
           <div class="form-row">
             <div class="form-group">
               <label>Tax <span class="req">*</span></label>
-              <select class="mp-select" name="tax_id" required>
+              <select class="mp-select" name="tax_id">
                 <option value="">Select</option>
                 <?= get_tax_select_list($tax_id); ?>
               </select>
             </div>
             <div class="form-group">
               <label>Tax Type <span class="req">*</span></label>
-              <select class="mp-select" name="tax_type" required>
+              <select class="mp-select" name="tax_type">
                 <option value="Exclusive" <?= $tax_type == 'Exclusive' ? 'selected' : ''; ?>>Exclusive</option>
                 <option value="Inclusive" <?= $tax_type == 'Inclusive' ? 'selected' : ''; ?>>Inclusive</option>
               </select>
@@ -249,7 +249,43 @@
             <?php if(empty($variants) && empty($attribute_map)): ?>
               <div class="empty-state">No variants or attributes available. Create them from the desktop first.</div>
             <?php endif; ?>
-            <div id="variant-rows"></div>
+            <div id="variant-rows">
+              <?php if(!empty($child_items)): ?>
+                <?php foreach($child_items as $i => $child): $idx = $i + 1; ?>
+                  <div class="variant-row" data-index="<?= $idx; ?>">
+                    <div class="v-header">
+                      <div><span class="v-index"><?= $idx; ?></span>. <span class="v-title"><?= htmlspecialchars($child->variant_name ?? 'Variant'); ?></span></div>
+                      <button type="button" class="v-remove" onclick="removeVariantRow(this)">Remove</button>
+                    </div>
+                    <input type="hidden" name="tr_variant_id_<?= $idx; ?>" value="<?= (int)$child->variant_id; ?>">
+                    <input type="hidden" name="tr_item_id_<?= $idx; ?>" value="<?= (int)$child->id; ?>">
+                    <input type="hidden" name="variant_name_<?= $idx; ?>" value="<?= htmlspecialchars($child->variant_name ?? ''); ?>">
+                    <input type="hidden" name="td_data_<?= $idx; ?>_9" value="<?= htmlspecialchars($child->hsn ?? ''); ?>">
+                    <input type="hidden" name="count_id_<?= $idx; ?>" value="<?= htmlspecialchars($child->count_id ?? ''); ?>">
+                    <input type="hidden" name="item_code_<?= $idx; ?>" value="<?= htmlspecialchars($child->item_code ?? ''); ?>">
+                    <div class="form-row">
+                      <div class="form-group"><label>SKU</label><input type="text" name="td_data_<?= $idx; ?>_2" value="<?= htmlspecialchars($child->sku ?? ''); ?>" placeholder="SKU"></div>
+                      <div class="form-group"><label>Barcode</label><input type="text" name="td_data_<?= $idx; ?>_8" value="<?= htmlspecialchars($child->custom_barcode ?? ''); ?>" placeholder="Barcode"></div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label>Base/Cost Price</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_3" value="<?= number_format((float)$child->price, 2, '.', ''); ?>" placeholder="0.00" required></div>
+                      <div class="form-group"><label>Purchase Price</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_4" value="<?= number_format((float)$child->purchase_price, 2, '.', ''); ?>" placeholder="0.00" required></div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label>Profit Margin (%)</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_5" value="<?= number_format((float)($child->profit_margin ?? 0), 2, '.', ''); ?>" placeholder="0"></div>
+                      <div class="form-group"><label>Sale Price</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_6" value="<?= number_format((float)$child->sales_price, 2, '.', ''); ?>" placeholder="0.00" required></div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label>MRP</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_10" value="<?= number_format((float)$child->mrp, 2, '.', ''); ?>" placeholder="0.00"></div>
+                      <div class="form-group"><label>Opening Stock</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_11" placeholder="0" min="0"></div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group" style="grid-column: 1 / -1;"><label>Variant Image</label><input type="file" name="variant_image_<?= $idx; ?>" accept="image/*"></div>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </div>
           </div>
         </div>
 
@@ -261,7 +297,7 @@
   <div id="toast"></div>
 
   <script>
-    var variantRows = 0;
+    var variantRows = <?= (int)count($child_items); ?>;
     var attributeMap = <?= json_encode($attribute_map ?? []); ?>;
     var availableVariants = {};
     document.querySelectorAll('#variant_select option').forEach(function(opt){
@@ -283,12 +319,17 @@
         vsec.style.display = 'block';
       } else {
         vsec.style.display = 'none';
+      }
+    }
+    document.getElementById('item_group').addEventListener('change', function(){
+      var group = document.getElementById('item_group').value;
+      if(group !== 'Variants'){
         document.getElementById('variant-rows').innerHTML = '';
         variantRows = 0;
         document.getElementById('hidden_rowcount').value = 0;
       }
-    }
-    document.getElementById('item_group').addEventListener('change', toggleSections);
+      toggleSections();
+    });
     toggleSections();
 
     function initMpSelects(){
@@ -394,16 +435,23 @@
       var base = parseFloat(document.getElementById('price').value) || 0;
       var purchase = parseFloat(document.getElementById('purchase_price').value) || 0;
       var sales = parseFloat(document.getElementById('sales_price').value) || 0;
+      var mrp = parseFloat(document.getElementById('mrp').value) || 0;
       var row = document.querySelector('.variant-row[data-index="' + i + '"]');
       if(!row || base <= 0) return;
       var price3 = row.querySelector('[name="td_data_' + i + '_3"]');
       var price4 = row.querySelector('[name="td_data_' + i + '_4"]');
       var price5 = row.querySelector('[name="td_data_' + i + '_5"]');
       var price6 = row.querySelector('[name="td_data_' + i + '_6"]');
+      var price10 = row.querySelector('[name="td_data_' + i + '_10"]');
       if(price3 && price3.value === '') price3.value = round2(base);
       if(price4 && price4.value === '') price4.value = purchase > 0 ? round2(purchase) : round2(base);
-      if(price5 && price5.value === '') price5.value = '0';
+      if(price5 && price5.value === ''){
+        var cost = purchase > 0 ? purchase : base;
+        var selling = mrp > 0 ? mrp : (sales > 0 ? sales : base);
+        price5.value = cost > 0 ? computeMargin(cost, selling) : '0';
+      }
       if(price6 && price6.value === '') price6.value = sales > 0 ? round2(sales) : round2(base);
+      if(price10 && price10.value === '' && mrp > 0) price10.value = round2(mrp);
     }
 
     document.getElementById('btn-add-variant').addEventListener('click', function(){
@@ -428,6 +476,7 @@
             '<button type="button" class="v-remove" onclick="removeVariantRow(this)">Remove</button>' +
           '</div>' +
           '<input type="hidden" name="tr_variant_id_' + i + '" value="' + variantId + '">' +
+          '<input type="hidden" name="variant_name_' + i + '" value="' + name + '">' +
           '<input type="hidden" name="td_data_' + i + '_9" value="">' +
           '<input type="hidden" name="count_id_' + i + '" value="">' +
           '<input type="hidden" name="item_code_' + i + '" value="">' +
@@ -470,12 +519,25 @@
     function round2(n){ return (Math.round(n * 100) / 100).toFixed(2); }
     function computeMargin(cost, sale){ return cost > 0 ? round2(((sale - cost) / cost) * 100) : 0; }
     function computeSale(cost, margin){ return round2(cost * (1 + margin / 100)); }
+    function sellingPrice(){
+      var mrp = parseFloat(document.getElementById('mrp').value) || 0;
+      var sales = parseFloat(document.getElementById('sales_price').value) || 0;
+      return mrp > 0 ? mrp : sales;
+    }
+    function recalcProfitMargin(){
+      var cost = parseFloat(document.getElementById('purchase_price').value) || 0;
+      if(cost <= 0) return;
+      var sale = sellingPrice();
+      if(sale <= 0) return;
+      document.getElementById('profit_margin').value = computeMargin(cost, sale);
+    }
 
     document.getElementById('price').addEventListener('change', function(){
       var base = parseFloat(this.value) || 0;
       if(base > 0){
         setIfEmpty(document.getElementById('purchase_price'), round2(base));
         setIfEmpty(document.getElementById('sales_price'), round2(base));
+        setIfEmpty(document.getElementById('mrp'), round2(base));
         setIfEmpty(document.getElementById('profit_margin'), 0);
       }
     });
@@ -503,6 +565,23 @@
         document.getElementById('profit_margin').value = computeMargin(cost, sale);
       }
     });
+    document.getElementById('purchase_price').addEventListener('change', recalcProfitMargin);
+    document.getElementById('sales_price').addEventListener('change', recalcProfitMargin);
+    document.getElementById('mrp').addEventListener('change', recalcProfitMargin);
+
+    function recalcVariantProfit(i, prefer){
+      var cost = parseFloat(document.getElementsByName('td_data_' + i + '_4')[0].value) || 0;
+      if(cost <= 0) return;
+      var mrp = parseFloat(document.getElementsByName('td_data_' + i + '_10')[0].value) || 0;
+      var sales = parseFloat(document.getElementsByName('td_data_' + i + '_6')[0].value) || 0;
+      var selling = 0;
+      if(prefer === 'mrp') selling = mrp;
+      else if(prefer === 'sales') selling = sales;
+      else selling = mrp > 0 ? mrp : sales;
+      var pm = document.getElementsByName('td_data_' + i + '_5')[0];
+      if(!pm) return;
+      pm.value = selling > 0 ? computeMargin(cost, selling) : '0';
+    }
 
     // Same auto-fill for dynamically added variant rows
     document.getElementById('variant-rows').addEventListener('change', function(e){
@@ -528,6 +607,7 @@
         if(cost > 0 && pm && parseFloat(pm.value) >= 0 && sp){
           setIfEmpty(sp, computeSale(cost, parseFloat(pm.value)));
         }
+        recalcVariantProfit(i);
       }
       if(col === '5'){
         var cost = parseFloat(document.getElementsByName('td_data_' + i + '_4')[0].value) || 0;
@@ -536,10 +616,10 @@
         if(cost > 0 && sp) sp.value = computeSale(cost, margin);
       }
       if(col === '6'){
-        var cost = parseFloat(document.getElementsByName('td_data_' + i + '_4')[0].value) || 0;
-        var sale = parseFloat(el.value) || 0;
-        var pm = document.getElementsByName('td_data_' + i + '_5')[0];
-        if(cost > 0 && pm) pm.value = computeMargin(cost, sale);
+        recalcVariantProfit(i, 'sales');
+      }
+      if(col === '10'){
+        recalcVariantProfit(i, 'mrp');
       }
     });
 
