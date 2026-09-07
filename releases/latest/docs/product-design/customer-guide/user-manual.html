@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint User Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .workflow-card { display:flex; flex-direction:column; gap:10px; }
+    .workflow-card h3 { margin-bottom:4px; }
+    .workflow-step { display:flex; gap:10px; align-items:center; font-size:0.85rem; color:var(--mp-ink); }
+    .workflow-step i { color:var(--mp-primary); width:18px; text-align:center; }
+    .support-card { border:1px solid var(--mp-border); border-radius:var(--radius-sm); padding:14px; text-align:center; page-break-inside:avoid; }
+    .support-card i { font-size:1.6rem; color:var(--mp-primary); margin-bottom:8px; display:block; }
+    .support-card strong { display:block; font-size:0.9rem; margin-bottom:4px; }
+    .support-card span { font-size:0.78rem; color:var(--mp-muted); }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <!-- Cover -->
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">v4.0.9</span>
+      </div>
+
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">User Guide</span>
+        <h1>Your everyday guide to running the store.</h1>
+        <p>Made for owners, managers, and cashiers. No technical jargon, just the buttons you press and the icons you see.</p>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="grid cols-4 text-center mb-3">
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-sign-in"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Log in</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-calculator"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Sell</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-cubes"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Stock</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-pie-chart"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Report</span>
+        </div>
+      </div>
+
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint Retail Commerce Platform</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- First 5 minutes -->
+  <section class="page">
+    <span class="label">Quick start</span>
+    <h2 class="mb-2">Your first 5 minutes with MartPoint</h2>
+    <p class="lead mb-3">Five simple steps from login to your first sale. Each step is one screen, one decision.</p>
+
+    <div class="steps mb-3">
+      <div class="step no-break">
+        <div class="step-number">1</div>
+        <div class="step-body">
+          <h4>Open your store link and sign in</h4>
+          <p>Enter your username and password. If your business has several branches, pick the one you are working in today.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">2</div>
+        <div class="step-body">
+          <h4>Check the Dashboard</h4>
+          <p>See today’s cash position, quick-action buttons, and any alerts (low stock, expiring items, or pending payments).</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">3</div>
+        <div class="step-body">
+          <h4>Open the POS</h4>
+          <p>Tap <strong>POS</strong> on mobile or <strong>Sales → POS</strong> on desktop. The cart opens ready for items.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">4</div>
+        <div class="step-body">
+          <h4>Add items to the cart</h4>
+          <p>Scan a barcode or type the product name. Adjust quantity, apply a discount if allowed, then choose the payment method.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">5</div>
+        <div class="step-body">
+          <h4>Checkout and print</h4>
+          <p>Enter the amount received, confirm change, and save. The receipt can print, email, or download as PDF.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip no-break">
+      <i class="fa fa-lightbulb-o"></i> <strong>Pro tip:</strong> If you forget a shortcut, ask MartPoint Assist. It can check stock, find customers, and start a sale for you.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guide</span>
+      <span>Page 2</span>
+    </div>
+  </section>
+
+  <!-- Icon legend -->
+  <section class="page">
+    <span class="label">Icons</span>
+    <h2 class="mb-2">What the buttons and symbols mean</h2>
+    <p class="lead mb-2">MartPoint uses small icons to save space. Here are the ones you will see every day.</p>
+
+    <div class="grid cols-2" style="gap:24px;">
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-mobile" style="color:var(--mp-primary);margin-right:8px;"></i>Bottom menu (mobile)</h3>
+        <p class="small mb-2">The bar at the bottom of the screen lets you move between main screens.</p>
+        <div class="legend-grid">
+          <div class="legend-item"><i class="fa fa-home"></i> Home — Dashboard & quick actions</div>
+          <div class="legend-item"><i class="fa fa-calculator"></i> POS — Make a sale</div>
+          <div class="legend-item"><i class="fa fa-file-text-o"></i> Sale — New invoice screen</div>
+          <div class="legend-item"><i class="fa fa-pause-circle-o"></i> Hold — Pause a cart</div>
+          <div class="legend-item"><i class="fa fa-cart-arrow-down"></i> Purchase — Receive stock</div>
+          <div class="legend-item"><i class="fa fa-list"></i> Sales — List of invoices</div>
+          <div class="legend-item"><i class="fa fa-user"></i> More — Settings & profile</div>
+          <div class="legend-item"><i class="fa fa-sign-in"></i> Clock In / Clock Out</div>
+        </div>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-mouse-pointer" style="color:var(--mp-primary);margin-right:8px;"></i>Common actions</h3>
+        <p class="small mb-2">These icons appear on cards, lists, and buttons.</p>
+        <div class="legend-grid">
+          <div class="legend-item"><i class="fa fa-search"></i> Search for an item or customer</div>
+          <div class="legend-item"><i class="fa fa-plus"></i> Add something new</div>
+          <div class="legend-item"><i class="fa fa-save"></i> Save the form</div>
+          <div class="legend-item"><i class="fa fa-edit"></i> Edit this record</div>
+          <div class="legend-item"><i class="fa fa-trash"></i> Delete this record</div>
+          <div class="legend-item"><i class="fa fa-chevron-left"></i> Go back</div>
+          <div class="legend-item"><i class="fa fa-chevron-down"></i> Open a dropdown</div>
+          <div class="legend-item"><i class="fa fa-eye"></i> Show hidden information</div>
+        </div>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-bolt" style="color:var(--mp-primary);margin-right:8px;"></i>Quick-action icons</h3>
+        <p class="small mb-2">These often appear on the Dashboard or inside records.</p>
+        <div class="legend-grid">
+          <div class="legend-item"><i class="fa fa-shopping-cart"></i> New Sale</div>
+          <div class="legend-item"><i class="fa fa-user-plus"></i> Add Customer</div>
+          <div class="legend-item"><i class="fa fa-minus-square"></i> Add Expense</div>
+          <div class="legend-item"><i class="fa fa-plus-square"></i> Purchase Stock</div>
+          <div class="legend-item"><i class="fa fa-scissors"></i> Add Service</div>
+          <div class="legend-item"><i class="fa fa-file-text-o"></i> New Invoice</div>
+          <div class="legend-item"><i class="fa fa-file-text"></i> Today’s Summary</div>
+          <div class="legend-item"><i class="fa fa-money"></i> Cash Position</div>
+        </div>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-info-circle" style="color:var(--mp-primary);margin-right:8px;"></i>Status colours</h3>
+        <p class="small mb-2">A coloured dot or icon tells you the state of an item, sale, or alert.</p>
+        <div class="legend-grid">
+          <div class="legend-item"><i class="fa fa-check-circle" style="color:var(--mp-success);"></i> Success / Done</div>
+          <div class="legend-item"><i class="fa fa-exclamation-triangle" style="color:var(--mp-warning);"></i> Warning / Needs attention</div>
+          <div class="legend-item"><i class="fa fa-times-circle" style="color:var(--mp-danger);"></i> Error / Cancelled</div>
+          <div class="legend-item"><i class="fa fa-refresh fa-spin" style="color:var(--mp-primary);"></i> Processing / Syncing</div>
+          <div class="legend-item"><i class="fa fa-clock-o" style="color:var(--mp-muted);"></i> Pending / On hold</div>
+          <div class="legend-item"><i class="fa fa-envelope"></i> Message / Email</div>
+          <div class="legend-item"><i class="fa fa-phone"></i> Call customer</div>
+          <div class="legend-item"><i class="fa fa-map-marker"></i> View location</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-strip mt-2">
+      <span>MartPoint User Guide</span>
+      <span>Page 3</span>
+    </div>
+  </section>
+
+  <!-- Workflows -->
+  <section class="page">
+    <span class="label">Everyday workflows</span>
+    <h2 class="mb-2">Six things you will do most often</h2>
+
+    <div class="grid cols-2" style="gap:18px;">
+      <div class="card no-break workflow-card">
+        <div class="icon-circle"><i class="fa fa-shopping-cart"></i></div>
+        <h3>1. Make a sale</h3>
+        <div class="workflow-step"><i class="fa fa-calculator"></i> Open POS</div>
+        <div class="workflow-step"><i class="fa fa-search"></i> Search or scan item</div>
+        <div class="workflow-step"><i class="fa fa-user"></i> Add customer (optional)</div>
+        <div class="workflow-step"><i class="fa fa-tag"></i> Apply discount or coupon</div>
+        <div class="workflow-step"><i class="fa fa-money"></i> Choose payment and save</div>
+        <div class="workflow-step"><i class="fa fa-print"></i> Print or share receipt</div>
+      </div>
+
+      <div class="card no-break workflow-card">
+        <div class="icon-circle accent"><i class="fa fa-cubes"></i></div>
+        <h3>2. Receive new stock</h3>
+        <div class="workflow-step"><i class="fa fa-cart-arrow-down"></i> Go to Purchase</div>
+        <div class="workflow-step"><i class="fa fa-truck"></i> Select supplier</div>
+        <div class="workflow-step"><i class="fa fa-plus"></i> Add items & quantities</div>
+        <div class="workflow-step"><i class="fa fa-calendar"></i> Enter batch or expiry date</div>
+        <div class="workflow-step"><i class="fa fa-save"></i> Save — stock updates automatically</div>
+      </div>
+
+      <div class="card no-break workflow-card">
+        <div class="icon-circle success"><i class="fa fa-user-plus"></i></div>
+        <h3>3. Add a customer</h3>
+        <div class="workflow-step"><i class="fa fa-users"></i> Go to Customers</div>
+        <div class="workflow-step"><i class="fa fa-plus"></i> Tap New Customer</div>
+        <div class="workflow-step"><i class="fa fa-mobile"></i> Enter name and phone</div>
+        <div class="workflow-step"><i class="fa fa-credit-card"></i> Set credit limit (optional)</div>
+        <div class="workflow-step"><i class="fa fa-save"></i> Save — now you can bill them</div>
+      </div>
+
+      <div class="card no-break workflow-card">
+        <div class="icon-circle warning"><i class="fa fa-search"></i></div>
+        <h3>4. Check stock</h3>
+        <div class="workflow-step"><i class="fa fa-cubes"></i> Go to Catalogue → Items</div>
+        <div class="workflow-step"><i class="fa fa-search"></i> Type product name or scan</div>
+        <div class="workflow-step"><i class="fa fa-building-o"></i> Choose branch</div>
+        <div class="workflow-step"><i class="fa fa-bell"></i> View Low Stock alerts</div>
+      </div>
+
+      <div class="card no-break workflow-card">
+        <div class="icon-circle" style="background:rgba(220,38,38,0.08);color:var(--mp-danger);"><i class="fa fa-minus-square"></i></div>
+        <h3>5. Record an expense</h3>
+        <div class="workflow-step"><i class="fa fa-minus-square"></i> Go to Expenses → New</div>
+        <div class="workflow-step"><i class="fa fa-tag"></i> Pick category (rent, fuel, etc.)</div>
+        <div class="workflow-step"><i class="fa fa-money"></i> Enter amount and date</div>
+        <div class="workflow-step"><i class="fa fa-camera"></i> Attach receipt photo (optional)</div>
+        <div class="workflow-step"><i class="fa fa-save"></i> Save — it appears in daily summary</div>
+      </div>
+
+      <div class="card no-break workflow-card">
+        <div class="icon-circle" style="background:rgba(6,182,212,0.08);color:#06B6D4;"><i class="fa fa-file-text"></i></div>
+        <h3>6. View daily summary</h3>
+        <div class="workflow-step"><i class="fa fa-file-text"></i> Open Reports → Daily Summary</div>
+        <div class="workflow-step"><i class="fa fa-calendar"></i> Pick today or any date</div>
+        <div class="workflow-step"><i class="fa fa-line-chart"></i> See sales, profit, expenses</div>
+        <div class="workflow-step"><i class="fa fa-download"></i> Export as PDF if needed</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guide</span>
+      <span>Page 4</span>
+    </div>
+  </section>
+
+  <!-- Troubleshooting -->
+  <section class="page">
+    <span class="label">Quick fixes</span>
+    <h2 class="mb-2">Troubleshooting made simple</h2>
+    <p class="lead mb-3">If something does not behave, try the safe step first. Most issues are fixed with a refresh, a cache clear, or a quick check.</p>
+
+    <div class="grid cols-2" style="gap:18px;">
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-key" style="color:var(--mp-primary);margin-right:8px;"></i>Cannot log in</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Check Caps Lock is off.</li>
+          <li><i class="fa fa-check"></i> Make sure you are on the correct store link.</li>
+          <li><i class="fa fa-check"></i> Ask the owner or admin to reset your password.</li>
+          <li><i class="fa fa-check"></i> If the page does not load, check internet or Wi-Fi.</li>
+        </ul>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-desktop" style="color:var(--mp-primary);margin-right:8px;"></i>Blank or white page</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Refresh the browser (Ctrl+R or Cmd+R).</li>
+          <li><i class="fa fa-check"></i> Clear browser cache and cookies.</li>
+          <li><i class="fa fa-check"></i> Try a different browser (Chrome is recommended).</li>
+          <li><i class="fa fa-check"></i> Contact your admin or support if it persists.</li>
+        </ul>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-barcode" style="color:var(--mp-primary);margin-right:8px;"></i>Barcode does not scan</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Wipe the scanner lens and barcode.</li>
+          <li><i class="fa fa-check"></i> Make sure the scanner is in “keyboard” mode.</li>
+          <li><i class="fa fa-check"></i> Try typing the code manually into the search box.</li>
+          <li><i class="fa fa-check"></i> Confirm the item has a barcode saved in the system.</li>
+        </ul>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-print" style="color:var(--mp-primary);margin-right:8px;"></i>Receipt not printing</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Check printer power, paper, and connection.</li>
+          <li><i class="fa fa-check"></i> Tap the Print icon and wait for the browser dialog.</li>
+          <li><i class="fa fa-check"></i> For thermal printers, confirm it is set as the default.</li>
+          <li><i class="fa fa-check"></i> You can also email or download the receipt as PDF.</li>
+        </ul>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-warning" style="color:var(--mp-primary);margin-right:8px;"></i>Sale will not save</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Check all required fields are filled.</li>
+          <li><i class="fa fa-check"></i> Make sure there is enough stock for the items.</li>
+          <li><i class="fa fa-check"></i> Discounts over a limit may need a manager PIN.</li>
+          <li><i class="fa fa-check"></i> If offline, the sale is queued and will sync automatically.</li>
+        </ul>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-refresh" style="color:var(--mp-primary);margin-right:8px;"></i>App feels slow</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Close unused browser tabs or apps.</li>
+          <li><i class="fa fa-check"></i> Clear cache and refresh.</li>
+          <li><i class="fa fa-check"></i> Check internet/Wi-Fi signal strength.</li>
+          <li><i class="fa fa-check"></i> Restart the browser or device.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guide</span>
+      <span>Page 5</span>
+    </div>
+  </section>
+
+  <!-- Inactivity & Screen Lock -->
+  <section class="page">
+    <span class="label">Security</span>
+    <h2 class="mb-2">Idle timeout &amp; screen lock</h2>
+    <p class="lead mb-3">MartPoint can warn you and lock the screen when no one is using it. This protects your store data if a cashier or user walks away.</p>
+
+    <div class="grid cols-2" style="gap:18px;">
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-clock-o" style="color:var(--mp-primary);margin-right:8px;"></i>Idle warning</h3>
+        <p class="small">After the set number of minutes with no mouse, keyboard, or touch activity, a dialog appears and counts down. Tap <strong>Stay logged in</strong> to keep working.</p>
+      </div>
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-moon-o" style="color:var(--mp-primary);margin-right:8px;"></i>Snooze screen</h3>
+        <p class="small">If the store owner enables Snooze, the screen freezes with a campaign/flyer instead of logging out. The user unlocks with their password or approval PIN.</p>
+      </div>
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-lock" style="color:var(--mp-primary);margin-right:8px;"></i>Where it is set</h3>
+        <p class="small">Owners and managers set it in <strong>Store Settings &rarr; Session Lock</strong>. They choose the idle time in minutes, the warning countdown, and whether to show a campaign image.</p>
+      </div>
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-user-secret" style="color:var(--mp-primary);margin-right:8px;"></i>What users should do</h3>
+        <p class="small">Do not leave a half-finished sale on screen. Put it on <strong>Hold</strong> or finish and save it before stepping away. If the screen snoozes, unlock it with your own password.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guide</span>
+      <span>Page 6</span>
+    </div>
+  </section>
+
+  <!-- Support & Coverage -->
+  <section class="page">
+    <span class="label">Support</span>
+    <h2 class="mb-2">Help is built in.</h2>
+    <p class="lead mb-3">Use the support portal, chat, or call us. We are here to help with the software; your devices, internet, and printers are handled by your team or IT partner.</p>
+
+    <div class="grid cols-4 mb-3">
+      <div class="support-card no-break">
+        <i class="fa fa-envelope"></i>
+        <strong>Email</strong>
+        <span>support@martpoint.com.ng</span>
+      </div>
+      <div class="support-card no-break">
+        <i class="fa fa-phone"></i>
+        <strong>Phone</strong>
+        <span>0803 602 8069</span>
+      </div>
+      <div class="support-card no-break">
+        <i class="fa fa-comments"></i>
+        <strong>WhatsApp</strong>
+        <span>Chat on WhatsApp</span>
+      </div>
+      <div class="support-card no-break">
+        <i class="fa fa-clock-o"></i>
+        <strong>Office Hours</strong>
+        <span>Mon–Fri, 9am–5pm</span>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="gap:24px;">
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-comments" style="color:var(--mp-primary);margin-right:8px;"></i>MartPoint Assist chat</h3>
+        <p class="small mb-2">The chat bubble appears on every mobile and desktop screen. Tap it to ask things like:</p>
+        <ul class="tick-list small">
+          <li><i class="fa fa-chevron-right"></i> “How many units of sugar do we have?”</li>
+          <li><i class="fa fa-chevron-right"></i> “Find customer John”</li>
+          <li><i class="fa fa-chevron-right"></i> “Create a sale for Jane”</li>
+          <li><i class="fa fa-chevron-right"></i> “View today’s summary”</li>
+        </ul>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-info-circle" style="color:var(--mp-primary);margin-right:8px;"></i>When you contact support</h3>
+        <p class="small mb-2">To help us solve your issue faster, please include:</p>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Your store name and branch</li>
+          <li><i class="fa fa-check"></i> What you were trying to do</li>
+          <li><i class="fa fa-check"></i> The exact steps that led to the issue</li>
+          <li><i class="fa fa-check"></i> A screenshot or error message if possible</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break mt-2" style="background:#FAFAF9;">
+      <h3 class="mb-1">Support coverage</h3>
+      <p class="small">MartPoint provides the software, documentation, and technical support. We do not supply computers, barcode scanners, receipt printers, internet service, or electricity. Those are provided by you or your implementation partner. We will, however, guide you on compatible hardware and setup best practices.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span><i class="fa fa-map-marker"></i> Lagos, Nigeria</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Services &amp; Operations Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Services</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Screen-by-screen guide</span>
+        <h1>Services &amp; Operations</h1>
+        <p>For restaurants, salons, laundries, spas, and repair shops. Sell services, manage orders, and track staff in one place.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Services module map</span>
+    <h2 class="mb-2">Service screens at a glance</h2>
+    <p class="lead mb-3">Service businesses use a mix of catalog, service packages, memberships, and operation workflows. Choose the path that matches your industry.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-scissors"></i> Service Item</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-plus-square"></i> Add Service</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-id-card"></i> Membership</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-cogs"></i> Operations</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-scissors" style="color:var(--mp-primary);margin-right:8px;"></i>Service items</h3>
+        <p class="small">Products marked as services do not use stock. Sell them like products in POS.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-id-card" style="color:var(--mp-primary);margin-right:8px;"></i>Memberships</h3>
+        <p class="small">Create plans (gym, spa) and assign customers with validity and benefits.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-cogs" style="color:var(--mp-primary);margin-right:8px;"></i>Operations</h3>
+        <p class="small">Track custom orders, kitchen, laundry, tables, delivery, and staff assignment.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-user-md" style="color:var(--mp-primary);margin-right:8px;"></i>Staff</h3>
+        <p class="small">Assign staff to services and track commissions per service or sale.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Services Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 1 of 5</span>
+    <h2 class="mb-2">Service Items &amp; Packages</h2>
+    <p class="lead mb-3">A service is a non-stock product. You can sell it from POS, add it to packages, and include it in memberships.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Inventory → Add Product</strong>, then select the <strong>Service</strong> type. Or, on desktop, use <strong>Services</strong> to add a service item.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Service Name</strong><span>Name shown on receipts</span></div>
+        <div class="field"><strong>Category</strong><span>Service category</span></div>
+        <div class="field"><strong>Price</strong><span>Fixed or variable</span></div>
+        <div class="field"><strong>Duration</strong><span>How long it takes</span></div>
+        <div class="field"><strong>Service bit</strong><span>Marks it as non-stock</span></div>
+        <div class="field"><strong>Staff commission</strong><span>Percentage per service</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Open <strong>Add Product</strong> and choose the <strong>Service</strong> type (or open <strong>Services</strong> on desktop).</li>
+        <li>Enter the service name, category, and price.</li>
+        <li>Set the duration if your business books time slots.</li>
+        <li>Enable staff commission if the person performing the service earns a percentage.</li>
+        <li>Tap <strong>Save</strong>. The service is now available in POS and sales.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Service Packages</h3>
+      <p class="small mb-2">A package bundles multiple services at a set price. Use it for offers like “Wedding Package” or “Spa Day”.</p>
+      <div class="field-list">
+        <div class="field"><strong>Package name</strong><span>Offer name</span></div>
+        <div class="field"><strong>Included services</strong><span>Select multiple services</span></div>
+        <div class="field"><strong>Validity</strong><span>Days the package is valid</span></div>
+        <div class="field"><strong>Redemption</strong><span>Track usage</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Services Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 2 of 5</span>
+    <h2 class="mb-2">Memberships</h2>
+    <p class="lead mb-3">Memberships let customers pay once and receive services over time. Perfect for gyms, salons, and spas.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Operations → Memberships</strong>.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Plan name</strong><span>Membership plan name</span></div>
+        <div class="field"><strong>Price</strong><span>Membership fee</span></div>
+        <div class="field"><strong>Validity</strong><span>Days or months</span></div>
+        <div class="field"><strong>Benefits</strong><span>Included services or discount</span></div>
+        <div class="field"><strong>Customer</strong><span>Who owns the membership</span></div>
+        <div class="field"><strong>Start / Expiry</strong><span>Membership period</span></div>
+        <div class="field"><strong>Status</strong><span>Active or expired</span></div>
+        <div class="field"><strong>Redeem</strong><span>Use a membership benefit at sale</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Tap <strong>Memberships</strong> in Operations.</li>
+        <li>First, create a <strong>Plan</strong> with name, price, validity, and benefits.</li>
+        <li>Assign the plan to a customer. Set the start and expiry dates.</li>
+        <li>Record the membership payment.</li>
+        <li>At POS, the customer’s membership appears. Tap <strong>Redeem</strong> to use benefits.</li>
+      </ol>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Services Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 3, 4 &amp; 5 of 5</span>
+    <h2 class="mb-2">Operations Workflows</h2>
+    <p class="lead mb-3">Operations is where service businesses track the actual work. Use the tools that match your industry.</p>
+
+    <div class="screen-card no-break">
+      <h3>Custom Orders</h3>
+      <p class="small mb-2">For made-to-order work (cakes, tailoring, repairs). Create an order, take a deposit, and track status.</p>
+      <div class="field-list">
+        <div class="field"><strong>Customer</strong><span>Who ordered</span></div>
+        <div class="field"><strong>Order details</strong><span>What to make</span></div>
+        <div class="field"><strong>Deposit</strong><span>Amount paid upfront</span></div>
+        <div class="field"><strong>Status</strong><span>Received, In progress, Ready, Delivered</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Kitchen Display</h3>
+      <p class="small mb-2">For restaurants. Orders flow from POS to the kitchen screen. Staff mark items as started, ready, or served.</p>
+      <div class="field-list">
+        <div class="field"><strong>Incoming orders</strong><span>New tickets from POS</span></div>
+        <div class="field"><strong>Table</strong><span>Dine-in table number</span></div>
+        <div class="field"><strong>Status</strong><span>Cooking, Ready, Served</span></div>
+        <div class="field"><strong>Timing</strong><span>Order time and duration</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Table Management</h3>
+      <p class="small mb-2">See table status: free, occupied, or billed. Tap a table to start an order or close the bill.</p>
+      <div class="field-list">
+        <div class="field"><strong>Table grid</strong><span>Visual floor plan</span></div>
+        <div class="field"><strong>New order</strong><span>Start a table order</span></div>
+        <div class="field"><strong>Bill</strong><span>Close and print receipt</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Laundry, Delivery, Treatment Notes</h3>
+      <p class="small mb-2">Laundry tracks wash/iron/deliver status. Delivery tracks drivers and drop-off. Treatment Notes record services performed on a customer and products used.</p>
+      <div class="field-list">
+        <div class="field"><strong>Laundry status</strong><span>Received, Washed, Ironed, Delivered</span></div>
+        <div class="field"><strong>Delivery route</strong><span>Driver and stops</span></div>
+        <div class="field"><strong>Treatment notes</strong><span>Service history per customer</span></div>
+        <div class="field"><strong>Staff assignment</strong><span>Who does the work</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Staff Commission</h3>
+      <p class="small mb-2">If staff earn commission on services or sales, view and calculate commission from the Staff Commission screen. Select staff, date range, and service type to see totals.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Services Guide</span><span>Page 5</span></div>
+  </section>
+
+</div>
+</body>
+</html>

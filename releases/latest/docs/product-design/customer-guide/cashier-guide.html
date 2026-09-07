@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Cashier Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+    .do-dont { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+    .do, .dont { border:1px solid var(--mp-border); border-radius:var(--radius); padding:16px; }
+    .do { background:#F0FDF4; border-color:var(--mp-success); }
+    .dont { background:#FEF2F2; border-color:var(--mp-danger); }
+    .do h4 { margin:-16px -16px 14px -16px; padding:12px 16px; font-size:1rem; color:#fff; background:var(--mp-success); border-radius:var(--radius) var(--radius) 0 0; }
+    .dont h4 { margin:-16px -16px 14px -16px; padding:12px 16px; font-size:1rem; color:#fff; background:var(--mp-danger); border-radius:var(--radius) var(--radius) 0 0; }
+    .do ul, .dont ul { margin:0; padding-left:18px; font-size:0.85rem; color:var(--mp-ink); }
+    .do li, .dont li { margin-bottom:5px; }
+    .readiness-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:16px; background:#fff; }
+    .readiness-card h3 { margin-bottom:10px; font-size:1rem; }
+    .readiness-card ul { margin:0; padding-left:18px; font-size:0.85rem; color:var(--mp-ink); }
+    .readiness-card li { margin-bottom:6px; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Cashier</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Day-to-day selling</span>
+        <h1>Cashier Guide</h1>
+        <p>How to sell, take payment, handle mistakes, change password, and close your shift without stress.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Cashier workflow</span>
+    <h2 class="mb-2">What a cashier does every day</h2>
+    <p class="lead mb-3">Your job is to ring up sales, collect payment, and make sure every customer gets a receipt. If a customer wants to pay later, return an item, or pause a sale, the system has buttons for those too.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-clock-o"></i> Clock in</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-calculator"></i> POS</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-money"></i> Payment</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-print"></i> Receipt</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-lock"></i> Clock out</div>
+    </div>
+
+    <div class="do-dont">
+      <div class="do">
+        <h4><i class="fa fa-check" style="margin-right:8px;"></i>Always do</h4>
+        <ul>
+          <li>Clock in before your first sale.</li>
+          <li>Scan or search every item.</li>
+          <li>Confirm the total before payment.</li>
+          <li>Print or email a receipt.</li>
+          <li>Keep cash safe and count it at shift end.</li>
+        </ul>
+      </div>
+      <div class="dont">
+        <h4><i class="fa fa-times" style="margin-right:8px;"></i>Never do</h4>
+        <ul>
+          <li>Give discounts without manager approval.</li>
+          <li>Sell on credit unless your role allows it.</li>
+          <li>Close the app during a sale.</li>
+          <li>Share your password.</li>
+          <li>Edit product details unless asked.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="gap:16px; margin-bottom:18px;">
+      <div class="readiness-card no-break">
+        <h3><i class="fa fa-clipboard-check" style="color:var(--mp-primary); margin-right:8px;"></i>Before your first sale</h3>
+        <ul>
+          <li><strong>Check the cash drawer</strong> — start with the correct float.</li>
+          <li><strong>Test the receipt printer</strong> — make sure it has paper and is connected.</li>
+          <li><strong>Clean the barcode scanner lens</strong> — dusty lenses cause failed scans.</li>
+          <li><strong>Check that POS loads</strong> — open the screen and confirm it is not frozen.</li>
+          <li><strong>Count your cash float</strong> — note it in the system if your store requires it.</li>
+        </ul>
+      </div>
+      <div class="readiness-card no-break">
+        <h3><i class="fa fa-heart" style="color:var(--mp-primary); margin-right:8px;"></i>Customer service at the counter</h3>
+        <ul>
+          <li><strong>Greet every customer</strong> — a quick hello and eye contact.</li>
+          <li><strong>Ask before scanning</strong> — “May I scan these for you?”</li>
+          <li><strong>Say the total clearly</strong> — “That comes to N5,000”.</li>
+          <li><strong>Offer the receipt</strong> — print or email it when payment is done.</li>
+          <li><strong>Stay calm on queues</strong> — call for help if the line grows.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break" style="padding:16px;">
+      <h3><i class="fa fa-lightbulb-o" style="color:var(--mp-warning); margin-right:8px;"></i>Cashier golden rule</h3>
+      <p class="small" style="margin:0;">Never hand over change before the customer has fully paid. Count the change out loud, and give the receipt before the customer leaves the counter. If a payment fails or is paused, do not let the customer walk away with the goods until the sale is saved.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Cashier Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Start of shift</span>
+    <h2 class="mb-2">Login, clock in &amp; change password</h2>
+
+    <div class="screen-card no-break">
+      <h3>Login</h3>
+      <p class="small mb-2">Open MartPoint in the browser or app. Enter your username/email and password given by the admin. If the manager has turned on face capture, you will be asked to take a photo when you clock in.</p>
+      <div class="field-list">
+        <div class="field"><strong>Store select</strong><span>Choose your store/branch</span></div>
+        <div class="field"><strong>Username</strong><span>Usually your email or staff ID</span></div>
+        <div class="field"><strong>Password</strong><span>Case-sensitive</span></div>
+        <div class="field"><strong>Login</strong><span>Opens POS or dashboard</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Clock in</h3>
+      <p class="small mb-2">If attendance is enabled, you will see a clock-in button or popup. Tap it and take your photo if asked. You cannot make sales until you are clocked in.</p>
+      <div class="field-list">
+        <div class="field"><strong>Clock In</strong><span>Start your shift</span></div>
+        <div class="field"><strong>Face capture</strong><span>Only if enabled</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Change your password</h3>
+      <p class="small mb-2">You should change your password after your first login. Go to your profile or the Change Password screen.</p>
+      <div class="field-list">
+        <div class="field"><strong>Old password</strong><span>Current password</span></div>
+        <div class="field"><strong>New password</strong><span>At least 6 characters</span></div>
+        <div class="field"><strong>Confirm password</strong><span>Type again</span></div>
+        <div class="field"><strong>Save</strong><span>Password is updated</span></div>
+      </div>
+      <p class="small mt-2">If you forget your password, ask the manager or admin to reset it from <strong>Users → Users List</strong>.</p>
+    </div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: open POS to start selling.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Cashier Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 1 of 3</span>
+    <h2 class="mb-2">POS — Quick checkout</h2>
+    <p class="lead mb-3">POS is the fastest way to sell. Use it when the customer is at the counter ready to pay.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small">Tap the <strong>POS</strong> button on the bottom bar, or go to <strong>More → Sales → POS</strong>.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen sections</h3>
+      <div class="field-list">
+        <div class="field"><strong>Search / barcode</strong><span>Type product name or scan</span></div>
+        <div class="field"><strong>Running cart</strong><span>Items added and quantity</span></div>
+        <div class="field"><strong>Customer</strong><span>Only if needed for credit</span></div>
+        <div class="field"><strong>Total</strong><span>Amount to be paid</span></div>
+        <div class="field"><strong>Payment buttons</strong><span>Cash, Card, Transfer, Credit</span></div>
+        <div class="field"><strong>Hold</strong><span>Pause the sale</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Tap the search box or click into it with the cursor.</li>
+        <li>Type the product name or scan the barcode. Tap the product from the list.</li>
+        <li>The product is added to the cart. Tap <strong>+</strong> or <strong>-</strong> to change quantity.</li>
+        <li>Add more items until the cart matches what the customer is buying.</li>
+        <li>Tap the payment method: <strong>Cash</strong>, <strong>Card</strong>, <strong>Transfer</strong>, or <strong>Credit</strong>.</li>
+        <li>For cash, enter the amount received. The system shows change.</li>
+        <li>Tap <strong>Save</strong>. The receipt prints or appears on screen.</li>
+        <li>Give the receipt to the customer.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Payment buttons and methods</h3>
+      <p class="small mb-2">At the bottom of POS you see the checkout buttons. Choose the one that matches how the customer wants to pay.</p>
+      <div class="field-list">
+        <div class="field"><strong>Pay</strong><span>Pay the whole amount at once. Use for normal cash-and-carry sales.</span></div>
+        <div class="field"><strong>Split Pay</strong><span>Pay with more than one method. Use when a customer uses any combination, such as Card + Transfer, Cash + Card, or even multiple non-cash methods. It does not have to include cash.</span></div>
+        <div class="field"><strong>PayPlan</strong><span>Pay in instalments. Use only when PayPlan is enabled and the manager has approved.</span></div>
+      </div>
+      <p class="small mt-2">Then pick the method: <strong>Cash</strong>, <strong>Card</strong>, <strong>Transfer</strong>, or a custom method added by the admin. For cash, enter the amount received so the system can show change.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What happens if the screen locks</h3>
+      <p class="small mb-2">Your manager can turn on idle timeout. If the screen is still for a few minutes, a warning appears with a countdown. Tap <strong>Stay logged in</strong> before the timer runs out.</p>
+      <ul class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.6;">
+        <li><strong>Snooze on:</strong> the screen pauses and shows a campaign. Tap it, then enter your password or PIN to continue.</li>
+        <li><strong>Snooze off:</strong> the system logs you out when the countdown ends.</li>
+        <li><strong>During a sale:</strong> tap <strong>Hold</strong> if you must step away, or finish the sale before the screen locks. A locked screen does not complete a sale.</li>
+      </ul>
+    </div>
+
+    <div class="tip warning"><strong>Discounts:</strong> If a customer asks for a discount, do not enter it unless your manager has given permission. Some stores require a manager PIN.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Cashier Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 2 of 3</span>
+    <h2 class="mb-2">Holds, Returns &amp; Receipts</h2>
+
+    <div class="screen-card no-break">
+      <h3>Hold — pause a sale</h3>
+      <p class="small mb-2">If the customer has to step away but wants to keep the cart, tap <strong>Hold</strong> and give the hold a name or number. Resume it later from <strong>Holds</strong>.</p>
+      <div class="field-list">
+        <div class="field"><strong>Hold name</strong><span>e.g. "Ade at counter"</span></div>
+        <div class="field"><strong>Resume</strong><span>Load cart again</span></div>
+        <div class="field"><strong>Delete</strong><span>Remove if not needed</span></div>
+      </div>
+      <p class="small mt-2">Holds do not reduce stock until they are completed.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Sales Return — when a customer returns an item</h3>
+      <p class="small mb-2">If your role allows returns, open the original invoice, tap <strong>Return</strong>, select the item and quantity, and choose refund method.</p>
+      <div class="field-list">
+        <div class="field"><strong>Invoice number</strong><span>Find the sale first</span></div>
+        <div class="field"><strong>Return quantity</strong><span>How many are coming back</span></div>
+        <div class="field"><strong>Refund method</strong><span>Cash or store credit</span></div>
+        <div class="field"><strong>Save</strong><span>Stock is added back</span></div>
+      </div>
+      <p class="small mt-2">If you do not see the Return button, ask a manager to do it.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Receipts</h3>
+      <p class="small mb-2">After a sale, you can:</p>
+      <div class="field-list">
+        <div class="field"><strong>Print</strong><span>If a receipt printer is connected</span></div>
+        <div class="field"><strong>Email</strong><span>Send to customer email</span></div>
+        <div class="field"><strong>Download PDF</strong><span>Save digital copy</span></div>
+        <div class="field"><strong>Reprint</strong><span>From Sales List</span></div>
+      </div>
+      <p class="small mt-2">If the printer does not print, check it is on and has paper. You can always email the receipt.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Cashier Guide</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 3 of 3</span>
+    <h2 class="mb-2">Sales List &amp; Quick fixes</h2>
+
+    <div class="screen-card no-break">
+      <h3>Sales List — find an old sale</h3>
+      <p class="small mb-2"><strong>More → Sales → Sales List</strong> shows every sale you made. You can search by invoice number or customer and reprint a receipt.</p>
+      <div class="field-list">
+        <div class="field"><strong>Search</strong><span>Invoice number or customer</span></div>
+        <div class="field"><strong>Date filter</strong><span>Today, this week, etc.</span></div>
+        <div class="field"><strong>View</strong><span>See items and total</span></div>
+        <div class="field"><strong>Reprint</strong><span>Print receipt again</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Quick fixes</h3>
+      <ul class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li><strong>Product not found:</strong> check spelling, scan the barcode, or ask the manager to add the product.</li>
+        <li><strong>Wrong quantity:</strong> tap the item and change quantity before saving.</li>
+        <li><strong>Wrong payment method:</strong> ask manager to edit the sale before end of day.</li>
+        <li><strong>Receipt printer silent:</strong> check power, paper, and USB/Bluetooth connection.</li>
+        <li><strong>Cash total looks wrong:</strong> do not close the sale. Re-check items and quantities.</li>
+        <li><strong>Barcode scanner not working:</strong> type the product name manually or type the code on the product label.</li>
+      </ul>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>End of shift</h3>
+      <p class="small">When your shift ends, count your cash and compare it with the system. If attendance is enabled, clock out. Do not close the browser or app while a sale is still open.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Cashier Guide</span><span>Page 6</span></div>
+  </section>
+
+</div>
+</body>
+</html>

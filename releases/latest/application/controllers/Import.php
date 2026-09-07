@@ -969,6 +969,7 @@ public function services(){
 
         if($_FILES['import_file']['size'] > 0)
         {
+            if(!is_dir(FCPATH.'uploads/csv/categories')){ mkdir(FCPATH.'uploads/csv/categories', 0755, true); }
             $config['upload_path']          = './uploads/csv/categories';
             $config['allowed_types']        = 'csv';
             $this->load->library('upload', $config);
@@ -1039,6 +1040,7 @@ public function services(){
 
         if($_FILES['import_file']['size'] > 0)
         {
+            if(!is_dir(FCPATH.'uploads/csv/brands')){ mkdir(FCPATH.'uploads/csv/brands', 0755, true); }
             $config['upload_path']          = './uploads/csv/brands';
             $config['allowed_types']        = 'csv';
             $this->load->library('upload', $config);
@@ -1107,6 +1109,7 @@ public function services(){
 
         if($_FILES['import_file']['size'] > 0)
         {
+            if(!is_dir(FCPATH.'uploads/csv/attributes')){ mkdir(FCPATH.'uploads/csv/attributes', 0755, true); }
             $config['upload_path']          = './uploads/csv/attributes';
             $config['allowed_types']        = 'csv';
             $this->load->library('upload', $config);

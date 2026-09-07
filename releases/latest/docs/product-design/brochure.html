@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Demo Book</title>
+  <link rel="icon" href="favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="martpoint-brand.css">
+  <style>
+    @page { size: A4 landscape; margin: 0; }
+    body .page.landscape { width: 297mm; min-height: 210mm; padding: 12mm 14mm; }
+    body .page-cover .cover-inner { min-height: 210mm; padding: 12mm 14mm; }
+    .landscape h1 { font-size: 2.6rem; }
+    .landscape h2 { font-size: 1.6rem; }
+    .landscape .lead { font-size: 1rem; }
+    .big-number { width: 52px; height: 52px; border-radius: 50%; background: var(--mp-primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; margin-right: 12px; }
+    .feature-mini { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .feature-mini .icon { width: 42px; height: 42px; border-radius: 12px; background: rgba(0,87,255,0.08); color: var(--mp-primary); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .feature-mini strong { display: block; font-size: 0.92rem; margin-bottom: 2px; }
+    .feature-mini span { font-size: 0.78rem; color: var(--mp-muted); }
+    .demo-card { background: #fff; border: 1px solid var(--mp-border); border-radius: var(--radius); padding: 16px; }
+    .demo-card h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .demo-card p { font-size: 0.82rem; color: var(--mp-ink); margin: 0; }
+    .highlight-strip { background: linear-gradient(90deg, var(--mp-primary), var(--mp-primary-dark)); color: #fff; border-radius: var(--radius); padding: 18px 24px; margin-top: 18px; }
+    .industry-bubble { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: #F5F5F4; font-size: 0.78rem; font-weight: 600; color: var(--mp-ink); margin: 5px; }
+    @media print {
+      body .page.landscape { width: 297mm; min-height: 210mm; margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+      body .page.landscape:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+<div class="document" style="max-width: 297mm;">
+
+  <section class="page page-cover landscape">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">v4.0.9</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: center; flex: 1;">
+        <div>
+          <span class="label" style="color:rgba(255,255,255,0.75);">Retail made simple</span>
+          <h1 style="font-size:2.9rem; margin: 10px 0 16px;">Run your shop from one calm screen.</h1>
+          <p style="font-size:1.05rem; color:rgba(255,255,255,0.85); max-width: 460px;">MartPoint is the friendly store helper that turns selling, stocking, and counting money into something even a busy cashier can do without stress.</p>
+          <div class="flex gap-2 mt-3" style="flex-wrap:wrap;">
+            <a href="https://www.martpoint.com.ng/support" target="_blank" class="btn btn-light">Request a demo</a>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="stat" style="background:rgba(255,255,255,0.08); border-radius:16px; padding:18px; text-align:center;">
+            <span class="number" style="font-size:1.8rem; color:#fff;"><i class="fa fa-bolt"></i></span>
+            <span class="label" style="color:rgba(255,255,255,0.75);">Fast checkout</span>
+          </div>
+          <div class="stat" style="background:rgba(255,255,255,0.08); border-radius:16px; padding:18px; text-align:center;">
+            <span class="number" style="font-size:1.8rem; color:#fff;"><i class="fa fa-cubes"></i></span>
+            <span class="label" style="color:rgba(255,255,255,0.75);">Smart stock</span>
+          </div>
+          <div class="stat" style="background:rgba(255,255,255,0.08); border-radius:16px; padding:18px; text-align:center;">
+            <span class="number" style="font-size:1.8rem; color:#fff;"><i class="fa fa-line-chart"></i></span>
+            <span class="label" style="color:rgba(255,255,255,0.75);">Clear profit</span>
+          </div>
+          <div class="stat" style="background:rgba(255,255,255,0.08); border-radius:16px; padding:18px; text-align:center;">
+            <span class="number" style="font-size:1.8rem; color:#fff;"><i class="fa fa-mobile"></i></span>
+            <span class="label" style="color:rgba(255,255,255,0.75);">Works offline</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-strip" style="padding-top:16px;">
+        <span><i class="fa fa-globe"></i> martpoint.com.ng</span>
+        <span><i class="fa fa-phone"></i> 0803 602 8069</span>
+        <span><i class="fa fa-envelope"></i> sales@martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page landscape">
+    <div style="display:grid; grid-template-columns: 1fr 1.3fr; gap: 32px; height: 100%;">
+      <div>
+        <span class="label">What is MartPoint?</span>
+        <h2 class="mb-2">One helper for your whole shop.</h2>
+        <p class="lead mb-3">MartPoint replaces paper, scattered notebooks, and confusing spreadsheets with one simple system. You can use it on a computer, tablet, or phone.</p>
+
+        <div class="feature-mini">
+          <div class="icon"><i class="fa fa-check"></i></div>
+          <div><strong>No installation needed</strong><span>Open a browser and start selling today.</span></div>
+        </div>
+        <div class="feature-mini">
+          <div class="icon"><i class="fa fa-check"></i></div>
+          <div><strong>Made for Africa</strong><span>Built around local currency, payments, and business habits.</span></div>
+        </div>
+        <div class="feature-mini">
+          <div class="icon"><i class="fa fa-check"></i></div>
+          <div><strong>Safe and private</strong><span>Every user has their own login and permissions.</span></div>
+        </div>
+      </div>
+
+      <div>
+        <span class="label">What it does</span>
+        <h2 class="mb-2">Six simple superpowers.</h2>
+        <div class="grid cols-3" style="gap: 14px;">
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-shopping-cart" style="color:var(--mp-primary);margin-right:8px;"></i>Sell fast</h3>
+            <p>A touch-friendly POS with barcode scanning, discounts, and split payments.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-cubes" style="color:var(--mp-primary);margin-right:8px;"></i>Track stock</h3>
+            <p>Know what is in each branch, what is low, and what is about to expire.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-pie-chart" style="color:var(--mp-primary);margin-right:8px;"></i>See reports</h3>
+            <p>Daily summaries, profit, sales, and stock reports with a few taps.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-users" style="color:var(--mp-primary);margin-right:8px;"></i>Know customers</h3>
+            <p>Customer profiles, credit limits, loyalty points, and coupons.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-comments" style="color:var(--mp-primary);margin-right:8px;"></i>Ask MartPoint</h3>
+            <p>An in-app helper that checks stock, starts sales, and answers questions.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-globe" style="color:var(--mp-primary);margin-right:8px;"></i>Sell online</h3>
+            <p>Put your store online with QR codes, catalogues, and orders.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Retail Commerce Platform</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+
+  <section class="page landscape">
+    <span class="label">How it works</span>
+    <h2 class="mb-2">Three steps from setup to sale.</h2>
+    <p class="lead mb-3">If you can use a phone, you can use MartPoint. No big manuals, no confusing words.</p>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 24px;">
+      <div class="demo-card" style="text-align:center; padding: 24px;">
+        <span class="big-number">1</span>
+        <h3 style="margin-top:12px;">Set up your store</h3>
+        <p>Add your store name, branches, users, and payment methods. It takes minutes.</p>
+      </div>
+      <div class="demo-card" style="text-align:center; padding: 24px;">
+        <span class="big-number">2</span>
+        <h3 style="margin-top:12px;">Add your products</h3>
+        <p>Enter products with names, prices, photos, and stock. Use variants for sizes and colours.</p>
+      </div>
+      <div class="demo-card" style="text-align:center; padding: 24px;">
+        <span class="big-number">3</span>
+        <h3 style="margin-top:12px;">Start selling</h3>
+        <p>Open the POS, scan or search, take payment, and print the receipt. That is it.</p>
+      </div>
+    </div>
+
+    <div class="highlight-strip">
+      <div style="display:flex; align-items:center; gap: 18px; flex-wrap: wrap;">
+        <i class="fa fa-lightbulb-o" style="font-size:2rem;"></i>
+        <div>
+          <strong style="font-size:1.1rem;">Built for every kind of store.</strong>
+          <p style="margin:4px 0 0; font-size:0.85rem; opacity:0.9;">Supermarkets, boutiques, pharmacies, salons, restaurants, bakeries, electronics shops, gyms, hotels, and more.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Designed for African retail workflows</span>
+      <span>v4.0.9</span>
+    </div>
+  </section>
+
+  <section class="page landscape">
+    <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap: 36px; height: 100%;">
+      <div>
+        <span class="label">Why choose MartPoint?</span>
+        <h2 class="mb-2">The difference is in the details.</h2>
+
+        <div class="grid cols-2" style="gap: 16px;">
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-wifi" style="color:var(--mp-primary);margin-right:8px;"></i>Works offline</h3>
+            <p>Sales queue when the internet drops and sync when it comes back. No lost sales.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-building-o" style="color:var(--mp-primary);margin-right:8px;"></i>Multi-branch</h3>
+            <p>Run one store or many branches from the same account. Each branch has its own stock and staff.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>Any payment</h3>
+            <p>Cash, card, transfer, split pay, instalments, coupons, and store credit.</p>
+          </div>
+          <div class="demo-card no-break">
+            <h3><i class="fa fa-headphones" style="color:var(--mp-primary);margin-right:8px;"></i>Real support</h3>
+            <p>Phone, WhatsApp, email, and a built-in support portal when you need help.</p>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <span class="industry-bubble"><i class="fa fa-shopping-basket"></i> Supermarket</span>
+          <span class="industry-bubble"><i class="fa fa-medkit"></i> Pharmacy</span>
+          <span class="industry-bubble"><i class="fa fa-female"></i> Boutique</span>
+          <span class="industry-bubble"><i class="fa fa-cutlery"></i> Restaurant</span>
+          <span class="industry-bubble"><i class="fa fa-scissors"></i> Salon</span>
+          <span class="industry-bubble"><i class="fa fa-mobile"></i> Electronics</span>
+          <span class="industry-bubble"><i class="fa fa-truck"></i> Wholesale</span>
+          <span class="industry-bubble"><i class="fa fa-birthday-cake"></i> Bakery</span>
+        </div>
+      </div>
+
+      <div style="background: linear-gradient(135deg, var(--mp-primary), var(--mp-primary-dark)); border-radius: var(--radius); padding: 28px; color: #fff; display: flex; flex-direction: column; justify-content: center;">
+        <h2 style="color:#fff; margin-bottom: 12px;">Ready to sell smarter?</h2>
+        <p style="color:rgba(255,255,255,0.85); font-size:0.95rem; margin-bottom: 24px;">Request a demo and we will show you exactly how MartPoint fits your store.</p>
+
+        <div style="display:grid; gap: 14px;">
+          <div class="contact-card" style="background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.18); color:#fff;">
+            <i class="fa fa-phone" style="color:#fff;"></i>
+            <div>
+              <strong style="color:#fff;">0803 602 8069</strong>
+              <span style="color:rgba(255,255,255,0.75);">Mon–Fri, 9am–5pm</span>
+            </div>
+          </div>
+          <div class="contact-card" style="background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.18); color:#fff;">
+            <i class="fa fa-envelope" style="color:#fff;"></i>
+            <div>
+              <strong style="color:#fff;">sales@martpoint.com.ng</strong>
+              <span style="color:rgba(255,255,255,0.75);">Reply within 24 hrs</span>
+            </div>
+          </div>
+          <div class="contact-card" style="background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.18); color:#fff;">
+            <i class="fa fa-globe" style="color:#fff;"></i>
+            <div>
+              <strong style="color:#fff;">martpoint.com.ng</strong>
+              <span style="color:rgba(255,255,255,0.75);">Request a demo online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span><i class="fa fa-map-marker"></i> Lagos, Nigeria</span>
+      <span><i class="fa fa-globe"></i> martpoint.com.ng</span>
+    </div>
+  </section>
+
+  <section class="page landscape" style="background:linear-gradient(135deg, var(--mp-primary), var(--mp-primary-dark)); color:#fff; text-align:center;">
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+      <h1 style="color:#fff; font-size:2.8rem; margin-bottom:14px;">Built for every shop, big or small.</h1>
+      <p style="color:rgba(255,255,255,0.85); font-size:1.05rem; max-width:620px; margin:0 auto 24px;">MartPoint grows with you. Whether you run one checkout or many branches, we are here to help you sell more, stress less, and sleep better.</p>
+      <a href="https://www.martpoint.com.ng/support" target="_blank" class="btn btn-light" style="font-size:0.95rem;">Request a demo</a>
+    </div>
+    <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18); color:rgba(255,255,255,0.75);">
+      <span><i class="fa fa-heart"></i> Thank you for reading</span>
+      <span><i class="fa fa-globe"></i> martpoint.com.ng</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

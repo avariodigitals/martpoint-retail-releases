@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Products &amp; Catalogue Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Catalog</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Screen-by-screen guide</span>
+        <h1>Products &amp; Catalogue</h1>
+        <p>Add products, set prices, manage stock, and keep your catalog organised. No more spreadsheet guessing.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Catalog module map</span>
+    <h2 class="mb-2">The catalog screens at a glance</h2>
+    <p class="lead mb-3">Catalog covers products, stock levels, price lists, variants, and adjustments. Use the right screen to keep the system accurate.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-book"></i> Catalogue</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-plus-circle"></i> Add Product</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-cubes"></i> Stock</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-tags"></i> Price Catalogue</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-cogs"></i> Attributes</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-book" style="color:var(--mp-primary);margin-right:8px;"></i>Catalogue</h3>
+        <p class="small">Full list of products with search, filters, and inline price editing.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-plus-circle" style="color:var(--mp-primary);margin-right:8px;"></i>Add Product</h3>
+        <p class="small">Create products, set categories, prices, stock, variants, and barcodes.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-cubes" style="color:var(--mp-primary);margin-right:8px;"></i>Stock</h3>
+        <p class="small">See current quantities, low-stock alerts, and branch-level stock.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-cogs" style="color:var(--mp-primary);margin-right:8px;"></i>Attributes</h3>
+        <p class="small">Create variants like size and colour for products with options.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Products &amp; Catalogue Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 1 of 5</span>
+    <h2 class="mb-2">Catalogue</h2>
+    <p class="lead mb-3">The catalogue is your master product list. Search, filter, export, and edit prices from one place.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Inventory → Catalogue</strong>.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Search</strong><span>Product name or code</span></div>
+        <div class="field"><strong>Category filter</strong><span>Show one category at a time</span></div>
+        <div class="field"><strong>Brand filter</strong><span>Filter by brand</span></div>
+        <div class="field"><strong>Stock status</strong><span>In stock, low, out of stock</span></div>
+        <div class="field"><strong>Price columns</strong><span>Selling price and cost</span></div>
+        <div class="field"><strong>Barcode</strong><span>Generated or scanned code</span></div>
+        <div class="field"><strong>Export</strong><span>Download as CSV or PDF</span></div>
+        <div class="field"><strong>Edit</strong><span>Tap a product to update</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Open <strong>Catalogue</strong> from the Inventory menu.</li>
+        <li>Use the search box to find a product by name or code.</li>
+        <li>Use category or brand filters to narrow the list.</li>
+        <li>Tap a product to edit its details.</li>
+        <li>Tap the price to update it directly (if allowed).</li>
+        <li>Tap <strong>Export</strong> to download the price list for offline use.</li>
+      </ol>
+    </div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: use Add Product to create new products, or Stock to view quantities.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Products &amp; Catalogue Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 2 of 6</span>
+    <h2 class="mb-2">Add Product</h2>
+    <p class="lead mb-3">Create every product once and the system uses it for sales, purchases, and reports.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Inventory → Add Product</strong>.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Product Code</strong><span>Auto-generated; can be edited</span></div>
+        <div class="field"><strong>Product Name</strong><span>Name customers see</span></div>
+        <div class="field"><strong>Category</strong><span>Group for reports and filters</span></div>
+        <div class="field"><strong>Brand</strong><span>Optional brand grouping</span></div>
+        <div class="field"><strong>Unit</strong><span>Pieces, kg, litres, etc.</span></div>
+        <div class="field"><strong>SKU / Barcode</strong><span>Scan or type code</span></div>
+        <div class="field"><strong>Description</strong><span>Notes or product details</span></div>
+        <div class="field"><strong>Cost Price</strong><span>What you pay per unit</span></div>
+        <div class="field"><strong>Selling Price</strong><span>What you charge per unit</span></div>
+        <div class="field"><strong>Opening Stock</strong><span>How many you have now</span></div>
+        <div class="field"><strong>Alert Quantity</strong><span>Low-stock warning level</span></div>
+        <div class="field"><strong>Branch</strong><span>Where stock is stored</span></div>
+        <div class="field"><strong>Track Expiry</strong><span>Enable for medicines/food</span></div>
+        <div class="field"><strong>Product Image</strong><span>Photo for POS and catalog</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Tap <strong>Add Product</strong>.</li>
+        <li>Enter the product name and choose the category.</li>
+        <li>Set cost price and selling price. The margin is used in profit reports.</li>
+        <li>Enter opening stock and alert quantity.</li>
+        <li>Add the barcode or SKU if you have one. MartPoint can also generate a barcode.</li>
+        <li>Select the branch where stock is kept.</li>
+        <li>Enable expiry tracking if the product has an expiry date.</li>
+        <li>Tap <strong>Save</strong>. The product is now available in POS and sales.</li>
+      </ol>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Products &amp; Catalogue Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 3 of 6</span>
+    <h2 class="mb-2">Add Product with Variants</h2>
+    <p class="lead mb-3">Variants let you sell one product in many options, such as a shirt in different sizes and colours. Each option gets its own stock count, barcode, and price, while the customer still sees it as one product.</p>
+
+    <div class="screen-card no-break">
+      <h3>Before you start: create attributes</h3>
+      <p class="small mb-2">Attributes are the options a product can have. Most fashion and retail stores create at least <strong>Size</strong> and <strong>Colour</strong>.</p>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Go to <strong>More → Inventory → Attributes</strong>.</li>
+        <li>Tap <strong>New Attribute</strong>. Enter the name, for example <strong>Size</strong>.</li>
+        <li>Add the values: <strong>Small, Medium, Large, XL</strong>.</li>
+        <li>Create another attribute for <strong>Colour</strong> with values like <strong>Red, Blue, Black</strong>.</li>
+        <li>Save each attribute.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step: add a product with variants</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Go to <strong>More → Inventory → Add Product</strong> and fill in the normal product details: name, category, brand, unit, cost price, and base selling price.</li>
+        <li>Scroll to the <strong>Variants</strong> section and turn on <strong>Has Variants</strong>.</li>
+        <li>Pick the attributes this product needs, for example <strong>Size</strong> and <strong>Colour</strong>.</li>
+        <li>Tap <strong>Generate Variants</strong>. MartPoint creates one row for every combination: Small Red, Small Blue, Medium Red, Medium Blue, and so on.</li>
+        <li>For each row, enter:
+          <ul style="padding-left:18px; margin-top:6px;">
+            <li><strong>Variant name</strong> — what staff see, e.g. "Classic Tee — Red, M"</li>
+            <li><strong>SKU / Barcode</strong> — unique code for this option</li>
+            <li><strong>Cost price</strong> — what you paid for this option (usually the same as the base product)</li>
+            <li><strong>Selling price</strong> — set a different price if the option costs more, otherwise leave the base price</li>
+            <li><strong>Opening stock</strong> — how many of this exact option you have</li>
+            <li><strong>Alert quantity</strong> — when to warn you it is running low</li>
+          </ul>
+        </li>
+        <li>Choose the <strong>Branch</strong> where the stock is kept.</li>
+        <li>Tap <strong>Save</strong>. The product and all its variants are now in the catalogue and ready for sale.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>How it looks at the POS</h3>
+      <p class="small mb-2">When a cashier searches for the product, MartPoint shows the variant options. The cashier picks the right size and colour, then continues with payment as normal.</p>
+      <div class="field-list">
+        <div class="field"><strong>Search product</strong><span>Type "Classic Tee"</span></div>
+        <div class="field"><strong>Pick variant</strong><span>Select Red, Medium</span></div>
+        <div class="field"><strong>Stock check</strong><span>System shows only Medium Red stock</span></div>
+        <div class="field"><strong>Sell</strong><span>Proceed to payment and receipt</span></div>
+      </div>
+    </div>
+
+    <div class="tip warning"><strong>Tip:</strong> If two variants have different prices, set each variant's selling price. If they all cost the same, you can leave the base selling price and only set the variant names, barcodes, and stock.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Products &amp; Catalogue Guide</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 4, 5 &amp; 6 of 6</span>
+    <h2 class="mb-2">Stock, Price Catalogue &amp; Attributes</h2>
+
+    <div class="screen-card no-break">
+      <h3>Stock — see what you have</h3>
+      <p class="small mb-2"><strong>More → Inventory → Stock</strong> shows current quantity for every product across branches.</p>
+      <div class="field-list">
+        <div class="field"><strong>Product name</strong><span>Search and filter</span></div>
+        <div class="field"><strong>Quantity on hand</strong><span>Current stock level</span></div>
+        <div class="field"><strong>Branch</strong><span>Choose location</span></div>
+        <div class="field"><strong>Low stock alert</strong><span>Red or orange warnings</span></div>
+        <div class="field"><strong>Expiry alert</strong><span>Expiring or expired stock</span></div>
+        <div class="field"><strong>Adjust / Transfer</strong><span>Quick links to actions</span></div>
+      </div>
+      <p class="small mt-2">If a number is wrong, use <strong>Stock Adjustment</strong> to record damage, expiry, or correction. Use <strong>Stock Transfer</strong> to move items between branches.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Price Catalogue — update selling prices fast</h3>
+      <p class="small mb-2"><strong>More → Inventory → Price Catalogue</strong> is a spreadsheet-like view where you can search and edit prices quickly.</p>
+      <div class="field-list">
+        <div class="field"><strong>Product</strong><span>Name and code</span></div>
+        <div class="field"><strong>Current price</strong><span>Selling price</span></div>
+        <div class="field"><strong>New price</strong><span>Tap and type to update</span></div>
+        <div class="field"><strong>Save / Export</strong><span>Apply or download</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Attributes — product variants</h3>
+      <p class="small mb-2"><strong>More → Inventory → Attributes</strong> lets you create options like Size and Colour. Products can then have multiple variants with their own stock and prices.</p>
+      <div class="field-list">
+        <div class="field"><strong>Attribute name</strong><span>Size, Colour, Flavour</span></div>
+        <div class="field"><strong>Values</strong><span>Small, Medium, Large</span></div>
+        <div class="field"><strong>Variant matrix</strong><span>Auto-combined options</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Products &amp; Catalogue Guide</span><span>Page 6</span></div>
+  </section>
+
+</div>
+</body>
+</html>

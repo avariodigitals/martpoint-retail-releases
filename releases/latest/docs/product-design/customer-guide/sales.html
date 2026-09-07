@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Sales Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Sales</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Screen-by-screen guide</span>
+        <h1>Selling in MartPoint</h1>
+        <p>From a quick POS checkout to an invoice, quotation, hold, or payment collection — know every screen before you tap.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Sales module map</span>
+    <h2 class="mb-2">The sales screens at a glance</h2>
+    <p class="lead mb-3">Use the right screen for the right job. POS is for fast cash-and-carry. New Sale is for formal invoices. Quotations are for quotes you may convert later. Holds are for paused carts. Sales List is for history. Due Payments is for collecting money owed.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-calculator"></i> POS</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-file-text-o"></i> New Sale</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-quote-left"></i> Quotation</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-list"></i> Sales List</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-money"></i> Due Payments</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-bolt" style="color:var(--mp-primary);margin-right:8px;"></i>Quick checkout</h3>
+        <p class="small">POS is the fastest way to sell. Scan or search, pick payment, print receipt.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-file-text-o" style="color:var(--mp-primary);margin-right:8px;"></i>Formal invoice</h3>
+        <p class="small">New Sale lets you choose customer, add line items, and record credit or partial payment.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-quote-left" style="color:var(--mp-primary);margin-right:8px;"></i>Quote first</h3>
+        <p class="small">Quotations do not affect stock until you convert them to a sale.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>Collect later</h3>
+        <p class="small">Due Payments shows unpaid invoices so you can record customer payments.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Sales Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 1 of 6</span>
+    <h2 class="mb-2">POS — Quick checkout</h2>
+    <p class="lead mb-3">Use POS when the customer is at the counter ready to pay. It is designed for speed.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small">Tap <strong>POS</strong> from the bottom bar, or go to <strong>More → Sales → POS</strong>.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen sections</h3>
+      <div class="field-list">
+        <div class="field"><strong>Item search</strong><span>Type name or scan barcode</span></div>
+        <div class="field"><strong>Running cart</strong><span>Items, quantity, price</span></div>
+        <div class="field"><strong>Customer (optional)</strong><span>Add a customer for credit sales</span></div>
+        <div class="field"><strong>Totals</strong><span>Subtotal, discount, amount due</span></div>
+        <div class="field"><strong>Payment buttons</strong><span>Cash, Card, Transfer, Credit</span></div>
+        <div class="field"><strong>Hold button</strong><span>Pause the cart for later</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Tap the search box and type the product name or scan the barcode.</li>
+        <li>Tap the product to add it to the cart. Adjust quantity if needed.</li>
+        <li>Repeat for every item.</li>
+        <li>Tap a payment method: Cash, Card, Transfer, or Credit.</li>
+        <li>For cash, enter the amount received; change is calculated.</li>
+        <li>Tap <strong>Save</strong>. The receipt prints or downloads.</li>
+      </ol>
+    </div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: Hold the cart if the customer steps away, or finish to Sales List.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Sales Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 2 of 6</span>
+    <h2 class="mb-2">New Sale — Invoice</h2>
+    <p class="lead mb-3">Use New Sale when the customer may pay later, needs a formal invoice, or the sale requires more detail than POS.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Sales → New Sale</strong> or tap the <strong>New Sale</strong> quick action.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Customer</strong><span>Pick or add a customer</span></div>
+        <div class="field"><strong>Sale type</strong><span>Cash, credit, or partial</span></div>
+        <div class="field"><strong>Item lines</strong><span>Product, quantity, unit price</span></div>
+        <div class="field"><strong>Other charges</strong><span>Shipping, packaging</span></div>
+        <div class="field"><strong>Discount</strong><span>Amount or percentage</span></div>
+        <div class="field"><strong>Payment</strong><span>Amount received and method</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Choose a customer. Leave as Walk-in if not needed.</li>
+        <li>Pick the sale type: Cash, Credit, or Partial.</li>
+        <li>Tap <strong>Add Item</strong> and search the catalog. Enter quantity and price.</li>
+        <li>Add any other charges if the business allows it.</li>
+        <li>Enter a discount if approved.</li>
+        <li>Enter the payment received and the method.</li>
+        <li>Tap <strong>Save</strong>. The invoice is created and the receipt is ready.</li>
+      </ol>
+    </div>
+
+    <div class="tip warning">A manager PIN may be required for large discounts or credit sales, depending on permissions.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Sales Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 3 &amp; 4 of 6</span>
+    <h2 class="mb-2">Quotation, Holds &amp; Due Payments</h2>
+
+    <div class="screen-card no-break">
+      <h3>Quotation — give a price before the sale</h3>
+      <p class="small mb-2">Use <strong>New Quotation</strong> when the customer wants a written price but is not ready to buy. Quotations do not reduce stock until converted.</p>
+      <div class="field-list">
+        <div class="field"><strong>Customer</strong><span>Required for the quote</span></div>
+        <div class="field"><strong>Expiry date</strong><span>How long the quote is valid</span></div>
+        <div class="field"><strong>Item lines</strong><span>Products, quantities, prices</span></div>
+        <div class="field"><strong>Convert</strong><span>Turn quote into invoice</span></div>
+      </div>
+      <p class="small mt-2">Open the saved quote and tap <strong>Convert to Sale</strong> when the customer accepts. Stock is then reserved.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Holds — pause a cart</h3>
+      <p class="small mb-2">Tap the <strong>Hold</strong> button on the POS or bottom nav. Enter a name or number, then save. Resume the hold later from <strong>Holds</strong>.</p>
+      <div class="field-list">
+        <div class="field"><strong>Hold name</strong><span>Helps you find it later</span></div>
+        <div class="field"><strong>Resume</strong><span>Tap to load cart again</span></div>
+        <div class="field"><strong>Delete</strong><span>Remove an abandoned hold</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Due Payments — collect what is owed</h3>
+      <p class="small mb-2"><strong>More → Sales → Due Payments</strong> lists unpaid invoices. Tap one to record a payment.</p>
+      <div class="field-list">
+        <div class="field"><strong>Invoice number</strong><span>Reference the sale</span></div>
+        <div class="field"><strong>Customer</strong><span>Who owes the money</span></div>
+        <div class="field"><strong>Amount due</strong><span>Outstanding balance</span></div>
+        <div class="field"><strong>Receive payment</strong><span>Enter amount and method</span></div>
+      </div>
+      <p class="small mt-2">Enter the amount collected, choose the payment method, and save. The balance updates instantly.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Sales Guide</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 5 &amp; 6 of 6</span>
+    <h2 class="mb-2">Sales List, Returns &amp; Receipts</h2>
+
+    <div class="screen-card no-break">
+      <h3>Sales List — view all invoices</h3>
+      <p class="small mb-2"><strong>More → Sales → Sales List</strong> shows every sale. Search by invoice number, customer, or date.</p>
+      <div class="field-list">
+        <div class="field"><strong>Filter by date</strong><span>Today, week, month, custom</span></div>
+        <div class="field"><strong>Search</strong><span>Invoice number or customer</span></div>
+        <div class="field"><strong>View</strong><span>Open invoice details</span></div>
+        <div class="field"><strong>Print / PDF</strong><span>Reprint or email receipt</span></div>
+      </div>
+      <p class="small mt-2">Tap an invoice to see items, totals, payments, and print a copy. You can also start a return from here if you have permission.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Sales Return — process a refund</h3>
+      <p class="small mb-2">From an invoice, tap <strong>Return</strong>. Select the items being returned, enter the quantity, and choose the refund method.</p>
+      <div class="field-list">
+        <div class="field"><strong>Return reason</strong><span>Why the item came back</span></div>
+        <div class="field"><strong>Refund method</strong><span>Cash or credit to customer</span></div>
+        <div class="field"><strong>Stock update</strong><span>Automatically adds items back</span></div>
+      </div>
+      <p class="small mt-2">The return is saved and a return receipt is generated. Stock is updated automatically.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Receipt options</h3>
+      <p class="small">After every sale, you can print (if a printer is set up), download as PDF, or email to the customer. Choose from the action icons on the invoice.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Sales Guide</span><span>Page 6</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Payments</span>
+    <h2 class="mb-2">Payment buttons, methods, and when to use them</h2>
+    <p class="lead mb-3">At checkout you choose a button (<strong>Pay</strong>, <strong>Split Pay</strong>, <strong>PayPlan</strong>) and a method (<strong>Cash</strong>, <strong>Card</strong>, <strong>Transfer</strong>, or any custom method added by the admin). Pick the right one for each sale.</p>
+
+    <div class="screen-card no-break">
+      <h3>Payment buttons</h3>
+      <p class="small mb-2">These are the checkout actions. They decide how the total is paid, not how the customer handed over the money.</p>
+      <div class="field-list">
+        <div class="field"><strong>Pay</strong><span>Pay the whole invoice in one go. Use for normal cash-and-carry sales.</span></div>
+        <div class="field"><strong>Split Pay</strong><span>Split the total across two or more payment methods. Use when a customer uses more than one method, such as Card + Transfer, Cash + Card, or any other combination. It does not have to include cash.</span></div>
+        <div class="field"><strong>PayPlan</strong><span>Pay in scheduled instalments. Use when the customer takes the items now but pays the balance over time. Only available if PayPlan is enabled for your store.</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Payment methods</h3>
+      <p class="small mb-2">These describe how the money is collected. The admin can add custom methods in Settings.</p>
+      <div class="field-list">
+        <div class="field"><strong>Cash</strong><span>Customer pays with cash. Enter the amount received; change is calculated.</span></div>
+        <div class="field"><strong>Card</strong><span>Customer pays by POS terminal or bank card. Record the reference if required.</span></div>
+        <div class="field"><strong>Transfer</strong><span>Customer sends money by bank transfer or mobile money. Ask for the transaction ID.</span></div>
+        <div class="field"><strong>Custom</strong><span>Any method added by the admin, such as Cheque, Coupon, or Store Credit. Ask the manager which applies.</span></div>
+      </div>
+    </div>
+
+    <div class="tip warning"><strong>Always confirm the total</strong> before saving. If you choose <strong>Split Pay</strong>, the amounts across all methods must equal the invoice total. If you choose <strong>PayPlan</strong>, make sure the first payment and schedule are recorded before the customer leaves.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Sales Guide</span><span>Page 7</span></div>
+  </section>
+
+</div>
+</body>
+</html>

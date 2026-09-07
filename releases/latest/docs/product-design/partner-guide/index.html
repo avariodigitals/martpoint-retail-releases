@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Partner Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .guide-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; margin-top:20px; }
+    .guide-card { display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:22px 14px; border:1px solid var(--mp-border); border-radius:var(--radius); background:#fff; text-decoration:none; color:var(--mp-ink); box-shadow:var(--shadow-sm); transition:transform .15s; page-break-inside:avoid; }
+    .guide-card:hover { transform:translateY(-2px); }
+    .guide-card .icon { width:54px; height:54px; border-radius:50%; background:rgba(0,87,255,0.08); color:var(--mp-primary); display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
+    .guide-card h3 { font-size:1rem; margin:0; }
+    .guide-card p { font-size:0.8rem; color:var(--mp-muted); margin:0; }
+    .back-link { display:inline-flex; align-items:center; gap:8px; color:var(--mp-primary); font-weight:600; text-decoration:none; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+<div class="document">
+  <section class="page">
+    <a href="../brochure.html" class="back-link"><i class="fa fa-chevron-left"></i> Back to MartPoint</a>
+    <span class="label">Partner Guide</span>
+    <h1 class="mb-1">Resources for partners</h1>
+    <p class="lead mb-3">Partners have access to the same customer-facing guides. Use these to train clients and answer common questions. Technical documentation is handled separately.</p>
+
+    <div class="guide-grid">
+      <a href="../customer-guide/user-manual.html" class="guide-card no-break">
+        <div class="icon"><i class="fa fa-book"></i></div>
+        <h3>User Manual</h3>
+        <p>Start here. Icons, quick start, workflows, and fixes.</p>
+      </a>
+      <a href="../customer-guide/sales.html" class="guide-card no-break">
+        <div class="icon"><i class="fa fa-shopping-cart"></i></div>
+        <h3>Sales</h3>
+        <p>POS, invoices, quotations, holds, and returns.</p>
+      </a>
+      <a href="../customer-guide/purchase.html" class="guide-card no-break">
+        <div class="icon"><i class="fa fa-cart-arrow-down"></i></div>
+        <h3>Purchase</h3>
+        <p>Supplier orders, stock receipts, and payments.</p>
+      </a>
+      <a href="../customer-guide/products.html" class="guide-card no-break">
+        <div class="icon"><i class="fa fa-cubes"></i></div>
+        <h3>Products &amp; Catalogue</h3>
+        <p>Add products, manage stock, prices, and variants.</p>
+      </a>
+      <a href="../customer-guide/services.html" class="guide-card no-break">
+        <div class="icon"><i class="fa fa-scissors"></i></div>
+        <h3>Services</h3>
+        <p>Service items, packages, memberships, operations.</p>
+      </a>
+      <a href="../customer-guide/reports.html" class="guide-card no-break">
+        <div class="icon"><i class="fa fa-pie-chart"></i></div>
+        <h3>Reports</h3>
+        <p>Sales, profit, stock, and business insights.</p>
+      </a>
+    </div>
+
+    <div class="card no-break mt-3" style="background:#FAFAF9;">
+      <h3 class="mb-1"><i class="fa fa-briefcase" style="color:var(--mp-primary);margin-right:8px;"></i>Partner support</h3>
+      <p class="small">For implementation or software issues, contact <a href="mailto:sales@martpoint.com.ng">sales@martpoint.com.ng</a> or call <a href="tel:08036028069">0803 602 8069</a>. Technical documentation is not distributed from this portal.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Guide</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+</div>
+</body>
+</html>

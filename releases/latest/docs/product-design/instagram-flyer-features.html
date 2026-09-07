@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Instagram Flyer (What is MartPoint)</title>
+  <link rel="icon" href="favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    :root {
+      --mp-primary: #0057FF;
+      --mp-primary-dark: #0044CC;
+      --mp-ink: #0F172A;
+      --mp-muted: #64748B;
+      --mp-sky: #EAF1FF;
+      --mp-card-border: #E4EAF5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #E8E6E1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============ 1080x1350 Instagram portrait canvas ============ */
+    .flyer {
+      width: 1080px;
+      height: 1350px;
+      flex: 0 0 auto;
+      background: linear-gradient(165deg, #FAFCFF 0%, #F2F6FF 55%, #EAF0FF 100%);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 64px 72px 0;
+      box-shadow: 0 30px 80px -20px rgba(0, 60, 180, 0.25);
+    }
+
+    /* Decorative shapes */
+    .blob { position: absolute; border-radius: 50%; pointer-events: none; }
+    .blob-1 {
+      width: 560px; height: 560px;
+      background: radial-gradient(circle, rgba(0,87,255,0.10) 0%, rgba(0,87,255,0) 70%);
+      top: -180px; right: -160px;
+    }
+    .blob-2 {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, rgba(0,87,255,0.08) 0%, rgba(0,87,255,0) 70%);
+      bottom: 80px; left: -140px;
+    }
+
+    /* Header */
+    .flyer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+    }
+    .brand img { height: 66px; width: auto; }
+    .tag {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--mp-primary);
+      background: var(--mp-sky);
+      border: 1px solid rgba(0,87,255,0.15);
+      padding: 12px 22px;
+      border-radius: 999px;
+    }
+
+    /* Headline block */
+    .intro { position: relative; z-index: 2; margin-top: 60px; }
+    .intro .kicker {
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--mp-primary);
+      margin-bottom: 20px;
+    }
+    .intro h1 {
+      font-size: 62px;
+      line-height: 1.08;
+      font-weight: 900;
+      letter-spacing: -2.2px;
+      color: var(--mp-ink);
+      max-width: 880px;
+    }
+    .intro h1 .blue { color: var(--mp-primary); }
+    .intro p.sub {
+      margin-top: 22px;
+      font-size: 26px;
+      line-height: 1.45;
+      font-weight: 500;
+      color: #475569;
+      max-width: 860px;
+    }
+
+    /* Flow row: Stock -> Sales -> Customers -> Payments -> Reports */
+    .flow {
+      position: relative;
+      z-index: 2;
+      margin-top: 52px;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+    }
+    .flow-card {
+      flex: 1;
+      background: #fff;
+      border: 1.5px solid var(--mp-card-border);
+      border-radius: 20px;
+      padding: 30px 14px 26px;
+      text-align: center;
+      box-shadow: 0 10px 26px -14px rgba(15,23,42,0.14);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .flow-card .icon {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: var(--mp-sky);
+      color: var(--mp-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+    }
+    .flow-card b { font-size: 22px; font-weight: 800; color: var(--mp-ink); letter-spacing: -0.3px; }
+    .flow-card span { font-size: 16px; font-weight: 500; color: var(--mp-muted); }
+    .flow-arrow {
+      align-self: center;
+      color: var(--mp-primary);
+      font-size: 26px;
+      padding: 0 12px;
+      opacity: 0.75;
+    }
+
+    /* Core capabilities grid */
+    .caps { position: relative; z-index: 2; margin-top: 56px; }
+    .caps h2 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--mp-ink);
+      margin-bottom: 24px;
+    }
+    .caps-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 18px;
+    }
+    .cap {
+      background: #fff;
+      border: 1.5px solid var(--mp-card-border);
+      border-radius: 18px;
+      padding: 26px 12px 22px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 8px 20px -14px rgba(15,23,42,0.12);
+    }
+    .cap i { font-size: 30px; color: var(--mp-primary); }
+    .cap span {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: var(--mp-ink);
+      line-height: 1.3;
+      letter-spacing: -0.2px;
+    }
+
+    .spacer { flex: 1; }
+
+    /* ============ Footer bar ============ */
+    .footer-bar-wrap {
+      position: relative;
+      z-index: 2;
+      margin: 40px -72px 0;
+      padding: 0 72px 56px;
+    }
+    .footer-bar {
+      background: linear-gradient(90deg, var(--mp-primary) 0%, var(--mp-primary-dark) 100%);
+      border-radius: 24px;
+      padding: 26px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 20px 44px -14px rgba(0,68,204,0.55);
+    }
+    .footer-bar .site {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .footer-bar .site i { font-size: 28px; opacity: 0.9; }
+    .footer-bar .socials {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: #fff;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .footer-bar .socials .icons { display: flex; gap: 10px; }
+    .footer-bar .socials .icons i {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.16);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    /* Scale-to-fit preview */
+    @media (max-width: 1180px) {
+      .flyer { transform: scale(0.55); transform-origin: top center; margin-bottom: -560px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="flyer">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="flyer-header">
+      <div class="brand"><img src="logo.png" alt="MartPoint"></div>
+      <div class="tag">One App · Every Sale</div>
+    </div>
+
+    <div class="intro">
+      <div class="kicker">What is MartPoint?</div>
+      <h1>More Than a POS.<br><span class="blue">Your Complete Business Operating System.</span></h1>
+      <p class="sub">MartPoint manages the daily life of your business — from the moment a product enters your store to the moment it is sold.</p>
+    </div>
+
+    <div class="flow">
+      <div class="flow-card">
+        <div class="icon"><i class="fa-solid fa-box"></i></div>
+        <b>Stock</b><span>Receive &amp; track</span>
+      </div>
+      <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+      <div class="flow-card">
+        <div class="icon"><i class="fa-solid fa-cash-register"></i></div>
+        <b>Sales</b><span>Sell fast</span>
+      </div>
+      <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+      <div class="flow-card">
+        <div class="icon"><i class="fa-solid fa-users"></i></div>
+        <b>Customers</b><span>Record &amp; follow up</span>
+      </div>
+      <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+      <div class="flow-card">
+        <div class="icon"><i class="fa-solid fa-credit-card"></i></div>
+        <b>Payments</b><span>Get paid</span>
+      </div>
+      <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+      <div class="flow-card">
+        <div class="icon"><i class="fa-solid fa-chart-pie"></i></div>
+        <b>Reports</b><span>Decide better</span>
+      </div>
+    </div>
+
+    <div class="caps">
+      <h2>Core capabilities</h2>
+      <div class="caps-grid">
+        <div class="cap"><i class="fa-solid fa-basket-shopping"></i><span>Point of Sale</span></div>
+        <div class="cap"><i class="fa-solid fa-cubes"></i><span>Inventory &amp; Stock Control</span></div>
+        <div class="cap"><i class="fa-solid fa-user-group"></i><span>Customer Management</span></div>
+        <div class="cap"><i class="fa-solid fa-wallet"></i><span>Expense Tracking</span></div>
+        <div class="cap"><i class="fa-solid fa-truck"></i><span>Supplier &amp; Purchase</span></div>
+        <div class="cap"><i class="fa-solid fa-hand-holding-dollar"></i><span>Debt &amp; Credit Tracking</span></div>
+        <div class="cap"><i class="fa-solid fa-user-shield"></i><span>Staff &amp; User Roles</span></div>
+        <div class="cap"><i class="fa-solid fa-chart-line"></i><span>Business Reports</span></div>
+        <div class="cap"><i class="fa-solid fa-store"></i><span>Online Storefront</span></div>
+        <div class="cap"><i class="fa-solid fa-building"></i><span>Multi-Branch</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="footer-bar-wrap">
+      <div class="footer-bar">
+        <div class="site"><i class="fa-solid fa-globe"></i> martpoint.com.ng</div>
+        <div class="socials">
+          <div class="icons">
+            <i class="fa-brands fa-instagram"></i>
+            <i class="fa-brands fa-facebook-f"></i>
+            <i class="fa-brands fa-tiktok"></i>
+            <i class="fa-brands fa-youtube"></i>
+            <i class="fa-brands fa-linkedin-in"></i>
+          </div>
+          usemartpoint
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

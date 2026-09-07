@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint Brochure</title>
+  <link rel="icon" href="favicon.webp" type="image/webp">
+  <style>
+    :root {
+      --mp-primary: #0057FF;
+      --mp-primary-dark: #0044CC;
+      --mp-ink: #0F172A;
+      --mp-muted: #64748B;
+      --mp-border: #E2E8F0;
+      --mp-bg: #F8FAFC;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #E8E6E1;
+      color: var(--mp-ink);
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    @page { size: A4 landscape; margin: 0; }
+
+    .document {
+      max-width: 297mm;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    .page {
+      width: 297mm;
+      height: 210mm;
+      margin: 0 auto 12px;
+      padding: 9mm 13mm;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      break-after: page;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page:last-child { margin-bottom: 0; page-break-after: auto; break-after: auto; }
+
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; box-shadow: none; }
+    }
+
+    h1, h2, h3, h4 { margin: 0 0 0.35em; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--mp-ink); }
+    h1 { font-size: 2.05rem; }
+    h2 { font-size: 1.32rem; }
+    h3 { font-size: 0.85rem; }
+    p { margin: 0 0 0.55em; line-height: 1.45; color: #334155; }
+
+    .label {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--mp-primary);
+      margin-bottom: 5px;
+    }
+    .label.light { color: rgba(255,255,255,0.85); }
+
+    .lead { font-size: 0.85rem; line-height: 1.42; color: #334155; }
+    .small { font-size: 0.7rem; line-height: 1.35; }
+    .muted { color: var(--mp-muted); }
+
+    .grid { display: grid; gap: 10px; }
+    .cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .cols-5 { grid-template-columns: repeat(5, 1fr); }
+
+    .spacer { flex: 1; }
+    .mb-1 { margin-bottom: 6px; }
+    .mb-2 { margin-bottom: 10px; }
+    .mb-3 { margin-bottom: 14px; }
+
+    .footer-strip {
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid var(--mp-border);
+      font-size: 0.7rem;
+      color: var(--mp-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .page-cover, .page-cta {
+      background: var(--mp-primary);
+      color: #fff;
+    }
+    .page-cover .footer-strip, .page-cta .footer-strip {
+      border-top-color: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.75);
+    }
+    .page-cover h1, .page-cta h1 { color: #fff; }
+    .page-cover p, .page-cta p { color: rgba(255,255,255,0.88); }
+
+    .logo { height: 34px; width: auto; filter: brightness(0) invert(1); }
+    .pill {
+      display: inline-flex;
+      font-size: 0.6rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+
+    .btn {
+      display: inline-flex;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 9px 18px;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--mp-primary);
+      margin-top: 14px;
+    }
+    .btn-outline {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+
+    .card {
+      background: var(--mp-bg);
+      border: 1px solid var(--mp-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .card-white { background: #fff; border: 1px solid var(--mp-border); border-radius: 8px; padding: 10px 12px; }
+
+    .bullet-list { list-style: none; padding: 0; margin: 0; }
+    .bullet-list li { display: flex; gap: 8px; align-items: flex-start; font-size: 0.78rem; color: #334155; margin-bottom: 7px; }
+    .bullet-list li span { flex: 1; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .dot-blue { background: var(--mp-primary); }
+    .dot-red { background: #DC2626; }
+    .dot-green { background: var(--mp-primary); }
+    .dot-gray { background: var(--mp-muted); }
+
+    .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .problem-item { display: flex; gap: 8px; align-items: flex-start; font-size: 0.78rem; background: #FDF2F2; border-left: 3px solid #DC2626; border-radius: 0 8px 8px 0; padding: 7px 10px; break-inside: avoid; page-break-inside: avoid; }
+    .problem-item span { flex: 1; }
+    .problem-item .dot { margin-top: 4px; }
+
+    .flow { display: flex; align-items: center; gap: 12px; margin: 12px 0 16px; }
+    .flow-step { flex: 1; text-align: center; }
+    .flow-step strong { display: block; font-size: 0.82rem; color: var(--mp-ink); }
+    .flow-step span { font-size: 0.64rem; color: var(--mp-muted); }
+    .flow-arrow { font-size: 1.1rem; color: var(--mp-primary); font-weight: 300; }
+
+    .capability-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .capability { font-size: 0.7rem; color: #334155; display: flex; align-items: flex-start; gap: 6px; }
+    .capability span { flex: 1; }
+    .check { color: var(--mp-primary); font-weight: 700; flex-shrink: 0; }
+
+    .feature { background: #fff; border: 1px solid var(--mp-border); border-radius: 8px; padding: 11px 12px; break-inside: avoid; page-break-inside: avoid; }
+    .feature h3 { font-size: 0.78rem; margin-bottom: 3px; color: var(--mp-ink); }
+    .feature p { font-size: 0.72rem; color: var(--mp-muted); margin: 0; line-height: 1.35; }
+
+    .industry-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .industry { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #334155; break-inside: avoid; page-break-inside: avoid; }
+    .industry-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+    .contact-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+    .contact-card {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 10px;
+      color: #fff;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .contact-card strong { display: block; font-size: 0.65rem; color: rgba(255,255,255,0.75); margin-bottom: 2px; }
+    .contact-card span { font-size: 0.75rem; font-weight: 700; }
+
+    .qr-wrap { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+    .qr-wrap img { width: 76px; height: 76px; border-radius: 6px; background: #fff; padding: 3px; }
+    .qr-text { color: rgba(255,255,255,0.85); font-size: 0.72rem; line-height: 1.35; }
+    .qr-text strong { color: #fff; display: block; font-size: 0.8rem; margin-bottom: 2px; }
+
+    .closing { font-size: 0.82rem; color: rgba(255,255,255,0.8); margin-top: 10px; }
+
+    @media (max-width: 900px) {
+      .document { padding: 10px; }
+      .page { width: 100%; height: auto; min-height: auto; margin-bottom: 20px; }
+      .cols-2, .cols-3, .cols-4, .cols-5, .capability-grid, .feature-grid, .industry-grid, .problem-grid, .contact-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+
+    <!-- Page 1 -->
+    <section class="page page-cover">
+      <div class="flex items-center justify-between mb-2">
+        <img src="logo.png" alt="MartPoint" class="logo">
+        <span class="pill">Retail Commerce Platform</span>
+      </div>
+      <div class="spacer"></div>
+      <div style="max-width:80%;">
+        <span class="label light">For growing retailers &amp; service businesses</span>
+        <h1 style="font-size:2.2rem; margin-bottom:12px;">Run Your Business Better with MartPoint</h1>
+        <p class="lead" style="max-width:90%;">Sales. Inventory. Customers. Expenses. Online orders. All managed from one powerful business platform.</p>
+        <p class="small" style="color:rgba(255,255,255,0.75); margin-top:8px;">Built for growing retailers and service businesses.</p>
+        <div class="btn" style="margin-right:10px;">Get Started with MartPoint</div>
+        <span class="btn btn-outline">Request a Demo</span>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Retail Commerce Platform</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </section>
+
+    <!-- Page 2 -->
+    <section class="page">
+      <span class="label">The Challenge</span>
+      <h2 class="mb-1">Running a business should not feel this complicated.</h2>
+      <p class="lead mb-2">Many businesses still struggle with:</p>
+      <div class="problem-grid mb-2">
+        <div class="problem-item"><div class="dot dot-red"></div><span>Unrecorded or inaccurate sales</span></div>
+        <div class="problem-item"><div class="dot dot-red"></div><span>Missing stock and unexplained losses</span></div>
+        <div class="problem-item"><div class="dot dot-red"></div><span>Difficulty monitoring branches and employees</span></div>
+        <div class="problem-item"><div class="dot dot-red"></div><span>Customer debts that are forgotten</span></div>
+        <div class="problem-item"><div class="dot dot-red"></div><span>Poor visibility into expenses and profit</span></div>
+        <div class="problem-item"><div class="dot dot-red"></div><span>Information scattered across notebooks, spreadsheets and WhatsApp</span></div>
+        <div class="problem-item"><div class="dot dot-red"></div><span>No easy way to sell online</span></div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--mp-primary);">
+        <p class="lead" style="margin:0; color:var(--mp-ink); font-size:0.82rem;"><strong>MartPoint brings these operations together</strong> so you can see what is happening in your business and make better decisions.</p>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 2</span>
+      </div>
+    </section>
+
+    <!-- Page 3 -->
+    <section class="page" style="background:#FAFBFF;">
+      <span class="label">What is MartPoint?</span>
+      <h2 class="mb-1">More Than a POS. Your Complete Business Operating System.</h2>
+      <p class="lead mb-2">MartPoint helps you manage daily activities&mdash;from the moment a product enters your store to the moment it is sold.</p>
+
+      <div class="flow">
+        <div class="flow-step"><strong>Stock</strong><span>Receive &amp; track</span></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-step"><strong>Sales</strong><span>Sell fast</span></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-step"><strong>Customers</strong><span>Record &amp; follow up</span></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-step"><strong>Payments</strong><span>Get paid</span></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-step"><strong>Reports</strong><span>Decide better</span></div>
+      </div>
+
+      <h3 class="mb-2" style="font-size:0.8rem;">Core capabilities</h3>
+      <div class="capability-grid">
+        <div class="capability"><span class="check">&#10003;</span><span>Point of Sale</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Inventory &amp; Stock Control</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Customer Management</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Expense Tracking</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Supplier &amp; Purchase</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Debt &amp; Credit Tracking</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Staff &amp; User Roles</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Business Reports</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Online Storefront</span></div>
+        <div class="capability"><span class="check">&#10003;</span><span>Multi-Branch</span></div>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 3</span>
+      </div>
+    </section>
+
+    <!-- Page 4 -->
+    <section class="page">
+      <span class="label">Features</span>
+      <h2 class="mb-1">Stay in Control&mdash;Wherever You Are</h2>
+      <p class="lead mb-2">Everything you need to run your business in one place.</p>
+      <div class="grid cols-3" style="gap:10px;">
+        <div class="feature">
+          <h3>Know What You&rsquo;re Selling</h3>
+          <p>Record sales, issue receipts and monitor cashier activities from any device.</p>
+        </div>
+        <div class="feature">
+          <h3>Control Your Inventory</h3>
+          <p>Track stock levels, transfers, purchases, batches and low-stock items in real time.</p>
+        </div>
+        <div class="feature">
+          <h3>Understand Your Customers</h3>
+          <p>Keep customer records, buying history, loyalty information and outstanding debts.</p>
+        </div>
+        <div class="feature">
+          <h3>Monitor Your Money</h3>
+          <p>Track expenses, payment methods, receivables and daily business performance.</p>
+        </div>
+        <div class="feature">
+          <h3>Manage Your Team</h3>
+          <p>Create staff accounts and control what each person can access and change.</p>
+        </div>
+        <div class="feature">
+          <h3>Make Better Decisions</h3>
+          <p>View practical reports without waiting for someone to prepare them.</p>
+        </div>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 4</span>
+      </div>
+    </section>
+
+    <!-- Page 5 -->
+    <section class="page" style="background:#FAFBFF;">
+      <span class="label">Industries</span>
+      <h2 class="mb-1">MartPoint Adapts to the Way You Work</h2>
+      <p class="lead mb-2">Whether you sell products, provide services or do both, MartPoint can be configured around your operations.</p>
+      <div class="industry-grid mb-2">
+        <div class="industry"><div class="industry-dot" style="background:#0057FF;"></div><span>Supermarkets &amp; Mini Marts</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#059669;"></div><span>Pharmacies</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#D97706;"></div><span>Fashion &amp; Beauty Stores</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#7C3AED;"></div><span>Electronics &amp; Phone Stores</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#DC2626;"></div><span>Restaurants &amp; Bakeries</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#BE185D;"></div><span>Salons, Spas &amp; Barbershops</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#0891B2;"></div><span>Laundry Businesses</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#92400E;"></div><span>Building-Material Stores</span></div>
+        <div class="industry"><div class="industry-dot" style="background:#374151;"></div><span>Service Businesses</span></div>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 5</span>
+      </div>
+    </section>
+
+    <!-- Page 6 -->
+    <section class="page">
+      <span class="label">Online Store</span>
+      <h2 class="mb-1">Take Your Business Online</h2>
+      <p class="lead mb-2">Your business is no longer limited to your physical store.</p>
+      <p class="mb-2" style="font-size:0.8rem;">Every eligible MartPoint business can have an online storefront where customers can:</p>
+      <div class="grid cols-2" style="gap:18px;">
+        <ul class="bullet-list">
+          <li><span class="check dot dot-blue"></span><span>Browse available products or services</span></li>
+          <li><span class="check dot dot-blue"></span><span>Place orders from their phones</span></li>
+          <li><span class="check dot dot-blue"></span><span>Pay online where enabled</span></li>
+          <li><span class="check dot dot-blue"></span><span>Send their cart through WhatsApp</span></li>
+          <li><span class="check dot dot-blue"></span><span>View promotions and featured products</span></li>
+          <li><span class="check dot dot-blue"></span><span>Track their orders</span></li>
+        </ul>
+        <div class="card" style="background:var(--mp-bg); border-color:#BFDBFE; align-self:start;">
+          <p class="lead" style="margin:0; color:var(--mp-primary); font-size:0.84rem;"><strong>Manage physical and online sales from the same system.</strong></p>
+        </div>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 6</span>
+      </div>
+    </section>
+
+    <!-- Page 7 -->
+    <section class="page" style="background:#FAFBFF;">
+      <span class="label">Control</span>
+      <h2 class="mb-1">Built for Business Owners Who Want Control</h2>
+      <p class="lead mb-2">See your business even when you are not there.</p>
+      <div class="grid cols-2" style="gap:18px;">
+        <ul class="bullet-list">
+          <li><span class="check dot dot-green"></span><span>Know daily sales from anywhere</span></li>
+          <li><span class="check dot dot-green"></span><span>Identify low-stock and fast-selling products</span></li>
+          <li><span class="check dot dot-green"></span><span>Reduce stock loss and manual errors</span></li>
+          <li><span class="check dot dot-green"></span><span>Monitor different branches</span></li>
+          <li><span class="check dot dot-green"></span><span>Control staff access</span></li>
+          <li><span class="check dot dot-green"></span><span>Maintain reliable business records</span></li>
+          <li><span class="check dot dot-green"></span><span>Improve customer follow-up</span></li>
+          <li><span class="check dot dot-green"></span><span>Receive support and guided onboarding</span></li>
+        </ul>
+        <div>
+          <div class="card-white mb-2" style="border-left:3px solid var(--mp-primary);">
+            <strong style="font-size:0.76rem;">Works online with offline options</strong>
+            <p class="small" style="margin:0; color:var(--mp-muted);">Available for supported deployments.</p>
+          </div>
+          <div class="card-white" style="border-left:3px solid #059669;">
+            <strong style="font-size:0.76rem;">Secure role-based access</strong>
+            <p class="small" style="margin:0; color:var(--mp-muted);">Each employee sees only what they need.</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 7</span>
+      </div>
+    </section>
+
+    <!-- Page 8 -->
+    <section class="page page-cta">
+      <div class="flex items-center justify-between mb-2">
+        <img src="logo.png" alt="MartPoint" class="logo">
+        <span class="pill">Plans from &#x20A6;99,999 per year</span>
+      </div>
+      <h1 style="font-size:1.9rem; margin-bottom:8px;">Your Business Has Outgrown Guesswork.</h1>
+      <p class="lead" style="max-width:80%;">Start managing your sales, stock, customers and operations with MartPoint.</p>
+
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <span class="btn">Get Started</span>
+        <span class="btn btn-outline">Request a Demo</span>
+        <span class="btn btn-outline">Speak to an Adviser</span>
+      </div>
+
+      <div class="contact-grid">
+        <div class="contact-card"><strong>Website</strong><span>martpoint.com.ng</span></div>
+        <div class="contact-card"><strong>WhatsApp</strong><span>0803 602 8069</span></div>
+        <div class="contact-card"><strong>Email</strong><span>sales@martpoint.com.ng</span></div>
+        <div class="contact-card"><strong>Social</strong><span>@usemartpoint</span></div>
+      </div>
+
+      <div class="qr-wrap">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAADwAQMAAAAEm3vRAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAABZklEQVRYhe2YMZLDIAxF5XFB6SNwFB8tORpH8RFcumCilfQBO7sm2R6pIIleqj/6fwREn+vBqM1+Rc76sZTma1ycrL9uIRM/Dch5WDM47mLtCLbJknNiTssxqc6ORTVu5fjfmGY2UUlbjpsF5U8SWXnqONTxFZf5QnDFfa46a42Lz5o1yWluQv4qxxcMUWm18wEh112mjFM8xsVSZj79LhO3ZA0uNR9ajjt4ER2rQ7GCJmulaA4dFJfBuhoRg2d57vgem6jYHSTu4VCW3UFNOy6WrFLzSUrZSmUW5Ldcc3yDMWVV1H2GQ/WM1yvygHhiaoXlIFQLOu7gEvfyUx2az3VCW6PiVnYH3vTawgnvB+S4h6EgdgdC9uOK3OJ+TAztEFw2ccWVN7nm+MTnM1RTGA7lgxwHRJY+qNhKpfVy/B3XB/J1J7v5hZFxsaDN2nbJ8PTn8c5xw8WQeNOM9aLDddYc3+HP9QPVoyDc+pOlrQAAAABJRU5ErkJggg==" alt="Scan for demo">
+        <div class="qr-text"><strong>Scan to request a demo</strong>Point your phone camera at this code to open the MartPoint demo request page.</div>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="closing"><strong>MartPoint</strong> &mdash; One Platform. Complete Business Control.</div>
+      <div class="footer-strip">
+        <span>MartPoint Brochure</span>
+        <span>Page 8</span>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

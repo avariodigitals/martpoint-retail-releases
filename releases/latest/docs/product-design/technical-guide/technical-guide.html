@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint Technical & Partner Setup Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    pre {
+      background: #F5F5F4;
+      border: 1px solid var(--mp-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: 'SFMono-Regular', Consolas, Monaco, monospace;
+      font-size: 0.74rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      color: var(--mp-ink);
+      page-break-inside: avoid;
+    }
+    code { font-family: 'SFMono-Regular', Consolas, Monaco, monospace; background:#F5F5F4; padding:2px 5px; border-radius:5px; font-size:0.8rem; }
+    .two-col-split { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:24px; }
+    .tech-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; background:#fff; page-break-inside:avoid; }
+    .tech-card h4 { margin-bottom:6px; font-size:0.95rem; }
+    .tech-card p, .tech-card ul { font-size:0.82rem; color:var(--mp-ink); margin:0; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <!-- Cover -->
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Partner Edition v4.0.9</span>
+      </div>
+
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Technical & Setup Guide</span>
+        <h1>Core guide for technical teams and implementation partners.</h1>
+        <p>Architecture, tech stack, installation steps, and support boundaries. Written to be shared — no licence keys or internal secrets included.</p>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="grid cols-3 text-center mb-3">
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-cogs"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Tech Stack</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-download"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Install</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-wrench"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Support</span>
+        </div>
+      </div>
+
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint Technical Guide</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack / Architecture -->
+  <section class="page">
+    <span class="label">Part A — Core Technical Guide</span>
+    <h2 class="mb-2">Architecture & technology</h2>
+    <p class="lead mb-3">MartPoint is a browser-based retail application with a traditional server-rendered core, a responsive frontend, and a Progressive Web App layer for offline resilience.</p>
+
+    <table class="mb-3">
+      <thead>
+        <tr><th>Layer</th><th>Technology</th><th>Role</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Backend</td><td>PHP 7.4+ / CodeIgniter 3</td><td>Application logic, routing, controllers, models, sessions</td></tr>
+        <tr><td>Database</td><td>MySQL 5.7+ / MariaDB</td><td>Transactional data, settings, audit logs, migrations</td></tr>
+        <tr><td>Frontend</td><td>AdminLTE 2, Bootstrap 3, jQuery</td><td>Desktop dashboard, forms, tables, reports</td></tr>
+        <tr><td>Mobile shell</td><td>Custom mobile views + CSS vars</td><td>Phone and tablet-portrait UX with bottom navigation</td></tr>
+        <tr><td>Offline layer</td><td>Service Worker + IndexedDB</td><td>Queue sales/purchases and sync when back online</td></tr>
+        <tr><td>AI / Chat</td><td>Custom conversational engine</td><td>MartPoint Assist for natural-language queries</td></tr>
+        <tr><td>Payments</td><td>Stripe, Paystack, Instamojo</td><td>Card and online payment processing (configurable)</td></tr>
+        <tr><td>Documents</td><td>DOMPDF / TCPDF</td><td>Invoices, receipts, reports, PDF exports</td></tr>
+        <tr><td>QR / Barcodes</td><td>chillerlan/php-qrcode</td><td>Barcode/QR generation and scanning support</td></tr>
+      </tbody>
+    </table>
+
+    <div class="grid cols-3">
+      <div class="tech-card no-break">
+        <h4><i class="fa fa-globe" style="color:var(--mp-primary);margin-right:8px;"></i>Web-first</h4>
+        <p>No desktop installer. Staff open a browser, sign in, and start selling. Chrome is recommended.</p>
+      </div>
+      <div class="tech-card no-break">
+        <h4><i class="fa fa-building-o" style="color:var(--mp-primary);margin-right:8px;"></i>Multi-tenant by store</h4>
+        <p>Each store has its own settings, users, stock, and permissions while sharing the same codebase.</p>
+      </div>
+      <div class="tech-card no-break">
+        <h4><i class="fa fa-lock" style="color:var(--mp-primary);margin-right:8px;"></i>Permission model</h4>
+        <p>Role-based access control with per-feature permissions and PIN-based approvals for sensitive operations.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part A — Core Technical Guide</span>
+      <span>Page 2</span>
+    </div>
+  </section>
+
+  <!-- Project Structure & Security -->
+  <section class="page">
+    <span class="label">Part A — Core Technical Guide</span>
+    <h2 class="mb-2">Project structure & security model</h2>
+
+    <div class="two-col-split mb-3">
+      <div>
+        <h3>Directory layout</h3>
+<pre>
+martpoint/
+├── application/          # CodeIgniter app
+│   ├── config/          # Config files
+│   ├── controllers/     # All route controllers
+│   ├── models/          # Database models
+│   ├── views/           # PHP templates
+│   ├── helpers/         # Shared helpers
+│   └── core/            # MY_Controller base
+├── theme/               # CSS, JS, fonts, images
+├── system/              # CodeIgniter core
+├── vendor/              # Composer dependencies
+├── uploads/             # User uploads (writable)
+├── updates/             # Migration & update staging
+└── index.php            # Entry point
+</pre>
+      </div>
+      <div>
+        <h3>Key configuration files</h3>
+        <table>
+          <tbody>
+            <tr><td><code>application/config/database.php</code></td><td>DB host, name, user, password</td></tr>
+            <tr><td><code>application/config/config.php</code></td><td>Base URL, app name, version</td></tr>
+            <tr><td><code>application/config/autoload.php</code></td><td>Libraries & helpers autoloaded</td></tr>
+            <tr><td><code>application/config/email.php</code></td><td>SMTP / email provider settings</td></tr>
+            <tr><td><code>application/config/constants.php</code></td><td>Application constants</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3 class="mb-1">Security principles</h3>
+    <div class="grid cols-2" style="gap:16px;">
+      <div class="card no-break" style="background:#FAFAF9;">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> HTTPS in production. SSL certificate required.</li>
+          <li><i class="fa fa-check"></i> Passwords hashed; sessions managed server-side.</li>
+          <li><i class="fa fa-check"></i> Role-based access limits what each user can see and do.</li>
+          <li><i class="fa fa-check"></i> PIN approvals protect discounts, returns, and sensitive settings.</li>
+        </ul>
+      </div>
+      <div class="card no-break" style="background:#FAFAF9;">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> No API keys, tokens, or passwords in this document.</li>
+          <li><i class="fa fa-check"></i> Credentials belong only in server-side config files and are never exposed in URLs.</li>
+          <li><i class="fa fa-check"></i> Regular backups of the database and uploaded files are essential.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part A — Core Technical Guide</span>
+      <span>Page 3</span>
+    </div>
+  </section>
+
+  <!-- Integrations / PWA / Updates -->
+  <section class="page">
+    <span class="label">Part A — Core Technical Guide</span>
+    <h2 class="mb-2">Integrations, offline mode & updates</h2>
+
+    <div class="grid cols-2" style="gap:24px;">
+      <div>
+        <h3 class="mb-1">Built-in integrations</h3>
+        <table>
+          <thead><tr><th>Service type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Payments</td><td>Stripe, Paystack, Instamojo — configured per store.</td></tr>
+            <tr><td>Email</td><td>SMTP, Resend, or PHP mail. Templates support variables.</td></tr>
+            <tr><td>SMS / WhatsApp</td><td>Gateway settings configured in store settings.</td></tr>
+            <tr><td>Identity verification</td><td>NIN/BVN verification via configured API.</td></tr>
+            <tr><td>PDF / QR</td><td>DOMPDF/TCPDF and chillerlan QR library.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3 class="mb-1">Offline PWA behaviour</h3>
+        <div class="card no-break" style="background:#FAFAF9;">
+          <ul class="tick-list small">
+            <li><i class="fa fa-check"></i> Service worker caches core assets.</li>
+            <li><i class="fa fa-check"></i> Sales and purchases can be queued in IndexedDB when offline.</li>
+            <li><i class="fa fa-check"></i> A pending badge shows unsynced transactions.</li>
+            <li><i class="fa fa-check"></i> Sync retry runs automatically when connectivity returns.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="mb-1 mt-2">Update system</h3>
+    <p class="small mb-2">MartPoint includes a one-click auto-update engine designed to keep production instances current with minimal downtime.</p>
+    <div class="steps">
+      <div class="step no-break">
+        <div class="step-number">1</div>
+        <div class="step-body"><h4>Backup</h4><p>Create a full database and file backup before starting.</p></div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">2</div>
+        <div class="step-body"><h4>Download</h4><p>The updater fetches the release package from the configured channel.</p></div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">3</div>
+        <div class="step-body"><h4>Verify & apply</h4><p>Checksums are verified, files are replaced, and pending SQL migrations run idempotently.</p></div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">4</div>
+        <div class="step-body"><h4>Finalize</h4><p>Cache is cleared and the new version is confirmed in settings.</p></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part A — Core Technical Guide</span>
+      <span>Page 4</span>
+    </div>
+  </section>
+
+  <!-- Part B System Requirements -->
+  <section class="page">
+    <span class="label">Part B — Setup & Support Guide</span>
+    <h2 class="mb-2">System requirements</h2>
+    <p class="lead mb-3">These are the baseline specs for a fresh MartPoint installation. Larger deployments (many branches or high transaction volumes) should scale CPU, RAM, and disk accordingly.</p>
+
+    <div class="grid cols-2" style="gap:24px;">
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-server" style="color:var(--mp-primary);margin-right:8px;"></i>Minimum</h3>
+        <table>
+          <tbody>
+            <tr><td>PHP</td><td>7.0+</td></tr>
+            <tr><td>MySQL / MariaDB</td><td>5.5+</td></tr>
+            <tr><td>Web server</td><td>Apache 2.4+ or Nginx 1.10+</td></tr>
+            <tr><td>Disk</td><td>500 MB free</td></tr>
+            <tr><td>RAM</td><td>512 MB</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-rocket" style="color:var(--mp-primary);margin-right:8px;"></i>Recommended</h3>
+        <table>
+          <tbody>
+            <tr><td>PHP</td><td>7.4+</td></tr>
+            <tr><td>MySQL / MariaDB</td><td>5.7+</td></tr>
+            <tr><td>Web server</td><td>Apache 2.4+ or Nginx 1.18+</td></tr>
+            <tr><td>Disk</td><td>1 GB+ free</td></tr>
+            <tr><td>RAM</td><td>1 GB+</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3 class="mb-1 mt-3">Required PHP extensions</h3>
+    <p class="small mb-2">Confirm these are enabled in <code>php.ini</code> before installation.</p>
+    <div class="grid cols-4" style="gap:12px;">
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>mysqli</code></div>
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>curl</code></div>
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>gd</code></div>
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>mbstring</code></div>
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>openssl</code></div>
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>json</code></div>
+      <div class="card no-break" style="text-align:center;padding:14px;"><code>zip</code></div>
+    </div>
+
+    <div class="tip mt-3">
+      <i class="fa fa-lightbulb-o"></i> <strong>Browser recommendation:</strong> Chrome or Chromium-based browsers give the best barcode/printing and PWA experience.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part B — Setup & Support Guide</span>
+      <span>Page 5</span>
+    </div>
+  </section>
+
+  <!-- Installation Steps -->
+  <section class="page">
+    <span class="label">Part B — Setup & Support Guide</span>
+    <h2 class="mb-2">Fresh installation</h2>
+    <p class="lead mb-3">Estimated time: 30–45 minutes. These steps assume a standard Linux/Apache/Nginx or LAMP/LEMP stack.</p>
+
+    <div class="steps mb-3">
+      <div class="step no-break">
+        <div class="step-number">1</div>
+        <div class="step-body">
+          <h4>Obtain the release package</h4>
+          <p>Request the latest MartPoint source package from your partner contact. Place it on the server and extract it into the web root.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">2</div>
+        <div class="step-body">
+          <h4>Create the database</h4>
+<pre>CREATE DATABASE martpoint_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE USER 'martpoint_user'@'localhost' IDENTIFIED BY 'STRONG_PASSWORD';
+GRANT ALL PRIVILEGES ON martpoint_db.* TO 'martpoint_user'@'localhost';
+FLUSH PRIVILEGES;</pre>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">3</div>
+        <div class="step-body">
+          <h4>Import the seed database</h4>
+          <p>From the release package, import the provided <code>seed.sql</code> (or equivalent base dump) to create tables and default records.</p>
+<pre>mysql -u martpoint_user -p martpoint_db &lt; /path/to/seed.sql</pre>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">4</div>
+        <div class="step-body">
+          <h4>Configure the application</h4>
+          <p>Edit <code>application/config/database.php</code> and <code>application/config/config.php</code> with your values.</p>
+<pre>$db['default']['hostname'] = 'localhost';
+$db['default']['username'] = 'martpoint_user';
+$db['default']['password'] = 'STRONG_PASSWORD';
+$db['default']['database'] = 'martpoint_db';
+
+$config['base_url'] = 'https://your-domain.com/';
+$config['app_name']  = 'MartPoint';
+$config['app_version'] = '4.0.9';</pre>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">5</div>
+        <div class="step-body">
+          <h4>Run database migrations</h4>
+          <p>Migrations run automatically on first access, or you can apply the supplied SQL files manually.</p>
+<pre>mysql -u martpoint_user -p martpoint_db &lt; /path/to/migrations/*.sql</pre>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">6</div>
+        <div class="step-body">
+          <h4>Set file permissions</h4>
+<pre>chmod -R 755 application/ release_upload/
+chmod -R 777 application/cache/ application/logs/ uploads/</pre>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">7</div>
+        <div class="step-body">
+          <h4>Configure the web server</h4>
+          <p>Apache: ensure <code>mod_rewrite</code> is enabled and .htaccess rules are active. Nginx: route all non-file requests to <code>index.php</code>.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">8</div>
+        <div class="step-body">
+          <h4>Access and verify</h4>
+          <p>Open the site URL. Log in with the default admin credentials supplied in the partner package and immediately change the password.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part B — Setup & Support Guide</span>
+      <span>Page 6</span>
+    </div>
+  </section>
+
+  <!-- Post-install / Rollback -->
+  <section class="page">
+    <span class="label">Part B — Setup & Support Guide</span>
+    <h2 class="mb-2">Verification, rollback & support</h2>
+
+    <h3 class="mb-1">Post-installation verification</h3>
+    <p class="small mb-2">Run through this checklist before handing the system to users.</p>
+    <div class="grid cols-2" style="gap:16px;">
+      <div class="card no-break" style="background:#FAFAF9;">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check-square-o"></i> Application loads without errors</li>
+          <li><i class="fa fa-check-square-o"></i> Login page displays and sessions work</li>
+          <li><i class="fa fa-check-square-o"></i> Dashboard loads with KPIs</li>
+          <li><i class="fa fa-check-square-o"></i> POS adds items and completes a test sale</li>
+          <li><i class="fa fa-check-square-o"></i> Customer management opens</li>
+        </ul>
+      </div>
+      <div class="card no-break" style="background:#FAFAF9;">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check-square-o"></i> Sales report generates and exports</li>
+          <li><i class="fa fa-check-square-o"></i> Mobile views render on a phone</li>
+          <li><i class="fa fa-check-square-o"></i> Marketing module opens</li>
+          <li><i class="fa fa-check-square-o"></i> Database migration version matches app version</li>
+          <li><i class="fa fa-check-square-o"></i> Error logs are clean</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="mb-1 mt-3">Rollback procedure</h3>
+    <p class="small mb-2">Always back up before an update. If a deployment fails, restore the previous state.</p>
+    <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+      <li>Stop the web server or enable maintenance mode.</li>
+      <li>Restore application files from the pre-update backup.</li>
+      <li>Restore the database from the pre-update dump.</li>
+      <li>Clear <code>application/cache/</code>.</li>
+      <li>Restart the web server and verify.</li>
+    </ol>
+
+    <h3 class="mb-1 mt-3">Troubleshooting quick reference</h3>
+    <div class="grid cols-2" style="gap:16px;">
+      <div class="tip no-break">
+        <strong>White screen of death</strong><br>
+        Check <code>application/logs/</code>, enable <code>log_threshold = 4</code> temporarily, and validate <code>php -l index.php</code>.
+      </div>
+      <div class="tip warning no-break">
+        <strong>Database connection error</strong><br>
+        Verify MySQL is running, the database exists, the user has privileges, and credentials in <code>database.php</code> are correct.
+      </div>
+      <div class="tip no-break">
+        <strong>POS not loading</strong><br>
+        Clear cache, run <code>php -l application/controllers/Pos.php</code>, and confirm sales-related tables exist.
+      </div>
+      <div class="tip danger no-break">
+        <strong>Permission denied</strong><br>
+        Ensure cache, logs, and uploads directories are writable by the web server user (e.g. <code>www-data</code>).
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part B — Setup & Support Guide</span>
+      <span>Page 7</span>
+    </div>
+  </section>
+
+  <!-- Support & Partner coverage -->
+  <section class="page">
+    <span class="label">Part B — Setup & Support Guide</span>
+    <h2 class="mb-2">Support coverage & partner responsibilities</h2>
+
+    <p class="lead mb-3">This guide can be shared with implementation partners. It contains no licence keys, API secrets, or internal business details.</p>
+
+    <div class="grid cols-2" style="gap:24px;">
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-headphones" style="color:var(--mp-primary);margin-right:8px;"></i>MartPoint support</h3>
+        <p class="small mb-2">We support the software: installation guidance, configuration questions, bug reports, and version updates.</p>
+        <div class="grid cols-2" style="gap:10px;">
+          <div class="contact-card no-break"><i class="fa fa-envelope"></i><div><strong>support@martpoint.com</strong><span>General support</span></div></div>
+          <div class="contact-card no-break"><i class="fa fa-phone"></i><div><strong>0803 602 8069</strong><span>Mon–Fri, 9am–5pm</span></div></div>
+          <div class="contact-card no-break"><i class="fa fa-comments"></i><div><strong>WhatsApp</strong><span>Chat during office hours</span></div></div>
+          <div class="contact-card no-break"><i class="fa fa-globe"></i><div><strong>martpoint.com.ng</strong><span>Website & contact form</span></div></div>
+        </div>
+      </div>
+
+      <div class="card no-break">
+        <h3 class="mb-1"><i class="fa fa-briefcase" style="color:var(--mp-primary);margin-right:8px;"></i>Partner / client responsibilities</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Hosting server, domain, and SSL certificate</li>
+          <li><i class="fa fa-check"></i> Internet connectivity for cloud/offline sync</li>
+          <li><i class="fa fa-check"></i> End-user devices (computers, phones, tablets)</li>
+          <li><i class="fa fa-check"></i> Barcode scanners, receipt printers, and paper</li>
+          <li><i class="fa fa-check"></i> Staff training and day-to-day operations</li>
+          <li><i class="fa fa-check"></i> Regular backups of database and uploaded files</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break mt-3" style="background:#FAFAF9;">
+      <h3 class="mb-1">Escalation process</h3>
+      <div class="steps">
+        <div class="step no-break">
+          <div class="step-number">1</div>
+          <div class="step-body"><h4>Level 1 — Support</h4><p>Gather logs, PHP/MySQL versions, and reproduction steps; first-line troubleshooting.</p></div>
+        </div>
+        <div class="step no-break">
+          <div class="step-number">2</div>
+          <div class="step-body"><h4>Level 2 — Development</h4><p>Confirmed bugs or complex environment issues are escalated to the MartPoint engineering team.</p></div>
+        </div>
+        <div class="step no-break">
+          <div class="step-number">3</div>
+          <div class="step-body"><h4>Level 3 — Emergency rollback</h4><p>If a new release causes critical failure, restore from backup and coordinate a patched release.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span><i class="fa fa-map-marker"></i> Abiodun Jagun St, Off Wempco Rd, Ogba, Lagos</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

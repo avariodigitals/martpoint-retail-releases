@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Purchase Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Purchase</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Screen-by-screen guide</span>
+        <h1>Buying &amp; receiving stock</h1>
+        <p>Create purchase orders, record supplier bills, receive stock, and track what you owe. Every screen, one at a time.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Purchase module map</span>
+    <h2 class="mb-2">The purchase screens at a glance</h2>
+    <p class="lead mb-3">Purchases start with a supplier and a list of items. Once saved, stock enters the catalog and the amount owed is tracked until you pay.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-plus-square"></i> New Purchase</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-list"></i> Purchase History</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-truck"></i> Suppliers</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-money"></i> Supplier Payment</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-plus-square" style="color:var(--mp-primary);margin-right:8px;"></i>New Purchase</h3>
+        <p class="small">Record what you bought, from whom, and at what cost. Stock is added when you save.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-list" style="color:var(--mp-primary);margin-right:8px;"></i>Purchase History</h3>
+        <p class="small">Review every purchase invoice, search by supplier, and re-open to add payments.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-truck" style="color:var(--mp-primary);margin-right:8px;"></i>Suppliers</h3>
+        <p class="small">Keep supplier names, contacts, and a record of what you owe each one.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>Supplier Payment</h3>
+        <p class="small">Pay a supplier and link the payment to one or more purchase bills.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Purchase Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 1 of 4</span>
+    <h2 class="mb-2">New Purchase</h2>
+    <p class="lead mb-3">This is where you record a delivery or a supplier bill. The items you enter are added to your catalog once the purchase is saved.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Purchase → New Purchase</strong> or tap the <strong>Purchase Stock</strong> quick action on the dashboard.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Supplier</strong><span>Pick an existing supplier or add new</span></div>
+        <div class="field"><strong>Reference No</strong><span>Supplier invoice or delivery note number</span></div>
+        <div class="field"><strong>Purchase date</strong><span>When stock was received</span></div>
+        <div class="field"><strong>Status</strong><span>Paid or Unpaid</span></div>
+        <div class="field"><strong>Item search</strong><span>Find products in catalog</span></div>
+        <div class="field"><strong>Quantity</strong><span>How many units arrived</span></div>
+        <div class="field"><strong>Purchase price</strong><span>Cost per unit</span></div>
+        <div class="field"><strong>Batch / Expiry</strong><span>Optional tracking numbers and dates</span></div>
+        <div class="field"><strong>Other charges</strong><span>Shipping, handling</span></div>
+        <div class="field"><strong>Discount</strong><span>Supplier discount</span></div>
+        <div class="field"><strong>Totals</strong><span>Subtotal, total amount</span></div>
+        <div class="field"><strong>Save</strong><span>Save and update stock</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Select the <strong>Supplier</strong>. If not in the list, go to Suppliers and add them first.</li>
+        <li>Enter the supplier’s reference number (invoice or delivery note) and the purchase date.</li>
+        <li>Choose <strong>Paid</strong> if you already paid, or <strong>Unpaid</strong> to track the bill.</li>
+        <li>Tap <strong>Add Item</strong> and search the catalog. Select the product.</li>
+        <li>Enter <strong>Quantity</strong>, <strong>Purchase Price</strong>, and batch/expiry if your business tracks them.</li>
+        <li>Add any other charges or discounts.</li>
+        <li>Review the total and tap <strong>Save</strong>. Stock is added to the selected branch.</li>
+      </ol>
+    </div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: view the saved purchase in Purchase History, then pay the supplier when due.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Purchase Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 2 of 4</span>
+    <h2 class="mb-2">Purchase History</h2>
+    <p class="lead mb-3">Every saved purchase appears here. Use it to find old supplier bills, add payments, or check what was received.</p>
+
+    <div class="screen-card no-break">
+      <h3>How to open</h3>
+      <p class="small"><strong>More → Purchase → Purchase History</strong>.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen fields</h3>
+      <div class="field-list">
+        <div class="field"><strong>Search</strong><span>Reference number or supplier</span></div>
+        <div class="field"><strong>Filter by date</strong><span>Today, custom range</span></div>
+        <div class="field"><strong>Status filter</strong><span>Paid, Unpaid, All</span></div>
+        <div class="field"><strong>Purchase number</strong><span>Auto-generated ID</span></div>
+        <div class="field"><strong>Supplier name</strong><span>Who you bought from</span></div>
+        <div class="field"><strong>Amount / Due</strong><span>Total and balance owed</span></div>
+        <div class="field"><strong>View</strong><span>Open full invoice</span></div>
+        <div class="field"><strong>Pay</strong><span>Record a supplier payment</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Step-by-step</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Scroll or search for the supplier or reference number.</li>
+        <li>Tap a purchase to see the full invoice, items, and costs.</li>
+        <li>Tap <strong>Pay</strong> to record a payment against that bill.</li>
+        <li>Tap <strong>PDF</strong> to download or share the purchase copy.</li>
+      </ol>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Purchase Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 3 &amp; 4 of 4</span>
+    <h2 class="mb-2">Suppliers &amp; Supplier Payment</h2>
+
+    <div class="screen-card no-break">
+      <h3>Suppliers — manage who you buy from</h3>
+      <p class="small mb-2"><strong>More → Suppliers → Suppliers</strong> shows the list. <strong>More → Suppliers → Add Supplier</strong> creates a new one.</p>
+      <div class="field-list">
+        <div class="field"><strong>Supplier name</strong><span>Business or contact name</span></div>
+        <div class="field"><strong>Phone / Email</strong><span>Contact details</span></div>
+        <div class="field"><strong>Address</strong><span>Delivery or billing address</span></div>
+        <div class="field"><strong>Opening balance</strong><span>Amount already owed</span></div>
+        <div class="field"><strong>Total purchases</strong><span>Lifetime buying value</span></div>
+        <div class="field"><strong>Due amount</strong><span>Current outstanding balance</span></div>
+      </div>
+      <p class="small mt-2">Add a supplier before making your first purchase. Once created, they appear in the New Purchase screen.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Supplier Payment — settle bills</h3>
+      <p class="small mb-2">When you pay a supplier, open <strong>More → Suppliers → Supplier Payment</strong> or tap <strong>Pay</strong> inside a purchase.</p>
+      <div class="field-list">
+        <div class="field"><strong>Supplier</strong><span>Who you are paying</span></div>
+        <div class="field"><strong>Payment amount</strong><span>How much you paid</span></div>
+        <div class="field"><strong>Payment method</strong><span>Cash, transfer, cheque</span></div>
+        <div class="field"><strong>Allocate</strong><span>Apply to one or more bills</span></div>
+      </div>
+      <p class="small mt-2">Enter the amount and method, then allocate it to open purchase invoices. The supplier balance updates immediately.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Purchase Return — return stock to a supplier</h3>
+      <p class="small">If stock is damaged or wrong, open the original purchase, tap <strong>Return</strong>, select the items and quantity, and save. Stock is reduced and a supplier credit or cash refund is recorded.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Purchase Guide</span><span>Page 5</span></div>
+  </section>
+
+</div>
+</body>
+</html>

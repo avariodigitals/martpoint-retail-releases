@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Reports Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Reports</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Screen-by-screen guide</span>
+        <h1>Reports &amp; Insights</h1>
+        <p>Every report tells a story. Know which story to open, what it shows, and how to filter it for answers.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Reports module map</span>
+    <h2 class="mb-2">The reports menu at a glance</h2>
+    <p class="lead mb-3">Reports are grouped by job: daily summary, sales, purchases, profit, stock, and cash. Open the one that answers your question.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-calendar"></i> Daily Summary</div>
+      <div class="flow-step"><i class="fa fa-shopping-cart"></i> Sales</div>
+      <div class="flow-step"><i class="fa fa-cart-arrow-down"></i> Purchase</div>
+      <div class="flow-step"><i class="fa fa-pie-chart"></i> Profit &amp; Loss</div>
+      <div class="flow-step"><i class="fa fa-cubes"></i> Stock</div>
+      <div class="flow-step"><i class="fa fa-money"></i> Cash Flow</div>
+      <div class="flow-step"><i class="fa fa-barcode"></i> Item Sales</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-calendar" style="color:var(--mp-primary);margin-right:8px;"></i>Daily Summary</h3>
+        <p class="small">One page for today: sales, profit, expenses, attendance, and top products.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-pie-chart" style="color:var(--mp-primary);margin-right:8px;"></i>Profit &amp; Loss</h3>
+        <p class="small">Income minus cost and expenses for any date range. The true health of the business.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-cubes" style="color:var(--mp-primary);margin-right:8px;"></i>Stock Report</h3>
+        <p class="small">What you have, what is low, and what is expiring. Filter by branch and category.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-barcode" style="color:var(--mp-primary);margin-right:8px;"></i>Item Sales</h3>
+        <p class="small">Best and slowest sellers. Use it to decide what to reorder and what to drop.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Reports Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 1 &amp; 2 of 7</span>
+    <h2 class="mb-2">Daily Business Summary &amp; Sales Report</h2>
+
+    <div class="screen-card no-break">
+      <h3>Daily Business Summary</h3>
+      <p class="small mb-2"><strong>More → Reports → Daily Business Summary</strong>. The fastest way to see how the day went.</p>
+      <div class="field-list">
+        <div class="field"><strong>Date picker</strong><span>Pick today or any date</span></div>
+        <div class="field"><strong>Total sales</strong><span>Sales for the day</span></div>
+        <div class="field"><strong>Profit</strong><span>Gross and net profit</span></div>
+        <div class="field"><strong>Expenses</strong><span>Total spent</span></div>
+        <div class="field"><strong>Cash in hand</strong><span>Opening + receipts - payments</span></div>
+        <div class="field"><strong>Top products</strong><span>Best sellers today</span></div>
+        <div class="field"><strong>Attendance</strong><span>Who clocked in</span></div>
+        <div class="field"><strong>Export / share</strong><span>PDF or WhatsApp</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Sales Report</h3>
+      <p class="small mb-2"><strong>More → Reports → Sales Report</strong>. Lists every invoice with customer, amount, and payment status.</p>
+      <div class="field-list">
+        <div class="field"><strong>Date range</strong><span>From and To dates</span></div>
+        <div class="field"><strong>Customer filter</strong><span>All or one customer</span></div>
+        <div class="field"><strong>Status</strong><span>Paid, Unpaid, Partial</span></div>
+        <div class="field"><strong>User filter</strong><span>Sold by a specific staff</span></div>
+        <div class="field"><strong>Total</strong><span>Sales value and dues</span></div>
+        <div class="field"><strong>Export</strong><span>PDF, CSV, or Excel</span></div>
+      </div>
+      <p class="small mt-2">Use this to verify takings, reconcile cash, or follow up unpaid invoices.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Reports Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 3 &amp; 4 of 7</span>
+    <h2 class="mb-2">Purchase &amp; Expense Reports</h2>
+
+    <div class="screen-card no-break">
+      <h3>Purchase Report</h3>
+      <p class="small mb-2"><strong>More → Reports → Purchase Report</strong>. Shows every supplier bill and what was received.</p>
+      <div class="field-list">
+        <div class="field"><strong>Supplier filter</strong><span>All or one supplier</span></div>
+        <div class="field"><strong>Date range</strong><span>Any period</span></div>
+        <div class="field"><strong>Status</strong><span>Paid, Unpaid</span></div>
+        <div class="field"><strong>Total purchase</strong><span>Amount bought and owed</span></div>
+        <div class="field"><strong>Return items</strong><span>What went back to suppliers</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Expense Report</h3>
+      <p class="small mb-2"><strong>More → Reports → Expense Report</strong>. Groups business spending by category.</p>
+      <div class="field-list">
+        <div class="field"><strong>Category</strong><span>Rent, fuel, salaries, etc.</span></div>
+        <div class="field"><strong>Date range</strong><span>Daily, weekly, monthly</span></div>
+        <div class="field"><strong>Payment method</strong><span>Cash, bank, card</span></div>
+        <div class="field"><strong>Total</strong><span>Spend per category</span></div>
+      </div>
+      <p class="small mt-2">Use this to see where money is going and control overhead.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Reports Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 5 of 7</span>
+    <h2 class="mb-2">Profit &amp; Loss, Cash Flow &amp; Receivables</h2>
+
+    <div class="screen-card no-break">
+      <h3>Profit &amp; Loss Report</h3>
+      <p class="small mb-2"><strong>More → Reports → Profit &amp; Loss Report</strong>. Shows income, cost of sales, expenses, and the final profit.</p>
+      <div class="field-list">
+        <div class="field"><strong>Sales income</strong><span>Money from sales</span></div>
+        <div class="field"><strong>Cost of sales</strong><span>What the sold items cost you</span></div>
+        <div class="field"><strong>Gross profit</strong><span>Income minus cost</span></div>
+        <div class="field"><strong>Expenses</strong><span>Business spending</span></div>
+        <div class="field"><strong>Net profit</strong><span>What the business really made</span></div>
+      </div>
+      <p class="small mt-2">Make sure purchase prices are accurate, otherwise profit numbers will be wrong.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Cash Flow Statement</h3>
+      <p class="small mb-2"><strong>More → Reports → Cash Flow Statement</strong>. Tracks actual cash in and out, not just profit.</p>
+      <div class="field-list">
+        <div class="field"><strong>Cash in</strong><span>Sales, customer payments</span></div>
+        <div class="field"><strong>Cash out</strong><span>Purchases, expenses, supplier payments</span></div>
+        <div class="field"><strong>Net position</strong><span>Cash available</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Receivables Aging</h3>
+      <p class="small mb-2"><strong>More → Reports → Receivables Aging</strong>. Shows who owes money and how long it has been unpaid.</p>
+      <div class="field-list">
+        <div class="field"><strong>Customer</strong><span>Who owes</span></div>
+        <div class="field"><strong>Invoice age</strong><span>0-30, 31-60, 60+ days</span></div>
+        <div class="field"><strong>Total due</strong><span>Outstanding amount</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Reports Guide</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Screen 6 &amp; 7 of 7</span>
+    <h2 class="mb-2">Stock, Item Sales &amp; Reorder</h2>
+
+    <div class="screen-card no-break">
+      <h3>Stock Report</h3>
+      <p class="small mb-2"><strong>More → Reports → Stock Report</strong>. Current stock levels and low-stock alerts.</p>
+      <div class="field-list">
+        <div class="field"><strong>Branch</strong><span>Choose location</span></div>
+        <div class="field"><strong>Category</strong><span>Filter by product type</span></div>
+        <div class="field"><strong>Stock quantity</strong><span>What is available</span></div>
+        <div class="field"><strong>Alert quantity</strong><span>Minimum level set</span></div>
+        <div class="field"><strong>Expiry alert</strong><span>Expired or expiring soon</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Item Sales Report</h3>
+      <p class="small mb-2"><strong>More → Reports → Item Sales Report</strong>. Ranks products by quantity sold and revenue.</p>
+      <div class="field-list">
+        <div class="field"><strong>Product</strong><span>Item name and code</span></div>
+        <div class="field"><strong>Quantity sold</strong><span>Units sold</span></div>
+        <div class="field"><strong>Revenue</strong><span>Total sales value</span></div>
+        <div class="field"><strong>Profit</strong><span>Revenue minus cost</span></div>
+        <div class="field"><strong>Trend</strong><span>Slow or fast mover</span></div>
+      </div>
+      <p class="small mt-2">Use this to decide what to promote, what to reorder, and what to stop stocking.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Reorder Suggestions</h3>
+      <p class="small mb-2"><strong>More → Reports → Reorder Suggestions</strong>. Lists products below their alert quantity and suggests how much to order based on sales history.</p>
+      <div class="field-list">
+        <div class="field"><strong>Current stock</strong><span>What you have</span></div>
+        <div class="field"><strong>Alert level</strong><span>Minimum allowed</span></div>
+        <div class="field"><strong>Suggested order</strong><span>Quantity to buy</span></div>
+        <div class="field"><strong>Supplier</strong><span>Default supplier if set</span></div>
+      </div>
+      <p class="small mt-2">Use this before raising a new purchase order.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Other useful reports</h3>
+      <ul class="tick-list small">
+        <li><i class="fa fa-check"></i> <strong>Inventory Aging:</strong> stock that has not moved.</li>
+        <li><i class="fa fa-check"></i> <strong>Sell-Through Report:</strong> how fast stock sells relative to what you bought.</li>
+        <li><i class="fa fa-check"></i> <strong>Best Seller by Attribute:</strong> which variants (size, colour) sell best.</li>
+        <li><i class="fa fa-check"></i> <strong>Sales &amp; Payment Report:</strong> invoices matched to payments received.</li>
+        <li><i class="fa fa-check"></i> <strong>Return Items:</strong> products customers returned.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Reports Guide</span><span>Page 6</span></div>
+  </section>
+
+</div>
+</body>
+</html>

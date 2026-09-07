@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Fashion Use Case</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .chat { display:flex; gap:14px; margin-bottom:16px; page-break-inside:avoid; }
+    .chat-avatar { width:40px; height:40px; border-radius:50%; background:var(--mp-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+    .chat-bubble { background:#F5F5F4; border-radius:12px; padding:12px 16px; flex:1; }
+    .chat-bubble strong { display:block; color:var(--mp-text); margin-bottom:4px; }
+    .chat-bubble p { margin:0; font-size:0.85rem; color:var(--mp-ink); line-height:1.55; }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .tip-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:14px; background:#F0FDF4; }
+    .tip-card h4 { margin:0 0 6px; font-size:0.95rem; color:var(--mp-success); }
+    .tip-card p { margin:0; font-size:0.85rem; color:var(--mp-ink); }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo.png" alt="MartPoint" class="logo logo-light">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Fashion</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>A day at Lola’s Closet</h1>
+        <p>See how a fashion boutique uses MartPoint from opening the store to selling a dress, checking stock, and reaching support.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Morning</span>
+    <h2 class="mb-2">Set up the boutique</h2>
+    <p class="lead mb-3">Lola owns a small clothing store in Lagos. She sells dresses, tops, and accessories. Before the first customer walks in, she sets up the system so every size and colour is ready to sell.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Lola, Owner</strong>
+        <p>“We just received a new shipment of the ‘Ankara Midi Dress’. It comes in Red, Blue, and Black, and sizes Small, Medium, and Large. I need each size-colour combination to have its own stock count.”</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Lola does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>She opens <strong>More → Inventory → Attributes</strong> and makes sure <strong>Size</strong> and <strong>Colour</strong> already exist.</li>
+        <li>She goes to <strong>More → Inventory → Add Product</strong> and names the product <strong>Ankara Midi Dress</strong>.</li>
+        <li>She turns on <strong>Has Variants</strong>, picks Size and Colour, and taps <strong>Generate Variants</strong>.</li>
+        <li>MartPoint creates 9 rows: Small Red, Small Blue, Small Black, Medium Red, and so on.</li>
+        <li>She gives each row a unique barcode from the clothing tags and enters the opening stock for each size-colour.</li>
+        <li>She saves the product. The dress is now ready for sale at the POS.</li>
+      </ol>
+    </div>
+
+    <div class="tip-card">
+      <h4><i class="fa fa-lightbulb-o" style="margin-right:8px;"></i>Why variants matter for fashion</h4>
+      <p>Without variants, Lola would have to create “Ankara Midi Dress Red M” as a separate product. With variants, the customer sees one clean product, but the system tracks every size and colour separately.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Fashion Use Case</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Midday</span>
+    <h2 class="mb-2">The cashier makes a sale</h2>
+    <p class="lead mb-3">Ade is the cashier. A customer picks a Red Ankara Midi Dress in size Medium and pays with cash and a bank transfer.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Ade, Cashier</strong>
+        <p>“Good afternoon. You chose the Red Ankara Midi Dress in Medium. That is N12,000. You said you are paying N7,000 cash and N5,000 transfer, right?”</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Screen by screen at the POS</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Ade taps <strong>POS</strong> on the bottom menu.</li>
+        <li>She searches <strong>Ankara</strong> and taps the product.</li>
+        <li>MartPoint asks for the variant. She chooses <strong>Red</strong> and <strong>Medium</strong>.</li>
+        <li>The system shows the price: <strong>N12,000</strong>.</li>
+        <li>The customer asks for a 5% discount. Ade calls Lola, who enters her manager PIN to approve it.</li>
+        <li>Ade taps <strong>Split Pay</strong> and enters <strong>Cash: N7,000</strong> and <strong>Transfer: N5,000</strong>.</li>
+        <li>She asks the customer for the transfer reference and types it into the transfer note.</li>
+        <li>She taps <strong>Save</strong>. The receipt prints from the thermal printer.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What happens behind the counter</h3>
+      <p class="small mb-2">As soon as the sale is saved:</p>
+      <div class="field-list">
+        <div class="field"><strong>Stock</strong><span>Medium Red dress count drops by one</span></div>
+        <div class="field"><strong>Cash</strong><span>N7,000 is recorded in the cash drawer</span></div>
+        <div class="field"><strong>Transfer</strong><span>N5,000 is marked with the reference ID</span></div>
+        <div class="field"><strong>Sales report</strong><span>The sale appears in today’s summary</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Fashion Use Case</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Afternoon</span>
+    <h2 class="mb-2">Returns, reports, and support</h2>
+    <p class="lead mb-3">Later in the day, a customer returns a dress. Lola checks the sales report and then contacts support when she has a question.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Customer</strong>
+        <p>“I bought this Blue Ankara Midi Dress in Large this morning, but it is too big. Can I change it for a Medium?”</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>How to handle the return</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Ade opens <strong>More → Sales → Sales List</strong> and finds the morning invoice by the customer’s name.</li>
+        <li>She opens the invoice and taps <strong>Return</strong>.</li>
+        <li>She selects the Blue Large dress, sets the quantity to <strong>1</strong>, and chooses the refund method.</li>
+        <li>She taps <strong>Save</strong>. The Blue Large stock goes back up by one.</li>
+        <li>To give the customer the new size, she creates a new sale for the Blue Medium dress and applies the credit.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Checking the day’s numbers</h3>
+      <p class="small mb-2">At 5 p.m., Lola opens <strong>More → Reports → Daily Summary</strong> to see:</p>
+      <div class="field-list">
+        <div class="field"><strong>Total sales</strong><span>How much the store made today</span></div>
+        <div class="field"><strong>Best-selling colour</strong><span>Red dresses sold the most</span></div>
+        <div class="field"><strong>Low stock alert</strong><span>Medium Black is running low</span></div>
+        <div class="field"><strong>Cash position</strong><span>Cash in drawer matches the system</span></div>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Need help? Reach support</h3>
+      <p class="small mb-2">Lola notices the receipt printer is not working. She opens <strong>More → Help → Support</strong> and sends a WhatsApp message to MartPoint support. She includes her store name and the issue.</p>
+      <p class="small mb-2">While waiting, she emails the receipt to the customer and prints it later when the printer is fixed.</p>
+      <div class="field-list">
+        <div class="field"><strong>WhatsApp</strong><span>0803 602 8069</span></div>
+        <div class="field"><strong>Email</strong><span>support@martpoint.com.ng</span></div>
+        <div class="field"><strong>Support portal</strong><span>martpoint.com.ng/support</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Fashion Use Case</span><span>Page 4</span></div>
+  </section>
+
+</div>
+</body>
+</html>
