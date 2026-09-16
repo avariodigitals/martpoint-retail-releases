@@ -174,12 +174,13 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Customers -->
-    <?php if(!$is_creator && ($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view'))): ?>
+    <?php if(!$is_creator && ($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view') || (mp_feature_enabled('leads') && $CI->permissions('leads_view')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['customers']; ?></span> <?= mp_label('customer'); ?>s <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if($CI->permissions('customers_add')): ?><a href="<?= base_url('customers/add'); ?>" class="mp-nav-item customers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('customer'); ?></a><?php endif; ?>
         <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('customer'); ?> List</a><?php endif; ?>
+        <?php if(mp_feature_enabled('leads') && ($CI->permissions('leads_view') || is_store_admin() || $this->session->userdata('role_id') == 1)): ?><a href="<?= base_url('leads'); ?>" class="mp-nav-item leads-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Leads</a><?php endif; ?>
         <?php if($CI->permissions('suppliers_add')): ?><a href="<?= base_url('suppliers/add'); ?>" class="mp-nav-item suppliers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Seller' : 'Supplier'; ?></a><?php endif; ?>
         <?php if($CI->permissions('suppliers_view')): ?><a href="<?= base_url('suppliers'); ?>" class="mp-nav-item suppliers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Seller' : 'Supplier'; ?> List</a><?php endif; ?>
         <?php if($CI->permissions('import_customers')): ?><a href="<?= base_url('import/customers'); ?>" class="mp-nav-item import_customers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Customers</a><?php endif; ?>

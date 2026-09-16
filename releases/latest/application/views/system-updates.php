@@ -16,6 +16,13 @@
   .step-icon.fail { background: #f44336; color: #fff; }
   @keyframes pulse { 0% { opacity: 1; } 50% { opacity: .5; } 100% { opacity: 1; } }
   .progress-wrap { margin: 20px 0; }
+  .progress-wrap .progress { height: 28px; border-radius: 6px; background: #eef1f5; overflow: hidden; }
+  #progressBar { line-height: 28px; font-size: 14px; font-weight: 700; }
+  .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 6px; }
+  .progress-meta .plabel { font-weight: 600; color: #333; }
+  .channel-row { display: flex; gap: 8px; }
+  .channel-row input { flex: 1 1 auto; min-width: 0; }
+  .channel-row .btn { flex: 0 0 auto; }
   .log-box { background: #263238; color: #aed581; padding: 14px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; }
   .version-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
   .badge-current { background: #e3f2fd; color: #1565c0; }
@@ -44,8 +51,9 @@
       <div id="statusMessage" class="alert alert-info" style="margin-top:12px">Checking for updates...</div>
 
       <div class="progress-wrap" style="display:none" id="progressWrap">
+        <div class="progress-meta"><span class="plabel" id="progressLabel">Preparing…</span><span id="progressPct">0%</span></div>
         <div class="progress">
-          <div id="progressBar" class="progress-bar progress-bar-primary progress-bar-striped active" role="progressbar" style="width: 0%">0%</div>
+          <div id="progressBar" class="progress-bar progress-bar-primary progress-bar-striped active" role="progressbar" style="width: 0%"></div>
         </div>
       </div>
 
@@ -83,11 +91,9 @@
     <div class="update-card">
       <h4 style="margin-top:0"><i class="fa fa-cog"></i> Update Channel</h4>
       <p class="text-muted" style="font-size:12px">Where updates are pulled from (GitHub raw URL)</p>
-      <div class="input-group">
+      <div class="channel-row">
         <input type="text" id="channelUrl" class="form-control" placeholder="https://raw.githubusercontent.com/..." />
-        <span class="input-group-btn">
-          <button id="btnSaveChannel" class="btn btn-default" type="button">Save</button>
-        </span>
+        <button id="btnSaveChannel" class="btn btn-default" type="button">Save</button>
       </div>
       <hr style="margin: 16px 0">
       <h5><i class="fa fa-shield"></i> Protected Files</h5>
@@ -138,11 +144,14 @@
       else { icon.classList.add('pending'); icon.textContent = step; }
     }
 
-    function updateProgress(step) {
+    var stepLabels = ['Backup Database','Backup Files','Download Changed Files','Verify File Integrity','Apply File Changes','Run Database Migrations','Finalize Update','Cleanup'];
+    function updateProgress(step, label) {
       var pct = Math.round((step / totalSteps) * 100);
       var bar = document.getElementById('progressBar');
       bar.style.width = pct + '%';
-      bar.textContent = pct + '%';
+      document.getElementById('progressPct').textContent = pct + '%';
+      var lbl = label || (step > 0 ? ('Step ' + step + ' of ' + totalSteps + ' — ' + stepLabels[step-1]) : 'Preparing…');
+      document.getElementById('progressLabel').textContent = lbl;
     }
 
     function showActions(state) {
@@ -243,10 +252,12 @@
 
         // Update the progress bar for this step
         if (res.progress && res.total) {
-          var stepPct = Math.round((res.progress / res.total) * 100);
           var overallPct = Math.round(((step - 1 + (res.progress / res.total)) / totalSteps) * 100);
           document.getElementById('progressBar').style.width = overallPct + '%';
-          document.getElementById('progressBar').textContent = overallPct + '%';
+          document.getElementById('progressPct').textContent = overallPct + '%';
+          if (res.step_label) {
+            document.getElementById('progressLabel').textContent = 'Step ' + step + ' of ' + totalSteps + ' — ' + res.step_label;
+          }
           log('Step ' + step + ': ' + res.message);
         } else {
           setStepIcon(step, 'done');

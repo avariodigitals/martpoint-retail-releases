@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.15",
-    "previous_version": "4.0.9.14",
+    "version": "4.0.9.16",
+    "previous_version": "4.0.9.15",
     "release_date": "2026-09-16",
     "files": [
         {
@@ -7975,8 +7975,8 @@
         },
         {
             "path": "application/views/system-updates.php",
-            "hash": "21008f43cc9c28e17e00c10a8d45445548146a5af9315b808f693df4f64de36c",
-            "size": 17792
+            "hash": "c53a3c8c15c4f856fd94a7f3c70913ef982054d7c36e90048c7958ec44bba6e9",
+            "size": 18881
         },
         {
             "path": "application/views/brand-view.php",
@@ -8320,8 +8320,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "711269d1cd6f01319fa522d3334da66593e816465fd996bc0f0b463b9a5b2f72",
-            "size": 67585
+            "hash": "12646365686c98d11a423c4a30219b9ca9d0c51295e557a7b3822325379294f9",
+            "size": 67957
         },
         {
             "path": "application/views/smtp.php",
@@ -11440,7 +11440,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "57390e9bc9efdaa20bdfe067b459fc9b83a9c258005b19c0b6ebbdad96a2258e",
+            "hash": "95b0877f74bb3e2ae1aba7454dfb56f5569c054aec99bb26856d52916b65faa3",
             "size": 93455
         },
         {
