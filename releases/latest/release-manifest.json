@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.13",
-    "previous_version": "4.0.9.12",
+    "version": "4.0.9.14",
+    "previous_version": "4.0.9.13",
     "release_date": "2026-09-16",
     "files": [
         {
@@ -260,8 +260,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "322b3696140dba3d2bbd326953f626aef7bd35f8e1b738acccc7cf93b7465203",
-            "size": 15012
+            "hash": "62e596e81b846865b8c50bb0893a3e51fe10ea1524c5b28335e336666f7d4102",
+            "size": 15101
         },
         {
             "path": "application/libraries/index.html",
@@ -11440,7 +11440,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "d2b6580849f3520eb625c1aca1b8e7e050a4284c3b6eec564206b842c7cd886f",
+            "hash": "8e395fcedd9570f83354638ce07e38f6d53f4ac83b54575da39d87dd6a4f5d0a",
             "size": 93455
         },
         {
@@ -26436,20 +26436,20 @@
         "4.0.6_b2b_customer_warehouse.sql",
         "4.0.6_to_4.0.7_fashion_intelligence.sql",
         "4.0.7_attribute_driven_variants.sql",
-        "4.0.8_featured_products.sql",
         "4.0.8_to_4.0.9_compatibility.sql",
         "4.0.8_to_4.0.9_holditems_staff_commission.sql",
-        "4.0.9.11_leads_crm.sql",
-        "4.0.9.12_industry_modules.sql",
-        "4.0.9.13_storefront_columns.sql",
+        "4.0.8_featured_products.sql",
+        "4.0.9_new_arrival_products.sql",
+        "4.0.9_online_excluded.sql",
+        "4.0.9_to_4.0.9.2_promotions_loyalty.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
         "4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql",
         "4.0.9.8_newsletter_subscribers.sql",
-        "4.0.9_new_arrival_products.sql",
-        "4.0.9_online_excluded.sql",
-        "4.0.9_to_4.0.9.2_promotions_loyalty.sql"
+        "4.0.9.11_leads_crm.sql",
+        "4.0.9.12_industry_modules.sql",
+        "4.0.9.13_storefront_columns.sql"
     ],
     "protected_paths": [
         "application/config/database.php",

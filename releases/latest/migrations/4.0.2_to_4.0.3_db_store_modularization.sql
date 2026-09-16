@@ -56,9 +56,8 @@ BEGIN
                           AND COLUMN_NAME = p_src_col);
     IF v_src_exists IS NOT NULL THEN
       SET @ins_sql = CONCAT(
-        'INSERT INTO ', p_dest_table, ' (store_id, ', p_dst_col, ') ',
-        'SELECT id, `', p_src_col, '` FROM db_store ',
-        'ON DUPLICATE KEY UPDATE ', p_dst_col, ' = VALUES(', p_dst_col, ')'
+        'INSERT IGNORE INTO ', p_dest_table, ' (store_id, ', p_dst_col, ') ',
+        'SELECT id, `', p_src_col, '` FROM db_store '
       );
       PREPARE ins_stmt FROM @ins_sql;
       EXECUTE ins_stmt;
@@ -363,9 +362,8 @@ SET @has_nin = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'nin_api_enabled');
 SET @sql = IF(@has_nin IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''nin_api'', ''nin_api_enabled'', nin_api_enabled, ''int'' FROM db_store
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''nin_api'', ''nin_api_enabled'', nin_api_enabled, ''int'' FROM db_store',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -374,9 +372,8 @@ SET @has_nin = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'nin_api_url');
 SET @sql = IF(@has_nin IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''nin_api'', ''nin_api_url'', nin_api_url, ''string'' FROM db_store WHERE nin_api_url IS NOT NULL
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''nin_api'', ''nin_api_url'', nin_api_url, ''string'' FROM db_store WHERE nin_api_url IS NOT NULL',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -385,9 +382,8 @@ SET @has_nin = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'nin_api_key');
 SET @sql = IF(@has_nin IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''nin_api'', ''nin_api_key'', nin_api_key, ''string'' FROM db_store WHERE nin_api_key IS NOT NULL
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''nin_api'', ''nin_api_key'', nin_api_key, ''string'' FROM db_store WHERE nin_api_key IS NOT NULL',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -396,9 +392,8 @@ SET @has_nin = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'nin_api_provider');
 SET @sql = IF(@has_nin IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''nin_api'', ''nin_api_provider'', nin_api_provider, ''string'' FROM db_store
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''nin_api'', ''nin_api_provider'', nin_api_provider, ''string'' FROM db_store',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -407,9 +402,8 @@ SET @has_nin = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'nin_api_cost');
 SET @sql = IF(@has_nin IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''nin_api'', ''nin_api_cost'', nin_api_cost, ''float'' FROM db_store
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''nin_api'', ''nin_api_cost'', nin_api_cost, ''float'' FROM db_store',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -419,9 +413,8 @@ SET @has_lang = (SELECT 1 FROM information_schema.COLUMNS
                    AND TABLE_NAME = 'db_store'
                    AND COLUMN_NAME = 'language_id');
 SET @sql = IF(@has_lang IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''general'', ''language_id'', language_id, ''int'' FROM db_store
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''general'', ''language_id'', language_id, ''int'' FROM db_store',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -430,9 +423,8 @@ SET @has_sub = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'current_subscriptionlist_id');
 SET @sql = IF(@has_sub IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''general'', ''current_subscriptionlist_id'', current_subscriptionlist_id, ''int'' FROM db_store
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''general'', ''current_subscriptionlist_id'', current_subscriptionlist_id, ''int'' FROM db_store',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -441,9 +433,8 @@ SET @has_cid = (SELECT 1 FROM information_schema.COLUMNS
                   AND TABLE_NAME = 'db_store'
                   AND COLUMN_NAME = 'cid');
 SET @sql = IF(@has_cid IS NOT NULL,
-  'INSERT INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
-   SELECT id, ''general'', ''cid'', cid, ''int'' FROM db_store WHERE cid IS NOT NULL
-   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+  'INSERT IGNORE INTO db_store_settings (store_id, setting_group, setting_key, setting_value, value_type)
+   SELECT id, ''general'', ''cid'', cid, ''int'' FROM db_store WHERE cid IS NOT NULL',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -454,7 +445,7 @@ INSERT INTO db_store_business_profile (store_id, industry_type, business_model, 
 SELECT id, 'general_retail', 'product_based', 'retail_standard', 'general_retail', 'general_retail'
 FROM db_store
 WHERE id NOT IN (SELECT store_id FROM db_store_business_profile)
-ON DUPLICATE KEY UPDATE store_id = store_id;
+;
 
 -- ---------------------------------------------------------------------------
 -- Drop helper procedure

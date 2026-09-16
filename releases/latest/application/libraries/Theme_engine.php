@@ -315,6 +315,10 @@ class Theme_engine {
         if(!empty($this->settings->favicon) && file_exists($this->settings->favicon)){
             return base_url($this->settings->favicon);
         }
+        $logo = $this->logoUrl();
+        if($logo){
+            return $logo;
+        }
         return base_url('uploads/site/icon.webp');
     }
 
