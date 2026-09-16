@@ -33,7 +33,11 @@ class Site_model extends CI_Model {
 		
 		$logo='';
 		if(!empty($_FILES['logo']['name'])){
-			$config['upload_path']          = './uploads/site/';
+			$site_upload_path = FCPATH . 'uploads/site/';
+			if(!is_dir($site_upload_path)){
+				@mkdir($site_upload_path, 0775, true);
+			}
+			$config['upload_path']          = $site_upload_path;
 	        $config['allowed_types']        = 'gif|jpg|png';
 	        $config['max_size']             = 500;
 	        $config['max_width']            = 500;

@@ -76,6 +76,7 @@ $mp_icons = [
         <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('creator/members'); ?>" class="mp-nav-item creator-members-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Members</a><?php endif; ?>
         <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> All Customers</a><?php endif; ?>
         <?php if($CI->permissions('customers_add')): ?><a href="<?= base_url('customers/add'); ?>" class="mp-nav-item customers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Add Customer</a><?php endif; ?>
+        <?php if(mp_feature_enabled('leads') && ($CI->permissions('leads_view') || is_store_admin() || $this->session->userdata('role_id') == 1)): ?><a href="<?= base_url('leads'); ?>" class="mp-nav-item leads-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Leads</a><?php endif; ?>
         <?php if($CI->permissions('send_sms')): ?><a href="<?= base_url('sms'); ?>" class="mp-nav-item sms-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Send SMS</a><?php endif; ?>
       </div>
     </div></div>

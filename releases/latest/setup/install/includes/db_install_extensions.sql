@@ -2987,3 +2987,25 @@ CREATE TABLE IF NOT EXISTS `db_newsletter_subscribers` (
   UNIQUE KEY `uk_store_email` (`store_id`, `email`),
   KEY `idx_store` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Leads / CRM (v4.0.9.11)
+CREATE TABLE IF NOT EXISTS `db_leads` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `name` VARCHAR(150) NOT NULL,
+  `phone` VARCHAR(30) DEFAULT NULL,
+  `email` VARCHAR(255) DEFAULT NULL,
+  `source` VARCHAR(50) NOT NULL DEFAULT 'manual',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'new',
+  `interest` VARCHAR(255) DEFAULT NULL,
+  `notes` TEXT,
+  `assigned_to` INT(11) UNSIGNED DEFAULT NULL,
+  `converted_customer_id` INT(11) UNSIGNED DEFAULT NULL,
+  `converted_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_status` (`store_id`,`status`),
+  KEY `idx_converted_customer` (`converted_customer_id`),
+  KEY `store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

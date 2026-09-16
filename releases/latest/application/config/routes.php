@@ -66,6 +66,7 @@ $route['store/(:any)/cart'] = 'storefront/cart/$1';
 $route['store/(:any)/catalogue'] = 'storefront/catalogue/$1';
 $route['store/(:any)/track/testimonial'] = 'storefront/submit_testimonial/$1';
 $route['store/(:any)/subscribe'] = 'storefront/subscribe/$1';
+$route['store/(:any)/lead'] = 'storefront/submit_lead/$1';
 $route['store/(:any)/track'] = 'storefront/track/$1';
 $route['store/(:any)/branches'] = 'storefront/branches/$1';
 $route['store/(:any)/order_received/(:any)'] = 'storefront/order_received/$1/$2';

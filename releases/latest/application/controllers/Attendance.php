@@ -341,6 +341,10 @@ class Attendance extends MY_Controller {
 		header('Cache-Control: no-cache, no-store, must-revalidate');
 		$userId = (int)$this->session->userdata('inv_userid');
 		if(!$userId){ echo json_encode(['clocked_in'=>false]); exit; }
+		if(!$this->db->table_exists('db_attendance') || !$this->db->table_exists('db_user_shifts')){
+			echo json_encode(['clocked_in'=>false,'clock_in_time'=>null,'on_duty'=>false,'shift_name'=>null]);
+			exit;
+		}
 		$storeId = get_current_store_id();
 		$date = date('Y-m-d');
 		$record = $this->attendance_model->getAttendanceRecord($userId, $date);

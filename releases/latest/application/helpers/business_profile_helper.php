@@ -128,6 +128,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'manager_approvals'         => 'Manager Approvals',
             'cashier_shifts'            => 'Cashier Shifts / Tills',
             'medical_notes'             => 'Medical Notes (Pharmacy)',
+            'leads'                     => 'Leads / CRM',
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
             'pos_retail_button'         => 'POS Retail Price Button',
             'pos_wholesale_button'      => 'POS Wholesale Price Button',
@@ -243,37 +244,37 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'beauty_cosmetics' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','qr_ordering','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'beauty','workflow_template'=>'beauty_standard',
                 'labels'=>['service'=>'Treatment','service_order'=>'Treatment Booking','customer'=>'Client','staff'=>'Therapist'],
             ],
             'beauty_spa' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','packages','memberships','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','packages','memberships','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'beauty_spa','workflow_template'=>'beauty_standard',
                 'labels'=>['service'=>'Treatment','service_order'=>'Spa Booking','customer'=>'Guest','staff'=>'Therapist','package'=>'Spa Package'],
             ],
             'salon_barbershop' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'salon','workflow_template'=>'salon_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Booking','customer'=>'Client','staff'=>'Stylist','package'=>'Service Package'],
             ],
             'makeup_artist' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','staff_assignment','staff_commission','treatment_notes','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','staff_assignment','staff_commission','treatment_notes','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'makeup_artist','workflow_template'=>'makeup_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Booking','customer'=>'Client','staff'=>'Artist','custom_order'=>'Custom Booking'],
             ],
             'laundry' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','qr_ordering','service_workflow','laundry_workflow','loyalty','delivery_scheduling','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','qr_ordering','service_workflow','laundry_workflow','loyalty','delivery_scheduling','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'laundry','dashboard_template'=>'laundry','workflow_template'=>'laundry_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Laundry Order','customer'=>'Customer','delivery'=>'Pickup/Delivery'],
             ],
             'bakery_cake_studio' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','packages','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','packages','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'food_express','dashboard_template'=>'bakery','workflow_template'=>'bakery_standard',
                 'labels'=>['service'=>'Custom Cake','service_order'=>'Cake Order','customer'=>'Client','product'=>'Baked Item','recipe'=>'Recipe','production'=>'Production'],
             ],
@@ -291,7 +292,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'furniture' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','custom_orders','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','custom_orders','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'general_retail','dashboard_template'=>'furniture','workflow_template'=>'furniture_standard',
                 'labels'=>['item'=>'Furniture','service'=>'Custom Design','service_order'=>'Design Order','customer'=>'Client','delivery'=>'Delivery'],
             ],
@@ -315,7 +316,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'service_business' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','memberships','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','memberships','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'service_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Job','customer'=>'Client','staff'=>'Team Member'],
             ],
@@ -399,19 +400,19 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'clinic' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue'],
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue','leads'],
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Consultation','service_order'=>'Appointment','customer'=>'Patient','staff'=>'Doctor'],
             ],
             'hospital' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','warehouse','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue','leads'],
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Hospital Service','service_order'=>'Admission','customer'=>'Patient','staff'=>'Doctor','warehouse'=>'Department'],
             ],
             'diagnostic_centre' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue'],
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue','leads'],
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Test','service_order'=>'Booking','customer'=>'Patient','staff'=>'Technician'],
             ],
@@ -495,19 +496,19 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'car_dealership' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','payplan','store_credit','automobile_workflow','auto_parts','service_workflow','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','automobile_workflow','auto_parts','service_workflow','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
                 'labels'=>['item'=>'Auto Part','customer'=>'Buyer','warehouse'=>'Branch','order'=>'Order'],
             ],
             'printing' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','custom_orders','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','warehouse','online_store','custom_orders','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'general_retail','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Print Job','service_order'=>'Print Order','item'=>'Material','customer'=>'Client','recipe'=>'Recipe','production'=>'Production'],
             ],
             'tailoring' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','custom_orders','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','online_store','custom_orders','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'general_retail','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Tailoring Job','service_order'=>'Order','item'=>'Fabric','customer'=>'Client','staff'=>'Tailor'],
             ],
@@ -531,7 +532,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'creator' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','pos_retail_button','pos_wholesale_button','packages','memberships','digital_products','courses'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','pos_retail_button','pos_wholesale_button','packages','memberships','digital_products','courses','leads'],
                 'theme_key'=>'creator_focus','dashboard_template'=>'creator','workflow_template'=>'standard',
                 'labels'=>['item'=>'Product','service'=>'Service','customer'=>'Customer','warehouse'=>'Branch'],
             ],
@@ -648,6 +649,40 @@ if (!function_exists('mp_feature_enabled')) {
             case 'bundles': return true; // variants available unless explicitly disabled in feature flags
             default: return in_array($flag_key, $profile_features);
         }
+    }
+}
+
+if (!function_exists('mp_feature_enabled_for_store')) {
+    /**
+     * Same as mp_feature_enabled() but for an explicit store — needed on public
+     * pages (storefront) where there is no session store_id.
+     */
+    function mp_feature_enabled_for_store($flag_key, $store_id) {
+        $CI =& get_instance();
+        $raw = null;
+        if ($CI->db->table_exists('db_store_industry_settings')) {
+            $store = $CI->db->select('feature_flags_json')->where('store_id', $store_id)->get('db_store_industry_settings')->row();
+            if ($store && !empty($store->feature_flags_json)) {
+                $flags = json_decode($store->feature_flags_json, true);
+                if (is_array($flags) && array_key_exists($flag_key, $flags)) {
+                    $raw = filter_var($flags[$flag_key], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+        }
+        if ($raw === null && $CI->db->field_exists('feature_flags_json', 'db_store')) {
+            $store = $CI->db->select('feature_flags_json')->where('id', $store_id)->get('db_store')->row();
+            if ($store && !empty($store->feature_flags_json)) {
+                $flags = json_decode($store->feature_flags_json, true);
+                if (is_array($flags) && array_key_exists($flag_key, $flags)) {
+                    $raw = filter_var($flags[$flag_key], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+        }
+        if ($raw !== null) {
+            return $raw;
+        }
+        $profile = mp_get_store_profile($store_id);
+        return in_array($flag_key, $profile['features'] ?? []);
     }
 }
 

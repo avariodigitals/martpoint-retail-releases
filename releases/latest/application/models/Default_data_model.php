@@ -318,6 +318,8 @@ class Default_data_model extends CI_Model {
             'subscription','sms_settings','sms_api_view','sms_api_edit',
             // Online Store (Business Owner can manage online store)
             'online_store_view','online_store_edit',
+            // Leads / CRM
+            'leads_view','leads_add','leads_edit','leads_delete',
         );
     }
 
@@ -411,6 +413,8 @@ class Default_data_model extends CI_Model {
             'show_purchase_price',
             // Online Store (Manager can view and fulfill orders, but not edit store settings)
             'online_store_orders',
+            // Leads / CRM (Manager can work the pipeline but not delete)
+            'leads_view','leads_add','leads_edit',
         );
     }
 

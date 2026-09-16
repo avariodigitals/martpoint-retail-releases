@@ -804,6 +804,34 @@ class Mobile extends MY_Controller {
 		$this->load->view('mobile/customers', $data);
 	}
 
+	public function leads()
+	{
+		if(!mp_feature_enabled('leads')){
+			$this->show_feature_not_activated('leads');
+			return;
+		}
+		if(!($this->permissions('leads_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1)){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Leads';
+		$store_id = get_current_store_id();
+		$this->load->model('leads_model', 'leads');
+		$status = trim($this->input->get('status', TRUE) ?: '');
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data['leads'] = $this->db->table_exists('db_leads') ? $this->leads->getLeads($store_id, $status, $search) : [];
+		$data['stats'] = $this->db->table_exists('db_leads') ? $this->leads->getLeadStats($store_id) : ['total' => 0];
+		$data['status_filter'] = $status;
+		$data['search'] = $search;
+		$data['can_edit'] = $this->permissions('leads_edit') || $this->permissions('leads_add') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/leads', $data);
+	}
+
 	public function add_customer()
 	{
 		$this->permission_check('customers_add');
@@ -3065,6 +3093,7 @@ class Mobile extends MY_Controller {
 			'Customers' => [
 				['title' => 'Customers', 'desc' => 'Customer directory', 'icon' => 'fa-users', 'url' => 'mobile/customers', 'perm' => 'customers_view', 'color' => 'purple'],
 				['title' => 'Add Customer', 'desc' => 'Register a new customer', 'icon' => 'fa-user-plus', 'url' => 'mobile/add_customer', 'perm' => 'customers_add', 'color' => 'purple'],
+				['title' => 'Leads', 'desc' => 'Enquiries & prospects', 'icon' => 'fa-user-plus', 'url' => 'mobile/leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'teal'],
 			],
 			'Suppliers' => [
 				['title' => 'Suppliers', 'desc' => 'Supplier directory', 'icon' => 'fa-truck', 'url' => 'mobile/suppliers', 'perm' => 'suppliers_view', 'color' => 'yellow'],

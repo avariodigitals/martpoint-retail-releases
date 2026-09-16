@@ -54,6 +54,11 @@
             "size": 1481
         },
         {
+            "path": "application/migrations/027_add_leads.php",
+            "hash": "1a15159972fa012f73a71a30f8316703fc8afd0960c4ba1e7f0851a2d9d2d816",
+            "size": 2354
+        },
+        {
             "path": "application/migrations/021_add_auto_themes.php",
             "hash": "045fdf0cb344f5ad91f5137c49391423aece7fc07789c01c3a1707d16470a598",
             "size": 1915
@@ -210,8 +215,8 @@
         },
         {
             "path": "application/config/routes.php",
-            "hash": "9e1debba3084ed998a5c7cab852cf06c3deed4611752cbc9c578ad715d9c79c6",
-            "size": 7954
+            "hash": "2f6a509253ebaa57c95009526b6bbc2e541d4804f94cd02b81826c00cc79c37b",
+            "size": 8013
         },
         {
             "path": "application/config/memcached.php",
@@ -230,7 +235,7 @@
         },
         {
             "path": "application/config/migration.php",
-            "hash": "d9e65619893e642e161df15d066fde8480add1848afba06b1f179c98f7180526",
+            "hash": "baf7833ab4b1f40a7fc0cc15b2adf087151ede775d3f7a113d9cd126da32ef4c",
             "size": 3032
         },
         {
@@ -267,6 +272,11 @@
             "path": "application/libraries/Instamojo.php",
             "hash": "7c1922180294fe1a02beeb6e8aae025c69f65491534209647f8be2399519d9df",
             "size": 13861
+        },
+        {
+            "path": "application/libraries/MY_Upload.php",
+            "hash": "14ca4f3a5e0d984ba50a228e2965d635b08b3721be48d8fe437113436eda20c4",
+            "size": 1344
         },
         {
             "path": "application/libraries/Email_provider_interface.php",
@@ -6554,6 +6564,11 @@
             "size": 9923
         },
         {
+            "path": "application/models/Leads_model.php",
+            "hash": "52881e469230e8d71d4cb8d90483110bf29b05fd9141718692b53e3f4b82ab3e",
+            "size": 4010
+        },
+        {
             "path": "application/models/Cash_transactions_model.php",
             "hash": "3322d867f33997c4936e47762f1c6f995f6f684fa2159b02fd663e19a0380ae0",
             "size": 12355
@@ -6605,8 +6620,8 @@
         },
         {
             "path": "application/models/Site_model.php",
-            "hash": "dacf5c3d6dc1186d975f2598ed3beb042f1e5c777aab46305b76aa079cb3721b",
-            "size": 2344
+            "hash": "2404b97b8350d9fc7313b7d4058af6eae4d861fc9f3f6941b740451261f7b4ae",
+            "size": 2483
         },
         {
             "path": "application/models/Warehouse_model.php",
@@ -6640,8 +6655,8 @@
         },
         {
             "path": "application/models/Store_profile_model.php",
-            "hash": "7b7294df3747e51aa5b30b948a53443d06d5b05e674db17e38b74dcbcf5c03e5",
-            "size": 16255
+            "hash": "a96bb93911e25c1e07bfe7b2451f0eeef30082fa16c8d04c5c0befaff5940513",
+            "size": 16490
         },
         {
             "path": "application/models/Delivery_model.php",
@@ -6660,8 +6675,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "0a1e131d20173d1e65c343e2dd47976f699e533af88fe6135d7cf53796d161f3",
-            "size": 3464
+            "hash": "8f800a51f4564f4f27b2f360655af7a585c970a64599dd2a1ee34744c28ca819",
+            "size": 3508
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -6900,8 +6915,8 @@
         },
         {
             "path": "application/models/Default_data_model.php",
-            "hash": "ff7725722dd0edc7593a0499d4884f61ab3da2bc9c0a46fbfa47ebb3ee97919d",
-            "size": 37431
+            "hash": "6480defb29ffd2ea77bb5de43b1e2bf14e38d0a31bb720f111b39b8b981d3a0f",
+            "size": 37649
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
@@ -6985,13 +7000,13 @@
         },
         {
             "path": "application/models/Roles_model.php",
-            "hash": "0b84a88b6c8ca9838941d321cf7c5b163a0588b4cebe23478c94157f5cf3dcc8",
-            "size": 20739
+            "hash": "49e9cf63a1cc707119ac924dd9e5aca24f142a129d4932535d6d04b52b70d445",
+            "size": 20876
         },
         {
             "path": "application/models/Store_model.php",
-            "hash": "c8d1a86dafd6404c6ce05269c611d008c8005e368f9bae4976ec4365ebf2c0b3",
-            "size": 32543
+            "hash": "4f11e4c48732e32528dddfc139c165fa21bd24faa02f819ad1ef2d53b00b8c54",
+            "size": 32787
         },
         {
             "path": "application/models/Email_templates_model.php",
@@ -7295,8 +7310,8 @@
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "8d989f34113a6c3d24f895f60cb90cf17c802076034f0ed4c423ac7a20f932b1",
-            "size": 82368
+            "hash": "fa3501a15905f0c8fa4a1d9cf0eea19e17bce6763962ae2de654016b20fc3aeb",
+            "size": 84367
         },
         {
             "path": "application/controllers/Automobile.php",
@@ -7330,8 +7345,8 @@
         },
         {
             "path": "application/controllers/Attendance.php",
-            "hash": "3ef3d71b03e390376f2b07b7215fbfdb283bead3f99c3885bcc89792b5826b91",
-            "size": 13235
+            "hash": "732e63a9dea34a2ae9a4a02fc9ab812af6f9bff3168d045b5011e654ea1a6c87",
+            "size": 13445
         },
         {
             "path": "application/controllers/Approvals.php",
@@ -7429,6 +7444,11 @@
             "size": 7594
         },
         {
+            "path": "application/controllers/Leads.php",
+            "hash": "7a197d3b10d98f0ed1eaf7ec0bc96a04434f6623271cfd53d2cb1f068b7a08f0",
+            "size": 5963
+        },
+        {
             "path": "application/controllers/Features_brochure.php",
             "hash": "0903b4b0850fd27b5285d773bf22a4a6ca19702bd78ee0796d1e032886ca186e",
             "size": 15902
@@ -7470,8 +7490,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "c63c59354136ffa5d72841743892562b6a24fc125f49b3ec41b6a6f0b3fcdd04",
-            "size": 230679
+            "hash": "d5ff95a1c1f7c7fd114020c8ee8f681026e8cf34fb9a587dbcd145e35d3dcf34",
+            "size": 232188
         },
         {
             "path": "application/controllers/Store_credit.php",
@@ -8300,8 +8320,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "8a194ccf87d233ace2ae1f61b80f2aeae81b11abb843580afc77314f1bc5b544",
-            "size": 67280
+            "hash": "711269d1cd6f01319fa522d3334da66593e816465fd996bc0f0b463b9a5b2f72",
+            "size": 67585
         },
         {
             "path": "application/views/smtp.php",
@@ -8410,8 +8430,8 @@
         },
         {
             "path": "application/views/sidebar.php",
-            "hash": "517443ac0b143b39c15db7779738f1d6fbc67c55f28fcb9adad93e220c22177a",
-            "size": 93670
+            "hash": "08439e59f039273007023cd5b9dab2070336f00d6a33030399738fe37bc21d12",
+            "size": 93989
         },
         {
             "path": "application/views/pur-invoice.php",
@@ -8809,6 +8829,11 @@
             "size": 7736
         },
         {
+            "path": "application/views/leads/index.php",
+            "hash": "afeebb3575c4630d460c198221405fa6d085b1b84b82be759d52f2bef50fc454",
+            "size": 14169
+        },
+        {
             "path": "application/views/gift_cards/list.php",
             "hash": "a852d3bdadd41e4f40997cc8cf424a1462aff58a33af5d5511896ec3253940b0",
             "size": 2579
@@ -8870,8 +8895,8 @@
         },
         {
             "path": "application/views/admin/desktop/roles_form.php",
-            "hash": "31f3566de6e52609d9954a4e923b41337f18813f637f6b3b90143702ec80b454",
-            "size": 20032
+            "hash": "a5002da9a2351d7c090be22d3eca414f804c795d5119bcc2f4c3dbeffdbb0bc8",
+            "size": 20183
         },
         {
             "path": "application/views/admin/desktop/_styles.php",
@@ -9512,6 +9537,11 @@
             "path": "application/views/mobile/customer_profile.php",
             "hash": "564a3704e0cad0d74217de79e5a5fcdaff62cff27c2897d7acc6259def5b8b7f",
             "size": 37598
+        },
+        {
+            "path": "application/views/mobile/leads.php",
+            "hash": "abc524e7101b69753bf3206bb04e89d71c77c18271ccad88449a4c0a64bd717e",
+            "size": 14764
         },
         {
             "path": "application/views/mobile/butchery_cut.php",
@@ -10635,8 +10665,8 @@
         },
         {
             "path": "application/views/themes/shared/scripts.php",
-            "hash": "cbb41ff0ca16d0355de5161ea97286fc14116c9dce1678f8b87fbadba6602321",
-            "size": 7962
+            "hash": "c6f698feeb5199074333456804b7b74f471deeff5f877a0bcb255dc2abc50e79",
+            "size": 9082
         },
         {
             "path": "application/views/themes/shared/services.php",
@@ -10735,8 +10765,8 @@
         },
         {
             "path": "application/views/themes/shared/sections/contact.php",
-            "hash": "f57a306b7c504cb7f2c4ab820751760e4811c30fd15f784628552efc36b1cc86",
-            "size": 4137
+            "hash": "386dffa3f015ae74c3587485aa339584977d243a58d8bb8476c3cb396f3190e0",
+            "size": 6110
         },
         {
             "path": "application/views/themes/shared/sections/featured_services.php",
@@ -11425,8 +11455,8 @@
         },
         {
             "path": "application/helpers/business_profile_helper.php",
-            "hash": "57910f419aed0a0acb3f6d11bf39220e51c82cb0f875b6231f43d0b49b9c8772",
-            "size": 65817
+            "hash": "bc0b17f64fbcf1dea71b181c48956e5f173c0ce4e56e2310f7ccfe6c8506a6da",
+            "size": 67594
         },
         {
             "path": "application/helpers/saas_helper.php",
@@ -26409,6 +26439,7 @@
         "4.0.8_featured_products.sql",
         "4.0.8_to_4.0.9_compatibility.sql",
         "4.0.8_to_4.0.9_holditems_staff_commission.sql",
+        "4.0.9.11_leads_crm.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",

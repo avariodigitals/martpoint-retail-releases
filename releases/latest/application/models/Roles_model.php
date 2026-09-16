@@ -520,6 +520,10 @@ class Roles_model extends CI_Model {
                     'store_credit_add',
                     'store_credit_edit',
                     'store_credit_delete',
+                    'leads_view',
+                    'leads_add',
+                    'leads_edit',
+                    'leads_delete',
 
 													)));
 		

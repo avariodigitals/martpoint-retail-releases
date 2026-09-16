@@ -617,7 +617,11 @@ Thank you Visit Again",
 		
 		$store_logo='';
 		if(!empty($_FILES['store_logo']['name'])){
-			$config['upload_path']          = './uploads/store/';
+			$store_upload_path = FCPATH . 'uploads/store/';
+			if(!is_dir($store_upload_path)){
+				@mkdir($store_upload_path, 0775, true);
+			}
+			$config['upload_path']          = $store_upload_path;
 	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
@@ -629,7 +633,6 @@ Thank you Visit Again",
 	        {
 	                $error = array('error' => $this->upload->display_errors());
 	                return $error['error'];
-	                exit();
 	        }
 	        else
 	        {
@@ -639,7 +642,11 @@ Thank you Visit Again",
 
 		$signature='';
 		if(!empty($_FILES['signature']['name'])){
-			$config['upload_path']          = './uploads/signature/';
+			$signature_upload_path = FCPATH . 'uploads/signature/';
+			if(!is_dir($signature_upload_path)){
+				@mkdir($signature_upload_path, 0775, true);
+			}
+			$config['upload_path']          = $signature_upload_path;
 	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
@@ -651,7 +658,6 @@ Thank you Visit Again",
 	        {
 	                $error = array('error' => $this->upload->display_errors());
 	                return $error['error'];
-	                exit();
 	        }
 	        else
 	        {

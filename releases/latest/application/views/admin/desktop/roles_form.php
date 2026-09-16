@@ -211,6 +211,9 @@
         ['Store Credit', 'store_credit', [
           ['store_credit_view','View'], ['store_credit_add','Add'], ['store_credit_edit','Edit'], ['store_credit_delete','Delete'],
         ]],
+        ['Leads / CRM', 'leads', [
+          ['leads_view','View'], ['leads_add','Add'], ['leads_edit','Edit'], ['leads_delete','Delete'],
+        ]],
         ['Installments', 'installments', [
           ['installment_plans','Plans'], ['installment_payment','Payment'], ['installment_report','Report'],
         ]],

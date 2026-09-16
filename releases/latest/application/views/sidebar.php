@@ -431,6 +431,9 @@
             <?php if($CI->permissions('customers_view')) { ?>
             <li class="customers-view-active-li"><a href="<?php echo $base_url; ?>customers"><i class="fa fa-list "></i> <span><?= mp_label('customer'); ?> List</span></a></li>
             <?php } ?>
+            <?php if(mp_feature_enabled('leads') && ($CI->permissions('leads_view') || is_store_admin() || $this->session->userdata('role_id') == 1)) { ?>
+            <li class="leads-active-li"><a href="<?php echo $base_url; ?>leads"><i class="fa fa-user-plus "></i> <span>Leads</span></a></li>
+            <?php } ?>
             <?php if($CI->permissions('suppliers_add')) { ?>
             <li class="suppliers-active-li"><a href="<?php echo $base_url; ?>suppliers/add"><i class="fa fa-plus-square-o "></i> <span>New Supplier</span></a></li>
             <?php } ?>

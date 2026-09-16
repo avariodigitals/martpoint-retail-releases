@@ -717,6 +717,60 @@ class Storefront extends CI_Controller {
 	}
 
 	/**
+	 * Lead capture — enquiry/quote-request form on the storefront contact section.
+	 * Only active when the 'leads' feature flag is on for the store.
+	 * URL: POST /store/{store_slug}/lead
+	 */
+	public function submit_lead($storeSlug = ''){
+		$csrf = ['csrf_hash' => $this->security->get_csrf_hash()];
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+
+		if(!mp_feature_enabled_for_store('leads', $storeId)){
+			echo json_encode(['status' => false, 'message' => 'This form is not available right now'] + $csrf);
+			return;
+		}
+
+		// Honeypot — bots fill hidden fields, humans never see it
+		if($this->input->post('website')){
+			echo json_encode(['status' => true, 'message' => 'Thank you! We will be in touch shortly.'] + $csrf);
+			return;
+		}
+
+		$name = trim($this->input->post('name', TRUE) ?: '');
+		$phone = trim($this->input->post('phone', TRUE) ?: '');
+		$email = strtolower(trim($this->input->post('email', TRUE) ?: ''));
+		$interest = trim($this->input->post('interest', TRUE) ?: '');
+
+		if($name === '' || ($phone === '' && $email === '')){
+			echo json_encode(['status' => false, 'message' => 'Please leave your name and a phone number or email'] + $csrf);
+			return;
+		}
+		if($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)){
+			echo json_encode(['status' => false, 'message' => 'Please enter a valid email address'] + $csrf);
+			return;
+		}
+
+		$this->load->model('leads_model', 'leads_m');
+		$result = $this->leads_m->saveLead([
+			'store_id' => $storeId,
+			'name' => $name,
+			'phone' => $phone ?: null,
+			'email' => $email ?: null,
+			'source' => 'storefront',
+			'status' => 'new',
+			'interest' => $interest ?: null,
+			'created_at' => date('Y-m-d H:i:s')
+		]);
+
+		if($result === false){
+			echo json_encode(['status' => false, 'message' => 'Could not send your enquiry. Please try again.'] + $csrf);
+			return;
+		}
+		echo json_encode(['status' => true, 'message' => 'Thank you! We will be in touch shortly.'] + $csrf);
+	}
+
+	/**
 	 * Dynamic XML Sitemap for storefront
 	 * URL: /sitemap.xml
 	 */

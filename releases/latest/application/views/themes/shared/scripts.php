@@ -182,6 +182,29 @@
     return false;
   }
 
+  // Lead capture — enquiry / quote request form
+  function mpLeadSubmit(e){
+    e.preventDefault();
+    const form = e.target;
+    const name = (form.querySelector('[name=name]')?.value || '').trim();
+    const phone = (form.querySelector('[name=phone]')?.value || '').trim();
+    const email = (form.querySelector('[name=email]')?.value || '').trim();
+    if(!name || (!phone && !email)){ showToast('Please leave your name and a phone number or email'); return false; }
+    const btn = form.querySelector('button[type=submit]');
+    if(btn) btn.disabled = true;
+    const fd = new FormData(form);
+    fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+    fetch('<?= base_url('store/' . ($settings->store_slug ?? '') . '/lead'); ?>', {method:'POST', body:fd})
+      .then(r => r.json())
+      .then(res => {
+        showToast(res.message || 'Thank you!');
+        if(res.status) form.reset();
+      })
+      .catch(() => showToast('Could not send your enquiry. Please try again.'))
+      .finally(() => { if(btn) btn.disabled = false; });
+    return false;
+  }
+
   // Back to top toggle
   (function(){
     const backtop = document.getElementById('backtop');

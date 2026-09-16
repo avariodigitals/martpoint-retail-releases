@@ -1,4 +1,7 @@
-<?php if(!empty($settings->store_phone) || !empty($settings->store_email) || !empty($settings->store_address) || !empty($settings->whatsapp_number)): ?>
+<?php
+$lead_capture = function_exists('mp_feature_enabled_for_store') && mp_feature_enabled_for_store('leads', $settings->store_id ?? 0);
+if(!empty($settings->store_phone) || !empty($settings->store_email) || !empty($settings->store_address) || !empty($settings->whatsapp_number) || $lead_capture):
+?>
 <div class="mp-section">
   <div class="mp-section-title">Get In Touch</div>
   <div class="mp-contact-grid">
@@ -39,5 +42,21 @@
     </a>
     <?php endif; ?>
   </div>
+  <?php if($lead_capture): ?>
+  <form class="mp-lead-form" onsubmit="return mpLeadSubmit(event)" style="margin-top:20px;background:var(--mp-light-gray);border-radius:var(--mp-radius);padding:20px;">
+    <div style="font-weight:700;font-size:15px;color:var(--mp-dark);margin-bottom:4px;">Tell us what you need</div>
+    <p style="font-size:13px;color:var(--mp-gray);margin-bottom:14px;">Leave your details and we will get back to you shortly.</p>
+    <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;height:0;opacity:0;" aria-hidden="true">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px;">
+      <input type="text" name="name" placeholder="Your name *" required style="padding:12px 14px;border:1px solid var(--mp-border);border-radius:var(--mp-radius-sm);font-size:14px;">
+      <input type="tel" name="phone" placeholder="Phone / WhatsApp" style="padding:12px 14px;border:1px solid var(--mp-border);border-radius:var(--mp-radius-sm);font-size:14px;">
+      <input type="email" name="email" placeholder="Email (optional)" style="padding:12px 14px;border:1px solid var(--mp-border);border-radius:var(--mp-radius-sm);font-size:14px;">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <input type="text" name="interest" placeholder="What are you looking for? (e.g. braids, repair quote, catering)" style="flex:1;min-width:200px;padding:12px 14px;border:1px solid var(--mp-border);border-radius:var(--mp-radius-sm);font-size:14px;">
+      <button type="submit" style="padding:12px 24px;background:var(--mp-primary);color:#fff;border:none;border-radius:var(--mp-radius-sm);font-weight:700;cursor:pointer;font-size:14px;">Send Enquiry</button>
+    </div>
+  </form>
+  <?php endif; ?>
 </div>
 <?php endif; ?>

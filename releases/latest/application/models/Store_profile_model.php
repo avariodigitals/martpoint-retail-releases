@@ -88,9 +88,14 @@ class Store_profile_model extends CI_Model {
 		$this->db->trans_begin();
 		// Modular refactor: core db_store fields only
 		
+		$store_upload_path = FCPATH . 'uploads/store/';
+		if(!is_dir($store_upload_path)){
+			@mkdir($store_upload_path, 0775, true);
+		}
+
 		$store_logo='';
 		if(!empty($_FILES['store_logo']['name'])){
-			$config['upload_path']          = './uploads/store/';
+			$config['upload_path']          = $store_upload_path;
 	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
@@ -102,7 +107,6 @@ class Store_profile_model extends CI_Model {
 	        {
 	                $error = array('error' => $this->upload->display_errors());
 	                return $error['error'];
-	                exit();
 	        }
 	        else
 	        {
@@ -112,7 +116,7 @@ class Store_profile_model extends CI_Model {
 
 		$idle_flyer='';
 		if($can_edit_system_settings && !empty($_FILES['idle_flyer']['name'])){
-			$config2['upload_path']          = './uploads/store/';
+			$config2['upload_path']          = $store_upload_path;
 			$config2['allowed_types']        = 'gif|jpg|jpeg|png|webp';
 			$config2['max_size']             = 2048;
 			$config2['encrypt_name']         = TRUE;
@@ -133,7 +137,11 @@ class Store_profile_model extends CI_Model {
 
 		$signature='';
 		if(!empty($_FILES['signature']['name'])){
-			$config['upload_path']          = './uploads/signature/';
+			$signature_upload_path = FCPATH . 'uploads/signature/';
+			if(!is_dir($signature_upload_path)){
+				@mkdir($signature_upload_path, 0775, true);
+			}
+			$config['upload_path']          = $signature_upload_path;
 	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
@@ -145,7 +153,6 @@ class Store_profile_model extends CI_Model {
 	        {
 	                $error = array('error' => $this->upload->display_errors());
 	                return $error['error'];
-	                exit();
 	        }
 	        else
 	        {
