@@ -1272,7 +1272,7 @@ CREATE TABLE IF NOT EXISTS db_online_orders (
 CREATE TABLE IF NOT EXISTS db_online_order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
-    item_type ENUM('product','service') DEFAULT 'product',
+    item_type ENUM('product','service','digital','course','membership') DEFAULT 'product',
     item_id INT NOT NULL,
     item_name VARCHAR(200),
     item_image VARCHAR(255),
@@ -1283,6 +1283,9 @@ CREATE TABLE IF NOT EXISTS db_online_order_items (
     status TINYINT(1) DEFAULT 1,
     INDEX idx_order (order_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Widen item_type on installs where the table already exists with the old enum
+ALTER TABLE `db_online_order_items` MODIFY COLUMN `item_type` ENUM('product','service','digital','course','membership') DEFAULT 'product';
 
 CREATE TABLE IF NOT EXISTS db_storefront_themes (
     id INT AUTO_INCREMENT PRIMARY KEY,

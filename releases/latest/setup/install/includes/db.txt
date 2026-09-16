@@ -5241,7 +5241,6 @@ CREATE TABLE `db_logos` (
 -- Phase 2 digital products, courses and memberships schema
 
 ALTER TABLE `db_items` MODIFY COLUMN `product_type` VARCHAR(20) NOT NULL DEFAULT 'physical' COMMENT 'physical | service | digital | course | membership';
-ALTER TABLE `db_online_order_items` MODIFY COLUMN `item_type` ENUM('product','service','digital','course','membership') DEFAULT 'product';
 
 CREATE TABLE IF NOT EXISTS `db_courses` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
