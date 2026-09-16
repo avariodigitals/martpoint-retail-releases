@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9",
-    "previous_version": "4.0.8",
-    "release_date": "2026-09-12",
+    "version": "4.0.9.12",
+    "previous_version": "4.0.9",
+    "release_date": "2026-09-16",
     "files": [
         {
             "path": "application/index.html",
@@ -11440,8 +11440,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "d3e1f24d5ec88a55fdafabc92b7854184f58faa96448a1a3252830be8ec1370a",
-            "size": 93452
+            "hash": "cb25b4acfa4824bce5417d87d2de0f055a0fe29419f79c35569dd6992bf4a804",
+            "size": 93455
         },
         {
             "path": "application/helpers/advance_helper.php",
@@ -26458,5 +26458,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9 \u2014 Industry modules (vehicles, butchery/frozen, courses, creator memberships), multi-unit selling, newsletter subscribers, B2B warehouse fields, 18 storefront themes, license & usage dashboard card, online store sync/featured/new-arrival controls"
+    "changelog": "Release 4.0.9.12 \u2014 Leads/CRM module with storefront capture, industry modules schema (butchery, vehicles, kitchen, production), store-admin attendance exemption, upload fixes, new brand icons"
 }
