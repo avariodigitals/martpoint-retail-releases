@@ -14,11 +14,21 @@ class Storefront extends CI_Controller {
 		header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Sat, 01 Jan 2000 00:00:00 GMT');
-		$this->load->helper(['url','custom','currency']);
+		$this->load->helper(['url','custom','currency','image']);
 		$this->load->model('storefront_model');
 		$this->load->model('customers_model');
 		$this->load->model('paystack_model','paystack');
 		$this->load->library('theme_engine');
+
+		// Table QR: keep the scanned table number in session so it follows the customer
+		// through browsing, the cart page and checkout.
+		$table = trim($this->input->get('table'));
+		if($table !== ''){
+			$this->session->set_userdata('sf_table_number', $table);
+			$this->table_number = $table;
+		} else {
+			$this->table_number = $this->session->userdata('sf_table_number') ?: '';
+		}
 	}
 
 	/**
@@ -33,12 +43,27 @@ class Storefront extends CI_Controller {
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$canonical = base_url('store/' . $settings->store_slug);
+		$businessProfile = mp_get_store_profile($storeId);
+		$featuredVehicles = [];
+		if(in_array('automobile_workflow', $businessProfile['features'] ?? [])){
+			$this->load->model('Automobile_model', 'automobile_m');
+			$featuredVehicles = $this->automobile_m->get_all($storeId, 'available', 6);
+		}
+		$allProducts = $this->storefront_model->getOnlineProducts($storeId, null, '', 500);
+		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
+		foreach($allProducts as &$p){
+			$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
+			$p->original_price = $p->sales_price;
+			$p->sold_count = $soldCounts[$p->id] ?? 0;
+		}
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'featured_categories' => $this->storefront_model->getCategoriesWithItems($storeId),
+			'all_products' => $allProducts,
 			'featured_products' => $this->storefront_model->getFeaturedProducts($storeId, $settings->featured_products_limit),
+			'featured_vehicles' => $featuredVehicles,
 			'featured_services' => $settings->allow_services ? $this->storefront_model->getOnlineServices($storeId, null, '', 8) : [],
 			'best_sellers' => $this->storefront_model->getBestSellers($storeId, 8),
 			'new_arrivals' => $this->storefront_model->getNewArrivals($storeId, 10),
@@ -63,6 +88,10 @@ class Storefront extends CI_Controller {
 			'seo_canonical' => $canonical,
 			'seo_type' => 'website',
 		];
+
+		foreach(['featured_products','best_sellers','new_arrivals'] as $key){
+			foreach($data[$key] as &$p){ $p->sold_count = $soldCounts[$p->id] ?? 0; }
+		}
 
 		// Get Paystack public key if enabled
 		if($data['paystack_enabled']){
@@ -95,10 +124,12 @@ class Storefront extends CI_Controller {
 
 		$total = $this->storefront_model->countOnlineProducts($storeId, $categoryId, $search);
 		$products = $this->storefront_model->getOnlineProducts($storeId, $categoryId, $search, $limit, $offset);
+		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 
 		foreach($products as &$p){
 			$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
 			$p->original_price = $p->sales_price;
+			$p->sold_count = $soldCounts[$p->id] ?? 0;
 		}
 
 		$categories = $this->storefront_model->getCategoriesWithItems($storeId);
@@ -202,8 +233,10 @@ class Storefront extends CI_Controller {
 			show_404();
 			return;
 		}
+		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 		$product->effective_price = $this->storefront_model->getProductEffectivePrice($product);
 		$product->original_price = $product->sales_price;
+		$product->sold_count = $soldCounts[$product->id] ?? 0;
 
 		$productImage = $product->item_image && file_exists($product->item_image) ? base_url($product->item_image) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'));
 
@@ -217,12 +250,19 @@ class Storefront extends CI_Controller {
 			}
 		}
 
+		$relatedProducts = $this->storefront_model->getOnlineProducts($storeId, $product->category_id, '', 4);
+		foreach($relatedProducts as &$rp){
+			$rp->effective_price = $this->storefront_model->getProductEffectivePrice($rp);
+			$rp->original_price = $rp->sales_price;
+			$rp->sold_count = $soldCounts[$rp->id] ?? 0;
+		}
+
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'product' => $product,
 			'product_variants' => $product_variants,
-			'related_products' => $this->storefront_model->getOnlineProducts($storeId, $product->category_id, '', 4),
+			'related_products' => $relatedProducts,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
@@ -404,6 +444,7 @@ class Storefront extends CI_Controller {
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
+			'table_number' => $this->table_number,
 			'seo_title' => 'Shopping Cart',
 			'seo_description' => 'Your cart at ' . ($store->store_name ?? 'our store'),
 			'seo_canonical' => base_url('store/' . $settings->store_slug . '/cart'),
@@ -644,6 +685,38 @@ class Storefront extends CI_Controller {
 	}
 
 	/**
+	 * Newsletter signup — captures email into db_newsletter_subscribers
+	 * URL: POST /store/{store_slug}/subscribe
+	 */
+	public function subscribe($storeSlug = ''){
+		$csrf = ['csrf_hash' => $this->security->get_csrf_hash()];
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+
+		$email = strtolower(trim($this->input->post('email', TRUE) ?: ''));
+		if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)){
+			echo json_encode(['status' => false, 'message' => 'Please enter a valid email address'] + $csrf);
+			return;
+		}
+
+		$source = substr(trim($this->input->post('source', TRUE) ?: 'newsletter'), 0, 50);
+		$result = $this->storefront_model->saveNewsletterSubscriber([
+			'store_id' => $storeId,
+			'email' => $email,
+			'source' => $source ?: 'newsletter',
+			'ip_address' => $this->input->ip_address(),
+			'status' => 1,
+			'created_at' => date('Y-m-d H:i:s')
+		]);
+
+		if($result === false){
+			echo json_encode(['status' => false, 'message' => 'Could not subscribe right now. Please try again.'] + $csrf);
+			return;
+		}
+		echo json_encode(['status' => true, 'message' => 'Thank you for subscribing!'] + $csrf);
+	}
+
+	/**
 	 * Dynamic XML Sitemap for storefront
 	 * URL: /sitemap.xml
 	 */
@@ -737,6 +810,7 @@ class Storefront extends CI_Controller {
 		$serviceTime = $this->input->post('service_time');
 		$serviceNote = $this->input->post('service_note');
 		$shippingMethod = trim($this->input->post('shipping_method'));
+		$tableNumber = trim($this->input->post('table_number'));
 
 		if(!$customerName || !$customerPhone){
 			echo json_encode(['status' => false, 'message' => 'Name and phone are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -757,6 +831,10 @@ class Storefront extends CI_Controller {
 
 		$subtotal = 0;
 		$hasProducts = false;
+		$hasPhysical = false;
+		$hasDigital = false;
+		$hasCourse = false;
+		$hasMembership = false;
 		$hasServices = false;
 		$itemsToInsert = [];
 
@@ -768,14 +846,24 @@ class Storefront extends CI_Controller {
 			if($type == 'product'){
 				$product = $this->storefront_model->getOnlineProduct($id, $storeId);
 				if(!$product) continue;
-				if($product->stock < $qty && !$settings->allow_backorder){
-					echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock', 'csrf_hash' => $this->security->get_csrf_hash()]);
-					return;
+				$product_type = $product->product_type ?? 'physical';
+				$hasProducts = true;
+				if($product_type === 'physical'){
+					$hasPhysical = true;
+					if($product->stock < $qty && !$settings->allow_backorder){
+						echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock', 'csrf_hash' => $this->security->get_csrf_hash()]);
+						return;
+					}
+				} else if($product_type === 'digital'){
+					$hasDigital = true;
+				} else if($product_type === 'course'){
+					$hasCourse = true;
+				} else if($product_type === 'membership'){
+					$hasMembership = true;
 				}
 				$price = $this->storefront_model->getProductEffectivePrice($product);
-				$hasProducts = true;
 				$itemsToInsert[] = [
-					'item_type' => 'product',
+					'item_type' => in_array($product_type, ['digital','course','membership']) ? $product_type : 'product',
 					'item_id' => $id,
 					'item_name' => $product->item_name,
 					'item_image' => $product->item_image,
@@ -809,7 +897,21 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
+		// Pay on delivery only makes sense for physical products
+		if($paymentMethod == 'pay_on_delivery' && ($hasDigital || $hasCourse || $hasMembership || $hasServices)){
+			echo json_encode(['status' => false, 'message' => 'Pay on delivery is not available for digital products, courses, memberships or services.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$hasOnlyDigital = ($hasDigital || $hasCourse || $hasMembership) && !$hasPhysical && !$hasServices;
 		$orderType = ($hasProducts && $hasServices) ? 'mixed' : ($hasServices ? 'service' : 'product');
+
+		// Digital-only orders never need shipping
+		if($hasOnlyDigital){
+			$shippingFee = 0;
+			$shippingMethod = null;
+			$customerAddress = null;
+		}
 
 		// Resolve shipping method fee from store settings
 		$shippingFee = 0;
@@ -836,6 +938,7 @@ class Storefront extends CI_Controller {
 			'delivery_fee' => $shippingFee,
 			'subtotal' => $subtotal,
 			'grand_total' => $grandTotal,
+			'table_number' => $tableNumber ?: null,
 			'service_date' => $serviceDate ?: null,
 			'service_time' => $serviceTime ?: null,
 			'service_note' => $serviceNote ?: null,
@@ -924,11 +1027,24 @@ class Storefront extends CI_Controller {
 		}
 		$items = $this->storefront_model->getOrderItems($order->id);
 
+		$downloadLinks = [];
+		if($order->payment_status === 'paid' && $order->order_status === 'completed'){
+			foreach($items as $item){
+				if($item->item_type === 'digital' && !empty($item->download_token)){
+					$downloadLinks[] = [
+						'name' => $item->item_name,
+						'url' => base_url('store/' . $settings->store_slug . '/download/' . $item->download_token)
+					];
+				}
+			}
+		}
+
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'order' => $order,
 			'items' => $items,
+			'download_links' => $downloadLinks,
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
@@ -939,6 +1055,66 @@ class Storefront extends CI_Controller {
 			'page_title' => 'Order Received',
 		];
 		$this->load->view('storefront/order_received', $data);
+	}
+
+	/**
+	 * Secure digital product download by token
+	 * URL: /store/{store_slug}/download/{token}
+	 */
+	public function download($storeSlug = '', $token = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+
+		if(empty($token)){
+			show_404();
+			return;
+		}
+
+		$orderItem = $this->db->where('download_token', $token)->where('item_type', 'digital')->get('db_online_order_items')->row();
+		if(!$orderItem){
+			show_error('Download link not found.', 404);
+			return;
+		}
+
+		$order = $this->storefront_model->getOrder($orderItem->order_id);
+		if(!$order || $order->store_id != $storeId || $order->payment_status !== 'paid' || $order->order_status !== 'completed'){
+			show_error('Order is not ready for download.', 403);
+			return;
+		}
+
+		if($orderItem->download_expires_at && strtotime($orderItem->download_expires_at) < time()){
+			show_error('This download link has expired.', 403);
+			return;
+		}
+
+		$limit = (int)($product->download_limit ?? 3);
+		if($limit > 0 && (int)($orderItem->download_count) >= $limit){
+			show_error('Download limit reached.', 403);
+			return;
+		}
+
+		$product = $this->db->where('id', $orderItem->item_id)->where('store_id', $storeId)->get('db_items')->row();
+		if(!$product || empty($product->digital_file)){
+			show_error('File not found.', 404);
+			return;
+		}
+
+		$filePath = FCPATH . $product->digital_file;
+		if(!file_exists($filePath) || !is_file($filePath)){
+			show_error('File not found on server.', 404);
+			return;
+		}
+
+		// Increment download count
+		$this->db->where('id', $orderItem->id)->update('db_online_order_items', ['download_count' => ($orderItem->download_count + 1)]);
+
+		// Serve file
+		$filename = basename($filePath);
+		header('Content-Type: application/octet-stream');
+		header('Content-Disposition: attachment; filename="' . $filename . '"');
+		header('Content-Length: ' . filesize($filePath));
+		readfile($filePath);
+		exit;
 	}
 
 	/**
@@ -964,6 +1140,17 @@ class Storefront extends CI_Controller {
 				]);
 				// Decrement stock now that payment is confirmed
 				$this->storefront_model->adjustStock($order->id);
+				// Deliver any digital products
+				$this->storefront_model->deliverDigitalOrder($order->id);
+				// Deliver courses and memberships
+				$this->storefront_model->deliverCourseAndMembership($order->id);
+				// Auto-complete if the order has no physical products
+				$this->storefront_model->completeIfNoPhysicalProducts($order->id);
+				// Send digital download email to customer
+				$items = $this->storefront_model->getOrderItems($order->id);
+				$settings = $this->storefront_model->getSettings($order->store_id);
+				$store = get_store_details($order->store_id);
+				$this->_send_digital_delivery_email($order, $items, $store, $settings);
 			}
 			$data = ['success' => true, 'message' => 'Payment successful!', 'reference' => $reference];
 		} else {
@@ -1286,11 +1473,68 @@ class Storefront extends CI_Controller {
 		$customer = $this->db->where('id', $session->customer_id)->get('db_customers')->row();
 		$orders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 5);
 
+		// Build customer's active digital downloads
+		$downloads = [];
+		$customerOrders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 100);
+		$orderIds = array_column($customerOrders, 'id');
+		if(!empty($orderIds)){
+			$orderMap = [];
+			foreach($customerOrders as $o) $orderMap[$o->id] = $o;
+			$items = $this->db->where_in('order_id', $orderIds)
+							  ->where('item_type', 'digital')
+							  ->where('download_token IS NOT NULL', NULL, FALSE)
+							  ->get('db_online_order_items')->result();
+			foreach($items as $item){
+				$order = $orderMap[$item->order_id] ?? null;
+				if($order && $order->payment_status === 'paid' && $order->order_status === 'completed'){
+					$downloads[] = [
+						'name' => $item->item_name,
+						'url' => base_url('store/' . $settings->store_slug . '/download/' . $item->download_token),
+						'expires' => $item->download_expires_at,
+						'order_code' => $order->order_code
+					];
+				}
+			}
+		}
+
+		// Build customer's enrolled courses
+		$this->load->model('course_model');
+		$this->load->model('creator_membership_model', 'membership_model');
+		$customerId = $customer->id;
+
+		$courses = [];
+		$enrollments = $this->course_model->getEnrollmentsByCustomer($customerId, $storeId);
+		foreach($enrollments as $e){
+			$course = $this->course_model->getByItemId($e->item_id, $storeId);
+			if(!$course) continue;
+			$courses[] = [
+				'name' => $course->title,
+				'progress' => $this->course_model->getCourseProgressPercent($course->id, $e->id),
+				'url' => base_url('store/' . $settings->store_slug . '/course/' . $course->id)
+			];
+		}
+
+		$memberships = [];
+		$subscriptions = $this->membership_model->getSubscriptionsByCustomer($customerId, $storeId);
+		foreach($subscriptions as $s){
+			$membership = $this->membership_model->getByItemId($s->item_id, $storeId);
+			if(!$membership) continue;
+			$memberships[] = [
+				'name' => $membership->membership_name,
+				'status' => $s->status,
+				'end_date' => $s->end_date,
+				'is_active' => $this->membership_model->isActive($s)
+			];
+		}
+
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'customer' => $customer,
 			'orders' => $orders,
+			'downloads' => $downloads,
+			'courses' => $courses,
+			'memberships' => $memberships,
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
@@ -1319,10 +1563,12 @@ class Storefront extends CI_Controller {
 		}
 
 		$orders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 50);
+		$customer = $this->db->where('id', $session->customer_id)->get('db_customers')->row();
 
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
+			'customer' => $customer,
 			'orders' => $orders,
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
@@ -1340,6 +1586,118 @@ class Storefront extends CI_Controller {
 		$this->load->helper('cookie');
 		delete_cookie('customer_token');
 		redirect(base_url('store/' . $settings->store_slug));
+	}
+
+	/**
+	 * Customer course list (My Courses)
+	 */
+	public function my_courses($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$token = $this->input->cookie('customer_token', TRUE);
+		if(!$token){
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+		$session = $this->storefront_model->getCustomerPortalSession($token, $storeId);
+		if(!$session){
+			$this->load->helper('cookie');
+			delete_cookie('customer_token');
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+
+		$this->load->model('course_model');
+		$customerId = $session->customer_id;
+		$enrollments = $this->course_model->getEnrollmentsByCustomer($customerId, $storeId);
+		$courses = [];
+		foreach($enrollments as $e){
+			$course = $this->course_model->getByItemId($e->item_id, $storeId);
+			if(!$course) continue;
+			$courses[] = [
+				'course' => $course,
+				'progress' => $this->course_model->getCourseProgressPercent($course->id, $e->id),
+				'url' => base_url('store/' . $settings->store_slug . '/course/' . $course->id)
+			];
+		}
+
+		$customer = $this->db->where('id', $session->customer_id)->get('db_customers')->row();
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'customer' => $customer,
+			'courses' => $courses,
+			'page_title' => 'My Courses',
+			'seo_title' => 'My Courses - ' . ($store->store_name ?? 'Store'),
+			'logo_url' => $this->theme_engine->logoUrl(),
+			'favicon_url' => $this->theme_engine->faviconUrl(),
+		];
+		$this->load->view('storefront/my_courses', $data);
+	}
+
+	/**
+	 * Single course view for a customer
+	 */
+	public function course($storeSlug = '', $courseId = 0){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$token = $this->input->cookie('customer_token', TRUE);
+		if(!$token){
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+		$session = $this->storefront_model->getCustomerPortalSession($token, $storeId);
+		if(!$session){
+			$this->load->helper('cookie');
+			delete_cookie('customer_token');
+			redirect(base_url('store/' . $settings->store_slug . '/verify'));
+			return;
+		}
+
+		$this->load->model('course_model');
+		$customerId = $session->customer_id;
+		$course = $this->course_model->get($courseId, $storeId);
+		if(!$course || $course->store_id != $storeId){
+			show_404();
+			return;
+		}
+
+		$enrollment = $this->course_model->getEnrollment($customerId, $course->id, $storeId);
+		if(!$enrollment){
+			show_404();
+			return;
+		}
+
+		$modules = $this->course_model->getModules($course->id);
+		$lessons = $this->course_model->getLessons($course->id);
+		$progressLessons = $this->course_model->getProgress($enrollment->id);
+		$completedIds = array_column($progressLessons, 'lesson_id');
+		$customer = $this->db->where('id', $customerId)->get('db_customers')->row();
+
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'customer' => $customer,
+			'course' => $course,
+			'modules' => $modules,
+			'lessons' => $lessons,
+			'completed_ids' => $completedIds,
+			'enrollment' => $enrollment,
+			'progress' => $this->course_model->getCourseProgressPercent($course->id, $enrollment->id),
+			'page_title' => $course->title,
+			'seo_title' => $course->title . ' - ' . ($store->store_name ?? 'Store'),
+			'logo_url' => $this->theme_engine->logoUrl(),
+			'favicon_url' => $this->theme_engine->faviconUrl(),
+		];
+		$this->load->view('storefront/course', $data);
 	}
 
 	// ============== HELPERS ==============
@@ -1383,6 +1741,46 @@ class Storefront extends CI_Controller {
 	 * Uses editable email templates (online_order_owner, online_order_customer).
 	 * Silently fails if email is not configured — never blocks checkout.
 	 */
+	private function _send_digital_delivery_email($order, $items, $store, $settings){
+		$customerEmail = $order->customer_email ?? '';
+		if(empty($customerEmail) || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)){
+			return;
+		}
+
+		$downloadLinks = [];
+		foreach($items as $item){
+			if($item->item_type === 'digital' && !empty($item->download_token)){
+				$downloadLinks[] = [
+					'name' => $item->item_name,
+					'url' => base_url('store/' . ($settings->store_slug ?? '') . '/download/' . $item->download_token)
+				];
+			}
+		}
+		if(empty($downloadLinks)){
+			return;
+		}
+
+		$this->load->model('email_service');
+		$this->email_service->setStoreId($order->store_id);
+
+		$storeName = htmlspecialchars($store->store_name ?? ($settings->store_name ?? 'Store'));
+		$subject = 'Your digital download is ready — ' . $storeName;
+
+		$html = '<div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#0F172A;">';
+		$html .= '<h2 style="margin-top:0;">Your purchase is ready for download</h2>';
+		$html .= '<p>Thank you for your order <strong>' . htmlspecialchars($order->order_code) . '</strong> from ' . $storeName . '.</p>';
+		$html .= '<p>Click the links below to download your digital products. Each link is unique and will expire based on the product settings.</p>';
+		$html .= '<ul style="padding-left:20px;line-height:1.8;">';
+		foreach($downloadLinks as $link){
+			$html .= '<li><a href="' . $link['url'] . '" style="color:#2563EB;font-weight:600;">' . htmlspecialchars($link['name']) . '</a></li>';
+		}
+		$html .= '</ul>';
+		$html .= '<p style="margin-top:24px;font-size:13px;color:#64748B;">If you have trouble downloading, contact ' . $storeName . '.</p>';
+		$html .= '</div>';
+
+		$this->email_service->sendRaw($customerEmail, $subject, $html);
+	}
+
 	private function _send_order_emails($order, $items, $store, $settings){
 		try {
 			$this->load->model('email_service');
@@ -1457,5 +1855,194 @@ class Storefront extends CI_Controller {
 		} catch (Exception $e) {
 			log_message('error', 'Storefront: Order email exception: ' . $e->getMessage());
 		}
+	}
+
+	/**
+	 * Dedicated About Us page
+	 * URL: /store/{store_slug}/about
+	 */
+	public function about($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$aboutContent = !empty($settings->footer_about_us) ? $settings->footer_about_us : $settings->store_description;
+		$canonical = base_url('store/' . $settings->store_slug . '/about');
+
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'about_content' => $aboutContent,
+			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
+			'logo_url' => $this->theme_engine->logoUrl(),
+			'favicon_url' => $this->theme_engine->faviconUrl(),
+			'social_links' => $this->theme_engine->socialLinks(),
+			'store_currency' => $this->theme_engine->getStoreCurrency(),
+			'seo_title' => 'About Us',
+			'seo_description' => 'Learn more about ' . ($store->store_name ?? 'our store'),
+			'seo_image' => $this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'),
+			'seo_canonical' => $canonical,
+			'seo_type' => 'website',
+		];
+		$this->theme_engine->view('about', $data);
+	}
+
+	/**
+	 * On-demand image resize + cache endpoint
+	 * URL: /image/{width}/{path}
+	 */
+	public function image($width = 0, ...$pathSegments){
+		$width = (int)$width;
+		if($width < 10 || $width > 1600) show_404();
+
+		$path = implode('/', $pathSegments);
+		$path = urldecode($path);
+		$path = ltrim(str_replace('\\', '/', $path), '/');
+		$fullPath = FCPATH . $path;
+
+		if(!file_exists($fullPath) || is_dir($fullPath)) show_404();
+
+		$real = realpath($fullPath);
+		if($real === false || strpos($real, FCPATH) !== 0) show_404();
+
+		$ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+		$allowed = ['jpg','jpeg','png','gif','webp','bmp'];
+		if(!in_array($ext, $allowed)) show_404();
+
+		$mimes = [
+			'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+			'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp'
+		];
+		$mime = $mimes[$ext] ?? 'application/octet-stream';
+
+		$quality = 85;
+		$cacheRel = 'uploads/cache/img/' . $width . '/' . md5($path . '|q' . $quality) . '.' . $ext;
+		$cacheFull = FCPATH . $cacheRel;
+
+		if(file_exists($cacheFull) && filemtime($cacheFull) >= filemtime($real)){
+			$this->_serveImage($cacheFull, $mime);
+			return;
+		}
+
+		$dir = dirname($cacheFull);
+		if(!is_dir($dir)) mkdir($dir, 0777, true);
+
+		// Unsupported or resize-fail: copy original to cache so the static URL works next time
+		if($ext === 'webp' || $ext === 'bmp' || $ext === 'gif'){
+			copy($real, $cacheFull);
+			$this->_serveImage($cacheFull, $mime);
+			return;
+		}
+
+		$this->load->library('image_lib');
+		$config = [
+			'source_image' => $real,
+			'new_image' => $cacheFull,
+			'maintain_ratio' => TRUE,
+			'width' => $width,
+			'master_dim' => 'width'
+		];
+
+		if(in_array($ext, ['jpg','jpeg'])){
+			$config['quality'] = $quality . '%';
+		} elseif($ext === 'png'){
+			$config['quality'] = '9';
+		}
+
+		$this->image_lib->initialize($config);
+		if(!$this->image_lib->resize()){
+			log_message('error', 'Image resize failed for ' . $path . ': ' . $this->image_lib->display_errors());
+			$this->image_lib->clear();
+			copy($real, $cacheFull);
+			$this->_serveImage($cacheFull, $mime);
+			return;
+		}
+		$this->image_lib->clear();
+		$this->_serveImage($cacheFull, $mime);
+	}
+
+	private function _serveImage($file, $mime){
+		$ts = filemtime($file);
+		$etag = md5($file . $ts);
+		http_response_code(200);
+		if(!headers_sent()){
+			header('Content-Type: ' . $mime, true);
+			header('Content-Length: ' . filesize($file), true);
+			header('Cache-Control: public, max-age=31536000, immutable', true);
+			header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT', true);
+			header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $ts) . ' GMT', true);
+			header('ETag: "' . $etag . '"', true);
+		}
+		readfile($file);
+		exit;
+	}
+
+	/**
+	 * Vehicle listing
+	 * URL: /store/{store_slug}/vehicles
+	 */
+	public function vehicles($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$this->load->model('Automobile_model', 'automobile_m');
+		$vehicles = $this->automobile_m->get_all($storeId, 'available', 100);
+
+		$canonical = base_url('store/' . $settings->store_slug . '/vehicles');
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'vehicles' => $vehicles,
+			'logo_url' => $this->theme_engine->logoUrl(),
+			'favicon_url' => $this->theme_engine->faviconUrl(),
+			'store_currency' => $this->theme_engine->getStoreCurrency(),
+			'seo_title' => 'Vehicles for Sale',
+			'seo_description' => 'Browse available vehicles at ' . ($store->store_name ?? 'our store'),
+			'seo_image' => $this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'),
+			'seo_canonical' => $canonical,
+			'seo_type' => 'website',
+		];
+		$this->theme_engine->view('vehicles', $data);
+	}
+
+	/**
+	 * Single vehicle page
+	 * URL: /store/{store_slug}/vehicle/{id}
+	 */
+	public function vehicle($storeSlug = '', $vehicleId = 0){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = $settings->store_id;
+		$store = get_store_details($storeId);
+		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$this->theme_engine->init($storeId, $previewTheme);
+
+		$this->load->model('Automobile_model', 'automobile_m');
+		$vehicle = $this->automobile_m->get_by_id($vehicleId);
+		if(!$vehicle || $vehicle->store_id != $storeId || $vehicle->status !== 'available'){
+			show_404();
+			return;
+		}
+
+		$canonical = base_url('store/' . $settings->store_slug . '/vehicle/' . $vehicle->id);
+		$data = [
+			'settings' => $settings,
+			'store' => $store,
+			'vehicle' => $vehicle,
+			'logo_url' => $this->theme_engine->logoUrl(),
+			'favicon_url' => $this->theme_engine->faviconUrl(),
+			'store_currency' => $this->theme_engine->getStoreCurrency(),
+			'whatsapp_number' => preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''),
+			'seo_title' => ($vehicle->year ? $vehicle->year . ' ' : '') . $vehicle->make . ' ' . $vehicle->model,
+			'seo_description' => strip_tags($vehicle->description ?? ''),
+			'seo_image' => !empty($vehicle->image_path) && file_exists($vehicle->image_path) ? base_url($vehicle->image_path) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp')),
+			'seo_canonical' => $canonical,
+			'seo_type' => 'product',
+		];
+		$this->theme_engine->view('vehicle', $data);
 	}
 }

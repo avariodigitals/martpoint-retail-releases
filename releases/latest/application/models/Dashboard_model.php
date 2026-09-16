@@ -1286,6 +1286,7 @@ class Dashboard_model extends CI_Model
 		$this->db->join("db_roles r", "r.id = u.role_id", "left");
 		$this->db->where("u.store_id", $store_id);
 		$this->db->where("u.status", 1);
+		$this->db->where_not_in("u.role_id", get_excluded_staff_roles($store_id));
 		$users = $this->db->get()->result();
 		$staff_list = array();
 		$present_count = 0;

@@ -84,6 +84,12 @@ if (!isset($customer_name)) {
           <span id="credit_limit_msg" style="display:none" class="text-danger"></span>
         </div>
         <div class="mp-form-group">
+          <label for="payment_terms_days">Payment Terms (Days)</label>
+          <input type="number" class="form-control mp-form-control" id="payment_terms_days" name="payment_terms_days" min="0" value="<?= (int)($payment_terms_days ?? 0); ?>">
+          <p class="mp-form-hint">e.g. 30 for Net-30. 0 = immediate.</p>
+          <span id="payment_terms_days_msg" style="display:none" class="text-danger"></span>
+        </div>
+        <div class="mp-form-group">
           <label for="opening_balance"><?= $this->lang->line('previous_due'); ?></label>
           <input type="text" class="form-control mp-form-control only_currency" id="opening_balance" name="opening_balance" value="<?php print store_number_format($opening_balance, 0); ?>">
           <span id="opening_balance_msg" style="display:none" class="text-danger"></span>

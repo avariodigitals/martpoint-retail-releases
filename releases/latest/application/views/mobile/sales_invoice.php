@@ -197,12 +197,13 @@
       <div class="card">
         <div class="card-title">Items</div>
         <?php
-          $this->db->select("a.description,c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name,a.sales_qty,a.tax_type,a.price_per_unit,b.tax,b.tax_name,a.tax_amt,a.discount_input,a.discount_amt,a.unit_total_cost,a.total_cost,d.unit_name,c.sku,c.hsn");
+          $this->db->select("a.description,c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name,a.sales_qty,a.tax_type,a.price_per_unit,b.tax,b.tax_name,a.tax_amt,a.discount_input,a.discount_amt,a.unit_total_cost,a.total_cost,d.unit_name as base_unit_name,c.sku,c.hsn,a.unit_id,a.unit_name as sold_unit_name,e.shortcode as sold_unit_shortcode");
           $this->db->where("a.sales_id", $sales_id);
           $this->db->from("db_salesitems a");
           $this->db->join("db_tax b", "b.id=a.tax_id", "left");
           $this->db->join("db_items c", "c.id=a.item_id", "left");
           $this->db->join("db_units d", "d.id=c.unit_id", "left");
+          $this->db->join("db_units e", "e.id=a.unit_id", "left");
           $q2 = $this->db->get();
 
           $tot_qty = $tot_tax_amt = $tot_discount_amt = $tot_total_cost = $sum_of_tot_price = 0;
@@ -222,7 +223,7 @@
           <div class="item-card">
             <div class="item-top">
               <span class="item-name"><?= htmlspecialchars($res2->item_name); ?></span>
-              <span class="item-qty"><?= format_qty($res2->sales_qty); ?> <?= htmlspecialchars($res2->unit_name ?? ''); ?></span>
+              <span class="item-qty"><?= format_qty($res2->sales_qty); ?> <?= htmlspecialchars(trim($res2->sold_unit_shortcode ?: $res2->sold_unit_name) ?? ''); ?></span>
             </div>
             <?php if($res2->description): ?><div style="font-size:12px;color:var(--mp-muted);margin-bottom:6px;"><?= nl2br(htmlspecialchars($res2->description)); ?></div><?php endif; ?>
             <div class="item-row"><span class="label">Unit</span><span><?= store_number_format($price_per_unit); ?></span></div>

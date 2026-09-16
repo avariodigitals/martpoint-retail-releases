@@ -51,6 +51,7 @@ $cur = $store_currency ?? null;
   .ms-product-price { font-family:'Lora',serif; font-size:17px; font-weight:700; color:var(--ms-ink); }
   .ms-product-price .old { font-size:13px; color:#94A3B8; text-decoration:line-through; margin-left:6px; font-weight:500; }
   .ms-card-actions { display:flex; gap:8px; }
+  @media(max-width:767px){ .ms-card-actions { flex-direction:column; align-items:stretch; } .ms-card-actions .ms-add-btn, .ms-card-actions .ms-wa-btn { width:100%; box-sizing:border-box; } }
   .ms-add-btn { flex:1; padding:11px 14px; border-radius:8px; background:var(--ms-ink); color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:13px; font-weight:600; }
   .ms-add-btn:hover { background:var(--ms-warm); }
   .ms-add-btn:active { transform:scale(0.97); }
@@ -133,7 +134,7 @@ $cur = $store_currency ?? null;
         $oldPrice = $p->original_price ?? $p->sales_price;
         $hasDiscount = $oldPrice > $price;
         $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
-        $img = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+        $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
       <div class="ms-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
         <?php if($hasDiscount && $discountPct > 0): ?>
@@ -142,7 +143,7 @@ $cur = $store_currency ?? null;
         <button class="ms-product-wishlist" onclick="event.stopPropagation();"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
         <div class="ms-product-media">
           <?php if($img): ?>
-          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
           <?php else: ?>
           <div class="ms-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
           <?php endif; ?>

@@ -270,6 +270,9 @@
       list-style: none;
       margin: 0;
       padding: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .category-list li {
       padding: 12px 12px;
@@ -1006,7 +1009,7 @@
     @media (max-width: 900px) {
       .workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; overflow-y: auto; }
       .sidebar { flex-direction: row; overflow-x: auto; }
-      .category-list { display: flex; gap: 8px; }
+      .category-list { display: flex; gap: 8px; max-height: none; overflow-y: visible; }
       .category-list li { white-space: nowrap; }
       .cart { max-height: 500px; }
     }
@@ -1351,13 +1354,19 @@
     <aside class="cart">
       <div class="cart-header">
         <h2>Current Sale</h2>
+        <?php if ($pos_retail_button || $pos_wholesale_button): ?>
         <div class="price-type">
           <span class="price-type-label">Price Type</span>
           <div class="option-chips">
-            <button id="retailBtn" class="active" onclick="setPriceType('retail')">Retail</button>
-            <button id="wholesaleBtn" onclick="setPriceType('wholesale')">Wholesale</button>
+            <?php if ($pos_retail_button): ?>
+            <button id="retailBtn" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>" onclick="setPriceType('retail')">Retail</button>
+            <?php endif; ?>
+            <?php if ($pos_wholesale_button): ?>
+            <button id="wholesaleBtn" class="<?= $default_price_type === 'wholesale' ? 'active' : ''; ?>" onclick="setPriceType('wholesale')">Wholesale</button>
+            <?php endif; ?>
           </div>
         </div>
+        <?php endif; ?>
         <div class="customer-select">
           <div id="customerNameDisplay" style="font-size:14px;font-weight:600;color:var(--mp-ink);padding:8px 0;">Walk-in Customer</div>
           <div id="customerBalanceInfo" style="display:none;font-size:12px;font-weight:500;padding:2px 0 6px;"></div>
@@ -1380,6 +1389,14 @@
               <option value="" selected>Walk-in Customer</option>
             <?php endif; ?>
           </select>
+          <?php if(!empty($is_restaurant) && !empty($tables)): ?>
+          <select id="tableSelect" style="display:block; width:100%; margin-top:8px; padding:8px 10px; border:1px solid var(--mp-border); border-radius:10px; background:var(--mp-surface); color:var(--mp-ink); font-size:13px; font-weight:500;">
+            <option value="0">No Table</option>
+            <?php foreach($tables as $t): ?>
+            <option value="<?= (int)$t->id; ?>"><?= htmlspecialchars($t->table_name); ?><?= !empty($t->zone) ? ' (' . htmlspecialchars($t->zone) . ')' : ''; ?> — <?= (int)$t->capacity; ?> seats</option>
+            <?php endforeach; ?>
+          </select>
+          <?php endif; ?>
         </div>
       </div>
       <div class="cart-items" id="cartItems">
@@ -1602,6 +1619,16 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="unitPickerModal">
+    <div class="modal" style="max-width: 420px;">
+      <h3 id="unitPickerTitle">Select Unit</h3>
+      <div id="unitPickerBody" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeUnitPickerModal()" style="margin-left: auto;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="salesListPopup">
     <div class="modal" style="max-width: 720px; max-height: 80vh; display: flex; flex-direction: column;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
@@ -1635,6 +1662,9 @@
     const WAREHOUSE_ID = '<?= $warehouse_id ?>';
     const WALKIN_CUSTOMER_ID = '<?= $walkin_customer_id ?>';
     const csrfToken = '<?= $this->security->get_csrf_hash() ?>';
+    const stopSellingExpired = <?= (int)($stop_selling_expired ?? 1) ?>;
+    const medicalNoteId = <?= (int)($medical_note_id ?? 0) ?>;
+    const medicalNoteCustomerId = <?= ($medical_note_customer_id ?? 'null') ?>;
 
     const topSelling = <?= json_encode($top_selling ?? []) ?>;
 
@@ -1643,7 +1673,7 @@
     const dailyTarget = <?= (float)($daily_target ?? 50000) ?>;
     let todaySales = <?= (float)($today_sales ?? 0) ?>;
     let selectedCategory = 'All';
-    let priceType = 'retail';
+    let priceType = '<?= $default_price_type; ?>';
     let searchQuery = '';
     let productView = localStorage.getItem('posProductView') || 'grid';
     let discountAmount = 0;
@@ -1698,8 +1728,40 @@
       return false;
     }
 
-    function getPrice(product) {
-      return priceType === 'wholesale' ? product.wholesale : product.price;
+    function getPrice(product, unit = null) {
+      if (unit) {
+        if (priceType === 'wholesale' && unit.wholesale_price > 0) return unit.wholesale_price;
+        return unit.selling_price > 0 ? unit.selling_price : (unit.wholesale_price || 0);
+      }
+      if (product && product.selling_units && product.selling_units.length > 0) {
+        const defaultUnit = product.selling_units.find(u => u.is_default) || product.selling_units[0];
+        return getPrice(product, defaultUnit);
+      }
+      if (product) return priceType === 'wholesale' ? product.wholesale : product.price;
+      return 0;
+    }
+
+    function openUnitPicker(product, onSelect) {
+      const title = document.getElementById('unitPickerTitle');
+      const body = document.getElementById('unitPickerBody');
+      if (!title || !body) return;
+      title.textContent = product.name || 'Select Unit';
+      body.innerHTML = '';
+      (product.selling_units || []).forEach(unit => {
+        const unitPrice = getPrice(product, unit);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-secondary';
+        btn.style = 'width:100%; padding:14px; text-align:left; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-radius:12px;';
+        btn.innerHTML = '<span><strong>' + (unit.unit_shortcode || unit.unit_name || 'Unit') + '</strong> <small style="color:var(--mp-muted);">x ' + (unit.conversion_factor || 1) + '</small></span><span style="font-weight:600;">' + formatMoney(unitPrice) + '</span>';
+        btn.onclick = () => { closeUnitPickerModal(); onSelect(unit); };
+        body.appendChild(btn);
+      });
+      document.getElementById('unitPickerModal').classList.add('active');
+    }
+
+    function closeUnitPickerModal() {
+      document.getElementById('unitPickerModal').classList.remove('active');
     }
 
     const toastIcons = {
@@ -1741,6 +1803,12 @@
       document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value.trim().toLowerCase();
         renderProducts();
+      });
+      document.getElementById('searchInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addByBarcode(document.getElementById('searchInput').value);
+        }
       });
     }
 
@@ -1808,9 +1876,11 @@
 
     function setPriceType(type) {
       priceType = type;
-      document.getElementById('retailBtn').className = type === 'retail' ? 'active' : '';
-      document.getElementById('wholesaleBtn').className = type === 'wholesale' ? 'active' : '';
-      cart.forEach(item => { item.unitPrice = getPrice(item); });
+      const retailBtn = document.getElementById('retailBtn');
+      const wholesaleBtn = document.getElementById('wholesaleBtn');
+      if (retailBtn) retailBtn.className = type === 'retail' ? 'active' : '';
+      if (wholesaleBtn) wholesaleBtn.className = type === 'wholesale' ? 'active' : '';
+      cart.forEach(item => { item.unitPrice = getPrice(item, item.unit); });
       updateCart();
       renderProducts();
       showToast('Price type changed', 'Switched to ' + type + ' prices', 'success');
@@ -1820,7 +1890,12 @@
       const grid = document.getElementById('productGrid');
       const filtered = products.filter(p => {
         const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
-        const matchesSearch = p.name.toLowerCase().includes(searchQuery);
+        const q = searchQuery;
+        const matchesSearch = !q ||
+          p.name.toLowerCase().includes(q) ||
+          (p.sku && p.sku.toLowerCase().includes(q)) ||
+          (p.item_code && p.item_code.toLowerCase().includes(q)) ||
+          (p.selling_units || []).some(u => u.barcode && u.barcode.toLowerCase().includes(q));
         return matchesCategory && matchesSearch;
       });
 
@@ -1885,38 +1960,106 @@
       renderProducts();
     }
 
-    function addToCart(id) {
+    function addToCart(id, selectedUnit = null) {
       const product = products.find(p => p.id === id);
       if (!product) return;
       if (product.outOfStock) {
         showToast('Out of stock', product.name + ' is not available', 'warning');
         return;
       }
-      const unitPrice = getPrice(product);
-      const item = cart.find(c => c.id === id);
+      if (stopSellingExpired && product.expired) {
+        showToast('Expired item', product.name + ' has expired' + (product.expire_date ? ' (' + product.expire_date + ')' : '') + ' and cannot be sold.', 'warning');
+        return;
+      }
+
+      // Show unit picker if product has multiple selling units and no unit selected yet
+      if (!selectedUnit && product.selling_units && product.selling_units.length > 1) {
+        openUnitPicker(product, (unit) => addToCart(id, unit));
+        return;
+      }
+      if (!selectedUnit && product.selling_units && product.selling_units.length === 1) {
+        selectedUnit = product.selling_units[0];
+      }
+
+      const unitId = selectedUnit ? (selectedUnit.unit_id || '') : '';
+      const unitName = selectedUnit ? (selectedUnit.unit_shortcode || selectedUnit.unit_name || '') : (product.unit || '');
+      const conversionFactor = selectedUnit ? (selectedUnit.conversion_factor || 1) : 1;
+
+      if (selectedUnit && selectedUnit.conversion_factor > product.stock) {
+        showToast('Not enough stock', product.name + ' only has ' + product.stock + ' pieces', 'warning');
+        return;
+      }
+
+      const unitPrice = getPrice(product, selectedUnit);
+      const item = cart.find(c => c.id === id && c.unit_id === unitId);
       if (item) {
         item.qty++;
       } else {
-        cart.push({ ...product, unitPrice: unitPrice, qty: 1 });
+        cart.push({
+          ...product,
+          unit: selectedUnit,
+          unit_id: unitId,
+          unit_name: unitName,
+          conversion_factor: conversionFactor,
+          unitPrice: unitPrice,
+          qty: 1,
+          tax_value: product.tax_value,
+          tax_id: product.tax_id,
+          tax_type: product.tax_type
+        });
       }
       showToast('Added to cart', product.name, 'success');
       updateCart();
     }
 
-    function changeQty(id, delta) {
-      const item = cart.find(c => c.id === id);
+    function addByBarcode(q) {
+      q = (q || '').trim();
+      if (!q) return;
+      const qLower = q.toLowerCase();
+      const product = products.find(p => {
+        if (p.sku && p.sku.toLowerCase() === qLower) return true;
+        if (p.item_code && p.item_code.toLowerCase() === qLower) return true;
+        return (p.selling_units || []).some(u => u.barcode && u.barcode.toLowerCase() === qLower);
+      });
+      if (!product) {
+        showToast('Item not found', q, 'warning');
+        return;
+      }
+      if (stopSellingExpired && product.expired) {
+        showToast('Expired item', product.name + ' has expired' + (product.expire_date ? ' (' + product.expire_date + ')' : '') + ' and cannot be sold.', 'warning');
+        return;
+      }
+      // If a selling-unit barcode was scanned, use that unit directly
+      let selectedUnit = (product.selling_units || []).find(u => u.barcode && u.barcode.toLowerCase() === qLower);
+      if (!selectedUnit && product.selling_units && product.selling_units.length > 0) {
+        selectedUnit = product.selling_units.find(u => u.is_default) || product.selling_units[0];
+      }
+      addToCart(product.id, selectedUnit);
+      const input = document.getElementById('searchInput');
+      if (input) input.value = '';
+      searchQuery = '';
+      renderProducts();
+    }
+
+    function changeQty(index, delta) {
+      const item = cart[index];
       if (!item) return;
-      item.qty += delta;
+      const product = products.find(p => p.id === item.id);
+      const conversion = parseFloat(item.conversion_factor || 1);
+      const nextQty = item.qty + delta;
+      if (product && product.stock < nextQty * conversion) {
+        showToast('Not enough stock', product.name + ' only has ' + product.stock + ' pieces', 'warning');
+        return;
+      }
+      item.qty = nextQty;
       if (item.qty < 1) {
-        const idx = cart.indexOf(item);
-        cart.splice(idx, 1);
+        cart.splice(index, 1);
       }
       updateCart();
     }
 
-    function removeItem(id) {
-      const idx = cart.findIndex(c => c.id === id);
-      if (idx > -1) cart.splice(idx, 1);
+    function removeItem(index) {
+      if (index > -1) cart.splice(index, 1);
       updateCart();
     }
 
@@ -1949,9 +2092,11 @@
       document.getElementById('discountInput').value = '';
       document.getElementById('discountInput').disabled = true;
       clearCouponCode();
-      priceType = 'retail';
-      document.getElementById('retailBtn').className = 'active';
-      document.getElementById('wholesaleBtn').className = '';
+      priceType = '<?= $default_price_type; ?>';
+      const retailBtn = document.getElementById('retailBtn');
+      const wholesaleBtn = document.getElementById('wholesaleBtn');
+      if (retailBtn) retailBtn.className = priceType === 'retail' ? 'active' : '';
+      if (wholesaleBtn) wholesaleBtn.className = priceType === 'wholesale' ? 'active' : '';
       updateCart();
       showToast('New invoice', 'Cart cleared for the next customer', 'success');
     }
@@ -2255,31 +2400,33 @@
       if (cart.length === 0) {
         itemsContainer.innerHTML = '<div class="cart-empty">Tap a product to start selling.</div>';
       } else {
-        itemsContainer.innerHTML = cart.map(item => {
+        itemsContainer.innerHTML = cart.map((item, index) => {
           const taxValue = (item.tax_value || 0) / 100;
           const taxType = item.tax_type || 'Exclusive';
           let displayPrice = item.unitPrice;
           let displayTotal = item.unitPrice * item.qty;
-          
+
           // For inclusive tax, show the price without tax
           if (taxType === 'Inclusive' && taxValue > 0) {
             displayPrice = item.unitPrice / (1 + taxValue);
             displayTotal = displayPrice * item.qty;
           }
-          
+
+          const unitLabel = item.unit_name ? ' • ' + item.unit_name : '';
+
           return `
           <div class="cart-item">
             <div class="item-info">
               <div class="item-name">${item.name}</div>
-              <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? 'Wholesale' : 'Retail'}</div>
+              <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? 'Wholesale' : 'Retail'}${unitLabel}</div>
             </div>
             <div class="qty-control">
-              <button onclick="changeQty(${item.id}, -1)">-</button>
+              <button onclick="changeQty(${index}, -1)">-</button>
               <span>${item.qty}</span>
-              <button onclick="changeQty(${item.id}, 1)">+</button>
+              <button onclick="changeQty(${index}, 1)">+</button>
             </div>
             <div class="item-total">${formatMoney(displayTotal)}</div>
-            <button class="remove-btn" onclick="removeItem(${item.id})">
+            <button class="remove-btn" onclick="removeItem(${index})">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -3488,7 +3635,10 @@
         tax_value: item.tax_value || 0,
         tax_type: item.tax_type || 'Exclusive',
         price_type: priceType,
-        tax_id: item.tax_id || 0
+        tax_id: item.tax_id || 0,
+        unit_id: item.unit_id || '',
+        unit_name: item.unit_name || '',
+        conversion_factor: item.conversion_factor || 1
       }));
       const payload = {
         command: 'save',
@@ -3505,6 +3655,7 @@
         payment_type: paymentRows[0] ? paymentRows[0].payment_type : window.defaultPaymentMode,
         account_id: paymentRows[0] ? paymentRows[0].account_id : '',
         payment_rows: paymentRows,
+        medical_note_id: medicalNoteId,
         csrf_test_name: csrfToken
       };
       if (action === 'plan') {
@@ -3592,6 +3743,11 @@
         openAlertModal('Network error', 'Could not save sale. Please try again.');
       });
     };
+
+    // Pharmacy: pre-select the patient from the medical note
+    if (medicalNoteCustomerId) {
+      setTimeout(() => { selectCustomer(String(medicalNoteCustomerId)); }, 100);
+    }
   })();
 
   </script>

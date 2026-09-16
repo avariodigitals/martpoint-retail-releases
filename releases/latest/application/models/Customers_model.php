@@ -153,6 +153,7 @@ class Customers_model extends CI_Model {
 		$tax_number = $this->input->post('tax_number', TRUE);
 		$location_link = $this->input->post('location_link', TRUE);
 		$credit_limit = $this->input->post('credit_limit', TRUE);
+		$payment_terms_days = (int) $this->input->post('payment_terms_days', TRUE);
 		$price_level_type = $this->input->post('price_level_type', TRUE);
 		$price_level = $this->input->post('price_level', TRUE);
 		$gstin = $this->input->post('gstin', TRUE);
@@ -206,6 +207,7 @@ class Customers_model extends CI_Model {
 	                'status'          		=> 1,
 	                'location_link'         => $location_link,
 	                'credit_limit'         => $credit_limit,
+                'payment_terms_days'   => $payment_terms_days,
                 'birthday'             => (!empty($birthday)) ? $birthday : NULL,
                 'notes'                => $notes,
 	              );
@@ -305,6 +307,7 @@ class Customers_model extends CI_Model {
 			$data['price_level_type']=$query->price_level_type;
 			$data['price_level']=$query->price_level;
 			$data['credit_limit']=$query->credit_limit;
+		$data['payment_terms_days']=$query->payment_terms_days ?? 0;
 
 			$data['country_id']=$query->country_id;
 			$data['state_id']=$query->state_id;
@@ -350,6 +353,7 @@ class Customers_model extends CI_Model {
 		$tax_number = $this->input->post('tax_number', TRUE);
 		$location_link = $this->input->post('location_link', TRUE);
 		$credit_limit = $this->input->post('credit_limit', TRUE);
+		$payment_terms_days = (int) $this->input->post('payment_terms_days', TRUE);
 		$price_level_type = $this->input->post('price_level_type', TRUE);
 		$price_level = $this->input->post('price_level', TRUE);
 		$gstin = $this->input->post('gstin', TRUE);
@@ -385,6 +389,7 @@ class Customers_model extends CI_Model {
 			                'tax_number'          	=> $tax_number,
 			                'location_link'         => $location_link,
 			                'credit_limit'         => empty($credit_limit) ? null : $credit_limit,
+			                'payment_terms_days'   => $payment_terms_days,
                 'birthday'             => (!empty($birthday)) ? $birthday : NULL,
                 'notes'                => $notes,
 			              );

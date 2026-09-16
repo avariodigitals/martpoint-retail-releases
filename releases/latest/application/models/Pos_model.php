@@ -24,9 +24,43 @@ class Pos_model extends CI_Model {
 	      $price_type = $this->input->post('price_type', TRUE) ?? 'retail';
       $barcode = $this->input->post('barcode', TRUE) ?? '';
       $barcode_id = $this->input->post('barcode_id', TRUE) ?? 0;
+      $customer_id = $this->input->post('customer_id', TRUE) ?? 0;
+
+      // Multi-unit selling lookup
+      $selected_unit = null;
+      $selling_units = [];
+      if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+          $this->load->model('item_selling_units_model','selling_units');
+          $selling_units = $this->selling_units->get_units($item_id, $res1->store_id);
+          // If a barcode was scanned and it matches a selling unit, select that unit
+          if(!empty($barcode)){
+              foreach($selling_units as $su){
+                  if($su->barcode === $barcode){
+                      $selected_unit = $su;
+                      break;
+                  }
+              }
+          }
+          if(!$selected_unit){
+              foreach($selling_units as $su){
+                  if($su->is_default){
+                      $selected_unit = $su;
+                      break;
+                  }
+              }
+          }
+          if(!$selected_unit && !empty($selling_units)){
+              $selected_unit = $selling_units[0];
+          }
+      }
+
+      // Load expiry settings once so we can block expired barcodes/batches
+      $this->load->model('expiry_settings_model');
+      $expiry_settings = $this->expiry_settings_model->get_settings();
+      $today = date('Y-m-d');
 
       // Barcode / Unit-specific lookup (by barcode_id, barcode, serial, or imei)
-      if(!empty($barcode_id) || !empty($barcode)){
+      if((!empty($barcode_id) || !empty($barcode)) && !$selected_unit){
         $this->db->select('b.*, a.item_name, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
         $this->db->from('db_item_barcodes b');
         $this->db->join('db_items a', 'a.id = b.item_id', 'left');
@@ -40,12 +74,16 @@ class Pos_model extends CI_Model {
         }
         $bc_data = $this->db->get()->row();
         if($bc_data){
+          // Block if the scanned batch itself is expired
+          if(is_valid_date($bc_data->expire_date) && $expiry_settings->stop_selling_expired == 1 && $bc_data->expire_date < $today){
+            return json_encode(array('error' => 'This batch has expired ('.$bc_data->expire_date.'). Cannot sell expired items.'));
+          }
           $sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
           $item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price, $bc_data->tax) : calculate_exclusive($sales_price, $bc_data->tax);
           return json_encode(array(
             'id' => $item_id, 'item_name' => $bc_data->item_name, 'stock' => $bc_data->qty,
             'sales_price' => $sales_price, 'original_sales_price' => $bc_data->sales_price,
-            'mrp' => $bc_data->mrp, 'batch_lot' => $bc_data->batch_lot, 'purchase_price' => $bc_data->purchase_price,
+            'mrp' => $bc_data->mrp, 'batch_lot' => $bc_data->batch_lot, 'expire_date' => $bc_data->expire_date, 'purchase_price' => $bc_data->purchase_price,
             'tax_id' => $bc_data->tax_id, 'tax_type' => $bc_data->tax_type, 'tax' => $bc_data->tax,
             'tax_name' => $bc_data->tax_name, 'item_tax_amt' => $item_tax_amt,
             'discount_type' => $bc_data->discount_type, 'discount' => $bc_data->discount,
@@ -59,17 +97,32 @@ class Pos_model extends CI_Model {
           ));
         }
       }
-      $effective_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
+
+      // Resolve the soonest-expiring batch for this item (if batch/expiry tracking enabled)
+      $effective_expire = $res1->expire_date;
+      $effective_batch = $res1->batch_lot;
+      if($this->db->table_exists('db_item_barcodes')){
+        $batch = $this->db->select('expire_date, batch_lot')->where('item_id', $item_id)->where('status', 1)->where('qty >', 0)->where('expire_date IS NOT NULL')->order_by('expire_date', 'ASC')->order_by('id', 'ASC')->get('db_item_barcodes')->row();
+        if($batch){
+          $effective_expire = $batch->expire_date;
+          $effective_batch = $batch->batch_lot;
+        }
+      }
+      if($selected_unit){
+          $unit_price = ($price_type == 'wholesale' && !empty($selected_unit->wholesale_price) && $selected_unit->wholesale_price > 0)
+                            ? $selected_unit->wholesale_price
+                            : $selected_unit->selling_price;
+          $effective_price = get_price_level_price($customer_id, $unit_price);
+      } else {
+          $effective_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
+      }
       $item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($effective_price,$res1->tax) :calculate_exclusive($effective_price,$res1->tax);
 	      
-	      // Check expiry
+	      // Check expiry against the resolved effective batch
 	      try {
-	      	$this->load->model('expiry_settings_model');
-	      	$expiry_settings = $this->expiry_settings_model->get_settings();
-	      	if(is_valid_date($res1->expire_date) && $expiry_settings->stop_selling_expired == 1){
-	      		$today = date('Y-m-d');
-	      		if($res1->expire_date < $today){
-	      			return json_encode(array('error' => 'This item has expired ('.$res1->expire_date.'). Cannot sell expired items.'));
+	      	if(is_valid_date($effective_expire) && $expiry_settings->stop_selling_expired == 1){
+	      		if($effective_expire < $today){
+	      			return json_encode(array('error' => 'This item has expired ('.$effective_expire.'). Cannot sell expired items.'));
 	      		}
 	      	}
 	      } catch (Exception $e) { /* Expiry settings not ready yet */ }
@@ -92,15 +145,33 @@ class Pos_model extends CI_Model {
       } catch (Exception $e) { /* Promotions module not ready */ }
 
 	      $warehouse_stock = total_available_qty_items_of_warehouse($this->input->post('warehouse_id'),null,$item_id);
+
+      $purchase_price = $res1->purchase_price;
+      $original_sales_price = $res1->sales_price;
+      $unit_id = null;
+      $unit_name = null;
+      $unit_shortcode = null;
+      $conversion_factor = 1;
+      if($selected_unit){
+          $purchase_price = !empty($selected_unit->purchase_price) ? $selected_unit->purchase_price : $res1->purchase_price;
+          $original_sales_price = ($price_type == 'wholesale' && !empty($selected_unit->wholesale_price) && $selected_unit->wholesale_price > 0)
+                                    ? $selected_unit->wholesale_price
+                                    : $selected_unit->selling_price;
+          $unit_id = (int)$selected_unit->unit_id;
+          $unit_name = $selected_unit->unit_name;
+          $unit_shortcode = $selected_unit->unit_shortcode;
+          $conversion_factor = (float)$selected_unit->conversion_factor;
+      }
 	      $item_array = array(
 	      				'id' 					=> $res1->id,
 	      				'item_name' 			=> $res1->item_name,
 	      				'stock' 				=> $warehouse_stock,
 	      				'sales_price' 			=> $effective_price,
-	      				'original_sales_price'	=> $res1->sales_price,
+	      				'original_sales_price'	=> $original_sales_price,
 	      				'mrp' 					=> $res1->mrp,
-	      				'batch_lot' 			=> $res1->batch_lot,
-	      				'purchase_price' 		=> $res1->purchase_price,
+	      				'batch_lot' 			=> $effective_batch,
+	      				'expire_date' 			=> $effective_expire,
+	      				'purchase_price' 		=> $purchase_price,
 	      				'tax_id' 				=> $res1->tax_id,
 	      				'tax_type' 				=> $res1->tax_type,
 	      				'tax' 					=> $res1->tax,
@@ -118,6 +189,11 @@ class Pos_model extends CI_Model {
 	      				'warranty_months' 		=> $res1->warranty_months ?? 0,
 				'track_serial' 			=> $res1->track_serial ?? 0,
 				'track_imei' 			=> $res1->track_imei ?? 0,
+				'unit_id' 				=> $unit_id,
+				'unit_name' 			=> $unit_name,
+				'unit_shortcode' 		=> $unit_shortcode,
+				'conversion_factor' 	=> $conversion_factor,
+				'selling_units' 		=> $selling_units,
 	      );
 
 	      return json_encode($item_array);
@@ -173,9 +249,24 @@ class Pos_model extends CI_Model {
 	      $this->load->model('expiry_settings_model');
 	      $expiry_settings = $this->expiry_settings_model->get_settings();
 	      $today = date('Y-m-d');
+      // Pre-load the soonest-expiring batch per item for accurate expiry display
+      $item_batch_map = [];
+      if($this->db->table_exists('db_item_barcodes') && $q2->num_rows()>0){
+        $ids = array_map(function($r){ return $r->id; }, $q2->result());
+        if(!empty($ids)){
+          $placeholders = implode(',', array_fill(0, count($ids), '?'));
+          $batches = $this->db->query("SELECT item_id, expire_date, batch_lot FROM db_item_barcodes WHERE status = 1 AND qty > 0 AND expire_date IS NOT NULL AND item_id IN ($placeholders) ORDER BY expire_date ASC, id ASC", $ids)->result();
+          foreach($batches as $b){
+            if(!isset($item_batch_map[$b->item_id])){
+              $item_batch_map[$b->item_id] = ['expire_date' => $b->expire_date, 'batch_lot' => $b->batch_lot];
+            }
+          }
+        }
+      }
 	      if($q2->num_rows()>0){
 	        foreach($q2->result() as $res2){
 	        	if($res2->item_group=='Variants'){continue;}
+            if(isset($item_batch_map[$res2->id])){ $res2->expire_date = $item_batch_map[$res2->id]['expire_date']; $res2->batch_lot = $item_batch_map[$res2->id]['batch_lot']; }
 	        	$w_stock = total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res2->id);
 	        	$item_code = $res2->item_code;
 	        	$item_tax_type = $res2->tax_type;
@@ -185,12 +276,30 @@ class Pos_model extends CI_Model {
 	        	$discount_type = $res2->discount_type;
 	        	$discount = $res2->discount;
 	        	
+	        	// Multi-unit selling: load default unit price and units list
+	        	$default_unit = null;
+	        	$selling_units_json = '[]';
+	        	$conversion_factor = 1;
+	        	if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+	        		if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+	        		$sus = $this->selling_units->get_units($res2->id, $store_id);
+	        		if(!empty($sus)){
+	        			foreach($sus as $su){ if($su->is_default){ $default_unit = $su; break; } }
+	        			if(!$default_unit) $default_unit = $sus[0];
+	        			$selling_units_json = json_encode($sus, JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+	        			$conversion_factor = (float)$default_unit->conversion_factor;
+	        		}
+	        	}
 
-	        	$display_price = ($price_type == 'retail' && !empty($res2->mrp) && $res2->mrp > 0) ? $res2->mrp : $res2->sales_price;
+	        	$display_price = $default_unit
+	        			? (($price_type == 'wholesale' && !empty($default_unit->wholesale_price) && $default_unit->wholesale_price > 0)
+	        			    ? $default_unit->wholesale_price
+	        			    : $default_unit->selling_price)
+	        		: (($price_type == 'retail' && !empty($res2->mrp) && $res2->mrp > 0) ? $res2->mrp : $res2->sales_price);
 	        	$item_sales_price = get_price_level_price($customer_id,$display_price);
 				$item_sales_price = number_format($item_sales_price,decimals(),'.','');
 
-	        	$item_cost = $res2->purchase_price;
+	        	$item_cost = ($default_unit && !empty($default_unit->purchase_price)) ? $default_unit->purchase_price : $res2->purchase_price;
 	        	$item_tax = $res2->tax;
 	        	$item_tax_name = $res2->tax_name;
 	        	$service_bit = $res2->service_bit;
@@ -239,6 +348,8 @@ class Pos_model extends CI_Model {
 	         	$table .= '<div class="col-lg-3 col-md-3 col-sm-3 col-xs-6 pos-item-col" id="item_parent_'.$i.'" '.$disabled.' data-toggle="tooltip" style="padding-left:5px;padding-right:5px;" title="'.$item_tooltip.'">
 	          <div class="box box-default item_box" id="div_'.$res2->id.'" onclick="'.$str.'"
 	          				data-item-id="'.$res2->id.'"
+	          				data-item-selling-units="'.$selling_units_json.'"
+	          				data-conversion-factor="'.$conversion_factor.'"
 	          				data-item-name="'.$res2->item_name.'"
 	          				data-item-available-qty="'.$w_stock.'"
 	          				data-item-sales-price="'.$item_sales_price.'"
@@ -322,6 +433,7 @@ class Pos_model extends CI_Model {
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$count_id = $this->input->post('count_id', TRUE);
 		$init_code = $this->input->post('init_code', TRUE);
+		$table_id = (int) $this->input->post('table_id', TRUE);
 		$command = $this->input->post('command', TRUE);
 		$sales_id = $this->input->post('sales_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
@@ -507,6 +619,9 @@ class Pos_model extends CI_Model {
 		    			);
 				$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 				$q3 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
+				if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
+					$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+				}
 
 				##############################################START
 				//FIND THE PREVIOUSE ITEM LIST ID'S
@@ -552,6 +667,9 @@ class Pos_model extends CI_Model {
 			
 			$q3 = $this->db->insert('db_sales', array_merge($sales_entry,$sales_entry_init));
 			$sales_id = $this->db->insert_id();
+			if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
+				$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+			}
 		}
 
 	
@@ -696,6 +814,13 @@ class Pos_model extends CI_Model {
 
 				$q11=$this->update_items_quantity($item_id);
 				if(!$q11){
+					return "failed";
+				}
+
+				// Deplete recipe components/ingredients for component plates and sale-deplete items
+				$q12 = $this->deplete_recipe_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id);
+				if(!$q12){
+					$this->db->trans_rollback();
 					return "failed";
 				}
 
@@ -972,8 +1097,13 @@ class Pos_model extends CI_Model {
 
 	public function update_items_quantity($item_id){
 		//FIND IS IS SERVICE OR NOT
-		$item = $this->db->query("select service_bit from db_items where id='$item_id'")->row();
+		$item = $this->db->query("select service_bit, item_production_mode from db_items where id='$item_id'")->row();
 		if($item->service_bit==1){
+			return true;
+		}
+		// Component plates and sale-deplete items do not track their own finished stock;
+		// their recipe components/ingredients are adjusted separately
+		if (!empty($item->item_production_mode) && in_array($item->item_production_mode, ['component','sale_deplete'])) {
 			return true;
 		}
 		
@@ -981,10 +1111,10 @@ class Pos_model extends CI_Model {
 		$q7=$this->db->query("select COALESCE(SUM(adjustment_qty),0) as stock_qty from db_stockadjustmentitems where item_id='$item_id'");
 		$stock_qty=$q7->row()->stock_qty;
 
-		$q8=$this->db->query("select COALESCE(SUM(CASE WHEN received_qty IS NOT NULL THEN received_qty ELSE purchase_qty END),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status IN ('Received','Partially Received')");
+		$q8=$this->db->query("select COALESCE(SUM(CASE WHEN received_qty IS NOT NULL THEN COALESCE(base_unit_qty, received_qty) ELSE COALESCE(base_unit_qty, purchase_qty) END),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status IN ('Received','Partially Received')");
 		$pu_tot_qty=$q8->row()->pu_tot_qty;
 		
-		$q9=$this->db->query("select coalesce(SUM(sales_qty),0) as sl_tot_qty from db_salesitems where item_id='$item_id' and sales_status='Final'");
+		$q9=$this->db->query("select coalesce(SUM(COALESCE(base_unit_qty, sales_qty)),0) as sl_tot_qty from db_salesitems where item_id='$item_id' and sales_status='Final'");
 		$sl_tot_qty=$q9->row()->sl_tot_qty;
 
 		/*Fid Return Items Count*/
@@ -1437,5 +1567,92 @@ class Pos_model extends CI_Model {
         return "success";
 
 
+	}
+
+	/**
+	 * Deduct recipe ingredients / components when a sale is made.
+	 * Used for item_production_mode = 'component' or 'sale_deplete'.
+	 */
+	public function deplete_recipe_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id) {
+		$item = $this->db->where('id', $item_id)->get('db_items')->row();
+		if (!$item || !in_array($item->item_production_mode, ['component', 'sale_deplete'])) {
+			return true;
+		}
+		if (empty($item->recipe_id)) {
+			return true;
+		}
+
+		$this->load->model('recipe_model');
+		$recipe = $this->recipe_model->get($item->recipe_id);
+		if (!$recipe) {
+			return true;
+		}
+
+		$ings = $this->recipe_model->get_ingredients($item->recipe_id);
+		if (empty($ings)) {
+			return true;
+		}
+
+		$yield = !empty($recipe->yield_qty) ? (float)$recipe->yield_qty : 1;
+		if ($yield <= 0) {
+			$yield = 1;
+		}
+		$scale = (float)$sales_qty / $yield;
+
+		$adjustment_items = [];
+		foreach ($ings as $ing) {
+			if (empty($ing->item_id)) {
+				continue;
+			}
+			$deduct_qty = (float)$ing->qty * $scale;
+			if ($deduct_qty <= 0) {
+				continue;
+			}
+			$adjustment_items[] = [
+				'store_id'       => $store_id,
+				'warehouse_id'   => $warehouse_id,
+				'item_id'        => (int)$ing->item_id,
+				'adjustment_qty' => -$deduct_qty,
+				'description'    => 'Sale #' . $sales_id . ' / ' . $item->item_name . ' x' . $sales_qty,
+			];
+		}
+
+		if (empty($adjustment_items)) {
+			return true;
+		}
+
+		$adj = [
+			'store_id'        => $store_id,
+			'warehouse_id'    => $warehouse_id,
+			'reference_no'    => 'SALE-' . $sales_id,
+			'adjustment_date' => date('Y-m-d'),
+			'adjustment_note' => 'Recipe depletion for ' . $item->item_name,
+			'created_date'    => date('Y-m-d'),
+			'created_time'    => date('H:i:s'),
+			'created_by'      => 'POS',
+			'system_ip'       => '127.0.0.1',
+			'system_name'     => 'POS',
+			'status'          => 1,
+		];
+		if (!$this->db->insert('db_stockadjustment', $adj)) {
+			return false;
+		}
+		$adjustment_id = $this->db->insert_id();
+
+		foreach ($adjustment_items as $ai) {
+			$ai['adjustment_id'] = $adjustment_id;
+			$ai['status'] = 1;
+			if (!$this->db->insert('db_stockadjustmentitems', $ai)) {
+				return false;
+			}
+		}
+
+		foreach ($adjustment_items as $ai) {
+			if (!$this->update_items_quantity($ai['item_id'])) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

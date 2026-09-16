@@ -301,11 +301,45 @@ table.dataTable{margin-top:0!important;margin-bottom:0!important}
 .dataTables_filter input{border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:8px 14px 8px 36px!important;height:38px!important;font-size:13px!important;font-weight:500!important;background:var(--mp-surface)!important;color:var(--mp-text)!important;min-width:240px!important;transition:all .15s ease!important}
 .dataTables_filter input:focus{outline:none!important;border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px rgba(0,87,255,.1)!important}
 
+/* Modern button base — neutralises old AdminLTE .btn classes across all pages */
+.mp-main .btn,
+.modal-content .btn,
+.modal .btn{
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;
+    border:1px solid transparent!important;border-radius:10px!important;padding:9px 16px!important;
+    font-size:14px!important;font-weight:600!important;line-height:1.4!important;cursor:pointer!important;
+    text-decoration:none!important;background-image:none!important;box-shadow:none!important;
+    transition:all .15s ease!important;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif!important
+}
+.mp-main .btn:hover,
+.modal-content .btn:hover,
+.modal .btn:hover{text-decoration:none!important}
+.mp-main .btn.btn-xs,
+.modal-content .btn.btn-xs{padding:5px 10px!important;font-size:12px!important;border-radius:6px!important}
+.mp-main .btn.btn-sm,
+.modal-content .btn.btn-sm{padding:7px 14px!important;font-size:13px!important;border-radius:8px!important}
+.mp-main .btn.btn-lg,
+.modal-content .btn.btn-lg{padding:12px 22px!important;font-size:16px!important;border-radius:12px!important}
+.mp-main .btn.btn-block,
+.modal-content .btn.btn-block{display:block!important;width:100%!important}
+.mp-main .btn.btn-primary,.modal-content .btn.btn-primary,.modal .btn.btn-primary{background:var(--mp-primary)!important;color:#fff!important;border-color:var(--mp-primary)!important}
+.mp-main .btn.btn-primary:hover,.modal-content .btn.btn-primary:hover,.modal .btn.btn-primary:hover{background:var(--mp-primary-dark)!important}
+.mp-main .btn.btn-success,.modal-content .btn.btn-success,.modal .btn.btn-success{background:var(--mp-success)!important;color:#fff!important;border-color:var(--mp-success)!important}
+.mp-main .btn.btn-success:hover,.modal-content .btn.btn-success:hover,.modal .btn.btn-success:hover{background:rgba(5,150,105,.9)!important}
+.mp-main .btn.btn-info,.modal-content .btn.btn-info,.modal .btn.btn-info{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important;border-color:transparent!important}
+.mp-main .btn.btn-info:hover,.modal-content .btn.btn-info:hover,.modal .btn.btn-info:hover{background:rgba(0,87,255,.15)!important}
+.mp-main .btn.btn-warning,.modal-content .btn.btn-warning,.modal .btn.btn-warning{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important;border-color:transparent!important}
+.mp-main .btn.btn-warning:hover,.modal-content .btn.btn-warning:hover,.modal .btn.btn-warning:hover{background:rgba(245,158,11,.15)!important}
+.mp-main .btn.btn-danger,.modal-content .btn.btn-danger,.modal .btn.btn-danger{background:var(--mp-danger)!important;color:#fff!important;border-color:var(--mp-danger)!important}
+.mp-main .btn.btn-danger:hover,.modal-content .btn.btn-danger:hover,.modal .btn.btn-danger:hover{background:rgba(220,38,38,.9)!important}
+.mp-main .btn.btn-default,.modal-content .btn.btn-default,.modal .btn.btn-default{background:var(--mp-bg)!important;color:var(--mp-ink)!important;border-color:var(--mp-border)!important}
+.mp-main .btn.btn-default:hover,.modal-content .btn.btn-default:hover,.modal .btn.btn-default:hover{background:var(--mp-border)!important}
+
 /* Export buttons (Copy, Excel, PDF, Print, CSV, Columns) */
-.dt-buttons{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
-.dt-button,.buttons-copy,.buttons-excel,.buttons-pdf,.buttons-print,.buttons-csv,.buttons-colvis{border:1px solid var(--mp-border)!important;border-radius:8px!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;font-size:12px!important;font-weight:600!important;padding:7px 12px!important;box-shadow:none!important;cursor:pointer!important;transition:all .15s ease!important;display:inline-flex!important;align-items:center!important;gap:5px!important}
-.dt-button:hover,.buttons-copy:hover,.buttons-excel:hover,.buttons-pdf:hover,.buttons-print:hover,.buttons-csv:hover,.buttons-colvis:hover{background:var(--mp-bg)!important;border-color:var(--mp-border)!important;color:var(--mp-text)!important}
-.buttons-collection span{font-size:12px!important}
+.mp-main .dt-buttons{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
+.mp-main .dt-button,.mp-main .buttons-copy,.mp-main .buttons-excel,.mp-main .buttons-pdf,.mp-main .buttons-print,.mp-main .buttons-csv,.mp-main .buttons-colvis{border:1px solid var(--mp-border)!important;border-radius:8px!important;background:var(--mp-surface)!important;background-image:none!important;color:var(--mp-ink)!important;font-size:12px!important;font-weight:600!important;padding:7px 12px!important;box-shadow:none!important;cursor:pointer!important;transition:all .15s ease!important;display:inline-flex!important;align-items:center!important;gap:5px!important}
+.mp-main .dt-button:hover,.mp-main .buttons-copy:hover,.mp-main .buttons-excel:hover,.mp-main .buttons-pdf:hover,.mp-main .buttons-print:hover,.mp-main .buttons-csv:hover,.mp-main .buttons-colvis:hover{background:var(--mp-bg)!important;background-image:none!important;border-color:var(--mp-primary)!important;color:var(--mp-primary)!important}
+.mp-main .buttons-collection span{font-size:12px!important}
 
 /* Info text ("Showing 1 to 10 of 139 entries") */
 .dataTables_info{font-size:13px!important;color:var(--mp-muted)!important;font-weight:500!important;line-height:1.5!important;margin:0!important;padding:0!important}
@@ -330,19 +364,21 @@ table.dataTable{margin-top:0!important;margin-bottom:0!important}
 /* Processing indicator */
 .dataTables_processing{background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;border-radius:8px!important;padding:12px 20px!important;font-size:13px!important;color:var(--mp-muted)!important;font-weight:500!important;box-shadow:var(--mp-shadow)!important}
 
-/* Status pills inside tables */
-.table .label{font-size:11px!important;font-weight:700!important;padding:5px 12px!important;border-radius:20px!important;display:inline-flex!important;align-items:center!important;gap:5px!important;min-width:64px!important;justify-content:center!important;letter-spacing:.02em!important}
-.table .label-success{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}
-.table .label-danger{background:rgba(220,38,38,.1)!important;color:var(--mp-danger)!important}
-.table .label-warning{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important}
-.table .label-info{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}
-.table .label-default{background:var(--mp-bg)!important;color:var(--mp-muted)!important}
-.table .label::before{content:''!important;width:6px!important;height:6px!important;border-radius:50%!important;background:currentColor!important}
-.table .label-success::before{background:var(--mp-success)!important}
-.table .label-danger::before{background:var(--mp-danger)!important}
-.table .label-warning::before{background:var(--mp-warning)!important}
-.table .label-info::before{background:var(--mp-primary)!important}
-.table .label-default::before{background:var(--mp-muted)!important}
+/* Status pills / labels — consistent across all pages */
+.mp-main .label,
+.modal-content .label,
+.modal .label{font-size:11px!important;font-weight:700!important;padding:5px 12px!important;border-radius:20px!important;display:inline-flex!important;align-items:center!important;gap:5px!important;min-width:64px!important;justify-content:center!important;letter-spacing:.02em!important;border:1px solid transparent!important;background:var(--mp-bg)!important;color:var(--mp-muted)!important}
+.mp-main .label-success,.modal-content .label-success,.modal .label-success{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}
+.mp-main .label-danger,.modal-content .label-danger,.modal .label-danger{background:rgba(220,38,38,.1)!important;color:var(--mp-danger)!important}
+.mp-main .label-warning,.modal-content .label-warning,.modal .label-warning{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important}
+.mp-main .label-info,.modal-content .label-info,.modal .label-info{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}
+.mp-main .label-default,.modal-content .label-default,.modal .label-default{background:var(--mp-bg)!important;color:var(--mp-muted)!important}
+.mp-main .label::before,.modal-content .label::before,.modal .label::before{content:''!important;width:6px!important;height:6px!important;border-radius:50%!important;background:currentColor!important}
+.mp-main .label-success::before,.modal-content .label-success::before,.modal .label-success::before{background:var(--mp-success)!important}
+.mp-main .label-danger::before,.modal-content .label-danger::before,.modal .label-danger::before{background:var(--mp-danger)!important}
+.mp-main .label-warning::before,.modal-content .label-warning::before,.modal .label-warning::before{background:var(--mp-warning)!important}
+.mp-main .label-info::before,.modal-content .label-info::before,.modal .label-info::before{background:var(--mp-primary)!important}
+.mp-main .label-default::before,.modal-content .label-default::before,.modal .label-default::before{background:var(--mp-muted)!important}
 
 /* Checkbox sizing */
 .table .checkbox{width:18px!important;height:18px!important}
@@ -357,6 +393,24 @@ table.dataTable > tbody > tr.child ul.dtr-details > li:last-child{border-bottom:
 table.dataTable > tbody > tr.child span.dtr-title{flex:0 0 110px!important;display:inline-block!important;font-size:12px!important;font-weight:600!important;color:var(--mp-muted)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 table.dataTable > tbody > tr.child span.dtr-data{flex:1 1 0!important;display:inline-block!important;min-width:0!important;color:var(--mp-ink)!important;font-size:13px!important;word-break:break-word!important}
 table.dataTable > tbody > tr.child span.dtr-data .btn-group{white-space:normal!important}
+
+/* DataTables Responsive control column — modern + / - control */
+table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control,
+table.dataTable.dtr-inline.collapsed > tbody > tr > th.dtr-control{
+    position:relative!important;padding-left:36px!important;cursor:pointer!important
+}
+table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control::before,
+table.dataTable.dtr-inline.collapsed > tbody > tr > th.dtr-control::before{
+    content:'+'!important;position:absolute!important;left:8px!important;top:50%!important;transform:translateY(-50%)!important;
+    width:22px!important;height:22px!important;border-radius:6px!important;
+    background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;
+    box-shadow:var(--mp-shadow-sm)!important;display:flex!important;align-items:center!important;justify-content:center!important;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif!important;font-size:14px!important;font-weight:700!important;color:var(--mp-primary)!important
+}
+table.dataTable.dtr-inline.collapsed > tbody > tr.parent > td.dtr-control::before,
+table.dataTable.dtr-inline.collapsed > tbody > tr.parent > th.dtr-control::before{
+    content:'-'!important;background:var(--mp-bg)!important
+}
 
 /* Responsive */
 @media (max-width:767px){
@@ -396,6 +450,56 @@ body > .mp-support-modal{z-index:10000!important}
 .mp-main .box{border-radius:16px!important;border:1px solid var(--mp-border)!important;background:var(--mp-surface)!important;box-shadow:var(--mp-shadow-sm)!important}
 .mp-main .box-header{border-bottom:1px solid var(--mp-border)!important;padding:18px 20px 14px!important}
 .mp-main .box-title{font-size:15px!important;font-weight:700!important;color:var(--mp-text)!important}
+
+/* Table row action dropdowns — consistent across business types */
+.table .btn-group .dropdown-toggle,
+.dataTable .btn-group .dropdown-toggle,
+.table .btn-group > a.dropdown-toggle,
+.dataTable .btn-group > a.dropdown-toggle,
+.table .btn-group > a[ data-toggle="dropdown"],
+.dataTable .btn-group > a[ data-toggle="dropdown"],
+.table .btn-group > .btn.dropdown-toggle,
+.dataTable .btn-group > .btn.dropdown-toggle{
+    display:inline-flex!important;align-items:center!important;gap:5px!important;
+    border:1px solid var(--mp-border)!important;border-radius:8px!important;
+    background:var(--mp-surface)!important;background-image:none!important;
+    color:var(--mp-ink)!important;padding:6px 10px!important;font-size:12px!important;
+    font-weight:600!important;cursor:pointer!important;text-decoration:none!important;
+    box-shadow:none!important
+}
+.table .btn-group .dropdown-toggle:hover,
+.dataTable .btn-group .dropdown-toggle:hover{
+    background:var(--mp-bg)!important;color:var(--mp-primary)!important;border-color:var(--mp-primary)!important
+}
+.table .btn-group .dropdown-toggle .caret,
+.dataTable .btn-group .dropdown-toggle .caret{border-top-color:currentColor!important}
+.table .dropdown-menu,
+.dataTable .dropdown-menu{
+    border-radius:10px!important;border:1px solid var(--mp-border)!important;
+    box-shadow:var(--mp-shadow)!important;padding:6px!important;min-width:160px!important
+}
+.table .dropdown-menu > li > a,
+.dataTable .dropdown-menu > li > a{
+    padding:9px 12px!important;font-size:13px!important;color:var(--mp-ink)!important;
+    border-radius:6px!important;display:flex!important;align-items:center!important;gap:8px!important
+}
+.table .dropdown-menu > li > a:hover,
+.dataTable .dropdown-menu > li > a:hover{
+    background:var(--mp-bg)!important;color:var(--mp-primary)!important
+}
+
+/* Alert / flash message neutralisers — consistent across all pages */
+.mp-main .alert,
+.modal-content .alert,
+.modal .alert{
+    border:1px solid var(--mp-border)!important;border-radius:12px!important;padding:14px 18px!important;
+    font-size:14px!important;font-weight:500!important;color:var(--mp-ink)!important;background:var(--mp-bg)!important
+}
+.mp-main .alert-success,.modal-content .alert-success,.modal .alert-success{background:rgba(5,150,105,.08)!important;color:var(--mp-success)!important;border-color:rgba(5,150,105,.2)!important}
+.mp-main .alert-info,.modal-content .alert-info,.modal .alert-info{background:rgba(0,87,255,.08)!important;color:var(--mp-primary)!important;border-color:rgba(0,87,255,.2)!important}
+.mp-main .alert-warning,.modal-content .alert-warning,.modal .alert-warning{background:rgba(245,158,11,.08)!important;color:var(--mp-warning)!important;border-color:rgba(245,158,11,.2)!important}
+.mp-main .alert-danger,.modal-content .alert-danger,.modal .alert-danger{background:rgba(220,38,38,.08)!important;color:var(--mp-danger)!important;border-color:rgba(220,38,38,.2)!important}
+.mp-main .alert .close,.modal-content .alert .close,.modal .alert .close{color:var(--mp-muted)!important;opacity:.7!important;font-size:22px!important}
 </style>
 <?php if(!empty($extra_css_files) && is_array($extra_css_files)): ?>
 <?php foreach($extra_css_files as $css): ?><link rel="stylesheet" href="<?php echo $theme_link . $css; ?>"><?php endforeach; ?>
@@ -405,6 +509,7 @@ body > .mp-support-modal{z-index:10000!important}
 </head>
 <body>
 <?php $CI =& get_instance(); ?>
+<?php $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator'; ?>
 
 <!-- ===== HEADER ===== -->
 <header class="mp-header">
@@ -427,7 +532,7 @@ body > .mp-support-modal{z-index:10000!important}
   </div>
   <div class="mp-header-actions">
     <span class="mp-offline-badge" id="mpOfflineBadge"><i class="fa fa-wifi"></i> OFFLINE</span>
-    <?php if($CI->permissions('pos')): ?>
+    <?php if($CI->permissions('pos') && !$is_creator): ?>
     <button class="mp-hbtn" id="syncOfflineBtn" title="Sync Items for Offline Use"><i class="fa fa-refresh"></i> <span class="hidden-xs">Sync</span><span id="pendingSalesBadge" style="display:none;background:var(--mp-danger);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;">0</span></button>
     <?php endif; ?>
     <?php
@@ -449,7 +554,7 @@ body > .mp-support-modal{z-index:10000!important}
       <span class="mp-status-text">Online</span>
     </div>
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
-    <?php if($CI->permissions('pos')): ?>
+    <?php if($CI->permissions('pos') && !$is_creator): ?>
     <a class="mp-hbtn primary" href="<?= base_url('pos'); ?>"><i class="fa fa-plus-square"></i> POS</a>
     <?php endif; ?>
     <div class="mp-user-menu">

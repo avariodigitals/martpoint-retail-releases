@@ -1,5 +1,6 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
+<?php $wa_pending = $CI->db->where('store_id', get_current_store_id())->where('payment_method', 'whatsapp')->where('order_status', 'pending')->count_all_results('db_online_orders'); ?>
 <style>
 .os-content-grid{display:grid!important;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)!important;gap:20px!important}
 @media(max-width:1024px){.os-content-grid{grid-template-columns:1fr!important}}
@@ -61,6 +62,29 @@
     <div class="mp-kpi-value"><?= (int)$stats['paid_orders']; ?></div>
   </div>
 </div>
+
+<?php $settings = $CI->storefront_model->getSettings(get_current_store_id()); ?>
+<?php if(($settings->allow_whatsapp ?? 1) && !empty($settings->whatsapp_number)): ?>
+<div class="mp-card" style="margin:0 0 20px 0!important; background:#25D366; color:#fff; padding:20px; border-radius:16px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+    <div>
+      <h3 style="margin:0 0 6px 0; font-size:18px; font-weight:800;">Sell on WhatsApp — zero API cost</h3>
+      <p style="margin:0; font-size:14px; opacity:0.95;">
+        Customers can now order directly from your product page and send you a pre-filled WhatsApp message.
+        <?php if($wa_pending > 0): ?>
+          <strong><?= (int)$wa_pending; ?> pending</strong> WhatsApp order<?= $wa_pending > 1 ? 's' : ''; ?> to confirm.
+        <?php else: ?>
+          No pending orders yet.
+        <?php endif; ?>
+      </p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="<?= base_url('online_store/quick_wa'); ?>" class="mp-qa-btn" style="background:#fff; color:#25D366; font-weight:700;"><i class="fa fa-plus"></i> Create WhatsApp Order</a>
+      <a href="<?= base_url('online_store/orders'); ?>" class="mp-qa-btn" style="background:transparent; color:#fff; font-weight:700; border:1px solid rgba(255,255,255,0.4);">View Orders</a>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <div class="os-content-grid">
   <div class="os-card">

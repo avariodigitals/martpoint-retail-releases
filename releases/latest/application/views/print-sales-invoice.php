@@ -221,17 +221,22 @@ th, td {
               $q2=$this->db->query("SELECT c.item_name, a.sales_qty,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
-                                  a.total_cost 
+                                  a.total_cost, a.unit_name as sold_unit_name, d.shortcode as sold_unit_shortcode
                                   FROM 
-                                  db_salesitems AS a,db_tax AS b,db_items AS c 
+                                  db_salesitems AS a
+                                  LEFT JOIN db_tax AS b ON b.id=a.tax_id
+                                  LEFT JOIN db_items AS c ON c.id=a.item_id
+                                  LEFT JOIN db_units AS d ON d.id=a.unit_id
                                   WHERE 
-                                  c.id=a.item_id AND b.id=a.tax_id AND a.sales_id='$sales_id'");
+                                  a.sales_id='$sales_id'");
               foreach ($q2->result() as $res2) {
                   $discount = (empty($res2->discount_input)||$res2->discount_input==0)? '0':$res2->discount_input."%";
                   $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
+                  $sold_label = trim($res2->sold_unit_shortcode ?: $res2->sold_unit_name);
+                  $unit_label = $sold_label ? ' ['.htmlspecialchars($sold_label).']' : '';
                   echo "<tr>";  
                   echo "<td>".++$i."</td>";
-                  echo "<td colspan='2'>".$res2->item_name."</td>";
+                  echo "<td colspan='2'>".$res2->item_name.$unit_label."</td>";
                   echo "<td colspan='2'>".store_number_format($res2->price_per_unit)."</td>";
                   echo "<td>".$res2->sales_qty."</td>";
                   /*echo "<td>".$res2->tax."%<br>".$res2->tax_name."</td>";

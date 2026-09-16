@@ -97,6 +97,25 @@ class Storefront_model extends CI_Model {
 
 			if($this->db->table_exists('db_storefront_settings') && !$this->db->field_exists('sendchamp_json', 'db_storefront_settings')){
 				$this->db->query("ALTER TABLE db_storefront_settings ADD sendchamp_json TEXT NULL DEFAULT NULL");
+
+			// Omni-channel fields for db_online_orders
+			if($this->db->table_exists('db_online_orders')){
+				if(!$this->db->field_exists('source_channel', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD source_channel VARCHAR(20) NULL DEFAULT 'web'");
+				}
+				if(!$this->db->field_exists('channel_user_id', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD channel_user_id VARCHAR(50) NULL DEFAULT NULL");
+				}
+				if(!$this->db->field_exists('confirmation_token', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD confirmation_token VARCHAR(128) NULL DEFAULT NULL");
+				}
+				if(!$this->db->field_exists('token_expires_at', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD token_expires_at DATETIME NULL DEFAULT NULL");
+				}
+				if(!$this->db->field_exists('stock_adjusted', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD stock_adjusted TINYINT(1) NOT NULL DEFAULT 0");
+				}
+			}
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Storefront ensureTables optional migration failed: ' . $e->getMessage());
@@ -278,7 +297,7 @@ class Storefront_model extends CI_Model {
 
 	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -304,7 +323,7 @@ class Storefront_model extends CI_Model {
 
 	public function getFeaturedProducts($storeId = null, $limit = 8){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -628,6 +647,20 @@ class Storefront_model extends CI_Model {
 		return $prefix . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
 	}
 
+	public function getProductSoldCounts($storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		$rows = $this->db->query("SELECT oi.item_id, oi.item_type, SUM(oi.qty) AS sold
+			FROM db_online_order_items oi
+			INNER JOIN db_online_orders o ON o.id = oi.order_id
+			WHERE o.store_id = $storeId AND o.payment_status = 'paid' AND o.status = 1
+			GROUP BY oi.item_id, oi.item_type")->result();
+		$counts = [];
+		foreach($rows as $r){
+			$counts[$r->item_id] = ($counts[$r->item_id] ?? 0) + (int)$r->sold;
+		}
+		return $counts;
+	}
+
 	public function getProductEffectivePrice($product){
 		// Use online_price if set, otherwise sales_price
 		$price = $product->online_price > 0 ? $product->online_price : $product->sales_price;
@@ -719,11 +752,14 @@ class Storefront_model extends CI_Model {
 	 * Uses the business preset's base theme and reads its industry column.
 	 */
 	private function _getThemeIndustryForType($industry_type){
+		$normalized = $this->_normalizeThemeIndustry($industry_type);
 		if(!function_exists('mp_get_business_presets')){
 			$this->load->helper('business_profile');
 		}
 		$presets = function_exists('mp_get_business_presets') ? mp_get_business_presets() : [];
-		$preset = $presets[$industry_type] ?? ($presets['general_retail'] ?? []);
+		// Prefer raw business profile industry, then canonical normalization (e.g. healthcare -> pharmacy)
+		$lookupKey = isset($presets[$industry_type]) ? $industry_type : (isset($presets[$normalized]) ? $normalized : 'general_retail');
+		$preset = $presets[$lookupKey] ?? ($presets['general_retail'] ?? []);
 		$baseKey = $preset['theme_key'] ?? 'general_retail';
 
 		$baseTheme = $this->getThemeByKey($baseKey);
@@ -731,7 +767,7 @@ class Storefront_model extends CI_Model {
 			return $this->_normalizeThemeIndustry($baseTheme->industry);
 		}
 
-		// Direct theme key match fallback
+		// Direct theme key match fallback (raw, supports theme_key values like fashion_luxe)
 		$direct = $this->getThemeByKey($industry_type);
 		if($direct && !empty($direct->industry)){
 			return $this->_normalizeThemeIndustry($direct->industry);
@@ -788,19 +824,39 @@ class Storefront_model extends CI_Model {
 		$themes = [
 			['theme_key' => 'general_retail', 'theme_name' => 'General Retail', 'industry' => 'general', 'description' => 'Clean, modern default theme for any retail store.', 'default_primary_color' => '#3B82F6', 'default_secondary_color' => '#10B981', 'default_font_family' => 'Inter', 'sort_order' => 1],
 			['theme_key' => 'healthcare_pro', 'theme_name' => 'HealthCare Pro', 'industry' => 'pharmacy', 'description' => 'Professional pharmacy and healthcare theme with trust-focused design.', 'default_primary_color' => '#005EB8', 'default_secondary_color' => '#00A86B', 'default_font_family' => 'Inter', 'sort_order' => 2],
-			['theme_key' => 'beauty_luxe', 'theme_name' => 'Beauty Luxe', 'industry' => 'beauty', 'description' => 'Elegant beauty and cosmetics theme with soft aesthetics.', 'default_primary_color' => '#F8A4C8', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 3],
+			// Pharmacy presets (3 world-class designs)
+			['theme_key' => 'pharma_clinical', 'theme_name' => 'Pharma Clinical', 'industry' => 'pharmacy', 'description' => 'Medical-grade clinical pharmacy theme with deep trust blues, crisp typography and a professional healthcare-chain aesthetic.', 'default_primary_color' => '#005EB8', 'default_secondary_color' => '#00A86B', 'default_font_family' => 'Inter', 'sort_order' => 3],
+			['theme_key' => 'pharma_wellness', 'theme_name' => 'Pharma Wellness', 'industry' => 'pharmacy', 'description' => 'Modern wellness pharmacy theme with soft sage-teal tones, coral accents and a friendly holistic-health aesthetic.', 'default_primary_color' => '#0D9488', 'default_secondary_color' => '#F97066', 'default_font_family' => 'Poppins', 'sort_order' => 4],
+			['theme_key' => 'pharma_care', 'theme_name' => 'Pharma Care', 'industry' => 'pharmacy', 'description' => 'Warm community pharmacy theme with deep teal, amber accents and serif typography for a trusted neighbourhood care feel.', 'default_primary_color' => '#0F766E', 'default_secondary_color' => '#D97706', 'default_font_family' => 'Lora', 'sort_order' => 5],
+			['theme_key' => 'beauty_luxe', 'theme_name' => 'Beauty Luxe', 'industry' => 'beauty', 'description' => 'Elegant beauty and cosmetics theme with soft aesthetics.', 'default_primary_color' => '#F8A4C8', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 6],
 			// Fashion presets (3-4 designs per industry)
-			['theme_key' => 'urban_fashion', 'theme_name' => 'Urban Editorial', 'industry' => 'fashion', 'description' => 'Bold editorial layout with high-contrast typography and magazine-style hero sections.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#FF3B30', 'default_font_family' => 'Montserrat', 'sort_order' => 4],
-			['theme_key' => 'fashion_modern', 'theme_name' => 'Modern Minimal', 'industry' => 'fashion', 'description' => 'Clean, Shopify-style minimal design with generous whitespace, soft cards and refined typography.', 'default_primary_color' => '#0F172A', 'default_secondary_color' => '#6366F1', 'default_font_family' => 'Inter', 'sort_order' => 5],
-			['theme_key' => 'fashion_boutique', 'theme_name' => 'Boutique Luxe', 'industry' => 'fashion', 'description' => 'Elegant serif-driven boutique experience with refined gold accents and graceful transitions.', 'default_primary_color' => '#7C2D12', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 6],
-			['theme_key' => 'fashion_modest', 'theme_name' => 'Modest Studio', 'industry' => 'fashion', 'description' => 'Warm, modest-wear focused storefront with soft neutrals, calm spacing and inclusive imagery.', 'default_primary_color' => '#1F2937', 'default_secondary_color' => '#C2956A', 'default_font_family' => 'Lora', 'sort_order' => 7],
-			['theme_key' => 'fashion_luxe', 'theme_name' => 'Fashion Luxe', 'industry' => 'fashion', 'description' => 'Editorial luxury fashion theme with dramatic imagery, refined serif typography, and warm gold accents.', 'default_primary_color' => '#1A1A1A', 'default_secondary_color' => '#C9A961', 'default_font_family' => 'Playfair Display', 'sort_order' => 8],
-		['theme_key' => 'tech_hub', 'theme_name' => 'Tech Hub', 'industry' => 'electronics', 'description' => 'Modern electronics and gadgets theme with tech-forward design.', 'default_primary_color' => '#0A2540', 'default_secondary_color' => '#635BFF', 'default_font_family' => 'Inter', 'sort_order' => 9],
-			['theme_key' => 'fresh_market', 'theme_name' => 'Fresh Market', 'industry' => 'grocery', 'description' => 'Warm supermarket and grocery theme with organic feel.', 'default_primary_color' => '#2E7D32', 'default_secondary_color' => '#FF6F00', 'default_font_family' => 'Inter', 'sort_order' => 10],
-			['theme_key' => 'food_express', 'theme_name' => 'Food Express', 'industry' => 'restaurant', 'description' => 'Appetizing restaurant and food ordering theme.', 'default_primary_color' => '#D32F2F', 'default_secondary_color' => '#FBC02D', 'default_font_family' => 'Inter', 'sort_order' => 11],
-			['theme_key' => 'service_pro', 'theme_name' => 'Service Pro', 'industry' => 'services', 'description' => 'Professional services theme for agencies and consultancies.', 'default_primary_color' => '#1A237E', 'default_secondary_color' => '#00BCD4', 'default_font_family' => 'Inter', 'sort_order' => 12],
-			['theme_key' => 'laundry', 'theme_name' => 'Sparkle Laundry', 'industry' => 'laundry', 'description' => 'Clean, fresh laundry and dry cleaning theme for pickup, delivery and wash services.', 'default_primary_color' => '#0EA5E9', 'default_secondary_color' => '#22C55E', 'default_font_family' => 'Inter', 'sort_order' => 13],
-			['theme_key' => 'laundry_fresh', 'theme_name' => 'Fresh', 'industry' => 'laundry', 'description' => 'A clean, modern storefront designed for laundries, dry cleaners and garment-care businesses.', 'default_primary_color' => '#102A43', 'default_secondary_color' => '#2F80ED', 'default_font_family' => 'Inter', 'sort_order' => 14],
+			['theme_key' => 'urban_fashion', 'theme_name' => 'Urban Editorial', 'industry' => 'fashion', 'description' => 'Bold editorial layout with high-contrast typography and magazine-style hero sections.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#FF3B30', 'default_font_family' => 'Montserrat', 'sort_order' => 7],
+			['theme_key' => 'fashion_modern', 'theme_name' => 'Modern Minimal', 'industry' => 'fashion', 'description' => 'Clean, Shopify-style minimal design with generous whitespace, soft cards and refined typography.', 'default_primary_color' => '#0F172A', 'default_secondary_color' => '#6366F1', 'default_font_family' => 'Inter', 'sort_order' => 8],
+			['theme_key' => 'fashion_boutique', 'theme_name' => 'Boutique Luxe', 'industry' => 'fashion', 'description' => 'Elegant serif-driven boutique experience with refined gold accents and graceful transitions.', 'default_primary_color' => '#7C2D12', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 9],
+			['theme_key' => 'fashion_modest', 'theme_name' => 'Modest Studio', 'industry' => 'fashion', 'description' => 'Warm, modest-wear focused storefront with soft neutrals, calm spacing and inclusive imagery.', 'default_primary_color' => '#1F2937', 'default_secondary_color' => '#C2956A', 'default_font_family' => 'Lora', 'sort_order' => 10],
+			['theme_key' => 'fashion_luxe', 'theme_name' => 'Fashion Luxe', 'industry' => 'fashion', 'description' => 'Editorial luxury fashion theme with dramatic imagery, refined serif typography, and warm gold accents.', 'default_primary_color' => '#1A1A1A', 'default_secondary_color' => '#C9A961', 'default_font_family' => 'Playfair Display', 'sort_order' => 11],
+		['theme_key' => 'tech_hub', 'theme_name' => 'Tech Hub', 'industry' => 'electronics', 'description' => 'Modern electronics and gadgets theme with tech-forward design.', 'default_primary_color' => '#0A2540', 'default_secondary_color' => '#635BFF', 'default_font_family' => 'Inter', 'sort_order' => 12],
+			['theme_key' => 'fresh_market', 'theme_name' => 'Fresh Market', 'industry' => 'grocery', 'description' => 'Warm supermarket and grocery theme with organic feel.', 'default_primary_color' => '#2E7D32', 'default_secondary_color' => '#FF6F00', 'default_font_family' => 'Inter', 'sort_order' => 13],
+			// Grocery / supermarket presets (3 world-class designs)
+			['theme_key' => 'market_fresh', 'theme_name' => 'Market Fresh', 'industry' => 'grocery', 'description' => 'Vibrant produce-forward supermarket theme with fresh green and warm orange accents, Inter typography and quick-add grids.', 'default_primary_color' => '#16A34A', 'default_secondary_color' => '#F97316', 'default_font_family' => 'Inter', 'sort_order' => 14],
+			['theme_key' => 'daily_cart', 'theme_name' => 'Daily Cart', 'industry' => 'grocery', 'description' => 'Friendly neighbourhood mini mart and convenience store with deep blue and amber accents, rounded Poppins cards and quick essentials.', 'default_primary_color' => '#2563EB', 'default_secondary_color' => '#F59E0B', 'default_font_family' => 'Poppins', 'sort_order' => 15],
+			['theme_key' => 'grocery_plus', 'theme_name' => 'Grocery Plus', 'industry' => 'grocery', 'description' => 'Premium large-format supermarket chain with deep emerald and gold accents, Inter + Lora typography and a refined grocery experience.', 'default_primary_color' => '#047857', 'default_secondary_color' => '#B45309', 'default_font_family' => 'Lora', 'sort_order' => 16],
+			['theme_key' => 'food_express', 'theme_name' => 'Food Express', 'industry' => 'restaurant', 'description' => 'Appetizing restaurant and food ordering theme.', 'default_primary_color' => '#D32F2F', 'default_secondary_color' => '#FBC02D', 'default_font_family' => 'Inter', 'sort_order' => 17],
+			['theme_key' => 'service_pro', 'theme_name' => 'Service Pro', 'industry' => 'services', 'description' => 'Professional services theme for agencies and consultancies.', 'default_primary_color' => '#1A237E', 'default_secondary_color' => '#00BCD4', 'default_font_family' => 'Inter', 'sort_order' => 18],
+			['theme_key' => 'laundry', 'theme_name' => 'Sparkle Laundry', 'industry' => 'laundry', 'description' => 'Clean, fresh laundry and dry cleaning theme for pickup, delivery and wash services.', 'default_primary_color' => '#0EA5E9', 'default_secondary_color' => '#22C55E', 'default_font_family' => 'Inter', 'sort_order' => 19],
+			['theme_key' => 'laundry_fresh', 'theme_name' => 'Fresh', 'industry' => 'laundry', 'description' => 'A clean, modern storefront designed for laundries, dry cleaners and garment-care businesses.', 'default_primary_color' => '#102A43', 'default_secondary_color' => '#2F80ED', 'default_font_family' => 'Inter', 'sort_order' => 20],
+			['theme_key' => 'online_store', 'theme_name' => 'Online Store', 'industry' => 'general', 'description' => 'A storefront-first theme optimized for e-commerce and digital product catalogues.', 'default_primary_color' => '#7C3AED', 'default_secondary_color' => '#F97316', 'default_font_family' => 'Inter', 'sort_order' => 21],
+			['theme_key' => 'wholesale', 'theme_name' => 'Wholesale / B2B', 'industry' => 'wholesale', 'description' => 'Clean B2B wholesale theme designed for distributors, manufacturers and multi-branch operations.', 'default_primary_color' => '#1E3A8A', 'default_secondary_color' => '#10B981', 'default_font_family' => 'Inter', 'sort_order' => 22],
+			['theme_key' => 'hardware', 'theme_name' => 'Hardware & Materials', 'industry' => 'hardware', 'description' => 'Industrial hardware and building materials theme with strong, reliable typography.', 'default_primary_color' => '#374151', 'default_secondary_color' => '#F59E0B', 'default_font_family' => 'Inter', 'sort_order' => 23],
+			['theme_key' => 'agro', 'theme_name' => 'Agro Inputs', 'industry' => 'agro', 'description' => 'Agricultural inputs theme for agro dealers and feed stores with earthy, natural tones.', 'default_primary_color' => '#166534', 'default_secondary_color' => '#A16207', 'default_font_family' => 'Inter', 'sort_order' => 24],
+			['theme_key' => 'automotive', 'theme_name' => 'Automotive Parts', 'industry' => 'automotive', 'description' => 'Automotive parts and tyre shop theme with bold, mechanical styling.', 'default_primary_color' => '#111827', 'default_secondary_color' => '#EF4444', 'default_font_family' => 'Inter', 'sort_order' => 25],
+			['theme_key' => 'auto_modern', 'theme_name' => 'Auto Modern', 'industry' => 'automotive', 'description' => 'Clean, world-class car dealership theme with a blue and white hero, fast minified images, mobile-first grids and WhatsApp leads.', 'default_primary_color' => '#2563EB', 'default_secondary_color' => '#0B1220', 'default_font_family' => 'Inter', 'sort_order' => 26],
+			['theme_key' => 'auto_luxe', 'theme_name' => 'Auto Luxe', 'industry' => 'automotive', 'description' => 'Dark, premium luxury vehicle theme with gold accents, dramatic hero, and a premium buying experience.', 'default_primary_color' => '#C9A961', 'default_secondary_color' => '#0B0F1A', 'default_font_family' => 'Inter', 'sort_order' => 27],
+			['theme_key' => 'auto_garage', 'theme_name' => 'Auto Garage', 'industry' => 'automotive', 'description' => 'Rugged, high-energy auto theme for trucks, SUVs and performance vehicles with bold red and charcoal styling.', 'default_primary_color' => '#DC2626', 'default_secondary_color' => '#1F2937', 'default_font_family' => 'Inter', 'sort_order' => 28],
+			// Creator / digital store themes (3 modern templates)
+			['theme_key' => 'creator_focus', 'theme_name' => 'Creator Focus', 'industry' => 'creator', 'description' => 'Dark, modern digital storefront with purple-pink gradients and neon accents. Ideal for courses, ebooks and downloads.', 'default_primary_color' => '#7C3AED', 'default_secondary_color' => '#EC4899', 'default_font_family' => 'Inter', 'sort_order' => 29],
+			['theme_key' => 'creator_bold', 'theme_name' => 'Creator Bold', 'industry' => 'creator', 'description' => 'High-contrast black and orange creative theme. Bold, editorial and built for selling digital products and memberships.', 'default_primary_color' => '#FF4D00', 'default_secondary_color' => '#FFD700', 'default_font_family' => 'Inter', 'sort_order' => 30],
+			['theme_key' => 'creator_studio', 'theme_name' => 'Creator Studio', 'industry' => 'creator', 'description' => 'Warm, light and elegant studio theme with terracotta and cream. Perfect for coaches, creators and course creators.', 'default_primary_color' => '#C75D3A', 'default_secondary_color' => '#E4A15A', 'default_font_family' => 'Inter', 'sort_order' => 31],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
@@ -812,6 +868,9 @@ class Storefront_model extends CI_Model {
 		$canonical = [
 			'general_retail' => 'general',
 			'healthcare_pro' => 'pharmacy',
+			'pharma_clinical' => 'pharmacy',
+			'pharma_wellness' => 'pharmacy',
+			'pharma_care' => 'pharmacy',
 			'beauty_luxe' => 'beauty',
 			'urban_fashion' => 'fashion',
 			'fashion_modern' => 'fashion',
@@ -820,10 +879,14 @@ class Storefront_model extends CI_Model {
 			'fashion_luxe' => 'fashion',
 			'tech_hub' => 'electronics',
 			'fresh_market' => 'grocery',
+			'market_fresh' => 'grocery',
+			'daily_cart' => 'grocery',
+			'grocery_plus' => 'grocery',
 			'food_express' => 'restaurant',
 			'service_pro' => 'services',
 			'laundry' => 'laundry',
 			'laundry_fresh' => 'laundry',
+			'online_store' => 'general',
 		];
 		foreach($canonical as $key => $industry){
 			$this->db->where('theme_key', $key)->update('db_storefront_themes', ['industry' => $industry]);
@@ -998,11 +1061,11 @@ class Storefront_model extends CI_Model {
 		$storeId = (int)($storeId ?: get_current_store_id());
 		$limit = (int)$limit;
 		$expiryClause = $this->_expiredWhere('i', $storeId);
-		return $this->db->query("SELECT i.id, i.item_name, i.item_image, i.sales_price, i.online_price, i.discount_type, i.discount, i.stock, SUM(oi.qty) as sold_count
+		return $this->db->query("SELECT i.id, i.item_name, i.item_image, i.sales_price, i.online_price, i.discount_type, i.discount, i.stock, i.description, i.product_type, SUM(oi.qty) as sold_count
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
-			WHERE o.store_id=? AND oi.item_type='product' AND o.status=1 AND i.publish_online=1 AND (i.item_group IS NULL OR i.item_group='Single') AND $expiryClause
+			WHERE o.store_id=? AND oi.item_type IN ('product','digital','course','membership') AND o.status=1 AND i.publish_online=1 AND (i.item_group IS NULL OR i.item_group='Single') AND $expiryClause
 			GROUP BY oi.item_id
 			ORDER BY sold_count DESC
 			LIMIT ?", [$storeId, $limit])->result();
@@ -1013,7 +1076,7 @@ class Storefront_model extends CI_Model {
 		// Prefer manually flagged "New Arrival" products (is_new_arrival=1).
 		// Fall back to most recently added published products if none are flagged.
 		$buildQuery = function($storeId, $limit, $flaggedOnly) {
-			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, b.category_name');
+			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 			$this->db->where('a.store_id', $storeId);
@@ -1234,6 +1297,40 @@ class Storefront_model extends CI_Model {
 		return $this->db->where('id', $id)->delete('db_storefront_faqs');
 	}
 
+	// ============== NEWSLETTER SUBSCRIBERS ==============
+
+	public function saveNewsletterSubscriber($data){
+		try{
+			$exists = $this->db->where('store_id', $data['store_id'])->where('email', $data['email'])->get('db_newsletter_subscribers')->row();
+			if($exists){
+				return $exists->id;
+			}
+			$res = $this->db->insert('db_newsletter_subscribers', $data);
+			return $res ? $this->db->insert_id() : false;
+		} catch(Exception $e){ return false; }
+	}
+
+	public function getNewsletterSubscribers($storeId = null, $search = ''){
+		try{
+			$storeId = $storeId ?: get_current_store_id();
+			$this->db->where('store_id', $storeId);
+			if($search !== '') $this->db->like('email', $search);
+			return $this->db->order_by('id', 'desc')->get('db_newsletter_subscribers')->result();
+		} catch(Exception $e){ return []; }
+	}
+
+	public function countNewsletterSubscribers($storeId = null){
+		try{
+			$storeId = $storeId ?: get_current_store_id();
+			return (int)$this->db->where('store_id', $storeId)->where('status', 1)->count_all_results('db_newsletter_subscribers');
+		} catch(Exception $e){ return 0; }
+	}
+
+	public function deleteNewsletterSubscriber($id, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		return $this->db->where('id', $id)->where('store_id', $storeId)->delete('db_newsletter_subscribers');
+	}
+
 	// ============== CUSTOMER PORTAL HELPERS ==============
 
 	public function getOrdersByCustomer($customerId, $storeId, $limit = 50, $offset = 0){
@@ -1267,5 +1364,68 @@ class Storefront_model extends CI_Model {
 			if($json) return $json;
 		}
 		return null;
+	}
+
+	public function deliverDigitalOrder($orderId){
+		$order = $this->getOrder($orderId);
+		if(!$order || $order->payment_status !== 'paid') return false;
+		$items = $this->getOrderItems($orderId);
+		$hasDigital = false;
+		$allDigital = true;
+		foreach($items as $item){
+			if($item->item_type !== 'digital') $allDigital = false;
+			if($item->item_type === 'digital') $hasDigital = true;
+		}
+		if(!$hasDigital) return false;
+		$now = date('Y-m-d H:i:s');
+		foreach($items as $item){
+			if($item->item_type !== 'digital') continue;
+			$product = $this->db->where('id', $item->item_id)->get('db_items')->row();
+			if(!$product || empty($product->digital_file)) continue;
+			$hours = (int)($product->download_expiry_hours ?? 72);
+			$token = md5($item->id . '_' . $item->item_id . '_' . time() . '_' . rand(1000,9999));
+			$this->db->where('id', $item->id)->update('db_online_order_items', [
+				'download_token' => $token,
+				'download_count' => 0,
+				'download_expires_at' => date('Y-m-d H:i:s', strtotime("+$hours hours", strtotime($now)))
+			]);
+		}
+		if($allDigital){
+			$this->db->where('id', $orderId)->update('db_online_orders', ['order_status' => 'completed']);
+		}
+		return true;
+	}
+
+	public function deliverCourseAndMembership($orderId){
+		$order = $this->getOrder($orderId);
+		if(!$order || $order->payment_status !== 'paid' || empty($order->customer_id)) return false;
+
+		$this->load->model('course_model');
+		$this->load->model('creator_membership_model', 'membership_model');
+
+		$items = $this->getOrderItems($orderId);
+		foreach($items as $item){
+			if($item->item_type === 'course'){
+				$course = $this->course_model->getByItemId($item->item_id, $order->store_id);
+				if($course){
+					$this->course_model->enrollCustomer($order->customer_id, $course->id, $item->item_id, $order->id, $order->store_id);
+				}
+			} elseif($item->item_type === 'membership'){
+				$membership = $this->membership_model->getByItemId($item->item_id, $order->store_id);
+				if($membership){
+					$this->membership_model->createSubscription($order->customer_id, $membership->id, $item->item_id, $order->id, $order->store_id);
+				}
+			}
+		}
+		return true;
+	}
+
+	public function completeIfNoPhysicalProducts($orderId){
+		$items = $this->getOrderItems($orderId);
+		foreach($items as $item){
+			if($item->item_type === 'product') return false;
+		}
+		$this->db->where('id', $orderId)->update('db_online_orders', ['order_status' => 'completed']);
+		return true;
 	}
 }

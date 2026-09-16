@@ -41,6 +41,7 @@ class Store_profile_model extends CI_Model {
 		$sales_invoice_footer_text = $this->input->post('sales_invoice_footer_text', TRUE);
 		$invoice_terms = $this->input->post('invoice_terms', TRUE);
 		$round_off = $this->input->post('round_off', TRUE);
+		$show_tax = $this->input->post('show_tax', TRUE);
 		$language_id = $this->input->post('language_id', TRUE);
 		$decimals = $this->input->post('decimals', TRUE);
 		$qty_decimals = $this->input->post('qty_decimals', TRUE);
@@ -158,6 +159,7 @@ class Store_profile_model extends CI_Model {
 		$show_signature = (isset($show_signature)) ? 1 : 0;
 		$previous_balance_bit = (isset($previous_balance_bit)) ? 1 : 0;
 		$round_off = (isset($round_off)) ? 1 : 0;
+		$show_tax = (isset($show_tax)) ? 1 : 0;
 
 		
 
@@ -330,6 +332,7 @@ class Store_profile_model extends CI_Model {
 				_mp_set_structured_setting($q_id, 'db_store_payment_settings', $payment_data);
 			}
 			if($this->db->table_exists('db_store_settings')){
+				mp_set_store_setting($q_id, 'receipt', 'show_tax', $show_tax, 'int');
 				mp_set_store_setting($q_id, 'general', 'language_id', $language_id, 'int');
 				foreach($nin_data as $k => $v){
 					mp_set_store_setting($q_id, 'nin_api', $k, $v, 'string');
@@ -368,6 +371,7 @@ class Store_profile_model extends CI_Model {
 			// sales_target lives in db_sitesettings (global), not db_store
 			$site = $this->db->select('sales_target')->where('id', 1)->get('db_sitesettings')->row();
 			$data['sales_target'] = ($site && isset($site->sales_target)) ? $site->sales_target : 0;
+			$data['show_tax'] = isset($all['show_tax']) ? (int)$all['show_tax'] : (function_exists('mp_get_store_setting') ? mp_get_store_setting($id, 'receipt', 'show_tax', 1) : 1);
 			// Modular settings are the source of truth; they override the legacy db_store row
 			return array_merge($data, $query1->row_array(), $all);
 		}

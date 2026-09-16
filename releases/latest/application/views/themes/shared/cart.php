@@ -125,6 +125,18 @@ let selectedPayment = 'pay_on_delivery';
 let selectedShippingMethod = '';
 const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
 const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
+const TABLE_NUMBER = <?= json_encode($table_number ?? ''); ?>;
+
+// Detect if cart is digital-only (no physical items needing shipping)
+function isCartDigitalOnly(){
+  if(cartData.length === 0) return false;
+  return cartData.every(i => ['digital','course','membership'].indexOf(i.type) !== -1);
+}
+
+function isCartPhysicalOnly(){
+  if(cartData.length === 0) return false;
+  return cartData.every(i => (i.type || 'product') === 'physical');
+}
 
 function renderCart(){
   const c = document.getElementById('cart-container');
@@ -139,9 +151,14 @@ function renderCart(){
   // === LEFT COLUMN: Checkout form ===
   html += '<div class="mp-cart-left">';
 
+  // Table QR banner
+  if(TABLE_NUMBER){
+    html += '<div style="background:#EFF6FF;border:1px solid var(--mp-primary);border-radius:var(--mp-radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--mp-primary);"><i class="fa fa-qrcode"></i> Ordering for Table: ' + TABLE_NUMBER + '</div>';
+  }
+
   // Step 1: Contact details
   html += '<div class="mp-checkout-card">';
-  html += '<div class="mp-checkout-card-title"><span class="mp-step-num">1</span> Contact Details</div>';
+  html += '<div class="mp-checkout-card-title"><span class="mp-step-num">1</span> ' + (TABLE_NUMBER ? 'Your Name for Table ' + TABLE_NUMBER + ' *' : 'Contact Details') + '</div>';
   html += '<div class="mp-checkout-fields">';
   html += '<div><label class="mp-cart-label">Full Name *</label><input type="text" class="mp-cart-input" id="cust-name" placeholder="John Doe"></div>';
   html += '<div><label class="mp-cart-label">Phone Number *</label><input type="tel" class="mp-cart-input" id="cust-phone" placeholder="08012345678"></div>';
@@ -151,7 +168,7 @@ function renderCart(){
   html += '</div>';
 
   // Step 2: Shipping
-  if(SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE){
+  if(!isCartDigitalOnly() && (SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE)){
     html += '<div class="mp-checkout-card">';
     html += '<div class="mp-checkout-card-title"><span class="mp-step-num">2</span> Shipping Method</div>';
     if(SHIPPING_NOTICE){
@@ -194,10 +211,11 @@ function renderCart(){
   }
 
   // Step 3/4: Payment
+  let hasShip = !isCartDigitalOnly() && (SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE);
   let payStepNum = 3;
-  if(!(SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE) && !hasAppt && !hasNote) payStepNum = 2;
-  else if(!(SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE) && (hasAppt || hasNote)) payStepNum = 3;
-  else if((SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE) && !(hasAppt || hasNote)) payStepNum = 3;
+  if(!hasShip && !hasAppt && !hasNote) payStepNum = 2;
+  else if(!hasShip && (hasAppt || hasNote)) payStepNum = 3;
+  else if(hasShip && !(hasAppt || hasNote)) payStepNum = 3;
   else payStepNum = 4;
 
   html += '<div class="mp-checkout-card">';
@@ -210,7 +228,9 @@ function renderCart(){
   html += '<div class="mp-payment-option<?= (!$settings->allow_paystack||!$paystack_enabled)?' active':''; ?>" onclick="selPay(this,\'whatsapp\')"><input type="radio" name="paymethod" value="whatsapp"<?= (!$settings->allow_paystack||!$paystack_enabled)?' checked':''; ?>><div><div class="mp-pay-label">Order via WhatsApp</div><div class="mp-pay-desc">Send order to store on WhatsApp</div></div></div>';
   <?php endif; ?>
   <?php if($settings->allow_pay_on_delivery): ?>
-  html += '<div class="mp-payment-option" onclick="selPay(this,\'pay_on_delivery\')"><input type="radio" name="paymethod" value="pay_on_delivery"><div><div class="mp-pay-label">Pay on Delivery</div><div class="mp-pay-desc">Pay when your order arrives</div></div></div>';
+  if(isCartPhysicalOnly()){
+    html += '<div class="mp-payment-option" onclick="selPay(this,\'pay_on_delivery\')"><input type="radio" name="paymethod" value="pay_on_delivery"><div><div class="mp-pay-label">Pay on Delivery</div><div class="mp-pay-desc">Pay when your order arrives</div></div></div>';
+  }
   <?php endif; ?>
   html += '</div>';
   html += '</div>'; // end payment card
@@ -294,7 +314,8 @@ function placeOrder(){
   const sDate=document.getElementById('service-date')?.value||'';
   const sTime=document.getElementById('service-time')?.value||'';
   const sNote=document.getElementById('service-note')?.value||'';
-  if(!name||!phone){ showToast('Please enter name and phone'); return; }
+  if(!name){ showToast('Please enter your name' + (TABLE_NUMBER ? ' for this table' : '')); return; }
+  if(!phone){ showToast('Please enter your phone number'); return; }
   if(cartData.length===0){ showToast('Cart is empty'); return; }
   const btn=document.getElementById('checkout-btn'); btn.disabled=true; btn.textContent='Processing...';
   const payload=cartData.map(i=>({id:i.id,type:i.type,name:i.name,price:i.price,qty:i.qty,image:i.image,note:i.service_note||'',requires_appointment:i.requires_appointment||false,requires_note:i.requires_note||false}));
@@ -306,7 +327,7 @@ function placeOrder(){
     msg+='\nSubtotal: '+formatMoney(total);
     if(selectedShippingMethod){ msg+='\nShipping: '+selectedShippingMethod+(shipFee>0?' ('+formatMoney(shipFee)+')':' (Free)'); }
     msg+='\nTotal: '+formatMoney(total+shipFee); msg+='\n\nName: '+name; msg+='\nPhone: '+phone;
-    if(email) msg+='\nEmail: '+email; if(address) msg+='\nAddress: '+address; if(selectedShippingMethod) msg+='\nShipping Method: '+selectedShippingMethod; if(sDate) msg+='\nService Date: '+sDate; if(sTime) msg+='\nService Time: '+sTime; if(sNote) msg+='\nService Note: '+sNote; msg+='\n\nThank you.';
+    if(email) msg+='\nEmail: '+email; if(address) msg+='\nAddress: '+address; if(selectedShippingMethod) msg+='\nShipping Method: '+selectedShippingMethod; if(sDate) msg+='\nService Date: '+sDate; if(sTime) msg+='\nService Time: '+sTime; if(sNote) msg+='\nService Note: '+sNote; if(TABLE_NUMBER){ msg+='\nTable: '+TABLE_NUMBER; } msg+='\n\nThank you.';
     const wnum='<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
     if(wnum) window.open('https://wa.me/'+wnum+'?text='+encodeURIComponent(msg),'_blank');
     submitOrder('whatsapp',name,phone,email,address,sDate,sTime,sNote,payload,btn); return;
@@ -320,6 +341,7 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   data.append('customer_email',email); data.append('customer_address',address); data.append('payment_method',pm);
   data.append('shipping_method',selectedShippingMethod||'');
   data.append('service_date',sDate); data.append('service_time',sTime); data.append('service_note',sNote);
+  data.append('table_number',TABLE_NUMBER);
   data.append('cart',JSON.stringify(payload));
   if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
   fetch('<?= base_url('storefront/place_order'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data.toString()})

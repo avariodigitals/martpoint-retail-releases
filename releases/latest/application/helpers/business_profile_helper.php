@@ -24,11 +24,49 @@ if (!function_exists('mp_get_business_types')) {
             'makeup_artist'         => 'Makeup Artist',
             'laundry'               => 'Laundry',
             'bakery_cake_studio'    => 'Bakery & Cake Studio',
+            'distributor'           => 'Distributor',
+            'wholesaler'            => 'Wholesaler',
             'bookshop'              => 'Bookshop',
             'building_materials'    => 'Building Materials',
             'furniture'             => 'Furniture',
             'phone_accessories'     => 'Phone Accessories',
             'service_business'      => 'Service Business',
+            'grocery_store'         => 'Grocery Store',
+            'provision_store'       => 'Provision Store',
+            'convenience_store'     => 'Convenience Store',
+            'fast_food'             => 'Fast Food',
+            'cafe'                  => 'Cafe',
+            'pizza_shop'            => 'Pizza Shop',
+            'shawarma'              => 'Shawarma',
+            'juice_bar'             => 'Juice Bar',
+            'buka'                  => 'Buka / Mama Put',
+            'canteen'               => 'Canteen / Food Court',
+            'butcher'               => 'Butcher / Meat Shop',
+            'frozen_foods_retailer' => 'Frozen Foods Retailer',
+            'medical_store'         => 'Medical Store',
+            'clinic'                => 'Clinic',
+            'hospital'              => 'Hospital',
+            'diagnostic_centre'     => 'Diagnostic Centre',
+            'boutique'              => 'Boutique',
+            'shoe_store'            => 'Shoe Store',
+            'perfume_shop'          => 'Perfume Shop',
+            'jewellery_store'       => 'Jewellery Store',
+            'computer_store'        => 'Computer Store',
+            'gadget_store'          => 'Gadget Store',
+            'appliance_store'       => 'Appliance Store',
+            'paint_store'           => 'Paint Store',
+            'plumbing_store'        => 'Plumbing Store',
+            'agro_dealer'           => 'Agro Dealer',
+            'feed_store'            => 'Feed Store',
+            'auto_parts'            => 'Auto Parts',
+            'tyre_shop'             => 'Tyre Shop',
+            'car_dealership'        => 'Car Dealership',
+            'printing'              => 'Printing',
+            'tailoring'             => 'Tailoring',
+            'manufacturer'          => 'Manufacturer',
+            'multi_branch_retail'   => 'Multi-Branch Retail',
+            'online_store'          => 'Online Store',
+            'creator'               => 'Creator / Digital Store',
         ];
     }
 }
@@ -62,15 +100,20 @@ if (!function_exists('mp_get_feature_flags')) {
             'bundles'                   => 'Bundles',
             'memberships'               => 'Memberships',
             'multi_unit_inventory'      => 'Multi-Unit Inventory',
+            'multi_unit_selling'        => 'Multi-Unit Selling (Pack/Piece/Box)',
             'batch_tracking'            => 'Batch Tracking',
             'expiry_tracking'           => 'Expiry Tracking',
             'mfg_tracking'              => 'Manufacturing / MFG Date',
             'serial_number_tracking'    => 'Serial Number Tracking',
             'imei_tracking'             => 'IMEI Tracking',
             'warranty_tracking'         => 'Warranty Tracking',
+            'auto_parts'                => 'Auto Parts / Spares Catalog',
             'kitchen_workflow'          => 'Kitchen Workflow',
             'table_management'          => 'Table Management',
             'laundry_workflow'          => 'Laundry Workflow',
+            'meat_butchery_workflow'    => 'Meat / Butchery Workflow',
+            'frozen_food_cold_chain'    => 'Frozen Food Cold Chain',
+            'automobile_workflow'       => 'Automobile / Vehicle Management',
             'treatment_notes'           => 'Treatment Notes',
             'staff_assignment'          => 'Staff Assignment',
             'staff_commission'          => 'Staff Commission',
@@ -80,10 +123,14 @@ if (!function_exists('mp_get_feature_flags')) {
             'customer_notes'            => 'Customer Notes',
             'price_catalogue'           => 'Price Catalogue',
             'public_catalogue'          => 'Public Catalogue',
+            'digital_products'          => 'Digital Products',
+            'courses'                   => 'Online Courses',
             'manager_approvals'         => 'Manager Approvals',
             'cashier_shifts'            => 'Cashier Shifts / Tills',
             'medical_notes'             => 'Medical Notes (Pharmacy)',
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
+            'pos_retail_button'         => 'POS Retail Price Button',
+            'pos_wholesale_button'      => 'POS Wholesale Price Button',
         ];
     }
 }
@@ -152,22 +199,22 @@ if (!function_exists('mp_get_label_defaults')) {
 
 if (!function_exists('mp_get_business_presets')) {
     function mp_get_business_presets() {
-        return [
+        $presets = [
             'general_retail' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','batch_tracking','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','batch_tracking','public_catalogue','pos_retail_button','pos_wholesale_button','digital_products','courses'],
                 'theme_key'=>'general_retail','dashboard_template'=>'general_retail','workflow_template'=>'retail_standard','labels'=>[],
             ],
             'supermarket' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','batch_tracking','expiry_tracking','delivery_scheduling','public_catalogue'],
-                'theme_key'=>'fresh_market','dashboard_template'=>'supermarket','workflow_template'=>'retail_standard',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','delivery_scheduling','public_catalogue','pos_retail_button'],
+                'theme_key'=>'market_fresh','dashboard_template'=>'supermarket','workflow_template'=>'retail_standard',
                 'labels'=>['warehouse'=>'Branch','item'=>'Product'],
             ],
             'mini_mart' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','expiry_tracking','public_catalogue'],
-                'theme_key'=>'general_retail','dashboard_template'=>'mini_mart','workflow_template'=>'retail_standard',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','public_catalogue','pos_retail_button'],
+                'theme_key'=>'daily_cart','dashboard_template'=>'mini_mart','workflow_template'=>'retail_standard',
                 'labels'=>['warehouse'=>'Branch','item'=>'Product'],
             ],
             'pharmacy' => [
@@ -178,13 +225,13 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'restaurant' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Dining Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
             ],
             'electronics' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','serial_number_tracking','imei_tracking','warranty_tracking','manager_approvals','price_catalogue','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','serial_number_tracking','imei_tracking','warranty_tracking','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
                 'labels'=>['item'=>'Product','serial'=>'Serial Number','imei'=>'IMEI'],
             ],
@@ -196,71 +243,330 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'beauty_cosmetics' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','price_catalogue','public_catalogue'],
+                'features'=>['accounts','online_store','qr_ordering','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'beauty','workflow_template'=>'beauty_standard',
                 'labels'=>['service'=>'Treatment','service_order'=>'Treatment Booking','customer'=>'Client','staff'=>'Therapist'],
             ],
             'beauty_spa' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','packages','memberships','public_catalogue'],
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','packages','memberships','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'beauty_spa','workflow_template'=>'beauty_standard',
                 'labels'=>['service'=>'Treatment','service_order'=>'Spa Booking','customer'=>'Guest','staff'=>'Therapist','package'=>'Spa Package'],
             ],
             'salon_barbershop' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','public_catalogue'],
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'salon','workflow_template'=>'salon_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Booking','customer'=>'Client','staff'=>'Stylist','package'=>'Service Package'],
             ],
             'makeup_artist' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','staff_assignment','staff_commission','treatment_notes','public_catalogue'],
+                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','staff_assignment','staff_commission','treatment_notes','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'beauty_luxe','dashboard_template'=>'makeup_artist','workflow_template'=>'makeup_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Booking','customer'=>'Client','staff'=>'Artist','custom_order'=>'Custom Booking'],
             ],
             'laundry' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','qr_ordering','service_workflow','laundry_workflow','loyalty','delivery_scheduling','staff_assignment','staff_commission','public_catalogue'],
+                'features'=>['accounts','online_store','qr_ordering','service_workflow','laundry_workflow','loyalty','delivery_scheduling','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'laundry','dashboard_template'=>'laundry','workflow_template'=>'laundry_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Laundry Order','customer'=>'Customer','delivery'=>'Pickup/Delivery'],
             ],
             'bakery_cake_studio' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','packages','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','packages','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'food_express','dashboard_template'=>'bakery','workflow_template'=>'bakery_standard',
                 'labels'=>['service'=>'Custom Cake','service_order'=>'Cake Order','customer'=>'Client','product'=>'Baked Item','recipe'=>'Recipe','production'=>'Production'],
             ],
             'bookshop' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'general_retail','dashboard_template'=>'bookshop','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Book','category'=>'Genre'],
             ],
             'building_materials' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'general_retail','dashboard_template'=>'building_materials','workflow_template'=>'wholesale_standard',
                 'labels'=>['item'=>'Material','warehouse'=>'Depot','customer'=>'Client'],
             ],
             'furniture' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','custom_orders','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue'],
+                'features'=>['accounts','online_store','custom_orders','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'general_retail','dashboard_template'=>'furniture','workflow_template'=>'furniture_standard',
                 'labels'=>['item'=>'Furniture','service'=>'Custom Design','service_order'=>'Design Order','customer'=>'Client','delivery'=>'Delivery'],
             ],
             'phone_accessories' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','imei_tracking','warranty_tracking','public_catalogue'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','imei_tracking','warranty_tracking','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'tech_hub','dashboard_template'=>'phone_accessories','workflow_template'=>'electronics_standard',
                 'labels'=>['item'=>'Accessory','imei'=>'IMEI','serial'=>'Serial'],
             ],
+            'distributor' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Product','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+            ],
+            'wholesaler' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'wholesaler','workflow_template'=>'wholesaler_standard',
+                'labels'=>['item'=>'Product','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Branch','order'=>'Order'],
+            ],
             'service_business' => [
                 'business_model'=>'service_based',
-                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','memberships','public_catalogue'],
+                'features'=>['accounts','online_store','appointments','service_workflow','custom_orders','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','packages','memberships','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'service_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Service','service_order'=>'Job','customer'=>'Client','staff'=>'Team Member'],
             ],
+            'grocery_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','public_catalogue','pos_retail_button'],
+                'theme_key'=>'daily_cart','dashboard_template'=>'mini_mart','workflow_template'=>'retail_standard',
+                'labels'=>['warehouse'=>'Branch','item'=>'Product'],
+            ],
+            'provision_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','expiry_tracking','public_catalogue','pos_retail_button'],
+                'theme_key'=>'daily_cart','dashboard_template'=>'mini_mart','workflow_template'=>'retail_standard',
+                'labels'=>['warehouse'=>'Branch','item'=>'Product'],
+            ],
+            'convenience_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','expiry_tracking','public_catalogue','pos_retail_button'],
+                'theme_key'=>'daily_cart','dashboard_template'=>'mini_mart','workflow_template'=>'retail_standard',
+                'labels'=>['warehouse'=>'Branch','item'=>'Product'],
+            ],
+            'fast_food' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Menu Item','service'=>'Fast Food Service','table'=>'Counter','order'=>'Order','pos'=>'Counter'],
+            ],
+            'cafe' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Menu Item','service'=>'Cafe Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
+            ],
+            'pizza_shop' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Pizza','service'=>'Pizza Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
+            ],
+            'shawarma' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Shawarma','service'=>'Grill Service','table'=>'Counter','order'=>'Order','pos'=>'Counter'],
+            ],
+            'juice_bar' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','custom_orders','table_management','kitchen_workflow','loyalty','delivery_scheduling','recipe_tracking','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Beverage','service'=>'Juice Service','table'=>'Counter','order'=>'Order','pos'=>'Counter'],
+            ],
+            'buka' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Menu Item','service'=>'Buka Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
+            ],
+            'canteen' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                'labels'=>['item'=>'Menu Item','service'=>'Canteen Service','table'=>'Table','order'=>'Meal','pos'=>'Counter'],
+            ],
+            'butcher' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','meat_butchery_workflow','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'market_fresh','dashboard_template'=>'butcher','workflow_template'=>'retail_standard',
+                'labels'=>['item'=>'Cut / Product','batch'=>'Batch','expiry'=>'Expiry Date','warehouse'=>'Branch','customer'=>'Customer'],
+            ],
+            'frozen_foods_retailer' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','frozen_food_cold_chain','pos_retail_button'],
+                'theme_key'=>'market_fresh','dashboard_template'=>'frozen_foods','workflow_template'=>'retail_standard',
+                'labels'=>['item'=>'Product / Pack','batch'=>'Batch','expiry'=>'Expiry Date','warehouse'=>'Branch','customer'=>'Customer'],
+            ],
+            'medical_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','loyalty','multi_unit_inventory','batch_tracking','expiry_tracking','serial_number_tracking','manager_approvals','price_catalogue','public_catalogue','medical_notes'],
+                'theme_key'=>'healthcare_pro','dashboard_template'=>'pharmacy','workflow_template'=>'pharmacy_standard',
+                'labels'=>['item'=>'Medical Item','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Patient'],
+            ],
+            'clinic' => [
+                'business_model'=>'service_based',
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue'],
+                'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
+                'labels'=>['service'=>'Consultation','service_order'=>'Appointment','customer'=>'Patient','staff'=>'Doctor'],
+            ],
+            'hospital' => [
+                'business_model'=>'service_based',
+                'features'=>['accounts','warehouse','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue'],
+                'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
+                'labels'=>['service'=>'Hospital Service','service_order'=>'Admission','customer'=>'Patient','staff'=>'Doctor','warehouse'=>'Department'],
+            ],
+            'diagnostic_centre' => [
+                'business_model'=>'service_based',
+                'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue'],
+                'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
+                'labels'=>['service'=>'Test','service_order'=>'Booking','customer'=>'Patient','staff'=>'Technician'],
+            ],
+            'boutique' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
+                'labels'=>['item'=>'Item','category'=>'Collection','customer'=>'Customer','warehouse'=>'Branch'],
+            ],
+            'shoe_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
+                'labels'=>['item'=>'Shoe','category'=>'Category','customer'=>'Customer','warehouse'=>'Branch'],
+            ],
+            'perfume_shop' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','online_store','qr_ordering','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'beauty_luxe','dashboard_template'=>'beauty','workflow_template'=>'beauty_standard',
+                'labels'=>['item'=>'Perfume','service'=>'Service','customer'=>'Client','staff'=>'Therapist'],
+            ],
+            'jewellery_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','serial_number_tracking','warranty_tracking','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
+                'labels'=>['item'=>'Jewellery','serial'=>'Serial Number','imei'=>'Model No','customer'=>'Client'],
+            ],
+            'computer_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','serial_number_tracking','warranty_tracking','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
+                'labels'=>['item'=>'Computer','serial'=>'Serial Number','imei'=>'IMEI','customer'=>'Customer'],
+            ],
+            'gadget_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','imei_tracking','warranty_tracking','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
+                'labels'=>['item'=>'Gadget','imei'=>'IMEI','serial'=>'Serial','customer'=>'Customer'],
+            ],
+            'appliance_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','serial_number_tracking','warranty_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
+                'labels'=>['item'=>'Appliance','serial'=>'Serial Number','warranty'=>'Warranty','customer'=>'Client'],
+            ],
+            'paint_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'building_materials','workflow_template'=>'wholesale_standard',
+                'labels'=>['item'=>'Paint','warehouse'=>'Depot','customer'=>'Client'],
+            ],
+            'plumbing_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'building_materials','workflow_template'=>'wholesale_standard',
+                'labels'=>['item'=>'Plumbing Item','warehouse'=>'Depot','customer'=>'Client'],
+            ],
+            'agro_dealer' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Agro Input','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+            ],
+            'feed_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Feed','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+            ],
+            'auto_parts' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Auto Part','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+            ],
+            'tyre_shop' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Tyre','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+            ],
+            'car_dealership' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','automobile_workflow','auto_parts','service_workflow','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Auto Part','customer'=>'Buyer','warehouse'=>'Branch','order'=>'Order'],
+            ],
+            'printing' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','custom_orders','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
+                'labels'=>['service'=>'Print Job','service_order'=>'Print Order','item'=>'Material','customer'=>'Client','recipe'=>'Recipe','production'=>'Production'],
+            ],
+            'tailoring' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','online_store','custom_orders','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
+                'labels'=>['service'=>'Tailoring Job','service_order'=>'Order','item'=>'Fabric','customer'=>'Client','staff'=>'Tailor'],
+            ],
+            'manufacturer' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','production_workflow','recipe_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Finished Good','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Factory','order'=>'Order','recipe'=>'Recipe','production'=>'Production'],
+            ],
+            'multi_branch_retail' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','multi_store','online_store','qr_ordering','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
+                'labels'=>['item'=>'Product','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Branch','order'=>'Order'],
+            ],
+            'online_store' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','batch_tracking','public_catalogue','pos_retail_button','pos_wholesale_button','digital_products','courses'],
+                'theme_key'=>'online_store','dashboard_template'=>'online_store','workflow_template'=>'online_store',
+                'labels'=>['item'=>'Product','customer'=>'Customer','warehouse'=>'Branch'],
+            ],
+            'creator' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','pos_retail_button','pos_wholesale_button','packages','memberships','digital_products','courses'],
+                'theme_key'=>'creator_focus','dashboard_template'=>'creator','workflow_template'=>'standard',
+                'labels'=>['item'=>'Product','service'=>'Service','customer'=>'Customer','warehouse'=>'Branch'],
+            ],
         ];
+        $theme_map = [
+            'distributor'           => 'wholesale',
+            'wholesaler'            => 'wholesale',
+            'manufacturer'          => 'wholesale',
+            'multi_branch_retail'   => 'wholesale',
+            'building_materials'    => 'hardware',
+            'paint_store'           => 'hardware',
+            'plumbing_store'        => 'hardware',
+            'agro_dealer'           => 'agro',
+            'feed_store'            => 'agro',
+            'auto_parts'            => 'automotive',
+            'tyre_shop'             => 'automotive',
+            'car_dealership'        => 'auto_modern',
+            'bookshop'              => 'general_retail',
+            'furniture'             => 'general_retail',
+            'printing'              => 'service_pro',
+            'tailoring'             => 'service_pro',
+        ];
+        foreach ($presets as $key => &$preset) {
+            if (empty($preset['dashboard_template'])) {
+                $preset['dashboard_template'] = $key;
+            }
+            if (empty($preset['workflow_template'])) {
+                $preset['workflow_template'] = $key . '_standard';
+            }
+            if (isset($theme_map[$key])) {
+                $preset['theme_key'] = $theme_map[$key];
+            }
+        }
+        unset($preset);
+        return $presets;
     }
 }
 
@@ -326,10 +632,12 @@ if (!function_exists('mp_feature_enabled')) {
             case 'warehouse': case 'multi_unit_inventory': return warehouse_module();
             case 'online_store': case 'qr_ordering': case 'loyalty': case 'gift_cards': case 'store_credit': return in_array($flag_key, $profile_features);
             // Inventory tracking flags - require both the warehouse module and the industry profile
-            case 'serial_number_tracking': case 'imei_tracking': case 'warranty_tracking': case 'batch_tracking': case 'expiry_tracking': return warehouse_module() && in_array($flag_key, $profile_features);
+            case 'serial_number_tracking': case 'imei_tracking': case 'warranty_tracking': case 'batch_tracking': case 'expiry_tracking': case 'meat_butchery_workflow': case 'frozen_food_cold_chain': return warehouse_module() && in_array($flag_key, $profile_features);
             case 'mfg_tracking': return mp_feature_enabled('expiry_tracking');
             // Service flags - require service module and the industry profile
-            case 'treatment_notes': case 'staff_assignment': case 'staff_commission': case 'custom_orders': case 'table_management': return service_module() && in_array($flag_key, $profile_features);
+            case 'treatment_notes': case 'staff_assignment': case 'staff_commission': case 'custom_orders': return service_module() && in_array($flag_key, $profile_features);
+            // Table management is a restaurant/food feature, not a service-workflow feature
+            case 'table_management': return in_array($flag_key, $profile_features);
             // Business-driven features
             case 'packages': case 'memberships': case 'kitchen_workflow': case 'laundry_workflow': case 'production_workflow': case 'recipe_tracking': case 'delivery_scheduling': return in_array($flag_key, $profile_features);
             // Sales & storefront
@@ -428,7 +736,7 @@ if (!function_exists('mp_get_default_profile')) {
     function mp_get_default_profile() {
         return [
             'industry_type'=>'general_retail','business_model'=>'product_based',
-            'features'=>['online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','batch_tracking','public_catalogue'],
+            'features'=>['online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','batch_tracking','public_catalogue','pos_retail_button','pos_wholesale_button'],
             'theme_key'=>'general_retail','dashboard_template'=>'general_retail',
             'workflow_template'=>'retail_standard','labels'=>[],'settings'=>[],
         ];
@@ -480,8 +788,8 @@ if (!function_exists('mp_get_dashboard_widgets')) {
             'stock_alert'=>['title'=>'Low Stock Alert','icon'=>'fa-bell','industries'=>'*','features'=>[]],
             'top_selling_items'=>['title'=>'Top Selling Items','icon'=>'fa-trophy','industries'=>'*','features'=>[]],
             'recent_transactions'=>['title'=>'Recent Transactions','icon'=>'fa-list','industries'=>'*','features'=>[]],
-            'near_expiry'=>['title'=>'Near Expiry','icon'=>'fa-calendar-times-o','industries'=>['pharmacy','supermarket','mini_mart','bakery_cake_studio'],'features'=>['expiry_tracking']],
-            'expired_items'=>['title'=>'Expired Items','icon'=>'fa-ban','industries'=>['pharmacy','supermarket','mini_mart','bakery_cake_studio'],'features'=>['expiry_tracking']],
+            'near_expiry'=>['title'=>'Near Expiry','icon'=>'fa-calendar-times-o','industries'=>['pharmacy','supermarket','mini_mart','distributor','wholesaler','bakery_cake_studio'],'features'=>['expiry_tracking']],
+            'expired_items'=>['title'=>'Expired Items','icon'=>'fa-ban','industries'=>['pharmacy','supermarket','mini_mart','distributor','wholesaler','bakery_cake_studio'],'features'=>['expiry_tracking']],
             'low_stock_medicines'=>['title'=>'Low Stock Medicines','icon'=>'fa-medkit','industries'=>['pharmacy'],'features'=>[]],
             'pending_laundry'=>['title'=>'Pending Laundry','icon'=>'fa-refresh','industries'=>['laundry'],'features'=>['laundry_workflow']],
             'ready_for_pickup'=>['title'=>'Ready for Pickup','icon'=>'fa-check-circle','industries'=>['laundry'],'features'=>['laundry_workflow']],
@@ -490,7 +798,7 @@ if (!function_exists('mp_get_dashboard_widgets')) {
             'production_queue'=>['title'=>'Production Queue','icon'=>'fa-industry','industries'=>['bakery_cake_studio','restaurant'],'features'=>['production_workflow']],
             'deposit_balance'=>['title'=>'Deposit Balance','icon'=>'fa-money','industries'=>['bakery_cake_studio','furniture','makeup_artist'],'features'=>['custom_orders']],
             'pending_appointments'=>['title'=>'Pending Appointments','icon'=>'fa-calendar-check-o','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','service_business'],'features'=>['appointments']],
-            'today_bookings'=>['title'=>"Today's Bookings",'icon'=>'fa-calendar','industries'=>['restaurant','beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist'],'features'=>['appointments','table_management']],
+            'today_bookings'=>['title'=>"Today's Bookings & Tables",'icon'=>'fa-calendar','industries'=>['restaurant','beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist'],'features'=>['appointments','table_management']],
             'kitchen_status'=>['title'=>'Kitchen Status','icon'=>'fa-fire','industries'=>['restaurant'],'features'=>['kitchen_workflow']],
             'open_tables'=>['title'=>'Open Tables','icon'=>'fa-table','industries'=>['restaurant'],'features'=>['table_management']],
             'staff_schedule'=>['title'=>'Staff Schedule','icon'=>'fa-users','industries'=>'*','features'=>['staff_assignment']],
@@ -525,7 +833,7 @@ if (!function_exists('mp_get_active_dashboard_widgets')) {
 
 if (!function_exists('mp_get_workflow_templates')) {
     function mp_get_workflow_templates() {
-        return [
+        $templates = [
             'retail_standard'       => 'Retail Standard',
             'pharmacy_standard'   => 'Pharmacy Standard',
             'restaurant_standard' => 'Restaurant Standard',
@@ -536,15 +844,24 @@ if (!function_exists('mp_get_workflow_templates')) {
             'laundry_standard'    => 'Laundry Standard',
             'bakery_standard'     => 'Bakery / Cake Studio Standard',
             'wholesale_standard'  => 'Wholesale Standard',
+            'distributor_standard' => 'Distributor Standard',
+            'wholesaler_standard'  => 'Wholesaler Standard',
             'furniture_standard'  => 'Furniture Standard',
             'service_standard'    => 'Service Business Standard',
         ];
+        foreach (mp_get_business_types() as $key => $label) {
+            $standard = $key . '_standard';
+            if (!isset($templates[$standard])) {
+                $templates[$standard] = $label . ' Standard';
+            }
+        }
+        return $templates;
     }
 }
 
 if (!function_exists('mp_get_dashboard_templates')) {
     function mp_get_dashboard_templates() {
-        return [
+        $templates = [
             'general_retail'      => 'General Retail',
             'supermarket'         => 'Supermarket',
             'mini_mart'           => 'Mini Mart',
@@ -562,8 +879,16 @@ if (!function_exists('mp_get_dashboard_templates')) {
             'building_materials'  => 'Building Materials',
             'furniture'           => 'Furniture',
             'phone_accessories'   => 'Phone Accessories',
+            'distributor'         => 'Distributor',
+            'wholesaler'          => 'Wholesaler',
             'service_business'    => 'Service Business',
         ];
+        foreach (mp_get_business_types() as $key => $label) {
+            if (!isset($templates[$key])) {
+                $templates[$key] = $label;
+            }
+        }
+        return $templates;
     }
 }
 

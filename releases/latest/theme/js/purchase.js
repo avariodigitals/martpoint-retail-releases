@@ -116,6 +116,20 @@ function check_same_item(item_id){
   return true;
 }
 
+function change_purchase_unit(row_id){
+  var $sel = $("#purchase_unit_id_"+row_id);
+  var $opt = $sel.find(':selected');
+  var unit_name = $opt.data('unit-name') || '';
+  var conversion = parseFloat($opt.data('conversion')) || 1;
+  var purchase_price = $opt.data('purchase-price');
+  $("#purchase_unit_name_"+row_id).val(unit_name);
+  $("#purchase_unit_conversion_"+row_id).val(conversion);
+  if(purchase_price && parseFloat(purchase_price) > 0){
+    $("#td_data_"+row_id+"_4").val(to_Fixed(parseFloat(purchase_price)));
+  }
+  calculate_tax(row_id);
+}
+
 function return_row_with_data(item_id){
   //CHECK SAME ITEM ALREADY EXIST IN ITEMS TABLE 
   var item_check=check_same_item(item_id);
@@ -135,6 +149,10 @@ function return_row_with_data(item_id){
             format: 'dd-mm-yyyy',
             todayHighlight: true
         });
+        // Set initial purchase unit hidden fields and price
+        if($("#purchase_unit_id_"+rowcount).length > 0){
+          change_purchase_unit(rowcount);
+        }
         // Show/hide batch columns based on current status
         toggle_batch_fields();
        	$("#hidden_rowcount").val(parseInt(rowcount)+1);

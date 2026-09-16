@@ -154,14 +154,33 @@ class Assist_model extends CI_Model {
 		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
 		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
 
-		$intent = $this->_detectIntent($message);
+		$detected = $this->_detectIntent($message);
+		$intent = $detected['intent'] ?? 'UNKNOWN';
+		$entities = $detected['entities'] ?? [];
+
 		switch($intent){
-			case 'SEARCH_CUSTOMER': return $this->_searchCustomer($message);
-			case 'CREATE_CUSTOMER': return $this->_startFlow('create_customer', $sessionId);
+			case 'SEARCH_CUSTOMER':
+				return $this->_searchCustomer($message, $entities['customer'] ?? null);
+			case 'CREATE_CUSTOMER':
+				if(!$this->_hasPermission('customers_add')) return $this->_roleDeniedResponse();
+				return $this->_startFlow('create_customer', $sessionId);
 			case 'SEARCH_PRODUCT':
-			case 'CHECK_STOCK': return $this->_checkStock($message);
+			case 'CHECK_STOCK':
+				return $this->_checkStock($message, $entities['item'] ?? null);
 			case 'LOW_STOCK': return $this->_lowStock();
-			case 'CREATE_SALE': return $this->_startFlow('create_sale', $sessionId);
+			case 'CREATE_SALE':
+				if(!$this->_hasPermission('sales_add')) return $this->_roleDeniedResponse();
+				if(!empty($entities['customer'])){
+					$conversation = [
+						'flow'       => 'create_sale',
+						'step'       => 'search_customer_result',
+						'data'       => $entities,
+						'created_at' => time()
+					];
+					$this->_setConversation($conversation, $sessionId);
+					return $this->_processFlowStep($entities['customer'], $conversation, $sessionId);
+				}
+				return $this->_startFlow('create_sale', $sessionId);
 			case 'CREATE_INVOICE': return $this->_response('text', 'Please use the Sales > Invoices page to create invoices. I can help search for customers first if needed.');
 			case 'CREATE_EXPENSE':
 				if($levelVal < 1) return $this->_roleDeniedResponse();
@@ -452,6 +471,10 @@ class Assist_model extends CI_Model {
 				if(count($customers) === 1){
 					$c = $customers[0];
 					$this->_advanceStep('ask_item', ['customer_id'=>$c->id, 'customer_name'=>$c->customer_name], $sessionId);
+					$conv = $this->_getConversation($sessionId);
+					if(!empty($conv['data']['item'])){
+						return $this->_processFlowStep($conv['data']['item'], $conv, $sessionId);
+					}
 					return $this->_conversational('Found customer: <strong>'.($c->customer_name ?? 'Unknown').'</strong> ('.($c->mobile ?? 'N/A').'). Now, what item are you selling?', ['step'=>'ask_item']);
 				}
 
@@ -468,6 +491,10 @@ class Assist_model extends CI_Model {
 					$c = $this->db->where('id', $customerId)->get('db_customers')->row();
 					if($c){
 						$this->_advanceStep('ask_item', ['customer_id'=>$c->id, 'customer_name'=>$c->customer_name], $sessionId);
+						$conv = $this->_getConversation($sessionId);
+						if(!empty($conv['data']['item'])){
+							return $this->_processFlowStep($conv['data']['item'], $conv, $sessionId);
+						}
 						return $this->_conversational('Selected: <strong>'.($c->customer_name ?? 'Unknown').'</strong>. Now, what item are you selling?', ['step'=>'ask_item']);
 					}
 				}
@@ -662,6 +689,10 @@ class Assist_model extends CI_Model {
 				$priceType = ($msg === 'retail') ? 'retail' : 'wholesale';
 				$defaultPrice = ($priceType === 'retail') ? ($d['item_mrp'] ?? 0) : ($d['item_sales_price'] ?? 0);
 				$this->_advanceStep('ask_qty', ['price_type'=>$priceType, 'default_price'=>$defaultPrice], $sessionId);
+				$conv = $this->_getConversation($sessionId);
+				if(!empty($conv['data']['qty']) && $conv['data']['qty'] > 0){
+					return $this->_processFlowStep((string)$conv['data']['qty'], $conv, $sessionId);
+				}
 				return $this->_conversational('Using <strong>'.ucfirst($priceType).'</strong> price @ '.number_format($defaultPrice, 2).'. How many are you selling?', ['step'=>'ask_qty']);
 
 			case 'ask_qty':
@@ -1720,23 +1751,84 @@ class Assist_model extends CI_Model {
 	// =================== INTENT DETECTION ===================
 
 	private function _detectIntent($message){
+		$msg = strtolower(trim($message));
+		$entities = [];
+
+		// Natural language patterns are checked first; they set entities so the
+		// flow can skip redundant questions and respond fast.
+		$saleCustomerPatterns = [
+			'/(?:create|make|start|do|need)\s+(?:a\s+)?(?:sale|invoice|bill)(?:\s+(?:for|to))\s+(.+)/i',
+			'/(?:sell|give)(?:\s+to\s+|\s+for\s+)(.+)/i',
+			'/(?:sale|invoice)\s+(?:for\s+|to\s+)(.+)/i',
+			'/(?:sell|sale)\s+(?:to\s+)(.+)/i',
+		];
+		foreach($saleCustomerPatterns as $pattern){
+			if(preg_match($pattern, $msg, $m)){
+				$entities['customer'] = $this->_cleanEntity($m[1]);
+				return ['intent' => 'CREATE_SALE', 'entities' => $entities];
+			}
+		}
+
+		// "sell 2 packs of milk to Muniru" -> qty/item/customer
+		if(preg_match('/(?:sell|sale)\s+(\d+)\s*(?:pcs?|pieces?|packs?|cartons?|units?|qty|quantity)?\s*(?:of\s+)?(.+?)\s+(?:to|for)\s+(.+)/i', $msg, $m)){
+			$entities['qty'] = (int)$m[1];
+			$entities['item'] = $this->_cleanEntity($m[2]);
+			$entities['customer'] = $this->_cleanEntity($m[3]);
+			return ['intent' => 'CREATE_SALE', 'entities' => $entities];
+		}
+
+		// Customer search patterns: "find customer Muniru" / "who is Muniru" / "lookup Muniru"
+		$customerPatterns = [
+			'/(?:find|search|lookup)(?:\s+(?:customer|who\s+is))\s+(.+)/i',
+			'/(?:who\s+is)\s+(.+)/i',
+			'/(?:find|search|lookup)\s+(.+?)(?:\s+customer)?$/i',
+		];
+		foreach($customerPatterns as $pattern){
+			if(preg_match($pattern, $msg, $m)){
+				$entities['customer'] = $this->_cleanEntity($m[1]);
+				return ['intent' => 'SEARCH_CUSTOMER', 'entities' => $entities];
+			}
+		}
+
+		// Stock / product patterns
+		$stockPatterns = [
+			'/(?:stock|quantity|how many|how much)\s+(?:of\s+|left\s+(?:of\s+)?)?(.+)/i',
+			'/(?:check|find|search)\s+(?:stock|product|item)(?:\s+(?:for|of))?\s+(.+)/i',
+		];
+		foreach($stockPatterns as $pattern){
+			if(preg_match($pattern, $msg, $m)){
+				$entities['item'] = $this->_cleanEntity($m[1]);
+				return ['intent' => 'CHECK_STOCK', 'entities' => $entities];
+			}
+		}
+
+		// Keyword fallback for fast matching
 		$scores = [];
 		foreach($this->intents as $intent => $keywords){
 			$score = 0;
 			foreach($keywords as $kw){
-				if(strpos($message, $kw) !== false) $score += strlen($kw);
+				if(strpos($msg, $kw) !== false) $score += strlen($kw);
 			}
 			if($score > 0) $scores[$intent] = $score;
 		}
-		if(empty($scores)) return 'UNKNOWN';
-		arsort($scores);
-		return array_key_first($scores);
+		if(!empty($scores)){
+			arsort($scores);
+			return ['intent' => array_key_first($scores), 'entities' => $entities];
+		}
+		return ['intent' => 'UNKNOWN', 'entities' => $entities];
+	}
+
+	private function _cleanEntity($value){
+		$value = trim($value);
+		$value = preg_replace('/\?|!|\.|,$/', '', $value);
+		$value = preg_replace('/\s+/', ' ', $value);
+		return $value;
 	}
 
 	// =================== CUSTOMER ===================
 
-	private function _searchCustomer($message){
-		$name = $this->_extractAfterKeywords($message, ['who is','find customer','search customer','lookup customer','customer','find','search','lookup']);
+	private function _searchCustomer($message, $customerName = null){
+		$name = !empty($customerName) ? $customerName : $this->_extractAfterKeywords($message, ['who is','find customer','search customer','lookup customer','customer','find','search','lookup']);
 		if(empty($name)) return $this->_recentCustomers();
 
 		$this->db->like('customer_name', $name, 'both');
@@ -1837,8 +1929,8 @@ class Assist_model extends CI_Model {
 
 	// =================== STOCK ===================
 
-	private function _checkStock($message){
-		$name = $this->_extractAfterKeywords($message, ['stock','how many','quantity','left','available','find product','search product','product','item']);
+	private function _checkStock($message, $itemName = null){
+		$name = !empty($itemName) ? $itemName : $this->_extractAfterKeywords($message, ['stock','how many','quantity','left','available','find product','search product','product','item']);
 		if(empty($name)) return $this->_quickStockSummary();
 
 		$this->db->like('item_name', $name, 'both');

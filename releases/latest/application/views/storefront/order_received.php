@@ -141,6 +141,52 @@
     <?php endif; ?>
   </div>
 
+  <?php if(!empty($download_links)): ?>
+  <!-- Digital Downloads -->
+  <div class="sf-card">
+    <div class="sf-card-title" style="color:var(--success);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Your Downloads
+    </div>
+    <?php foreach($download_links as $link): ?>
+    <div class="sf-item">
+      <div class="sf-item-info">
+        <div class="sf-item-name"><?= htmlspecialchars($link['name']); ?></div>
+      </div>
+      <a href="<?= $link['url']; ?>" class="sf-btn sf-btn-primary" style="max-width:120px;font-size:13px;padding:10px;">Download</a>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php
+  $hasCourse = false;
+  $hasMembership = false;
+  foreach($items as $item){
+    if($item->item_type === 'course') $hasCourse = true;
+    if($item->item_type === 'membership') $hasMembership = true;
+  }
+  if($hasCourse || $hasMembership):
+  ?>
+  <!-- Courses & Memberships Access -->
+  <div class="sf-card">
+    <div class="sf-card-title" style="color:var(--primary-dark);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422a12.083 12.083 0 0 1 .25 3.865a12.082 12.082 0 0 1-6.45 2.621A12.084 12.084 0 0 1 5.69 14.4L12 14z"/></svg>
+      My Learning & Memberships
+    </div>
+    <div style="font-size:14px;line-height:1.6;color:var(--gray);margin-bottom:16px;">
+      <?php if($order->payment_status === 'paid'): ?>
+        Your order is confirmed. Sign in to your account to start your course and manage your memberships.
+      <?php else: ?>
+        Your payment is being processed. Once confirmed, you'll be able to access your courses and memberships through your account.
+      <?php endif; ?>
+    </div>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/account'); ?>" class="sf-btn sf-btn-primary" style="max-width:180px;font-size:13px;padding:10px;">
+      Go to My Account
+    </a>
+  </div>
+  <?php endif; ?>
+
   <!-- Order Items -->
   <div class="sf-card">
     <div class="sf-card-title">

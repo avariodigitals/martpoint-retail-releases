@@ -257,13 +257,15 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
             $this->db->select(" a.description,c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
-                                  a.total_cost , d.unit_name,c.sku,c.hsn
+                                  a.total_cost , d.unit_name as base_unit_name,c.sku,c.hsn,
+                                  a.unit_id, a.unit_name as sold_unit_name, e.shortcode as sold_unit_shortcode
                               ");
             $this->db->where("a.sales_id",$sales_id);
             $this->db->from("db_salesitems a");
             $this->db->join("db_tax b","b.id=a.tax_id","left");
             $this->db->join("db_items c","c.id=a.item_id","left");
             $this->db->join("db_units d","d.id = c.unit_id","left");
+            $this->db->join("db_units e","e.id = a.unit_id","left");
             $q2=$this->db->get();
 
             foreach ($q2->result() as $res2) {
@@ -282,6 +284,12 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
               <td><?= ++$i; ?></td>
               <td>
                 <?= htmlspecialchars($res2->item_name); ?>
+                <?php
+                  $sold_label = trim($res2->sold_unit_shortcode ?: $res2->sold_unit_name);
+                  if($sold_label){
+                    echo ' <span class="text-muted">['.htmlspecialchars($sold_label).']</span>';
+                  }
+                ?>
                 <?php if(!empty($res2->description)) { ?><span class="item-desc">[<?= nl2br(htmlspecialchars($res2->description)); ?>]</span><?php } ?>
               </td>
               <td class="num"><?= store_number_format($price_per_unit); ?></td>

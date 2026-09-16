@@ -51,8 +51,15 @@
                               <div class="form-group">
                                  <label for="unit_name" class="col-sm-2 control-label"><?= $this->lang->line('unit_name'); ?><label class="text-danger">*</label></label>
                                  <div class="col-sm-4">
-                                    <input type="text" class="form-control input-sm" id="unit_name" name="unit_name" placeholder="" onkeyup="shift_cursor(event,'description')" value="<?php print $unit_name; ?>" autofocus >
+                                    <input type="text" class="form-control input-sm" id="unit_name" name="unit_name" placeholder="" onkeyup="shift_cursor(event,'shortcode')" value="<?php print $unit_name; ?>" autofocus >
                                     <span id="unit_name_msg" style="display:none" class="text-danger"></span>
+                                 </div>
+                              </div>
+                              <div class="form-group">
+                                 <label for="shortcode" class="col-sm-2 control-label">Shortcode</label>
+                                 <div class="col-sm-4">
+                                    <input type="text" class="form-control input-sm" id="shortcode" name="shortcode" placeholder="e.g. PC, PCK, BX" onkeyup="shift_cursor(event,'description')" value="<?php print isset($shortcode) ? $shortcode : ''; ?>" maxlength="20">
+                                    <span id="shortcode_msg" style="display:none" class="text-danger"></span>
                                  </div>
                               </div>
                               <div class="form-group">

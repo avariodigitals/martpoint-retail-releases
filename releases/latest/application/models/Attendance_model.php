@@ -67,6 +67,7 @@ class Attendance_model extends CI_Model {
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.shift_id', $shiftId);
 		if($storeId) $this->db->where('us.store_id', $storeId);
+		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
 		return $this->db->get()->result();
 	}
 
@@ -90,20 +91,21 @@ class Attendance_model extends CI_Model {
 		$this->db->select('s.*');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_shifts s', 's.id = us.shift_id');
+		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.user_id', $userId);
 		if($storeId) $this->db->where('us.store_id', $storeId);
+		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
 		return $this->db->get()->result();
 	}
 
 	// ========== ATTENDANCE ==========
 
 	public function clockIn($data){
-		$exists = $this->db
-			->where('user_id', $data['user_id'])
-			->where('attendance_date', $data['attendance_date'])
-			->where('clock_out IS NULL')
-			->count_all_results('db_attendance');
-		if($exists){
+		$existing = $this->db->query(
+			"SELECT id FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') LIMIT 1",
+			[$data['user_id'], $data['attendance_date']]
+		)->row();
+		if($existing){
 			return ['status' => 'error', 'message' => 'Already clocked in today'];
 		}
 		$this->db->insert('db_attendance', $data);
@@ -111,8 +113,10 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function clockOut($userId, $date, $data){
-		$this->db->where('user_id', $userId)->where('attendance_date', $date)->where('clock_out IS NULL');
-		$record = $this->db->get('db_attendance')->row();
+		$record = $this->db->query(
+			"SELECT id FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') ORDER BY id DESC LIMIT 1",
+			[$userId, $date]
+		)->row();
 		if(!$record){
 			return ['status' => 'error', 'message' => 'Not clocked in'];
 		}
@@ -128,6 +132,7 @@ class Attendance_model extends CI_Model {
 		$this->db->join('db_shifts s', 's.id = a.shift_id', 'left');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.attendance_date', $date);
+		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
 		return $this->db->get()->result();
 	}
 
@@ -162,6 +167,7 @@ class Attendance_model extends CI_Model {
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.store_id', $storeId);
+		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
 		$assignedUsers = $this->db->get()->result();
 
 		$attendance = $this->getAttendanceByDate($storeId, $date);
@@ -224,15 +230,9 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getAttendanceRecord($userId, $date){
-		return $this->db
-			->where('user_id', $userId)
-			->where('attendance_date', $date)
-			->group_start()
-				->where('clock_out IS NULL')
-				->or_where('clock_out', '')
-			->group_end()
-			->order_by('id', 'DESC')
-			->get('db_attendance')
-			->row();
+		return $this->db->query(
+			"SELECT * FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') ORDER BY id DESC LIMIT 1",
+			[$userId, $date]
+		)->row();
 	}
 }

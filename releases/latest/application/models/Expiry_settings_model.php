@@ -73,10 +73,47 @@ class Expiry_settings_model extends CI_Model {
 	}
 
 	public function count_expiring($store_id = null) {
-		return count($this->get_expiring_items($store_id));
+		if(empty($store_id)) { $store_id = get_current_store_id(); }
+		$settings = $this->get_settings($store_id);
+		$days = $settings->alert_before_days;
+		$future = date('Y-m-d', strtotime("+{$days} days"));
+		$today = date('Y-m-d');
+		return $this->_count_expiry_union($store_id, $today, $future);
 	}
 
 	public function count_expired($store_id = null) {
-		return count($this->get_expired_items($store_id));
+		if(empty($store_id)) { $store_id = get_current_store_id(); }
+		$today = date('Y-m-d');
+		return $this->_count_expiry_union($store_id, null, $today);
+	}
+
+	private function _count_expiry_union($store_id, $from_date, $to_date) {
+		// Include both item-level and batch-level expiry.
+		// Count distinct items that have at least one expired/expiring batch with positive stock
+		// OR an item-level expiry date in the range.
+		$table_barcodes = $this->db->table_exists('db_item_barcodes');
+		$params = [$store_id, $to_date];
+		if ($from_date) {
+			$sql = "SELECT COUNT(DISTINCT item_id) AS total FROM (";
+		} else {
+			$sql = "SELECT COUNT(DISTINCT item_id) AS total FROM (";
+		}
+		$sql .= " SELECT a.id AS item_id FROM db_items a WHERE a.store_id = ? AND a.status = 1 AND a.expire_date IS NOT NULL AND a.expire_date <= ?";
+		if ($from_date) {
+			$sql .= " AND a.expire_date >= ?";
+			$params[] = $from_date;
+		}
+		if ($table_barcodes) {
+			$sql .= " UNION SELECT b.item_id FROM db_item_barcodes b JOIN db_items a ON a.id = b.item_id WHERE a.store_id = ? AND a.status = 1 AND b.status = 1 AND b.qty > 0 AND b.expire_date IS NOT NULL AND b.expire_date <= ?";
+			$params[] = $store_id;
+			$params[] = $to_date;
+			if ($from_date) {
+				$sql .= " AND b.expire_date >= ?";
+				$params[] = $from_date;
+			}
+		}
+		$sql .= ") t";
+		$q = $this->db->query($sql, $params);
+		return $q ? (int) $q->row()->total : 0;
 	}
 }

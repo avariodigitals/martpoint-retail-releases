@@ -568,7 +568,7 @@ VALUES
   ('Basic', 'basic', 'Starter plan for single-location retailers', 1, 5, 500, 10000, 500, 100, 2048, 1, 1, 1, 1, CURDATE(), CURTIME(), 'system'),
   ('Standard', 'standard', 'Growing business with multiple branches', 3, 10, 2000, 50000, 2000, 300, 5120, 1, 1, 1, 2, CURDATE(), CURTIME(), 'system'),
   ('Premium', 'premium', 'Advanced features for established businesses', 5, 25, 5000, 150000, 5000, 500, 10240, 2, 2, 1, 3, CURDATE(), CURTIME(), 'system'),
-  ('Enterprise', 'enterprise', 'Unlimited scale for large operations', 10, 50, 10000, 500000, 20000, 1000, 20480, 3, 3, 1, 4, CURDATE(), CURTIME(), 'system')
+  ('Enterprise', 'enterprise', 'Large multi-branch operations', 10, 50, 10000, 500000, 10000, 1000, 20480, 3, 3, 1, 4, CURDATE(), CURTIME(), 'system')
 ON DUPLICATE KEY UPDATE plan_name=VALUES(plan_name), description=VALUES(description), branch_limit=VALUES(branch_limit), user_limit=VALUES(user_limit), product_limit=VALUES(product_limit), sku_limit=VALUES(sku_limit), online_product_limit=VALUES(online_product_limit), service_limit=VALUES(service_limit), media_storage_limit_mb=VALUES(media_storage_limit_mb);
 
 -- 2. Override logging table
@@ -2487,6 +2487,7 @@ CREATE TABLE IF NOT EXISTS `db_promotion_usage` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Record this version in the migrations table
+INSERT IGNORE INTO `db_schema_migrations` (`version`, `filename`) VALUES ('4.0.6', '4.0.6_b2b_customer_warehouse.sql');
 INSERT IGNORE INTO `db_schema_migrations` (`version`, `filename`) VALUES ('4.0.7', 'db_install_extensions.sql');
 
 -- 4. Seed permissions for new installs — grant fashion report perms
@@ -2889,3 +2890,97 @@ SET @sql = IF(@col_exists = 0,
   'ALTER TABLE `db_items` ADD COLUMN `online_excluded` TINYINT(1) NOT NULL DEFAULT 0 AFTER `publish_online`',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Multi-Unit Selling (v4.0.9.6-v4.0.9.8) + Newsletter (v4.0.9.9) + B2B (v4.0.9.10)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_units' AND column_name = 'shortcode');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_units` ADD COLUMN `shortcode` VARCHAR(20) NULL DEFAULT NULL AFTER `unit_name`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_customers' AND column_name = 'customer_type');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_customers` ADD COLUMN `customer_type` VARCHAR(50) NOT NULL DEFAULT ''Retail'' AFTER `customer_name`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_customers' AND column_name = 'payment_terms_days');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_customers` ADD COLUMN `payment_terms_days` INT(5) NULL DEFAULT 0 AFTER `credit_limit`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_warehouse' AND column_name = 'branch_type');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_warehouse` ADD COLUMN `branch_type` VARCHAR(50) NULL DEFAULT ''branch'' AFTER `warehouse_name`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_warehouse' AND column_name = 'is_distribution_center');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_warehouse` ADD COLUMN `is_distribution_center` TINYINT(1) NOT NULL DEFAULT 0 AFTER `branch_type`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS `db_item_selling_units` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `store_id` INT(11) NOT NULL,
+  `item_id` INT(11) NOT NULL,
+  `unit_id` INT(11) NOT NULL,
+  `unit_shortcode` VARCHAR(20) DEFAULT NULL,
+  `conversion_factor` DECIMAL(15,6) NOT NULL DEFAULT 1.000000,
+  `selling_price` DOUBLE(20,4) DEFAULT 0.0000,
+  `wholesale_price` DOUBLE(20,4) DEFAULT NULL,
+  `purchase_price` DOUBLE(20,4) DEFAULT NULL,
+  `sku` VARCHAR(50) DEFAULT NULL,
+  `barcode` VARCHAR(100) DEFAULT NULL,
+  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
+  `is_template` TINYINT(1) NOT NULL DEFAULT 0,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  KEY `item_id` (`item_id`),
+  KEY `unit_id` (`unit_id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_is_template` (`is_template`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_salesitems' AND column_name = 'unit_id');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_salesitems` ADD COLUMN `unit_id` INT(11) NULL DEFAULT NULL AFTER `item_id`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_salesitems' AND column_name = 'unit_name');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_salesitems` ADD COLUMN `unit_name` VARCHAR(50) NULL DEFAULT NULL AFTER `unit_id`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_salesitems' AND column_name = 'conversion_factor');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_salesitems` ADD COLUMN `conversion_factor` DECIMAL(15,6) NULL DEFAULT NULL AFTER `unit_name`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_salesitems' AND column_name = 'base_unit_qty');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_salesitems` ADD COLUMN `base_unit_qty` DOUBLE(20,4) NULL DEFAULT NULL AFTER `sales_qty`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_purchaseitems' AND column_name = 'unit_id');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_purchaseitems` ADD COLUMN `unit_id` INT(11) NULL DEFAULT NULL AFTER `item_id`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_purchaseitems' AND column_name = 'unit_name');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_purchaseitems` ADD COLUMN `unit_name` VARCHAR(50) NULL DEFAULT NULL AFTER `unit_id`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_purchaseitems' AND column_name = 'conversion_factor');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_purchaseitems` ADD COLUMN `conversion_factor` DECIMAL(15,6) NULL DEFAULT NULL AFTER `unit_name`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_purchaseitems' AND column_name = 'base_unit_qty');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_purchaseitems` ADD COLUMN `base_unit_qty` DOUBLE(20,4) NULL DEFAULT NULL AFTER `purchase_qty`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_salesitemsreturn' AND column_name = 'base_unit_qty');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_salesitemsreturn` ADD COLUMN `base_unit_qty` DOUBLE(20,4) NULL DEFAULT NULL AFTER `return_qty`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_purchaseitemsreturn' AND column_name = 'base_unit_qty');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `db_purchaseitemsreturn` ADD COLUMN `base_unit_qty` DOUBLE(20,4) NULL DEFAULT NULL AFTER `return_qty`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS `db_newsletter_subscribers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `store_id` INT NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `source` VARCHAR(50) NOT NULL DEFAULT 'newsletter',
+  `ip_address` VARCHAR(45) DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  UNIQUE KEY `uk_store_email` (`store_id`, `email`),
+  KEY `idx_store` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

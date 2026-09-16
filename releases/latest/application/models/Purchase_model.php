@@ -269,10 +269,26 @@ class Purchase_model extends CI_Model {
 				$tax_id 			=$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
 				$tax_amt 			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_5']));
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
-				
+
+				// Multi-unit purchase: the packaging unit being bought from supplier
+				$purchase_unit_id 	= $this->xss_html_filter(trim($_REQUEST['purchase_unit_id_'.$i] ?? ''));
+				$purchase_unit_name = $this->xss_html_filter(trim($_REQUEST['purchase_unit_name_'.$i] ?? ''));
+				$conversion_factor 	= (float)($this->xss_html_filter(trim($_REQUEST['purchase_unit_conversion_'.$i] ?? 1)));
+				if($conversion_factor <= 0){ $conversion_factor = 1; }
+
+				// If no purchase unit selected (legacy/other industries), default to item's base unit
+				if(empty($purchase_unit_id)){
+					$item_base = $this->db->select('unit_id')->where('id',$item_id)->get('db_items')->row();
+					if($item_base && !empty($item_base->unit_id)){
+						$purchase_unit_id = $item_base->unit_id;
+						$purchase_unit_name = $this->db->select('unit_name')->where('id',$item_base->unit_id)->get('db_units')->row()->unit_name ?? '';
+					}
+					$conversion_factor = 1;
+				}
+
 				$unit_total_cost	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10']));
 				$total_cost			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9']));
-				
+
 				$discount_type 		=$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
 				$discount_input 	=$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
@@ -293,6 +309,16 @@ class Purchase_model extends CI_Model {
 				} else {
 					$received_qty = null; // Draft / Ordered: nothing received yet
 				}
+
+				// Base quantity for stock: selected unit quantity × conversion factor
+				$purchase_qty_clean = (float)str_replace(',','',$purchase_qty);
+				$received_qty_clean = ($received_qty !== null) ? (float)str_replace(',','',$received_qty) : null;
+				$stock_qty = ($received_qty_clean !== null) ? $received_qty_clean : $purchase_qty_clean;
+				$base_unit_qty = $stock_qty * $conversion_factor;
+				// Per-base purchase price for updating item cost ledger
+				$price_per_unit_clean = (float)str_replace(',','',$price_per_unit);
+				$base_price_per_unit = ($conversion_factor > 0) ? ($price_per_unit_clean / $conversion_factor) : $price_per_unit_clean;
+				$unit_total_cost_clean = (float)str_replace(',','',$unit_total_cost);
 
 				// Format dates
 				if(!empty($expire_date)){
@@ -328,6 +354,12 @@ class Purchase_model extends CI_Model {
 		    			);
 				$purchaseitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 				
+				if($this->db->field_exists('unit_id', 'db_purchaseitems')){
+					$purchaseitems_entry['unit_id'] = $purchase_unit_id;
+					$purchaseitems_entry['unit_name'] = $purchase_unit_name;
+					$purchaseitems_entry['conversion_factor'] = $conversion_factor;
+					$purchaseitems_entry['base_unit_qty'] = $base_unit_qty;
+				}
 				$q2 = $this->db->insert('db_purchaseitems', $purchaseitems_entry);
 				if(!$q2){
 					return "failed";
@@ -351,11 +383,11 @@ class Purchase_model extends CI_Model {
 						// Empty barcode with serial/IMEI means a distinct unit; do not merge with an empty-barcode batch
 						if(empty($barcode) && $existing_bc){ $existing_bc = null; }
 						if($existing_bc){
-							// Add to existing batch quantity
-							$new_qty = $existing_bc->qty + $received_qty;
+							// Add to existing batch quantity (in base units for consistency with stock)
+							$new_qty = $existing_bc->qty + $base_unit_qty;
 							$this->db->where('id',$existing_bc->id)->update('db_item_barcodes', array(
 								'qty' => $new_qty,
-								'purchase_price' => store_number_format($price_per_unit,0),
+								'purchase_price' => store_number_format($base_price_per_unit,0),
 								'expire_date' => !empty($expire_date) ? $expire_date : $existing_bc->expire_date,
 								'mfg_date' => !empty($mfg_date) ? $mfg_date : $existing_bc->mfg_date,
 								'serial_number' => !empty($serial_number) ? $serial_number : $existing_bc->serial_number,
@@ -368,10 +400,10 @@ class Purchase_model extends CI_Model {
 								'item_id' => $item_id,
 								'barcode' => $barcode,
 								'batch_lot' => $batch_lot,
-								'purchase_price' => store_number_format($price_per_unit,0),
+								'purchase_price' => store_number_format($base_price_per_unit,0),
 								'sales_price' => store_number_format($item_details->sales_price ?? 0,0),
 								'mrp' => store_number_format($item_details->mrp ?? 0,0),
-								'qty' => $received_qty,
+								'qty' => $base_unit_qty,
 								'expire_date' => !empty($expire_date) ? $expire_date : null,
 								'mfg_date' => !empty($mfg_date) ? $mfg_date : null,
 								'serial_number' => !empty($serial_number) ? $serial_number : null,
@@ -384,11 +416,11 @@ class Purchase_model extends CI_Model {
 						}
 					}
 
-					// Keep the item's default cost current for non-barcoded sales
+					// Keep the item's default cost current for non-barcoded sales (normalize to base unit)
 					if($received_qty > 0){
 						$this->db->where('id',$item_id)->update('db_items', array(
-							'price' => store_number_format($price_per_unit,0),
-							'purchase_price' => store_number_format($unit_total_cost,0)
+							'price' => store_number_format($base_price_per_unit,0),
+							'purchase_price' => store_number_format(($unit_total_cost_clean / $conversion_factor),0)
 						));
 					}
 				}
@@ -799,13 +831,18 @@ class Purchase_model extends CI_Model {
 		$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
 		$item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($res1->sales_price,$q3->tax) :calculate_exclusive($res1->sales_price,$q3->tax);
 
+		$base_unit = $this->db->select('unit_name, shortcode')->where('id',$res1->unit_id)->get('db_units')->row();
+
 		$info = array(
-							'item_id' 					=> $res1->id, 
-							'description' 				=> '', 
+							'item_id' 					=> $res1->id,
+							'description' 				=> '',
 							'item_name' 				=> $res1->item_name,
 							'item_available_qty' 		=> $res1->stock,
-							'item_price' 				=> $res1->price, 
-							'item_purchase_price' 		=> $res1->price, 
+							'item_price' 				=> $res1->price,
+							'item_purchase_price' 		=> $res1->price,
+							'item_purchase_unit_id' 	=> $res1->unit_id,
+							'item_purchase_unit_name' 	=> $base_unit ? ($base_unit->shortcode ?: $base_unit->unit_name) : '',
+							'item_conversion_factor' 	=> 1, 
 							'item_tax_name' 			=> $q3->tax_name, 
 							'item_purchase_qty' 		=> 1, 
 							'item_tax_id' 				=> $res1->tax_id, 
@@ -830,8 +867,11 @@ class Purchase_model extends CI_Model {
 		foreach ($q1->result() as $res1) {
 			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
 			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
-			
-			
+			$base_unit = $res2 ? $this->db->select('unit_name, shortcode')->where('id',$res2->unit_id)->get('db_units')->row() : null;
+			$unit_id = (!empty($res1->unit_id)) ? $res1->unit_id : ($res2 ? $res2->unit_id : null);
+			$unit_name = (!empty($res1->unit_name)) ? $res1->unit_name : ($base_unit ? ($base_unit->shortcode ?: $base_unit->unit_name) : '');
+			$conversion_factor = (isset($res1->conversion_factor) && $res1->conversion_factor > 0) ? (float)$res1->conversion_factor : 1;
+
 			$info = array(
 							'item_id' 					=> $res1->item_id,
 							'description' 				=> $res1->description,
@@ -839,6 +879,9 @@ class Purchase_model extends CI_Model {
 							'item_available_qty' 		=> $res2->stock,
 							'item_price' 				=> $res2->price,
 							'item_purchase_price' 		=> $res1->price_per_unit,
+							'item_purchase_unit_id' 	=> $unit_id,
+							'item_purchase_unit_name' 	=> $unit_name,
+							'item_conversion_factor' 	=> $conversion_factor,
 							'item_tax_name' 			=> $q3->tax_name,
 							'item_purchase_qty' 		=> $res1->purchase_qty,
 							'item_tax_id' 				=> $res1->tax_id,
@@ -892,9 +935,47 @@ class Purchase_model extends CI_Model {
 		$track_serial = isset($info['track_serial']) ? $info['track_serial'] : 0;
 		$track_imei = isset($info['track_imei']) ? $info['track_imei'] : 0;
 
+		// Purchase unit selection (Pack/Piece/Carton) for multi-unit selling
+		$item_purchase_unit_id = isset($info['item_purchase_unit_id']) ? $info['item_purchase_unit_id'] : null;
+		$item_purchase_unit_name = isset($info['item_purchase_unit_name']) ? $info['item_purchase_unit_name'] : '';
+		$item_conversion_factor = isset($info['item_conversion_factor']) ? (float)$info['item_conversion_factor'] : 1;
+		$item_conversion_factor = ($item_conversion_factor > 0) ? $item_conversion_factor : 1;
+
+		$store_id = get_current_store_id();
+		$unit_options = '';
+		$multi_unit_selling_enabled = mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units');
+		if($multi_unit_selling_enabled && !empty($item_id)){
+			if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+			$selling_units = $this->selling_units->get_units($item_id, $store_id, 0);
+			if(empty($selling_units)){
+				// If this is a variant child, get parent's template units and convert to child if needed
+				$item_parent = $this->db->where('id',$item_id)->get('db_items')->row();
+				if($item_parent && !empty($item_parent->parent_id)){
+					$selling_units = $this->selling_units->get_units($item_parent->parent_id, $store_id, 1);
+				}
+			}
+			// Always include the base/stock unit as a fallback option
+			$item_base = $this->db->select('unit_id')->where('id',$item_id)->get('db_items')->row();
+			$base_unit_id = $item_base ? $item_base->unit_id : null;
+			$base_unit_name = $base_unit_id ? ($this->db->select('unit_name, shortcode')->where('id',$base_unit_id)->get('db_units')->row()->shortcode ?? $this->db->select('unit_name')->where('id',$base_unit_id)->get('db_units')->row()->unit_name) : 'Piece';
+			$base_price_per_unit = ($item_conversion_factor > 0) ? ((float)$item_purchase_price / $item_conversion_factor) : (float)$item_purchase_price;
+			$base_found = false;
+			foreach($selling_units as $su){
+				if($su->unit_id == $base_unit_id && $su->conversion_factor == 1){ $base_found = true; }
+				$selected = ($item_purchase_unit_id == $su->unit_id) ? 'selected' : '';
+				$label = ($su->unit_shortcode ? $su->unit_shortcode : $su->unit_name).' (x'.$su->conversion_factor.')';
+				$unit_options .= "<option value='".$su->unit_id."' data-unit-name='".(($su->unit_shortcode ? $su->unit_shortcode : $su->unit_name))."' data-conversion='".$su->conversion_factor."' data-purchase-price='".$su->purchase_price."' $selected>".$label."</option>";
+			}
+			if(!$base_found && !empty($base_unit_id)){
+				$selected = ($item_purchase_unit_id == $base_unit_id) ? 'selected' : '';
+				$unit_options = "<option value='".$base_unit_id."' data-unit-name='".$base_unit_name."' data-conversion='1' data-purchase-price='".$base_price_per_unit."' ".$selected.">".$base_unit_name." (x1)</option>".$unit_options;
+			}
+		}
+		$show_unit_select = $multi_unit_selling_enabled && !empty($unit_options);
+
 		$item_unit_cost = $item_purchase_price+$item_tax_amt;
 		$item_amount = $item_unit_cost * $item_purchase_qty;
-	
+
 		?>
             <!-- PURCHASE ITEM CARD (compact) -->
             <div class="mp-purchase-item" id="row_<?=$rowcount;?>" data-row="<?=$rowcount;?>">
@@ -911,6 +992,15 @@ class Purchase_model extends CI_Model {
                   <a class="mp-pi-del fa fa-trash" onclick="removerow(<?=$rowcount;?>)" title="Delete" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
                </div>
                <div class="mp-pi-body">
+                  <!-- Purchase Unit -->
+                  <?php if($show_unit_select): ?>
+                  <div class="mp-pi-field">
+                     <label>Purchase Unit</label>
+                     <select class="form-control" id="purchase_unit_id_<?=$rowcount;?>" name="purchase_unit_id_<?=$rowcount;?>" onchange="change_purchase_unit(<?=$rowcount;?>)" style="width:100%;padding:6px;">
+                        <?=$unit_options;?>
+                     </select>
+                  </div>
+                  <?php endif; ?>
                   <!-- Qty -->
                   <div class="mp-pi-field">
                      <label>Qty</label>
@@ -951,6 +1041,9 @@ class Purchase_model extends CI_Model {
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">
                <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">
+               <!-- Purchase unit hidden fields -->
+               <input type="hidden" id="purchase_unit_name_<?=$rowcount;?>" name="purchase_unit_name_<?=$rowcount;?>" value="<?=htmlspecialchars($item_purchase_unit_name);?>">
+               <input type="hidden" id="purchase_unit_conversion_<?=$rowcount;?>" name="purchase_unit_conversion_<?=$rowcount;?>" value="<?=$item_conversion_factor;?>">
                <!-- Hidden fields for JS compatibility -->
                <input type="hidden" id="td_data_<?=$rowcount;?>_10" name="td_data_<?=$rowcount;?>_10" value="<?=store_number_format($item_unit_cost,0);?>">
                <span style="display:none;" id="td_data_<?=$rowcount;?>_15"><?=$item_tax_name;?></span>
@@ -1526,17 +1619,21 @@ class Purchase_model extends CI_Model {
 					return "failed";
 				}
 				$item_id = $item_result->row()->item_id;
-				$qty_result = $this->db->query("select purchase_qty from db_purchaseitems where id=$row_id");
+				$qty_result = $this->db->query("select purchase_qty, conversion_factor from db_purchaseitems where id=$row_id");
 				if(!$qty_result || $qty_result->num_rows() == 0){
 					$this->db->trans_rollback();
 					return "failed";
 				}
 				$purchase_qty = $qty_result->row()->purchase_qty;
+				$conversion_factor = (float)($qty_result->row()->conversion_factor ?? 1);
+				if($conversion_factor <= 0){ $conversion_factor = 1; }
 
-				$rcv_qty = (!empty($received_qtys[$i]) && is_numeric($received_qtys[$i])) ? $received_qtys[$i] : 0;
+				$rcv_raw = trim($received_qtys[$i] ?? '');
+				$rcv_qty = (!empty($rcv_raw) && is_numeric(str_replace(',','',$rcv_raw))) ? (float)str_replace(',','',$rcv_raw) : 0;
 				if($new_status == 'Received'){
-					$rcv_qty = $purchase_qty;
+					$rcv_qty = (float)$purchase_qty;
 				}
+				$base_unit_qty = $rcv_qty * $conversion_factor;
 
 				$exp_date = (!empty($expire_dates[$i])) ? system_fromatted_date($expire_dates[$i]) : null;
 				$mfg_date_val = (!empty($mfg_dates[$i])) ? system_fromatted_date($mfg_dates[$i]) : null;
@@ -1546,6 +1643,7 @@ class Purchase_model extends CI_Model {
 				$q2 = $this->db->query("update db_purchaseitems set
 									purchase_status='$new_status',
 									received_qty=$rcv_qty,
+									base_unit_qty=$base_unit_qty,
 									batch_lot=".($batch_lot_val ? "'$batch_lot_val'" : "null").",
 									barcode=".($barcode_val ? "'$barcode_val'" : "null").",
 									expire_date=".($exp_date ? "'$exp_date'" : "null").",
@@ -1554,10 +1652,9 @@ class Purchase_model extends CI_Model {
 				if(!$q2){ $this->db->trans_rollback(); return "failed"; }
 
 				// Update stock
-				// Commented out due to missing package_bit column in db_items
-				// $this->load->model('pos_model');
-				// $q3 = $this->pos_model->update_items_quantity($item_id);
-				// if(!$q3){ $this->db->trans_rollback(); return "failed"; }
+				$this->load->model('pos_model');
+				$q3 = $this->pos_model->update_items_quantity($item_id);
+				if(!$q3){ $this->db->trans_rollback(); return "failed"; }
 
 				// Create/update barcode record
 				if(!empty($barcode_val) && !empty($rcv_qty) && $rcv_qty > 0){
@@ -1567,7 +1664,7 @@ class Purchase_model extends CI_Model {
 							 ;
 					$barcode_exists = $this->db->get('db_item_barcodes')->row();
 					if(!empty($barcode_exists)){
-						$new_barcode_qty = $barcode_exists->qty + $rcv_qty;
+						$new_barcode_qty = $barcode_exists->qty + $base_unit_qty;
 						$this->db->where('id',$barcode_exists->id)->update('db_item_barcodes', array(
 							'qty' => $new_barcode_qty,
 							'expire_date' => $exp_date,
@@ -1578,7 +1675,7 @@ class Purchase_model extends CI_Model {
 							'item_id' => $item_id,
 							'barcode' => $barcode_val,
 							'batch_lot' => $batch_lot_val,
-							'qty' => $rcv_qty,
+							'qty' => $base_unit_qty,
 							'expire_date' => $exp_date,
 							'mfg_date' => $mfg_date_val,
 							'status' => 1

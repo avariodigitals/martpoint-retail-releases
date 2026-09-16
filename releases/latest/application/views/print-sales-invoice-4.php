@@ -330,61 +330,6 @@ body { margin: 5px; }
   </tr> -->
   </tbody>
 <tfoot>
-  <?php
-                        $tot_price_before_tax = $tot_price_after_tax = $tot_cgst_amt =$tot_sgst_amt=$tot_sgst_amt=$tot_igst_amt = 0;
-
-                        $this->db->select(" c.item_name,
-                                            COALESCE(SUM(a.price_per_unit),0) AS price_before_tax, 
-                                            b.tax,
-                                            b.tax_name,
-                                            COALESCE(SUM(a.tax_amt),0) AS sum_of_tax_amt,
-                                            COALESCE(SUM(a.total_cost),0) AS price_after_tax,
-                                            c.tax_type,
-                                            c.sku,c.hsn
-                                            ");
-
-                        $this->db->where("a.sales_id",$sales_id);
-                        $this->db->from("db_salesitems a");
-                        $this->db->join("db_tax b","b.id=a.tax_id","left");
-                        $this->db->join("db_items c","c.id=a.item_id","left");
-                        $this->db->join("db_units d","d.id = c.unit_id","left");
-
-                        //echo $this->db->get_compiled_select();exit();
-                        $q2=$this->db->get();
-                        foreach ($q2->result() as $res2) {
-                          $hsn = $res2->hsn;
-                          //$price_before_tax = $res2->price_before_tax;
-                          $price_before_tax = $res2->price_before_tax;
-                          $price_after_tax = $res2->price_after_tax;
-
-                          $tax_per = $res2->tax;
-                          $sum_of_tax_amt = $res2->sum_of_tax_amt;
-
-                          $price_before_tax = $price_after_tax - $sum_of_tax_amt;
-
-                          $tax_type='';
-                          //$tax_type = ($res2->tax_type=='Exclusive') ? 'Exc.' : 'Inc.';
-                          if( $customer_rec->id==1 || (strtoupper($customer_state_name) == strtoupper($store_rec->state))){
-                            $sgst_per = $cgst_per = $tax_per."%";
-                            $sgst_amt = $cgst_amt = $sum_of_tax_amt / 2;
-                            $igst_per = $igst_amt = '';
-                          }else{
-                            $sgst_per = $cgst_per = '';
-                            $sgst_amt = $cgst_amt = '';
-                            $igst_per = $tax_per."%";
-                            $igst_amt = $sum_of_tax_amt;
-                          }
-
-                       $tot_price_before_tax +=$price_before_tax;
-                       $tot_price_after_tax +=(!empty($price_after_tax)) ? $price_after_tax : 0;
-                       $tot_cgst_amt +=(!empty($cgst_amt)) ? $cgst_amt : 0;
-                       $tot_sgst_amt +=(!empty($sgst_amt)) ? $sgst_amt : 0;
-                       $tot_igst_amt +=(!empty($igst_amt)) ? $igst_amt : 0;
-                       
-                     } 
-
-                     ?>
-
   <tr class="bg-sky">
     <td colspan="8" class='text-center text-bold'><?= $this->lang->line('total'); ?></td>
     <td colspan="" class='text-bold text-center'></td>
@@ -397,21 +342,12 @@ body { margin: 5px; }
     <td colspan="14" class='text-right'><b><?= $this->lang->line('subtotal'); ?></b></td>
     <td colspan="2" class='text-right' ><b><?= store_number_format($tot_total_cost); ?></b></td>
   </tr-->
-  <?php if($tot_cgst_amt!=0 && !empty($tot_cgst_amt)){ ?>
+  <?php if($tot_tax_amt!=0 && !empty($tot_tax_amt)){ ?>
   <tr>
-    <td colspan="14" class='text-right'><b><?= $this->lang->line('cgst'); ?></b></td>
-    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_cgst_amt); ?></b></td>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('tax'); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_tax_amt); ?></b></td>
   </tr>
-  <tr>
-    <td colspan="14" class='text-right'><b><?= $this->lang->line('sgst'); ?></b></td>
-    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_sgst_amt); ?></b></td>
-  </tr>
-  <?php } else{?>
-  <tr>
-    <td colspan="14" class='text-right'><b><?= $this->lang->line('igst'); ?></b></td>
-    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_igst_amt); ?></b></td>
-  </tr>
-<?php } ?>
+  <?php } ?>
 <?php if($sales_rec->other_charges_amt!=0 && !empty($sales_rec->other_charges_amt)){ ?>
   <tr>
     <td colspan="14" class='text-right'><b><?= $this->lang->line('other_charges'); ?></b></td>
@@ -485,135 +421,7 @@ body { margin: 5px; }
   </tr>
 <?php } ?>
 
-  <!-- Tax Table -->
-
-  <tr>
-        <td colspan="16">
-          <table width="100%" class="style_hidden fixed_table">
-            <tbody>
-              <tr>
-                <td colspan="16">
-                  <span>
-                    <table style="width: 100%;" class="style_hidden fixed_table">
-                      <tbody>
-
-                        <tr class="bg-sky text-bold">
-                          <td colspan='1' class='text-center' rowspan="2" width="15%"><?= $this->lang->line('hsn/sac'); ?></td>
-                          <td colspan='1' class='text-center' rowspan="2" width="15%"><?= $this->lang->line('taxable_amount'); ?></td>
-                          <td colspan='4' class='text-center' colspan="2"  width="20%">
-                            <?= $this->lang->line('cgst'); ?>
-                          </td>
-                          <td colspan='4' class='text-center' colspan="2" width="20%">
-                            <?= $this->lang->line('sgst'); ?>
-                          </td>
-                          <td colspan='4' class='text-center' colspan="2" width="20%">
-                            <?= $this->lang->line('igst'); ?>
-                          </td>
-                          <td colspan='2' class='text-center' width="10%" rowspan="2">
-                            <?= $this->lang->line('total'); ?>
-                          </td>
-                        </tr>
-
-                        
-                        <tr class="bg-sky text-bold">
-                          <td colspan='2' class='text-center'>Rate</td><td colspan='2' class='text-center'>Amt</td>
-                          <td colspan='2' class='text-center'>Rate</td><td colspan='2' class='text-center'>Amt</td>
-                          <td colspan='2' class='text-center'>Rate</td><td colspan='2' class='text-center'>Amt</td>
-                        </tr>
-                        <?php
-                        $tot_price_before_tax = $tot_price_after_tax = $tot_cgst_amt =$tot_sgst_amt=$tot_sgst_amt=$tot_igst_amt = 0;
-                        /*$q2=$this->db->query(" SELECT c.item_name,  COALESCE(SUM(a.price_per_unit),0) AS price_before_tax, 
-                                               b.tax,b.tax_name,
-                                               COALESCE(SUM(a.tax_amt),0) AS sum_of_tax_amt,
-                                               COALESCE(SUM(a.total_cost),0) AS price_after_tax,c.tax_type,
-                                               c.sku 
-                                               FROM 
-                                               db_salesitems AS a,db_tax AS b,db_items AS c , db_units AS d 
-                                               WHERE 
-                                               d.id = c.unit_id AND c.id=a.item_id AND b.id=a.tax_id AND a.sales_id='$sales_id' GROUP BY b.id");*/
-
-                        $this->db->select(" c.item_name,  COALESCE(SUM(a.price_per_unit),0) AS price_before_tax, 
-                                               b.tax,b.tax_name,c.hsn,
-                                               COALESCE(SUM(a.tax_amt),0) AS sum_of_tax_amt,
-                                               COALESCE(SUM(a.total_cost),0) AS price_after_tax,c.tax_type,
-                                               c.sku 
-                                            ");
-
-                        $this->db->where("a.sales_id",$sales_id);
-                        $this->db->from("db_salesitems a");
-                        $this->db->join("db_tax b","b.id=a.tax_id","left");
-                        $this->db->join("db_items c","c.id=a.item_id","left");
-                        $this->db->join("db_units d","d.id = c.unit_id","left");
-                        $this->db->group_by("c.hsn,a.tax_id");
-                        //echo $this->db->get_compiled_select();exit();
-                        $q2=$this->db->get();
-                        
-                        foreach ($q2->result() as $res2) {
-                          $hsn = $res2->hsn;
-                          //$price_before_tax = $res2->price_before_tax;
-                          $price_before_tax = $res2->price_before_tax;
-                          $price_after_tax = $res2->price_after_tax;
-
-                          $tax_per = $res2->tax;
-                          $sum_of_tax_amt = $res2->sum_of_tax_amt;
-
-                          $price_before_tax = $price_after_tax - $sum_of_tax_amt;
-
-                          $tax_type='';
-                          //$tax_type = ($res2->tax_type=='Exclusive') ? 'Exc.' : 'Inc.';
-                          if( $customer_rec->id==1 || (strtoupper($customer_state_name) == strtoupper($store_rec->state))){
-                            $sgst_per = $cgst_per = $tax_per;
-                            $sgst_amt = $cgst_amt = $sum_of_tax_amt / 2;
-                            $igst_per = $igst_amt = 0;
-                          }else{
-                            $sgst_per = $cgst_per = 0;
-                            $sgst_amt = $cgst_amt = 0;
-                            $igst_per = $tax_per;
-                            $igst_amt = $sum_of_tax_amt;
-                          }
-                          
-
-                         ?>
-                         <tr>
-                          <td colspan='1' class='text-center'><?= $hsn ?></td>
-                          <td colspan='1' class='text-center'><?= store_number_format($price_before_tax)." ".$tax_type ?></td>
-                          <td colspan='2' class='text-center'><?= (!empty($cgst_per))? store_number_format($cgst_per/2):''; ?>%</td>
-                            <td colspan='2' class='text-center'><?= store_number_format($cgst_amt) ?></td>
-                          <td colspan='2' class='text-center'><?= (!empty($sgst_per))? store_number_format($sgst_per/2):''; ?>%</td>
-                            <td colspan='2' class='text-center'><?= store_number_format($sgst_amt) ?></td>
-                          <td colspan='2' class='text-center'><?= (!empty($igst_per))? store_number_format($igst_per):''; ?>%</td>
-                            <td colspan='2' class='text-center'><?= store_number_format($igst_amt) ?></td>
-                          <td colspan='2' class='text-center'><?=store_number_format($price_after_tax)?></td>
-                        </tr>
-                       <?php 
-                       $tot_price_before_tax +=$price_before_tax;
-                       $tot_price_after_tax +=(!empty($price_after_tax)) ? $price_after_tax : 0;
-                       $tot_cgst_amt +=(!empty($cgst_amt)) ? $cgst_amt : 0;
-                       $tot_sgst_amt +=(!empty($sgst_amt)) ? $sgst_amt : 0;
-                       $tot_igst_amt +=(!empty($igst_amt)) ? $igst_amt : 0;
-                       
-                     } ?>
-                          <tr class='bg-sky text-bold'>
-                          <td colspan='1' class='text-center'>Total</td>
-                          <td colspan='1' class='text-center'><?= store_number_format($tot_price_before_tax) ?></td>
-                          <td colspan='2' class='text-center'></td>
-                            <td colspan='2' class='text-center'><?= (!empty($cgst_per)) ? store_number_format($tot_cgst_amt) : '' ?></td>
-                          <td colspan='2' class='text-center'></td>
-                            <td colspan='2' class='text-center'><?= (!empty($sgst_per)) ? store_number_format($tot_sgst_amt) : '' ?></td>
-                          <td colspan='2' class='text-center'></td>
-                            <td colspan='2' class='text-center'><?= (!empty($igst_per)) ? store_number_format($tot_igst_amt) : '' ?></td>
-                          <td colspan='2' class='text-center'><?=store_number_format($sales_rec->grand_total)?></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-      </td>
-      </tr>
-      <!-- Tax table end -->
+  <!-- Tax table removed - single tax total shown above -->
 
       <!-- T&C & Bank Details & signatories-->
       <tr>

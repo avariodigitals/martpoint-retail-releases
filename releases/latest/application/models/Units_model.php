@@ -81,6 +81,7 @@ class Units_model extends CI_Model {
 
 	public function verify_and_save(){
 		$unit_name = $this->input->post('unit_name', TRUE);
+		$shortcode = $this->input->post('shortcode', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
 		$conversion_factor = $this->input->post('conversion_factor', TRUE);
@@ -98,6 +99,7 @@ class Units_model extends CI_Model {
 			$info = array(
 		    				'store_id' 				=> $store_id,
 		    				'unit_name' 				=> $unit_name,
+		    				'shortcode' 				=> $shortcode,
 		    				'description' 				=> $description,
 																				'parent_unit_id' 								=> $parent_unit_id,
 																				'conversion_factor' 							=> !empty($conversion_factor) ? (float)$conversion_factor : 1,
@@ -143,6 +145,7 @@ class Units_model extends CI_Model {
 			$query=$query->row();
 			$data['q_id']=$query->id;
 			$data['unit_name']=$query->unit_name;
+			$data['shortcode']=isset($query->shortcode) ? $query->shortcode : '';
 			$data['description']=$query->description;
 			$data['parent_unit_id']=$query->parent_unit_id;
 			$data['conversion_factor']=$query->conversion_factor;
@@ -154,6 +157,7 @@ class Units_model extends CI_Model {
 	public function update_unit(){
 		$q_id = $this->input->post('q_id', TRUE);
 		$unit_name = $this->input->post('unit_name', TRUE);
+		$shortcode = $this->input->post('shortcode', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$parent_unit_id = $this->input->post('parent_unit_id', TRUE) ?: null;
 		$conversion_factor = $this->input->post('conversion_factor', TRUE);
@@ -181,6 +185,7 @@ class Units_model extends CI_Model {
 			}
 
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		$info['shortcode'] = $shortcode;
 
 			$q1 = $this->db->where('id',$q_id)->where('store_id',$store_id)->update('db_units', $info);
 

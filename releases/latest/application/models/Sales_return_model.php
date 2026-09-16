@@ -321,6 +321,18 @@ class Sales_return_model extends CI_Model {
 				$discount_input 	=$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
 				
+				// Determine the original sales line conversion factor so returns restore the correct base quantity
+				$conversion_factor = 1;
+				if(!empty($sales_id) && $this->db->field_exists('conversion_factor', 'db_salesitems')){
+					$orig = $this->db->where('sales_id',$sales_id)->where('item_id',$item_id)->where('status',1)->order_by('id','desc')->get('db_salesitems')->row();
+					if($orig && !empty($orig->conversion_factor) && $orig->conversion_factor > 0){
+						$conversion_factor = (float)$orig->conversion_factor;
+					} elseif($orig && !empty($orig->base_unit_qty) && !empty($orig->sales_qty) && $orig->sales_qty > 0){
+						$conversion_factor = (float)$orig->base_unit_qty / (float)$orig->sales_qty;
+					}
+				}
+				$base_unit_qty = $return_qty * $conversion_factor;
+
 				$discount_amt_per_unit = $discount_amt/$return_qty;
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($unit_tax * $price_per_unit / 100);
@@ -351,6 +363,7 @@ class Sales_return_model extends CI_Model {
 		    				'item_id' 			=> $item_id, 
 		    				'description' 		=> $description, 
 		    				'return_qty' 		=> $return_qty,
+					'base_unit_qty'     => $base_unit_qty,
 		    				'price_per_unit' 	=> $price_per_unit,
 		    				'tax_id' 			=> $tax_id,
 		    				'tax_amt' 			=> $tax_amt,

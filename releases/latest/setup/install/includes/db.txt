@@ -651,6 +651,7 @@ CREATE TABLE `db_customers` (
   `count_id` int(10) DEFAULT NULL COMMENT 'Use to create Customer Code',
   `customer_code` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `customer_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Retail',
   `mobile` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `phone` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `email` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -684,6 +685,7 @@ CREATE TABLE `db_customers` (
   `delete_bit` int(1) DEFAULT 0,
   `tot_advance` double(20,4) DEFAULT NULL,
   `credit_limit` double(20,4) DEFAULT -1.0000,
+  `payment_terms_days` int(5) DEFAULT 0,
   `shippingaddress_id` int(10) DEFAULT NULL,
   `nin_bvn` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `nin_verified` tinyint(1) NOT NULL DEFAULT 0,
@@ -711,9 +713,9 @@ CREATE TABLE `db_customers` (
 -- Dumping data for table `db_customers`
 --
 
-INSERT INTO `db_customers` (`id`, `store_id`, `count_id`, `customer_code`, `customer_name`, `mobile`, `phone`, `email`, `gstin`, `tax_number`, `vatin`, `opening_balance`, `sales_due`, `sales_return_due`, `country_id`, `state_id`, `city`, `postcode`, `address`, `ship_country_id`, `ship_state_id`, `ship_city`, `ship_postcode`, `ship_address`, `system_ip`, `system_name`, `created_date`, `created_time`, `created_by`, `company_id`, `status`, `location_link`, `attachment_1`, `price_level_type`, `price_level`, `delete_bit`, `tot_advance`, `credit_limit`, `shippingaddress_id`) VALUES
-(1, 1, NULL, 'CU0001', 'Walk-in customer', NULL, '', '', '', '', NULL, 0.0000, 0.0000, 0.0000, 1, NULL, NULL, '', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2019-01-01', '10:55:54 pm', 'admin', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, NULL, -1.0000, 1),
-(2, 2, 1, 'CU/02/0001', 'Walk-in customer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0.6000, 0.0000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2021-02-12', '05:53:37 pm', '', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, 0.0000, -1.0000, 2);
+INSERT INTO `db_customers` (`id`, `store_id`, `count_id`, `customer_code`, `customer_name`, `mobile`, `phone`, `email`, `gstin`, `tax_number`, `vatin`, `opening_balance`, `sales_due`, `sales_return_due`, `country_id`, `state_id`, `city`, `postcode`, `address`, `ship_country_id`, `ship_state_id`, `ship_city`, `ship_postcode`, `ship_address`, `system_ip`, `system_name`, `created_date`, `created_time`, `created_by`, `company_id`, `status`, `location_link`, `attachment_1`, `price_level_type`, `price_level`, `delete_bit`, `tot_advance`, `credit_limit`, `payment_terms_days`, `shippingaddress_id`) VALUES
+(1, 1, NULL, 'CU0001', 'Walk-in customer', NULL, '', '', '', '', NULL, 0.0000, 0.0000, 0.0000, 1, NULL, NULL, '', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2019-01-01', '10:55:54 pm', 'admin', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, NULL, -1.0000, 0, 1),
+(2, 2, 1, 'CU/02/0001', 'Walk-in customer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0.6000, 0.0000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2021-02-12', '05:53:37 pm', '', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, 0.0000, -1.0000, 0, 2);
 
 -- --------------------------------------------------------
 
@@ -1022,6 +1024,11 @@ CREATE TABLE `db_items` (
   `attribute_types_json` json DEFAULT NULL COMMENT 'Attribute types this product uses: ["size","colour","length"]',
   `recipe_id` int(11) DEFAULT NULL,
   `recipe_margin_pct` decimal(10,2) DEFAULT NULL,
+  `item_production_mode` varchar(20) NOT NULL DEFAULT 'batch',
+  `product_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'physical' COMMENT 'physical|service|digital',
+  `digital_file` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `download_limit` int(11) NOT NULL DEFAULT 3,
+  `download_expiry_hours` int(11) NOT NULL DEFAULT 72,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1761,9 +1768,13 @@ CREATE TABLE `db_purchaseitems` (
   `purchase_id` int(5) DEFAULT NULL,
   `purchase_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `item_id` int(5) DEFAULT NULL,
+  `unit_id` int(11) DEFAULT NULL,
+  `unit_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `conversion_factor` decimal(15,6) DEFAULT NULL,
   `sold_serial_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sold_imei_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `purchase_qty` double(20,2) DEFAULT NULL,
+  `base_unit_qty` double(20,4) DEFAULT NULL,
   `received_qty` double(20,4) DEFAULT NULL,
   `price_per_unit` double(20,4) DEFAULT NULL,
   `tax_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -1806,6 +1817,7 @@ CREATE TABLE `db_purchaseitemsreturn` (
   `return_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `item_id` int(5) DEFAULT NULL,
   `return_qty` double(20,2) DEFAULT NULL,
+  `base_unit_qty` double(20,4) DEFAULT NULL,
   `price_per_unit` double(20,4) DEFAULT NULL,
   `tax_id` int(5) DEFAULT NULL,
   `tax_amt` double(20,4) DEFAULT NULL,
@@ -2139,6 +2151,9 @@ CREATE TABLE `db_salesitems` (
   `sales_id` int(5) DEFAULT NULL,
   `sales_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `item_id` int(5) DEFAULT NULL,
+  `unit_id` int(11) DEFAULT NULL,
+  `unit_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `conversion_factor` decimal(15,6) DEFAULT NULL,
   `barcode_id` int(11) DEFAULT 0,
   `sold_serial_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sold_imei_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -2146,6 +2161,7 @@ CREATE TABLE `db_salesitems` (
   `batch_lot` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `price_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'wholesale',
   `sales_qty` double(20,2) DEFAULT NULL,
+  `base_unit_qty` double(20,4) DEFAULT NULL,
   `price_per_unit` double(20,4) DEFAULT NULL,
   `tax_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tax_id` int(5) DEFAULT NULL,
@@ -2250,6 +2266,7 @@ CREATE TABLE `db_salesitemsreturn` (
   `sold_serial_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sold_imei_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `return_qty` double(20,2) DEFAULT NULL,
+  `base_unit_qty` double(20,4) DEFAULT NULL,
   `price_per_unit` double(20,4) DEFAULT NULL,
   `tax_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tax_id` int(5) DEFAULT NULL,
@@ -3573,6 +3590,7 @@ CREATE TABLE `db_units` (
   `id` int(5) NOT NULL,
   `store_id` int(11) DEFAULT NULL,
   `unit_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shortcode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` mediumtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `company_id` int(5) DEFAULT NULL,
   `status` int(1) DEFAULT NULL,
@@ -3711,6 +3729,8 @@ CREATE TABLE `db_warehouse` (
   `store_id` int(5) DEFAULT NULL,
   `warehouse_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `warehouse_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `branch_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'branch',
+  `is_distribution_center` tinyint(1) NOT NULL DEFAULT 0,
   `mobile` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `email` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` int(1) DEFAULT NULL
@@ -3720,10 +3740,10 @@ CREATE TABLE `db_warehouse` (
 -- Dumping data for table `db_warehouse`
 --
 
-INSERT INTO `db_warehouse` (`id`, `store_id`, `warehouse_type`, `warehouse_name`, `mobile`, `email`, `status`) VALUES
-(1, 1, 'System', 'Warehouse-A', '', 'warehouse_a@example.com', 1),
-(2, 2, 'System', 'System Warehouse', '', '', 1),
-(86, 2, 'Custom', 'Al Amerat Store', '', '', 1);
+INSERT INTO `db_warehouse` (`id`, `store_id`, `warehouse_type`, `warehouse_name`, `branch_type`, `is_distribution_center`, `mobile`, `email`, `status`) VALUES
+(1, 1, 'System', 'Warehouse-A', 'branch', 0, '', 'warehouse_a@example.com', 1),
+(2, 2, 'System', 'System Warehouse', 'branch', 0, '', '', 1),
+(86, 2, 'Custom', 'Al Amerat Store', 'branch', 0, '', '', 1);
 
 -- --------------------------------------------------------
 
@@ -5217,3 +5237,151 @@ CREATE TABLE `db_logos` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- Phase 2 digital products, courses and memberships schema
+
+ALTER TABLE `db_items` MODIFY COLUMN `product_type` VARCHAR(20) NOT NULL DEFAULT 'physical' COMMENT 'physical | service | digital | course | membership';
+ALTER TABLE `db_online_order_items` MODIFY COLUMN `item_type` ENUM('product','service','digital','course','membership') DEFAULT 'product';
+
+CREATE TABLE IF NOT EXISTS `db_courses` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_modules` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `course_id` INT(11) UNSIGNED NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `course_id` (`course_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_lessons` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `course_id` INT(11) UNSIGNED NOT NULL,
+  `module_id` INT(11) UNSIGNED DEFAULT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `content` LONGTEXT DEFAULT NULL,
+  `video_url` VARCHAR(500) DEFAULT NULL,
+  `video_file` VARCHAR(255) DEFAULT NULL,
+  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  `is_published` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `course_id` (`course_id`),
+  KEY `module_id` (`module_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_enrollments` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `customer_id` INT(11) UNSIGNED NOT NULL,
+  `course_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `order_id` INT(11) UNSIGNED DEFAULT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT 'active | completed | cancelled',
+  `expires_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`,`customer_id`),
+  KEY `course_id` (`course_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_progress` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `enrollment_id` INT(11) UNSIGNED NOT NULL,
+  `lesson_id` INT(11) UNSIGNED NOT NULL,
+  `is_completed` TINYINT(1) NOT NULL DEFAULT 0,
+  `completed_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `enrollment_id` (`enrollment_id`,`lesson_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_memberships` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `membership_name` VARCHAR(255) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `billing_interval` VARCHAR(20) NOT NULL DEFAULT 'monthly',
+  `trial_days` INT(5) NOT NULL DEFAULT 0,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_membership_subscriptions` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `customer_id` INT(11) UNSIGNED NOT NULL,
+  `membership_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `order_id` INT(11) UNSIGNED DEFAULT NULL,
+  `start_date` DATE NOT NULL,
+  `end_date` DATE DEFAULT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT 'active | cancelled | expired',
+  `payment_status` VARCHAR(20) NOT NULL DEFAULT 'unpaid' COMMENT 'unpaid | paid | failed',
+  `next_billing_at` DATE DEFAULT NULL,
+  `paystack_subscription_code` VARCHAR(100) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`,`customer_id`),
+  KEY `membership_id` (`membership_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `db_item_selling_units` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) NOT NULL,
+  `item_id` INT(11) NOT NULL,
+  `unit_id` INT(11) NOT NULL,
+  `unit_shortcode` VARCHAR(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `conversion_factor` DECIMAL(15,6) NOT NULL DEFAULT 1.000000,
+  `selling_price` DOUBLE(20,4) DEFAULT 0.0000,
+  `wholesale_price` DOUBLE(20,4) DEFAULT NULL,
+  `purchase_price` DOUBLE(20,4) DEFAULT NULL,
+  `sku` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `barcode` VARCHAR(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
+  `is_template` TINYINT(1) NOT NULL DEFAULT 0,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `item_id` (`item_id`),
+  KEY `unit_id` (`unit_id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_is_template` (`is_template`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_newsletter_subscribers` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) NOT NULL,
+  `email` VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source` VARCHAR(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'newsletter',
+  `ip_address` VARCHAR(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store_email` (`store_id`,`email`),
+  KEY `idx_store` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

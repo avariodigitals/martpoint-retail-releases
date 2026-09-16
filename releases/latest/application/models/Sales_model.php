@@ -437,6 +437,12 @@ class Sales_model extends CI_Model {
 		}
 		//end
 
+		// Restaurant table tracking
+		$table_id = (int) $this->input->post('table_id', TRUE);
+		if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
+			$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+		}
+
 		
 		//Import post data from form
 		for($i=1;$i<=$rowcount;$i++){
@@ -467,6 +473,10 @@ class Sales_model extends CI_Model {
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
 				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
 				$price_type			=$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'wholesale'));
+				$unit_id			=$this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
+				$unit_name			=$this->xss_html_filter(trim($_REQUEST['unit_name_'.$i] ?? ''));
+				$conversion_factor	=isset($_REQUEST['conversion_factor_'.$i]) ? (float)$_REQUEST['conversion_factor_'.$i] : 1;
+				if($conversion_factor <= 0){ $conversion_factor = 1; }
 
                 //$discount_input  =(empty($discount_input)) ? 0 : $discount_input;
 				//$discount_amt 		=($sales_qty * $unit_total_cost)*$discount_input/100;
@@ -505,8 +515,9 @@ class Sales_model extends CI_Model {
 				$service_bit = $item_details->service_bit;
 				// Use the item's cost (purchase_price with tax) preferentially, falling back to base price before tax
 				$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
+				$base_unit_qty = $sales_qty * $conversion_factor;
 				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
-				if($current_stock_of_item<$sales_qty && $service_bit==0){
+				if($current_stock_of_item<$base_unit_qty && $service_bit==0){
 					return $item_name." has only ".$current_stock_of_item." in Stock!!";exit;
 				}
 				
@@ -542,7 +553,16 @@ class Sales_model extends CI_Model {
 					return "Failed to save sale item: " . $err['message'];
 				}
 				$sale_items_id = $this->db->insert_id();
-				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty");
+				// Persist multi-unit selling fields and base-unit quantity for stock conversion
+				if($sale_items_id){
+					$this->db->where('id', $sale_items_id)->update('db_salesitems', array(
+						'unit_id'           => $unit_id,
+						'unit_name'         => $unit_name,
+						'conversion_factor' => $conversion_factor,
+						'base_unit_qty'     => $base_unit_qty,
+					));
+				}
+				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
 
 				// If this is a package, create customer package record
 				if ($item_details->package_bit == 1) {

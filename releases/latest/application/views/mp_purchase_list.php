@@ -1,6 +1,9 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php
 $CI =& get_instance();
+$industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
+$is_car = $industry === 'car_dealership';
+$page_title = $is_car ? 'Vehicle Purchase List' : $page_title;
 
 /*Total Invoices*/
 if (!is_admin()) {
@@ -52,19 +55,19 @@ $purchase_due_total = $this->db->select("COALESCE(SUM(purchase_due),0) AS purcha
 <div class="mp-page-head">
   <div>
     <h2><?=$page_title;?></h2>
-    <div class="mp-page-sub">View and manage purchase orders &middot; <?=date('F j, Y');?></div>
+    <div class="mp-page-sub">View and manage <?= $is_car ? 'vehicle purchase' : 'purchase'; ?> orders &middot; <?=date('F j, Y');?></div>
   </div>
   <?php if($CI->permissions('purchase_add')): ?>
-  <a href="<?=base_url('purchase/add');?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> New Purchase</a>
+  <a href="<?=base_url('purchase/add');?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> New <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?></a>
   <?php endif; ?>
 </div>
 
 <div class="mp-kpi-grid">
   <div class="mp-kpi-card sales">
     <div class="mp-kpi-icon"><i class="fa fa-shopping-bag"></i></div>
-    <div class="mp-kpi-label">Total Invoices</div>
+    <div class="mp-kpi-label">Total Orders</div>
     <div class="mp-kpi-value"><?=number_format($total_invoice);?></div>
-    <div class="mp-kpi-sub neutral">All purchase orders</div>
+    <div class="mp-kpi-sub neutral">All <?= $is_car ? 'vehicle purchase' : 'purchase'; ?> orders</div>
   </div>
   <div class="mp-kpi-card expense">
     <div class="mp-kpi-icon"><i class="fa fa-dollar"></i></div>

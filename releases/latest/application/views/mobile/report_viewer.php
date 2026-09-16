@@ -368,12 +368,31 @@
 
     document.getElementById('btn-print').addEventListener('click', function(){
       var w = window.open('', '_blank');
-      w.document.write('<html><head><title>' + reportTitle + '</title></head><body>');
+      var from = form.querySelector('[name=from_date]').value;
+      var to = form.querySelector('[name=to_date]').value;
+      var styles = '<style>'+
+        'body{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:16px;color:#0F172A;font-size:13px;}'+
+        'h2{margin:0 0 8px;font-size:18px;font-weight:700;}'+
+        'p.meta{margin:0 0 16px;color:#64748B;font-size:12px;}'+
+        '.pl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}'+
+        '.pl-card{background:#F1F5F9;border-radius:8px;padding:12px;}'+
+        '.pl-card .label{font-size:11px;color:#64748B;margin-bottom:4px;}'+
+        '.pl-card .value{font-size:16px;font-weight:700;}'+
+        '.report-scroll{overflow:visible;margin-top:12px;}'+
+        'table{width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;}'+
+        'th,td{padding:6px 8px;border-bottom:1px solid #E2E8F0;text-align:left;white-space:normal;word-break:break-word;}'+
+        'th{background:#F1F5F9;font-weight:600;}'+
+        '.text-right{text-align:right;}'+
+        '@media print{body{padding:0;}table{font-size:9pt;}}'+
+      '</style>';
+      w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + reportTitle + '</title>' + styles + '</head><body>');
       w.document.write('<h2>' + reportTitle + '</h2>');
+      w.document.write('<p class="meta">Period: ' + from + ' to ' + to + '</p>');
       w.document.write(result.innerHTML);
       w.document.write('</body></html>');
       w.document.close();
-      w.print();
+      w.focus();
+      setTimeout(function(){ w.print(); }, 250);
     });
 
     document.getElementById('btn-share').addEventListener('click', shareToWhatsApp);

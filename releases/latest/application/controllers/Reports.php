@@ -303,51 +303,7 @@ class Reports extends MY_Controller {
 		echo $this->reports->show_purchase_tax_report();
 	}
 
-	//GSTR-1 Report 
-	public function gstr_1(){
-		$this->permission_check('gstr_1_report');
-		$data=$this->data;
-		$data['page_title']=$this->lang->line('gstr_1_report');
-		$data['content'] = $this->load->view('reports/desktop/gstr_1', $data, TRUE);
-		$this->load->view('mp_layout', $data);
-	}
-	public function show_gstr_1_report(){
-		echo $this->reports->show_gstr_1_report();
-	}
-	//GSTR-2 Report 
-	public function gstr_2(){
-		$this->permission_check('gstr_2_report');
-		$data=$this->data;
-		$data['page_title']=$this->lang->line('gstr_2_report');
-		$data['content'] = $this->load->view('reports/desktop/gstr_2', $data, TRUE);
-		$this->load->view('mp_layout', $data);
-	}
-	public function show_gstr_2_report(){
-		echo $this->reports->show_gstr_2_report();
-	}
-
-	//Customer Sales Item GST Report 
-	public function sales_gst_report(){
-		$this->permission_check('sales_gst_report');
-		$data=$this->data;
-		$data['page_title']=$this->lang->line('sales_gst_report');
-		$data['content'] = $this->load->view('reports/desktop/sales_gst', $data, TRUE);
-		$this->load->view('mp_layout', $data);
-	}
-	public function show_sales_gst_report(){
-		echo $this->reports->show_sales_gst_report();
-	}
-	//Purchase Item GST Report 
-	public function purchase_gst_report(){
-		$this->permission_check('purchase_gst_report');
-		$data=$this->data;
-		$data['page_title']=$this->lang->line('purchase_gst_report');
-		$data['content'] = $this->load->view('reports/desktop/purchase_gst', $data, TRUE);
-		$this->load->view('mp_layout', $data);
-	}
-	public function show_purchase_gst_report(){
-		echo $this->reports->show_purchase_gst_report();
-	}
+	//GST (Indian) reports removed - not applicable outside India
 	
 	//Sales Report 
 	public function customer_orders(){

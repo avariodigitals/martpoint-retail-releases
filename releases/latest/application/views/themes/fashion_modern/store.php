@@ -18,8 +18,8 @@ if(!empty($homepage_sections)){
 // Hero banner
 $hero = !empty($hero_banners) ? $hero_banners[0] : null;
 $heroImg = '';
-if($hero && $hero->desktop_image) $heroImg = base_url($hero->desktop_image);
-elseif($hero && $hero->mobile_image) $heroImg = base_url($hero->mobile_image);
+if($hero && $hero->desktop_image) $heroImg = mp_minified_image_url($hero->desktop_image, 1600);
+elseif($hero && $hero->mobile_image) $heroImg = mp_minified_image_url($hero->mobile_image, 900);
 
 // WhatsApp number
 $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
@@ -97,6 +97,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fm-add-btn:hover { background:var(--fm-primary); }
   .fm-add-btn:active { transform:scale(0.95); }
   .fm-product-stock { font-size:11px; color:#EF4444; font-weight:600; margin-top:6px; text-transform:uppercase; letter-spacing:0.04em; }
+  @media(max-width:767px){ .fm-product-footer { flex-direction:column; align-items:stretch; gap:8px; } .fm-add-btn { width:100%; height:auto; box-sizing:border-box; } }
 
   /* Category cards — stylish */
   .fm-cat-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:16px; }
@@ -201,7 +202,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
 
   /* Store hours */
   .fm-hours-grid { max-width:520px; margin:0 auto; }
-  .fm-hours-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--fm-border); font-size:14px; }
+  .fm-hours-row { display:flex; justify-content:center; padding:12px 0; border-bottom:1px solid var(--fm-border); font-size:14px; }
   .fm-hours-row:last-child { border-bottom:none; }
   .fm-hours-day { color:var(--fm-ink); font-weight:600; }
   .fm-hours-time { color:#64748B; }
@@ -254,13 +255,7 @@ foreach($orderedSections as $sectionKey => $section):
     // =====================================================
     case 'trust_badges':
       $fmBadges = json_decode($settings->trust_badges_json ?? '', true);
-      if(empty($fmBadges) || !is_array($fmBadges)){
-        $fmBadges = [
-          ['icon' => '&#10024;', 'title' => 'Premium Quality', 'desc' => 'Carefully selected fabrics and finishes for lasting comfort.'],
-          ['icon' => '&#128230;', 'title' => 'Fast Delivery', 'desc' => 'Quick and reliable shipping to your doorstep.'],
-          ['icon' => '&#129309;', 'title' => 'Personal Service', 'desc' => 'Reach us anytime on WhatsApp for styling help and orders.']
-        ];
-      }
+      if(empty($fmBadges) || !is_array($fmBadges)) break;
 ?>
 <!-- TRUST BADGES -->
 <div class="fm-values">
@@ -285,7 +280,7 @@ foreach($orderedSections as $sectionKey => $section):
     case 'promo_banner':
       if(!empty($promo_banners)):
         $promo = $promo_banners[0];
-        $promoImg = ($promo->desktop_image && file_exists($promo->desktop_image)) ? base_url($promo->desktop_image) : '';
+        $promoImg = ($promo->desktop_image && file_exists($promo->desktop_image)) ? mp_minified_image_url($promo->desktop_image, 1200) : '';
 ?>
 <!-- PROMO BANNER -->
 <div class="fm-section">
@@ -375,7 +370,7 @@ foreach($orderedSections as $sectionKey => $section):
         $oldPrice = $p->original_price ?? $p->sales_price;
         $hasDiscount = $oldPrice > $price;
         $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
-        $img = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+        $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
       <div class="fm-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
         <?php if($hasDiscount && $discountPct > 0): ?>
@@ -384,7 +379,7 @@ foreach($orderedSections as $sectionKey => $section):
         <button class="fm-product-wishlist" onclick="event.stopPropagation();"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
         <div class="fm-product-media">
           <?php if($img): ?>
-          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
           <?php else: ?>
           <div class="fm-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
           <?php endif; ?>
@@ -429,7 +424,7 @@ foreach($orderedSections as $sectionKey => $section):
     <div class="fm-product-grid">
       <?php foreach(array_slice($featured_services, 0, 4) as $s):
         $sPrice = $s->effective_price ?? $s->sales_price ?? $s->price ?? 0;
-        $sImg = (!empty($s->item_image) && file_exists($s->item_image)) ? base_url($s->item_image) : (!empty($s->service_image) && file_exists($s->service_image) ? base_url($s->service_image) : '');
+        $sImg = (!empty($s->item_image) && file_exists($s->item_image)) ? mp_minified_image_url($s->item_image, 400) : (!empty($s->service_image) && file_exists($s->service_image) ? mp_minified_image_url($s->service_image, 400) : '');
       ?>
       <div class="fm-product-card" onclick="openProductModal(<?= $s->id; ?>, '<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>', <?= $sPrice; ?>, '<?= $s->item_image ?? $s->service_image ?? ''; ?>', '<?= htmlspecialchars(addslashes($s->description ?? '')); ?>', 999, 0)">
         <div class="fm-product-media">
@@ -474,12 +469,12 @@ foreach($orderedSections as $sectionKey => $section):
     <div class="fm-product-grid">
       <?php foreach(array_slice($best_sellers, 0, 4) as $p):
         $price = $p->effective_price ?? $p->sales_price;
-        $img = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+        $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
       <div class="fm-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, 0)">
         <div class="fm-product-media">
           <?php if($img): ?>
-          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
           <?php else: ?>
           <div class="fm-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
           <?php endif; ?>
@@ -519,12 +514,12 @@ foreach($orderedSections as $sectionKey => $section):
     <div class="fm-product-grid">
       <?php foreach(array_slice($new_arrivals, 0, 4) as $p):
         $price = $p->effective_price ?? $p->sales_price;
-        $img = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+        $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
       <div class="fm-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, 0)">
         <div class="fm-product-media">
           <?php if($img): ?>
-          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
           <?php else: ?>
           <div class="fm-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
           <?php endif; ?>
@@ -627,43 +622,6 @@ foreach($orderedSections as $sectionKey => $section):
     // STORE INFO
     // =====================================================
     case 'store_info':
-?>
-<!-- STORE INFO -->
-<div class="fm-store-info">
-  <div class="fm-container">
-    <div class="fm-store-info-grid">
-      <div>
-        <div class="fm-section-label">About Us</div>
-        <h2 class="fm-store-info-title"><?= htmlspecialchars($store->store_name ?? 'Our Store'); ?></h2>
-        <p class="fm-store-info-text"><?= htmlspecialchars($settings->store_description ?? 'We are committed to bringing you the best products with exceptional service.'); ?></p>
-        <?php if(!empty($settings->store_phone)): ?>
-        <div class="fm-store-info-detail">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          <?= htmlspecialchars($settings->store_phone); ?>
-        </div>
-        <?php endif; ?>
-        <?php if(!empty($settings->store_email)): ?>
-        <div class="fm-store-info-detail">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          <?= htmlspecialchars($settings->store_email); ?>
-        </div>
-        <?php endif; ?>
-        <?php if(!empty($settings->store_address)): ?>
-        <div class="fm-store-info-detail">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <?= htmlspecialchars($settings->store_address); ?>
-        </div>
-        <?php endif; ?>
-      </div>
-      <div>
-        <?php if($logo_url): ?>
-        <img src="<?= $logo_url; ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>" style="max-width:280px;width:100%;border-radius:16px;">
-        <?php endif; ?>
-      </div>
-    </div>
-  </div>
-</div>
-<?php
       break;
 
     // =====================================================
@@ -762,7 +720,7 @@ foreach($orderedSections as $sectionKey => $section):
     <div class="fm-newsletter">
       <div class="fm-newsletter-title">Stay In The Know</div>
       <p class="fm-newsletter-text">Subscribe to get updates on new arrivals, exclusive offers and more.</p>
-      <form class="fm-newsletter-form" onsubmit="event.preventDefault();showToast('Thank you for subscribing!');this.reset();">
+      <form class="fm-newsletter-form" onsubmit="return mpNewsletterSubmit(event)">
         <input type="email" placeholder="Enter your email" required>
         <button type="submit">Subscribe</button>
       </form>
@@ -785,10 +743,9 @@ foreach($orderedSections as $sectionKey => $section):
       <h2 class="fm-section-title">Opening Hours</h2>
     </div>
     <div class="fm-hours-grid">
-      <?php foreach($business_hours as $day => $hours): ?>
+      <?php foreach($business_hours as $line): ?>
       <div class="fm-hours-row">
-        <span class="fm-hours-day"><?= htmlspecialchars(ucfirst($day)); ?></span>
-        <span class="fm-hours-time"><?= htmlspecialchars($hours); ?></span>
+        <span class="fm-hours-line"><?= htmlspecialchars($line); ?></span>
       </div>
       <?php endforeach; ?>
     </div>

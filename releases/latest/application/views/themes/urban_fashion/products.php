@@ -49,6 +49,7 @@ $cur = $store_currency ?? null;
   .ue-product-price { font-size:15px; font-weight:700; color:#0A0A0A; }
   .ue-product-price .old { font-size:12px; color:#999; text-decoration:line-through; margin-left:6px; font-weight:500; }
   .ue-card-actions { display:flex; gap:6px; }
+  @media(max-width:767px){ .ue-card-actions { flex-direction:column; align-items:stretch; } .ue-card-actions .ue-add-btn, .ue-card-actions .ue-wa-btn { width:100%; box-sizing:border-box; } }
   .ue-add-btn { flex:1; padding:10px 12px; border-radius:0; background:#0A0A0A; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; }
   .ue-add-btn:hover { background:#FF3B30; }
   .ue-add-btn:active { transform:scale(0.97); }
@@ -131,7 +132,7 @@ $cur = $store_currency ?? null;
         $oldPrice = $p->original_price ?? $p->sales_price;
         $hasDiscount = $oldPrice > $price;
         $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
-        $img = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+        $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
       <div class="ue-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
         <?php if($hasDiscount && $discountPct > 0): ?>
@@ -140,7 +141,7 @@ $cur = $store_currency ?? null;
         <button class="ue-product-wishlist" onclick="event.stopPropagation();"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
         <div class="ue-product-media">
           <?php if($img): ?>
-          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
           <?php else: ?>
           <div class="ue-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
           <?php endif; ?>

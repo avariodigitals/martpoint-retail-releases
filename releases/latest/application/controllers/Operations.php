@@ -684,22 +684,12 @@ class Operations extends MY_Controller {
 
     /**
      * Membership Plans List
+     * Route to the creator-focused memberships module so it renders in the main UI shell.
      */
     public function memberships() {
         $this->_check_feature('memberships');
         $this->permission_check('memberships_view');
-
-        $this->load->model('membership_model', 'membership');
-        $store_id = get_current_store_id();
-
-        // Update expired memberships before showing list
-        $this->membership->update_expired_memberships();
-
-        $data['active_count'] = $this->membership->count_active_memberships($store_id);
-        $data['expiring_count'] = $this->membership->count_expiring_soon(7);
-        $data['plans'] = $this->membership->get_active_plans($store_id);
-
-        $this->_render('Memberships', 'operations/memberships', $data);
+        redirect('memberships');
     }
 
     /**
@@ -1352,7 +1342,11 @@ class Operations extends MY_Controller {
             $row[] = $note->allergies_flagged
                 ? '<span class="label label-danger" title="' . htmlspecialchars($note->allergies_flagged) . '"><i class="fa fa-exclamation-triangle"></i> Allergy</span>'
                 : '<span class="text-muted">-</span>';
-            $row[] = '<a href="' . base_url('operations/medical_note/' . $note->id) . '" class="btn btn-xs btn-primary" title="Edit"><i class="fa fa-pencil"></i></a> '
+            $dispense = !empty($note->sales_id)
+                ? '<a href="' . base_url('sales/invoice/' . $note->sales_id) . '" class="btn btn-xs btn-success" title="View Sale"><i class="fa fa-file-text-o"></i></a> '
+                : '<a href="' . base_url('pos?medical_note_id=' . $note->id . '&customer_id=' . $note->customer_id) . '" class="btn btn-xs btn-info" title="Dispense"><i class="fa fa-shopping-cart"></i></a> ';
+            $row[] = $dispense
+                   . '<a href="' . base_url('operations/medical_note/' . $note->id) . '" class="btn btn-xs btn-primary" title="Edit"><i class="fa fa-pencil"></i></a> '
                    . '<button onclick="delete_medical_note(' . $note->id . ')" class="btn btn-xs btn-danger" title="Delete"><i class="fa fa-trash"></i></button>';
             $data[] = $row;
         }
@@ -2195,5 +2189,72 @@ class Operations extends MY_Controller {
         $this->load->model('recipe_category_model', 'rc');
         $ids = implode(",", $_POST['checkbox']);
         echo $this->rc->delete_categories_from_table($ids);
+    }
+
+    /* ===================== STOCK ROTATION (FEFO / FIFO) ===================== */
+    public function stock_rotation() {
+        $this->_check_feature('expiry_tracking');
+        $this->permission_check('warehouse_view');
+
+        $store_id = get_current_store_id();
+        $purchase_id = (int) $this->input->get('purchase_id', TRUE);
+        $date = $this->input->get('date', TRUE) ?: date('Y-m-d');
+
+        $this->db->select('pi.id, pi.item_id, pi.batch_lot, pi.barcode, pi.expire_date, pi.mfg_date, pi.received_qty, p.purchase_code, p.purchase_date, i.item_name, i.item_image, u.unit_name');
+        $this->db->from('db_purchaseitems pi');
+        $this->db->join('db_purchase p', 'p.id = pi.purchase_id');
+        $this->db->join('db_items i', 'i.id = pi.item_id', 'left');
+        $this->db->join('db_units u', 'u.id = i.unit_id', 'left');
+        $this->db->where('p.store_id', $store_id);
+        $this->db->where('pi.purchase_status', 'Received');
+        $this->db->where('pi.received_qty >', 0);
+        $this->db->where('pi.expire_date IS NOT NULL');
+        if ($purchase_id > 0) {
+            $this->db->where('pi.purchase_id', $purchase_id);
+        } else {
+            $this->db->where('p.purchase_date', $date);
+        }
+        $received = $this->db->get()->result();
+
+        $rotations = [];
+        $has_barcodes = $this->db->table_exists('db_item_barcodes');
+        foreach ($received as $r) {
+            $old_batches = [];
+            if ($has_barcodes) {
+                $old = $this->db
+                    ->where('item_id', $r->item_id)
+                    ->where('status', 1)
+                    ->where('qty >', 0)
+                    ->where('expire_date IS NOT NULL')
+                    ->order_by('expire_date', 'ASC')
+                    ->order_by('id', 'ASC')
+                    ->get('db_item_barcodes')->result();
+                foreach ($old as $b) {
+                    if ($b->barcode !== $r->barcode) {
+                        $old_batches[] = $b;
+                    }
+                }
+            }
+            $rotations[] = [
+                'item_name' => $r->item_name,
+                'item_image' => $r->item_image,
+                'unit_name' => $r->unit_name,
+                'purchase_code' => $r->purchase_code,
+                'purchase_date' => $r->purchase_date,
+                'new_batch' => $r,
+                'old_batches' => $old_batches,
+            ];
+        }
+
+        $data['rotations'] = $rotations;
+        $data['purchase_id'] = $purchase_id;
+        $data['date'] = $date;
+        $this->_render('Stock Rotation', 'operations/stock_rotation', $data);
+    }
+
+    /* ===================== COURSES ===================== */
+    public function courses(){
+        $this->_check_feature('courses');
+        redirect('courses');
     }
 }

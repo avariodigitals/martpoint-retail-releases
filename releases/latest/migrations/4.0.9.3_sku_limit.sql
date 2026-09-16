@@ -69,7 +69,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 UPDATE `db_subscription_plans` SET `sku_limit` = 10000,   `online_product_limit` = 500,   `user_limit` = 5  WHERE `plan_code` = 'basic';
 UPDATE `db_subscription_plans` SET `sku_limit` = 50000,   `online_product_limit` = 2000  WHERE `product_limit` > 500  AND `product_limit` <= 2000;
 UPDATE `db_subscription_plans` SET `sku_limit` = 150000,  `online_product_limit` = 5000  WHERE `product_limit` > 2000 AND `product_limit` <= 5000;
-UPDATE `db_subscription_plans` SET `sku_limit` = 500000,  `online_product_limit` = 20000 WHERE `product_limit` > 5000;
+UPDATE `db_subscription_plans` SET `sku_limit` = 500000,  `online_product_limit` = 10000 WHERE `product_limit` > 5000;
 
 -- Change publish_online default from 1 to 0 so new products stay offline
 -- until the merchant explicitly publishes them to the online store.

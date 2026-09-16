@@ -1,3 +1,21 @@
+<?php
+$pType = $product->product_type ?? 'physical';
+$isDigital = in_array($pType, ['digital','course','membership']);
+$ctaLabel = [
+  'digital'    => 'Get Instant Access',
+  'course'     => 'Enroll Now',
+  'membership' => 'Join Now',
+  'service'    => 'Book Service',
+  'physical'   => 'Add to Cart',
+][$pType] ?? 'Add to Cart';
+$badgeLabel = [
+  'digital'    => 'Digital Download',
+  'course'     => 'Online Course',
+  'membership' => 'Membership',
+  'service'    => 'Service',
+  'physical'   => 'Product',
+][$pType] ?? 'Product';
+?>
 <div class="mp-breadcrumb">
   <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>">Home</a> &rsaquo;
   <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>">Shop</a> &rsaquo;
@@ -21,21 +39,32 @@
           <span style="font-size:18px; color:var(--mp-gray); text-decoration:line-through; margin-left:8px;"><?= sf_currency($product->original_price, $store_currency ?? null); ?></span>
         <?php endif; ?>
       </div>
-      <div style="font-size:14px; color:var(--mp-gray); margin-bottom:24px;">
-        <?= $product->category_name ? 'Category: ' . htmlspecialchars($product->category_name) : ''; ?> &middot; <?= (int)$product->stock; ?> in stock
+      <div style="font-size:14px; color:var(--mp-gray); margin-bottom:24px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span style="padding:3px 10px; border-radius:999px; background:rgba(5,150,105,.1); color:#047857; font-weight:600; font-size:12px;">Available</span>
+        <?php if($product->category_name): ?><span><?= htmlspecialchars($product->category_name); ?></span><?php endif; ?>
+        <?php if($pType === 'physical'): ?>&middot; <?= (int)$product->stock; ?> in stock<?php endif; ?>
+        <?php if($product->sold_count > 0): ?>
+          &middot;
+          <?php if($pType === 'course'): ?><?= number_format($product->sold_count); ?> student<?= $product->sold_count != 1 ? 's' : ''; ?> enrolled
+          <?php elseif($pType === 'membership'): ?><?= number_format($product->sold_count); ?> member<?= $product->sold_count != 1 ? 's' : ''; ?> joined
+          <?php else: ?><?= number_format($product->sold_count); ?> sold
+          <?php endif; ?>
+        <?php endif; ?>
       </div>
       <div style="font-size:15px; line-height:1.7; color:#334155; margin-bottom:32px;">
         <?= nl2br(htmlspecialchars($product->description ?? '')); ?>
       </div>
 
+      <?php if($pType === 'physical'): ?>
       <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
         <button onclick="adjustDetailQty(-1)" style="width:44px; height:44px; border-radius:50%; border:1px solid var(--mp-border); background:#fff; font-size:20px; cursor:pointer;">-</button>
         <span id="detail-qty" style="font-size:20px; font-weight:700; min-width:30px; text-align:center;">1</span>
         <button onclick="adjustDetailQty(1)" style="width:44px; height:44px; border-radius:50%; border:1px solid var(--mp-border); background:#fff; font-size:20px; cursor:pointer;">+</button>
       </div>
+      <?php endif; ?>
 
-      <button id="detail-add-btn" onclick="addDetailToCart()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-primary); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-bottom:12px;">Add to Cart</button>
-      <?php if(!empty($settings->whatsapp_number)): ?>
+      <button id="detail-add-btn" onclick="addDetailToCart()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-primary); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-bottom:12px;"><?= $ctaLabel; ?></button>
+      <?php if($pType === 'physical' && !empty($settings->whatsapp_number)): ?>
       <button onclick="sendDetailWhatsApp()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:#25D366; color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px;">Order via WhatsApp</button>
       <?php endif; ?>
     </div>
@@ -65,7 +94,7 @@
 
 <?php if(!empty($related_products)): ?>
 <div class="mp-section" style="padding-top:0;">
-  <div class="mp-section-title">Related Products</div>
+  <div class="mp-section-title">You May Also Like</div>
   <div class="mp-grid">
     <?php foreach($related_products as $p): ?>
     <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/product/' . $p->id); ?>" class="mp-card">
@@ -88,6 +117,7 @@
   let detailQty = 1;
   const detailProduct = {
     id: <?= $product->id; ?>,
+    type: '<?= $pType; ?>',
     name: '<?= htmlspecialchars(addslashes($product->item_name)); ?>',
     price: <?= $product->effective_price; ?>,
     image: '<?= $product->item_image; ?>',
@@ -100,7 +130,7 @@
   }
 
   function addDetailToCart(){
-    addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock);
+    addToCart(detailProduct.id, detailProduct.type, detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock);
   }
 
   function sendDetailWhatsApp(){

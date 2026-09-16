@@ -593,6 +593,8 @@
             <?php if($CI->permissions('customer_orders_report')) { ?>
             <li class="report-customer-orders-active-li"><a href="<?php echo $base_url; ?>reports/customer_orders" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('customer_orders'); ?></span></a></li>
             <?php } ?>
+            <?php /* GST (Indian) reports removed - use standard tax reports instead */ ?>
+            <?php /*
             <?php if($CI->permissions('gstr_1_report')) { ?>
             <li class="report-gstr_1-active-li"><a href="<?php echo $base_url; ?>reports/gstr_1" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('gstr_1_report'); ?></span></a></li>
             <?php } ?>
@@ -605,6 +607,7 @@
             <?php if($CI->permissions('purchase_gst_report')) { ?>
             <li class="purchase_gst_report-active-li"><a href="<?php echo $base_url; ?>reports/purchase_gst_report" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('purchase_gst_report'); ?></span></a></li>
             <?php } ?>
+            */ ?>
             <?php if($CI->permissions('sales_tax_report')) { ?>
             <li class="report-sales-tax-active-li"><a href="<?php echo $base_url; ?>reports/sales_tax" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('sales_tax_report'); ?></span></a></li>
             <?php } ?>
@@ -706,6 +709,7 @@
             <li><a href="<?php echo $base_url; ?>online_store/testimonials"><i class="fa fa-comments"></i> Testimonials</a></li>
             <li><a href="<?php echo $base_url; ?>online_store/instagram"><i class="fa fa-instagram"></i> Instagram</a></li>
             <li><a href="<?php echo $base_url; ?>online_store/faqs"><i class="fa fa-question-circle"></i> FAQs</a></li>
+            <li><a href="<?php echo $base_url; ?>online_store/subscribers"><i class="fa fa-envelope-o"></i> Subscribers</a></li>
             <li><a href="<?php echo $base_url; ?>online_store/analytics"><i class="fa fa-bar-chart"></i> Analytics</a></li>
             <li class="online-store-settings-active-li"><a href="<?php echo $base_url; ?>online_store/settings"><i class="fa fa-cog"></i> Store Settings</a></li>
             <?php } ?>
@@ -716,7 +720,7 @@
         <!-- 11. OPERATIONS (includes Staff + Table Management) -->
         <?php if(true){ ?>
         <?php
-          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking'];
+          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking'];
           $has_ops = false;
           foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
           $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -757,6 +761,9 @@
             <?php } ?>
             <?php if(mp_feature_enabled('public_catalogue')) { ?>
             <li class="public-catalogue-active-li"><a href="<?= $base_url; ?>operations/public_catalogue_settings"><i class="fa fa-globe"></i> Public Catalogue Settings</a></li>
+            <?php } ?>
+            <?php if(mp_feature_enabled('expiry_tracking')) { ?>
+            <li class="stock-rotation-active-li"><a href="<?= $base_url; ?>operations/stock_rotation"><i class="fa fa-refresh"></i> Stock Rotation</a></li>
             <?php } ?>
             <?php if(mp_feature_enabled('delivery_scheduling')) { ?>
             <li class="delivery-scheduling-active-li"><a href="<?= $base_url; ?>operations/delivery_scheduling"><i class="fa fa-truck"></i> Delivery Scheduling</a></li>

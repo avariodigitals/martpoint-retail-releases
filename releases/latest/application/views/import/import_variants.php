@@ -57,6 +57,7 @@
                      <div class="box">
                         <div class="box-header">
                            <h3 class="box-title">Column Instructions</h3>
+                           <a href="<?= base_url('import/advanced');?>"><button type="button" class="btn btn-warning pull-right btnExport" style="margin-right:6px;">Advanced Import</button></a>
                            <a href="<?= base_url('import/download/items-variants');?>"><button type="button" class="btn btn-info pull-right btnExport">Download Example Format</button></a>
                         </div>
                         <div class="box-body table-responsive no-padding">

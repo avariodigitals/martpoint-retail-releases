@@ -1,5 +1,10 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
+<?php $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail'; ?>
+<?php $is_car = $industry === 'car_dealership'; ?>
+<?php $page_title = $is_car ? 'Vehicle Purchase Order' : $page_title; ?>
+<?php $supplier_label = $is_car ? 'Seller / Dealer' : 'Supplier'; ?>
+<?php $item_label = $is_car ? 'Auto Part' : 'Item'; ?>
 <?php
 
 if(!isset($purchase_id)){
@@ -79,9 +84,9 @@ else{
 <div class="mp-page-head">
   <div>
     <h2><?=$page_title;?></h2>
-    <div class="mp-page-sub"><?= isset($purchase_id) ? 'Update purchase order details' : 'Create a new purchase order'; ?></div>
+    <div class="mp-page-sub"><?= isset($purchase_id) ? 'Update ' . ($is_car ? 'vehicle purchase' : 'purchase') . ' order details' : 'Create a new ' . ($is_car ? 'vehicle purchase' : 'purchase') . ' order'; ?></div>
   </div>
-  <a class="mp-qa-btn" href="<?= base_url('purchase'); ?>"><i class="fa fa-arrow-left"></i> Back to Purchases</a>
+  <a class="mp-qa-btn" href="<?= base_url('purchase'); ?>"><i class="fa fa-arrow-left"></i> Back to <?= $is_car ? 'Vehicle Purchases' : 'Purchases'; ?></a>
 </div>
 
 <!-- **********************MODALS***************** -->
@@ -106,7 +111,7 @@ else{
 <!-- Purchase Details -->
 <div class="mp-card-form">
   <div class="mp-card-head">
-    <h3><i class="fa fa-file-text-o"></i> Purchase Details</h3>
+    <h3><i class="fa fa-file-text-o"></i> <?= $is_car ? 'Vehicle Purchase Details' : 'Purchase Details'; ?></h3>
   </div>
   <div class="mp-card-body">
     <div class="mp-form-grid">
@@ -126,10 +131,10 @@ else{
       </div>
 
       <div class="mp-form-group">
-        <label for="supplier_id"><?= $this->lang->line('supplier_name'); ?> <span class="text-danger">*</span></label>
+        <label for="supplier_id"><?= $supplier_label; ?> Name <span class="text-danger">*</span></label>
         <div class="input-group">
           <select class="form-control select2 mp-form-control" id="supplier_id" name="supplier_id" style="width: 100%;"></select>
-          <span class="input-group-addon pointer" data-toggle="modal" data-target="#supplier-modal" title="New Supplier?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
+          <span class="input-group-addon pointer" data-toggle="modal" data-target="#supplier-modal" title="New <?= $supplier_label; ?>?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
         </div>
         <span id="supplier_id_msg" style="display:none" class="text-danger"></span>
       </div>
@@ -147,7 +152,7 @@ else{
 
       <?php if(warehouse_module() && warehouse_count()>1){ ?>
       <div class="mp-form-group full">
-        <label for="warehouse_id"><?= $this->lang->line('warehouse'); ?> <span class="text-danger">*</span></label>
+        <label for="warehouse_id"><?= mp_label('warehouse'); ?> <span class="text-danger">*</span></label>
         <select class="form-control select2 mp-form-control" id="warehouse_id" name="warehouse_id" style="width: 100%;">
           <?php
           $defaultWarehouseId = getDefaultWarehouseId(); $store_id = get_current_store_id();
@@ -184,19 +189,19 @@ else{
 <!-- Items -->
 <div class="mp-card-form">
   <div class="mp-card-head" style="justify-content:space-between;gap:16px;">
-    <h3><i class="fa fa-barcode"></i> Items</h3>
+    <h3><i class="fa fa-barcode"></i> <?= $item_label; ?>s</h3>
     <div class="input-group" style="max-width:420px;min-width:220px;">
-      <span class="input-group-addon" title="Select Items"><i class="fa fa-barcode"></i></span>
-      <input type="text" class="form-control mp-form-control" placeholder="Item name / Barcode / SKU" autofocus id="item_search">
-      <span class="input-group-addon pointer text-green show_item_service" title="Click to Add New Item or Service"><i class="fa fa-plus"></i></span>
+      <span class="input-group-addon" title="Select <?= $item_label; ?>s"><i class="fa fa-barcode"></i></span>
+      <input type="text" class="form-control mp-form-control" placeholder="<?= $item_label; ?> name / Barcode / SKU" autofocus id="item_search">
+      <span class="input-group-addon pointer text-green show_item_service" title="Click to Add New <?= $item_label; ?> or Service"><i class="fa fa-plus"></i></span>
     </div>
   </div>
   <div class="mp-card-body" style="padding:16px;">
     <div id="purchase_items_container" class="mp-purchase-items">
       <div class="mp-pi-empty" id="purchase_items_empty">
         <i class="fa fa-shopping-cart"></i>
-        <p>No items added yet</p>
-        <small>Search for a product above to get started</small>
+        <p>No <?= strtolower($item_label); ?>s added yet</p>
+        <small>Search for an <?= strtolower($item_label); ?> above to get started</small>
       </div>
     </div>
 
@@ -204,7 +209,7 @@ else{
     <table class="table table-hover table-bordered" style="display:none;" id="purchase_table">
       <thead class="custom_thead">
         <tr class="bg-primary">
-          <th rowspan='2' style="width:15%">Item Name</th>
+          <th rowspan='2' style="width:15%"><?= $item_label; ?> Name</th>
           <th rowspan='2' style="width:15%;">Quantity</th>
           <th rowspan='2' style="width:10%">Price(<?=$CURRENCY;?>)</th>
           <th rowspan='2' style="width:10%">Discount(<?=$CURRENCY;?>)</th>
@@ -397,11 +402,11 @@ else{
       <?php
       if(isset($purchase_id)){
         $btn_id='update';
-        $btn_name="Update Purchase";
+        $btn_name=$is_car ? "Update Vehicle Purchase" : "Update Purchase";
         echo '<input type="hidden" name="purchase_id" id="purchase_id" value="'.$purchase_id.'"/>';
       } else {
         $btn_id='save';
-        $btn_name="Save Purchase";
+        $btn_name=$is_car ? "Save Vehicle Purchase" : "Save Purchase";
       }
       ?>
       <button type="button" id="<?php echo $btn_id;?>" class="mp-btn-primary" title="Save Data" onclick="handleSaveClick('<?php echo $btn_id;?>')"><i class="fa fa-check"></i> <?php echo $btn_name;?></button>

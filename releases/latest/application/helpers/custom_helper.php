@@ -136,6 +136,15 @@
     return str_replace(".", "_thumb.", $path);
   }
 
+  function mp_storefront_image_url($path='', $use_thumb = true){
+    if(empty($path)) return base_url('theme/images/no_image.png');
+    $thumb = return_item_image_thumb($path);
+    if($use_thumb && file_exists($thumb) && is_file($thumb)){
+      return base_url($thumb);
+    }
+    return base_url($path);
+  }
+
   /*Find the change return show in pos or not*/
   function change_return_status(){
     return mp_get_store_receipt_setting(get_current_store_id(), 'change_return', 0);
@@ -743,7 +752,7 @@
     }
     $CI =& get_instance();
     /*Sum purchase quantity of purchase entry*/
-    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END), 0) AS purchase_qty FROM
+    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)), 0) AS purchase_qty FROM
                               db_purchaseitems AS a,
                               db_purchase AS b
                               WHERE
@@ -752,7 +761,7 @@
 
 
     /*Sum purchase quantity of purchase entry*/
-    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS purchase_return_qty FROM 
+    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS purchase_return_qty FROM 
                               db_purchaseitemsreturn AS a,
                               db_purchasereturn AS b
                               WHERE 
@@ -760,7 +769,7 @@
                               b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id")->row()->purchase_return_qty;
 
     /*Sum sales quantity of sales entry*/
-    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(a.sales_qty), 0) AS sales_qty FROM 
+    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.sales_qty)), 0) AS sales_qty FROM 
                               db_salesitems AS a,
                               db_sales AS b
                               WHERE 
@@ -768,7 +777,7 @@
                               b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id")->row()->sales_qty;
 
     /*Sum sales return quantity of invoice*/
-    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS sales_return_qty FROM 
+    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS sales_return_qty FROM 
                               db_salesitemsreturn AS a,
                               db_salesreturn AS b
                               WHERE 
@@ -815,7 +824,7 @@
     $CI =& get_instance();
     $as_of_date = $CI->db->escape_str($as_of_date);
 
-    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END), 0) AS purchase_qty FROM
+    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)), 0) AS purchase_qty FROM
                               db_purchaseitems AS a,
                               db_purchase AS b
                               WHERE
@@ -823,7 +832,7 @@
                               b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id AND b.purchase_status IN ('Received','Partially Received')
                               AND b.purchase_date <= '$as_of_date'")->row()->purchase_qty;
 
-    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS purchase_return_qty FROM
+    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS purchase_return_qty FROM
                               db_purchaseitemsreturn AS a,
                               db_purchasereturn AS b
                               WHERE
@@ -831,7 +840,7 @@
                               b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id
                               AND b.return_date <= '$as_of_date'")->row()->purchase_return_qty;
 
-    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(a.sales_qty), 0) AS sales_qty FROM
+    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.sales_qty)), 0) AS sales_qty FROM
                               db_salesitems AS a,
                               db_sales AS b
                               WHERE
@@ -839,7 +848,7 @@
                               b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id AND b.sales_status='Final'
                               AND b.sales_date <= '$as_of_date'")->row()->sales_qty;
 
-    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(a.return_qty), 0) AS sales_return_qty FROM
+    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS sales_return_qty FROM
                               db_salesitemsreturn AS a,
                               db_salesreturn AS b
                               WHERE
@@ -1440,6 +1449,31 @@
            ->where_not_in('role_id', $excluded_role_ids);
     $total = $CI->db->count_all_results('db_users');
     return (int) $total;
+  }
+
+  /**
+   * Return role IDs that should not be counted as operational staff:
+   *   - Admin (role_id=1)
+   *   - Store Admin (store_admin_id())
+   *   - Partner role(s) for this store
+   */
+  function get_excluded_staff_roles($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $excluded = [1, (int)store_admin_id()];
+    $CI->db->reset_query();
+    $query = $CI->db->select('id')
+                    ->where('store_id', $store_id)
+                    ->where('UPPER(role_name)', 'PARTNER')
+                    ->get('db_roles');
+    $partner_roles = ($query) ? $query->result() : [];
+    foreach($partner_roles as $pr){
+      $pid = (int)$pr->id;
+      if(!in_array($pid, $excluded)){
+        $excluded[] = $pid;
+      }
+    }
+    return $excluded;
   }
 
   function get_product_usage($store_id=''){

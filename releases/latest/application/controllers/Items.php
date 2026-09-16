@@ -24,6 +24,13 @@ class Items extends MY_Controller {
 		$this->permission_check('items_add');
 		$data=$this->data;
 		$data['page_title']=mp_label('item');
+		// Allow ?type=digital|course|membership to preselect the product type (Creator workspace links)
+		$preType = $this->input->get('type', TRUE);
+		$typeFlags = ['digital' => 'digital_products', 'course' => 'courses', 'membership' => 'memberships'];
+		if(isset($typeFlags[$preType]) && mp_feature_enabled($typeFlags[$preType])){
+			$data['product_type'] = $preType;
+			$data['page_title'] = 'New ' . ucfirst($preType) . ($preType === 'digital' ? ' Product' : '');
+		}
 		$data['recipes_list'] = [];
 		if (recipe_module() && $this->db->table_exists('db_recipes')) {
 			$this->load->model('recipe_model');
@@ -46,7 +53,10 @@ class Items extends MY_Controller {
 
 		// Services don't require unit_id; items do
 		$item_type_post = $this->input->post('item_type', TRUE);
-		if($item_type_post !== 'service'){
+		if($item_type_post === 'digital' && !mp_feature_enabled('digital_products')) $item_type_post = 'item';
+		if($item_type_post === 'course' && !mp_feature_enabled('courses')) $item_type_post = 'item';
+		if($item_type_post === 'membership' && !mp_feature_enabled('memberships')) $item_type_post = 'item';
+		if(!in_array($item_type_post, ['service','digital','course','membership'])){
 			$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
 		}
 
@@ -71,7 +81,7 @@ class Items extends MY_Controller {
 			// SKU fair-usage check: count how many new sellable units this save adds.
 			// Single product = 1 SKU; variant product = N SKUs (children only,
 			// the parent is just a container and is already counted by product_limit).
-			if($item_type_post !== 'service'){
+			if(!in_array($item_type_post, ['service','digital','course','membership'])){
 				$item_group_val = $this->input->post('item_group', TRUE);
 				$variant_rows = (int)$this->input->post('hidden_rowcount', TRUE);
 				$new_skus = ($item_group_val === 'Variants') ? $variant_rows : 1;
@@ -81,12 +91,30 @@ class Items extends MY_Controller {
 					return;
 				}
 			}
-			if(!empty($_FILES['item_image']['name'])){
+			if(!empty($_FILES['item_image']['name']) || ($item_type_post === 'digital' && !empty($_FILES['digital_file']['name']))){
 				$media_check = check_media_storage_limit();
 				if($media_check !== true){
 					echo $media_check;
 					return;
 				}
+			}
+			if($item_type_post === 'digital' && !empty($_FILES['digital_file']['name'])){
+				$store_id = get_current_store_id();
+				$digital_dir = 'uploads/digital/' . $store_id . '/';
+				if(!is_dir('./' . $digital_dir)) mkdir('./' . $digital_dir, 0755, true);
+
+				$upload_conf = [
+					'upload_path'   => './' . $digital_dir,
+					'file_name'     => 'dgtl_' . time() . '_' . $_FILES['digital_file']['name'],
+					'allowed_types' => '*',
+					'max_size'      => 102400,
+				];
+				$this->load->library('upload', $upload_conf);
+				if(!$this->upload->do_upload('digital_file')){
+					echo $this->upload->display_errors();
+					return;
+				}
+				$_POST['digital_file_path'] = $digital_dir . $this->upload->data('file_name');
 			}
 			try{
 				session_write_close();
@@ -209,7 +237,10 @@ class Items extends MY_Controller {
 
 		// Services don't require unit_id; items do
 		$item_type_post = $this->input->post('item_type', TRUE);
-		if($item_type_post !== 'service'){
+		if($item_type_post === 'digital' && !mp_feature_enabled('digital_products')) $item_type_post = 'item';
+		if($item_type_post === 'course' && !mp_feature_enabled('courses')) $item_type_post = 'item';
+		if($item_type_post === 'membership' && !mp_feature_enabled('memberships')) $item_type_post = 'item';
+		if(!in_array($item_type_post, ['service','digital','course','membership'])){
 			$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
 		}
 
@@ -228,7 +259,7 @@ class Items extends MY_Controller {
 		if ($this->form_validation->run() == TRUE) {
 			// SKU fair-usage check on update: only count NEW variant children
 			// (rows without an existing tr_item_id). The parent already exists.
-			if($item_type_post !== 'service'){
+			if(!in_array($item_type_post, ['service','digital','course','membership'])){
 				$item_group_val = $this->input->post('item_group', TRUE);
 				$variant_rows = (int)$this->input->post('hidden_rowcount', TRUE);
 				$new_skus = 0;
@@ -374,28 +405,28 @@ class Items extends MY_Controller {
 						}
 				$row[] = $str;
 
-				 		$str2 = '<div class="btn-group" title="View Account">
-										<a class="btn btn-xs btn-primary dropdown-toggle" data-toggle="dropdown" href="#">
+				 		$str2 = '<div class="btn-group mp-action-group" title="View Account">
+										<a class="mp-action-toggle" data-toggle="dropdown" href="#">
 											Action <span class="caret"></span>
 										</a>
-										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
+										<ul role="menu" class="dropdown-menu dropdown-menu-right mp-action-menu">';
 
 											$str2.='<li>
-												<a style="cursor:pointer" title="View Product History" onclick="view_item_history('.$items->id.')">
+												<a class="mp-action-item" style="cursor:pointer" title="View Product History" onclick="view_item_history('.$items->id.')">
 													<i class="fa fa-fw fa-eye text-navy"></i>View
 												</a>
 											</li>';
 
 											if($this->permissions('items_edit') || $this->permissions('services_edit'))
 											$str2.='<li>
-												<a title="Edit Record ?" href="'.base_url(($items->service_bit)? 'services/update/'.$items->id : 'items/update/'.$items->id).'">
+												<a class="mp-action-item" title="Edit Record ?" href="'.base_url(($items->service_bit)? 'services/update/'.$items->id : 'items/update/'.$items->id).'">
 													<i class="fa fa-fw fa-edit text-blue"></i>Edit
 												</a>
 											</li>';
 
 											if($this->permissions('items_delete')|| $this->permissions('services_delete'))
 											$str2.='<li>
-												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_items('.$items->id.')">
+												<a class="mp-action-item" style="cursor:pointer" title="Delete Record ?" onclick="delete_items('.$items->id.')">
 													<i class="fa fa-fw fa-trash text-red"></i>Delete
 												</a>
 											</li>
@@ -536,6 +567,44 @@ class Items extends MY_Controller {
 				  }
 
 				  array_push($display_json, $json_arr);
+				}
+			}
+
+			// Also search per-product selling units by barcode for pack/piece/box sales
+			if(isset($search_for) && $search_for=='sales' && !empty($name) && $this->db->table_exists('db_item_selling_units')){
+				$this->db->select('su.*, a.item_name, a.item_code, a.service_bit, a.custom_barcode, a.stock as item_stock, a.tax_id, a.tax_type, a.discount_type, a.discount');
+				$this->db->from('db_item_selling_units su');
+				$this->db->join('db_items a', 'a.id = su.item_id', 'left');
+				$this->db->where('a.status', 1);
+				$this->db->where('a.store_id', $store_id);
+				$this->db->where('su.status', 1);
+				$this->db->where('su.is_template', 0);
+				$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
+				$this->db->where("(LOWER(su.barcode) LIKE '%$name%' OR LOWER(su.sku) LIKE '%$name%')", null, false);
+				$this->db->limit(20);
+				$su_sql = $this->db->get();
+				foreach ($su_sql->result() as $sres) {
+					$json_arr = array();
+					$json_arr["id"] = $sres->item_id;
+					$json_arr["value"] = $sres->item_name;
+					$label_extra = trim($sres->unit_shortcode ?: ($sres->unit_name ?: 'Unit'));
+					$json_arr["label"] = $sres->item_name . ($label_extra ? ' [' . $label_extra . ']' : '');
+					$json_arr["item_code"] = $sres->item_code;
+					$json_arr["stock"] = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $sres->item_id);
+					$json_arr["purchase_price"] = ($show_purchase_price) ? store_number_format($sres->purchase_price) : '';
+					$json_arr["service_bit"] = $sres->service_bit;
+					$json_arr["package_bit"] = 0;
+					$json_arr["accept_custom_order"] = 0;
+					$json_arr["custom_order_fields_json"] = null;
+					$json_arr["barcode"] = $sres->barcode;
+					$json_arr["barcode_id"] = 0;
+					$json_arr["barcode_price"] = store_number_format($sres->selling_price);
+					$json_arr["unit_id"] = $sres->unit_id;
+					$json_arr["unit_name"] = $sres->unit_name;
+					$json_arr["unit_shortcode"] = $sres->unit_shortcode;
+					$json_arr["conversion_factor"] = $sres->conversion_factor;
+					$json_arr["expired"] = false;
+					array_push($display_json, $json_arr);
 				}
 			}
 

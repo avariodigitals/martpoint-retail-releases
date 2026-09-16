@@ -290,10 +290,123 @@ class Online_store extends MY_Controller {
 		// Stock logic: decrement when marked paid, restore when leaving paid status
 		if($status === 'paid' && $previousStatus !== 'paid'){
 			$this->storefront_model->adjustStock($orderId);
+			// Deliver digital products, courses and memberships when manually marked paid
+			$this->storefront_model->deliverDigitalOrder($orderId);
+			$this->storefront_model->deliverCourseAndMembership($orderId);
+			$this->storefront_model->completeIfNoPhysicalProducts($orderId);
 		} elseif($status === 'refunded' && $previousStatus === 'paid'){
 			$this->storefront_model->restoreStock($orderId);
 		}
 		echo json_encode(['status' => 'success', 'message' => 'Payment status updated']);
+	}
+
+	// ============== QUICK WHATSAPP ORDER ==============
+
+	public function quick_wa(){
+		if(!$this->_can_edit_orders()){ $this->show_access_denied_page(); return; }
+		$storeId = get_current_store_id();
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(empty($settings->allow_whatsapp) || empty($settings->whatsapp_number)){
+			$this->session->set_flashdata('error', 'WhatsApp orders are not enabled. Turn on "Allow WhatsApp Orders" and set a WhatsApp number in Online Store > Settings.');
+			redirect('online_store/settings');
+			return;
+		}
+		$data = array_merge($this->data, [
+			'page_title' => 'Quick WhatsApp Order',
+			'products' => $this->storefront_model->getOnlineProducts($storeId, null, '', 500, 0),
+			'settings' => $settings
+		]);
+		$data['content'] = $this->load->view('online_store/quick_wa', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function quick_wa_save(){
+		if(!$this->_can_edit_orders()){
+			$this->session->set_flashdata('error', 'Access denied');
+			redirect('online_store/quick_wa');
+			return;
+		}
+
+		$storeId = get_current_store_id();
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(empty($settings->allow_whatsapp) || empty($settings->whatsapp_number)){
+			$this->session->set_flashdata('error', 'WhatsApp orders are not enabled. Turn on "Allow WhatsApp Orders" and set a WhatsApp number in Online Store > Settings.');
+			redirect('online_store/settings');
+			return;
+		}
+
+		$productId = (int)$this->input->post('product_id');
+		$qty = max(1, (int)$this->input->post('qty'));
+		$customerName = trim($this->input->post('customer_name', TRUE));
+		$customerPhone = trim($this->input->post('customer_phone', TRUE));
+		$customerAddress = trim($this->input->post('customer_address', TRUE));
+
+		if(!$productId){
+			$this->session->set_flashdata('error', 'Please select a product.');
+			redirect('online_store/quick_wa');
+			return;
+		}
+
+		$product = $this->storefront_model->getOnlineProduct($productId, $storeId);
+		if(!$product){
+			$this->session->set_flashdata('error', 'Product not found.');
+			redirect('online_store/quick_wa');
+			return;
+		}
+
+		$settings = $this->storefront_model->getSettings($storeId);
+		if((int)$product->stock < $qty && empty($settings->allow_backorder)){
+			$this->session->set_flashdata('error', 'Not enough stock.');
+			redirect('online_store/quick_wa');
+			return;
+		}
+
+		$price = (float)$this->storefront_model->getProductEffectivePrice($product);
+		$subtotal = round($price * $qty, 2);
+		$token = bin2hex(random_bytes(16));
+
+		$orderData = [
+			'store_id'           => $storeId,
+			'customer_name'      => $customerName ?: 'WhatsApp Customer',
+			'customer_email'     => '',
+			'customer_phone'     => $customerPhone,
+			'customer_address'   => $customerAddress,
+			'order_type'         => 'product',
+			'payment_method'     => 'whatsapp',
+			'shipping_method'    => null,
+			'delivery_fee'       => 0,
+			'subtotal'           => $subtotal,
+			'grand_total'        => $subtotal,
+			'order_status'       => 'pending',
+			'payment_status'     => 'unpaid',
+			'source_channel'     => 'whatsapp',
+			'channel_user_id'    => $customerPhone,
+			'confirmation_token' => $token,
+			'token_expires_at'   => date('Y-m-d H:i:s', strtotime('+15 minutes')),
+			'stock_adjusted'     => 0,
+		];
+
+		$orderId = $this->storefront_model->createOrder($orderData);
+		if(!$orderId){
+			$this->session->set_flashdata('error', 'Could not create order.');
+			redirect('online_store/quick_wa');
+			return;
+		}
+
+		$this->storefront_model->addOrderItem([
+			'order_id'     => $orderId,
+			'item_type'    => 'product',
+			'item_id'      => $productId,
+			'item_name'    => $product->item_name,
+			'item_image'   => $product->item_image,
+			'qty'          => $qty,
+			'unit_price'   => $price,
+			'total_price'  => $subtotal,
+			'service_note' => ''
+		]);
+
+		$this->session->set_flashdata('success', 'WhatsApp order created. Mark it paid to deduct stock.');
+		redirect('online_store/order/' . $orderId);
 	}
 
 	// ============== SERVICES ==============
@@ -1544,6 +1657,52 @@ class Online_store extends MY_Controller {
 		try{
 			$this->storefront_model->deleteStorefrontFaq($id);
 			echo json_encode(['status' => 'success', 'message' => 'FAQ deleted']);
+		} catch(Exception $e){
+			echo json_encode(['status' => 'error', 'message' => 'Error: '.$e->getMessage()]);
+		}
+	}
+
+	// ============== NEWSLETTER SUBSCRIBERS ==============
+
+	public function subscribers(){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); exit; }
+		$storeId = get_current_store_id();
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data = array_merge($this->data, [
+			'page_title' => 'Newsletter Subscribers',
+			'subscribers' => $this->storefront_model->getNewsletterSubscribers($storeId, $search),
+			'total_subscribers' => $this->storefront_model->countNewsletterSubscribers($storeId),
+			'search' => $search
+		]);
+		$data['content'] = $this->load->view('online_store/subscribers', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function export_subscribers(){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
+		$storeId = get_current_store_id();
+		$rows = $this->storefront_model->getNewsletterSubscribers($storeId);
+		$store = get_store_details($storeId);
+		$filename = 'newsletter-subscribers-' . preg_replace('/[^a-z0-9]+/i', '-', strtolower($store->store_name ?? 'store')) . '-' . date('Ymd') . '.csv';
+
+		header('Content-Type: text/csv; charset=utf-8');
+		header('Content-Disposition: attachment; filename="' . $filename . '"');
+		$out = fopen('php://output', 'w');
+		fputcsv($out, ['Email', 'Source', 'Subscribed At', 'IP Address']);
+		foreach($rows as $r){
+			fputcsv($out, [$r->email, $r->source, $r->created_at, $r->ip_address]);
+		}
+		fclose($out);
+		exit;
+	}
+
+	public function delete_subscriber($id = 0){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
+		}
+		try{
+			$this->storefront_model->deleteNewsletterSubscriber($id, get_current_store_id());
+			echo json_encode(['status' => 'success', 'message' => 'Subscriber removed']);
 		} catch(Exception $e){
 			echo json_encode(['status' => 'error', 'message' => 'Error: '.$e->getMessage()]);
 		}

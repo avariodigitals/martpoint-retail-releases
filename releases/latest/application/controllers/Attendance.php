@@ -79,7 +79,7 @@ class Attendance extends MY_Controller {
 	public function assign_shifts(){
 		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
-		$users = $this->db->where('store_id', $storeId)->where('status', 1)->get('db_users')->result();
+		$users = $this->db->where('store_id', $storeId)->where('status', 1)->where('role_id !=', store_admin_id())->get('db_users')->result();
 		$shifts = $this->attendance_model->getShifts($storeId);
 		foreach($users as $u){
 			$u->assigned_shifts = $this->attendance_model->getShiftsByUser($u->id, $storeId);
@@ -127,6 +127,10 @@ class Attendance extends MY_Controller {
 	public function clock_out_ajax(){
 		$currentUserId = (int)$this->session->userdata('inv_userid');
 		$targetUserId = (int)$this->input->post('user_id');
+		$targetUser = $this->db->where('id', $targetUserId)->get('db_users')->row();
+		if($targetUser && $targetUser->role_id == store_admin_id()){
+			echo json_encode(['status'=>'error','message'=>'Store Admin is not eligible for attendance']); return;
+		}
 		// Allow self clock-out; require edit permission to clock out someone else
 		if($targetUserId !== $currentUserId && !$this->_can_edit()){
 			echo json_encode(['status'=>'error','message'=>'Access denied']); return;
@@ -182,10 +186,11 @@ class Attendance extends MY_Controller {
 		$this->db->where('a.attendance_date >=', $start);
 		$this->db->where('a.attendance_date <=', $end);
 		if($userId) $this->db->where('a.user_id', $userId);
+		$this->db->where('u.role_id !=', store_admin_id());
 		$this->db->order_by('a.attendance_date', 'DESC');
 		$records = $this->db->get()->result();
 
-		$users = $this->db->where('store_id', $storeId)->where('status', 1)->get('db_users')->result();
+		$users = $this->db->where('store_id', $storeId)->where('status', 1)->where('role_id !=', store_admin_id())->get('db_users')->result();
 
 		$data = array_merge($this->data, [
 			'page_title' => 'Attendance Report',
@@ -216,6 +221,10 @@ class Attendance extends MY_Controller {
 		$userId = (int)$this->session->userdata('inv_userid');
 		if(!$userId){
 			echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
+			exit;
+		}
+		if(is_store_admin()){
+			echo json_encode(['status' => 'error', 'message' => 'Store Admin is not eligible for attendance']);
 			exit;
 		}
 		$storeId = get_current_store_id();
@@ -275,6 +284,10 @@ class Attendance extends MY_Controller {
 		$userId = (int)$this->session->userdata('inv_userid');
 		if(!$userId){
 			echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
+			exit;
+		}
+		if(is_store_admin()){
+			echo json_encode(['status' => 'error', 'message' => 'Store Admin is not eligible for attendance']);
 			exit;
 		}
 		$date = date('Y-m-d');

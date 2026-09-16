@@ -233,7 +233,8 @@
               $this->db->select(" a.description,c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
-                                  a.total_cost , d.unit_name,c.sku,c.hsn,
+                                  a.total_cost , d.unit_name as base_unit_name,c.sku,c.hsn,
+                                  a.unit_id, a.unit_name as sold_unit_name, e.shortcode as sold_unit_shortcode,
                                   a.sold_serial_number, a.sold_imei_number
                               ");
               $this->db->where("a.sales_id",$sales_id);
@@ -241,11 +242,14 @@
               $this->db->join("db_tax b","b.id=a.tax_id","left");
               $this->db->join("db_items c","c.id=a.item_id","left");
               $this->db->join("db_units d","d.id = c.unit_id","left");
+              $this->db->join("db_units e","e.id = a.unit_id","left");
               $q2=$this->db->get();
               foreach ($q2->result() as $res2) {
                   echo "<tr>";
                   echo "<td style='text-align:left;'>".++$i."</td>";
-                  echo "<td style='text-align:left;'>".$res2->item_name;
+                  $sold_label = trim($res2->sold_unit_shortcode ?: $res2->sold_unit_name);
+                  $unit_label = $sold_label ? ' ['.htmlspecialchars($sold_label).']' : '';
+                  echo "<td style='text-align:left;'>".$res2->item_name.$unit_label;
                   if(!empty($res2->sold_serial_number)){
                     echo "<br><small>S/N: ".htmlspecialchars($res2->sold_serial_number)."</small>";
                   }
@@ -271,9 +275,10 @@
 
     <table class="totals">
         <?php
+            $show_tax = (bool) mp_get_store_setting($res3->store_id, 'receipt', 'show_tax', 1);
             $has_tax = !empty($tax_amt) && $tax_amt != 0;
-            $show_tax_breakdown = ($pos_invoice_format_id != 3) && $has_tax;
-            $subtotal_label = ($pos_invoice_format_id == 3 || !$has_tax) ? $this->lang->line('subtotal') : $this->lang->line('before_tax');
+            $show_tax_breakdown = $show_tax && ($pos_invoice_format_id != 3) && $has_tax;
+            $subtotal_label = ($pos_invoice_format_id == 3 || !$has_tax || !$show_tax) ? $this->lang->line('subtotal') : $this->lang->line('before_tax');
         ?>
         <tr>
             <td><?= $subtotal_label; ?></td>
@@ -282,57 +287,28 @@
 
         <?php if($show_tax_breakdown): ?>
             <?php
-            if($pos_invoice_format_id == 1){
-            ?>
-                <tr>
-                    <td><?= $this->lang->line('tax_amount'); ?></td>
-                    <td><?= $CI->currency($tax_amt); ?></td>
-                </tr>
-            <?php
-            }
-            else{
-                $this->db->select("
-                                b.tax,
-                                b.tax_name,
-                                COALESCE(SUM(a.tax_amt),0) AS sum_of_tax_amt,
-                                c.tax_type
-                             ");
-                $this->db->where("a.sales_id",$sales_id);
-                $this->db->from("db_salesitems a");
-                $this->db->join("db_tax b","b.id=a.tax_id","left");
-                $this->db->join("db_items c","c.id=a.item_id","left");
-                $this->db->group_by("a.tax_id, b.tax, b.tax_name, c.tax_type");
-                $q5=$this->db->get();
+            $this->db->select("
+                            b.tax,
+                            b.tax_name,
+                            COALESCE(SUM(a.tax_amt),0) AS sum_of_tax_amt
+                         ");
+            $this->db->where("a.sales_id",$sales_id);
+            $this->db->from("db_salesitems a");
+            $this->db->join("db_tax b","b.id=a.tax_id","left");
+            $this->db->group_by("a.tax_id, b.tax, b.tax_name");
+            $q5=$this->db->get();
 
-                if($q5 && $q5->num_rows()>0){
-                    foreach($q5->result() as $row){
-                        $tax_per = $row->tax;
-                        $sum_of_tax_amt = $row->sum_of_tax_amt;
-
-                        if( $customer_delete_bit==1 || (strtoupper($customer_state) == strtoupper($company_state))){
-                            $sgst_per = $cgst_per = ($tax_per/2)."%";
-                            $sgst_amt = $cgst_amt = $sum_of_tax_amt / 2;
-                            ?>
-                            <tr>
-                                <td><?= $this->lang->line('cgst'); ?> <?= $sgst_per; ?></td>
-                                <td><?= $CI->currency($cgst_amt); ?></td>
-                            </tr>
-                            <tr>
-                                <td><?= $this->lang->line('sgst'); ?> <?= $cgst_per; ?></td>
-                                <td><?= $CI->currency($sgst_amt); ?></td>
-                            </tr>
-                            <?php
-                        }else{
-                            $igst_per = $tax_per."%";
-                            $igst_amt = $sum_of_tax_amt;
-                            ?>
-                            <tr>
-                                <td><?= $this->lang->line('igst'); ?> <?= $igst_per; ?></td>
-                                <td><?= $CI->currency($igst_amt); ?></td>
-                            </tr>
-                            <?php
-                        }
-                    }
+            if($q5 && $q5->num_rows()>0){
+                foreach($q5->result() as $row){
+                    $tax_per = $row->tax;
+                    $tax_name = $row->tax_name;
+                    $sum_of_tax_amt = $row->sum_of_tax_amt;
+                    ?>
+                    <tr>
+                        <td><?= htmlspecialchars($tax_name ? $tax_name : $this->lang->line('tax')); ?> <?= store_number_format($tax_per); ?>%</td>
+                        <td><?= $CI->currency($sum_of_tax_amt); ?></td>
+                    </tr>
+                    <?php
                 }
             }
             ?>

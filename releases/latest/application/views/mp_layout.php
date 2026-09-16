@@ -55,5 +55,18 @@ $(function(){
       $('.operations-' + menuKey + '-active-li').closest('.mp-nav-group').addClass('open');
     }
   }
+  // Creator workspace + courses/memberships highlighting
+  var creatorRoutes = ['creator','courses','memberships'];
+  if(path.length >= 1 && creatorRoutes.indexOf(path[0]) !== -1){
+    var cls = path[0];
+    if(path[0] === 'creator' && path.length >= 2) cls += '-' + path[1];
+    if(path[0] === 'creator' && path.length >= 3 && path[1] === 'products') cls += '-' + path[2];
+    var $el = $('.' + cls + '-active-li');
+    if(!$el.length && path[0] === 'creator' && path.length >= 2){ $el = $('.creator-' + path[1] + '-active-li'); }
+    if($el.length){
+      $('.mp-nav-item.active').removeClass('active');
+      $el.first().addClass('active').closest('.mp-nav-group').addClass('open');
+    }
+  }
 });
 </script>

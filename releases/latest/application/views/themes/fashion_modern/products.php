@@ -49,6 +49,7 @@ $cur = $store_currency ?? null;
   .fm-product-price { font-size:17px; font-weight:700; color:#0F172A; }
   .fm-product-price .old { font-size:13px; color:#94A3B8; text-decoration:line-through; margin-left:6px; font-weight:500; }
   .fm-card-actions { display:flex; gap:8px; }
+  @media(max-width:767px){ .fm-card-actions { flex-direction:column; align-items:stretch; } .fm-card-actions .fm-add-btn, .fm-card-actions .fm-wa-btn { width:100%; box-sizing:border-box; } }
   .fm-add-btn { flex:1; padding:11px 14px; border-radius:999px; background:#0F172A; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-size:13px; font-weight:600; }
   .fm-add-btn:hover { background:#6366F1; }
   .fm-add-btn:active { transform:scale(0.97); }
@@ -131,7 +132,7 @@ $cur = $store_currency ?? null;
         $oldPrice = $p->original_price ?? $p->sales_price;
         $hasDiscount = $oldPrice > $price;
         $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
-        $img = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+        $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
       <div class="fm-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
         <?php if($hasDiscount && $discountPct > 0): ?>
@@ -140,7 +141,7 @@ $cur = $store_currency ?? null;
         <button class="fm-product-wishlist" onclick="event.stopPropagation();"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
         <div class="fm-product-media">
           <?php if($img): ?>
-          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+          <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
           <?php else: ?>
           <div class="fm-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
           <?php endif; ?>

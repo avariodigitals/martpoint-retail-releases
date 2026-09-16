@@ -72,7 +72,7 @@
   </div>
 
   <button class="sf-add" id="add-btn" onclick="addToCart()">Add to Cart</button>
-  <?php if($settings->whatsapp_number): ?>
+  <?php if(($settings->allow_whatsapp ?? 1) && $settings->whatsapp_number): ?>
   <button class="sf-whatsapp" onclick="sendWhatsApp()">Order via WhatsApp</button>
   <?php endif; ?>
 </div>
@@ -103,6 +103,8 @@
 <script>
   const STORE_ID = <?= $settings->store_id ?? 0; ?>;
   const CURRENCY = '<?= $CURRENCY ?? '&#8358;'; ?>';
+  const CSRF_NAME = '<?= $this->security->get_csrf_token_name(); ?>';
+  const CSRF_HASH = '<?= $this->security->get_csrf_hash(); ?>';
   let qty = 1;
   const product = {
     id: <?= $product->id; ?>,
@@ -139,9 +141,37 @@
   }
 
   function sendWhatsApp(){
-    let msg = 'Hello, I am interested in: ' + product.name + ' — ' + formatMoney(product.price);
-    const wnum = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
-    if(wnum) window.open('https://wa.me/' + wnum + '?text=' + encodeURIComponent(msg), '_blank');
+    const btn = document.querySelector('.sf-whatsapp');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Preparing...';
+
+    const formData = new URLSearchParams();
+    formData.append(CSRF_NAME, CSRF_HASH);
+    formData.append('store_id', STORE_ID);
+    formData.append('product_id', product.id);
+    formData.append('qty', qty);
+
+    fetch('<?= base_url('omni/wa_draft'); ?>', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: formData
+    })
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      if(d.status && d.wa_url){
+        window.open(d.wa_url, '_blank');
+      } else {
+        showToast(d.message || 'Could not create WhatsApp order');
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      showToast('Network error. Please try again.');
+    });
   }
 </script>
 

@@ -158,6 +158,30 @@
     .catch(() => {});
   })();
 
+  // Newsletter signup — posts email to the server so it can be exported later
+  function mpNewsletterSubmit(e){
+    e.preventDefault();
+    const form = e.target;
+    const input = form.querySelector('input[type=email]');
+    const email = (input && input.value || '').trim();
+    if(!email){ showToast('Please enter your email'); return false; }
+    const btn = form.querySelector('button');
+    if(btn) btn.disabled = true;
+    const fd = new FormData();
+    fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+    fd.append('email', email);
+    fd.append('source', form.getAttribute('data-source') || 'newsletter');
+    fetch('<?= base_url('store/' . ($settings->store_slug ?? '') . '/subscribe'); ?>', {method:'POST', body:fd})
+      .then(r => r.json())
+      .then(res => {
+        showToast(res.message || 'Thank you for subscribing!');
+        if(res.status) form.reset();
+      })
+      .catch(() => showToast('Could not subscribe right now. Please try again.'))
+      .finally(() => { if(btn) btn.disabled = false; });
+    return false;
+  }
+
   // Back to top toggle
   (function(){
     const backtop = document.getElementById('backtop');

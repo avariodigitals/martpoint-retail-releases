@@ -5,6 +5,11 @@ class Mobile extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+
+		$site = get_site_details();
+		$favicon_path = !empty($site->favicon) ? $site->favicon : '';
+		$this->data['favicon_url'] = (!empty($favicon_path) && file_exists($favicon_path)) ? base_url($favicon_path) : base_url('uploads/site/icon.webp');
+
 		$this->load->model('dashboard_model','dashboard');
 		$this->load->model('sales_model','sales');
 	}
@@ -473,6 +478,7 @@ class Mobile extends MY_Controller {
 		$this->db->select("COUNT(*) as total");
 		$this->db->where("store_id", $store_id);
 		$this->db->where("status", 1);
+		$this->db->where_not_in("role_id", get_excluded_staff_roles($store_id));
 		$staff_count = $this->db->get("db_users")->row()->total ?? 0;
 		$data['staff_count'] = $staff_count;
 
@@ -517,6 +523,15 @@ class Mobile extends MY_Controller {
 		$store_id = get_current_store_id();
 		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
 		$data['till_account_id'] = get_cash_account_id();
+		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
+		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
+		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
+		// Tables for restaurant quick-sale
+		$data['tables'] = [];
+		if(mp_feature_enabled('table_management')){
+			$this->load->model('tables_model','mobile_tables');
+			$data['tables'] = $this->mobile_tables->get_all($store_id);
+		}
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
@@ -588,6 +603,15 @@ class Mobile extends MY_Controller {
 			}
 		}
 
+		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
+		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
+		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
+		// Tables for restaurant quick-sale
+		$data['tables'] = [];
+		if(mp_feature_enabled('table_management')){
+			$this->load->model('tables_model','mobile_tables');
+			$data['tables'] = $this->mobile_tables->get_all($store_id);
+		}
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
@@ -1297,7 +1321,7 @@ class Mobile extends MY_Controller {
 		}
 
 		if($recent == 1){
-			$this->db->select('a.id, a.item_name, a.item_code, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count');
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count');
 			$this->db->from('db_items a');
 		$this->db->where('a.item_group !=', 'Variants');
 			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
@@ -1315,7 +1339,7 @@ class Mobile extends MY_Controller {
 			$this->db->limit(10);
 		}
 		else {
-			$this->db->select('a.id, a.item_name, a.item_code, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, b.tax as tax_value, b.tax_name');
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, b.tax as tax_value, b.tax_name');
 			$this->db->from('db_items a');
 		$this->db->where('a.item_group !=', 'Variants');
 			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
@@ -1332,6 +1356,9 @@ class Mobile extends MY_Controller {
 				$this->db->like('a.item_name', $term);
 				$this->db->or_like('a.item_code', $term);
 				$this->db->or_like('a.sku', $term);
+				$escaped = $this->db->escape_like_str($term);
+				$this->db->or_where("EXISTS (SELECT 1 FROM db_item_selling_units su WHERE su.item_id = a.id AND su.store_id = a.store_id AND su.barcode LIKE '%".$escaped."%' ESCAPE '!')", NULL, FALSE);
+				$this->db->or_where("EXISTS (SELECT 1 FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 AND bc.barcode LIKE '%".$escaped."%' ESCAPE '!')", NULL, FALSE);
 				$this->db->group_end();
 			}
 			$this->db->limit($limit);
@@ -1356,6 +1383,28 @@ class Mobile extends MY_Controller {
 						$row->original_price = $base_price;
 					}
 				} catch(Exception $e) {}
+			}
+			unset($row);
+		}
+
+		// Attach selling units for pack/piece/carton picker
+		if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+			if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+			foreach($rows as &$row){
+				$sus = $this->selling_units->get_units($row->id, $store_id);
+				$row->selling_units = [];
+				foreach($sus as $su){
+					$row->selling_units[] = [
+						'unit_id' => $su->unit_id,
+						'unit_name' => $su->unit_name,
+						'unit_shortcode' => $su->shortcode,
+						'conversion_factor' => (float)$su->conversion_factor,
+						'selling_price' => (float)$su->selling_price,
+						'wholesale_price' => (float)$su->wholesale_price,
+						'barcode' => $su->barcode,
+						'is_default' => (bool) $su->is_default,
+					];
+				}
 			}
 			unset($row);
 		}
@@ -1693,6 +1742,7 @@ class Mobile extends MY_Controller {
 		$_POST['reference_no'] = '';
 		$_POST['sales_status'] = $is_hold ? 'Pending' : 'Final';
 		$_POST['customer_id'] = $customer_id;
+		$_POST['table_id'] = (int) ($input['table_id'] ?? 0);
 		$_POST['other_charges_input'] = '0';
 		$_POST['other_charges_tax_id'] = '';
 		$_POST['other_charges_amt'] = '0';
@@ -1753,6 +1803,9 @@ class Mobile extends MY_Controller {
 			$_POST['item_discount_type_'.$i] = 'Percentage';
 			$_POST['description_'.$i] = '';
 			$_POST['price_type_'.$i] = $item['price_type'] ?? 'retail';
+			$_POST['unit_id_'.$i] = $item['unit_id'] ?? '';
+			$_POST['unit_name_'.$i] = $item['unit_name'] ?? '';
+			$_POST['conversion_factor_'.$i] = ($item['conversion_factor'] ?? 1) > 0 ? ($item['conversion_factor'] ?? 1) : 1;
 		}
 
 		$total = $subtotal + $tax_total - $discount;
@@ -1901,6 +1954,14 @@ class Mobile extends MY_Controller {
 					if($total_recorded >= $grand_total) break;
 				}
 				$this->sales->update_sales_payment_status($sales_id, $customer_id);
+			}
+
+			// Link sale to originating medical note (Pharmacy workflow)
+			if($sales_id){
+				$medical_note_id = (int) ($input['medical_note_id'] ?? 0);
+				if($medical_note_id && $this->db->table_exists('db_medical_notes')){
+					$this->db->where('id', $medical_note_id)->where('store_id', $store_id)->update('db_medical_notes', ['sales_id' => $sales_id]);
+				}
 			}
 
 			// Record loyalty/store-credit/gift-card redemptions after the sale is saved
@@ -2954,6 +3015,8 @@ class Mobile extends MY_Controller {
 				['title' => 'Stock', 'desc' => 'Inventory levels', 'icon' => 'fa-cubes', 'url' => 'mobile/stock', 'perm' => 'items_view', 'color' => 'teal'],
 				['title' => 'Add Product', 'desc' => 'Create a new item', 'icon' => 'fa-plus-circle', 'url' => 'mobile/product', 'perm' => 'items_add', 'color' => 'teal'],
 				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
+				['title' => 'Vehicles', 'desc' => 'Automobile inventory', 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
+				['title' => 'Butchery', 'desc' => 'Carcass & cuts', 'icon' => 'fa-cut', 'url' => 'mobile/butchery', 'perm' => 'items_view', 'color' => 'red', 'feature' => 'meat_butchery_workflow'],
 				['title' => 'Stock Transfers', 'desc' => 'Branch-to-branch transfers', 'icon' => 'fa-exchange', 'url' => 'mobile/stock_transfers', 'perm' => 'stock_transfer_view', 'color' => 'teal'],
 				['title' => 'Price Catalogue', 'desc' => 'Product & service prices', 'icon' => 'fa-tags', 'url' => 'mobile/price_catalogue', 'perm' => 'items_view', 'color' => 'purple'],
 				['title' => 'Items', 'desc' => 'View & edit products', 'icon' => 'fa-book', 'url' => 'mobile/catalogue', 'perm' => 'items_view', 'color' => 'purple'],
@@ -2975,6 +3038,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Testimonials', 'desc' => 'Customer reviews', 'icon' => 'fa-comments', 'url' => 'mobile/online_store/testimonials', 'perm' => 'online_store_view', 'color' => 'purple'],
 				['title' => 'Instagram', 'desc' => 'Instagram feed', 'icon' => 'fa-instagram', 'url' => 'mobile/online_store/instagram', 'perm' => 'online_store_view', 'color' => 'purple'],
 				['title' => 'FAQs', 'desc' => 'Frequently asked questions', 'icon' => 'fa-question-circle', 'url' => 'mobile/online_store/faqs', 'perm' => 'online_store_view', 'color' => 'yellow'],
+				['title' => 'Subscribers', 'desc' => 'Newsletter email list', 'icon' => 'fa-envelope-o', 'url' => 'mobile/online_store/subscribers', 'perm' => 'online_store_view', 'color' => 'teal'],
 				['title' => 'Analytics', 'desc' => 'Store traffic & sales', 'icon' => 'fa-bar-chart', 'url' => 'mobile/online_store/analytics', 'perm' => 'online_store_view', 'color' => 'blue'],
 				['title' => 'Store Settings', 'desc' => 'Configure online store', 'icon' => 'fa-cog', 'url' => 'mobile/online_store/settings', 'perm' => 'online_store_view', 'color' => 'primary'],
 			],
@@ -3135,9 +3199,9 @@ class Mobile extends MY_Controller {
 			['title' => 'Production', 'desc' => 'Batches & production schedule', 'icon' => 'fa-industry', 'url' => 'operations/production', 'perm' => 'production_batches_view', 'feature' => 'production_workflow', 'color' => 'orange'],
 			['title' => 'Recipes', 'desc' => 'Kitchen & bakery recipes', 'icon' => 'fa-cutlery', 'url' => 'operations/recipes', 'perm' => 'recipes_view', 'feature' => 'recipe_tracking', 'color' => 'teal'],
 			['title' => 'Memberships', 'desc' => 'Plans & customer members', 'icon' => 'fa-id-card', 'url' => 'operations/memberships', 'perm' => 'memberships_view', 'feature' => 'memberships', 'color' => 'purple'],
-			['title' => 'Kitchen', 'desc' => 'Order status & kitchen display', 'icon' => 'fa-utensils', 'url' => 'operations/kitchen', 'perm' => 'store_view', 'feature' => 'kitchen_workflow', 'color' => 'orange'],
+			['title' => 'Kitchen', 'desc' => 'Order status & kitchen display', 'icon' => 'fa-utensils', 'url' => 'mobile/kitchen', 'perm' => 'store_view', 'feature' => 'kitchen_workflow', 'color' => 'orange'],
 			['title' => 'Laundry', 'desc' => 'Laundry orders & pickup', 'icon' => 'fa-tint', 'url' => 'operations/laundry', 'perm' => 'store_view', 'feature' => 'laundry_workflow', 'color' => 'blue'],
-			['title' => 'Table Management', 'desc' => 'Tables & dining status', 'icon' => 'fa-table', 'url' => 'operations/table_management', 'perm' => 'store_view', 'feature' => 'table_management', 'color' => 'green'],
+			['title' => 'Table Management', 'desc' => 'Tables & dining status', 'icon' => 'fa-table', 'url' => 'mobile/table_management', 'perm' => 'store_view', 'feature' => 'table_management', 'color' => 'green'],
 			['title' => 'Staff Assignment', 'desc' => 'Assign staff to services', 'icon' => 'fa-user-md', 'url' => 'operations/staff_assignment', 'perm' => 'store_view', 'feature' => 'staff_assignment', 'color' => 'yellow'],
 			['title' => 'Staff Commission', 'desc' => 'Track staff commissions', 'icon' => 'fa-percent', 'url' => 'operations/staff_commission', 'perm' => 'store_view', 'feature' => 'staff_commission', 'color' => 'yellow'],
 			['title' => 'Delivery', 'desc' => 'Schedule & track deliveries', 'icon' => 'fa-truck', 'url' => 'operations/delivery_scheduling', 'perm' => 'store_view', 'feature' => 'delivery_scheduling', 'color' => 'purple'],
@@ -3187,6 +3251,134 @@ class Mobile extends MY_Controller {
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 		$this->load->view('mobile/public_catalogue_settings', $data);
+	}
+
+	public function kitchen()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('kitchen_workflow')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Kitchen';
+		$store_id = get_current_store_id();
+
+		$this->load->model('kitchen_model', 'kitchen');
+		$this->kitchen->sync_new_orders($store_id);
+
+		if($this->input->get('ajax')){
+			header('Content-Type: application/json');
+			echo json_encode(['status_counts' => $this->kitchen->count_by_status($store_id)]);
+			return;
+		}
+
+		$active_status = $this->input->get('status') ?: 'new';
+		if(!in_array($active_status, ['new','preparing','ready'])){
+			$active_status = 'new';
+		}
+
+		$data['active_status'] = $active_status;
+		$data['status_counts'] = $this->kitchen->count_by_status($store_id);
+		$data['orders'] = $this->kitchen->get_orders($store_id, $active_status, 50);
+		$data['served'] = $this->kitchen->get_served_orders($store_id, 10);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/kitchen', $data);
+	}
+
+	public function kitchen_update_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('kitchen_workflow')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$kitchen_order_id = $this->input->post('kitchen_order_id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(empty($kitchen_order_id) || empty($status)){
+			echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+			return;
+		}
+		$this->load->model('kitchen_model', 'kitchen');
+		$ok = $this->kitchen->update_status($kitchen_order_id, $status);
+		header('Content-Type: application/json');
+		echo json_encode(['success' => $ok, 'status' => $status]);
+	}
+
+	public function table_management()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('table_management')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Table Management';
+		$store_id = get_current_store_id();
+
+		$this->load->model('tables_model', 'tables');
+
+		// Handle delete
+		$del_id = $this->input->get('delete');
+		if(!empty($del_id)){
+			$this->tables->delete((int)$del_id, $store_id);
+			$this->session->set_flashdata('success', 'Table deleted.');
+			redirect('mobile/table_management');
+			return;
+		}
+
+		// Handle save
+		if($this->input->post('save_table')){
+			$this->form_validation->set_rules('table_name', 'Table Name', 'trim|required');
+			if($this->form_validation->run() == TRUE){
+				$save_data = [
+					'store_id'    => $store_id,
+					'table_name'  => $this->input->post('table_name', TRUE),
+					'table_code'  => $this->input->post('table_code', TRUE),
+					'zone'        => $this->input->post('zone', TRUE),
+					'capacity'    => (int)$this->input->post('capacity', TRUE) ?: 4,
+					'status'      => $this->input->post('status', TRUE) ?: 'available',
+					'sort_order'  => (int)$this->input->post('sort_order', TRUE),
+				];
+				$edit_id = $this->input->post('edit_id', TRUE);
+				$this->tables->save($save_data, $edit_id ?: null);
+				$this->session->set_flashdata('success', 'Table saved.');
+				redirect('mobile/table_management');
+				return;
+			}
+		}
+
+		$data['status_counts'] = $this->tables->count_by_status($store_id);
+		$data['tables'] = $this->tables->get_all($store_id);
+		$data['zones'] = $this->tables->get_zones($store_id);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/table_management', $data);
+	}
+
+	public function table_update_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('table_management')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$store_id = get_current_store_id();
+		$id = (int)$this->input->post('table_id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(!$id || empty($status)){
+			echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+			return;
+		}
+		$this->load->model('tables_model', 'tables');
+		$ok = $this->tables->update_status($id, $store_id, $status);
+		header('Content-Type: application/json');
+		echo json_encode(['success' => $ok]);
 	}
 
 	public function business_profile()
@@ -3253,6 +3445,7 @@ class Mobile extends MY_Controller {
 			['title' => 'Testimonials', 'icon' => 'fa-comments', 'url' => 'mobile/online_store/testimonials'],
 			['title' => 'Instagram', 'icon' => 'fa-instagram', 'url' => 'mobile/online_store/instagram'],
 			['title' => 'FAQs', 'icon' => 'fa-question-circle', 'url' => 'mobile/online_store/faqs'],
+			['title' => 'Subscribers', 'icon' => 'fa-envelope-o', 'url' => 'mobile/online_store/subscribers'],
 			['title' => 'Analytics', 'icon' => 'fa-bar-chart', 'url' => 'mobile/online_store/analytics'],
 			['title' => 'Store Settings', 'icon' => 'fa-cog', 'url' => 'mobile/online_store/settings'],
 		];
@@ -3290,6 +3483,7 @@ class Mobile extends MY_Controller {
 			'testimonials' => 'Testimonials',
 			'instagram' => 'Instagram',
 			'faqs' => 'FAQs',
+			'subscribers' => 'Subscribers',
 			'analytics' => 'Analytics',
 			'settings' => 'Store Settings',
 		];
@@ -3432,6 +3626,11 @@ class Mobile extends MY_Controller {
 				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
 				$data['faqs'] = $this->storefront_model->getStorefrontFaqs($store_id, false);
 				$view = 'mobile/online_store/faqs';
+				break;
+			case 'subscribers':
+				$data['subscribers'] = $this->db->table_exists('db_newsletter_subscribers') ? $this->storefront_model->getNewsletterSubscribers($store_id) : [];
+				$data['total_subscribers'] = $this->db->table_exists('db_newsletter_subscribers') ? $this->storefront_model->countNewsletterSubscribers($store_id) : 0;
+				$view = 'mobile/online_store/subscribers';
 				break;
 			case 'faq_form':
 				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
@@ -4777,6 +4976,367 @@ class Mobile extends MY_Controller {
 		} else {
 			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
 		}
+	}
+
+	public function automobile()
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$data = $this->data;
+		$data['page_title'] = 'Vehicles';
+		$store_id = get_current_store_id();
+
+		$counts = ['available' => 0, 'reserved' => 0, 'sold' => 0];
+		foreach ($this->automobile_m->count_by_status($store_id) as $row) {
+			$counts[$row->status] = (int) $row->total;
+		}
+		$data['counts'] = $counts;
+
+		$status = $this->input->get('status', TRUE);
+		$data['status'] = $status;
+		$data['vehicles'] = $this->automobile_m->get_all($store_id, $status);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$this->load->view('mobile/automobile', $data);
+	}
+
+	public function automobile_form($id = '')
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$data = $this->data;
+		$data['page_title'] = 'Add Vehicle';
+		$data['vehicle'] = null;
+		if(!empty($id)){
+			$data['vehicle'] = $this->automobile_m->get_by_id($id);
+			$data['page_title'] = 'Edit Vehicle';
+		}
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/automobile_form', $data);
+	}
+
+	public function save_vehicle()
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$id = $this->input->post('id', TRUE);
+		$data = [
+			'store_id'          => get_current_store_id(),
+			'vehicle_code'      => $this->input->post('vehicle_code', TRUE),
+			'make'              => $this->input->post('make', TRUE),
+			'model'             => $this->input->post('model', TRUE),
+			'year'              => (int) $this->input->post('year', TRUE),
+			'color'             => $this->input->post('color', TRUE),
+			'mileage'           => (int) $this->input->post('mileage', TRUE),
+			'fuel_type'         => $this->input->post('fuel_type', TRUE),
+			'transmission'      => $this->input->post('transmission', TRUE),
+			'vehicle_condition' => $this->input->post('vehicle_condition', TRUE),
+			'body_type'         => $this->input->post('body_type', TRUE),
+			'engine_capacity'   => $this->input->post('engine_capacity', TRUE),
+			'drivetrain'        => $this->input->post('drivetrain', TRUE),
+			'trim_level'        => $this->input->post('trim_level', TRUE),
+			'number_of_owners'  => (int) $this->input->post('number_of_owners', TRUE),
+			'registration_date' => $this->input->post('registration_date', TRUE),
+			'vin'               => $this->input->post('vin', TRUE),
+			'license_plate'     => $this->input->post('license_plate', TRUE),
+			'description'       => $this->input->post('description', TRUE),
+			'price'             => (float) $this->input->post('price', TRUE),
+			'cost'              => (float) $this->input->post('cost', TRUE),
+			'status'            => $this->input->post('status', TRUE),
+			'customer_name'     => $this->input->post('customer_name', TRUE),
+			'created_by'        => get_current_user_id(),
+		];
+
+		$existing = !empty($id) ? $this->automobile_m->get_by_id($id) : null;
+
+		if(!empty($_FILES['vehicle_image']['name'])){
+			$upload_path = FCPATH . 'uploads/vehicles/';
+			if(!is_dir($upload_path)){
+				@mkdir($upload_path, 0755, true);
+			}
+			$config = [
+				'upload_path'   => $upload_path,
+				'allowed_types' => 'jpg|jpeg|png|webp',
+				'max_size'      => 2048,
+				'file_name'     => time() . '_' . uniqid() . '_' . get_current_store_id(),
+				'overwrite'     => false,
+			];
+			$this->load->library('upload', $config);
+			if($this->upload->do_upload('vehicle_image')){
+				$upload = $this->upload->data();
+				$data['image_path'] = 'uploads/vehicles/' . $upload['file_name'];
+			} else {
+				$this->session->set_flashdata('error', $this->upload->display_errors('', ''));
+				redirect(base_url('mobile/automobile'));
+			}
+		} elseif(!empty($existing) && !empty($existing->image_path)){
+			$data['image_path'] = $existing->image_path;
+		}
+
+		if($this->automobile_m->save($data, $id)){
+			$this->session->set_flashdata('success', 'Vehicle saved successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not save vehicle.');
+		}
+		redirect(base_url('mobile/automobile'));
+	}
+
+	public function butchery()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Butchery';
+		$store_id = get_current_store_id();
+
+		$data['received_count']  = count($this->butchery_m->get_received_carcasses($store_id));
+		$data['completed_count'] = count($this->butchery_m->get_received_carcasses($store_id, 'completed'));
+		$data['shares_count']    = count($this->butchery_m->get_shares($store_id));
+		$data['carcasses']       = $this->butchery_m->get_received_carcasses($store_id);
+		$data['shares']          = $this->butchery_m->get_shares($store_id);
+		$data['display_name']    = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$this->load->view('mobile/butchery', $data);
+	}
+
+	public function butchery_form($id = '')
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Receive Carcass';
+		$data['carcass'] = null;
+		if(!empty($id)){
+			$data['carcass'] = $this->butchery_m->get_received_carcass((int)$id);
+		}
+		$data['templates'] = $this->butchery_m->get_templates();
+		$data['freezers']  = $this->butchery_m->get_freezer_locations();
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_form', $data);
+	}
+
+	public function save_butchery_carcass()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$id = $this->input->post('id', TRUE);
+		$data = [
+			'supplier_name'       => $this->input->post('supplier_name', TRUE),
+			'carcass_name'        => $this->input->post('carcass_name', TRUE),
+			'lot_number'          => $this->input->post('lot_number', TRUE),
+			'receiving_weight'    => (float) $this->input->post('receiving_weight', TRUE),
+			'slaughter_date'      => $this->input->post('slaughter_date', TRUE),
+			'expected_yield_pct'  => (float) $this->input->post('expected_yield_pct', TRUE),
+			'freezer_location_id' => (int) $this->input->post('freezer_location_id', TRUE),
+			'carcass_template_id' => (int) $this->input->post('carcass_template_id', TRUE),
+			'notes'               => $this->input->post('notes', TRUE),
+			'created_by'          => get_current_user_id(),
+		];
+		if($this->butchery_m->save_received_carcass($data, !empty($id) ? (int)$id : null)){
+			$this->session->set_flashdata('success', 'Carcass saved successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not save carcass.');
+		}
+		redirect(base_url('mobile/butchery'));
+	}
+
+	public function butchery_cut($id = '')
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Cutting Worksheet';
+		$data['carcass'] = $this->butchery_m->get_received_carcass((int)$id);
+		if(!$data['carcass']){
+			show_404();
+			return;
+		}
+		$data['template_cuts'] = $data['carcass']->carcass_template_id ? $this->butchery_m->get_template_cuts($data['carcass']->carcass_template_id) : [];
+		$data['records']       = $this->butchery_m->get_cut_records((int)$id);
+		$data['display_name']  = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_cut', $data);
+	}
+
+	public function save_butchery_cut($id = '')
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$cuts = $this->input->post('cuts', TRUE) ?: [];
+		$created = $this->butchery_m->complete_cut_to_stock((int)$id, $cuts);
+		if ($created !== false) {
+			$this->session->set_flashdata('success', 'Cutting saved and cuts added to stock.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not save cutting worksheet.');
+		}
+		redirect(base_url('mobile/butchery'));
+	}
+
+	public function butchery_shares()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Carcass Shares';
+		$store_id = get_current_store_id();
+		$data['shares']      = $this->butchery_m->get_shares($store_id);
+		$data['carcasses']   = $this->butchery_m->get_received_carcasses($store_id);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_shares', $data);
+	}
+
+	public function save_butchery_share()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = [
+			'carcass_item_id'  => (int) $this->input->post('carcass_item_id', TRUE),
+			'customer_name'    => $this->input->post('customer_name', TRUE),
+			'share_fraction'   => $this->input->post('share_fraction', TRUE) ?: '1/4',
+			'reserved_weight'  => (float) $this->input->post('reserved_weight', TRUE),
+			'reserved_amount'  => (float) $this->input->post('reserved_amount', TRUE),
+			'deposit_amount'   => (float) $this->input->post('deposit_amount', TRUE),
+			'status'           => $this->input->post('status', TRUE) ?: 'reserved',
+			'created_by'       => get_current_user_id(),
+		];
+		if($this->butchery_m->save_share($data)){
+			$this->session->set_flashdata('success', 'Share reserved successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not reserve share.');
+		}
+		redirect(base_url('mobile/butchery_shares'));
+	}
+
+	public function butchery_coldchain()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow') && !mp_feature_enabled('frozen_food_cold_chain')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Cold Chain';
+		$store_id = get_current_store_id();
+
+		if ($this->input->post('location_name')) {
+			$save = [
+				'location_name'   => $this->input->post('location_name', TRUE),
+				'location_code'   => $this->input->post('location_code', TRUE),
+				'temp_min'        => $this->input->post('temp_min', TRUE) !== '' ? (float)$this->input->post('temp_min', TRUE) : null,
+				'temp_max'        => $this->input->post('temp_max', TRUE) !== '' ? (float)$this->input->post('temp_max', TRUE) : null,
+				'capacity_volume' => (float)$this->input->post('capacity_volume', TRUE),
+				'status'          => 1,
+			];
+			$this->butchery_m->save_freezer_location($save);
+			$this->session->set_flashdata('success', 'Freezer saved.');
+			redirect(base_url('mobile/butchery_coldchain'));
+		}
+
+		if ($this->input->post('freezer_location_id')) {
+			$freezer = $this->butchery_m->get_freezer_location((int)$this->input->post('freezer_location_id', TRUE));
+			$temp = (float)$this->input->post('temperature_c', TRUE);
+			$status = 'normal';
+			if ($freezer) {
+				if ($freezer->temp_min !== null && $temp < (float)$freezer->temp_min) $status = 'warning';
+				if ($freezer->temp_max !== null && $temp > (float)$freezer->temp_max) $status = 'warning';
+			}
+			$this->butchery_m->save_temperature_log([
+				'freezer_location_id' => (int)$this->input->post('freezer_location_id', TRUE),
+				'temperature_c'       => $temp,
+				'notes'               => $this->input->post('notes', TRUE),
+				'status'              => $status,
+				'recorded_by'         => get_current_user_id(),
+			]);
+			$this->session->set_flashdata('success', 'Temperature recorded.');
+			redirect(base_url('mobile/butchery_coldchain'));
+		}
+
+		$data['freezers'] = $this->butchery_m->get_freezer_locations($store_id);
+		$data['logs']     = $this->butchery_m->get_recent_temperature_logs(50, $store_id);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_coldchain', $data);
+	}
+
+	public function sell_vehicle($id)
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$vehicle = $this->automobile_m->get_by_id($id);
+		if(empty($vehicle) || $vehicle->status === 'sold'){
+			$this->session->set_flashdata('error', 'Vehicle not found or already sold.');
+			redirect(base_url('mobile/automobile'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Sell Vehicle';
+		$data['vehicle'] = $vehicle;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/automobile_sell', $data);
+	}
+
+	public function save_sell_vehicle()
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$id = (int) $this->input->post('vehicle_id', TRUE);
+		$vehicle = $this->automobile_m->get_by_id($id);
+		if(empty($vehicle) || $vehicle->status === 'sold'){
+			$this->session->set_flashdata('error', 'Vehicle not found or already sold.');
+			redirect(base_url('mobile/automobile'));
+		}
+
+		$save = [
+			'status'         => 'sold',
+			'customer_name'  => $this->input->post('customer_name', TRUE),
+			'customer_id'    => (int) $this->input->post('customer_id', TRUE),
+			'sold_date'      => date('Y-m-d H:i:s'),
+			'amount_paid'    => (float) $this->input->post('amount_paid', TRUE),
+			'payment_method' => $this->input->post('payment_method', TRUE),
+			'sold_by'        => get_current_user_id(),
+		];
+
+		$this->automobile_m->save($save, $id);
+		$this->session->set_flashdata('success', 'Vehicle sold. Receipt ready.');
+		redirect(base_url('mobile/vehicle_receipt/' . $id));
+	}
+
+	public function vehicle_receipt($id)
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$vehicle = $this->automobile_m->get_by_id($id);
+		if(empty($vehicle)){
+			$this->session->set_flashdata('error', 'Vehicle not found.');
+			redirect(base_url('mobile/automobile'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Vehicle Receipt';
+		$data['vehicle'] = $vehicle;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/automobile_receipt', $data);
 	}
 
 }

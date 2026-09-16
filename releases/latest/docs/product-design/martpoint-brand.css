@@ -316,3 +316,27 @@ a { color: var(--mp-primary); text-decoration: none; }
 .no-break { page-break-inside: avoid; }
 .keep-together { page-break-inside: avoid; }
 .break-before { page-break-before: always; }
+
+/* Mobile viewports */
+@media (max-width: 768px) {
+  .document { max-width: 100%; padding: 0; }
+  .page {
+    width: 100%;
+    min-height: auto;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .page-cover .cover-inner { min-height: 100vh; padding: 16px; }
+  .cover-hero h1 { font-size: 2rem; }
+  .cover-hero p { max-width: 100%; font-size: 1rem; }
+  .cover-top { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .shape { display: none; }
+  .hero-pattern { background: none; }
+  .field-list { grid-template-columns: 1fr; }
+  .screen-flow { flex-direction: column; align-items: stretch; }
+  .flow-step { font-size: 0.82rem; }
+  table { width: 100%; font-size: 0.78rem; table-layout: fixed; }
+  th, td { word-break: break-word; white-space: normal; }
+}

@@ -38,58 +38,68 @@ class Business_profile extends MY_Controller {
         $dashboard_template_key = $this->input->post('dashboard_template_key', TRUE);
         $storefront_theme_key = $this->input->post('storefront_theme_key', TRUE);
 
-        // Load storefront model so we can validate the selected theme against the industry.
+        // Load the chosen business-type preset so every necessary field is
+        // pre-filled when the user only picks a business type and hits Save.
+        $presets = mp_get_business_presets();
+        $preset = $presets[$industry_type] ?? $presets['general_retail'];
+
+        if (empty($business_model) || !isset(mp_get_business_models()[$business_model])) {
+            $business_model = $preset['business_model'] ?? 'product_based';
+        }
+
+        $workflow_templates = mp_get_workflow_templates();
+        if (empty($workflow_template_key) || !isset($workflow_templates[$workflow_template_key])) {
+            $workflow_template_key = $preset['workflow_template'] ?? 'retail_standard';
+        }
+
+        $dashboard_templates = mp_get_dashboard_templates();
+        if (empty($dashboard_template_key) || !isset($dashboard_templates[$dashboard_template_key])) {
+            $dashboard_template_key = $preset['dashboard_template'] ?? 'general_retail';
+        }
+
+        // Validate the storefront theme against the allowed set for the industry.
+        // Prefer the preset's theme and fall back to the first allowed theme.
         $this->load->model('storefront_model');
-
-        // When the business type changes, make sure the storefront theme follows the new preset
-        // unless the user explicitly picked a different theme.
-        $old = $this->bp_model->get_profile($store_id);
-        $oldIndustry = $old['industry_type'] ?? '';
-        $oldThemeKey = $old['storefront_theme_key'] ?? '';
-        if (!empty($industry_type) && $industry_type !== $oldIndustry) {
-            $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
-            if(empty($storefront_theme_key) || $storefront_theme_key === $oldThemeKey || !isset($allowed[$storefront_theme_key])){
-                // Default to the first allowed theme for the new industry
-                $storefront_theme_key = array_keys($allowed)[0];
-            }
+        $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
+        if (empty($storefront_theme_key) || !isset($allowed[$storefront_theme_key])) {
+            $storefront_theme_key = (isset($allowed[$preset['theme_key'] ?? '']) ? $preset['theme_key'] : (array_keys($allowed)[0] ?? 'general_retail'));
         }
 
-        // Final validation: the selected theme must be in the allowed set for the industry.
-        if (!empty($storefront_theme_key)) {
-            $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
-            if (!isset($allowed[$storefront_theme_key])) {
-                $storefront_theme_key = array_keys($allowed)[0];
-            }
-        } else {
-            $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
-            $storefront_theme_key = array_keys($allowed)[0];
-        }
-
-        // Feature flags JSON
-        $flags = $this->input->post('feature_flags', TRUE);
+        // Feature flags JSON — use submitted values if the form sent any, otherwise the preset
+        $flags = $this->input->post('feature_flags');
         $feature_flags_json = null;
-        if (is_array($flags)) {
+        if (!is_null($flags) && is_array($flags)) {
             $clean = [];
             foreach (mp_get_feature_flags() as $key => $label) {
                 $clean[$key] = isset($flags[$key]) ? '1' : '0';
             }
             $feature_flags_json = json_encode($clean);
+        } else {
+            $clean = [];
+            foreach (mp_get_feature_flags() as $key => $label) {
+                $clean[$key] = (isset($preset['features']) && in_array($key, $preset['features'], true)) ? '1' : '0';
+            }
+            $feature_flags_json = json_encode($clean);
         }
 
-        // Label overrides JSON
-        $labels = $this->input->post('label_overrides', TRUE);
+        // Label overrides JSON — use submitted values, then merge with preset defaults
+        $labels = $this->input->post('label_overrides');
         $label_overrides_json = null;
-        if (is_array($labels)) {
-            $clean_labels = [];
+        if (!is_null($labels) && is_array($labels)) {
+            $clean_labels = $preset['labels'] ?? [];
             foreach ($labels as $k => $v) {
                 $v = trim($v);
                 if ($v !== '') {
                     $clean_labels[$k] = $v;
+                } elseif (isset($clean_labels[$k])) {
+                    unset($clean_labels[$k]);
                 }
             }
             if (!empty($clean_labels)) {
                 $label_overrides_json = json_encode($clean_labels);
             }
+        } else {
+            $label_overrides_json = !empty($preset['labels']) ? json_encode($preset['labels']) : null;
         }
 
         // Industry settings JSON (simple key-value from textarea or hidden)

@@ -861,7 +861,8 @@ function get_item_details(item_id, barcodeData){
   var base_url=$("#base_url").val();
   var warehouse_id=$("#warehouse_id").val();
   var price_type=$("#price_type").val() || 'wholesale';
-  var postData = {item_id:item_id,warehouse_id:warehouse_id,price_type:price_type};
+  var customer_id=$("#customer_id").val() || '';
+  var postData = {item_id:item_id,warehouse_id:warehouse_id,price_type:price_type,customer_id:customer_id};
   if(barcodeData && barcodeData.barcode){
     postData.barcode = barcodeData.barcode;
     postData.batch_lot = barcodeData.batch_lot || '';
@@ -884,6 +885,36 @@ function get_item_details(item_id, barcodeData){
       openCustomOrderModal(item);
       return;
     }
+
+    var selling_units = item['selling_units'] || [];
+    var has_multiple_units = (selling_units.length > 1);
+    var is_barcode_match = (barcodeData && barcodeData.barcode && item['barcode'] === barcodeData.barcode);
+
+    // Show unit picker when a product has multiple selling units and the user did not scan a specific unit barcode
+    if(has_multiple_units && !is_barcode_match){
+      $(".overlay").remove();
+      openSellingUnitPicker(item.id, selling_units, function(selectedUnit){
+        // Build final item object from the selected unit and add to cart
+        var posPriceType = $('#price_type').val() || 'retail';
+        var unitPrice = (posPriceType == 'wholesale' && selectedUnit.wholesale_price && parseFloat(selectedUnit.wholesale_price) > 0)
+                          ? selectedUnit.wholesale_price
+                          : selectedUnit.selling_price;
+        item['sales_price'] = unitPrice;
+        item['purchase_price'] = selectedUnit.purchase_price || item['purchase_price'];
+        item['unit_id'] = selectedUnit.unit_id;
+        item['unit_name'] = selectedUnit.unit_name;
+        item['unit_shortcode'] = selectedUnit.unit_shortcode;
+        item['conversion_factor'] = selectedUnit.conversion_factor;
+        item['barcode'] = selectedUnit.barcode || '';
+        pushSellingUnitToRow(item);
+      });
+      return;
+    }
+
+    pushSellingUnitToRow(item);
+  };
+
+  function pushSellingUnitToRow(item){
     var obj = {};
     obj['item_id']        = item['id'];
     obj['item_name']      = item['item_name'];
@@ -906,6 +937,10 @@ function get_item_details(item_id, barcodeData){
     obj['serial_number']  = item['serial_number'] || '';
     obj['imei_number']    = item['imei_number'] || '';
     obj['warranty_months']= item['warranty_months'] || 0;
+    obj['unit_id']        = item['unit_id'] || '';
+    obj['unit_name']      = item['unit_name'] || '';
+    obj['unit_shortcode'] = item['unit_shortcode'] || '';
+    obj['conversion_factor'] = item['conversion_factor'] || 1;
     addrow(null,obj);
     $(".overlay").remove();
   };

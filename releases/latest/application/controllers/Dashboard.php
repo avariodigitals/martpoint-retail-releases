@@ -22,6 +22,13 @@ class Dashboard extends MY_Controller {
 		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
 			redirect(base_url('pos'));
 		}
+		// Creator / Digital Store businesses land on the Creator Workspace (use ?classic=1 for the retail dashboard)
+		if(function_exists('mp_get_store_profile') && $this->input->get('classic') === NULL){
+			$bp = mp_get_store_profile();
+			if(($bp['industry_type'] ?? '') === 'creator'){
+				redirect(base_url('creator'));
+			}
+		}
 		$this->load->model('dashboard_model');//Model
 
 		// Branch / Warehouse Filter

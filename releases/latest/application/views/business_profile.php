@@ -143,7 +143,7 @@
                     </div>
                   </div>
                   <div style="margin-top:12px; text-align:right;">
-                    <button type="button" id="applyPresetBtn" class="mp-qa-btn green"><i class="fa fa-check"></i> Apply Recommended Settings</button>
+                    <span class="bp-help-text" style="margin:0;">Recommended settings have been applied.</span>
                     <button type="button" id="dismissPresetBtn" class="mp-qa-btn" style="margin-left:6px;">Dismiss</button>
                   </div>
                 </div>
@@ -219,14 +219,17 @@
                     'Sales & Storefront' => [
                       'online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','price_catalogue'
                     ],
+                    'POS' => [
+                      'pos_retail_button','pos_wholesale_button'
+                    ],
                     'Products & Inventory' => [
-                      'multi_unit_inventory','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default'
+                      'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','digital_products','courses'
                     ],
                     'Services & Appointments' => [
                       'appointments','service_workflow','custom_orders','packages','memberships'
                     ],
                     'Workflows & Operations' => [
-                      'kitchen_workflow','table_management','laundry_workflow','treatment_notes','medical_notes','staff_assignment','staff_commission','delivery_scheduling','production_workflow','recipe_tracking'
+                      'automobile_workflow','kitchen_workflow','table_management','laundry_workflow','treatment_notes','medical_notes','staff_assignment','staff_commission','delivery_scheduling','production_workflow','recipe_tracking'
                     ],
                     'Management' => [
                       'payplan','customer_notes','manager_approvals','cashier_shifts'
@@ -246,7 +249,7 @@
                   <div class="row">
                     <?php foreach ($visible_keys as $key):
                       $label = $feature_flags[$key];
-                      // Defaults when the flag has never been saved: core modules default to enabled
+                      // Defaults when the flag has never been saved: use the current business-type preset
                       if (!isset($saved_flags[$key])) {
                         if ($key === 'mfg_tracking') {
                           $is_checked = mp_feature_enabled('expiry_tracking');
@@ -255,7 +258,7 @@
                         } elseif ($key === 'warehouse') {
                           $is_checked = warehouse_module();
                         } else {
-                          $is_checked = false;
+                          $is_checked = in_array($key, $recommended_features);
                         }
                       } else {
                         $is_checked = filter_var($saved_flags[$key], FILTER_VALIDATE_BOOLEAN);
@@ -387,8 +390,8 @@
       <?php endforeach; ?>
     };
 
-    // Pre-load the preset for the currently-selected business type so the
-    // Apply buttons work on page load (not only after a dropdown change).
+    // Pre-load the preset for the currently-selected business type and
+    // pre-fill any empty template/theme/model fields so one Save works.
     (function preLoadPreset() {
       var type = $('#industry_type').val();
       if (!type) return;
@@ -400,6 +403,7 @@
         success: function(res) {
           if (res.status === 'success' && res.preset) {
             currentPreset = res.preset;
+            applyPresetValues(res.preset, true);
           }
         }
       });
@@ -456,6 +460,7 @@
         success: function(res) {
           if (res.status === 'success' && res.preset) {
             currentPreset = res.preset;
+            applyPresetValues(res.preset);
             showPresetPreview(res.preset); // show preview panel
             showThemeSuggestion(res.preset.theme_key);
           }
@@ -464,44 +469,57 @@
       });
     });
 
-    function applyPresetValues(p) {
+    function applyPresetValues(p, onlyEmpty) {
       if (!p) return;
-      $('#business_model').val(p.business_model || '').trigger('change');
-      $('#workflow_template_key').val(p.workflow_template || 'retail_standard').trigger('change');
-      $('#dashboard_template_key').val(p.dashboard_template || 'general_retail').trigger('change');
-      $('#storefront_theme_key').val(p.theme_key || 'general_retail').trigger('change');
+      onlyEmpty = !!onlyEmpty;
+      if (!onlyEmpty || !$('#business_model').val()) {
+        $('#business_model').val(p.business_model || '').trigger('change');
+      }
+      if (!onlyEmpty || !$('#workflow_template_key').val()) {
+        $('#workflow_template_key').val(p.workflow_template || 'retail_standard').trigger('change');
+      }
+      if (!onlyEmpty || !$('#dashboard_template_key').val()) {
+        $('#dashboard_template_key').val(p.dashboard_template || 'general_retail').trigger('change');
+      }
+      if (!onlyEmpty || !$('#storefront_theme_key').val()) {
+        $('#storefront_theme_key').val(p.theme_key || 'general_retail').trigger('change');
+      }
 
-      // Show/hide flags based on preset recommendations
-      var recommended = Array.isArray(p.features) ? p.features : [];
-      $('.bp-flag-col').each(function() {
-        var key = $(this).data('feature-key');
-        var $cb = $(this).find('input[type="checkbox"]');
-        var $switch = $(this).find('.bp-flag-switch');
-        var $status = $('#ff_status_' + key);
-        if (recommended.indexOf(key) !== -1) {
-          $(this).show();
-          $cb.prop('checked', true);
-          $switch.addClass('on');
-          $status.removeClass('off').addClass('on').text('ON');
-        } else {
-          $(this).hide();
-          $cb.prop('checked', false);
-          $switch.removeClass('on');
-          $status.removeClass('on').addClass('off').text('OFF');
-        }
-      });
-      // Hide group titles that have no visible children
-      $('.bp-flag-group-title').each(function() {
-        var groupName = $(this).data('group');
-        var $nextRow = $(this).next('.row');
-        var visibleChildren = $nextRow.find('.bp-flag-col:visible').length;
-        $(this).toggle(visibleChildren > 0);
-        $nextRow.toggle(visibleChildren > 0);
-      });
+      // On a business-type change, fully update recommended feature flags.
+      if (!onlyEmpty) {
+        var recommended = Array.isArray(p.features) ? p.features : [];
+        $('.bp-flag-col').each(function() {
+          var key = $(this).data('feature-key');
+          var $cb = $(this).find('input[type="checkbox"]');
+          var $switch = $(this).find('.bp-flag-switch');
+          var $status = $('#ff_status_' + key);
+          if (recommended.indexOf(key) !== -1) {
+            $(this).show();
+            $cb.prop('checked', true);
+            $switch.addClass('on');
+            $status.removeClass('off').addClass('on').text('ON');
+          } else {
+            $(this).hide();
+            $cb.prop('checked', false);
+            $switch.removeClass('on');
+            $status.removeClass('on').addClass('off').text('OFF');
+          }
+        });
+        // Hide group titles that have no visible children
+        $('.bp-flag-group-title').each(function() {
+          var groupName = $(this).data('group');
+          var $nextRow = $(this).next('.row');
+          var visibleChildren = $nextRow.find('.bp-flag-col:visible').length;
+          $(this).toggle(visibleChildren > 0);
+          $nextRow.toggle(visibleChildren > 0);
+        });
+      }
 
       if (p.labels) {
         for (var k in p.labels) {
-          $('input[name="label_overrides[' + k + ']"]').val(p.labels[k]);
+          if (!onlyEmpty || !$('input[name="label_overrides[' + k + ']"]').val()) {
+            $('input[name="label_overrides[' + k + ']"]').val(p.labels[k]);
+          }
         }
       }
     }
@@ -549,15 +567,6 @@
       $('#themeSuggestionText').text('Recommended: ' + themeLabel);
       $('#themeSuggestionCard').show();
     }
-
-    // Apply Preset button
-    $('#applyPresetBtn').on('click', function() {
-      if (!currentPreset) { toastr.warning('Please select a business type first.'); return; }
-      applyPresetValues(currentPreset);
-      $('#presetPreview').removeClass('active');
-      $('#themeSuggestionCard').hide();
-      toastr.success('Recommended settings applied. Click Save to confirm.');
-    });
 
     $('#dismissPresetBtn').on('click', function() {
       $('#presetPreview').removeClass('active');

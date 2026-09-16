@@ -11,6 +11,8 @@
          <?php
             if(!isset($warehouse_name)){
               $warehouse_name=$mobile=$email=$q_id='';
+              $branch_type='branch';
+              $is_distribution_center=0;
               $disabled='';
             }else{
               $disabled='disabled="disabled"';
@@ -57,8 +59,22 @@
                                     <input type="text" class="form-control input-sm" id="warehouse_name" name="warehouse_name" placeholder="" onkeyup="shift_cursor(event,'mobile')" value="<?php print $warehouse_name; ?>"  autofocus>
                                     <span id="warehouse_name_msg" style="display:none" class="text-danger"></span>
                                  </div>
+                                 <label for="branch_type" class="col-sm-2 control-label">Branch Type</label>
+                                 <div class="col-sm-4">
+                                    <select class="form-control input-sm" id="branch_type" name="branch_type">
+                                       <option value="branch" <?= ($branch_type ?? 'branch') === 'branch' ? 'selected' : ''; ?>>Branch</option>
+                                       <option value="depot" <?= ($branch_type ?? 'branch') === 'depot' ? 'selected' : ''; ?>>Depot</option>
+                                       <option value="hub" <?= ($branch_type ?? 'branch') === 'hub' ? 'selected' : ''; ?>>Distribution Hub</option>
+                                       <option value="store" <?= ($branch_type ?? 'branch') === 'store' ? 'selected' : ''; ?>>Retail Store</option>
+                                    </select>
+                                    <span id="branch_type_msg" style="display:none" class="text-danger"></span>
+                                 </div>
                               </div>
                               <div class="form-group">
+                                 <label for="is_distribution_center" class="col-sm-2 control-label">Distribution Center</label>
+                                 <div class="col-sm-4">
+                                    <input type="checkbox" id="is_distribution_center" name="is_distribution_center" value="1" <?= !empty($is_distribution_center) ? 'checked' : ''; ?>>
+                                 </div>
                                  <label for="mobile" class="col-sm-2 control-label"><?= $this->lang->line('mobile'); ?></label>
                                  <div class="col-sm-4">
                                     <input type="text" class="form-control input-sm no_special_char_no_space"  id="mobile" name="mobile" placeholder="" value="<?= $mobile; ?>" onkeyup="shift_cursor(event,'email')"  >

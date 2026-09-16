@@ -1,5 +1,8 @@
 <?php
 $CI =& get_instance();
+$industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
+$is_car = $industry === 'car_dealership';
+$is_creator = $industry === 'creator';
 // SVG icon set (Feather-style, matching prototype)
 $mp_icons = [
   'dashboard' => '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -25,11 +28,61 @@ $mp_icons = [
 <div class="mp-shell">
   <nav class="mp-nav">
     <div class="mp-nav-section">
+      <?php if($is_creator): ?>
+      <a href="<?= base_url('creator'); ?>" class="mp-nav-item active creator-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
+      <a href="<?= base_url('dashboard?classic=1'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Business Overview</a>
+      <?php else: ?>
       <a href="<?= base_url('dashboard'); ?>" class="mp-nav-item active"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
+      <?php endif; ?>
     </div>
 
+    <?php if($is_creator): ?>
+    <!-- ===== CREATOR WORKSPACE MENUS ===== -->
+    <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['catalog']; ?></span> Products <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('creator/products'); ?>" class="mp-nav-item creator-products-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> All Products</a>
+        <?php if(mp_feature_enabled('digital_products')): ?>
+          <a href="<?= base_url('creator/products/digital'); ?>" class="mp-nav-item creator-products-digital-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Digital Products</a>
+        <?php endif; ?>
+        <?php if(mp_feature_enabled('courses')): ?>
+          <a href="<?= base_url('courses'); ?>" class="mp-nav-item courses-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Courses &amp; Curriculum</a>
+        <?php endif; ?>
+        <?php if(mp_feature_enabled('memberships')): ?>
+          <a href="<?= base_url('memberships'); ?>" class="mp-nav-item memberships-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Membership Plans</a>
+        <?php endif; ?>
+        <div class="mp-nav-subhead">Create</div>
+        <?php if(mp_feature_enabled('digital_products')): ?><a href="<?= base_url('creator/create/digital'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Digital Product</a><?php endif; ?>
+        <?php if(mp_feature_enabled('courses')): ?><a href="<?= base_url('creator/create/course'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Course</a><?php endif; ?>
+        <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('creator/create/membership'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Membership</a><?php endif; ?>
+        <?php if($CI->permissions('items_category_view')): ?><a href="<?= base_url('category/view'); ?>" class="mp-nav-item category-view-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_creator ? 'Collections' : 'Categories'; ?></a><?php endif; ?>
+      </div>
+    </div></div>
+
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['sales']; ?></span> Sales <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Orders</a>
+        <a href="<?= base_url('creator/buyers'); ?>" class="mp-nav-item creator-buyers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Buyers</a>
+        <?php if($CI->permissions('sales_payment_view')): ?><a href="<?= base_url('sales_payments/'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payments</a><?php endif; ?>
+        <?php if($CI->permissions('sales_add')): ?><a href="<?= base_url('sales/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Manual Invoice</a><?php endif; ?>
+      </div>
+    </div></div>
+
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['customers']; ?></span> Audience <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <?php if(mp_feature_enabled('courses')): ?><a href="<?= base_url('creator/students'); ?>" class="mp-nav-item creator-students-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Students</a><?php endif; ?>
+        <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('creator/members'); ?>" class="mp-nav-item creator-members-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Members</a><?php endif; ?>
+        <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> All Customers</a><?php endif; ?>
+        <?php if($CI->permissions('customers_add')): ?><a href="<?= base_url('customers/add'); ?>" class="mp-nav-item customers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Add Customer</a><?php endif; ?>
+        <?php if($CI->permissions('send_sms')): ?><a href="<?= base_url('sms'); ?>" class="mp-nav-item sms-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Send SMS</a><?php endif; ?>
+      </div>
+    </div></div>
+    <?php endif; ?>
+
     <!-- Sales -->
-    <?php if($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view')): ?>
+    <?php if(!$is_creator && ($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['sales']; ?></span> Sales <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -44,31 +97,46 @@ $mp_icons = [
     </div></div>
     <?php endif; ?>
 
-    <!-- Catalog -->
-    <?php if($CI->permissions('items_add') || $CI->permissions('items_view') || $CI->permissions('items_category_view') || $CI->permissions('brand_view') || $CI->permissions('attributes_view') || $CI->permissions('print_labels') || $CI->permissions('import_items') || $CI->permissions('services_add') || $CI->permissions('services_view') || $CI->permissions('service_packages_view') || $CI->permissions('variant_view') || (mp_feature_enabled('price_catalogue') && (is_admin() || is_store_admin()))): ?>
+    <!-- Catalog (hidden for creator) -->
+    <?php if(!$is_creator && ($CI->permissions('items_add') || $CI->permissions('items_view') || $CI->permissions('items_category_view') || $CI->permissions('brand_view') || $CI->permissions('attributes_view') || $CI->permissions('print_labels') || $CI->permissions('import_items') || $CI->permissions('services_add') || $CI->permissions('services_view') || $CI->permissions('service_packages_view') || $CI->permissions('variant_view') || (mp_feature_enabled('price_catalogue') && (is_admin() || is_store_admin())))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#2563EB;"><?= $mp_icons['catalog']; ?></span> Catalog <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
-        <?php if($CI->permissions('items_add')): ?><a href="<?= base_url('items/add'); ?>" class="mp-nav-item items-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('item'); ?></a><?php endif; ?>
+        <?php if($CI->permissions('items_add') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('items/add'); ?>" class="mp-nav-item items-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('item'); ?></a><?php endif; ?>
         <?php if($CI->permissions('services_add') && service_module()): ?><a href="<?= base_url('services/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Service</a><?php endif; ?>
         <?php if($CI->permissions('service_packages_view') && service_module()): ?><a href="<?= base_url('service_packages'); ?>" class="mp-nav-item service-packages-list-active-li service-packages-view-active-li service_packages-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Service Packages</a><?php endif; ?>
-        <?php if($CI->permissions('items_view') || $CI->permissions('services_view') || $CI->permissions('services_add')): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('item'); ?> List</a><?php endif; ?>
+        <?php if(($CI->permissions('items_view') && mp_feature_enabled('auto_parts')) || $CI->permissions('services_view') || $CI->permissions('services_add')): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('item'); ?> List</a><?php endif; ?>
         <?php if($CI->permissions('items_category_view')): ?><a href="<?= base_url('category/view'); ?>" class="mp-nav-item category-view-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Categories</a><?php endif; ?>
         <?php if($CI->permissions('brand_view')): ?><a href="<?= base_url('brands/view'); ?>" class="mp-nav-item brand-view-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Brands</a><?php endif; ?>
         <?php if($CI->permissions('attributes_view')): ?><a href="<?= base_url('attributes'); ?>" class="mp-nav-item attributes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Attributes</a><?php endif; ?>
-        <?php if($CI->permissions('print_labels')): ?><a href="<?= base_url('items/labels'); ?>" class="mp-nav-item labels-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Print Labels</a><?php endif; ?>
-        <?php if($CI->permissions('import_items')): ?><a href="<?= base_url('import/items'); ?>" class="mp-nav-item import_items-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Items</a><?php endif; ?>
-        <?php if($CI->permissions('items_category_add')): ?><a href="<?= base_url('import/categories'); ?>" class="mp-nav-item import_categories-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Categories</a><?php endif; ?>
-        <?php if($CI->permissions('brand_add')): ?><a href="<?= base_url('import/brands'); ?>" class="mp-nav-item import_brands-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Brands</a><?php endif; ?>
-        <?php if($CI->permissions('attributes_add')): ?><a href="<?= base_url('import/attributes'); ?>" class="mp-nav-item import_attributes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Attributes</a><?php endif; ?>
+        <?php if($CI->permissions('print_labels') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('items/labels'); ?>" class="mp-nav-item labels-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Print Labels</a><?php endif; ?>
+        <?php if($CI->permissions('import_items') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('import/items'); ?>" class="mp-nav-item import_items-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Items</a><?php endif; ?>
+        <?php if($CI->permissions('items_category_add') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('import/categories'); ?>" class="mp-nav-item import_categories-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Categories</a><?php endif; ?>
+        <?php if($CI->permissions('brand_add') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('import/brands'); ?>" class="mp-nav-item import_brands-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Brands</a><?php endif; ?>
+        <?php if($CI->permissions('attributes_add') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('import/attributes'); ?>" class="mp-nav-item import_attributes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Attributes</a><?php endif; ?>
         <?php if($CI->permissions('import_services') && service_module()): ?><a href="<?= base_url('import/services'); ?>" class="mp-nav-item import_services-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Services</a><?php endif; ?>
         <?php if(mp_feature_enabled('price_catalogue') && (is_admin() || is_store_admin())): ?><a href="<?= base_url('operations/price_catalogue'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Price Catalogue</a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>
 
+    <!-- Vehicles -->
+    <?php if(mp_feature_enabled('automobile_workflow')): ?>
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#2563EB;"><i class="fa fa-car"></i></span> Vehicles <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('automobile/add'); ?>" class="mp-nav-item automobile-add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Add Vehicle</a>
+        <a href="<?= base_url('automobile'); ?>" class="mp-nav-item automobile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Vehicle List</a>
+        <a href="<?= base_url('automobile/dashboard'); ?>" class="mp-nav-item automobile-dashboard-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Vehicle Dashboard</a>
+        <?php if (is_admin() || is_store_admin()): ?>
+        <a href="<?= base_url('vehicle_data'); ?>" class="mp-nav-item vehicle-data-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Vehicle Data</a>
+        <?php endif; ?>
+      </div>
+    </div></div>
+    <?php endif; ?>
+
     <!-- Promotions -->
-    <?php if($CI->permissions('promotions_manage')): ?>
+    <?php if(!$is_creator && $CI->permissions('promotions_manage')): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#E11D48;"><?= $mp_icons['promo']; ?></span> Promotions <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -79,19 +147,19 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Purchases -->
-    <?php if($CI->permissions('purchase_add') || $CI->permissions('purchase_view') || $CI->permissions('purchase_return_view')): ?>
+    <?php if(!$is_creator && ($CI->permissions('purchase_add') || $CI->permissions('purchase_view') || $CI->permissions('purchase_return_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
-      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['purchase']; ?></span> Purchases <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['purchase']; ?></span> <?= $is_car ? 'Vehicle Purchases' : 'Purchases'; ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
-        <?php if($CI->permissions('purchase_add')): ?><a href="<?= base_url('purchase/add'); ?>" class="mp-nav-item purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Purchase</a><?php endif; ?>
-        <?php if($CI->permissions('purchase_view')): ?><a href="<?= base_url('purchase'); ?>" class="mp-nav-item purchase-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Purchase History</a><?php endif; ?>
-        <?php if($CI->permissions('purchase_return_view')): ?><a href="<?= base_url('purchase_return'); ?>" class="mp-nav-item purchase-returns-active-li purchase-returns-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Purchase Returns</a><?php endif; ?>
+        <?php if($CI->permissions('purchase_add')): ?><a href="<?= base_url('purchase/add'); ?>" class="mp-nav-item purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?></a><?php endif; ?>
+        <?php if($CI->permissions('purchase_view')): ?><a href="<?= base_url('purchase'); ?>" class="mp-nav-item purchase-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?> History</a><?php endif; ?>
+        <?php if($CI->permissions('purchase_return_view')): ?><a href="<?= base_url('purchase_return'); ?>" class="mp-nav-item purchase-returns-active-li purchase-returns-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?> Returns</a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>
 
     <!-- Inventory -->
-    <?php if($CI->permissions('stock_adjustment_view') || $CI->permissions('stock_transfer_view')): ?>
+    <?php if(!$is_creator && ($CI->permissions('stock_adjustment_view') || $CI->permissions('stock_transfer_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F59E0B;"><?= $mp_icons['inventory']; ?></span> Inventory <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -105,16 +173,16 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Customers -->
-    <?php if($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view')): ?>
+    <?php if(!$is_creator && ($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['customers']; ?></span> <?= mp_label('customer'); ?>s <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if($CI->permissions('customers_add')): ?><a href="<?= base_url('customers/add'); ?>" class="mp-nav-item customers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('customer'); ?></a><?php endif; ?>
         <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('customer'); ?> List</a><?php endif; ?>
-        <?php if($CI->permissions('suppliers_add')): ?><a href="<?= base_url('suppliers/add'); ?>" class="mp-nav-item suppliers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Supplier</a><?php endif; ?>
-        <?php if($CI->permissions('suppliers_view')): ?><a href="<?= base_url('suppliers'); ?>" class="mp-nav-item suppliers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Supplier List</a><?php endif; ?>
+        <?php if($CI->permissions('suppliers_add')): ?><a href="<?= base_url('suppliers/add'); ?>" class="mp-nav-item suppliers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Seller' : 'Supplier'; ?></a><?php endif; ?>
+        <?php if($CI->permissions('suppliers_view')): ?><a href="<?= base_url('suppliers'); ?>" class="mp-nav-item suppliers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Seller' : 'Supplier'; ?> List</a><?php endif; ?>
         <?php if($CI->permissions('import_customers')): ?><a href="<?= base_url('import/customers'); ?>" class="mp-nav-item import_customers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Customers</a><?php endif; ?>
-        <?php if($CI->permissions('import_suppliers')): ?><a href="<?= base_url('import/suppliers'); ?>" class="mp-nav-item import_suppliers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Suppliers</a><?php endif; ?>
+        <?php if($CI->permissions('import_suppliers')): ?><a href="<?= base_url('import/suppliers'); ?>" class="mp-nav-item import_suppliers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import <?= $is_car ? 'Sellers' : 'Suppliers'; ?></a><?php endif; ?>
         <?php if($CI->permissions('cust_adv_payments_add')): ?><a href="<?= base_url('customers_advance/add'); ?>" class="mp-nav-item customers_advance_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Advance</a><?php endif; ?>
         <?php if($CI->permissions('cust_adv_payments_view')): ?><a href="<?= base_url('customers_advance'); ?>" class="mp-nav-item customers_advance_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Advance List</a><?php endif; ?>
       </div>
@@ -212,6 +280,7 @@ $mp_icons = [
         <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
           <a href="<?= base_url('online_store'); ?>" class="mp-nav-item online_store-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Store Dashboard</a>
           <a href="<?= base_url('online_store/analytics'); ?>" class="mp-nav-item online_store-analytics-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Analytics</a>
+          <a href="<?= base_url('online_store/subscribers'); ?>" class="mp-nav-item online_store-subscribers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Subscribers</a>
         <?php endif; ?>
         <?php if($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
           <a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Orders</a>
@@ -240,7 +309,8 @@ $mp_icons = [
 
     <!-- Operations -->
     <?php
-      $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking'];
+      $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','meat_butchery_workflow','frozen_food_cold_chain','automobile_workflow'];
+      if($is_creator) { $ops_flags = array_diff($ops_flags, ['memberships']); } /* creator gets memberships in its own menu */
       $has_ops = false; foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
       $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
       $has_tables = mp_feature_enabled('table_management') && (is_admin() || is_store_admin());
@@ -259,10 +329,27 @@ $mp_icons = [
         <?php if(mp_feature_enabled('laundry_workflow')): ?><a href="<?= base_url('operations/laundry'); ?>" class="mp-nav-item operations-laundry-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Laundry Workflow</a><?php endif; ?>
         <?php if(mp_feature_enabled('delivery_scheduling')): ?><a href="<?= base_url('operations/delivery_scheduling'); ?>" class="mp-nav-item operations-delivery_scheduling-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Delivery Scheduling</a><?php endif; ?>
         <?php if(mp_feature_enabled('public_catalogue')): ?><a href="<?= base_url('operations/public_catalogue_settings'); ?>" class="mp-nav-item operations-public_catalogue_settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Public Catalogue</a><?php endif; ?>
+        <?php if(mp_feature_enabled('expiry_tracking')): ?><a href="<?= base_url('operations/stock_rotation'); ?>" class="mp-nav-item operations-stock_rotation-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Stock Rotation</a><?php endif; ?>
+        <?php if(mp_feature_enabled('meat_butchery_workflow') || mp_feature_enabled('frozen_food_cold_chain')): ?><a href="<?= base_url('butchery'); ?>" class="mp-nav-item butchery-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Butchery &amp; Frozen</a><?php endif; ?>
         <?php if(mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking') || mp_feature_enabled('warranty_tracking')): ?><a href="<?= base_url('operations/warranty_lookup'); ?>" class="mp-nav-item operations-warranty_lookup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Warranty Lookup</a><?php endif; ?>
         <?php if($has_staff && mp_feature_enabled('staff_assignment')): ?><a href="<?= base_url('operations/staff_assignment'); ?>" class="mp-nav-item operations-staff_assignment-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Staff Assignment</a><?php endif; ?>
         <?php if($has_staff && mp_feature_enabled('staff_commission')): ?><a href="<?= base_url('operations/staff_commission'); ?>" class="mp-nav-item operations-staff_commission-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Staff Commission</a><?php endif; ?>
         <?php if($has_tables): ?><a href="<?= base_url('operations/table_management'); ?>" class="mp-nav-item operations-table_management-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Table Management</a><?php endif; ?>
+      </div>
+    </div></div>
+    <?php endif; ?>
+
+    <!-- Creator tools for non-creator businesses that switched the flags on -->
+    <?php if(!$is_creator && (mp_feature_enabled('digital_products') || mp_feature_enabled('courses'))): ?>
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['online']; ?></span> Creator <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('creator'); ?>" class="mp-nav-item creator-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Creator Dashboard</a>
+        <a href="<?= base_url('creator/products'); ?>" class="mp-nav-item creator-products-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Digital Products</a>
+        <?php if(mp_feature_enabled('courses')): ?><a href="<?= base_url('courses'); ?>" class="mp-nav-item courses-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Courses</a><?php endif; ?>
+        <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('memberships'); ?>" class="mp-nav-item memberships-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Membership Plans</a><?php endif; ?>
+        <?php if(mp_feature_enabled('courses')): ?><a href="<?= base_url('creator/students'); ?>" class="mp-nav-item creator-students-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Students</a><?php endif; ?>
+        <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('creator/members'); ?>" class="mp-nav-item creator-members-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Members</a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>

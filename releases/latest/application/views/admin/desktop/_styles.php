@@ -203,4 +203,30 @@ hr{border:none!important;border-top:1px solid var(--mp-border)!important;margin:
 .badge.bg-green{background:rgba(5,150,105,.15)!important;color:var(--mp-success)!important}
 .badge.bg-red{background:rgba(220,38,38,.15)!important;color:var(--mp-danger)!important}
 .badge.bg-aqua{background:rgba(0,87,255,.15)!important;color:var(--mp-primary)!important}
+
+/* Operations / Membership page shell fallback styles */
+.mp-page-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 20px;gap:16px}
+.mp-page-head h2{margin:0;font-size:22px;font-weight:800;color:var(--mp-ink);letter-spacing:-.3px}
+.mp-page-sub{font-size:13px;color:var(--mp-muted);margin-top:2px}
+.mp-qa-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;transition:all .15s ease;border:none;cursor:pointer}
+.mp-qa-btn.green{background:var(--mp-success);color:#fff}
+.mp-qa-btn.blue{background:var(--mp-primary);color:#fff}
+.mp-qa-btn:hover{opacity:.9;transform:translateY(-1px)}
+
+/* Table wrappers */
+.mp-table-wrap{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:16px;overflow:hidden;box-shadow:var(--mp-shadow-sm);margin-top:20px}
+.mp-table-wrap .mp-card-head{padding:16px 20px;border-bottom:1px solid var(--mp-border);background:var(--mp-bg)}
+.mp-table-wrap .mp-card-head h3{margin:0;font-size:15px;font-weight:700;color:var(--mp-ink)}
+.mp-dt-scroll{padding:0}
+.mp-dt-table{width:100%;border-collapse:collapse}
+.mp-dt-table th{padding:12px 16px;background:var(--mp-bg);font-size:12px;font-weight:700;color:var(--mp-muted);text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--mp-border)}
+.mp-dt-table td{padding:14px 16px;font-size:13px;color:var(--mp-text);border-bottom:1px solid var(--mp-border)}
+
+/* Generic action buttons */
+.mp-btn{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;padding:10px 20px!important;border-radius:10px!important;font-size:14px!important;font-weight:600!important;border:1px solid var(--mp-border)!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;text-decoration:none!important;cursor:pointer!important;transition:all .15s ease!important}
+.mp-btn:hover{background:var(--mp-bg)!important;text-decoration:none!important}
+.mp-btn-primary{background:var(--mp-primary)!important;border-color:var(--mp-primary)!important;color:#fff!important}
+.mp-btn-primary:hover{background:var(--mp-primary-dark)!important}
+.mp-btn-danger{background:var(--mp-danger)!important;border-color:var(--mp-danger)!important;color:#fff!important}
+.mp-btn-danger:hover{background:#B91C1C!important}
 </style>

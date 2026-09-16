@@ -222,7 +222,7 @@ DROP TABLE IF EXISTS `db_online_order_items`;
 CREATE TABLE `db_online_order_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `order_id` int NOT NULL,
-  `item_type` enum('product','service') DEFAULT 'product',
+  `item_type` enum('product','service','digital') DEFAULT 'product',
   `item_id` int NOT NULL,
   `item_name` varchar(200) DEFAULT NULL,
   `item_image` varchar(255) DEFAULT NULL,
@@ -230,9 +230,13 @@ CREATE TABLE `db_online_order_items` (
   `unit_price` decimal(12,2) DEFAULT '0.00',
   `total_price` decimal(12,2) DEFAULT '0.00',
   `service_note` text,
+  `download_token` varchar(128) DEFAULT NULL,
+  `download_count` int NOT NULL DEFAULT '0',
+  `download_expires_at` datetime DEFAULT NULL,
   `status` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`)
+  KEY `idx_order` (`order_id`),
+  KEY `idx_download_token` (`download_token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 DROP TABLE IF EXISTS `db_online_orders`;
@@ -513,3 +517,130 @@ CREATE TABLE `db_subscription_license` (
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- Phase 2: digital products, courses and memberships
+
+ALTER TABLE `db_items` MODIFY COLUMN IF EXISTS `product_type` VARCHAR(20) NOT NULL DEFAULT 'physical' COMMENT 'physical | service | digital | course | membership';
+ALTER TABLE `db_online_order_items` MODIFY COLUMN IF EXISTS `item_type` ENUM('product','service','digital','course','membership') DEFAULT 'product';
+
+CREATE TABLE IF NOT EXISTS `db_courses` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_modules` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `course_id` INT(11) UNSIGNED NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `course_id` (`course_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_lessons` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `course_id` INT(11) UNSIGNED NOT NULL,
+  `module_id` INT(11) UNSIGNED DEFAULT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `content` LONGTEXT DEFAULT NULL,
+  `video_url` VARCHAR(500) DEFAULT NULL,
+  `video_file` VARCHAR(255) DEFAULT NULL,
+  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  `is_published` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `course_id` (`course_id`),
+  KEY `module_id` (`module_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_enrollments` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `customer_id` INT(11) UNSIGNED NOT NULL,
+  `course_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `order_id` INT(11) UNSIGNED DEFAULT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT 'active | completed | cancelled',
+  `expires_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`,`customer_id`),
+  KEY `course_id` (`course_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course_progress` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `enrollment_id` INT(11) UNSIGNED NOT NULL,
+  `lesson_id` INT(11) UNSIGNED NOT NULL,
+  `is_completed` TINYINT(1) NOT NULL DEFAULT 0,
+  `completed_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `enrollment_id` (`enrollment_id`,`lesson_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_memberships` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `membership_name` VARCHAR(255) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `billing_interval` VARCHAR(20) NOT NULL DEFAULT 'monthly',
+  `trial_days` INT(5) NOT NULL DEFAULT 0,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_membership_subscriptions` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `customer_id` INT(11) UNSIGNED NOT NULL,
+  `membership_id` INT(11) UNSIGNED NOT NULL,
+  `item_id` INT(11) UNSIGNED NOT NULL,
+  `order_id` INT(11) UNSIGNED DEFAULT NULL,
+  `start_date` DATE NOT NULL,
+  `end_date` DATE DEFAULT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT 'active | cancelled | expired',
+  `payment_status` VARCHAR(20) NOT NULL DEFAULT 'unpaid' COMMENT 'unpaid | paid | failed',
+  `next_billing_at` DATE DEFAULT NULL,
+  `paystack_subscription_code` VARCHAR(100) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`,`customer_id`),
+  KEY `membership_id` (`membership_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_newsletter_subscribers` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) UNSIGNED NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `source` VARCHAR(50) NOT NULL DEFAULT 'newsletter',
+  `ip_address` VARCHAR(45) DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store_email` (`store_id`,`email`),
+  KEY `store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

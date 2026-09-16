@@ -27,6 +27,7 @@ class Units extends MY_Controller {
 			'module' => 'units',
 			'fields' => [
 				['name' => 'unit_name', 'label' => 'Unit Name', 'type' => 'text', 'required' => true],
+				['name' => 'shortcode', 'label' => 'Shortcode', 'type' => 'text', 'placeholder' => 'e.g. PC, PCK, BX'],
 				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
 				['name' => 'parent_unit_id', 'label' => 'Parent Unit', 'type' => 'select', 'options' => $unit_options],
 				['name' => 'conversion_factor', 'label' => 'Conversion Factor', 'type' => 'number'],
@@ -70,6 +71,7 @@ class Units extends MY_Controller {
 			'module' => 'units',
 			'fields' => [
 				['name' => 'unit_name', 'label' => 'Unit Name', 'type' => 'text', 'required' => true],
+				['name' => 'shortcode', 'label' => 'Shortcode', 'type' => 'text', 'placeholder' => 'e.g. PC, PCK, BX'],
 				['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
 				['name' => 'parent_unit_id', 'label' => 'Parent Unit', 'type' => 'select', 'options' => $unit_options],
 				['name' => 'conversion_factor', 'label' => 'Conversion Factor', 'type' => 'number'],

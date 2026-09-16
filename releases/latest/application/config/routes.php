@@ -58,11 +58,14 @@ $route['store'] = 'storefront/index';
 $route['store/(:any)'] = 'storefront/index/$1';
 $route['store/(:any)/products'] = 'storefront/products/$1';
 $route['store/(:any)/services'] = 'storefront/services/$1';
+$route['store/(:any)/vehicles'] = 'storefront/vehicles/$1';
 $route['store/(:any)/product/(:num)'] = 'storefront/product/$1/$2';
 $route['store/(:any)/service/(:num)'] = 'storefront/service/$1/$2';
+$route['store/(:any)/vehicle/(:num)'] = 'storefront/vehicle/$1/$2';
 $route['store/(:any)/cart'] = 'storefront/cart/$1';
 $route['store/(:any)/catalogue'] = 'storefront/catalogue/$1';
 $route['store/(:any)/track/testimonial'] = 'storefront/submit_testimonial/$1';
+$route['store/(:any)/subscribe'] = 'storefront/subscribe/$1';
 $route['store/(:any)/track'] = 'storefront/track/$1';
 $route['store/(:any)/branches'] = 'storefront/branches/$1';
 $route['store/(:any)/order_received/(:any)'] = 'storefront/order_received/$1/$2';
@@ -72,11 +75,16 @@ $route['store/(:any)/verify_otp'] = 'storefront/verify_otp/$1';
 $route['store/(:any)/account'] = 'storefront/account/$1';
 $route['store/(:any)/account/orders'] = 'storefront/account_orders/$1';
 $route['store/(:any)/account/logout'] = 'storefront/account_logout/$1';
+$route['store/(:any)/my_courses'] = 'storefront/my_courses/$1';
+$route['store/(:any)/course/(:num)'] = 'storefront/course/$1/$2';
+$route['store/(:any)/download/(:any)'] = 'storefront/download/$1/$2';
 $route['qr/(:num)'] = 'storefront/qr/$1';
 $route['storefront/place_order'] = 'storefront/place_order';
 $route['storefront/paystack_callback'] = 'storefront/paystack_callback';
 $route['sitemap.xml'] = 'storefront/sitemap';
 $route['robots.txt'] = 'storefront/robots';
+$route['store/(:any)/about'] = 'storefront/about/$1';
+$route['image/([0-9]+)/(.+)'] = 'storefront/image/$1/$2';
 
 /* Online Store Admin Routes */
 $route['online_store'] = 'online_store';
@@ -135,6 +143,9 @@ $route['online_store/faqs'] = 'online_store/faqs';
 $route['online_store/save_faq'] = 'online_store/save_faq';
 $route['online_store/delete_faq/(:num)'] = 'online_store/delete_faq/$1';
 $route['online_store/fetch_gmb_reviews'] = 'online_store/fetch_gmb_reviews';
+$route['online_store/subscribers'] = 'online_store/subscribers';
+$route['online_store/export_subscribers'] = 'online_store/export_subscribers';
+$route['online_store/delete_subscriber/(:num)'] = 'online_store/delete_subscriber/$1';
 
 /* Approval Routes */
 $route['approvals/settings'] = 'approvals/settings';

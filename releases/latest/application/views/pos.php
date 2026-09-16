@@ -329,6 +329,17 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
                       </select>
                     <span class="input-group-addon pointer" data-toggle="modal" data-target="#customer-modal" title="New <?= mp_label('customer'); ?>?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
                   </div>
+                  <?php if(!empty($is_restaurant) && !empty($tables)): ?>
+                  <div class="input-group" style="margin-top:4px;" data-toggle="tooltip" title="Table">
+                    <span class="input-group-addon"><i class="fa fa-table text-success"></i></span>
+                    <select class="form-control select2" id="table_id" name="table_id" style="width:100%;">
+                      <option value="0">No Table</option>
+                      <?php foreach($tables as $t): ?>
+                      <option value="<?= (int)$t->id; ?>"><?= htmlspecialchars($t->table_name); ?><?= !empty($t->zone) ? ' (' . htmlspecialchars($t->zone) . ')' : ''; ?> — <?= (int)$t->capacity; ?> seats</option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <?php endif; ?>
                   <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
                     <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
                   </div>
@@ -772,12 +783,32 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
 //LEFT SIDE: ON CLICK ITEM ADD TO INVOICE LIST
 function addrow(id='',item_obj=''){
 
+  // Multi-unit selling picker for manual product-grid clicks
+  if(id!='' && (item_obj=='' || item_obj==null)){
+    var sellingUnitsAttr = $('#div_'+id).attr('data-item-selling-units');
+    var sellingUnits = [];
+    try{ sellingUnits = JSON.parse(sellingUnitsAttr || '[]'); }catch(e){ sellingUnits = []; }
+    if(sellingUnits.length > 1){
+      openSellingUnitPicker(id, sellingUnits, function(selectedUnit){
+        var unitObj = buildPosItemObjFromDiv(id, selectedUnit);
+        addrow(id, unitObj);
+      });
+      return;
+    } else if(sellingUnits.length == 1){
+      item_obj = buildPosItemObjFromDiv(id, sellingUnits[0]);
+    } else {
+      item_obj = buildPosItemObjFromDiv(id, null);
+    }
+  }
+
 
     var item_id = (item_obj=='') ? $('#div_'+id).attr('data-item-id') : item_obj.item_id;
     var price_type = (item_obj=='') ? $('#price_type').val() || 'retail' : (item_obj.price_type || 'retail');
+    var barcode_id = (item_obj=='') ? 0 : (item_obj.barcode_id || 0);
+    var unit_id = (item_obj=='') ? '' : (item_obj.unit_id || '');
 
     //CHECK SAME ITEM ALREADY EXIST IN ITEMS TABLE
-    var item_check=check_same_item(item_id, price_type, barcode_id);
+    var item_check=check_same_item(item_id, price_type, barcode_id, unit_id);
     if(!item_check){return false;}
     var rowcount        =$("#hidden_rowcount").val();//0,1,2...
     var item_name = (item_obj=='') ? $('#div_'+id).attr('data-item-name') : item_obj.item_name; 
@@ -806,7 +837,6 @@ function addrow(id='',item_obj=''){
     var item_cost     =(item_obj=='') ? $('#div_'+id).attr('data-item-cost') : item_obj.purchase_price;
     var batch_lot     =(item_obj=='') ? '' : (item_obj.batch_lot || '');
     var barcode       =(item_obj=='') ? '' : (item_obj.barcode || '');
-    var barcode_id    =(item_obj=='') ? 0 : (item_obj.barcode_id || 0);
     var serial_number =(item_obj=='') ? ($('#div_'+id).attr('data-item-serial-number')||'') : (item_obj.serial_number || '');
     var imei_number   =(item_obj=='') ? ($('#div_'+id).attr('data-item-imei-number')||'') : (item_obj.imei_number || '');
     var warranty_months =(item_obj=='') ? (parseInt($('#div_'+id).attr('data-item-warranty-months'))||0) : (parseInt(item_obj.warranty_months)||0);
@@ -859,6 +889,9 @@ function addrow(id='',item_obj=''){
         str+='<input type="hidden" id="batch_lot_'+rowcount+'" name="batch_lot_'+rowcount+'" value="'+batch_lot+'">';
         str+='<input type="hidden" id="barcode_'+rowcount+'" name="barcode_'+rowcount+'" value="'+barcode+'">';
         str+='<input type="hidden" id="barcode_id_'+rowcount+'" name="barcode_id_'+rowcount+'" value="'+barcode_id+'">';
+        str+='<input type="hidden" id="unit_id_'+rowcount+'" name="unit_id_'+rowcount+'" value="'+(item_obj=="" ? "":item_obj.unit_id)+'">';
+        str+='<input type="hidden" id="unit_name_'+rowcount+'" name="unit_name_'+rowcount+'" value="'+(item_obj=="" ? "":item_obj.unit_name)+'">';
+        str+='<input type="hidden" id="conversion_factor_'+rowcount+'" name="conversion_factor_'+rowcount+'" value="'+(item_obj=="" ? 1:item_obj.conversion_factor)+'">';
         str+='<input type="hidden" id="sold_serial_number_'+rowcount+'" name="sold_serial_number_'+rowcount+'" value="">';
         str+='<input type="hidden" id="sold_imei_number_'+rowcount+'" name="sold_imei_number_'+rowcount+'" value="">';
         str+='<input id="item_discount_type_'+rowcount+'" name="item_discount_type_'+rowcount+'" type="hidden" value="'+discount_type+'">';
@@ -910,6 +943,68 @@ function addrow(id='',item_obj=''){
     //CALCULATE FINAL TOTAL AND OTHER OPERATIONS
     make_subtotal(item_id,rowcount);
   }
+
+function buildPosItemObjFromDiv(id, selectedUnit){
+  var $div = $('#div_'+id);
+  var unitConv = selectedUnit ? parseFloat(selectedUnit.conversion_factor || 1) : parseFloat($div.attr('data-conversion-factor') || 1);
+  var unitId = selectedUnit ? selectedUnit.unit_id : '';
+  var unitName = selectedUnit ? (selectedUnit.unit_shortcode || selectedUnit.unit_name || '') : '';
+  var priceType = $('#price_type').val() || 'retail';
+  // Use the server-adjusted default price when it is the default unit; otherwise use the raw unit price
+  var defaultSalesPrice = $div.attr('data-item-sales-price');
+  var rawUnitPrice = (priceType == 'wholesale' && selectedUnit.wholesale_price && parseFloat(selectedUnit.wholesale_price) > 0)
+                        ? selectedUnit.wholesale_price
+                        : selectedUnit.selling_price;
+  var salesPrice = selectedUnit ? (selectedUnit.is_default ? defaultSalesPrice : rawUnitPrice) : defaultSalesPrice;
+  var purchasePrice = selectedUnit ? (selectedUnit.purchase_price || $div.attr('data-item-cost')) : $div.attr('data-item-cost');
+  return {
+    item_id: $div.attr('data-item-id'),
+    item_name: $div.attr('data-item-name'),
+    stock: $div.attr('data-item-available-qty'),
+    sales_price: salesPrice,
+    purchase_price: purchasePrice,
+    tax_id: $div.attr('data-item-tax-id'),
+    tax_type: $div.attr('data-item-tax-type'),
+    tax: $div.attr('data-item-tax-value'),
+    tax_name: $div.attr('data-item-tax-name'),
+    item_tax_amt: $div.attr('data-item-tax-amt'),
+    discount_type: $div.attr('data-discount_type'),
+    discount: $div.attr('data-discount'),
+    service_bit: $div.attr('data-service_bit'),
+    package_bit: $div.attr('data-package-bit') || 0,
+    price_type: $('#price_type').val() || 'retail',
+    batch_lot: '',
+    barcode: selectedUnit ? (selectedUnit.barcode || '') : '',
+    barcode_id: 0,
+    serial_number: $div.attr('data-item-serial-number') || '',
+    imei_number: $div.attr('data-item-imei-number') || '',
+    warranty_months: $div.attr('data-item-warranty-months') || 0,
+    track_serial: $div.attr('data-item-track-serial') || 0,
+    track_imei: $div.attr('data-item-track-imei') || 0,
+    unit_id: unitId,
+    unit_name: unitName,
+    conversion_factor: unitConv
+  };
+}
+
+function openSellingUnitPicker(id, sellingUnits, callback){
+  var $body = $('#selling_unit_picker_body');
+  var priceType = $('#price_type').val() || 'retail';
+  $body.empty();
+  $.each(sellingUnits, function(i, unit){
+    var $btn = $('<button type="button" class="btn btn-default btn-block text-left" style="margin-bottom:8px;"></button>');
+    var unitPrice = (priceType == 'wholesale' && unit.wholesale_price && parseFloat(unit.wholesale_price) > 0)
+                      ? unit.wholesale_price
+                      : unit.selling_price;
+    $btn.html('<strong>'+(unit.unit_shortcode || unit.unit_name || 'Unit')+'</strong> <small class="text-muted">x '+unit.conversion_factor+'</small> <span class="pull-right">'+to_Fixed(parseFloat(unitPrice || 0))+'</span>');
+    $btn.on('click', function(){
+      $('#selling_unit_picker_modal').modal('hide');
+      callback(unit);
+    });
+    $body.append($btn);
+  });
+  $('#selling_unit_picker_modal').modal('show');
+}
 
 function update_price(row_id,item_cost){
   /*Input*/
@@ -1261,16 +1356,18 @@ function adjust_payments(){
 $(document).ready(function(){
   get_coupon_details();
 });
-function check_same_item(item_id, price_type, barcode_id){
+function check_same_item(item_id, price_type, barcode_id, unit_id){
   price_type = price_type || 'retail';
   barcode_id = barcode_id || 0;
+  unit_id = unit_id || '';
   if($(".items_table tr").length>1){
     var rowcount=$("#hidden_rowcount").val();
     for(i=0;i<=rowcount;i++){
       var existing_item_id = $("#tr_item_id_"+i).val();
       var existing_price_type = $("#price_type_"+i).val();
       var existing_barcode_id = parseInt($("#barcode_id_"+i).val()) || 0;
-      if(existing_item_id == item_id && existing_price_type == price_type){
+      var existing_unit_id = $("#unit_id_"+i).val() || '';
+      if(existing_item_id == item_id && existing_price_type == price_type && existing_unit_id == unit_id){
         // Exact same unit already in cart? Block it for unique items
         if(barcode_id > 0 && existing_barcode_id === barcode_id){
           toastr['warning']('This unit is already in the cart!');
@@ -2425,6 +2522,25 @@ function showCustomerBenefits(){
         <input type="hidden" id="co_purchase_price">
         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-success" onclick="submitCustomOrderToCart()"><i class="fa fa-plus"></i> Add to Cart</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Selling Unit Picker Modal (pack/piece/box) -->
+<div class="modal fade" id="selling_unit_picker_modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-teal">
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        <h4 class="modal-title"><i class="fa fa-cubes"></i> Select Unit</h4>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:12px;">This product is sold in multiple units. Pick the unit to add to the cart.</p>
+        <div id="selling_unit_picker_body"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
       </div>
     </div>
   </div>

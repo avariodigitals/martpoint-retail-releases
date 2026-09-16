@@ -31,16 +31,23 @@ $non_sortable = json_encode([0, $action_col]);
 #example2 img{border-radius:8px;border:1px solid var(--mp-border)!important;object-fit:cover}
 #example2 .price-val{font-weight:700;color:var(--mp-primary)}
 
-/* DataTables buttons (export) — delete button variant */
-.dataTables_wrapper .dt-buttons .delete_btn{background:rgba(220,38,38,.08)!important;color:var(--mp-danger)!important;border-color:rgba(220,38,38,.2)!important}
-.dataTables_wrapper .dt-buttons .delete_btn:hover{background:var(--mp-danger)!important;color:#fff!important;border-color:var(--mp-danger)!important}
+/* DataTables export buttons — pill style, consistent across business types */
+.dataTables_wrapper .dt-buttons{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dataTables_wrapper .dt-buttons .mp-dt-btn{background:var(--mp-surface)!important;color:var(--mp-ink)!important;border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:7px 13px!important;font-size:13px!important;font-weight:600!important;cursor:pointer!important;box-shadow:none!important;background-image:none!important}
+.dataTables_wrapper .dt-buttons .mp-dt-btn:hover{background:var(--mp-bg)!important;color:var(--mp-primary)!important;border-color:var(--mp-primary)!important}
+.dataTables_wrapper .dt-buttons .mp-dt-btn-danger{background:var(--mp-danger)!important;color:#fff!important;border-color:var(--mp-danger)!important}
+.dataTables_wrapper .dt-buttons .mp-dt-btn-danger:hover{background:rgba(220,38,38,.9)!important}
+.dataTables_wrapper .dt-buttons .mp-dt-btn-danger.hidden{display:none!important}
 
-/* Action dropdown */
-#example2 .btn-group .btn{border:1px solid var(--mp-border)!important;border-radius:8px!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;padding:6px 10px!important;font-size:12px!important;font-weight:600!important;cursor:pointer!important}
-#example2 .btn-group .btn:hover{background:var(--mp-bg)!important}
-#example2 .dropdown-menu{border-radius:10px!important;border:1px solid var(--mp-border)!important;box-shadow:var(--mp-shadow)!important;padding:6px!important;min-width:160px!important}
-#example2 .dropdown-menu > li > a{padding:9px 12px!important;font-size:13px!important;color:var(--mp-ink)!important;border-radius:6px!important;display:flex!important;align-items:center!important;gap:8px!important}
-#example2 .dropdown-menu > li > a:hover{background:var(--mp-bg)!important;color:var(--mp-primary)!important}
+/* Action dropdown — consistent across business types */
+#example2 .mp-action-group{position:relative;display:inline-block}
+#example2 .mp-action-toggle{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--mp-border)!important;border-radius:8px!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;padding:6px 10px!important;font-size:12px!important;font-weight:600!important;cursor:pointer!important;text-decoration:none!important}
+#example2 .mp-action-toggle:hover{background:var(--mp-bg)!important;color:var(--mp-primary)!important;border-color:var(--mp-primary)!important}
+#example2 .mp-action-toggle .caret{border-top-color:currentColor!important}
+#example2 .mp-action-menu{border-radius:10px!important;border:1px solid var(--mp-border)!important;box-shadow:var(--mp-shadow)!important;padding:6px!important;min-width:160px!important}
+#example2 .mp-action-menu > li > a{padding:9px 12px!important;font-size:13px!important;color:var(--mp-ink)!important;border-radius:6px!important;display:flex!important;align-items:center!important;gap:8px!important}
+#example2 .mp-action-menu > li > a:hover{background:var(--mp-bg)!important;color:var(--mp-primary)!important}
+#example2 .mp-action-menu .fa{margin-right:0!important}
 
 /* Filter bar */
 .it-filter-bar{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
@@ -221,18 +228,18 @@ $non_sortable = json_encode([0, $action_col]);
         buttons: {
             buttons: [
                 {
-                    className: 'btn bg-red color-palette btn-flat hidden delete_btn pull-left',
+                    className: 'mp-dt-btn mp-dt-btn-danger hidden delete_btn pull-left',
                     text: 'Delete',
                     action: function ( e, dt, node, config ) {
                         multi_delete();
                     }
                 },
-                { extend: 'copy', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
-                { extend: 'excel', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
-                { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
-                { extend: 'print', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
-                { extend: 'csv', className: 'btn bg-teal color-palette btn-flat',exportOptions: { columns: <?= $export_columns_json; ?> } },
-                { extend: 'colvis', className: 'btn bg-teal color-palette btn-flat',text:'Columns' },
+                { extend: 'copy', className: 'mp-dt-btn',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'excel', className: 'mp-dt-btn',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'pdf', className: 'mp-dt-btn',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'print', className: 'mp-dt-btn',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'csv', className: 'mp-dt-btn',exportOptions: { columns: <?= $export_columns_json; ?> } },
+                { extend: 'colvis', className: 'mp-dt-btn',text:'Columns' },
             ]
         },
         "processing": true,
@@ -269,6 +276,10 @@ $non_sortable = json_encode([0, $action_col]);
                 "visible": false,
             },
             <?php endif; ?>
+            {
+                "targets": <?= $action_col; ?>,
+                "className": "all text-center",
+            },
         ],
     });
   }

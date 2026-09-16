@@ -130,8 +130,14 @@
                                           <span id="" style="" class="text-success">0 = No Credit Allowed, -1 = No Limit</span>
                                           <span id="credit_limit_msg" style="display:none" class="text-danger"></span>
                                        </div>
-                                    <!-- </div>
-                                    <div class="form-group"> -->
+                                       <label for="payment_terms_days" class="col-sm-2 control-label">Payment Terms (Days)</label>
+                                       <div class="col-sm-4">
+                                          <input type="number" class="form-control" id="payment_terms_days" name="payment_terms_days" min="0" value="<?= (int)($payment_terms_days ?? 0); ?>" >
+                                          <span id="" style="" class="text-success">0 = immediate, e.g. 30 for Net-30</span>
+                                          <span id="payment_terms_days_msg" style="display:none" class="text-danger"></span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
                                        <label for="opening_balance" class="col-sm-2 control-label"><?= $this->lang->line('previous_due'); ?></label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control only_currency" id="opening_balance" name="opening_balance" placeholder="" value="<?php print store_number_format($opening_balance,0); ?>" >

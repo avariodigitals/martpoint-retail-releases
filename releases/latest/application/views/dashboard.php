@@ -9,12 +9,22 @@ $this->load->view('admin/desktop/_styles');
     $is_product_business = true;
     $is_service_business = false;
     $industry_type = 'general_retail';
+    $dashboard_template = 'general_retail';
+    $is_creator = false;
     try {
       $bp_profile = mp_get_store_profile();
       $is_product_business = empty($bp_profile['business_model']) || in_array($bp_profile['business_model'], ['product_based','product_and_service']);
       $is_service_business = in_array($bp_profile['business_model'] ?? '', ['service_based','product_and_service']);
       $industry_type = $bp_profile['industry_type'] ?? 'general_retail';
+      $dashboard_template = $bp_profile['dashboard_template'] ?? $industry_type;
+      $is_creator = $industry_type === 'creator';
     } catch (Exception $e) {}
+    $expiry_rendered = false;
+    $dashboard_template_label = '';
+    if ($dashboard_template !== 'general_retail' && function_exists('mp_get_dashboard_templates')) {
+        $dt_labels = mp_get_dashboard_templates();
+        $dashboard_template_label = $dt_labels[$dashboard_template] ?? '';
+    }
     $item_label = mp_label('item','Product');
     $customer_label = mp_label('customer','Customer');
     $branch_label = mp_label('branch','Branch');
@@ -77,13 +87,20 @@ $this->load->view('admin/desktop/_styles');
     <div class="mp-section">
       <div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;width:100%;box-sizing:border-box;">
         <div class="mp-quick-actions">
-          <a href="<?=base_url('pos');?>" class="mp-qa-btn green"><i class="fa fa-shopping-cart"></i> New Sale</a>
+          <?php if(!$is_creator): ?><a href="<?=base_url('pos');?>" class="mp-qa-btn green"><i class="fa fa-shopping-cart"></i> New Sale</a>
           <a href="<?=base_url('customers/add');?>" class="mp-qa-btn blue"><i class="fa fa-user-plus"></i> Add <?= $customer_label; ?></a>
           <a href="<?=base_url('expense/add');?>" class="mp-qa-btn orange"><i class="fa fa-minus-square"></i> Add Expense</a>
           <?php if($is_product_business): ?><a href="<?=base_url('purchase/add');?>" class="mp-qa-btn purple"><i class="fa fa-plus-square"></i> Purchase Stock</a><?php endif; ?>
           <?php if($is_service_business): ?><a href="<?=base_url('services/add');?>" class="mp-qa-btn purple"><i class="fa fa-scissors"></i> Add Service</a><?php endif; ?>
           <a href="<?=base_url('sales/add');?>" class="mp-qa-btn red"><i class="fa fa-file-text-o"></i> New Invoice</a>
           <a href="<?=base_url('dashboard/daily_summary');?>" class="mp-qa-btn teal"><i class="fa fa-file-text"></i> Today's Summary</a>
+          <?php else: ?>
+          <a href="<?=base_url('creator/create/digital');?>" class="mp-qa-btn green"><i class="fa fa-download"></i> New Digital Product</a>
+          <a href="<?=base_url('creator/create/course');?>" class="mp-qa-btn blue"><i class="fa fa-play-circle"></i> New Course</a>
+          <a href="<?=base_url('creator/create/membership');?>" class="mp-qa-btn orange"><i class="fa fa-star"></i> New Membership</a>
+          <a href="<?=base_url('online_store/orders');?>" class="mp-qa-btn red"><i class="fa fa-shopping-bag"></i> Orders</a>
+          <a href="<?=base_url('online_store');?>" class="mp-qa-btn teal"><i class="fa fa-store"></i> Store Dashboard</a>
+          <?php endif; ?>
           <a href="<?= base_url('accounts/cash_ledger'); ?>" class="mp-cash-inline" title="Click to view cash ledger"><i class="fa fa-money" style="opacity:0.85;"></i><span>Cash: <strong><?= $CI->currency($cash_in_hand); ?></strong></span></a>
         </div>
         <?php if(warehouse_module() && warehouse_count() > 1): ?>
@@ -113,8 +130,8 @@ $this->load->view('admin/desktop/_styles');
       <div class="mp-section">
         <div class="mp-page-head">
           <div>
-            <h2>Business Overview</h2>
-            <div class="mp-page-sub"><?= $range_label; ?> · <?= htmlspecialchars($this->session->userdata('store_name') ?? 'MartPoint'); ?></div>
+            <h2><?= ($dashboard_template === 'restaurant') ? 'Restaurant Overview' : 'Business Overview'; ?></h2>
+            <div class="mp-page-sub"><?= $range_label; ?> · <?= htmlspecialchars($this->session->userdata('store_name') ?? 'MartPoint'); ?><?php if(!empty($dashboard_template_label)): ?> · <span style="color:var(--mp-primary);font-weight:600;"><?= htmlspecialchars($dashboard_template_label); ?></span><?php endif; ?></div>
           </div>
           <div class="mp-range-tabs">
             <?php $range_tabs = ['Today'=>'Today','7Days'=>'7 Days','30Days'=>'30 Days','LastMonth'=>'Last Month','ThisMonth'=>'This Month','ThisYear'=>'This Year']; ?>
@@ -179,6 +196,91 @@ $this->load->view('admin/desktop/_styles');
           </div>
         </div>
       </div>
+
+      <?php if($dashboard_template === 'restaurant'): ?>
+      <!-- Restaurant front-of-house snapshot -->
+      <div class="mp-section">
+        <div class="mp-page-head">
+          <div>
+            <h2>Front of House</h2>
+            <div class="mp-page-sub">Tables & kitchen queue status</div>
+          </div>
+          <a href="<?= base_url('operations/kitchen'); ?>" class="mp-card-link">Kitchen &rarr;</a>
+        </div>
+        <div class="mp-kpi-grid">
+          <?php
+            $table_counts = ['available' => 0, 'occupied' => 0, 'reserved' => 0, 'cleaning' => 0, 'total' => 0];
+            $kds_counts = ['new' => 0, 'preparing' => 0, 'ready' => 0, 'served' => 0];
+            try {
+              $CI->load->model('tables_model','dash_tables');
+              $table_counts = $CI->dash_tables->count_by_status($store_id);
+            } catch (Exception $e) {}
+            try {
+              $CI->load->model('kitchen_model','dash_kitchen');
+              $kds_counts = $CI->dash_kitchen->count_by_status($store_id);
+            } catch (Exception $e) {}
+          ?>
+          <div class="mp-kpi-card success">
+            <div class="mp-kpi-icon"><i class="fa fa-table"></i></div>
+            <div class="mp-kpi-label">Available Tables</div>
+            <div class="mp-kpi-value"><?= (int)$table_counts['available']; ?></div>
+          </div>
+          <div class="mp-kpi-card debt">
+            <div class="mp-kpi-icon"><i class="fa fa-users"></i></div>
+            <div class="mp-kpi-label">Occupied / Reserved</div>
+            <div class="mp-kpi-value"><?= (int)($table_counts['occupied'] + $table_counts['reserved']); ?></div>
+          </div>
+          <div class="mp-kpi-card warn">
+            <div class="mp-kpi-icon"><i class="fa fa-fire"></i></div>
+            <div class="mp-kpi-label">In Kitchen</div>
+            <div class="mp-kpi-value"><?= (int)(($kds_counts['new'] ?? 0) + ($kds_counts['preparing'] ?? 0) + ($kds_counts['ready'] ?? 0)); ?></div>
+          </div>
+          <div class="mp-kpi-card sales">
+            <div class="mp-kpi-icon"><i class="fa fa-check-circle"></i></div>
+            <div class="mp-kpi-label">Ready to Serve</div>
+            <div class="mp-kpi-value"><?= (int)($kds_counts['ready'] ?? 0); ?></div>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php
+      // Mini Mart / Supermarket dashboard template: promote Expiry Alerts
+      // to the top (perishable-goods priority). Other templates render the
+      // expiry block in its original position further down.
+      if (in_array($dashboard_template, ['mini_mart', 'supermarket', 'pharmacy', 'distributor', 'wholesaler'], true) && !$expiry_rendered):
+          try {
+              if (mp_feature_enabled('expiry_tracking')):
+                  $CI->load->model('expiry_settings_model');
+                  $expired_count = $CI->expiry_settings_model->count_expired();
+                  $expiring_count = $CI->expiry_settings_model->count_expiring();
+                  $total_alerted = $expired_count + $expiring_count;
+                  if ($total_alerted > 0):
+                      $expiry_rendered = true;
+      ?>
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <div class="mp-card">
+            <div class="mp-card-head"><h3>Expiry Alerts</h3><a href="<?= base_url('expired_items_report'); ?>" class="mp-card-link">View Report</a></div>
+            <div class="mp-card-body" style="padding:0;">
+              <div class="mp-top-prod" style="padding:14px 20px;">
+                <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-danger);">Expired Items</div></div>
+                <div class="mp-top-prod-amt" style="color:var(--mp-danger);font-size:20px;"><?= $expired_count; ?></div>
+              </div>
+              <div class="mp-top-prod" style="padding:14px 20px;">
+                <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-warning);">Expiring Soon</div></div>
+                <div class="mp-top-prod-amt" style="color:var(--mp-warning);font-size:20px;"><?= $expiring_count; ?></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php
+                  endif;
+              endif;
+          } catch (Exception $e) { /* Expiry table not ready yet */ }
+      endif;
+      ?>
 
       <!-- SECTION 1b: LICENSE & USAGE -->
       <?php
@@ -591,8 +693,9 @@ $this->load->view('admin/desktop/_styles');
 
       <!-- Fashion Intelligence Widget (conditional) - removed per request -->
 
-      <!-- Expiry Alerts (conditional) -->
+      <!-- Expiry Alerts (conditional) — skipped when already rendered above for mini_mart/supermarket -->
       <?php
+      if (!$expiry_rendered):
       try {
         if (mp_feature_enabled('expiry_tracking')):
         $CI->load->model('expiry_settings_model');
@@ -622,6 +725,7 @@ $this->load->view('admin/desktop/_styles');
         endif;
         endif;
       } catch (Exception $e) { /* Expiry table not ready yet */ }
+      endif;
       ?>
 
       <!-- Hidden preserved elements (DataTables, charts, admin tables) -->

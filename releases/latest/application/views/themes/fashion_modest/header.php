@@ -75,6 +75,7 @@ $social = $social_links ?? [];
   <div class="msh-header-inner">
     <nav class="msh-nav-left">
       <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="msh-nav-link">Collection</a>
+      <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="msh-nav-link">About</a>
       <?php if(!empty($categories)): foreach(array_slice($categories, 0, 4) as $cat): ?>
       <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="msh-nav-link"><?= htmlspecialchars($cat->category_name); ?></a>
       <?php endforeach; endif; ?>
@@ -137,6 +138,7 @@ $social = $social_links ?? [];
   <div class="msh-drawer-title"><?= htmlspecialchars($store->store_name ?? 'Menu'); ?></div>
   <a href="<?= base_url('store/' . $slug); ?>" class="msh-drawer-link" onclick="document.getElementById('msh-drawer').classList.remove('open');document.getElementById('msh-overlay').classList.remove('open');">Home</a>
   <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="msh-drawer-link" onclick="document.getElementById('msh-drawer').classList.remove('open');document.getElementById('msh-overlay').classList.remove('open');">All Products</a>
+  <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="msh-drawer-link" onclick="document.getElementById('msh-drawer').classList.remove('open');document.getElementById('msh-overlay').classList.remove('open');">About</a>
   <?php if(!empty($categories)): ?>
   <div class="msh-drawer-section">
     <div class="msh-drawer-section-title">Categories</div>

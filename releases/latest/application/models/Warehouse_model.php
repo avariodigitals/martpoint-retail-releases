@@ -12,6 +12,8 @@ class Warehouse_model extends CI_Model {
 	}
 	public function verify_and_save($data){
 		$warehouse_name = $this->input->post('warehouse_name', TRUE);
+		$branch_type = $this->input->post('branch_type', TRUE) ?: 'branch';
+		$is_distribution_center = $this->input->post('is_distribution_center', TRUE) ? 1 : 0;
 		$mobile = $this->input->post('mobile', TRUE);
 		$email = $this->input->post('email', TRUE);
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
@@ -39,6 +41,8 @@ class Warehouse_model extends CI_Model {
 			'store_id' => $store_id,
 			'warehouse_type' => 'Custom',
 			'warehouse_name' => $warehouse_name,
+			'branch_type' => $branch_type,
+			'is_distribution_center' => $is_distribution_center,
 			'mobile' => $mobile,
 			'email' => $email,
 			'status' => 1,
@@ -57,6 +61,8 @@ class Warehouse_model extends CI_Model {
 		
 		$q_id = $this->input->post('q_id', TRUE);
 		$warehouse_name = $this->input->post('warehouse_name', TRUE);
+		$branch_type = $this->input->post('branch_type', TRUE) ?: 'branch';
+		$is_distribution_center = $this->input->post('is_distribution_center', TRUE) ? 1 : 0;
 		$mobile = $this->input->post('mobile', TRUE);
 		$email = $this->input->post('email', TRUE);
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
@@ -80,6 +86,8 @@ class Warehouse_model extends CI_Model {
 		
 		$info = array(
 			'warehouse_name' => $warehouse_name,
+			'branch_type' => $branch_type,
+			'is_distribution_center' => $is_distribution_center,
 			'mobile' => $mobile,
 			'email' => $email
 		);
@@ -135,6 +143,8 @@ class Warehouse_model extends CI_Model {
 			$query=$query->row();
 			$data['q_id']=$query->id;
 			$data['warehouse_name']=$query->warehouse_name;
+			$data['branch_type']=$query->branch_type ?? 'branch';
+			$data['is_distribution_center']=$query->is_distribution_center ?? 0;
 			$data['mobile']=$query->mobile;
 			$data['email']=$query->email;
 			return $data;

@@ -196,7 +196,22 @@ class Items_model extends CI_Model {
 		$deposit_required = $this->input->post('deposit_required', TRUE) ?? 0;
 		$deposit_percent = $this->input->post('deposit_percent', TRUE) ?? 0;
 		$item_type_post = $this->input->post('item_type', TRUE);
-		$service_bit = ($item_type_post === 'service') ? 1 : 0;
+		$item_type_map = [
+			'item'       => 'physical',
+			'service'    => 'service',
+			'digital'    => 'digital',
+			'course'     => 'course',
+			'membership' => 'membership'
+		];
+		$product_type = $item_type_map[$item_type_post] ?? 'physical';
+		$service_bit = ($product_type === 'service') ? 1 : 0;
+		$download_limit = 0;
+		$download_expiry_hours = 0;
+		$digital_file_path = $this->input->post('digital_file_path', TRUE) ?? '';
+		if($product_type === 'digital'){
+			$download_limit = (int) ($this->input->post('download_limit', TRUE) ?? 3);
+			$download_expiry_hours = (int) ($this->input->post('download_expiry_hours', TRUE) ?? 72);
+		}
 		$item_group = $this->input->post('item_group', TRUE);
 		$attribute_types = $this->input->post('attribute_types', TRUE);
 		$attribute_types_json = (!empty($attribute_types) && is_array($attribute_types)) ? json_encode(array_map('strtolower', $attribute_types)) : null;
@@ -217,6 +232,15 @@ class Items_model extends CI_Model {
 		$requires_quote = $this->input->post('requires_quote', TRUE) ? 1 : 0;
 		$requires_deposit = $this->input->post('requires_deposit', TRUE) ? 1 : 0;
 		$workflow_template_key = $this->input->post('workflow_template_key', TRUE) ?: 'standard';
+		// Butchery / frozen fields
+		$is_carcass = $this->input->post('is_carcass', TRUE) ? 1 : 0;
+		$carcass_template_id = $this->input->post('carcass_template_id', TRUE) !== '' ? (int)$this->input->post('carcass_template_id', TRUE) : null;
+		$portion_of_item_id = $this->input->post('portion_of_item_id', TRUE) !== '' ? (int)$this->input->post('portion_of_item_id', TRUE) : null;
+		$storage_temp_min = $this->input->post('storage_temp_min', TRUE) !== '' ? (float)$this->input->post('storage_temp_min', TRUE) : null;
+		$storage_temp_max = $this->input->post('storage_temp_max', TRUE) !== '' ? (float)$this->input->post('storage_temp_max', TRUE) : null;
+		$thaw_time_hours = $this->input->post('thaw_time_hours', TRUE) !== '' ? (float)$this->input->post('thaw_time_hours', TRUE) : null;
+		$use_within_hours_after_thaw = $this->input->post('use_within_hours_after_thaw', TRUE) !== '' ? (float)$this->input->post('use_within_hours_after_thaw', TRUE) : null;
+		$frozen_shelf_life_days = $this->input->post('frozen_shelf_life_days', TRUE) !== '' ? (int)$this->input->post('frozen_shelf_life_days', TRUE) : null;
 		// Only update recipe fields if the Recipe & Costing section was visible (key exists in POST)
 		// This preserves existing links when the feature is disabled for the business
 		$recipe_id = null;
@@ -226,6 +250,11 @@ class Items_model extends CI_Model {
 		}
 		if ($this->input->post('recipe_margin_pct') !== false) {
 			$recipe_margin_pct = $this->input->post('recipe_margin_pct', TRUE) !== '' ? (float)$this->input->post('recipe_margin_pct', TRUE) : null;
+		}
+		$item_production_mode = 'batch';
+		if ($this->input->post('item_production_mode') !== false) {
+			$posted = $this->input->post('item_production_mode', TRUE);
+			$item_production_mode = in_array($posted, ['batch','sale_deplete','component'], true) ? $posted : 'batch';
 		}
 
 		// If recipe is linked, auto-calculate purchase/sales price from recipe cost + margin
@@ -385,7 +414,11 @@ class Items_model extends CI_Model {
 			    				'custom_barcode'			=> $custom_barcode,
 			    				'description'				=> $description,
 			    				'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
-			    				'service_bit'				=> $service_bit,
+			    				'product_type'				=> $product_type,
+'service_bit'				=> $service_bit,
+'digital_file'				=> !empty($digital_file_path) ? $digital_file_path : null,
+'download_limit'			=> ($product_type === 'digital') ? $download_limit : 0,
+'download_expiry_hours'		=> ($product_type === 'digital') ? $download_expiry_hours : 0,
 			    				'sac'						=> !empty($sac) ? $sac : null,
 			    				'commission_type'			=> $commission_type,
 			    				'commission_value'			=> $commission_value,
@@ -414,6 +447,15 @@ class Items_model extends CI_Model {
 								'attribute_types_json'		=> $attribute_types_json,
 			    				'item_code' 				=> $item_code,
 			    				
+								'is_carcass'				=> $is_carcass,
+								'carcass_template_id'		=> $carcass_template_id,
+								'portion_of_item_id'		=> $portion_of_item_id,
+								'storage_temp_min'			=> $storage_temp_min,
+								'storage_temp_max'			=> $storage_temp_max,
+								'thaw_time_hours'			=> $thaw_time_hours,
+								'use_within_hours_after_thaw'=> $use_within_hours_after_thaw,
+								'frozen_shelf_life_days'	=> $frozen_shelf_life_days,
+			    				
 			    			);
 			if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
@@ -422,6 +464,7 @@ class Items_model extends CI_Model {
 							if ($this->input->post('recipe_id') !== false) {
 								$info['recipe_id'] = $recipe_id;
 								$info['recipe_margin_pct'] = $recipe_margin_pct;
+								$info['item_production_mode'] = $item_production_mode;
 							}
 							
 			if ( $command == 'save' ){
@@ -512,6 +555,16 @@ class Items_model extends CI_Model {
                 }
             }
 
+		// Save per-product selling units (pack/piece/box) when multi-unit selling is enabled
+		if($this->db->table_exists('db_item_selling_units') && $this->input->post('selling_unit_unit_id')){
+			$this->load->model('item_selling_units_model','selling_units');
+			$su_saved = $this->selling_units->save_units($item_id, $store_id);
+			if(!$su_saved){
+				$this->db->trans_rollback();
+				return "failed";
+			}
+		}
+
 		}//Single END
 
 		//Insert Variants in db_items table
@@ -539,7 +592,11 @@ class Items_model extends CI_Model {
 	    							'custom_barcode'			=> $custom_barcode,
 	    							'description'				=> $description,
 	    							'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
-	    							'service_bit'				=> $service_bit,
+	    							'product_type'				=> $product_type,
+'service_bit'				=> $service_bit,
+'digital_file'				=> !empty($digital_file_path) ? $digital_file_path : null,
+'download_limit'			=> ($product_type === 'digital') ? $download_limit : 0,
+'download_expiry_hours'		=> ($product_type === 'digital') ? $download_expiry_hours : 0,
 	    							'sac'						=> !empty($sac) ? $sac : null,
 	    							'commission_type'			=> $commission_type,
 	    							'commission_value'			=> $commission_value,
@@ -567,6 +624,15 @@ class Items_model extends CI_Model {
 									'attribute_types_json'		=> $attribute_types_json,
 	    							'item_code' 				=> $item_code,
 	    							'child_bit' 				=> 0,
+								
+								'is_carcass'				=> $is_carcass,
+								'carcass_template_id'		=> $carcass_template_id,
+								'portion_of_item_id'		=> $portion_of_item_id,
+								'storage_temp_min'			=> $storage_temp_min,
+								'storage_temp_max'			=> $storage_temp_max,
+								'thaw_time_hours'			=> $thaw_time_hours,
+								'use_within_hours_after_thaw'=> $use_within_hours_after_thaw,
+								'frozen_shelf_life_days'	=> $frozen_shelf_life_days,
 	    						);
 			if(!empty($file_name)){
 				$parent_info['item_image'] = 'uploads/items/'.$file_name;
@@ -598,6 +664,16 @@ class Items_model extends CI_Model {
 				$this->db->trans_rollback();
 				log_message('error', "Variant parent save failed: " . $this->db->error()['message']);
 				return "failed";
+			}
+
+			// Save the parent selling-unit template (not sellable itself; cloned to children)
+			if($this->db->table_exists('db_item_selling_units') && $this->input->post('selling_unit_unit_id')){
+				if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+				$su_saved = $this->selling_units->save_units($item_id, $store_id, 1);
+				if(!$su_saved){
+					$this->db->trans_rollback();
+					return "failed";
+				}
 			}
 
 			if($existing_row_count>0){
@@ -712,6 +788,7 @@ class Items_model extends CI_Model {
 							if ($this->input->post('recipe_id') !== false) {
 								$info['recipe_id'] = $recipe_id;
 								$info['recipe_margin_pct'] = $recipe_margin_pct;
+								$info['item_production_mode'] = $item_production_mode;
 							}
 							/*echo "<pre>";
 							print_r($info);
@@ -750,6 +827,12 @@ class Items_model extends CI_Model {
 								return "failed";
 							}
 							$variant_item_id = $this->db->insert_id();
+
+							// Clone the parent's selling-unit template to this new child variant
+							if($variant_item_id && $this->db->table_exists('db_item_selling_units')){
+								if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+								$this->selling_units->clone_template_to_child($item_id, $variant_item_id, $store_id);
+							}
 
 							//Opening Stock Exist
 							if($opening_stock>0){
@@ -839,7 +922,11 @@ class Items_model extends CI_Model {
 			$data['discount_type']=$query->discount_type;
 			$data['commission_type']=$query->commission_type ?? 'none';
 			$data['commission_value']=$query->commission_value ?? 0;
+			$data['product_type']=$query->product_type ?? 'physical';
 			$data['service_bit']=$query->service_bit ?? 0;
+			$data['digital_file']=$query->digital_file ?? '';
+			$data['download_limit']=$query->download_limit ?? 3;
+			$data['download_expiry_hours']=$query->download_expiry_hours ?? 72;
 			$data['deposit_required']=$query->deposit_required ?? 0;
 			$data['deposit_percent']=$query->deposit_percent ?? 0;
 			$data['item_image']=$query->item_image ?? '';
@@ -857,9 +944,20 @@ class Items_model extends CI_Model {
 			$data['consumable_unit']=$query->consumable_unit ?? '';
 			$data['recipe_id']=$query->recipe_id ?? null;
 			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
+			$data['item_production_mode']=$query->item_production_mode ?? 'batch';
 
 			// Load barcode / batch records
 			$data['item_barcodes'] = $this->db->where('item_id', $id)->where('status', 1)->get('db_item_barcodes')->result();
+
+			// Load selling units for multi-unit selling
+			// Parent products keep a template; single items and child variants keep real sellable units
+			if($this->db->table_exists('db_item_selling_units')){
+				$this->load->model('item_selling_units_model','selling_units');
+				$is_template = ($data['item_group'] == 'Variants') ? 1 : 0;
+				$data['selling_units'] = $this->selling_units->get_units($id, $data['store_id'], $is_template);
+			} else {
+				$data['selling_units'] = [];
+			}
 
 			return $data;
 		}

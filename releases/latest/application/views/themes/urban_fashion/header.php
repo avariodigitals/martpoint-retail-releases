@@ -82,6 +82,7 @@ $social = $social_links ?? [];
   <div class="ueh-header-inner">
     <nav class="ueh-nav-left">
       <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="ueh-nav-link">Shop</a>
+      <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="ueh-nav-link">About</a>
       <?php if(!empty($categories)): foreach(array_slice($categories, 0, 4) as $cat): ?>
       <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="ueh-nav-link"><?= htmlspecialchars($cat->category_name); ?></a>
       <?php endforeach; endif; ?>
@@ -142,6 +143,7 @@ $social = $social_links ?? [];
   <div class="ueh-drawer-title"><?= htmlspecialchars($store->store_name ?? 'Menu'); ?></div>
   <a href="<?= base_url('store/' . $slug); ?>" class="ueh-drawer-link" onclick="document.getElementById('ueh-drawer').classList.remove('open');document.getElementById('ueh-overlay').classList.remove('open');">Home</a>
   <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="ueh-drawer-link" onclick="document.getElementById('ueh-drawer').classList.remove('open');document.getElementById('ueh-overlay').classList.remove('open');">All Products</a>
+  <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="ueh-drawer-link" onclick="document.getElementById('ueh-drawer').classList.remove('open');document.getElementById('ueh-overlay').classList.remove('open');">About</a>
   <?php if(!empty($categories)): ?>
   <div class="ueh-drawer-section">
     <div class="ueh-drawer-section-title">Categories</div>

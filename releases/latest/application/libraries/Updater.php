@@ -33,6 +33,7 @@ class Updater {
     // State file used to resume across HTTP requests.
     protected $statePath;
     protected $tempDir;
+    protected $lastManifestError = null;
 
     public function __construct() {
         $this->CI =& get_instance();
@@ -66,11 +67,20 @@ class Updater {
 
         $json = $this->httpGet($manifestUrl, 60);
         if ($json === null) {
+            // httpGet() already set $this->lastManifestError with the HTTP status detail
             return null;
         }
 
         $manifest = json_decode($json, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->lastManifestError = "Manifest at {$manifestUrl} is not valid JSON (" . json_last_error_msg() . "). The file may be missing (404) or the channel URL may point at the wrong path.";
+            return null;
+        }
+
+        // Guard against the PWA web-app manifest being served by mistake —
+        // it has no "version" or "files" keys and would silently break updates.
+        if (!isset($manifest['version']) || !isset($manifest['files'])) {
+            $this->lastManifestError = "Manifest at {$manifestUrl} is missing required 'version'/'files' keys. The channel URL may be pointing at the PWA manifest.json instead of release-manifest.json.";
             return null;
         }
 
@@ -84,7 +94,8 @@ class Updater {
         if (!$manifest) {
             return [
                 'available' => false,
-                'error' => 'Unable to fetch release manifest. Check your update channel URL.',
+                'error' => $this->lastManifestError
+                    ?? 'Unable to fetch release manifest. Check your update channel URL.',
                 'installed_version' => $installed,
                 'remote_version' => null,
             ];
@@ -840,6 +851,7 @@ class Updater {
         $attempts = 0;
         $maxAttempts = 3;
         $lastError = '';
+        $lastHttpStatus = '';
 
         while ($attempts < $maxAttempts) {
             $attempts++;
@@ -860,13 +872,19 @@ class Updater {
                 return $data;
             }
 
-            $lastError = error_get_last()['message'] ?? 'unknown';
+            // Capture the HTTP status line if available (set by PHP in $http_response_header)
+            if (isset($http_response_header) && is_array($http_response_header) && !empty($http_response_header[0])) {
+                $lastHttpStatus = $http_response_header[0];
+            }
+            $lastError = error_get_last()['message'] ?? ($lastHttpStatus ?: 'unknown');
             if ($attempts < $maxAttempts) {
                 sleep(min($attempts, 3)); // Backoff: 1s, 2s, 3s
             }
         }
 
-        log_message('error', "Updater httpGet failed for {$url}: {$lastError}");
+        $detail = $lastHttpStatus ?: $lastError;
+        log_message('error', "Updater httpGet failed for {$url}: {$detail}");
+        $this->lastManifestError = "Could not download {$url} — {$detail}";
         return null;
     }
 

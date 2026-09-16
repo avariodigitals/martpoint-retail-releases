@@ -76,6 +76,14 @@ class Pos extends MY_Controller {
 		$data['is_restaurant'] = mp_feature_enabled('kitchen_workflow');
 		$data['is_laundry'] = mp_feature_enabled('laundry_workflow');
 		$data['manager_approvals_enabled'] = mp_feature_enabled('manager_approvals');
+		// Available tables for restaurant table selection
+		$store_id = get_current_store_id();
+		$data['tables'] = [];
+		if(mp_feature_enabled('table_management')){
+			$this->load->model('tables_model','pos_tables');
+			$data['tables'] = $this->pos_tables->get_all($store_id);
+		}
+
 		// Staff list for commission assignment
 		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
 		// Service-to-staff mapping for POS staff assignment dropdown filtering
@@ -90,16 +98,22 @@ class Pos extends MY_Controller {
 		// No hard LIMIT — the view filters client-side, so capping here would silently hide
 		// products created on mobile/elsewhere.
 		$store_id = get_current_store_id();
+		$this->load->model('expiry_settings_model');
+		$expiry_settings = $this->expiry_settings_model->get_settings($store_id);
+		$data['stop_selling_expired'] = (int) ($expiry_settings->stop_selling_expired ?? 1);
+		$today = date('Y-m-d');
 		$products_query = $this->db->query("
 			SELECT a.id, a.item_name AS name, COALESCE(NULLIF(a.mrp,0), a.sales_price) AS price,
 			       a.sales_price AS wholesale, c.category_name AS category,
-			       a.category_id, a.brand_id, a.sku, u.unit_name AS unit,
+			       a.category_id, a.brand_id, a.sku, a.item_code, u.unit_name AS unit,
 			       COALESCE(a.alert_qty, 0) AS alert_qty,
 			       a.tax_id, a.tax_type,
 			       IF(a.tax_id > 0, 1, 0) AS tax,
 			       a.item_image AS image,
 			       a.item_group,
 			       a.parent_id,
+			       a.expire_date,
+			       a.batch_lot,
 			       b.tax AS tax_value
 			FROM db_items a
 			LEFT JOIN db_tax b ON b.id = a.tax_id
@@ -121,6 +135,21 @@ class Pos extends MY_Controller {
 		", [$store_id]);
 		$products = $products_query->result_array();
 		$warehouse_id = get_store_warehouse_id();
+
+		// Resolve soonest-expiring batch per product for expiry warnings
+		$batch_map = [];
+		if ($this->db->table_exists('db_item_barcodes') && !empty($products)) {
+			$ids = array_column($products, 'id');
+			$placeholders = implode(',', array_fill(0, count($ids), '?'));
+			$batches = $this->db->query("SELECT item_id, expire_date, batch_lot FROM db_item_barcodes WHERE status = 1 AND qty > 0 AND expire_date IS NOT NULL AND item_id IN ($placeholders) ORDER BY expire_date ASC, id ASC", $ids)->result();
+			foreach ($batches as $b) {
+				if (!isset($batch_map[$b->item_id])) {
+					$batch_map[$b->item_id] = ['expire_date' => $b->expire_date, 'batch_lot' => $b->batch_lot];
+				}
+			}
+		}
+
+		$this->load->model('item_selling_units_model', 'selling_units');
 		foreach ($products as &$p) {
 			$p['id'] = (int) $p['id'];
 			$p['price'] = (float) $p['price'];
@@ -133,8 +162,44 @@ class Pos extends MY_Controller {
 			$p['stock'] = (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']);
 			$p['outOfStock'] = $p['stock'] <= 0;
 			$p['alert_qty'] = (int) ($p['alert_qty'] ?? 0);
+			// Prefer barcode/batch expiry over item-level expiry
+			if (isset($batch_map[$p['id']])) {
+				$p['expire_date'] = $batch_map[$p['id']]['expire_date'];
+				$p['batch_lot'] = $batch_map[$p['id']]['batch_lot'];
+			}
+			$p['expired'] = !empty($p['expire_date']) && is_valid_date($p['expire_date']) && $p['expire_date'] < $today && $data['stop_selling_expired'] === 1;
+			$p['expire_date'] = !empty($p['expire_date']) ? $p['expire_date'] : null;
+			$p['batch_lot'] = !empty($p['batch_lot']) ? $p['batch_lot'] : null;
+			// Attach selling units for pack/piece/carton picker
+			$p['selling_units'] = [];
+			if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+				$sus = $this->selling_units->get_units($p['id'], $store_id);
+				foreach($sus as $su){
+					$p['selling_units'][] = [
+						'unit_id' => $su->unit_id,
+						'unit_name' => $su->unit_name,
+						'unit_shortcode' => $su->shortcode,
+						'conversion_factor' => (float)$su->conversion_factor,
+						'selling_price' => (float)$su->selling_price,
+						'wholesale_price' => (float)$su->wholesale_price,
+						'barcode' => $su->barcode,
+						'is_default' => (bool) $su->is_default,
+					];
+				}
+			}
 		}
 		$data['products'] = $products;
+		// Pharmacy: pre-load a medical note (and its patient) when dispensing
+		$medical_note_id = (int) $this->input->get('medical_note_id');
+		$medical_note = null;
+		if ($medical_note_id && $this->db->table_exists('db_medical_notes')) {
+			$medical_note = $this->db->where('id', $medical_note_id)->where('store_id', $store_id)->get('db_medical_notes')->row();
+		}
+		$data['medical_note_id'] = $medical_note ? $medical_note_id : 0;
+		$data['medical_note_customer_id'] = $medical_note ? (int) $medical_note->customer_id : null;
+		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
+		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
+		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
 
 		$this->db->where('store_id', $store_id);
 		$this->db->where('status', 1);
@@ -263,6 +328,12 @@ class Pos extends MY_Controller {
 	    	$sales_code = $this->db->select('sales_code')->where('id',$sales_id)->get('db_sales')->row()->sales_code;
 	    	$pdf_token = get_pdf_token('sales', $sales_id, $sales_code);
 	    	$response .="<<<###>>>".$init_code."<<<###>>>".$count_id."<<<###>>>".$customer_remaining_advance."<<<###>>>".$pdf_token."<<<###>>>".$sales_code;
+
+	    	// Link the sale to the originating medical note (Pharmacy workflow)
+	    	$medical_note_id = (int) $this->input->post('medical_note_id', TRUE);
+	    	if ($medical_note_id && $this->db->table_exists('db_medical_notes')) {
+	    		$this->db->where('id', $medical_note_id)->where('store_id', get_current_store_id())->update('db_medical_notes', ['sales_id' => $sales_id]);
+	    	}
 	    }
 	    echo $response;
 	}
@@ -290,6 +361,14 @@ class Pos extends MY_Controller {
 		$data['is_restaurant'] = mp_feature_enabled('kitchen_workflow');
 		$data['is_laundry'] = mp_feature_enabled('laundry_workflow');
 		$data['manager_approvals_enabled'] = mp_feature_enabled('manager_approvals');
+		// Available tables for restaurant table selection
+		$store_id = get_current_store_id();
+		$data['tables'] = [];
+		if(mp_feature_enabled('table_management')){
+			$this->load->model('tables_model','pos_tables');
+			$data['tables'] = $this->pos_tables->get_all($store_id);
+		}
+
 		// Staff list for commission assignment
 		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
 		// Cashier shift (Z-Report) status

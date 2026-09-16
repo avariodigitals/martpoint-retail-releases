@@ -272,6 +272,18 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
   </div>
 </div>
 
+<?php if(mp_feature_enabled('automobile_workflow')): ?>
+<div class="mp-section">
+  <div class="mp-card" style="border-left:4px solid #2563EB; padding:16px 20px; display:flex; align-items:center; gap:14px; margin-top:0;">
+    <i class="fa fa-car" style="font-size:24px; color:#2563EB;"></i>
+    <div>
+      <strong>Looking for vehicle records?</strong>
+      <p style="margin:4px 0 0; color:var(--mp-muted); font-size:14px;">This form is for <?= mp_label('item'); ?>s such as spare parts and accessories. To add a full vehicle with make, model, year, VIN and status, use <a href="<?= base_url('automobile/add'); ?>" style="color:#2563EB; font-weight:600;">Vehicles &rarr; Add Vehicle</a>.</p>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="box mp-items-box">
 <?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST')); ?>
 <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
@@ -287,14 +299,38 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
   <div class="mp-card-head"><h3>Item Type</h3></div>
   <div class="mp-card-body">
     <div class="mp-toggle-options">
+      <?php
+        $item_type = ($service_bit == 1) ? 'service' : ($product_type ?? 'item');
+        if($item_type === 'digital' && !mp_feature_enabled('digital_products')) $item_type = 'item';
+        if($item_type === 'course' && !mp_feature_enabled('courses')) $item_type = 'item';
+        if($item_type === 'membership' && !mp_feature_enabled('memberships')) $item_type = 'item';
+      ?>
       <div class="mp-toggle-row">
-        <input class="mp-toggle" id="type_item" name="item_type" type="radio" value="item" <?= ($is_service) ? '' : 'checked'; ?>>
+        <input class="mp-toggle" id="type_item" name="item_type" type="radio" value="item" <?= ($item_type === 'item' || $item_type === 'physical') ? 'checked' : ''; ?>
         <label class="mp-toggle-label" for="type_item">Item</label>
       </div>
       <div class="mp-toggle-row">
-        <input class="mp-toggle" id="type_service" name="item_type" type="radio" value="service" <?= ($is_service) ? 'checked' : ''; ?>>
+        <input class="mp-toggle" id="type_service" name="item_type" type="radio" value="service" <?= ($item_type === 'service') ? 'checked' : ''; ?>>
         <label class="mp-toggle-label" for="type_service">Service</label>
       </div>
+      <?php if(mp_feature_enabled('digital_products')): ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_digital" name="item_type" type="radio" value="digital" <?= ($item_type === 'digital') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_digital">Digital</label>
+      </div>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('courses')): ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_course" name="item_type" type="radio" value="course" <?= ($item_type === 'course') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_course">Course</label>
+      </div>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('memberships')): ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_membership" name="item_type" type="radio" value="membership" <?= ($item_type === 'membership') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_membership">Membership</label>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>
@@ -362,7 +398,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="category_id_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group mp-item-only">
-        <label for="unit_id"><?= $this->lang->line('unit'); ?> <span class="text-danger">*</span></label>
+        <label for="unit_id">Base / Stock Unit <small class="text-muted">All inventory is counted in this unit (Piece, Kg, Litre)</small> <span class="text-danger">*</span></label>
         <div class="mp-select-with-add">
           <select class="mp-form-control select2" id="unit_id" name="unit_id" required style="width:100%;">
             <?= get_units_select_list($unit_id); ?>
@@ -373,18 +409,85 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         </div>
         <span id="unit_id_msg" style="display:none" class="text-danger"></span>
       </div>
+
+      <?php if(mp_feature_enabled('multi_unit_selling')): ?>
+      <div class="mp-form-group full mp-item-only" id="selling_units_box" style="margin-top:16px;">
+        <p class="text-muted" style="margin-bottom:8px;font-size:13px;"><strong>Packaging for Sale</strong> — these are the packaging levels customers can buy. Stock is still kept in the Base / Stock Unit above. One Pack = N base units.</p>
+        <label>
+          <?php if($item_group == 'Variants'): ?>
+            Packaging Template (Pack / Piece / Box) <small class="text-muted">Cloned to every variant; edit a variant to override prices or barcodes</small>
+          <?php elseif($child_bit == 1): ?>
+            Selling Units (Pack / Piece / Box) <small class="text-muted">Packaging options for this variant</small>
+          <?php else: ?>
+            Selling Units (Pack / Piece / Box) <small class="text-muted">Optional per-product unit conversions and prices</small>
+          <?php endif; ?>
+        </label>
+        <table class="table table-condensed table-bordered" id="selling_units_table" style="margin-bottom:8px;">
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Conversion <small class="text-muted">(base units)</small></th>
+              <th>Selling Price</th>
+              <th>Wholesale Price</th>
+              <th>Purchase Price</th>
+              <th>SKU</th>
+              <th>Barcode</th>
+              <th>Default</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php $selling_units = isset($selling_units) ? $selling_units : []; ?>
+            <?php foreach($selling_units as $i => $su): ?>
+            <tr class="selling-unit-row">
+              <td>
+                <select class="mp-form-control mp-select-unit" name="selling_unit_unit_id[]" style="width:120px;">
+                  <?= get_units_select_list($su->unit_id); ?>
+                </select>
+              </td>
+              <td><input type="number" step="0.000001" class="mp-form-control" name="selling_unit_conversion[]" value="<?= $su->conversion_factor; ?>" placeholder="e.g. 12" style="width:100px;"></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_selling_price[]" value="<?= $su->selling_price; ?>" placeholder="Price" style="width:110px;"></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_wholesale_price[]" value="<?= $su->wholesale_price ?? ''; ?>" placeholder="Wholesale" style="width:110px;"></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_purchase_price[]" value="<?= $su->purchase_price; ?>" placeholder="Cost" style="width:110px;"></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_sku[]" value="<?= htmlspecialchars($su->sku ?? ''); ?>" placeholder="SKU" style="width:100px;"></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_barcode[]" value="<?= htmlspecialchars($su->barcode ?? ''); ?>" placeholder="Barcode" style="width:120px;"></td>
+              <td class="text-center"><input type="radio" name="selling_unit_default" value="<?= $i; ?>" <?= $su->is_default ? 'checked' : ''; ?>></td>
+              <td><button type="button" class="btn btn-xs btn-danger selling-unit-remove"><i class="fa fa-trash"></i></button></td>
+            </tr>
+            <?php endforeach; ?>
+            <tr id="selling_unit_template" class="selling-unit-row mp-hidden">
+              <td>
+                <select class="mp-form-control mp-select-unit" name="selling_unit_unit_id[]" style="width:120px;" disabled>
+                  <?= get_units_select_list(''); ?>
+                </select>
+              </td>
+              <td><input type="number" step="0.000001" class="mp-form-control" name="selling_unit_conversion[]" value="" placeholder="e.g. 12" style="width:100px;" disabled></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_selling_price[]" value="" placeholder="Price" style="width:110px;" disabled></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_wholesale_price[]" value="" placeholder="Wholesale" style="width:110px;" disabled></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_purchase_price[]" value="" placeholder="Cost" style="width:110px;" disabled></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_sku[]" value="" placeholder="SKU" style="width:100px;" disabled></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_barcode[]" value="" placeholder="Barcode" style="width:120px;" disabled></td>
+              <td class="text-center"><input type="radio" name="selling_unit_default" value="__INDEX__" disabled></td>
+              <td><button type="button" class="btn btn-xs btn-danger selling-unit-remove"><i class="fa fa-trash"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-xs btn-info" id="add_selling_unit_row"><i class="fa fa-plus"></i> Add Unit</button>
+      </div>
+      <?php endif; ?>
+
       <div class="mp-form-group mp-item-only" id="item_group_group">
-        <label for="item_group"><?= $this->lang->line('item_group'); ?> <span class="text-danger">*</span></label>
+        <label for="item_group">Product Type <small class="text-muted">Single product or product with variants (flavor, size, color)</small> <span class="text-danger">*</span></label>
         <select class="mp-form-control select2" id="item_group" name="item_group" style="width:100%;">
-          <option value="Single" <?php if($item_group=='Single') echo 'selected'; ?>>Single</option>
+          <option value="Single" <?php if($item_group=='Single') echo 'selected'; ?>>Single Product</option>
           <?php if(mp_feature_enabled('bundles')): ?>
-          <option value="Variants" <?php if($item_group=='Variants') echo 'selected'; ?>>Variants</option>
+          <option value="Variants" <?php if($item_group=='Variants') echo 'selected'; ?>>Has Variants (flavor / size / color)</option>
           <?php endif; ?>
         </select>
         <span id="item_group_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group full mp-hidden" id="attribute_types_box">
-        <label for="attribute_types">Attribute Types</label>
+        <label for="attribute_types">Attribute Types <small class="text-muted">e.g. Flavor, Size, Color</small></label>
         <select class="mp-form-control select2" id="attribute_types" name="attribute_types[]" multiple style="width:100%;">
           <?php
           $attribute_map = $this->items->get_variant_attribute_map();
@@ -594,6 +697,15 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <label for="recipe_margin_pct">Recipe Margin (%)</label>
         <input class="mp-form-control" id="recipe_margin_pct" name="recipe_margin_pct" type="number" step="0.01" value="<?= isset($recipe_margin_pct) ? $recipe_margin_pct : '30'; ?>">
         <p class="mp-form-hint">Markup on top of recipe ingredient cost</p>
+      </div>
+      <div class="mp-form-group">
+        <label for="item_production_mode">Production Mode</label>
+        <select class="mp-form-control" id="item_production_mode" name="item_production_mode">
+          <option value="batch" <?= (isset($item_production_mode) && $item_production_mode=='batch')?'selected':''; ?>>Batch — produce first, then sell finished item</option>
+          <option value="sale_deplete" <?= (isset($item_production_mode) && $item_production_mode=='sale_deplete')?'selected':''; ?>>Sale-deplete — deduct raw ingredients at POS sale</option>
+          <option value="component" <?= (isset($item_production_mode) && $item_production_mode=='component')?'selected':''; ?>>Component plate — sell a plate that deducts pre-cooked parts</option>
+        </select>
+        <p class="mp-form-hint">Tells the POS how this item consumes stock</p>
       </div>
       <div class="mp-form-group full">
         <div class="mp-recipe-stats">
@@ -853,6 +965,82 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 </div>
 <?php endif; ?>
 
+<!-- Digital Product File -->
+<div class="mp-card-form" id="digital_product_card" style="<?= (($product_type ?? '') !== 'digital') ? 'display:none;' : ''; ?>">
+  <div class="mp-card-head"><h3>Digital Product File</h3></div>
+  <div class="mp-card-body">
+    <div class="mp-form-group full">
+      <label for="digital_file">Upload File <?php if(empty($digital_file ?? '')): ?><span class="text-danger">*</span><?php endif; ?></label>
+      <input type="file" name="digital_file" id="digital_file" class="mp-form-control" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.mp4,.m4v,.mov,.avi,.epub,.txt,.csv">
+      <p class="mp-form-hint">PDF, ZIP, MP3, MP4 or any file up to 100MB.</p>
+    </div>
+    <?php if(!empty($digital_file ?? '')): ?>
+    <div class="mp-form-group full">
+      <p class="mp-form-hint">Current file: <a href="<?= base_url($digital_file); ?>" target="_blank"><?= basename($digital_file); ?></a></p>
+      <input type="hidden" name="digital_file_path" id="digital_file_path" value="<?= htmlspecialchars($digital_file); ?>">
+    </div>
+    <?php else: ?>
+    <input type="hidden" name="digital_file_path" id="digital_file_path" value="">
+    <?php endif; ?>
+    <div class="mp-form-grid">
+      <div class="mp-form-group">
+        <label for="download_limit">Download Limit</label>
+        <input type="number" name="download_limit" id="download_limit" class="mp-form-control" value="<?= $download_limit ?? 3; ?>" min="1">
+      </div>
+      <div class="mp-form-group">
+        <label for="download_expiry_hours">Link Expiry (hours)</label>
+        <input type="number" name="download_expiry_hours" id="download_expiry_hours" class="mp-form-control" value="<?= $download_expiry_hours ?? 72; ?>" min="1">
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if(mp_feature_enabled('meat_butchery_workflow') || mp_feature_enabled('frozen_food_cold_chain')): ?>
+<!-- Butchery / Frozen Product -->
+<div class="mp-card-form" id="butchery_frozen_card" style="<?= (in_array($product_type ?? 'physical', ['service','digital','course','membership'])) ? 'display:none;' : ''; ?>">
+  <div class="mp-card-head"><h3>Butchery &amp; Frozen</h3></div>
+  <div class="mp-card-body">
+    <div class="mp-form-grid">
+      <div class="mp-form-group">
+        <label for="is_carcass">This is a whole carcass</label>
+        <select name="is_carcass" id="is_carcass" class="mp-form-control">
+          <option value="0" <?= empty($is_carcass) ? 'selected' : ''; ?>>No</option>
+          <option value="1" <?= !empty($is_carcass) ? 'selected' : ''; ?>>Yes</option>
+        </select>
+      </div>
+      <div class="mp-form-group">
+        <label for="carcass_template_id">Carcass Template ID</label>
+        <input type="number" name="carcass_template_id" id="carcass_template_id" class="mp-form-control" value="<?= $carcass_template_id ?? ''; ?>" placeholder="Template ID for cutting">
+      </div>
+      <div class="mp-form-group">
+        <label for="portion_of_item_id">Portion of Item ID</label>
+        <input type="number" name="portion_of_item_id" id="portion_of_item_id" class="mp-form-control" value="<?= $portion_of_item_id ?? ''; ?>" placeholder="Parent item ID if a cut">
+      </div>
+      <div class="mp-form-group">
+        <label for="storage_temp_min">Min Storage Temp (°C)</label>
+        <input type="number" step="0.1" name="storage_temp_min" id="storage_temp_min" class="mp-form-control" value="<?= $storage_temp_min ?? ''; ?>" placeholder="e.g. -25">
+      </div>
+      <div class="mp-form-group">
+        <label for="storage_temp_max">Max Storage Temp (°C)</label>
+        <input type="number" step="0.1" name="storage_temp_max" id="storage_temp_max" class="mp-form-control" value="<?= $storage_temp_max ?? ''; ?>" placeholder="e.g. -18">
+      </div>
+      <div class="mp-form-group">
+        <label for="thaw_time_hours">Thaw Time (hours)</label>
+        <input type="number" step="0.5" name="thaw_time_hours" id="thaw_time_hours" class="mp-form-control" value="<?= $thaw_time_hours ?? ''; ?>" placeholder="Hours to thaw">
+      </div>
+      <div class="mp-form-group">
+        <label for="use_within_hours_after_thaw">Use Within After Thaw (hours)</label>
+        <input type="number" step="0.5" name="use_within_hours_after_thaw" id="use_within_hours_after_thaw" class="mp-form-control" value="<?= $use_within_hours_after_thaw ?? ''; ?>" placeholder="Safe window">
+      </div>
+      <div class="mp-form-group">
+        <label for="frozen_shelf_life_days">Frozen Shelf Life (days)</label>
+        <input type="number" step="1" name="frozen_shelf_life_days" id="frozen_shelf_life_days" class="mp-form-control" value="<?= $frozen_shelf_life_days ?? ''; ?>" placeholder="Days frozen">
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <!-- Product Image -->
 <div class="mp-card-form">
   <div class="mp-card-head"><h3>Product Image</h3></div>
@@ -919,20 +1107,34 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 
 <!-- Item form initialization & helpers -->
 <script type="text/javascript">
-// Item/Service mode switching
-function setItemTypeMode(isService){
-  if(isService){
+// Item/Service/Digital mode switching
+function setItemTypeMode(itemType){
+  $('body').removeClass('mp-mode-service mp-mode-digital mp-mode-course mp-mode-membership');
+  if(itemType === 'service'){
     $('body').addClass('mp-mode-service');
-    // When service is selected, force item_group to Single (services don't have variants)
+  } else if(itemType === 'digital'){
+    $('body').addClass('mp-mode-digital');
+  } else if(itemType === 'course'){
+    $('body').addClass('mp-mode-course');
+  } else if(itemType === 'membership'){
+    $('body').addClass('mp-mode-membership');
+  }
+  // Services, digital, course and membership products don't have variants
+  if(itemType === 'service' || itemType === 'digital' || itemType === 'course' || itemType === 'membership'){
     $("#item_group").val("Single").trigger("change");
     $("#item_group_group").addClass('mp-hidden');
   } else {
-    $('body').removeClass('mp-mode-service');
     <?php if($child_bit==1 || !empty($item_name)): ?>
     $("#item_group_group").addClass('mp-hidden');
     <?php else: ?>
     $("#item_group_group").removeClass('mp-hidden');
     <?php endif; ?>
+  }
+  // Show/hide digital product card
+  $('#digital_product_card').toggleClass('mp-hidden', itemType !== 'digital');
+  // Show/hide butchery / frozen card
+  if ($('#butchery_frozen_card').length) {
+    $('#butchery_frozen_card').toggleClass('mp-hidden', ['service','digital','course','membership'].indexOf(itemType) !== -1);
   }
   // Refresh select2 on any newly visible/hidden selects
   setTimeout(function(){ $('.select2').each(function(){ var $s=$(this); try{ if($s.data('select2')){ $s.select2('destroy'); } $s.select2(); }catch(e){} }); }, 50);
@@ -967,14 +1169,13 @@ $(function(){
   $("#item_group_group").addClass('mp-hidden');
   <?php endif; ?>
 
-  // Initialize item/service mode
-  var initiallyService = <?= $is_service ? 'true' : 'false'; ?>;
-  setItemTypeMode(initiallyService);
+  // Initialize item mode
+  var initialItemType = "<?= $item_type; ?>";
+  setItemTypeMode(initialItemType);
 
   // Toggle handler
   $('input[name="item_type"]').on('change', function(){
-    var isService = ($(this).val() === 'service');
-    setItemTypeMode(isService);
+    setItemTypeMode($(this).val());
   });
 
   toggleCommissionValue();
@@ -1072,6 +1273,27 @@ $(function(){
   $('#recipe_id').on('change', updateRecipeCost);
   $('#recipe_margin_pct').on('input', updateRecipeCost);
   updateRecipeCost();
+  <?php endif; ?>
+
+  <?php if(mp_feature_enabled('multi_unit_selling')): ?>
+  // Selling units add/remove
+  function reindexSellingUnitRadios(){
+    $('#selling_units_table tbody tr.selling-unit-row:visible').each(function(i){
+      $(this).find('input[type="radio"]').val(i);
+    });
+  }
+  $('#add_selling_unit_row').on('click', function(){
+    var idx = $('#selling_units_table tbody tr.selling-unit-row:visible').length;
+    var $template = $('#selling_unit_template').clone();
+    $template.removeAttr('id').removeClass('mp-hidden');
+    $template.find('input, select').prop('disabled', false);
+    $template.find('input[type="radio"]').val(idx);
+    $('#selling_units_table tbody').append($template);
+  });
+  $(document).on('click', '.selling-unit-remove', function(){
+    $(this).closest('tr.selling-unit-row').remove();
+    reindexSellingUnitRadios();
+  });
   <?php endif; ?>
 });
 </script>

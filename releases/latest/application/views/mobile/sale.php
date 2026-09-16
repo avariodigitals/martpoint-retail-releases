@@ -227,14 +227,32 @@
         <div class="due-text" id="customer_due" style="display:none;">Previous due: <strong>₦ 0.00</strong></div>
       </div>
 
+      <?php if(!empty($tables) && mp_feature_enabled('kitchen_workflow')): ?>
+      <div class="form-group">
+        <label>Table</label>
+        <select class="form-control" id="table_id" style="flex:1">
+          <option value="0">No Table</option>
+          <?php foreach($tables as $t): ?>
+          <option value="<?= (int)$t->id; ?>"><?= htmlspecialchars($t->table_name); ?><?= !empty($t->zone) ? ' (' . htmlspecialchars($t->zone) . ')' : ''; ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <?php endif; ?>
+
+      <?php if ($pos_retail_button || $pos_wholesale_button): ?>
       <div class="form-group">
         <label>Price Type</label>
-        <input type="hidden" id="price_type" value="retail">
+        <input type="hidden" id="price_type" value="<?= $default_price_type; ?>">
         <div class="option-chips" id="price_type_chips">
-          <button type="button" data-value="retail" class="active">Retail (MRP)</button>
-          <button type="button" data-value="wholesale">Wholesale</button>
+          <?php if ($pos_retail_button): ?>
+          <button type="button" data-value="retail" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>">Retail (MRP)</button>
+          <?php endif; ?>
+          <?php if ($pos_wholesale_button): ?>
+          <button type="button" data-value="wholesale" class="<?= $default_price_type === 'wholesale' ? 'active' : ''; ?>">Wholesale</button>
+          <?php endif; ?>
         </div>
       </div>
+      <?php endif; ?>
 
       <div class="form-group">
         <label>Barcode / IMEI</label>
@@ -646,7 +664,16 @@
       return $('#price_type_chips button.active').data('value') || $('#price_type').val() || 'wholesale';
     }
 
-    function selectedPrice(item){
+    function selectedPrice(item, unit){
+      if(unit){
+        if(getActivePriceType() === 'retail' && unit.selling_price > 0) return parseFloat(unit.selling_price);
+        if(getActivePriceType() === 'wholesale' && unit.wholesale_price > 0) return parseFloat(unit.wholesale_price);
+        return parseFloat(unit.selling_price || unit.wholesale_price || 0);
+      }
+      if(item && item.selling_units && item.selling_units.length > 0){
+        var defaultUnit = item.selling_units.find(function(u){ return u.is_default; }) || item.selling_units[0];
+        return selectedPrice(item, defaultUnit);
+      }
       var retail = parseFloat(item.mrp_price) || 0;
       var wholesale = parseFloat(item.sales_price) || 0;
       if(getActivePriceType() === 'retail'){
@@ -716,10 +743,11 @@
         $('#cart').html('<div class="empty-cart">No items yet. Search to add.</div>');
       } else {
         cart.forEach(function(item, index){
+          var unitLabel = item.unit_name ? ' · ' + item.unit_name : '';
           html += '<div class="cart-item" data-index="'+index+'">' +
             '<div>' +
               '<div class="name">'+(item.name || 'Unnamed item')+'</div>' +
-              '<div class="meta">'+formatMoney(item.price)+' · '+item.tax_type+'</div>' +
+              '<div class="meta">'+formatMoney(item.price)+' · '+item.tax_type+unitLabel+'</div>' +
             '</div>' +
             '<div class="qty">' +
               '<button class="qty-minus">-</button>' +
@@ -738,9 +766,35 @@
       }
     }
 
-    function addItem(item){
+    function openUnitPicker(item, callback){
+      $('#unit_picker_title').text(item.item_name || 'Select Unit');
+      var body = $('#unit_picker_body').empty();
+      (item.selling_units || []).forEach(function(unit){
+        var p = selectedPrice(item, unit);
+        var label = (unit.unit_shortcode || unit.unit_name || 'Unit') + ' (x' + (unit.conversion_factor || 1) + ')';
+        var btn = $('<button class="btn btn-secondary" type="button"></button>').text(label + ' — ' + formatMoney(p));
+        btn.on('click', function(){
+          $('#unit_picker_modal').removeClass('active');
+          callback(unit);
+        });
+        body.append(btn);
+      });
+      $('#unit_picker_modal').addClass('active');
+    }
+
+    function addItem(item, selectedUnit){
       if(!item || !item.id) return;
-      var price = selectedPrice(item);
+
+      // Show unit picker if product has multiple selling units and no unit chosen yet
+      if(!selectedUnit && item.selling_units && item.selling_units.length > 1){
+        openUnitPicker(item, function(u){ addItem(item, u); });
+        return;
+      }
+      if(!selectedUnit && item.selling_units && item.selling_units.length === 1){
+        selectedUnit = item.selling_units[0];
+      }
+
+      var price = selectedPrice(item, selectedUnit);
       if(price <= 0){
         showToast('No ' + ($('#price_type').val() === 'retail' ? 'retail (MRP)' : 'wholesale') + ' price for this item.', 'error');
         return;
@@ -748,7 +802,12 @@
       if(item.promo_name){
         showToast(item.item_name + ' — Promo: ' + item.promo_name, 'success');
       }
-      var found = cart.find(function(c){ return c.id == item.id; });
+
+      var unitId = selectedUnit ? (selectedUnit.unit_id || '') : '';
+      var unitName = selectedUnit ? (selectedUnit.unit_shortcode || selectedUnit.unit_name || '') : (item.unit || '');
+      var conversionFactor = selectedUnit ? (parseFloat(selectedUnit.conversion_factor) || 1) : 1;
+
+      var found = cart.find(function(c){ return c.id == item.id && c.unit_id == unitId; });
       if(found){
         found.qty += 1;
       } else {
@@ -761,6 +820,10 @@
           tax_id: item.tax_id || 0,
           tax_name: item.tax_name || '',
           tax_type: item.tax_type || 'Exclusive',
+          unit_id: unitId,
+          unit_name: unitName,
+          conversion_factor: conversionFactor,
+          stock: parseFloat(item.stock) || 0,
           qty: 1
         });
       }
@@ -802,7 +865,14 @@
         if(typeof data === 'string') data = JSON.parse(data);
         var items = data || [];
         if(items.length === 1){
-          addItem(items[0]);
+          var item = items[0];
+          var qLower = q.toLowerCase();
+          var matchedUnit = null;
+          if(item.selling_units && item.selling_units.length > 0){
+            matchedUnit = item.selling_units.find(function(u){ return u.barcode && u.barcode.toLowerCase() === qLower; }) || null;
+            if(!matchedUnit) matchedUnit = item.selling_units.find(function(u){ return u.is_default; }) || item.selling_units[0];
+          }
+          addItem(item, matchedUnit);
         } else if(items.length > 1){
           showResults(items);
         } else {
@@ -968,7 +1038,12 @@
 
     $(document).on('click', '.qty-plus', function(){
       var idx = $(this).closest('.cart-item').data('index');
-      cart[idx].qty += 1;
+      var item = cart[idx];
+      if(item.stock && (item.qty + 1) * (item.conversion_factor || 1) > item.stock){
+        showToast('Not enough stock for ' + item.name, 'warning');
+        return;
+      }
+      item.qty += 1;
       renderCart();
     });
 
@@ -1118,6 +1193,7 @@
 
       var payload = {
         customer_id: customer_id,
+        table_id: $('#table_id').val() || 0,
         payment_type: (action === 'pay') ? 'Cash' : $('#payment_mode_select').val(),
         account_id: $('#account_id_select').val(),
         action: action,
@@ -1300,6 +1376,14 @@
       }
     });
   </script>
+  <div class="modal" id="unit_picker_modal">
+    <div class="modal-box">
+      <button class="modal-close" type="button" onclick="$('#unit_picker_modal').removeClass('active')">&times;</button>
+      <h3 id="unit_picker_title" style="margin-bottom:16px;">Select Unit</h3>
+      <div id="unit_picker_body" style="display:flex; flex-direction:column; gap:10px;"></div>
+    </div>
+  </div>
+
   <?php $this->load->view('mobile/bottom_nav', ['active' => ($active ?? 'sale')]); ?>
   <?php $this->load->view('mobile/chat'); ?>
 </body>

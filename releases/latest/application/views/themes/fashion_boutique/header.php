@@ -69,7 +69,8 @@ $social = $social_links ?? [];
 <div class="blh-header">
   <div class="blh-header-inner">
     <nav class="blh-nav-left">
-      <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="blh-nav-link">Boutique</a>
+      <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="blh-nav-link">Shop</a>
+      <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="blh-nav-link">About</a>
       <?php if(!empty($categories)): foreach(array_slice($categories, 0, 4) as $cat): ?>
       <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="blh-nav-link"><?= htmlspecialchars($cat->category_name); ?></a>
       <?php endforeach; endif; ?>
@@ -129,7 +130,8 @@ $social = $social_links ?? [];
 <div class="blh-mobile-drawer" id="blh-drawer">
   <div class="blh-drawer-title"><?= htmlspecialchars($store->store_name ?? 'Menu'); ?></div>
   <a href="<?= base_url('store/' . $slug); ?>" class="blh-drawer-link" onclick="document.getElementById('blh-drawer').classList.remove('open');document.getElementById('blh-overlay').classList.remove('open');">Home</a>
-  <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="blh-drawer-link" onclick="document.getElementById('blh-drawer').classList.remove('open');document.getElementById('blh-overlay').classList.remove('open');">Boutique</a>
+  <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="blh-drawer-link" onclick="document.getElementById('blh-drawer').classList.remove('open');document.getElementById('blh-overlay').classList.remove('open');">Shop</a>
+  <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="blh-drawer-link" onclick="document.getElementById('blh-drawer').classList.remove('open');document.getElementById('blh-overlay').classList.remove('open');">About</a>
   <?php if(!empty($categories)): ?>
   <div class="blh-drawer-section">
     <div class="blh-drawer-section-title">Categories</div>

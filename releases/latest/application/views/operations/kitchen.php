@@ -81,7 +81,7 @@ body.kds-fullscreen .kds-col-body{max-height:calc(100vh - 180px)}
       <?php $has_new = false; foreach($orders as $o): if($o->kds_status != 'new') continue; $has_new = true; ?>
       <div class="kds-card new" data-kid="<?= $o->kitchen_order_id; ?>" data-elapsed="<?= $o->elapsed_seconds; ?>">
         <div class="kds-order-id">#<?= htmlspecialchars($o->sales_code); ?></div>
-        <div class="kds-customer"><i class="fa fa-user"></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?></div>
+        <div class="kds-customer"><i class="fa fa-user"></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?><?php if(!empty($o->table_name)): ?> · <i class="fa fa-table"></i> <?= htmlspecialchars($o->table_name); ?><?php endif; ?></div>
         <div class="kds-timer" data-elapsed="<?= $o->elapsed_seconds; ?>">00:00</div>
         <div class="kds-items">
           <?php foreach($o->items as $itm): ?>
@@ -109,7 +109,7 @@ body.kds-fullscreen .kds-col-body{max-height:calc(100vh - 180px)}
       <?php $has_prep = false; foreach($orders as $o): if($o->kds_status != 'preparing') continue; $has_prep = true; ?>
       <div class="kds-card preparing" data-kid="<?= $o->kitchen_order_id; ?>" data-elapsed="<?= $o->elapsed_seconds; ?>">
         <div class="kds-order-id">#<?= htmlspecialchars($o->sales_code); ?></div>
-        <div class="kds-customer"><i class="fa fa-user"></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?></div>
+        <div class="kds-customer"><i class="fa fa-user"></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?><?php if(!empty($o->table_name)): ?> · <i class="fa fa-table"></i> <?= htmlspecialchars($o->table_name); ?><?php endif; ?></div>
         <div class="kds-timer" data-elapsed="<?= $o->elapsed_seconds; ?>">00:00</div>
         <div class="kds-items">
           <?php foreach($o->items as $itm): ?>
@@ -137,7 +137,7 @@ body.kds-fullscreen .kds-col-body{max-height:calc(100vh - 180px)}
       <?php $has_ready = false; foreach($orders as $o): if($o->kds_status != 'ready') continue; $has_ready = true; ?>
       <div class="kds-card ready" data-kid="<?= $o->kitchen_order_id; ?>" data-elapsed="<?= $o->elapsed_seconds; ?>">
         <div class="kds-order-id">#<?= htmlspecialchars($o->sales_code); ?></div>
-        <div class="kds-customer"><i class="fa fa-user"></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?></div>
+        <div class="kds-customer"><i class="fa fa-user"></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?><?php if(!empty($o->table_name)): ?> · <i class="fa fa-table"></i> <?= htmlspecialchars($o->table_name); ?><?php endif; ?></div>
         <div class="kds-timer" data-elapsed="<?= $o->elapsed_seconds; ?>">00:00</div>
         <div class="kds-items">
           <?php foreach($o->items as $itm): ?>

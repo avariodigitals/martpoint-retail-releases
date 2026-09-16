@@ -6,7 +6,7 @@
  */
 $slug = $settings->store_slug ?? '';
 $cur = $store_currency ?? null;
-$img = ($product->item_image && file_exists($product->item_image)) ? base_url($product->item_image) : '';
+$img = ($product->item_image && file_exists($product->item_image)) ? mp_minified_image_url($product->item_image, 900) : '';
 $hasDiscount = $product->original_price > $product->effective_price;
 ?>
 <style>
@@ -89,7 +89,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   <div class="bl-breadcrumb">
     <a href="<?= base_url('store/' . $slug); ?>">Home</a>
     <span class="sep">/</span>
-    <a href="<?= base_url('store/' . $slug . '/products'); ?>">Boutique</a>
+    <a href="<?= base_url('store/' . $slug . '/products'); ?>">Shop</a>
     <span class="sep">/</span>
     <span><?= htmlspecialchars($product->item_name); ?></span>
   </div>
@@ -98,7 +98,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
     <div class="bl-pd-layout">
       <div class="bl-pd-gallery">
         <?php if($img): ?>
-        <img src="<?= $img; ?>" alt="<?= htmlspecialchars($product->item_name); ?>">
+        <img src="<?= $img; ?>" alt="<?= htmlspecialchars($product->item_name); ?>" loading="lazy" decoding="async">
         <?php else: ?>
         <div class="bl-pd-gallery-placeholder"><?= htmlspecialchars(substr($product->item_name, 0, 1)); ?></div>
         <?php endif; ?>
@@ -136,12 +136,12 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <div class="bl-section-label" style="margin-bottom:16px;">Available Variants</div>
           <div class="bl-product-grid" style="grid-template-columns:repeat(2,1fr);gap:14px;">
             <?php foreach($product_variants as $v):
-              $vImg = ($v->item_image && file_exists($v->item_image)) ? base_url($v->item_image) : '';
+              $vImg = ($v->item_image && file_exists($v->item_image)) ? mp_minified_image_url($v->item_image, 400) : '';
             ?>
             <a href="<?= base_url('store/' . $slug . '/product/' . $v->id); ?>" class="bl-product-card">
               <div class="bl-product-media">
                 <?php if($vImg): ?>
-                <img src="<?= $vImg; ?>" alt="<?= htmlspecialchars($v->item_name); ?>" loading="lazy">
+                <img src="<?= $vImg; ?>" alt="<?= htmlspecialchars($v->item_name); ?>" loading="lazy" decoding="async">
                 <?php else: ?>
                 <div class="bl-product-placeholder"><span><?= htmlspecialchars(substr($v->item_name, 0, 1)); ?></span></div>
                 <?php endif; ?>
@@ -161,12 +161,12 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <div class="bl-section-label" style="margin-bottom:16px;">You May Also Like</div>
           <div class="bl-product-grid" style="grid-template-columns:repeat(2,1fr);gap:14px;">
             <?php foreach($related_products as $p):
-              $pImg = ($p->item_image && file_exists($p->item_image)) ? base_url($p->item_image) : '';
+              $pImg = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 400) : '';
             ?>
             <a href="<?= base_url('store/' . $slug . '/product/' . $p->id); ?>" class="bl-product-card">
               <div class="bl-product-media">
                 <?php if($pImg): ?>
-                <img src="<?= $pImg; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy">
+                <img src="<?= $pImg; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
                 <?php else: ?>
                 <div class="bl-product-placeholder"><span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span></div>
                 <?php endif; ?>

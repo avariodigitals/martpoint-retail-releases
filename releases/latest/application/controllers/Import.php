@@ -1201,6 +1201,9 @@ public function services(){
             else if($fileOf=='items-variants'){
                 $fileName = 'import-items-variants-example.csv';
             }
+            else if($fileOf=='items-advanced'){
+                $fileName = 'import-items-advanced-example.csv';
+            }
             else if($fileOf=='categories'){
                 $fileName = 'import-categories-example.csv';
             }
@@ -1216,6 +1219,441 @@ public function services(){
 
             $this->download_file($fileName);
         }
+
+    public function advanced(){
+        $this->permission_check('import_items');
+        $data=$this->data;
+        $data['page_title']='Advanced Product Import';
+        $data['content']=$this->load->view('import/import_advanced', $data, TRUE);
+        $this->load->view('mp_layout', $data);
+    }
+
+    public function import_advanced_items_csv(){
+        $warehouse_id = $_POST['warehouse_id'];
+        $filename = $_FILES["import_file"]["name"];
+        $this->load->model('pos_model');
+        $this->load->model('items_model');
+
+        $store_id = get_current_store_id();
+
+        if($_FILES['import_file']['size'] > 0)
+        {
+            $config['upload_path'] = './uploads/csv/items';
+            $config['allowed_types'] = 'csv';
+            $this->load->library('upload', $config);
+
+            if( ! $this->upload->do_upload('import_file')){
+                $error = array('error' => $this->upload->display_errors());
+                print($error['error']);
+                exit();
+            } else {
+                $file_name = $this->upload->data('file_name');
+            }
+
+            $file = fopen('uploads/csv/items/'.$file_name, "r");
+
+            $flag = true;
+            $this->db->trans_begin();
+
+            $header_map = [];
+            $use_header = false;
+            $rows = [];
+            $i = 1;
+            while(($csvdata = fgetcsv($file, NULL, ",")) !== FALSE){
+                if($i == 1){
+                    $headers = array_map(function($h){
+                        return strtolower(trim(preg_replace('/\s+/', '_', trim($h))));
+                    }, $csvdata);
+                    if(in_array('item_name', $headers) || in_array('item_group', $headers) || in_array('parent_sku', $headers)){
+                        $use_header = true;
+                        $header_map = $headers;
+                        $i++;
+                        continue;
+                    } else {
+                        $header_map = ['item_name','category_name','sku','hsn','unit_name','alert_qty','brand_name','lot_number','price_before_tax','tax_name','tax_value','tax_type','sales_price','opening_stock','custom_barcode','seller_points','description','discount_type','discount','mrp','item_group','parent_sku','variant_name'];
+                    }
+                }
+                $i++;
+
+                $d = [];
+                foreach($header_map as $idx => $col){
+                    $d[$col] = isset($csvdata[$idx]) ? $csvdata[$idx] : '';
+                }
+
+                if($use_header){
+                    for($idx = count($header_map); $idx < count($csvdata); $idx++){
+                        if(!empty($headers[$idx])){
+                            $d[$headers[$idx]] = $csvdata[$idx];
+                        }
+                    }
+                } else {
+                    for($idx = count($header_map); $idx < count($csvdata); $idx++){
+                        $d['extra_'.$idx] = $csvdata[$idx];
+                    }
+                }
+
+                if(empty($d['item_name']) && empty($d['parent_sku']) && empty($d['variant_name']) && empty($d['item_group'])){
+                    continue;
+                }
+                $rows[] = $d;
+            }
+
+            $parents = [];
+            foreach($rows as $d){
+                $item_group = !empty($this->xss_html_filter($d['item_group'])) ? trim($this->xss_html_filter($d['item_group'])) : 'Single';
+                if($item_group == 'Variant' || $item_group == 'Child' || (!empty($d['parent_sku']) && !empty($d['variant_name']))){
+                    continue;
+                }
+                if($item_group != 'Variants' && $item_group != 'Single'){
+                    $item_group = 'Single';
+                }
+
+                $category_name = $this->xss_html_filter($d['category_name']);
+                $unit_name     = $this->xss_html_filter($d['unit_name']);
+                $brand_name    = $this->xss_html_filter($d['brand_name']);
+                $tax_name      = $this->xss_html_filter($d['tax_name']);
+                $tax_per       = $this->xss_html_filter($d['tax_value']);
+                $category_id   = (!empty($category_name)) ? $this->get_category_id($category_name, $store_id) : null;
+                $unit_id       = (!empty($unit_name)) ? $this->get_unit_id($unit_name, $store_id) : null;
+                $brand_id      = (!empty($brand_name)) ? $this->get_brand_id($brand_name, $store_id) : null;
+                $tax_id        = (!empty($tax_name)) ? $this->get_tax_id($tax_name, $tax_per, $store_id) : null;
+
+                $sales_price = !empty($this->xss_html_filter($d['sales_price'])) ? $this->xss_html_filter(string_to_number($d['sales_price'])) : 0;
+                $mrp         = !empty($this->xss_html_filter($d['mrp'])) ? $this->xss_html_filter(string_to_number($d['mrp'])) : 0;
+                $price       = !empty($this->xss_html_filter($d['price_before_tax'])) ? $this->xss_html_filter(string_to_number($d['price_before_tax'])) : 0;
+                $profit_margin = ($sales_price - $price);
+                $profit_margin = ($price > 0) ? ($profit_margin / $price) * 100 : $profit_margin;
+
+                $tax_type = !empty($this->xss_html_filter($d['tax_type'])) ? $this->xss_html_filter($d['tax_type']) : 'Exclusive';
+                $purchase_price = ($tax_type == 'Inclusive') ? $price : original_cost($price, $tax_per, $tax_type);
+
+                $sku = !empty($this->xss_html_filter($d['sku'])) ? $this->xss_html_filter($d['sku']) : '';
+
+                $row = array(
+                    'store_id'          => $store_id,
+                    'count_id'          => get_count_id('db_items'),
+                    'item_code'         => get_init_code('item'),
+                    'item_name'         => $d['item_name'],
+                    'category_id'       => $category_id,
+                    'sku'               => $sku,
+                    'hsn'               => !empty($this->xss_html_filter($d['hsn'])) ? $this->xss_html_filter($d['hsn']) : '',
+                    'unit_id'           => $unit_id,
+                    'alert_qty'         => !empty($this->xss_html_filter($d['alert_qty'])) ? $this->xss_html_filter($d['alert_qty']) : 0,
+                    'brand_id'          => $brand_id,
+                    'lot_number'        => !empty($this->xss_html_filter($d['lot_number'])) ? $this->xss_html_filter($d['lot_number']) : '',
+                    'price'             => $price,
+                    'tax_id'            => $tax_id,
+                    'purchase_price'    => $purchase_price,
+                    'tax_type'          => $tax_type,
+                    'sales_price'       => $sales_price,
+                    'profit_margin'     => $profit_margin,
+                    'mrp'               => $mrp,
+                    'stock'             => !empty($this->xss_html_filter($d['opening_stock'])) ? $this->xss_html_filter($d['opening_stock']) : 0,
+                    'custom_barcode'    => !empty($this->xss_html_filter($d['custom_barcode'])) ? $this->xss_html_filter($d['custom_barcode']) : '',
+                    'seller_points'     => !empty($this->xss_html_filter($d['seller_points'])) ? $this->xss_html_filter($d['seller_points']) : 0,
+                    'description'       => !empty($this->xss_html_filter($d['description'])) ? $this->xss_html_filter($d['description']) : '',
+                    'discount_type'     => !empty($this->xss_html_filter($d['discount_type'])) ? $this->xss_html_filter($d['discount_type']) : '',
+                    'discount'          => !empty($this->xss_html_filter($d['discount'])) ? $this->xss_html_filter(string_to_number($d['discount'])) : 0,
+                    'item_group'        => $item_group,
+                    'child_bit'         => 0,
+                    'publish_online'    => 0,
+                    'status'            => 1,
+                    'created_date'      => $CUR_DATE,
+                    'created_time'      => $CUR_TIME,
+                    'created_by'        => $CUR_USERNAME,
+                    'system_ip'         => $SYSTEM_IP,
+                    'system_name'       => $SYSTEM_NAME,
+                );
+
+                if( ! $this->db->insert('db_items', $row)){
+                    $flag = false;
+                }
+                $item_id = $this->db->insert_id();
+
+                $selling_units = $this->extract_selling_units($d);
+                if(!empty($selling_units)){
+                    $this->save_selling_units($item_id, $store_id, $selling_units, ($item_group == 'Variants' ? 1 : 0));
+                }
+
+                $barcodes = $this->extract_barcodes($d);
+                if(!empty($barcodes)){
+                    $this->save_item_barcodes($item_id, $store_id, $warehouse_id, $barcodes);
+                }
+
+                if(!empty($sku)){
+                    $parents[$sku] = [
+                        'id' => $item_id, 'name' => $d['item_name'],
+                        'category_id' => $category_id, 'unit_id' => $unit_id, 'brand_id' => $brand_id, 'tax_id' => $tax_id,
+                        'tax_per' => $tax_per, 'tax_type' => $tax_type,
+                        'price' => $price, 'purchase_price' => $purchase_price, 'sales_price' => $sales_price, 'mrp' => $mrp,
+                        'discount_type' => $row['discount_type'], 'discount' => $row['discount'], 'alert_qty' => $row['alert_qty']
+                    ];
+                }
+
+                if(!empty($d['opening_stock']) && $d['opening_stock'] > 0 && $item_group == 'Single'){
+                    $array_params = array(
+                        'store_id'       => $store_id,
+                        'item_id'        => $item_id,
+                        'warehouse_id'   => $warehouse_id,
+                        'adjustment_qty' => $this->xss_html_filter($d['opening_stock'])
+                    );
+                    $q2 = $this->items_model->add_opening_stock($array_params);
+                    if(!$q2){ return "failed"; }
+                }
+            }
+
+            foreach($rows as $d){
+                $item_group = !empty($this->xss_html_filter($d['item_group'])) ? trim($this->xss_html_filter($d['item_group'])) : 'Single';
+                if(($item_group != 'Variant' && $item_group != 'Child') && (empty($d['parent_sku']) || empty($d['variant_name']))){
+                    continue;
+                }
+                $parent_sku   = !empty($this->xss_html_filter($d['parent_sku'])) ? $this->xss_html_filter($d['parent_sku']) : '';
+                $variant_name = $this->xss_html_filter($d['variant_name']);
+                if(empty($parent_sku) || empty($variant_name)){ continue; }
+
+                if( ! isset($parents[$parent_sku])){
+                    $pq = $this->db->select('id,item_name,category_id,unit_id,brand_id,tax_id,tax_type,price,purchase_price,sales_price,mrp,discount_type,discount,alert_qty')->where('sku', $parent_sku)->where('store_id', $store_id)->where('child_bit', 0)->get('db_items');
+                    if($pq->num_rows() == 0){ $flag = false; continue; }
+                    $p = $pq->row();
+                    $parents[$parent_sku] = [
+                        'id' => $p->id, 'name' => $p->item_name,
+                        'category_id' => $p->category_id, 'unit_id' => $p->unit_id, 'brand_id' => $p->brand_id, 'tax_id' => $p->tax_id,
+                        'tax_per' => '', 'tax_type' => $p->tax_type,
+                        'price' => $p->price, 'purchase_price' => $p->purchase_price, 'sales_price' => $p->sales_price, 'mrp' => $p->mrp,
+                        'discount_type' => $p->discount_type, 'discount' => $p->discount, 'alert_qty' => $p->alert_qty
+                    ];
+                }
+                $parent = $parents[$parent_sku];
+
+                $child_name = !empty($d['item_name']) ? $d['item_name'] : $parent['name'] . '-' . $variant_name;
+                $child_sku  = !empty($this->xss_html_filter($d['sku'])) ? $this->xss_html_filter($d['sku']) : '';
+                $child_hsn  = !empty($this->xss_html_filter($d['hsn'])) ? $this->xss_html_filter($d['hsn']) : '';
+                $child_bar  = !empty($this->xss_html_filter($d['custom_barcode'])) ? $this->xss_html_filter($d['custom_barcode']) : '';
+
+                $c_price = (!empty($d['price_before_tax']) && is_numeric(string_to_number($d['price_before_tax']))) ? string_to_number($d['price_before_tax']) : $parent['price'];
+                $c_sales = (!empty($d['sales_price']) && is_numeric(string_to_number($d['sales_price']))) ? string_to_number($d['sales_price']) : $parent['sales_price'];
+                $c_mrp   = (!empty($d['mrp']) && is_numeric(string_to_number($d['mrp']))) ? string_to_number($d['mrp']) : $parent['mrp'];
+                $c_tax_type = !empty($this->xss_html_filter($d['tax_type'])) ? $this->xss_html_filter($d['tax_type']) : $parent['tax_type'];
+                $c_tax_per  = !empty($this->xss_html_filter($d['tax_value'])) ? $this->xss_html_filter($d['tax_value']) : '';
+                $c_tax_id = $parent['tax_id'];
+                if(!empty($this->xss_html_filter($d['tax_name']))){
+                    $c_tax_id = $this->get_tax_id($this->xss_html_filter($d['tax_name']), $c_tax_per, $store_id);
+                }
+                $c_purchase = ($c_tax_type == 'Inclusive') ? $c_price : original_cost($c_price, $c_tax_per, $c_tax_type);
+                $c_profit = ($c_sales - $c_price);
+                $c_profit = ($c_price > 0) ? ($c_profit / $c_price) * 100 : $c_profit;
+
+                $variant_id = $this->items_model->find_or_create_variant_by_attributes(array('Variant' => $variant_name), $child_sku, $store_id);
+                if(empty($variant_id)){ $flag = false; continue; }
+
+                $child = array(
+                    'store_id'          => $store_id,
+                    'count_id'          => get_count_id('db_items'),
+                    'item_code'         => get_init_code('item'),
+                    'item_name'         => $child_name,
+                    'category_id'       => $parent['category_id'],
+                    'sku'               => $child_sku,
+                    'hsn'               => $child_hsn,
+                    'unit_id'           => $parent['unit_id'],
+                    'alert_qty'         => $parent['alert_qty'],
+                    'brand_id'          => $parent['brand_id'],
+                    'lot_number'        => !empty($this->xss_html_filter($d['lot_number'])) ? $this->xss_html_filter($d['lot_number']) : '',
+                    'price'             => $c_price,
+                    'tax_id'            => $c_tax_id,
+                    'purchase_price'    => $c_purchase,
+                    'tax_type'          => $c_tax_type,
+                    'sales_price'       => $c_sales,
+                    'profit_margin'     => $c_profit,
+                    'mrp'               => $c_mrp,
+                    'stock'             => !empty($this->xss_html_filter($d['opening_stock'])) ? $this->xss_html_filter($d['opening_stock']) : 0,
+                    'custom_barcode'    => $child_bar,
+                    'seller_points'     => !empty($this->xss_html_filter($d['seller_points'])) ? $this->xss_html_filter($d['seller_points']) : 0,
+                    'description'       => !empty($this->xss_html_filter($d['description'])) ? $this->xss_html_filter($d['description']) : '',
+                    'discount_type'     => !empty($this->xss_html_filter($d['discount_type'])) ? $this->xss_html_filter($d['discount_type']) : $parent['discount_type'],
+                    'discount'          => (!empty($d['discount']) && $d['discount'] !== '') ? string_to_number($d['discount']) : $parent['discount'],
+                    'item_group'        => 'Single',
+                    'parent_id'         => $parent['id'],
+                    'child_bit'         => 1,
+                    'variant_id'        => $variant_id,
+                    'status'            => 1,
+                    'created_date'      => $CUR_DATE,
+                    'created_time'      => $CUR_TIME,
+                    'created_by'        => $CUR_USERNAME,
+                    'system_ip'         => $SYSTEM_IP,
+                    'system_name'       => $SYSTEM_NAME,
+                );
+
+                if( ! $this->db->insert('db_items', $child)){
+                    $flag = false;
+                }
+                $child_id = $this->db->insert_id();
+
+                $child_selling_units = $this->extract_selling_units($d);
+                if(!empty($child_selling_units)){
+                    $this->save_selling_units($child_id, $store_id, $child_selling_units, 0);
+                } elseif(isset($parents[$parent_sku]) && $this->db->table_exists('db_item_selling_units')){
+                    if( ! isset($this->selling_units)){
+                        $this->load->model('item_selling_units_model','selling_units');
+                    }
+                    $this->selling_units->clone_template_to_child($parents[$parent_sku]['id'], $child_id, $store_id);
+                }
+
+                $child_barcodes = $this->extract_barcodes($d);
+                if(!empty($child_barcodes)){
+                    $this->save_item_barcodes($child_id, $store_id, $warehouse_id, $child_barcodes);
+                }
+
+                if(!empty($d['opening_stock']) && $d['opening_stock'] > 0){
+                    $array_params = array(
+                        'store_id'       => $store_id,
+                        'item_id'        => $child_id,
+                        'warehouse_id'   => $warehouse_id,
+                        'adjustment_qty' => $this->xss_html_filter($d['opening_stock'])
+                    );
+                    $q2 = $this->items_model->add_opening_stock($array_params);
+                    if(!$q2){ return "failed"; }
+                }
+            }
+
+            if( ! $flag){
+                $this->db->trans_rollback();
+                echo 'failed';
+            } else {
+                $this->db->query("update db_items set expire_date=null where expire_date LIKE '0000%'");
+                $this->db->trans_commit();
+                echo "success";
+                $this->session->set_flashdata('success', 'Success!! Advanced Products Imported Successfully!');
+            }
+            fclose($file);
+        }
+    }
+
+    private function extract_selling_units($d){
+        $units = [];
+        foreach($d as $col => $val){
+            if(preg_match('/^selling_unit_(\d+)_(.+)$/', $col, $m)){
+                $idx = (int)$m[1];
+                $field = $m[2];
+                if( ! isset($units[$idx])) $units[$idx] = [];
+                $units[$idx][$field] = $val;
+            }
+        }
+        return $units;
+    }
+
+    private function save_selling_units($item_id, $store_id, $units, $is_template = 0){
+        if( ! $this->db->table_exists('db_item_selling_units')) return true;
+        if(empty($units)) return true;
+
+        $default_index = null;
+        foreach($units as $idx => $u){
+            if( ! empty($u['default']) && (strtolower($u['default']) == '1' || strtolower($u['default']) == 'yes')){
+                if($default_index === null) $default_index = $idx;
+            }
+        }
+
+        $this->db->where('item_id', $item_id)->where('store_id', $store_id);
+        if($this->db->field_exists('is_template', 'db_item_selling_units')){
+            $this->db->where('is_template', $is_template);
+        }
+        $this->db->update('db_item_selling_units', ['status' => 0]);
+
+        $default_set = false;
+        foreach($units as $idx => $u){
+            if(empty($u['unit'])) continue;
+
+            $unit_name = $this->xss_html_filter($u['unit']);
+            $unit_id = $this->get_unit_id($unit_name, $store_id);
+            $unit = $this->db->select('unit_name, shortcode')->where('id', $unit_id)->get('db_units')->row();
+            $shortcode = ($unit && !empty($unit->shortcode)) ? $unit->shortcode : ($unit ? $unit->unit_name : $unit_name);
+
+            $conversion = !empty($u['conversion']) ? (float)string_to_number($u['conversion']) : 1;
+            if($conversion <= 0) $conversion = 1;
+
+            $selling_price = !empty($u['selling_price']) ? (float)string_to_number($u['selling_price']) : 0;
+            $wholesale_price = (!empty($u['wholesale_price']) && $u['wholesale_price'] !== '') ? (float)string_to_number($u['wholesale_price']) : null;
+            $purchase_price = (!empty($u['purchase_price']) && $u['purchase_price'] !== '') ? (float)string_to_number($u['purchase_price']) : null;
+            $sku = isset($u['sku']) ? $this->xss_html_filter($u['sku']) : '';
+            $barcode = isset($u['barcode']) ? $this->xss_html_filter($u['barcode']) : '';
+
+            $is_default = 0;
+            if($default_index !== null && $idx == $default_index){
+                $is_default = 1;
+            } elseif($default_index === null && ! $default_set){
+                $is_default = 1;
+                $default_set = true;
+            }
+
+            $data = array(
+                'store_id'          => $store_id,
+                'item_id'           => $item_id,
+                'unit_id'           => $unit_id,
+                'unit_shortcode'    => $shortcode,
+                'conversion_factor' => $conversion,
+                'selling_price'     => $selling_price,
+                'wholesale_price'   => $wholesale_price,
+                'purchase_price'    => $purchase_price,
+                'sku'               => $sku,
+                'barcode'           => $barcode,
+                'is_default'        => $is_default,
+                'status'            => 1,
+            );
+            if($this->db->field_exists('is_template', 'db_item_selling_units')){
+                $data['is_template'] = $is_template;
+            }
+
+            $this->db->insert('db_item_selling_units', $data);
+        }
+        return true;
+    }
+
+    private function extract_barcodes($d){
+        $barcodes = [];
+        foreach($d as $col => $val){
+            if(preg_match('/^barcode_(\d+)_(.+)$/', $col, $m)){
+                $idx = (int)$m[1];
+                $field = $m[2];
+                if( ! isset($barcodes[$idx])) $barcodes[$idx] = [];
+                $barcodes[$idx][$field] = $val;
+            }
+        }
+        return $barcodes;
+    }
+
+    private function save_item_barcodes($item_id, $store_id, $warehouse_id, $barcodes){
+        if( ! $this->db->table_exists('db_item_barcodes')) return true;
+        if(empty($barcodes)) return true;
+
+        foreach($barcodes as $b){
+            $bc_barcode = isset($b['barcode']) ? trim($this->xss_html_filter($b['barcode'])) : '';
+            $bc_batch   = isset($b['batch']) ? trim($this->xss_html_filter($b['batch'])) : '';
+            $bc_serial  = isset($b['serial']) ? trim($this->xss_html_filter($b['serial'])) : '';
+            $bc_imei    = isset($b['imei']) ? trim($this->xss_html_filter($b['imei'])) : '';
+            if($bc_barcode === '' && $bc_batch === '' && $bc_serial === '' && $bc_imei === '') continue;
+
+            $data = array(
+                'item_id'        => $item_id,
+                'barcode'        => $bc_barcode,
+                'batch_lot'      => $bc_batch,
+                'serial_number'  => $bc_serial,
+                'imei_number'    => $bc_imei,
+                'purchase_price' => !empty($b['purchase_price']) ? (float)string_to_number($b['purchase_price']) : 0,
+                'sales_price'    => !empty($b['sales_price']) ? (float)string_to_number($b['sales_price']) : 0,
+                'mrp'            => !empty($b['mrp']) ? (float)string_to_number($b['mrp']) : 0,
+                'qty'            => !empty($b['qty']) ? (float)string_to_number($b['qty']) : 0,
+                'warehouse_id'   => $warehouse_id,
+                'status'         => 1,
+                'created_date'   => date('Y-m-d'),
+                'created_time'   => date('H:i:s'),
+            );
+            if( ! empty($b['expire_date'])) $data['expire_date'] = $this->xss_html_filter($b['expire_date']);
+            if( ! empty($b['mfg_date']))    $data['mfg_date']    = $this->xss_html_filter($b['mfg_date']);
+            if( ! empty($b['warranty']))    $data['warranty_months'] = (int)$b['warranty'];
+
+            $this->db->insert('db_item_barcodes', $data);
+        }
+        return true;
+    }
 }
 
 

@@ -60,6 +60,7 @@
 <?php if(file_exists(FCPATH . 'theme/dist/css/' . $themeKey . '.css')): ?>
   <link rel="stylesheet" href="<?= base_url('theme/dist/css/' . $themeKey . '.css?v=1'); ?>">
 <?php endif; ?>
+  <link rel="stylesheet" href="<?= base_url('theme/css/font-awesome-4.7.0/css/font-awesome.min.css?v=4.7.0'); ?>">
   <style>
     <?= $this->theme_engine->cssVariables(); ?>
     * { margin:0; padding:0; box-sizing:border-box; }

@@ -197,7 +197,7 @@ class Sales extends MyPDF{
 		$this->Ln(0);
 
 		
-		$show_tax = true;
+		$show_tax = (bool) mp_get_store_setting($this->store->id, 'receipt', 'show_tax', 1);
 
 
 		$this->setFont($this->get_font_name(), '', 8);

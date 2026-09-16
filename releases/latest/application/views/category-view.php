@@ -3,6 +3,8 @@
 <?php
 $CI =& get_instance();
 $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
+$is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
+$label = $is_creator ? 'Collections' : 'Categories';
 $export_columns = [1,2,3];
 $export_columns_json = json_encode($export_columns);
 $non_sortable = json_encode([0,4]);
@@ -44,18 +46,18 @@ $non_sortable = json_encode([0,4]);
 <div class="mp-section">
   <div class="mp-page-head">
     <div>
-      <h2><?= $page_title; ?></h2>
-      <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; Organise your product categories</div>
+      <h2><?= $is_creator ? 'Collections' : $page_title; ?></h2>
+      <div class="mp-page-sub"><?= $is_creator ? 'Group your products, courses and memberships so customers can browse by topic.' : htmlspecialchars($store_name) . ' &mdash; Organise your product categories'; ?></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <?php if($CI->permissions('items_category_add')): ?>
       <a class="mp-qa-btn" href="<?php echo $base_url; ?>import/categories" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <?= $this->lang->line('import_categories'); ?>
+        <?= $is_creator ? 'Import Collections' : $this->lang->line('import_categories'); ?>
       </a>
       <a class="mp-qa-btn green" href="<?php echo $base_url; ?>category/add">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <?= $this->lang->line('create_category'); ?>
+        <?= $is_creator ? 'Add Collection' : $this->lang->line('create_category'); ?>
       </a>
       <?php endif; ?>
     </div>
@@ -75,7 +77,7 @@ $non_sortable = json_encode([0,4]);
           <th class="text-center">
             <input type="checkbox" class="group_check checkbox" >
           </th>
-          <th><?= $this->lang->line('category_name'); ?></th>
+          <th><?= $is_creator ? 'Collection Name' : $this->lang->line('category_name'); ?></th>
           <th><?= $this->lang->line('description'); ?></th>
           <th><?= $this->lang->line('status'); ?></th>
           <th><?= $this->lang->line('action'); ?></th>

@@ -30,8 +30,8 @@
   @media (max-width: 768px) {
     .mp-assist-panel { width: 100vw !important; right: -100vw !important; height: 75vh !important; max-height: none !important; bottom: 0 !important; }
     .mp-assist-panel.open { right: 0 !important; bottom: 0 !important; border-radius: 0 !important; }
-    .mp-fab-wrapper { right: auto !important; left: 14px !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-start !important; }
-    .mp-fab-menu { align-items: flex-start !important; }
+    .mp-fab-wrapper { right: 14px !important; left: auto !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-end !important; }
+    .mp-fab-menu { align-items: flex-end !important; }
     .mp-assist-fab-label { display: none !important; }
   }
 </style>

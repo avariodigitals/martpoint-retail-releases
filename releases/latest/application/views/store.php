@@ -624,6 +624,16 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
 
                                              <div class="col-md-12">
                                                 <div class="form-group">
+                                                   <label for="show_tax" class="col-sm-3 control-label">Show tax on receipts</label>
+                                                   <div class="col-sm-4">
+                                                      <input type="checkbox" <?= ($show_tax ? 'checked' : '') ?> id="show_tax" name="show_tax" >
+                                                      <span id="show_tax_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+
+                                             <div class="col-md-12">
+                                                <div class="form-group">
                                                    <label for="sales_discount" class="col-sm-3 control-label"><?= $this->lang->line('show_paid_amount_and_change_return_in_pos'); ?></label>
                                                    <div class="col-sm-4">
                                                       <input type="checkbox" <?=$change_return_checkbox;?> id="change_return" name="change_return" >

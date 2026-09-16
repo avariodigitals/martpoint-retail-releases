@@ -47,6 +47,11 @@ class Updates_model extends CI_Model {
 			'4.0.9.3' => '4.0.9.3_sku_limit.sql',
 			'4.0.9.4' => '4.0.9_new_arrival_products.sql',
 			'4.0.9.5' => '4.0.9_online_excluded.sql',
+			'4.0.9.6' => '4.0.9.5_to_4.0.9.6_multi_unit_selling.sql',
+			'4.0.9.7' => '4.0.9.6_to_4.0.9.7_multi_unit_variants.sql',
+			'4.0.9.8' => '4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql',
+			'4.0.9.9' => '4.0.9.8_newsletter_subscribers.sql',
+			'4.0.9.10' => '4.0.6_b2b_customer_warehouse.sql',
 		];
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $file){
