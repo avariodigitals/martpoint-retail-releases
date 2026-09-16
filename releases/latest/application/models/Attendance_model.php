@@ -13,14 +13,58 @@ class Attendance_model extends CI_Model {
 	}
 
 	/**
-	 * Verify attendance tables exist; log a warning if they don't.
+	 * Verify attendance tables exist; create them if they don't
+	 * (same DDL as updates/migrations/4.0.1_to_4.0.2.sql).
 	 */
 	private function ensureTables(){
-		$tables = ['db_shifts', 'db_user_shifts', 'db_attendance'];
-		foreach ($tables as $table) {
-			if (!$this->db->table_exists($table)) {
-				log_message('error', 'Missing required table: ' . $table . '. Run the 4.0.2 migration via login.');
-			}
+		if(!$this->db->table_exists('db_shifts')){
+			$this->db->query("CREATE TABLE IF NOT EXISTS db_shifts (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				store_id INT NOT NULL DEFAULT 0,
+				shift_name VARCHAR(100) NOT NULL DEFAULT '',
+				start_time TIME NOT NULL,
+				end_time TIME NOT NULL,
+				grace_minutes INT NOT NULL DEFAULT 0,
+				location_lat DECIMAL(10,8) DEFAULT NULL,
+				location_lng DECIMAL(11,8) DEFAULT NULL,
+				location_radius_meters INT NOT NULL DEFAULT 100,
+				status TINYINT(1) NOT NULL DEFAULT 1,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		}
+		if(!$this->db->table_exists('db_user_shifts')){
+			$this->db->query("CREATE TABLE IF NOT EXISTS db_user_shifts (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				user_id INT NOT NULL,
+				shift_id INT NOT NULL,
+				store_id INT NOT NULL DEFAULT 0,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		}
+		if(!$this->db->table_exists('db_attendance')){
+			$this->db->query("CREATE TABLE IF NOT EXISTS db_attendance (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				store_id INT NOT NULL DEFAULT 0,
+				user_id INT NOT NULL,
+				shift_id INT DEFAULT NULL,
+				attendance_date DATE NOT NULL,
+				clock_in TIME DEFAULT NULL,
+				clock_out TIME DEFAULT NULL,
+				clock_in_lat DECIMAL(10,8) DEFAULT NULL,
+				clock_in_lng DECIMAL(11,8) DEFAULT NULL,
+				clock_out_lat DECIMAL(10,8) DEFAULT NULL,
+				clock_out_lng DECIMAL(11,8) DEFAULT NULL,
+				face_image VARCHAR(255) DEFAULT NULL,
+				face_image_out VARCHAR(255) DEFAULT NULL,
+				status VARCHAR(20) NOT NULL DEFAULT 'present',
+				notes TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				INDEX idx_date (attendance_date),
+				INDEX idx_user (user_id),
+				INDEX idx_store (store_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 		}
 	}
 
@@ -62,12 +106,13 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getUsersByShift($shiftId, $storeId = null){
+		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
 		$this->db->select('u.id, u.username, u.first_name, u.last_name, u.profile_picture');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.shift_id', $shiftId);
 		if($storeId) $this->db->where('us.store_id', $storeId);
-		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
+		$this->db->where_not_in('u.role_id', $excluded_roles);
 		return $this->db->get()->result();
 	}
 
@@ -88,13 +133,14 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getShiftsByUser($userId, $storeId = null){
+		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
 		$this->db->select('s.*');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_shifts s', 's.id = us.shift_id');
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.user_id', $userId);
 		if($storeId) $this->db->where('us.store_id', $storeId);
-		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
+		$this->db->where_not_in('u.role_id', $excluded_roles);
 		return $this->db->get()->result();
 	}
 
@@ -126,13 +172,14 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getAttendanceByDate($storeId, $date){
+		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
 		$this->db->select('a.*, u.username, u.first_name, u.last_name, u.profile_picture, s.shift_name, s.start_time, s.end_time, s.location_lat, s.location_lng, s.location_radius_meters');
 		$this->db->from('db_attendance a');
 		$this->db->join('db_users u', 'u.id = a.user_id');
 		$this->db->join('db_shifts s', 's.id = a.shift_id', 'left');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.attendance_date', $date);
-		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
+		$this->db->where_not_in('u.role_id', $excluded_roles);
 		return $this->db->get()->result();
 	}
 
@@ -162,12 +209,13 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getDailyReport($storeId, $date){
+		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
 		// Get all users assigned to any shift in this store
 		$this->db->select('DISTINCT(u.id), u.username, u.first_name, u.last_name, u.profile_picture');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.store_id', $storeId);
-		$this->db->where_not_in('u.role_id', get_excluded_staff_roles($storeId));
+		$this->db->where_not_in('u.role_id', $excluded_roles);
 		$assignedUsers = $this->db->get()->result();
 
 		$attendance = $this->getAttendanceByDate($storeId, $date);

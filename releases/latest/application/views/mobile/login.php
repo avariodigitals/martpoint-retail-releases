@@ -7,7 +7,8 @@
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — Sign In</title>
-  <link rel='shortcut icon' href='<?= base_url('uploads/site/icon.webp'); ?>'>
+  <link rel="icon" type="image/webp" href="<?= base_url('uploads/site/icon.webp'); ?>">
+  <link rel="alternate icon" type="image/png" href="<?= base_url('uploads/site/icon-192.png'); ?>">
   <link rel="manifest" href="<?= base_url('manifest.json'); ?>">
   <meta name="theme-color" content="#0B1120">
   <meta name="mobile-web-app-capable" content="yes">

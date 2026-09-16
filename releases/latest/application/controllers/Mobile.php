@@ -475,10 +475,11 @@ class Mobile extends MY_Controller {
 		}
 
 		// Staff status (must be before insights)
+		$excluded_roles = get_excluded_staff_roles($store_id); // resolve first: helper calls reset_query()
 		$this->db->select("COUNT(*) as total");
 		$this->db->where("store_id", $store_id);
 		$this->db->where("status", 1);
-		$this->db->where_not_in("role_id", get_excluded_staff_roles($store_id));
+		$this->db->where_not_in("role_id", $excluded_roles);
 		$staff_count = $this->db->get("db_users")->row()->total ?? 0;
 		$data['staff_count'] = $staff_count;
 

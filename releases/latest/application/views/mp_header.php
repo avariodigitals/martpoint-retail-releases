@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title><?= $page_title; ?></title>
-<link rel='shortcut icon' href='<?php echo base_url('uploads/site/icon.webp'); ?>' />
+<link rel="icon" type="image/webp" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
+<link rel="alternate icon" type="image/png" href="<?php echo base_url('uploads/site/icon-192.png'); ?>">
 <link rel="manifest" href="<?php echo base_url('manifest.json'); ?>">
 <meta name="theme-color" content="#0B1120">
 <meta name="mobile-web-app-capable" content="yes">

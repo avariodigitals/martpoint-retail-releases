@@ -6870,8 +6870,8 @@
         },
         {
             "path": "application/models/Dashboard_model.php",
-            "hash": "782b62b62ba0344547f515b3eeb1efb5fc194e6d6874d6c0a3a587367a39c8d7",
-            "size": 59611
+            "hash": "963077ead5b30e7aea3d26b756ee42c1b2f257564e4b8da8a708ab673def926f",
+            "size": 59748
         },
         {
             "path": "application/models/Reports_model.php",
@@ -6935,8 +6935,8 @@
         },
         {
             "path": "application/models/Attendance_model.php",
-            "hash": "fb1ac6ea0f0320dc40a13618e44fd1d615636e3622d2b04740f6f8b236161f15",
-            "size": 8680
+            "hash": "7e40672a3e352a1171fd48ef3cce48ddefad4e9b2a6182f951373c77c41fa0e3",
+            "size": 10893
         },
         {
             "path": "application/models/Tills_model.php",
@@ -7490,8 +7490,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "d5ff95a1c1f7c7fd114020c8ee8f681026e8cf34fb9a587dbcd145e35d3dcf34",
-            "size": 232188
+            "hash": "4aae6e88eecaadf1d4bf2bc2099851729e4ddf1a0053dd5427704acdfbaea935",
+            "size": 232270
         },
         {
             "path": "application/controllers/Store_credit.php",
@@ -7745,8 +7745,8 @@
         },
         {
             "path": "application/views/login.php",
-            "hash": "3441f5bc305a02ad788fcd2f6ea23f53d141a4ebff6607c21061a97dc8b279be",
-            "size": 30856
+            "hash": "d30303c68d64a405ded52d1aa09cfc7136f76f7186eeb64f355a07e2146cc518",
+            "size": 30970
         },
         {
             "path": "application/views/tax-group.php",
@@ -8345,8 +8345,8 @@
         },
         {
             "path": "application/views/mp_header.php",
-            "hash": "55c6d7f75c64cf276e67e5cbf5f6207a34366d3b19bd14b1f09c101ddce12861",
-            "size": 59942
+            "hash": "7ad34bb1d622000d88d8c93209aa3b8b6cc17d76c4cfa229312d36476c78726f",
+            "size": 60054
         },
         {
             "path": "application/views/customer-packages.php",
@@ -9375,8 +9375,8 @@
         },
         {
             "path": "application/views/mobile/login.php",
-            "hash": "47ea654ca7b596f666b1cc4584085a380b77a3ba3837b41059292c70d08f6dc0",
-            "size": 20675
+            "hash": "a13e590d371bf505542b48b34beeeed4d6bf99fac385471b65a57dafc3ad8d8e",
+            "size": 20784
         },
         {
             "path": "application/views/mobile/public_catalogue_settings.php",
@@ -10685,8 +10685,8 @@
         },
         {
             "path": "application/views/themes/shared/layout.php",
-            "hash": "1219b3d521311036342310f9ba41b0a7f81469bec2c48e997141ffd378546e0d",
-            "size": 53802
+            "hash": "ad955d165753e4535c956932d23e6e54ae6459d996067576b715066002184ba4",
+            "size": 53793
         },
         {
             "path": "application/views/themes/shared/header.php",
@@ -11160,8 +11160,8 @@
         },
         {
             "path": "application/views/comman/code_css.php",
-            "hash": "06e6835557e875dd2dbf53f10975223929947529bdad916fd7cca5612c18d42b",
-            "size": 4818
+            "hash": "c7c51f91810681f936a51c19040e4331132d4b36417475d198918d6bec996431",
+            "size": 4933
         },
         {
             "path": "application/views/comman/code_js_export.php",

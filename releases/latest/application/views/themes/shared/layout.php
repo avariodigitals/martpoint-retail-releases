@@ -18,7 +18,7 @@
 <?php endif; ?>
   <meta name="robots" content="<?= ($settings->robots_index ?? '1') == '1' ? 'index, follow' : 'noindex, nofollow'; ?>">
   <link rel="canonical" href="<?= $seoUrl; ?>">
-  <link rel="shortcut icon" href="<?= $favicon_url ?? base_url('uploads/site/icon.webp'); ?>">
+  <link rel="icon" href="<?= $favicon_url ?? base_url('uploads/site/icon.webp'); ?>">
   <link rel="manifest" href="<?= base_url('manifest.json'); ?>">
   <meta name="theme-color" content="<?= htmlspecialchars($settings->theme_color ?? '#0B1120'); ?>">
   <meta name="mobile-web-app-capable" content="yes">
