@@ -139,11 +139,20 @@ class Updater {
             }
         }
 
+        $migrations = $manifest['migrations'] ?? [];
+        if(!empty($migrations) && $this->CI->db->table_exists('db_schema_migrations')){
+            $applied = array_column(
+                $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
+                'filename'
+            );
+            $migrations = array_values(array_diff($migrations, $applied));
+        }
+
         return [
             'files_to_update' => $toDownload,
             'files_to_add' => $toAdd,
-            'migrations' => $manifest['migrations'] ?? [],
-            'total_operations' => count($toDownload) + count($toAdd) + count($manifest['migrations'] ?? []),
+            'migrations' => $migrations,
+            'total_operations' => count($toDownload) + count($toAdd) + count($migrations),
         ];
     }
 

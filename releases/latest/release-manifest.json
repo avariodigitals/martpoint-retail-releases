@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.14",
-    "previous_version": "4.0.9.13",
+    "version": "4.0.9.15",
+    "previous_version": "4.0.9.14",
     "release_date": "2026-09-16",
     "files": [
         {
@@ -300,8 +300,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "00951570e651edfb15ce84a8f34461c0f99ad92ac2a5920f061b5df7ec52ec75",
-            "size": 36861
+            "hash": "383d7f24ec5f89bb595ccf68841c7556c6c50beb7685507b7b1368bcbb910153",
+            "size": 37227
         },
         {
             "path": "application/libraries/Resend_provider.php",
@@ -11440,7 +11440,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "8e395fcedd9570f83354638ce07e38f6d53f4ac83b54575da39d87dd6a4f5d0a",
+            "hash": "57390e9bc9efdaa20bdfe067b459fc9b83a9c258005b19c0b6ebbdad96a2258e",
             "size": 93455
         },
         {
