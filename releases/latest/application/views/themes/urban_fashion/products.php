@@ -11,7 +11,7 @@ $cur = $store_currency ?? null;
   .ue-container { max-width:1400px; margin:0 auto; padding:0 24px; }
   @media(max-width:767px){ .ue-container { padding:0 16px; } }
 
-  .ue-breadcrumb { padding:20px 0 0; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; }
+  .ue-breadcrumb { padding:20px 0 0; font-size:11px; color:#999; letter-spacing:0.01em; font-weight:600; }
   .ue-breadcrumb a { color:#999; text-decoration:none; }
   .ue-breadcrumb a:hover { color:#0A0A0A; }
   .ue-breadcrumb .sep { margin:0 8px; color:#E5E5E0; }
@@ -26,7 +26,7 @@ $cur = $store_currency ?? null;
   .ue-search-bar input { width:100%; padding:12px 14px 12px 40px; border:1px solid #E5E5E0; border-radius:0; font-size:12px; background:#FAFAF8; outline:none; transition:border-color .2s; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; }
   .ue-search-bar input:focus { border-color:#0A0A0A; background:#fff; }
   .ue-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#999; }
-  .ue-filter-chip { padding:10px 18px; border-radius:0; border:1px solid #E5E5E0; background:#fff; font-size:11px; font-weight:700; color:#666; cursor:pointer; transition:all .2s; text-decoration:none; text-transform:uppercase; letter-spacing:0.08em; display:inline-block; }
+  .ue-filter-chip { padding:10px 18px; border-radius:0; border:1px solid #E5E5E0; background:#fff; font-size:11px; font-weight:700; color:#666; cursor:pointer; transition:all .2s; text-decoration:none; letter-spacing:0.01em; display:inline-block; }
   .ue-filter-chip.active, .ue-filter-chip:hover { background:#0A0A0A; color:#fff; border-color:#0A0A0A; }
 
   .ue-product-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
@@ -85,14 +85,14 @@ $cur = $store_currency ?? null;
   .wa-order-modal-product-name { font-size:13px; font-weight:600; color:#0A0A0A; margin:0 0 4px; line-height:1.3; }
   .wa-order-modal-product-price { font-size:15px; font-weight:800; color:#FF3B30; }
   .wa-order-modal-fields { display:flex; flex-direction:column; gap:14px; }
-  .wa-order-modal-fields label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#0A0A0A; margin-bottom:4px; display:block; }
+  .wa-order-modal-fields label { font-size:10px; font-weight:700; letter-spacing:0.01em; color:#0A0A0A; margin-bottom:4px; display:block; }
   .wa-order-modal-fields input, .wa-order-modal-fields textarea { width:100%; padding:12px 14px; border:1px solid #E5E5E0; border-radius:0; font-size:13px; background:#FAFAF8; outline:none; transition:border-color .2s; box-sizing:border-box; }
   .wa-order-modal-fields input:focus, .wa-order-modal-fields textarea:focus { border-color:#0A0A0A; background:#fff; }
   .wa-order-modal-fields textarea { resize:vertical; min-height:64px; }
   .wa-order-modal-actions { display:flex; gap:10px; margin-top:20px; }
-  .wa-order-modal-send { flex:1; padding:14px; border-radius:0; border:none; background:#25D366; color:#fff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; cursor:pointer; transition:background .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .wa-order-modal-send { flex:1; padding:14px; border-radius:0; border:none; background:#25D366; color:#fff; font-size:11px; font-weight:700; letter-spacing:0.01em; cursor:pointer; transition:background .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
   .wa-order-modal-send:hover { background:#1FB855; }
-  .wa-order-modal-cancel { padding:14px 20px; border-radius:0; border:1px solid #E5E5E0; background:#fff; color:#0A0A0A; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; cursor:pointer; transition:background .2s; }
+  .wa-order-modal-cancel { padding:14px 20px; border-radius:0; border:1px solid #E5E5E0; background:#fff; color:#0A0A0A; font-size:11px; font-weight:700; letter-spacing:0.01em; cursor:pointer; transition:background .2s; }
   .wa-order-modal-cancel:hover { background:#F2F2F0; }
 </style>
 

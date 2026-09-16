@@ -57,7 +57,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-hero-actions { display:flex; gap:14px; flex-wrap:wrap; }
 
   /* Buttons */
-  .bl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:2px; font-family:'Lora',serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
+  .bl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:12px; font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:13px; font-weight:600; letter-spacing:0.01em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
   .bl-btn:active { transform:scale(0.98); }
   .bl-btn-gold { background:var(--bl-gold); color:var(--bl-ink); }
   .bl-btn-gold:hover { background:#B8974F; }
@@ -76,7 +76,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:36px; }
   .bl-section-label { font-family:'Lora',serif; font-size:11px; text-transform:uppercase; letter-spacing:0.18em; color:var(--bl-gold); font-weight:600; margin-bottom:8px; }
   .bl-section-title { font-family:'Playfair Display',serif; font-style:italic; font-size:32px; margin:0; font-weight:700; color:var(--bl-ink); }
-  .bl-section-link { font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; border-bottom:1px solid var(--bl-ink); padding-bottom:2px; transition:color .2s, border-color .2s; color:var(--bl-ink); text-decoration:none; }
+  .bl-section-link { font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:12px; font-weight:600; letter-spacing:0.01em; border-bottom:1px solid var(--bl-ink); padding-bottom:2px; transition:color .2s, border-color .2s; color:var(--bl-ink); text-decoration:none; }
   .bl-section-link:hover { color:var(--bl-gold); border-color:var(--bl-gold); }
 
   /* Product grid */
@@ -87,7 +87,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-product-card:hover { transform:translateY(-4px); box-shadow:0 12px 36px rgba(61,40,23,0.12); }
   .bl-product-wishlist { position:absolute; top:14px; right:14px; width:36px; height:36px; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; z-index:2; transition:color .2s, transform .2s; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:none; cursor:pointer; }
   .bl-product-wishlist:hover { color:var(--bl-gold); transform:scale(1.08); }
-  .bl-product-badge { position:absolute; top:14px; left:14px; background:var(--bl-gold); color:var(--bl-ink); font-family:'Lora',serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:5px 10px; border-radius:2px; z-index:2; }
+  .bl-product-badge { position:absolute; top:14px; left:14px; background:var(--bl-gold); color:var(--bl-ink); font-family:'Lora',serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:5px 10px; border-radius:12px; z-index:2; }
   .bl-product-media { aspect-ratio:4/5; overflow:hidden; background:var(--bl-soft); }
   .bl-product-media img { width:100%; height:100%; object-fit:cover; transition:transform .5s ease; }
   .bl-product-card:hover .bl-product-media img { transform:scale(1.06); }
@@ -99,7 +99,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-product-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .bl-product-price { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; color:var(--bl-ink); }
   .bl-product-price .old { font-family:'Lora',serif; font-size:13px; color:#9B8B7A; text-decoration:line-through; margin-left:6px; font-weight:500; }
-  .bl-add-btn { width:40px; height:40px; border-radius:2px; background:var(--bl-ink); color:#fff; display:flex; align-items:center; justify-content:center; transition:background .2s, transform .15s; border:none; cursor:pointer; flex-shrink:0; }
+  .bl-add-btn { width:40px; height:40px; border-radius:12px; background:var(--bl-ink); color:#fff; display:flex; align-items:center; justify-content:center; transition:background .2s, transform .15s; border:none; cursor:pointer; flex-shrink:0; }
   .bl-add-btn:hover { background:var(--bl-gold); color:var(--bl-ink); }
   .bl-add-btn:active { transform:scale(0.95); }
   .bl-product-stock { font-family:'Lora',serif; font-size:11px; color:#B23A3A; font-weight:600; margin-top:8px; text-transform:uppercase; letter-spacing:0.06em; }
@@ -118,7 +118,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-cat-card-body { position:absolute; bottom:0; left:0; right:0; padding:20px; z-index:2; }
   .bl-cat-card-name { font-family:'Playfair Display',serif; font-style:italic; font-size:16px; font-weight:700; color:#fff; margin-bottom:4px; }
   .bl-cat-card-count { font-family:'Lora',serif; font-size:12px; color:var(--bl-gold); }
-  .bl-cat-card-arrow { position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:2px; background:var(--bl-gold); display:flex; align-items:center; justify-content:center; opacity:0; transform:translateY(-4px); transition:opacity .25s, transform .25s; }
+  .bl-cat-card-arrow { position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:12px; background:var(--bl-gold); display:flex; align-items:center; justify-content:center; opacity:0; transform:translateY(-4px); transition:opacity .25s, transform .25s; }
   .bl-cat-card:hover .bl-cat-card-arrow { opacity:1; transform:translateY(0); }
   .bl-cat-card-arrow svg { width:16px; height:16px; color:var(--bl-ink); }
   .bl-cat-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:var(--bl-soft); }
@@ -165,8 +165,8 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-newsletter-title { font-family:'Playfair Display',serif; font-style:italic; font-size:clamp(22px,3vw,30px); font-weight:700; margin-bottom:10px; }
   .bl-newsletter-text { font-family:'Lora',serif; opacity:0.8; max-width:440px; margin:0 auto 24px; font-size:15px; }
   .bl-newsletter-form { display:flex; gap:10px; max-width:440px; margin:0 auto; }
-  .bl-newsletter-form input { flex:1; padding:14px 18px; border:none; border-radius:2px; font-family:'Lora',serif; font-size:14px; outline:none; }
-  .bl-newsletter-form button { padding:14px 24px; border:none; border-radius:2px; background:var(--bl-gold); color:var(--bl-ink); font-family:'Lora',serif; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; cursor:pointer; font-size:13px; }
+  .bl-newsletter-form input { flex:1; padding:14px 18px; border:none; border-radius:12px; font-family:'Lora',serif; font-size:14px; outline:none; }
+  .bl-newsletter-form button { padding:14px 24px; border:none; border-radius:12px; background:var(--bl-gold); color:var(--bl-ink); font-family:'Lora',serif; font-weight:600; letter-spacing:0.01em; cursor:pointer; font-size:13px; }
 
   /* Testimonials */
   .bl-testimonials-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
@@ -178,7 +178,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
 
   /* Brands */
   .bl-brands-grid { display:flex; flex-wrap:wrap; gap:20px; align-items:center; justify-content:center; }
-  .bl-brand { padding:12px 24px; background:#fff; border:1px solid var(--bl-soft); border-radius:2px; font-family:'Lora',serif; font-size:14px; font-weight:600; color:var(--bl-ink); }
+  .bl-brand { padding:12px 24px; background:#fff; border:1px solid var(--bl-soft); border-radius:12px; font-family:'Lora',serif; font-size:14px; font-weight:600; color:var(--bl-ink); }
 
   /* Instagram */
   .bl-insta-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }

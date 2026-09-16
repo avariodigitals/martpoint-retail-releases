@@ -117,6 +117,9 @@
   .mp-avatar-item.logout { color: var(--mp-danger); }
   .mp-avatar-item i { width: 18px; text-align: center; }
   .main-footer { display: none !important; }
+  /* Hide the fixed footer while the virtual keyboard is open so it never
+     covers the field being typed into */
+  .mp-kb-open .mp-mobile-footer { display: none !important; }
   @media (min-width: 1024px) {
     .mp-mobile-footer { display: none !important; }
     .screen { padding-bottom: 24px !important; }
@@ -244,6 +247,31 @@
       if(!e.target.closest('.mp-avatar-menu')){
         closeAllAvatarMenus();
       }
+    });
+
+    // Virtual keyboard: hide the fixed footer while typing so it can't
+    // cover the focused field (item creation, POS, forms).
+    function mpKbSync(){
+      var vv = window.visualViewport;
+      var open = vv ? (vv.height < window.innerHeight * 0.75) : false;
+      document.body.classList.toggle('mp-kb-open', open);
+    }
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize', mpKbSync);
+      window.visualViewport.addEventListener('scroll', mpKbSync);
+    }
+    document.addEventListener('focusin', function(e){
+      if(e.target && e.target.matches && e.target.matches('input, textarea, select, [contenteditable="true"]')){
+        document.body.classList.add('mp-kb-open');
+      }
+    });
+    document.addEventListener('focusout', function(){
+      setTimeout(function(){
+        mpKbSync();
+        if(!document.querySelector('input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus')){
+          document.body.classList.remove('mp-kb-open');
+        }
+      }, 200);
     });
   })();
 </script>

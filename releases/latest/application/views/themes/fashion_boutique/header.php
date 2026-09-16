@@ -28,7 +28,7 @@ $social = $social_links ?? [];
   .blh-logo-tag { font-family:'Lora',serif; font-size:10px; color:#C9A961; letter-spacing:0.14em; text-transform:uppercase; }
   .blh-actions { display:flex; align-items:center; gap:8px; flex:1; justify-content:flex-end; }
   .blh-search { position:relative; max-width:220px; width:100%; }
-  .blh-search input { width:100%; padding:10px 14px 10px 36px; border:1px solid #F5EFE6; border-radius:2px; font-family:'Lora',serif; font-size:13px; outline:none; background:#FBF7F0; transition:border-color .2s; }
+  .blh-search input { width:100%; padding:10px 14px 10px 36px; border:1px solid #F5EFE6; border-radius:12px; font-family:'Lora',serif; font-size:13px; outline:none; background:#FBF7F0; transition:border-color .2s; }
   .blh-search input:focus { border-color:#C9A961; background:#fff; }
   .blh-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#C9A961; }
   .blh-icon-btn { width:44px; height:44px; display:flex; align-items:center; justify-content:center; transition:background .2s; position:relative; text-decoration:none; color:#3D2817; }

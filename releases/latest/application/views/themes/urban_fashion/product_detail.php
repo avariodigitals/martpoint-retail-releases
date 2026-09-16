@@ -13,7 +13,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .ue-container { max-width:1400px; margin:0 auto; padding:0 24px; }
   @media(max-width:767px){ .ue-container { padding:0 16px; } }
 
-  .ue-breadcrumb { padding:20px 0 0; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; }
+  .ue-breadcrumb { padding:20px 0 0; font-size:11px; color:#999; letter-spacing:0.01em; font-weight:600; }
   .ue-breadcrumb a { color:#999; text-decoration:none; }
   .ue-breadcrumb a:hover { color:#0A0A0A; }
   .ue-breadcrumb .sep { margin:0 8px; color:#E5E5E0; }
@@ -31,7 +31,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .ue-pd-name { font-family:'Montserrat',sans-serif; font-size:clamp(28px,4vw,44px); font-weight:800; margin-bottom:18px; color:#0A0A0A; text-transform:uppercase; letter-spacing:-0.01em; line-height:1.05; }
   .ue-pd-price { font-size:26px; font-weight:800; margin-bottom:8px; color:#0A0A0A; }
   .ue-pd-price .old { font-size:18px; color:#999; text-decoration:line-through; margin-left:10px; font-weight:500; }
-  .ue-pd-stock { font-size:12px; color:#059669; margin-bottom:24px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; }
+  .ue-pd-stock { font-size:12px; color:#059669; margin-bottom:24px; font-weight:700; letter-spacing:0.01em; }
   .ue-pd-stock.out { color:#EF4444; }
   .ue-pd-desc { color:#4A4A4A; line-height:1.7; margin-bottom:32px; font-size:15px; }
   .ue-pd-qty { display:flex; align-items:center; gap:16px; margin-bottom:24px; }

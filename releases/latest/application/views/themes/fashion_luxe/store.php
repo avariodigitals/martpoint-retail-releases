@@ -58,7 +58,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-hero-actions { display:flex; gap:14px; flex-wrap:wrap; }
 
   /* Buttons */
-  .fl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:2px; font-family:'Lora',serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
+  .fl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:12px; font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:13px; font-weight:600; letter-spacing:0.01em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
   .fl-btn:active { transform:scale(0.98); }
   .fl-btn-gold { background:var(--fl-gold); color:var(--fl-ink); }
   .fl-btn-gold:hover { background:#B8974F; }
@@ -77,7 +77,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:36px; }
   .fl-section-label { font-family:'Lora',serif; font-size:11px; text-transform:uppercase; letter-spacing:0.18em; color:var(--fl-gold); font-weight:600; margin-bottom:8px; }
   .fl-section-title { font-family:'Playfair Display',serif; font-style:italic; font-size:32px; margin:0; font-weight:700; color:var(--fl-ink); }
-  .fl-section-link { font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; border-bottom:1px solid var(--fl-ink); padding-bottom:2px; transition:color .2s, border-color .2s; color:var(--fl-ink); text-decoration:none; }
+  .fl-section-link { font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:12px; font-weight:600; letter-spacing:0.01em; border-bottom:1px solid var(--fl-ink); padding-bottom:2px; transition:color .2s, border-color .2s; color:var(--fl-ink); text-decoration:none; }
   .fl-section-link:hover { color:var(--fl-gold); border-color:var(--fl-gold); }
 
   /* Product grid */
@@ -88,7 +88,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-product-card:hover { transform:translateY(-4px); box-shadow:0 12px 36px rgba(61,40,23,0.12); }
   .fl-product-wishlist { position:absolute; top:14px; right:14px; width:36px; height:36px; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; z-index:2; transition:color .2s, transform .2s; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:none; cursor:pointer; }
   .fl-product-wishlist:hover { color:var(--fl-gold); transform:scale(1.08); }
-  .fl-product-badge { position:absolute; top:14px; left:14px; background:var(--fl-gold); color:var(--fl-ink); font-family:'Lora',serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:5px 10px; border-radius:2px; z-index:2; }
+  .fl-product-badge { position:absolute; top:14px; left:14px; background:var(--fl-gold); color:var(--fl-ink); font-family:'Lora',serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:5px 10px; border-radius:12px; z-index:2; }
   .fl-product-media { aspect-ratio:4/5; overflow:hidden; background:var(--fl-soft); }
   .fl-product-media img { width:100%; height:100%; object-fit:cover; transition:transform .5s ease; }
   .fl-product-card:hover .fl-product-media img { transform:scale(1.06); }
@@ -102,10 +102,10 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-product-price .old { font-family:'Lora',serif; font-size:13px; color:#8B6D4B; text-decoration:line-through; margin-left:6px; font-weight:500; }
   .fl-card-actions { display:flex; gap:8px; }
   @media(max-width:767px){ .fl-card-actions { flex-direction:column; align-items:stretch; } .fl-card-actions .fl-add-btn, .fl-card-actions .fl-wa-btn { width:100%; box-sizing:border-box; } }
-  .fl-add-btn { flex:1; padding:11px 14px; border-radius:2px; background:var(--fl-ink); color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
+  .fl-add-btn { flex:1; padding:11px 14px; border-radius:12px; background:var(--fl-ink); color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
   .fl-add-btn:hover { background:var(--fl-gold); color:var(--fl-ink); }
   .fl-add-btn:active { transform:scale(0.97); }
-  .fl-wa-btn { flex:1; padding:11px 14px; border-radius:2px; background:#25D366; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
+  .fl-wa-btn { flex:1; padding:11px 14px; border-radius:12px; background:#25D366; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
   .fl-wa-btn:hover { background:#1FB855; }
   .fl-wa-btn:active { transform:scale(0.97); }
   .fl-product-stock { font-family:'Lora',serif; font-size:11px; color:#B23A3A; font-weight:600; margin-top:8px; text-transform:uppercase; letter-spacing:0.06em; }
@@ -123,7 +123,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-cat-card-body { position:absolute; bottom:0; left:0; right:0; padding:20px; z-index:2; }
   .fl-cat-card-name { font-family:'Playfair Display',serif; font-style:italic; font-size:16px; font-weight:700; color:#fff; margin-bottom:4px; }
   .fl-cat-card-count { font-family:'Lora',serif; font-size:12px; color:var(--fl-gold); }
-  .fl-cat-card-arrow { position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:2px; background:var(--fl-gold); display:flex; align-items:center; justify-content:center; opacity:0; transform:translateY(-4px); transition:opacity .25s, transform .25s; }
+  .fl-cat-card-arrow { position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:12px; background:var(--fl-gold); display:flex; align-items:center; justify-content:center; opacity:0; transform:translateY(-4px); transition:opacity .25s, transform .25s; }
   .fl-cat-card:hover .fl-cat-card-arrow { opacity:1; transform:translateY(0); }
   .fl-cat-card-arrow svg { width:16px; height:16px; color:var(--fl-ink); }
   .fl-cat-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:var(--fl-soft); }
@@ -170,8 +170,8 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-newsletter-title { font-family:'Playfair Display',serif; font-style:italic; font-size:clamp(22px,3vw,30px); font-weight:700; margin-bottom:10px; }
   .fl-newsletter-text { font-family:'Lora',serif; opacity:0.8; max-width:440px; margin:0 auto 24px; font-size:15px; }
   .fl-newsletter-form { display:flex; gap:10px; max-width:440px; margin:0 auto; }
-  .fl-newsletter-form input { flex:1; padding:14px 18px; border:none; border-radius:2px; font-family:'Lora',serif; font-size:14px; outline:none; }
-  .fl-newsletter-form button { padding:14px 24px; border:none; border-radius:2px; background:var(--fl-gold); color:var(--fl-ink); font-family:'Lora',serif; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; cursor:pointer; font-size:13px; }
+  .fl-newsletter-form input { flex:1; padding:14px 18px; border:none; border-radius:12px; font-family:'Lora',serif; font-size:14px; outline:none; }
+  .fl-newsletter-form button { padding:14px 24px; border:none; border-radius:12px; background:var(--fl-gold); color:var(--fl-ink); font-family:'Lora',serif; font-weight:600; letter-spacing:0.01em; cursor:pointer; font-size:13px; }
 
   /* Testimonials */
   .fl-testimonials-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
@@ -183,7 +183,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
 
   /* Brands */
   .fl-brands-grid { display:flex; flex-wrap:wrap; gap:20px; align-items:center; justify-content:center; }
-  .fl-brand { padding:12px 24px; background:#fff; border:1px solid var(--fl-soft); border-radius:2px; font-family:'Lora',serif; font-size:14px; font-weight:600; color:var(--fl-ink); }
+  .fl-brand { padding:12px 24px; background:#fff; border:1px solid var(--fl-soft); border-radius:12px; font-family:'Lora',serif; font-size:14px; font-weight:600; color:var(--fl-ink); }
 
   /* Instagram */
   .fl-insta-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
@@ -225,7 +225,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .wa-order-modal-card { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:440px; max-width:calc(100vw - 32px); max-height:90vh; overflow-y:auto; background:#fff; border-radius:4px; box-shadow:0 24px 60px rgba(61,40,23,0.25); border:1px solid var(--fl-soft); }
   .wa-order-modal-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--fl-soft); }
   .wa-order-modal-title { font-family:'Playfair Display',serif; font-style:italic; font-size:20px; font-weight:700; color:var(--fl-ink); margin:0; }
-  .wa-order-modal-close { width:32px; height:32px; border-radius:2px; border:none; background:var(--fl-soft); color:var(--fl-ink); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+  .wa-order-modal-close { width:32px; height:32px; border-radius:12px; border:none; background:var(--fl-soft); color:var(--fl-ink); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
   .wa-order-modal-close:hover { background:#F9F7F2; }
   .wa-order-modal-body { padding:24px; }
   .wa-order-modal-product { display:flex; gap:14px; align-items:center; padding:14px; background:var(--fl-ivory); border-radius:4px; margin-bottom:20px; }
@@ -816,7 +816,7 @@ endforeach;
   .fl-hero-kicker { letter-spacing:0.22em; }
   .fl-hero-title { max-width:900px; margin:0 auto 22px; }
   .fl-hero-lead { max-width:620px; margin:0 auto 36px; }
-  .fl-product-card { background:#fff; border:1px solid var(--fl-soft); border-radius:2px; }
+  .fl-product-card { background:#fff; border:1px solid var(--fl-soft); border-radius:12px; }
   .fl-product-card:hover { transform:translateY(-6px); box-shadow:0 20px 50px rgba(26,26,26,0.12); }
   .fl-product-body { padding:24px; }
   .fl-product-media { aspect-ratio:4/5; }

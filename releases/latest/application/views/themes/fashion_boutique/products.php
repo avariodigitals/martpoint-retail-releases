@@ -40,7 +40,7 @@ $cur = $store_currency ?? null;
   .bl-search-bar input { width:100%; padding:12px 14px 12px 42px; border:1px solid var(--bl-soft); border-radius:4px; font-family:'Lora',serif; font-size:14px; background:var(--bl-cream); outline:none; transition:border-color .2s; color:var(--bl-ink); }
   .bl-search-bar input:focus { border-color:var(--bl-gold); background:#fff; }
   .bl-search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9B8B7A; }
-  .bl-filter-chip { padding:10px 20px; border-radius:2px; border:1px solid var(--bl-soft); background:#fff; font-family:'Lora',serif; font-size:13px; font-weight:600; color:#6B5B4A; cursor:pointer; transition:all .2s; text-decoration:none; display:inline-block; }
+  .bl-filter-chip { padding:10px 20px; border-radius:12px; border:1px solid var(--bl-soft); background:#fff; font-family:'Lora',serif; font-size:13px; font-weight:600; color:#6B5B4A; cursor:pointer; transition:all .2s; text-decoration:none; display:inline-block; }
   .bl-filter-chip.active, .bl-filter-chip:hover { background:var(--bl-ink); color:#fff; border-color:var(--bl-ink); }
 
   .bl-product-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
@@ -50,7 +50,7 @@ $cur = $store_currency ?? null;
   .bl-product-card:hover { transform:translateY(-4px); box-shadow:0 12px 36px rgba(61,40,23,0.12); }
   .bl-product-wishlist { position:absolute; top:14px; right:14px; width:36px; height:36px; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; z-index:2; transition:color .2s, transform .2s; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:none; cursor:pointer; }
   .bl-product-wishlist:hover { color:var(--bl-gold); transform:scale(1.08); }
-  .bl-product-badge { position:absolute; top:14px; left:14px; background:var(--bl-gold); color:var(--bl-ink); font-family:'Lora',serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:5px 10px; border-radius:2px; z-index:2; }
+  .bl-product-badge { position:absolute; top:14px; left:14px; background:var(--bl-gold); color:var(--bl-ink); font-family:'Lora',serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:5px 10px; border-radius:12px; z-index:2; }
   .bl-product-media { aspect-ratio:4/5; overflow:hidden; background:var(--bl-soft); }
   .bl-product-media img { width:100%; height:100%; object-fit:cover; transition:transform .5s ease; }
   .bl-product-card:hover .bl-product-media img { transform:scale(1.06); }
@@ -64,13 +64,13 @@ $cur = $store_currency ?? null;
   .bl-product-price .old { font-family:'Lora',serif; font-size:13px; color:#9B8B7A; text-decoration:line-through; margin-left:6px; font-weight:500; }
   .bl-card-actions { display:flex; gap:8px; }
   @media(max-width:767px){ .bl-card-actions { flex-direction:column; align-items:stretch; } .bl-card-actions .bl-add-btn, .bl-card-actions .bl-wa-btn { width:100%; box-sizing:border-box; } }
-  .bl-add-btn { flex:1; padding:11px 14px; border-radius:2px; background:var(--bl-ink); color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
+  .bl-add-btn { flex:1; padding:11px 14px; border-radius:12px; background:var(--bl-ink); color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
   .bl-add-btn:hover { background:var(--bl-gold); color:var(--bl-ink); }
   .bl-add-btn:active { transform:scale(0.97); }
   .bl-product-stock { font-family:'Lora',serif; font-size:11px; color:#B23A3A; font-weight:600; margin-top:8px; text-transform:uppercase; letter-spacing:0.06em; }
 
   .bl-pagination { display:flex; justify-content:center; gap:8px; margin-top:44px; }
-  .bl-page-btn { padding:8px 16px; border-radius:2px; border:1px solid var(--bl-soft); background:#fff; font-family:'Lora',serif; font-size:14px; font-weight:600; color:#6B5B4A; text-decoration:none; transition:all .2s; }
+  .bl-page-btn { padding:8px 16px; border-radius:12px; border:1px solid var(--bl-soft); background:#fff; font-family:'Lora',serif; font-size:14px; font-weight:600; color:#6B5B4A; text-decoration:none; transition:all .2s; }
   .bl-page-btn:hover { border-color:var(--bl-ink); color:var(--bl-ink); }
   .bl-page-btn.active { background:var(--bl-ink); color:#fff; border-color:var(--bl-ink); }
 
@@ -78,9 +78,9 @@ $cur = $store_currency ?? null;
   .bl-empty-icon { font-size:48px; margin-bottom:14px; color:#C9BBA8; }
   .bl-empty-title { font-family:'Playfair Display',serif; font-style:italic; font-size:20px; font-weight:700; color:var(--bl-ink); margin-bottom:10px; }
   .bl-empty-text { font-family:'Lora',serif; margin-bottom:22px; }
-  .bl-btn-ink { display:inline-flex; padding:14px 34px; border-radius:2px; background:var(--bl-ink); color:#fff; font-family:'Lora',serif; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:0.08em; text-decoration:none; }
+  .bl-btn-ink { display:inline-flex; padding:14px 34px; border-radius:12px; background:var(--bl-ink); color:#fff; font-family:'Lora',serif; font-weight:600; font-size:13px; letter-spacing:0.01em; text-decoration:none; }
 
-  .bl-wa-btn { flex:1; padding:11px 14px; border-radius:2px; background:#25D366; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
+  .bl-wa-btn { flex:1; padding:11px 14px; border-radius:12px; background:#25D366; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s, transform .15s; border:none; cursor:pointer; font-family:'Lora',serif; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
   .bl-wa-btn:hover { background:#1FB855; }
   .bl-wa-btn:active { transform:scale(0.97); }
 
@@ -90,7 +90,7 @@ $cur = $store_currency ?? null;
   .wa-order-modal-card { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:440px; max-width:calc(100vw - 32px); max-height:90vh; overflow-y:auto; background:#fff; border-radius:4px; box-shadow:0 24px 60px rgba(61,40,23,0.25); border:1px solid var(--bl-soft); }
   .wa-order-modal-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--bl-soft); }
   .wa-order-modal-title { font-family:'Playfair Display',serif; font-style:italic; font-size:20px; font-weight:700; color:var(--bl-ink); margin:0; }
-  .wa-order-modal-close { width:32px; height:32px; border-radius:2px; border:none; background:var(--bl-soft); color:var(--bl-ink); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+  .wa-order-modal-close { width:32px; height:32px; border-radius:12px; border:none; background:var(--bl-soft); color:var(--bl-ink); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
   .wa-order-modal-close:hover { background:#EDE4D6; }
   .wa-order-modal-body { padding:24px; }
   .wa-order-modal-product { display:flex; gap:14px; align-items:center; padding:14px; background:var(--bl-cream); border-radius:4px; margin-bottom:20px; }

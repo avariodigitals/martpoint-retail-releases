@@ -437,7 +437,7 @@ Thank you Visit Again",
 				'expense_payment_init' => $expense_payment_init,
 				'cust_advance_init' => $cust_advance_init,
 			);
-			$this->db->where('store_id', $store_id)->update('db_store_inventory_settings', $inventory);
+			_mp_set_structured_setting($store_id, 'db_store_inventory_settings', $inventory);
 		}
 
 		if ($this->db->table_exists('db_store_receipt_settings')) {
@@ -452,7 +452,7 @@ Thank you Visit Again",
 				'decimals' => $decimals,
 				'qty_decimals' => $qty_decimals,
 			);
-			$this->db->where('store_id', $store_id)->update('db_store_receipt_settings', $receipt);
+			_mp_set_structured_setting($store_id, 'db_store_receipt_settings', $receipt);
 		}
 
 		if ($this->db->table_exists('db_store_pos_settings')) {
@@ -462,7 +462,7 @@ Thank you Visit Again",
 				'show_signature' => $show_signature,
 				'previous_balance_bit' => $previous_balance_bit,
 			);
-			$this->db->where('store_id', $store_id)->update('db_store_pos_settings', $pos);
+			_mp_set_structured_setting($store_id, 'db_store_pos_settings', $pos);
 		}
 
 		if ($this->db->table_exists('db_store_settings')) {
@@ -787,13 +787,13 @@ Thank you Visit Again",
 
 			// Apply form overrides to modular tables
 			if ($this->db->table_exists('db_store_inventory_settings')) {
-				$this->db->where('store_id', $store_id)->update('db_store_inventory_settings', $inventory_data);
+				_mp_set_structured_setting($store_id, 'db_store_inventory_settings', $inventory_data);
 			}
 			if ($this->db->table_exists('db_store_receipt_settings')) {
-				$this->db->where('store_id', $store_id)->update('db_store_receipt_settings', $receipt_data);
+				_mp_set_structured_setting($store_id, 'db_store_receipt_settings', $receipt_data);
 			}
 			if ($this->db->table_exists('db_store_pos_settings')) {
-				$this->db->where('store_id', $store_id)->update('db_store_pos_settings', $pos_data);
+				_mp_set_structured_setting($store_id, 'db_store_pos_settings', $pos_data);
 			}
 			if ($this->db->table_exists('db_store_theme_settings') && !empty($theme_data)) {
 				$this->db->where('store_id', $store_id)->update('db_store_theme_settings', $theme_data);

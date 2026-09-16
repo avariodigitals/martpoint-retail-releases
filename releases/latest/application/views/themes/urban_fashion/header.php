@@ -47,7 +47,7 @@ $social = $social_links ?? [];
   .ueh-mobile-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:900; }
   .ueh-mobile-overlay.open { display:block; }
   .ueh-drawer-title { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:800; margin-bottom:24px; color:#0A0A0A; text-transform:uppercase; }
-  .ueh-drawer-link { display:block; padding:14px 0; font-size:13px; font-weight:700; color:#0A0A0A; text-decoration:none; text-transform:uppercase; letter-spacing:0.08em; border-bottom:1px solid #F5F5F0; }
+  .ueh-drawer-link { display:block; padding:14px 0; font-size:13px; font-weight:700; color:#0A0A0A; text-decoration:none; letter-spacing:0.01em; border-bottom:1px solid #F5F5F0; }
   .ueh-drawer-link:hover { color:#FF3B30; }
   .ueh-drawer-section { margin-top:24px; }
   .ueh-drawer-section-title { font-size:10px; text-transform:uppercase; letter-spacing:0.16em; color:#999; font-weight:700; margin-bottom:12px; }

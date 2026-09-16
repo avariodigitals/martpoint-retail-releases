@@ -43,7 +43,7 @@ $cur = $store_currency ?? null;
   .fm-product-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#F8FAFC; color:#CBD5E1; }
   .fm-product-placeholder span { font-family:'Playfair Display',serif; font-size:36px; font-weight:700; }
   .fm-product-body { padding:18px; }
-  .fm-product-brand { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#94A3B8; font-weight:600; margin-bottom:4px; }
+  .fm-product-brand { font-size:11px; letter-spacing:0.01em; color:#94A3B8; font-weight:600; margin-bottom:4px; }
   .fm-product-name { font-size:14px; font-weight:600; margin-bottom:10px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:38px; color:#0F172A; }
   .fm-product-footer { display:flex; flex-direction:column; gap:8px; }
   .fm-product-price { font-size:17px; font-weight:700; color:#0F172A; }

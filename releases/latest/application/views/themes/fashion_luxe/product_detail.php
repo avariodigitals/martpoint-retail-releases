@@ -54,7 +54,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .fl-pd-qty button:hover { border-color:var(--fl-gold); color:var(--fl-gold); }
   .fl-pd-qty span { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; min-width:32px; text-align:center; color:var(--fl-ink); }
   .fl-pd-actions { display:flex; gap:12px; flex-wrap:wrap; }
-  .fl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:2px; font-family:'Lora',serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
+  .fl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:12px; font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:13px; font-weight:600; letter-spacing:0.01em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
   .fl-btn:active { transform:scale(0.98); }
   .fl-btn-gold { background:var(--fl-gold); color:var(--fl-ink); }
   .fl-btn-gold:hover { background:#B8974F; }
@@ -210,7 +210,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .fl-btn-gold:hover { background:#B8974F; color:var(--fl-ink); }
   .fl-btn-ink:hover { background:var(--fl-gold); color:var(--fl-ink); }
   .fl-btn-outline:hover { background:var(--fl-gold); color:var(--fl-ink); border-color:var(--fl-gold); }
-  .fl-product-card { background:#fff; border:1px solid var(--fl-soft); border-radius:2px; }
+  .fl-product-card { background:#fff; border:1px solid var(--fl-soft); border-radius:12px; }
   .fl-product-card:hover { transform:translateY(-6px); box-shadow:0 20px 50px rgba(26,26,26,0.12); }
   .fl-product-body { padding:24px; }
   .fl-product-media { aspect-ratio:4/5; }

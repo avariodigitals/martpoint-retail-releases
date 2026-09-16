@@ -28,6 +28,13 @@
   .mp-sticky-cart { display:none !important; }
   .mp-cart-section { padding-top:24px !important; }
 
+  /* Checkout UI always renders in a clean sans face — theme display fonts
+     (serif headlines etc.) must not leak into forms and controls */
+  #cart-container, #cart-container input, #cart-container textarea,
+  #cart-container select, #cart-container button, #cart-container label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
   /* Two-column checkout layout */
   .mp-cart-layout { display:flex; flex-direction:column; gap:24px; }
   @media(min-width:900px){
@@ -42,6 +49,7 @@
   .mp-checkout-card-title .mp-step-num { width:24px; height:24px; border-radius:50%; background:var(--mp-primary); color:#fff; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .mp-checkout-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .mp-checkout-fields .mp-field-full { grid-column:1 / -1; }
+  @media(max-width:560px){ .mp-checkout-fields { grid-template-columns:1fr; } }
   .mp-cart-input { width:100%; padding:12px 14px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); font-size:14px; outline:none; transition:border-color .2s, box-shadow .2s; }
   .mp-cart-input:focus { border-color:var(--mp-primary); box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
   .mp-cart-label { font-size:13px; font-weight:600; color:var(--mp-gray); margin-bottom:6px; display:block; }
@@ -107,6 +115,7 @@
   .mp-success-msg { font-size:15px; color:#64748B; line-height:1.6; margin-bottom:20px; }
   .mp-success-order-code { display:inline-block; background:#EFF6FF; color:#2563EB; padding:10px 20px; border-radius:10px; font-size:15px; font-weight:700; font-family:monospace; margin-bottom:20px; letter-spacing:0.02em; }
   .mp-success-actions { display:flex; gap:10px; }
+  @media(max-width:480px){ .mp-success-actions { flex-direction:column; } }
   .mp-success-btn { flex:1; padding:14px; border-radius:10px; font-weight:700; border:none; cursor:pointer; font-size:14px; text-decoration:none; text-align:center; display:block; }
   .mp-success-btn-primary { background:var(--mp-primary); color:#fff; }
   .mp-success-btn-primary:hover { background:var(--mp-primary-dark); }

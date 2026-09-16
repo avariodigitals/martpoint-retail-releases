@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.16",
-    "previous_version": "4.0.9.15",
+    "version": "4.0.9.17",
+    "previous_version": "4.0.9.16",
     "release_date": "2026-09-16",
     "files": [
         {
@@ -7005,8 +7005,8 @@
         },
         {
             "path": "application/models/Store_model.php",
-            "hash": "64e64851c35ebdda58fa8f70c3114f7a3896850391cd5ab283cb75836001258b",
-            "size": 32797
+            "hash": "5f85d62f57c0462bb1a902497d3ef2929978eafb4363b3fae9a4e63b6bf4d9ec",
+            "size": 31852
         },
         {
             "path": "application/models/Email_templates_model.php",
@@ -9455,8 +9455,8 @@
         },
         {
             "path": "application/views/mobile/bottom_nav.php",
-            "hash": "377ed762d9af0de9657f5999f3f4e013da361a101d5209b23a0aff608d8bbaf2",
-            "size": 10101
+            "hash": "3672559b3974b328a6b55392560844fb1315cca8f619c3fddae3613c6bd5214a",
+            "size": 11319
         },
         {
             "path": "application/views/mobile/approval_logs.php",
@@ -10385,8 +10385,8 @@
         },
         {
             "path": "application/views/themes/fashion_modern/store.php",
-            "hash": "673a281813a45e5444b599271d0239b641b3582b6394327d9d3fffd691640f21",
-            "size": 41446
+            "hash": "25d103caac4e0b446fab7b97817d3dc3cbe5c86df1a28c031701511050a573c6",
+            "size": 41394
         },
         {
             "path": "application/views/themes/fashion_modern/header.php",
@@ -10395,8 +10395,8 @@
         },
         {
             "path": "application/views/themes/fashion_modern/products.php",
-            "hash": "2a551bae7195c545929a83550bc786b46c23a314c47bf1cf89e4a1bf33ac8c7d",
-            "size": 21063
+            "hash": "f536428986fb7c199191e1df108f4108ce6880d069c874d9a22c218a176b2a43",
+            "size": 21037
         },
         {
             "path": "application/views/themes/pharma_care/product_detail.php",
@@ -10520,23 +10520,23 @@
         },
         {
             "path": "application/views/themes/fashion_boutique/product_detail.php",
-            "hash": "68e4daa48361f70bd074dc3f6462f8309ea5819882f6a33b6beb133681c1e160",
-            "size": 12096
+            "hash": "b865d46e3c775d07bf624454071a1b4214f0e1edc88575084fd94b9b55e17a5e",
+            "size": 12102
         },
         {
             "path": "application/views/themes/fashion_boutique/store.php",
-            "hash": "83df1bf4f3a5aa4b77af5c42ca0ed5e52299c582cb92119dbcae87df4ca58114",
-            "size": 42518
+            "hash": "620b699660294e2b65014ea97e3e538da96923f9b4bcc12b424a71f96090fb48",
+            "size": 42509
         },
         {
             "path": "application/views/themes/fashion_boutique/header.php",
-            "hash": "008d7c9bec47cb02c8d367c1606019cf8ebe2e97eeb84e803b2b47fe9ecf4490",
-            "size": 10948
+            "hash": "75948544b851d9c679e6e3c8b8d20b436e81f7924e8465c4e4f01eb3dfa882cd",
+            "size": 10949
         },
         {
             "path": "application/views/themes/fashion_boutique/products.php",
-            "hash": "97fe9c8f80823381ce28ded08aec84bf62d38c544bf2cd618bb4f7277bd7534b",
-            "size": 22707
+            "hash": "86daf4d3396dd6b332e816f1efca1b2242672af44ab05288fa91b79d87e175aa",
+            "size": 22688
         },
         {
             "path": "application/views/themes/creator_bold/product_detail.php",
@@ -10650,8 +10650,8 @@
         },
         {
             "path": "application/views/themes/shared/cart.php",
-            "hash": "71048a5bf5c26b2a06b0d9597eab6437d0f1cc8da4d126297c01880187e28ab8",
-            "size": 27472
+            "hash": "2c5dccfb4e9cea1c290154b83392d4ec8065ff51e590635be5abecf5ae8258c6",
+            "size": 28030
         },
         {
             "path": "application/views/themes/shared/store.php",
@@ -10870,8 +10870,8 @@
         },
         {
             "path": "application/views/themes/urban_fashion/product_detail.php",
-            "hash": "04f189e697c2ecef1f0f0aea5e96bcba8bf8fe20bfbc36a46829c39b82434eb4",
-            "size": 10952
+            "hash": "7b7d548cc046a611d9a6211b2c4e2151d75f97c2199853e4d48f859ea82569af",
+            "size": 10900
         },
         {
             "path": "application/views/themes/urban_fashion/store.php",
@@ -10885,13 +10885,13 @@
         },
         {
             "path": "application/views/themes/urban_fashion/header.php",
-            "hash": "3948becd7fc6d1747d58346980165f363dbbc060a3576364bb8a95c33317ae58",
-            "size": 11978
+            "hash": "c22c59ee22811d583c8ad4ea57e02663c6245f122844426e9ec45161679f4d50",
+            "size": 11952
         },
         {
             "path": "application/views/themes/urban_fashion/products.php",
-            "hash": "9341f64a8cd0570bd9ce02ac090fc0188f90006b75fd521116754c1922afdb1f",
-            "size": 21628
+            "hash": "e14b496f5634edb1ed9ce78186e04b3d2ffc695f065c21ee946379862fd09937",
+            "size": 21498
         },
         {
             "path": "application/views/themes/market_fresh/product_detail.php",
@@ -11070,23 +11070,23 @@
         },
         {
             "path": "application/views/themes/fashion_luxe/product_detail.php",
-            "hash": "d39332f587542e8bff973908874b1217af204c968ec188e512c41519f3f6bc7d",
-            "size": 13100
+            "hash": "9e6b19814870d9dae481f78c3dc2d329972c054c98ad340f55d7f89fcd232408",
+            "size": 13107
         },
         {
             "path": "application/views/themes/fashion_luxe/store.php",
-            "hash": "84bdfb07c5843537ec4d3a7c4d9cb7fe12265cdd84282233c7a77de9c54652fd",
-            "size": 57655
+            "hash": "238c626d74f868bc5d7c4e6d4d5a6ea285903eec054e52531366a2918f30749f",
+            "size": 57649
         },
         {
             "path": "application/views/themes/fashion_luxe/header.php",
-            "hash": "cc2760dd5f8ee583d6aa1ab7d3255ca20fe3960a831247261eab9d7a10445e4d",
-            "size": 11717
+            "hash": "fade2a166047b7c6de88af6022b45d8f2ba80c83b3fab29761764330cbf35186",
+            "size": 11718
         },
         {
             "path": "application/views/themes/fashion_luxe/products.php",
-            "hash": "7881257bcc044298170c7df70e26e6ecc753cd092746a54880b10fc46dd5b527",
-            "size": 23454
+            "hash": "a04e8a14e019b123e6bc1d2754367baeefbacba9a4a87e941d37d3f174e39006",
+            "size": 23436
         },
         {
             "path": "application/views/themes/fresh_market/store.php",
@@ -11435,12 +11435,12 @@
         },
         {
             "path": "application/helpers/store_settings_helper.php",
-            "hash": "ca6efddaf104b9eb79ca108bc2744ecf2e653d2cf5d15e6d2774bc4cd1b3b0ef",
-            "size": 10864
+            "hash": "304fb8296a0432fb5de255d41e2684a553595ed516c7f0f8c2c4ae048a3aaa62",
+            "size": 11479
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "95b0877f74bb3e2ae1aba7454dfb56f5569c054aec99bb26856d52916b65faa3",
+            "hash": "237642633c8411be6565262234c5d848d1260510c51433059d229b16bedc5152",
             "size": 93455
         },
         {

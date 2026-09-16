@@ -88,7 +88,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fm-product-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:var(--fm-cream); color:#CBD5E1; }
   .fm-product-placeholder span { font-family:'Playfair Display',serif; font-size:36px; font-weight:700; }
   .fm-product-body { padding:18px; }
-  .fm-product-brand { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#94A3B8; font-weight:600; margin-bottom:4px; }
+  .fm-product-brand { font-size:11px; letter-spacing:0.01em; color:#94A3B8; font-weight:600; margin-bottom:4px; }
   .fm-product-name { font-size:14px; font-weight:600; margin-bottom:10px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:38px; color:var(--fm-ink); }
   .fm-product-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .fm-product-price { font-size:17px; font-weight:700; color:var(--fm-ink); }
@@ -197,7 +197,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fm-contact-card { background:#fff; border:1px solid var(--fm-border); border-radius:16px; padding:24px; text-align:center; }
   .fm-contact-icon { width:48px; height:48px; border-radius:50%; background:rgba(99,102,241,0.1); display:flex; align-items:center; justify-content:center; margin:0 auto 14px; color:var(--fm-primary); }
   .fm-contact-icon svg { width:22px; height:22px; }
-  .fm-contact-label { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--fm-primary); font-weight:700; margin-bottom:4px; }
+  .fm-contact-label { font-size:12px; letter-spacing:0.01em; color:var(--fm-primary); font-weight:700; margin-bottom:4px; }
   .fm-contact-value { font-size:15px; font-weight:600; color:var(--fm-ink); }
 
   /* Store hours */

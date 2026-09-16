@@ -28,7 +28,7 @@ $social = $social_links ?? [];
   .flh-logo-tag { font-family:'Lora',serif; font-size:10px; color:#C9A961; letter-spacing:0.14em; text-transform:uppercase; }
   .flh-actions { display:flex; align-items:center; gap:8px; flex:1; justify-content:flex-end; }
   .flh-search { position:relative; max-width:220px; width:100%; }
-  .flh-search input { width:100%; padding:10px 14px 10px 36px; border:1px solid #E8E4DC; border-radius:2px; font-family:'Lora',serif; font-size:13px; outline:none; background:#F9F7F2; transition:border-color .2s; }
+  .flh-search input { width:100%; padding:10px 14px 10px 36px; border:1px solid #E8E4DC; border-radius:12px; font-family:'Lora',serif; font-size:13px; outline:none; background:#F9F7F2; transition:border-color .2s; }
   .flh-search input:focus { border-color:#C9A961; background:#fff; }
   .flh-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#C9A961; }
   .flh-icon-btn { width:44px; height:44px; display:flex; align-items:center; justify-content:center; transition:background .2s; position:relative; text-decoration:none; color:#1A1A1A; }

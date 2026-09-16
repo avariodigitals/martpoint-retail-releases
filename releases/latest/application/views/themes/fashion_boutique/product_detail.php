@@ -53,7 +53,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .bl-pd-qty button:hover { border-color:var(--bl-gold); color:var(--bl-gold); }
   .bl-pd-qty span { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; min-width:32px; text-align:center; color:var(--bl-ink); }
   .bl-pd-actions { display:flex; gap:12px; flex-wrap:wrap; }
-  .bl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:2px; font-family:'Lora',serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
+  .bl-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 34px; border-radius:12px; font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:13px; font-weight:600; letter-spacing:0.01em; transition:transform .15s, background .2s, color .2s; cursor:pointer; border:none; text-decoration:none; }
   .bl-btn:active { transform:scale(0.98); }
   .bl-btn-gold { background:var(--bl-gold); color:var(--bl-ink); }
   .bl-btn-gold:hover { background:#B8974F; }

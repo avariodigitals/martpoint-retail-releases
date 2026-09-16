@@ -274,10 +274,25 @@ if (!function_exists('_mp_set_structured_setting')) {
         }
         $data['store_id'] = $store_id;
         $exists = $CI->db->where('store_id', $store_id)->get($table)->num_rows();
-        if ($exists) {
-            return $CI->db->where('store_id', $store_id)->update($table, $data);
+        $result = $exists
+            ? $CI->db->where('store_id', $store_id)->update($table, $data)
+            : $CI->db->insert($table, $data);
+
+        // Keep legacy db_store columns in sync so older code paths and any
+        // re-run migration copy the CURRENT value instead of a stale one.
+        if ($result && $CI->db->table_exists('db_store')) {
+            unset($data['store_id']);
+            $legacy = array();
+            foreach ($data as $key => $value) {
+                if ($CI->db->field_exists($key, 'db_store')) {
+                    $legacy[$key] = $value;
+                }
+            }
+            if (!empty($legacy)) {
+                $CI->db->where('id', $store_id)->update('db_store', $legacy);
+            }
         }
-        return $CI->db->insert($table, $data);
+        return $result;
     }
 }
 
