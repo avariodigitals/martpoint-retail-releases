@@ -197,7 +197,7 @@
         <div class="topbar-titles">
             <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
             <h1><?= $page_title ?? 'Quick Sale'; ?></h1>
-          <div class="sub"><?= $init_code . ' ' . $count_id; ?></div>
+          <div class="sub"><?= $init_code . $count_id; ?></div>
         </div>
         <div class="avatar" style="overflow:hidden;">
           <?php
@@ -1243,7 +1243,7 @@
               lastWhatsAppUrl = res.whatsapp_url || '';
               $('#payment_modal').removeClass('active');
               $('#payment_confirm, #payment_cancel').prop('disabled', false);
-              $('#pay_message').text('Sale #' + res.sales_id + ' saved.');
+              $('#pay_message').text('Invoice ' + (res.sales_code || ('#' + res.sales_id)) + ' saved.');
               $('#pay_modal').addClass('active');
             } else {
               window.location.href = res.redirect;

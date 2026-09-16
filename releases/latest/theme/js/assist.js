@@ -406,7 +406,7 @@
       var container = document.getElementById('mp-assist-messages');
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
-      div.innerHTML = '<div class="mp-msg-bubble">'+this._escapeHtml(text)+'</div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
+      div.innerHTML = '<div class="mp-msg-bubble">'+this._safeHtml(text)+'</div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
       container.appendChild(div);
       this._scrollToBottom();
       this._saveHistory();
@@ -416,7 +416,7 @@
       var container = document.getElementById('mp-assist-messages');
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
-      div.innerHTML = '<div class="mp-msg-bubble"><div>'+this._escapeHtml(text)+'</div>'+html+'</div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
+      div.innerHTML = '<div class="mp-msg-bubble"><div>'+this._safeHtml(text)+'</div>'+html+'</div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
       container.appendChild(div);
       this._scrollToBottom();
       this._saveHistory();
@@ -426,7 +426,7 @@
       var container = document.getElementById('mp-assist-messages');
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
-      var html = '<div class="mp-msg-bubble"><div>'+this._escapeHtml(text)+'</div><div class="mp-choice-list">';
+      var html = '<div class="mp-msg-bubble"><div>'+this._safeHtml(text)+'</div><div class="mp-choice-list">';
       for(var i = 0; i < options.length; i++){
         html += '<button class="mp-choice-btn" onclick="MPAssist.resolveChoice(\''+this._escapeJs(options[i].value)+'\', \''+this._escapeJs(options[i].value)+'\')">'+this._escapeHtml(options[i].label)+'</button>';
       }
@@ -441,7 +441,7 @@
       var container = document.getElementById('mp-assist-messages');
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
-      var inner = '<div class="mp-msg-bubble"><div>'+this._escapeHtml(text)+'</div>'+html;
+      var inner = '<div class="mp-msg-bubble"><div>'+this._safeHtml(text)+'</div>'+html;
       inner += '<div class="mp-draft-actions">';
       inner += '<button class="mp-btn-confirm" onclick="MPAssist.confirmDraft()">Confirm</button>';
       inner += '<button class="mp-btn-cancel" onclick="MPAssist.cancelDraft()">Cancel</button>';
@@ -457,7 +457,7 @@
       var container = document.getElementById('mp-assist-messages');
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
-      var html = '<div class="mp-msg-bubble"><div>'+text+'</div><div class="mp-task-label">Quick Tasks</div><div class="mp-quick-actions">';
+      var html = '<div class="mp-msg-bubble"><div>'+this._safeHtml(text)+'</div><div class="mp-task-label">Quick Tasks</div><div class="mp-quick-actions">';
       for(var i = 0; i < quickTasks.length; i++){
         var icon = quickTasks[i].icon ? '<i class="fa '+this._escapeHtml(quickTasks[i].icon)+'"></i> ' : '';
         html += '<button class="mp-quick-btn" onclick="MPAssist.quickAction(\''+this._escapeJs(quickTasks[i].action)+'\')">'+icon+this._escapeHtml(quickTasks[i].label)+'</button>';
@@ -474,7 +474,7 @@
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
       var inner = '<div class="mp-msg-bubble">';
-      inner += '<div>'+(res.text || '')+'</div>';
+      inner += '<div>'+this._safeHtml(res.text || '')+'</div>';
       if(res.html){
         inner += res.html;
       }
@@ -496,7 +496,7 @@
       var container = document.getElementById('mp-assist-messages');
       var div = document.createElement('div');
       div.className = 'mp-msg mp-msg-bot';
-      var html = '<div class="mp-msg-bubble"><div class="mp-follow-up-text">' + this._escapeHtml(text) + '</div>';
+      var html = '<div class="mp-msg-bubble"><div class="mp-follow-up-text">' + this._safeHtml(text) + '</div>';
       if(tasks && tasks.length){
         html += '<div class="mp-quick-actions mp-follow-up-actions">';
         for(var i = 0; i < tasks.length; i++){
@@ -584,6 +584,63 @@
       var div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    },
+
+    // Server-generated bot text may contain safe formatting markup
+    // (<strong>, <br>, <span style>, tables). Sanitize so it renders as
+    // formatted output instead of leaking raw tags — while stripping
+    // scripts, event handlers and unsafe attributes.
+    _safeHtml: function(html){
+      if(!html) return '';
+      var allowedTags = {
+        A:1, BR:1, P:1, DIV:1, SPAN:1, STRONG:1, B:1, EM:1, I:1, U:1, S:1,
+        SMALL:1, CODE:1, PRE:1, UL:1, OL:1, LI:1, HR:1, BLOCKQUOTE:1,
+        TABLE:1, THEAD:1, TBODY:1, TR:1, TH:1, TD:1,
+        H1:1, H2:1, H3:1, H4:1, H5:1, H6:1
+      };
+      var dropTags = {
+        SCRIPT:1, STYLE:1, IFRAME:1, OBJECT:1, EMBED:1, SVG:1, MATH:1,
+        FORM:1, INPUT:1, TEXTAREA:1, SELECT:1, BUTTON:1, LINK:1, META:1, BASE:1
+      };
+      try {
+        var doc = new DOMParser().parseFromString(String(html), 'text/html');
+        var walk = function(node){
+          var children = Array.prototype.slice.call(node.childNodes);
+          for(var i = 0; i < children.length; i++){
+            var el = children[i];
+            if(el.nodeType === 8){ node.removeChild(el); continue; }
+            if(el.nodeType !== 1) continue;
+            var tag = el.tagName;
+            if(dropTags[tag]){ node.removeChild(el); continue; }
+            if(!allowedTags[tag]){
+              // Unwrap: keep the element's sanitized children
+              var parent = el.parentNode;
+              walk(el);
+              while(el.firstChild){ parent.insertBefore(el.firstChild, el); }
+              parent.removeChild(el);
+              continue;
+            }
+            for(var j = el.attributes.length - 1; j >= 0; j--){
+              var attr = el.attributes[j].name.toLowerCase();
+              var keep = (attr === 'style' || attr === 'class' || attr === 'title' || attr === 'colspan' || attr === 'rowspan');
+              if(tag === 'A' && (attr === 'href' || attr === 'target')) keep = true;
+              if(!keep){ el.removeAttribute(el.attributes[j].name); continue; }
+              if(attr === 'href' && !/^\s*(https?:|mailto:|\/|#)/i.test(el.getAttribute('href') || '')){
+                el.removeAttribute('href');
+              }
+            }
+            if(tag === 'A' && el.getAttribute('target')){
+              el.setAttribute('target', '_blank');
+              el.setAttribute('rel', 'noopener');
+            }
+            walk(el);
+          }
+        };
+        walk(doc.body);
+        return doc.body.innerHTML;
+      } catch(e) {
+        return this._escapeHtml(html);
+      }
     },
 
     _escapeJs: function(text){

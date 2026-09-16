@@ -2028,8 +2028,15 @@ class Mobile extends MY_Controller {
 
 			$msg = $plan_id ? 'Sale and PayPlan saved.' : 'Sale saved.';
 			$whatsapp = ($sales_id) ? get_whatsapp_share_url('sales', $sales_id) : array('url' => '');
+			// Return the real invoice code (prefix + number) so the mobile UI
+			// can show the same invoice number as desktop, not the raw DB id.
+			$invoice_code = '';
+			if($sales_id){
+				$sc = $this->db->select('sales_code')->where('id', $sales_id)->get('db_sales')->row();
+				if($sc){ $invoice_code = $sc->sales_code; }
+			}
 			ob_end_clean();
-			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]); exit;
+			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'sales_code' => $invoice_code, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]); exit;
 		} else {
 			ob_end_clean();
 			echo json_encode(['status' => 'error', 'message' => (string) $result]); exit;

@@ -28,8 +28,29 @@
   }
 
   @media (max-width: 768px) {
-    .mp-assist-panel { width: 100vw !important; right: -100vw !important; height: 75vh !important; max-height: none !important; bottom: 0 !important; }
-    .mp-assist-panel.open { right: 0 !important; bottom: 0 !important; border-radius: 0 !important; }
+    /* Smart floating chat card — inset from the screen edges, rounded,
+       and kept above the mobile bottom nav instead of a giant sheet. */
+    .mp-assist-panel {
+      width: auto !important;
+      left: 12px !important; right: 12px !important;
+      bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+      height: min(60vh, 480px) !important;
+      min-height: 300px !important;
+      max-height: calc(100vh - 140px) !important;
+      border-radius: 18px !important;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.28) !important;
+      transform: translateY(calc(100% + 140px)) !important;
+      visibility: hidden !important;
+      transition: transform 0.3s cubic-bezier(.32,.72,.35,1), visibility 0s linear 0.3s !important;
+    }
+    .mp-assist-panel.open {
+      right: 12px !important;
+      bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+      border-radius: 18px !important;
+      transform: translateY(0) !important;
+      visibility: visible !important;
+      transition: transform 0.3s cubic-bezier(.32,.72,.35,1) !important;
+    }
     .mp-fab-wrapper { right: 14px !important; left: auto !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-end !important; }
     .mp-fab-menu { align-items: flex-end !important; }
     .mp-assist-fab-label { display: none !important; }

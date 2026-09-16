@@ -54,6 +54,7 @@ class Updates_model extends CI_Model {
 			'4.0.9.10' => '4.0.6_b2b_customer_warehouse.sql',
 			'4.0.9.11' => '4.0.9.11_leads_crm.sql',
 			'4.0.9.12' => '4.0.9.12_industry_modules.sql',
+			'4.0.9.13' => '4.0.9.13_storefront_columns.sql',
 		];
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $file){

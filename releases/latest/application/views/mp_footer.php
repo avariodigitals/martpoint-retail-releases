@@ -52,7 +52,7 @@ if(typeof jQuery !== 'undefined'){
 <!-- MartPoint Assist — always loaded on every desktop page (CSS is in mp_header) -->
 <?php if(!defined('MP_ASSIST_LOADED')): ?>
 <?php define('MP_ASSIST_LOADED', true); ?>
-<script src="<?php echo $theme_link; ?>js/assist.js?v=14"></script>
+<script src="<?php echo $theme_link; ?>js/assist.js?v=15"></script>
 <?php $this->load->view('assist/panel'); ?>
 <?php endif; ?>
 

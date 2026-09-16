@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
-<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=14">
+<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=15">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

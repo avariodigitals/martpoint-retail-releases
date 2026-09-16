@@ -308,11 +308,11 @@ $(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" )
   if(document.querySelector('link[href*="assist.css"]')) return;
   var l = document.createElement('link');
   l.rel = 'stylesheet';
-  l.href = '<?php echo $theme_link; ?>css/assist.css?v=13';
+  l.href = '<?php echo $theme_link; ?>css/assist.css?v=15';
   document.head.appendChild(l);
 })();
 </script>
-<script src="<?php echo $theme_link; ?>js/assist.js?v=13"></script>
+<script src="<?php echo $theme_link; ?>js/assist.js?v=15"></script>
 <?php $this->load->view('assist/panel'); ?>
 <?php endif; ?>
 
