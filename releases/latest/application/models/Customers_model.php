@@ -219,7 +219,7 @@ class Customers_model extends CI_Model {
 	    /*Attchment Upload*/
 	    	$config['file_name'] 			= time();
 			$config['upload_path']          = './uploads/customers/attachments/';
-	       	$config['allowed_types']        = 'gif|jpg|png|pdf|doc|xlsx|docx|txt';
+	       	$config['allowed_types']        = 'gif|jpg|png|webp|pdf|doc|xlsx|docx|txt';
 	       	$config['max_size']             = 2048;
 	       	$this->load->library('upload', $config);
 
@@ -400,7 +400,7 @@ class Customers_model extends CI_Model {
 			    /*Upload Attchements*/
 				$config['file_name'] 			= time();
 				$config['upload_path']          = './uploads/customers/attachments/';
-		       	$config['allowed_types']        = 'gif|jpg|png|pdf|doc|xlsx|docx|txt';
+		       	$config['allowed_types']        = 'gif|jpg|png|webp|pdf|doc|xlsx|docx|txt';
 		       	$config['max_size']             = 2048;
 		       	$this->load->library('upload', $config);
 

@@ -38,7 +38,7 @@ class Site_model extends CI_Model {
 				@mkdir($site_upload_path, 0775, true);
 			}
 			$config['upload_path']          = $site_upload_path;
-	        $config['allowed_types']        = 'gif|jpg|png';
+	        $config['allowed_types']        = 'gif|jpg|png|webp';
 	        $config['max_size']             = 500;
 	        $config['max_width']            = 500;
 	        $config['max_height']           = 500;

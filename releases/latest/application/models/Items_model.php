@@ -169,7 +169,23 @@ class Items_model extends CI_Model {
     				'system_name' 				=> $data['SYSTEM_NAME']
 			    );
 	}
-	
+
+	// Columns that actually exist in db_items (cached per request).
+	// Industry-specific feature columns (butchery, digital, vehicle, ...) only
+	// exist after their migration runs; filtering keeps one industry's schema
+	// from breaking item saves for every other industry.
+	private $_db_items_columns = null;
+	private function _filter_item_columns(array $data){
+		if ($this->_db_items_columns === null) {
+			$this->_db_items_columns = array_flip($this->db->list_fields('db_items'));
+		}
+		$dropped = array_diff_key($data, $this->_db_items_columns);
+		if ($dropped) {
+			log_message('error', 'Items_model: skipped missing db_items columns: '.implode(',', array_keys($dropped)));
+		}
+		return array_intersect_key($data, $this->_db_items_columns);
+	}
+
 	//Save Record
 	public function save_record($modal_post=array()){
 		$item_code = $this->input->post('item_code', TRUE);
@@ -446,16 +462,7 @@ class Items_model extends CI_Model {
 								'workflow_template_key'		=> $workflow_template_key,
 								'attribute_types_json'		=> $attribute_types_json,
 			    				'item_code' 				=> $item_code,
-			    				
-								'is_carcass'				=> $is_carcass,
-								'carcass_template_id'		=> $carcass_template_id,
-								'portion_of_item_id'		=> $portion_of_item_id,
-								'storage_temp_min'			=> $storage_temp_min,
-								'storage_temp_max'			=> $storage_temp_max,
-								'thaw_time_hours'			=> $thaw_time_hours,
-								'use_within_hours_after_thaw'=> $use_within_hours_after_thaw,
-								'frozen_shelf_life_days'	=> $frozen_shelf_life_days,
-			    				
+
 			    			);
 			if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
@@ -466,14 +473,25 @@ class Items_model extends CI_Model {
 								$info['recipe_margin_pct'] = $recipe_margin_pct;
 								$info['item_production_mode'] = $item_production_mode;
 							}
+							// Only include butchery/frozen fields if that section was visible
+							if ($this->input->post('is_carcass') !== false) {
+								$info['is_carcass'] = $is_carcass;
+								$info['carcass_template_id'] = $carcass_template_id;
+								$info['portion_of_item_id'] = $portion_of_item_id;
+								$info['storage_temp_min'] = $storage_temp_min;
+								$info['storage_temp_max'] = $storage_temp_max;
+								$info['thaw_time_hours'] = $thaw_time_hours;
+								$info['use_within_hours_after_thaw'] = $use_within_hours_after_thaw;
+								$info['frozen_shelf_life_days'] = $frozen_shelf_life_days;
+							}
 							
 			if ( $command == 'save' ){
-				$query1 = $this->db->insert('db_items', array_merge($info,$initial));
+				$query1 = $this->db->insert('db_items', $this->_filter_item_columns(array_merge($info,$initial)));
 				$item_id = $this->db->insert_id();
 			}
 			else{
 				$item_id = $q_id;
-				$query1 = $this->db->where('id',$q_id)->update('db_items', array_merge($info,$initial));
+				$query1 = $this->db->where('id',$q_id)->update('db_items', $this->_filter_item_columns(array_merge($info,$initial)));
 			}
 			
 			if(!$query1){
@@ -624,15 +642,6 @@ class Items_model extends CI_Model {
 									'attribute_types_json'		=> $attribute_types_json,
 	    							'item_code' 				=> $item_code,
 	    							'child_bit' 				=> 0,
-								
-								'is_carcass'				=> $is_carcass,
-								'carcass_template_id'		=> $carcass_template_id,
-								'portion_of_item_id'		=> $portion_of_item_id,
-								'storage_temp_min'			=> $storage_temp_min,
-								'storage_temp_max'			=> $storage_temp_max,
-								'thaw_time_hours'			=> $thaw_time_hours,
-								'use_within_hours_after_thaw'=> $use_within_hours_after_thaw,
-								'frozen_shelf_life_days'	=> $frozen_shelf_life_days,
 	    						);
 			if(!empty($file_name)){
 				$parent_info['item_image'] = 'uploads/items/'.$file_name;
@@ -641,6 +650,18 @@ class Items_model extends CI_Model {
 			if ($this->input->post('recipe_id') !== false) {
 				$parent_info['recipe_id'] = $recipe_id;
 				$parent_info['recipe_margin_pct'] = $recipe_margin_pct;
+				$parent_info['item_production_mode'] = $item_production_mode;
+			}
+			// Only include butchery/frozen fields if that section was visible
+			if ($this->input->post('is_carcass') !== false) {
+				$parent_info['is_carcass'] = $is_carcass;
+				$parent_info['carcass_template_id'] = $carcass_template_id;
+				$parent_info['portion_of_item_id'] = $portion_of_item_id;
+				$parent_info['storage_temp_min'] = $storage_temp_min;
+				$parent_info['storage_temp_max'] = $storage_temp_max;
+				$parent_info['thaw_time_hours'] = $thaw_time_hours;
+				$parent_info['use_within_hours_after_thaw'] = $use_within_hours_after_thaw;
+				$parent_info['frozen_shelf_life_days'] = $frozen_shelf_life_days;
 			}
 
 			if ( $command == 'save' ) {
@@ -652,12 +673,12 @@ class Items_model extends CI_Model {
 	    								'publish_online'				=> 0,
 	    							);
 				$initial = array_merge($initial,$this->log_details());
-				$query1 = $this->db->insert('db_items', array_merge($parent_info,$initial));
+				$query1 = $this->db->insert('db_items', $this->_filter_item_columns(array_merge($parent_info,$initial)));
 				$item_id = $this->db->insert_id();
 			}
 			else{
 				$item_id = $q_id;
-				$query1 = $this->db->where('id',$q_id)->update('db_items', $parent_info);
+				$query1 = $this->db->where('id',$q_id)->update('db_items', $this->_filter_item_columns($parent_info));
 			}
 
 			if(!$query1){
@@ -793,7 +814,7 @@ class Items_model extends CI_Model {
 							/*echo "<pre>";
 							print_r($info);
 							exit;*/
-							$info = array_merge($info,$initial);
+							$info = $this->_filter_item_columns(array_merge($info,$initial));
 							$query1 = false; // Initialize per iteration
 							if ( $command == 'save'){
 								$query1 = $this->db->insert('db_items', $info);

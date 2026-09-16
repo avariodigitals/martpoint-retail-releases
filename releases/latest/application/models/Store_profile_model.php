@@ -96,7 +96,7 @@ class Store_profile_model extends CI_Model {
 		$store_logo='';
 		if(!empty($_FILES['store_logo']['name'])){
 			$config['upload_path']          = $store_upload_path;
-	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
+	        $config['allowed_types']        = 'gif|jpg|jpeg|png|webp';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
 	        $config['max_height']           = 1000;
@@ -142,7 +142,7 @@ class Store_profile_model extends CI_Model {
 				@mkdir($signature_upload_path, 0775, true);
 			}
 			$config['upload_path']          = $signature_upload_path;
-	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
+	        $config['allowed_types']        = 'gif|jpg|jpeg|png|webp';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
 	        $config['max_height']           = 1000;

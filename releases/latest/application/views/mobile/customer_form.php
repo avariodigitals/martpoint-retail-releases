@@ -297,7 +297,7 @@
             <?php if(!empty($attachment_1)): ?>
               <div class="help-text"><a href="<?= base_url($attachment_1); ?>" target="_blank">View current attachment</a></div>
             <?php endif; ?>
-            <input type="file" name="attachment_1" accept=".gif,.jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.txt">
+            <input type="file" name="attachment_1" accept=".gif,.jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xlsx,.txt">
           </div>
         </div>
 

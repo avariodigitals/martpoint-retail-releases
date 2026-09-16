@@ -79,9 +79,11 @@
 
             <!-- Messages: style can be found in dropdown.less-->
             <li class="hidden-xs" id="fullscreen"><a title="Fullscreen On/Off"><i class="fa fa-tv text-white" ></i> </a></li>
+            <?php if(empty($attendance_exempt)): ?>
             <li class="text-center" id="clockInBtnWrap">
               <a id="clockInBtn" title="Clock In" href="#"><i class="fa fa-clock-o text-yellow"></i><b class="hidden-xs"> Clock In</b></a>
             </li>
+            <?php endif; ?>
             <?php if(!empty($can_manage_shifts)): ?>
             <li class="text-center" id="shiftBtnWrap">
               <?php if(!empty($open_shift)): ?>

@@ -622,7 +622,7 @@ Thank you Visit Again",
 				@mkdir($store_upload_path, 0775, true);
 			}
 			$config['upload_path']          = $store_upload_path;
-	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
+	        $config['allowed_types']        = 'gif|jpg|jpeg|png|webp';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
 	        $config['max_height']           = 1000;
@@ -647,7 +647,7 @@ Thank you Visit Again",
 				@mkdir($signature_upload_path, 0775, true);
 			}
 			$config['upload_path']          = $signature_upload_path;
-	        $config['allowed_types']        = 'gif|jpg|jpeg|png';
+	        $config['allowed_types']        = 'gif|jpg|jpeg|png|webp';
 	        $config['max_size']             = 1000;
 	        $config['max_width']            = 1000;
 	        $config['max_height']           = 1000;

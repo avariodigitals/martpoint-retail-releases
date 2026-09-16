@@ -1257,10 +1257,12 @@
       <span id="themeIcon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
       <span id="themeLabel" style="color: var(--mp-text);">Dark</span>
     </button>
+    <?php if(empty($attendance_exempt)): ?>
     <button class="header-btn" id="clockBtn" onclick="toggleClock()">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span id="clockBtnText">Clock In</span>
       </button>
+    <?php endif; ?>
       <button class="header-btn primary" onclick="confirmResetCart()">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         New Invoice
@@ -1687,7 +1689,8 @@
     let couponPromotionId = 0;
     let couponEligibleItemIds = [];
     let loyaltyPoints = 850;
-    let clockedIn = <?= json_encode((bool)(!$needs_clock_in)) ?>;
+    const attendanceExempt = <?= json_encode(!empty($attendance_exempt)) ?>;
+    let clockedIn = attendanceExempt ? false : <?= json_encode((bool)(!$needs_clock_in)) ?>;
     let clockedAt = '<?= $clock_in_time ?>';
     let clockInTime = '<?= $clock_in_time ?>';
     let clockImage = null;
@@ -2105,6 +2108,7 @@
       const btn = document.getElementById('clockBtn');
       const text = document.getElementById('clockBtnText');
       const dot = document.getElementById('clockDot');
+      if (!btn || !text) return;
       if (dot) dot.remove();
       if (clockedIn && clockedAt) {
         btn.classList.add('success');
@@ -2485,7 +2489,7 @@
         discountRow.style.display = 'none';
       }
       document.getElementById('grandTotal').textContent = formatMoney(total);
-      const canPay = cart.length > 0 && clockedIn;
+      const canPay = cart.length > 0 && (clockedIn || attendanceExempt);
       document.getElementById('payBtn').disabled = !canPay;
       document.getElementById('payBtn').textContent = cart.length === 0 ? 'Pay' : `Pay ${formatMoney(total)}`;
       document.getElementById('splitBtn').disabled = !canPay;
@@ -2514,7 +2518,7 @@
       const redeemBtn = document.getElementById('redeemBtn');
       redeemBtn.disabled = !canRedeem;
       redeemBtn.textContent = 'Redeem';
-      document.getElementById('clockNotice').style.display = cart.length > 0 && !clockedIn ? 'flex' : 'none';
+      document.getElementById('clockNotice').style.display = cart.length > 0 && !clockedIn && !attendanceExempt ? 'flex' : 'none';
     }
 
     function splitPay() {

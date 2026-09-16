@@ -28,11 +28,12 @@ class Pos extends MY_Controller {
 
 		$data=$this->data;
 
-		// Check if cashier is clocked in
+		// Check if cashier is clocked in (Store Admin is exempt from attendance)
 		$data['needs_clock_in'] = false;
 		$data['clock_in_time'] = '';
+		$data['attendance_exempt'] = is_store_admin();
 		$roleName = trim($this->session->userdata('role_name') ?: '');
-		if(stripos($roleName, 'cashier') !== false){
+		if(!$data['attendance_exempt'] && stripos($roleName, 'cashier') !== false){
 			$this->load->model('attendance_model');
 			$userId = $this->session->userdata('inv_userid');
 			$data['needs_clock_in'] = !$this->attendance_model->needsClockOut($userId);

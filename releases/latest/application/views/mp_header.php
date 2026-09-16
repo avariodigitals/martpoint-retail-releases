@@ -554,7 +554,9 @@ body > .mp-support-modal{z-index:10000!important}
       <span class="mp-status-dot"></span>
       <span class="mp-status-text">Online</span>
     </div>
+    <?php if(!is_store_admin()): ?>
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
+    <?php endif; ?>
     <?php if($CI->permissions('pos') && !$is_creator): ?>
     <a class="mp-hbtn primary" href="<?= base_url('pos'); ?>"><i class="fa fa-plus-square"></i> POS</a>
     <?php endif; ?>

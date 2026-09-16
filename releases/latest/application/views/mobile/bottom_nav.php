@@ -174,10 +174,12 @@
 <?php $this->load->view('idle_lock'); ?>
 
 <template id="mpTopbarExtras">
+  <?php if(!is_store_admin()): ?>
   <a href="<?= base_url('mobile/clock'); ?>" class="clock-btn <?= $needs_clock_out ? 'out' : ''; ?>">
     <i class="fa <?= $needs_clock_out ? 'fa-sign-out' : 'fa-sign-in'; ?>"></i>
     <?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?>
   </a>
+  <?php endif; ?>
   <div class="mp-avatar-wrap">
     <button type="button" class="avatar mp-avatar-trigger" aria-haspopup="true" aria-label="Open account menu" style="color:var(--mp-primary);">
       <?php if(!empty($profile_picture)): ?>

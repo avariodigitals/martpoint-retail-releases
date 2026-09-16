@@ -90,7 +90,7 @@ $symbol = trim(preg_replace('/[\d.,\s]/', '', $currency)) ?: '';
         <div class="cr-file-current"><i class="fa fa-check-circle"></i> <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars(basename($item->digital_file)); ?></span><a href="<?= base_url($item->digital_file); ?>" target="_blank" style="font-size:12px;font-weight:600;">Download</a></div>
         <?php endif; ?>
         <label class="cr-upload">
-          <input type="file" name="digital_file" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.mp4,.m4v,.mov,.epub,.txt,.csv,.png,.jpg,.psd,.ai" onchange="crFileName(this,'dfName')" <?= empty($item->digital_file) ? 'required' : ''; ?>>
+          <input type="file" name="digital_file" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.mp4,.m4v,.mov,.epub,.txt,.csv,.png,.jpg,.webp,.psd,.ai" onchange="crFileName(this,'dfName')" <?= empty($item->digital_file) ? 'required' : ''; ?>>
           <div class="ico"><i class="fa fa-cloud-upload"></i></div>
           <strong id="dfName"><?= !empty($item->digital_file) ? 'Replace file' : 'Upload the file customers will receive'; ?></strong>
           <span>PDF, ZIP, audio, video, docs &middot; up to 200MB</span>

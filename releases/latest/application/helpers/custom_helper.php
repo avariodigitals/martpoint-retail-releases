@@ -510,124 +510,110 @@
   function get_init_code($value,$store_id='',$only_code_flag=false){
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
 
-    $CI =& get_instance();
-    if($value=='category')
-      $CI->db->select("category_init");
-    if($value=='item')
-      $CI->db->select("item_init");
-    if($value=='supplier')
-      $CI->db->select("supplier_init");
-    if($value=='purchase')
-      $CI->db->select("purchase_init");
-    if($value=='purchase_return')
-      $CI->db->select("purchase_return_init");
-    if($value=='customer')
-      $CI->db->select("customer_init");
-    if($value=='sales')
-      $CI->db->select("sales_init");
-    if($value=='sales_return')
-      $CI->db->select("sales_return_init");
-    if($value=='expense')
-      $CI->db->select("expense_init");
-    if($value=='accounts')
-      $CI->db->select("accounts_init");
-    /*if($value=='journal')
-      $CI->db->select("journal_init");*/
-    if($value=='quotation')
-      $CI->db->select("quotation_init");
-    if($value=='money_transfer')
-      $CI->db->select("money_transfer_init");
-    if($value=='sales_payment')
-      $CI->db->select("sales_payment_init");
-    if($value=='sales_return_payment')
-      $CI->db->select("sales_return_payment_init");
-    if($value=='purchase_payment')
-      $CI->db->select("purchase_payment_init");
-    if($value=='purchase_return_payment')
-      $CI->db->select("purchase_return_payment_init");
-     if($value=='expense_payment')
-      $CI->db->select("expense_payment_init");
-    if($value=='custadvance')
-      $CI->db->select("cust_advance_init");
-
-    $query = $CI->db->where('id',$store_id)->get('db_store')->row();
+    // Init-code prefixes live in db_store_inventory_settings after the
+    // db_store modularization; mp_get_store_inventory_setting falls back
+    // to the legacy db_store column when the modular row is absent.
+    $init_map = array(
+      'category'                => 'category_init',
+      'item'                    => 'item_init',
+      'supplier'                => 'supplier_init',
+      'purchase'                => 'purchase_init',
+      'purchase_return'         => 'purchase_return_init',
+      'customer'                => 'customer_init',
+      'sales'                   => 'sales_init',
+      'sales_return'            => 'sales_return_init',
+      'expense'                 => 'expense_init',
+      'accounts'                => 'accounts_init',
+      'quotation'               => 'quotation_init',
+      'money_transfer'          => 'money_transfer_init',
+      'sales_payment'           => 'sales_payment_init',
+      'sales_return_payment'    => 'sales_return_payment_init',
+      'purchase_payment'        => 'purchase_payment_init',
+      'purchase_return_payment' => 'purchase_return_payment_init',
+      'expense_payment'         => 'expense_payment_init',
+      'custadvance'             => 'cust_advance_init',
+    );
+    if(!isset($init_map[$value])){
+      return '';
+    }
+    $init = mp_get_store_inventory_setting($store_id, $init_map[$value], '');
     if($value=='category'){
       $maxid=get_count_id('db_category');
-      return $query->category_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
 
     if($value=='item'){
       $maxid=get_count_id('db_items');
-      return $query->item_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='supplier'){
       $maxid=get_count_id('db_suppliers');
-      return $query->supplier_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='purchase'){
       $maxid=get_count_id('db_purchase');
-      return $query->purchase_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='purchase_return'){
       $maxid=get_count_id('db_purchasereturn');
-      return $query->purchase_return_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='customer'){
       $maxid=get_count_id('db_customers');
-      return $query->customer_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='sales'){
       $maxid=get_count_id('db_sales');
-      return ($only_code_flag) ? $query->sales_init : $query->sales_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return ($only_code_flag) ? $init : $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='sales_return'){
       $maxid=get_count_id('db_salesreturn');
-      return $query->sales_return_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='expense'){
       $maxid=get_count_id('db_expense');
-      return $query->expense_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='accounts'){
       $maxid=get_count_id('ac_accounts');
-      return $query->accounts_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
    /* if($value=='journal'){
       $maxid=get_count_id('ac_journal');
-      //return $query->accounts_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      //return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
       return str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }*/
     if($value=='quotation'){
       $maxid=get_count_id('db_quotation');
-      return $query->quotation_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='money_transfer'){
       $maxid=get_count_id('ac_moneytransfer');
-      return $query->money_transfer_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='sales_payment'){
       $maxid=get_count_id('db_salespayments');
-      return $query->sales_payment_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='sales_return_payment'){
       $maxid=get_count_id('db_salespaymentsreturn');
-      return $query->sales_return_payment_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='purchase_payment'){
       $maxid=get_count_id('db_purchasepayments');
-      return $query->purchase_payment_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='purchase_return_payment'){
       $maxid=get_count_id('db_purchasepaymentsreturn');
-      return $query->purchase_return_payment_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='expense_payment'){
       $maxid=get_count_id('db_expense');
-      return $query->expense_payment_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='custadvance'){
       $maxid=get_count_id('db_custadvance');
-      return $query->cust_advance_init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
   }
   function get_store_name($id=''){
@@ -1887,7 +1873,7 @@
 
     $CI->db->where("upper(sales_code)",strtoupper($sale_code));
 
-    $CI->db->where('store_id',get_current_user_id());
+    $CI->db->where('store_id',get_current_store_id());
     
     $CI->db->from('db_sales');
 

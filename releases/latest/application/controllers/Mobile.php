@@ -1286,6 +1286,10 @@ class Mobile extends MY_Controller {
 
 	public function clock()
 	{
+		if(is_store_admin()){
+			$this->session->set_flashdata('failed', 'Store Admin is exempt from attendance.');
+			redirect('mobile');
+		}
 		$userId = (int)$this->session->userdata('inv_userid');
 		$storeId = get_current_store_id();
 		$date = date('Y-m-d');
@@ -2071,7 +2075,7 @@ class Mobile extends MY_Controller {
 		}
 		$config = [
 			'upload_path' => $upload_dir,
-			'allowed_types' => 'jpg|jpeg|png|gif',
+			'allowed_types' => 'jpg|jpeg|png|gif|webp',
 			'encrypt_name' => TRUE,
 		];
 		$this->load->library('upload', $config);
@@ -2083,7 +2087,7 @@ class Mobile extends MY_Controller {
 		}
 		$upload = $this->upload->data();
 		$ext = strtolower($upload['file_ext'] ?: '.' . pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
-		if(!in_array($ext, ['.jpg', '.jpeg', '.png', '.gif'])){
+		if(!in_array($ext, ['.jpg', '.jpeg', '.png', '.gif', '.webp'])){
 			$ext = '.jpg';
 		}
 		$new_name = 'avatar' . $ext;
@@ -4876,6 +4880,7 @@ class Mobile extends MY_Controller {
 
 	private function is_cashier_clocked_in()
 	{
+		if(is_store_admin()) return true;
 		$roleName = trim($this->session->userdata('role_name') ?: '');
 		if(stripos($roleName, 'cashier') === false) return true;
 		$this->load->model('attendance_model');

@@ -353,6 +353,7 @@ class Attendance extends MY_Controller {
 		$needsClockOut = $this->attendance_model->needsClockOut($userId, $date);
 		echo json_encode([
 			'clocked_in' => $needsClockOut,
+			'attendance_exempt' => is_store_admin(),
 			'clock_in_time' => $record ? $record->clock_in : null,
 			'on_duty' => $shift ? true : false,
 			'shift_name' => $shift ? $shift->shift_name : null

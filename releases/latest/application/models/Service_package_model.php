@@ -102,7 +102,7 @@ class Service_package_model extends CI_Model {
             $new_name = time();
             $config['file_name'] = $new_name;
             $config['upload_path'] = './uploads/packages/';
-            $config['allowed_types'] = 'jpg|png|jpeg';
+            $config['allowed_types'] = 'jpg|png|jpeg|webp';
             $config['max_size'] = 1024;
             $config['max_width'] = 1500;
             $config['max_height'] = 1500;

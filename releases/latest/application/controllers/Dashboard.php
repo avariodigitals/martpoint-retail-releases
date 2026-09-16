@@ -98,9 +98,9 @@ class Dashboard extends MY_Controller {
 		$data['range_info']      = $range_info;
 		$data['page_title']=$this->lang->line('dashboard');
 
-		// Clock-in status for dashboard (all non-admin staff)
+		// Clock-in status for dashboard (all non-admin staff; Store Admin is exempt)
 		$data['needs_clock_in'] = false;
-		if(!is_admin()){
+		if(!is_admin() && !is_store_admin()){
 			$this->load->model('attendance_model');
 			$data['needs_clock_in'] = !$this->attendance_model->needsClockOut($this->session->userdata('inv_userid'));
 		}

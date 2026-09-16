@@ -36,7 +36,7 @@ class Users_model extends CI_Model {
 		$profile_picture='';
 		if(!empty($_FILES['profile_picture']['name'])){
 			$config['upload_path']          = './uploads/users/';
-	        $config['allowed_types']        = 'gif|jpg|png';
+	        $config['allowed_types']        = 'gif|jpg|png|webp';
 	        $config['max_size']             = 500;
 	        $config['max_width']            = 500;
 	        $config['max_height']           = 500;
@@ -179,7 +179,7 @@ class Users_model extends CI_Model {
 		if(!empty($_FILES['profile_picture']['name'])){
 			
 			$config['upload_path']          = './uploads/users/';
-	        $config['allowed_types']        = 'gif|jpg|png';
+	        $config['allowed_types']        = 'gif|jpg|png|webp';
 	        $config['max_size']             = 500;
 	        $config['max_width']            = 500;
 	        $config['max_height']           = 500;

@@ -120,7 +120,7 @@
             </ul>
           </li>
           
-          <?php if(true) { ?>
+          <?php if(!is_store_admin()) { ?>
           <li class="text-center" id="appClockInWrap">
             <a id="appClockInBtn" title="Clock In" href="#" onclick="if(typeof jQuery!=='undefined'&&typeof jQuery.fn!=='undefined'&&typeof jQuery.fn.modal!=='undefined'){jQuery('#appClockInModal').modal('show');}else{alert('Page loading... please wait.');}return false;"><i class="fa fa-clock-o" ></i> <span class="clock-label hidden-xs">Clock In</span></a>
           </li>
