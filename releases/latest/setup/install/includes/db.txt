@@ -2737,9 +2737,6 @@ CREATE TABLE `db_stocktransfer` (
 -- Dumping data for table `db_stocktransfer`
 --
 
-INSERT INTO `db_stocktransfer` (`id`, `store_id`, `to_store_id`, `warehouse_from`, `warehouse_to`, `transfer_date`, `note`, `created_by`, `created_date`, `created_time`, `system_ip`, `system_name`, `status`) VALUES
-(1, 2, NULL, 2, 86, '2022-08-09', '', 'Chris', '2022-08-09', '02:02:41 pm', '37.28.46.147', 'dynamic.isp.ooredoo.om', 1);
-
 -- --------------------------------------------------------
 
 --
@@ -2759,12 +2756,6 @@ CREATE TABLE `db_stocktransferitems` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `db_stocktransferitems`
---
-
-INSERT INTO `db_stocktransferitems` (`id`, `stocktransfer_id`, `store_id`, `to_store_id`, `warehouse_from`, `warehouse_to`, `item_id`, `transfer_qty`, `status`) VALUES
-(89, 1, 2, NULL, 2, 86, 2, 25.00, 1);
-
 -- --------------------------------------------------------
 
 --
@@ -3656,8 +3647,7 @@ CREATE TABLE `db_users` (
 
 INSERT INTO `db_users` (`id`, `store_id`, `username`, `first_name`, `last_name`, `password`, `member_of`, `firstname`, `lastname`, `mobile`, `email`, `photo`, `gender`, `dob`, `country`, `state`, `city`, `address`, `postcode`, `role_name`, `role_id`, `profile_picture`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`, `status`, `creater_id`, `updater_id`, `updated_at`) VALUES
 (1, 1, 'master', 'MartPoint', 'Admin', 0x3262616236663435633063653165376335333035363230356464636635316339, '', NULL, NULL, '', 'mng@martpoint.com.ng', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'uploads/users/admin.png', '2019-01-01', '::1', NULL, NULL, NULL, 1, NULL, NULL, NULL),
-(2, 2, 'storeadm', 'Store', 'Admin', 0x3265373631646439323962623739383330393464363963373936366563326164, NULL, NULL, NULL, '9999999999', 'adminmng@martpoint.com.ng', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 2, 'uploads/users/avatar1.png', '2025-01-01', '05:53:37 pm', '', '127.0.0.1', 'LAPTOP-I5OUIM4R', 1, NULL, NULL, NULL),
-(101, 2, 'Salman', NULL, 'Khan', 0x6531306164633339343962613539616262653536653035376632306638383365, NULL, NULL, NULL, '', 'salman@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 31, NULL, '2022-08-09', '02:05:40 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', 1, NULL, NULL, NULL);
+(2, 2, 'storeadm', 'Store', 'Admin', 0x3265373631646439323962623739383330393464363963373936366563326164, NULL, NULL, NULL, '9999999999', 'adminmng@martpoint.com.ng', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 2, 'uploads/users/avatar1.png', '2025-01-01', '05:53:37 pm', '', '127.0.0.1', 'LAPTOP-I5OUIM4R', 1, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -3678,8 +3668,7 @@ CREATE TABLE `db_userswarehouses` (
 
 INSERT INTO `db_userswarehouses` (`id`, `user_id`, `warehouse_id`) VALUES
 (1, 1, 1),
-(2, 2, 2),
-(76, 101, 86);
+(2, 2, 2);
 
 -- --------------------------------------------------------
 
@@ -3742,8 +3731,7 @@ CREATE TABLE `db_warehouse` (
 
 INSERT INTO `db_warehouse` (`id`, `store_id`, `warehouse_type`, `warehouse_name`, `branch_type`, `is_distribution_center`, `mobile`, `email`, `status`) VALUES
 (1, 1, 'System', 'Warehouse-A', 'branch', 0, '', 'warehouse_a@example.com', 1),
-(2, 2, 'System', 'System Warehouse', 'branch', 0, '', '', 1),
-(86, 2, 'Custom', 'Al Amerat Store', 'branch', 0, '', '', 1);
+(2, 2, 'System', 'System Warehouse', 'branch', 0, '', '', 1);
 
 -- --------------------------------------------------------
 
@@ -3766,7 +3754,6 @@ CREATE TABLE `db_warehouseitems` (
 INSERT INTO `db_warehouseitems` (`id`, `store_id`, `warehouse_id`, `item_id`, `available_qty`) VALUES
 (4226, 2, 2, 2, 95.00),
 (4227, 2, 2, 3, 67.00),
-(4228, 2, 86, 2, 25.00),
 (4229, 2, 2, 1, 41.00);
 
 -- --------------------------------------------------------
@@ -4677,13 +4664,13 @@ ALTER TABLE `db_stockentry`
 -- AUTO_INCREMENT for table `db_stocktransfer`
 --
 ALTER TABLE `db_stocktransfer`
-  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 --
 -- AUTO_INCREMENT for table `db_stocktransferitems`
 --
 ALTER TABLE `db_stocktransferitems`
-  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=90;
+  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 --
 -- AUTO_INCREMENT for table `db_store`
@@ -4749,13 +4736,13 @@ ALTER TABLE `db_units`
 -- AUTO_INCREMENT for table `db_users`
 --
 ALTER TABLE `db_users`
-  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=102;
+  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `db_userswarehouses`
 --
 ALTER TABLE `db_userswarehouses`
-  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
+  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `db_variants`
@@ -4767,7 +4754,7 @@ ALTER TABLE `db_variants`
 -- AUTO_INCREMENT for table `db_warehouse`
 --
 ALTER TABLE `db_warehouse`
-  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=87;
+  MODIFY `id` int(5) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `db_warehouseitems`
