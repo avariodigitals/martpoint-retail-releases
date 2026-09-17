@@ -2508,7 +2508,7 @@ CREATE TABLE `db_sitesettings` (
 --
 
 INSERT INTO `db_sitesettings` (`id`, `version`, `site_name`, `logo`, `machine_id`, `domain`, `unique_code`, `update_channel_url`, `sales_target`) VALUES
-(1, '4.0.9.17', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
+(1, '4.0.9.18', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
 
 -- --------------------------------------------------------
 

@@ -65,6 +65,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .fl-btn-wa { background:#25D366; color:#fff; }
   .fl-btn-wa:hover { background:#1DA851; }
   .fl-pd-actions .fl-btn { flex:1; min-width:180px; }
+  @media(max-width:767px){ .fl-pd-actions { flex-direction:column; } .fl-pd-actions .fl-btn { min-width:0; width:100%; box-sizing:border-box; } }
 
   .fl-pd-variants { margin-top:44px; }
   .fl-pd-related { margin-top:52px; }

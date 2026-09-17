@@ -38,6 +38,7 @@ $cur = $store_currency ?? null;
 
   .fl-filters { display:flex; gap:12px; align-items:center; margin-bottom:36px; flex-wrap:wrap; }
   .fl-search-bar { flex:1; max-width:420px; position:relative; }
+  @media(max-width:767px){ .fl-search-bar { max-width:none; flex:1 1 100%; } .fl-filters { gap:10px; } .fl-filter-chip { padding:9px 16px; font-size:12px; } }
   .fl-search-bar input { width:100%; padding:12px 14px 12px 42px; border:1px solid var(--fl-soft); border-radius:4px; font-family:'Lora',serif; font-size:14px; background:var(--fl-ivory); outline:none; transition:border-color .2s; color:var(--fl-ink); }
   .fl-search-bar input:focus { border-color:var(--fl-gold); background:#fff; }
   .fl-search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#8B6D4B; }

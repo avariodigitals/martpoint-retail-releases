@@ -131,8 +131,9 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
 
   /* Trust badges / values */
   .fl-values { background:var(--fl-soft); padding:48px 0; }
-  .fl-values-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
-  @media(max-width:767px){ .fl-values-grid { grid-template-columns:1fr; } }
+  .fl-values-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
+  @media(max-width:1023px){ .fl-values-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:767px){ .fl-values-grid { grid-template-columns:repeat(2,1fr); gap:20px; } }
   .fl-value { text-align:center; padding:16px; }
   .fl-value-icon { width:56px; height:56px; border-radius:50%; background:rgba(201,169,97,0.12); display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 16px; color:var(--fl-gold); }
   .fl-value-title { font-family:'Playfair Display',serif; font-style:italic; font-size:16px; font-weight:700; color:var(--fl-ink); margin-bottom:8px; }
@@ -298,7 +299,7 @@ foreach($orderedSections as $sectionKey => $section):
 <div class="fl-values">
   <div class="fl-container">
     <div class="fl-values-grid">
-      <?php foreach(array_slice($flBadges, 0, 3) as $b): ?>
+      <?php foreach(array_slice($flBadges, 0, 4) as $b): ?>
       <div class="fl-value">
         <div class="fl-value-icon"><?= !empty($b['icon']) ? $b['icon'] : '&#10024;'; ?></div>
         <div class="fl-value-title"><?= htmlspecialchars($b['title'] ?? ''); ?></div>
@@ -839,6 +840,40 @@ endforeach;
   .flh-logo-text { font-size:30px; }
   .flh-nav-link:hover { color:var(--fl-gold); }
   .flh-icon-btn:hover { color:var(--fl-gold); background:var(--fl-soft); }
+
+  /* Mobile overrides — must come after the desktop overrides above */
+  @media(max-width:1023px){
+    .fl-cat-grid { grid-template-columns:repeat(3,1fr); gap:14px; }
+  }
+  @media(max-width:767px){
+    .fl-hero { min-height:78vh; }
+    .fl-hero-content { padding:72px 16px 84px; }
+    .fl-hero-title { font-size:clamp(32px,9vw,44px); }
+    .fl-hero-lead { font-size:15px; }
+    .fl-hero-actions { width:100%; flex-direction:column; align-items:stretch; }
+    .fl-hero-actions .fl-btn { width:100%; box-sizing:border-box; }
+    .fl-section { padding:52px 0; }
+    .fl-section-title { font-size:28px; }
+    .fl-section-head { flex-direction:column; align-items:flex-start; gap:8px; }
+    .fl-cat-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+    .fl-product-body { padding:14px; }
+    .fl-product-name { font-size:13px; min-height:36px; margin-bottom:8px; }
+    .fl-product-price { font-size:16px; }
+    .fl-values-grid { grid-template-columns:repeat(2,1fr); gap:20px; }
+    .fl-newsletter { padding:36px 18px; }
+    .fl-newsletter-form { flex-direction:column; }
+    .fl-newsletter-form button { width:100%; }
+    .fl-hours-row { font-size:13px; }
+    .fl-testimonial { padding:20px; }
+    .fl-contact-card { padding:20px; }
+    .wa-order-modal-card { width:calc(100vw - 24px); }
+    .wa-order-modal-actions { flex-direction:column; }
+    .wa-order-modal-send, .wa-order-modal-cancel { width:100%; box-sizing:border-box; }
+  }
+  @media(max-width:380px){
+    .fl-cat-grid { grid-template-columns:1fr; }
+    .fl-values-grid { grid-template-columns:1fr; }
+  }
 </style>
 
 <div class="wa-order-modal" id="wa-order-modal">
