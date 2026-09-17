@@ -147,6 +147,11 @@
             <label class="form-label">Announcement Bar</label>
             <input type="text" name="announcement_bar" class="form-control" value="<?= htmlspecialchars($settings->announcement_bar ?? ''); ?>" placeholder="Free delivery on orders over N10,000">
           </div>
+          <div class="form-group">
+            <label class="form-label">Announcement Marquee (Urban Editorial)</label>
+            <textarea name="marquee_items" class="form-control" rows="4" placeholder="Free Shipping Over N15,000&#10;New Season Drop&#10;Authentic Guaranteed"><?= htmlspecialchars($settings->marquee_items ?? ''); ?></textarea>
+            <small style="color:#999;font-size:11px;">One item per line — used by themes with a scrolling ticker.</small>
+          </div>
           <div class="form-group color-row">
             <div><label class="form-label">Bar Color</label><input type="color" name="announcement_bar_color" value="<?= htmlspecialchars($settings->announcement_bar_color ?? '#0F172A'); ?>"></div>
           </div>

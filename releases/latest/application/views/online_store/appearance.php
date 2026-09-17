@@ -114,6 +114,7 @@
         <div class="mp-form-group full"><label for="footer_about_us">About Us (Footer)</label><textarea class="mp-form-control" id="footer_about_us" name="footer_about_us" rows="3" placeholder="Short about us text shown under the brand in footer"><?= htmlspecialchars($settings->footer_about_us ?? ''); ?></textarea></div>
         <div class="mp-form-group"><label for="announcement_bar">Announcement Bar</label><input type="text" class="mp-form-control" id="announcement_bar" name="announcement_bar" value="<?= htmlspecialchars($settings->announcement_bar ?? ''); ?>" placeholder="Free delivery on orders over N10,000"></div>
         <div class="mp-form-group"><label>Bar Colour</label><div class="os-color-row"><input type="color" class="os-color-input" id="announcement_bar_color" name="announcement_bar_color" value="<?= htmlspecialchars($settings->announcement_bar_color ?? '#0F172A'); ?>"></div></div>
+        <div class="mp-form-group full"><label for="marquee_items">Announcement Marquee (Urban Editorial)</label><textarea class="mp-form-control" id="marquee_items" name="marquee_items" rows="4" placeholder="Free Shipping Over N15,000&#10;New Season Drop&#10;Authentic Guaranteed&#10;Pay On Delivery Available"><?= htmlspecialchars($settings->marquee_items ?? ''); ?></textarea><div class="mp-form-hint">One item per line — used by themes with a scrolling ticker. Leave blank for defaults.</div></div>
       </div>
     </div>
   </div>

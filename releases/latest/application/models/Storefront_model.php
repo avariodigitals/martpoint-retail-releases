@@ -210,6 +210,10 @@ class Storefront_model extends CI_Model {
 
 	public function saveSettings($storeId, $data){
 		$storeId = $storeId ?: get_current_store_id();
+		// Drop keys for columns that may not exist yet on un-migrated installs
+		foreach(['marquee_items'] as $col){
+			if(isset($data[$col]) && !$this->db->field_exists($col, 'db_storefront_settings')) unset($data[$col]);
+		}
 		$exists = $this->db->where('store_id', $storeId)->get('db_storefront_settings')->num_rows() > 0;
 		if($exists){
 			return $this->db->where('store_id', $storeId)->update('db_storefront_settings', $data);

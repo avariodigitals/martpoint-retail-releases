@@ -1207,6 +1207,7 @@ CREATE TABLE IF NOT EXISTS db_storefront_settings (
     business_hours TEXT DEFAULT NULL,
     announcement_bar VARCHAR(500) DEFAULT NULL,
     announcement_bar_color VARCHAR(20) DEFAULT '#0F172A',
+    marquee_items TEXT DEFAULT NULL,
     preview_mode TINYINT(1) DEFAULT 0,
     preview_theme_id INT DEFAULT NULL,
     meta_title VARCHAR(255) DEFAULT NULL,

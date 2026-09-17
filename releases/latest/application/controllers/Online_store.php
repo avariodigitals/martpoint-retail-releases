@@ -962,6 +962,7 @@ class Online_store extends MY_Controller {
 			'business_hours' => trim($this->input->post('business_hours')),
 			'announcement_bar' => trim($this->input->post('announcement_bar')),
 			'announcement_bar_color' => $this->input->post('announcement_bar_color') ?: '#0F172A',
+			'marquee_items' => trim($this->input->post('marquee_items') ?: ''),
 			'meta_title' => trim($this->input->post('meta_title')),
 			'meta_description' => trim($this->input->post('meta_description')),
 			'meta_keywords' => trim($this->input->post('meta_keywords')),

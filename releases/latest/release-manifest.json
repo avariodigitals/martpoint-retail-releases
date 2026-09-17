@@ -20,7 +20,7 @@
     },
     {
       "path": "sw.js",
-      "hash": "60728a4d94601dfc01a95c19a5a855289992a2977f99c41eed3b3317da53742d",
+      "hash": "092d4d7a7da2d7590a234a7f1c2f1aeca44c1c77b21385145792cfc09e71a986",
       "size": 6579
     },
     {
@@ -400,8 +400,8 @@
     },
     {
       "path": "application/controllers/Online_store.php",
-      "hash": "4c046d10cecb6370a621738abca44539765c5a28c64612942cc392e39c8e5a7e",
-      "size": 72163
+      "hash": "44819f3c13fd3ae4cf810e76fed2e772eec88b0e2407f32d1a09a99fbb16c566",
+      "size": 72234
     },
     {
       "path": "application/controllers/Operations.php",
@@ -710,7 +710,7 @@
     },
     {
       "path": "application/helpers/custom_helper.php",
-      "hash": "17ba6b0b930ddad1291d5e822b33459283317e7b0e72b29eb6b19bf2a36d8005",
+      "hash": "a7db0dd0877dae1bce5acb49a9cd48e47a489c90fe4649fb003a94a1bee6e0ae",
       "size": 93455
     },
     {
@@ -7655,8 +7655,8 @@
     },
     {
       "path": "application/models/Storefront_model.php",
-      "hash": "a92dfcc45bdd152881305f05f7e5a9baed456c39a8ed117dde3eac4e126c7649",
-      "size": 66356
+      "hash": "f39e425adb88386fa0bb7a28922f9d814abd6d7015d1ebd60474a4d9cadf15ed",
+      "size": 66578
     },
     {
       "path": "application/models/Stripe_model.php",
@@ -7730,8 +7730,8 @@
     },
     {
       "path": "application/models/Updates_model.php",
-      "hash": "d919a9820a24efd39e77037738f96e54f40ea506a4cd9a92108930d2d3aecb0b",
-      "size": 3611
+      "hash": "5935106892a74b82ce4e22989a6a8927ebde01444c7e957d9cf062c4f0b7999a",
+      "size": 3662
     },
     {
       "path": "application/models/Users_model.php",
@@ -9835,8 +9835,8 @@
     },
     {
       "path": "application/views/mobile/online_store/appearance.php",
-      "hash": "dcfa8349abf2668aaa43dd2b420b62031602e7db656c0ff03f6e201c0f93d780",
-      "size": 16486
+      "hash": "2ea9423db20d80ca7470d2abfdbd7ef92090932c7e55afbc4f6399dbf600cc36",
+      "size": 16974
     },
     {
       "path": "application/views/mobile/online_store/banner_form.php",
@@ -10025,8 +10025,8 @@
     },
     {
       "path": "application/views/online_store/appearance.php",
-      "hash": "114df4b2698daf9f6d2b3c1fc7bbdd2087395847b9f70e49517302590d3fb802",
-      "size": 16074
+      "hash": "ac8fa86483aab56c565b4fed9fb65bed9a98d01dd05737459be16000f8da6aea",
+      "size": 16579
     },
     {
       "path": "application/views/online_store/banner_form.php",
@@ -11425,8 +11425,8 @@
     },
     {
       "path": "application/views/themes/urban_fashion/header.php",
-      "hash": "fb962d68d1956ead0e234fecefe12ef21dbad497fd62e786ad22a94366141431",
-      "size": 11955
+      "hash": "462d4d42902a306695788b83e90c39bbea2ff02957b471d69d39b6b1aba43de7",
+      "size": 11812
     },
     {
       "path": "application/views/themes/urban_fashion/home.php",
@@ -26464,7 +26464,8 @@
     "4.0.9.8_newsletter_subscribers.sql",
     "4.0.9.11_leads_crm.sql",
     "4.0.9.12_industry_modules.sql",
-    "4.0.9.13_storefront_columns.sql"
+    "4.0.9.13_storefront_columns.sql",
+    "4.0.9.20_marquee_setting.sql"
   ],
   "protected_paths": [
     "application/config/database.php",
@@ -26473,6 +26474,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "2b95ab2c111fb3f1ce153823aa7a4caac322deea2ef1ad5d49ece141779d9f94",
-  "changelog": "Fashion Luxe: nav label Shop, full responsiveness."
+  "signature": "91b8dfe64df6c32423642ee08ed79de7f473ce305331a225bdee0dd345a34fe1",
+  "changelog": "Editable announcement marquee (urban_fashion); fashion themes polished."
 }

@@ -65,16 +65,18 @@ $social = $social_links ?? [];
   }
 </style>
 
+<?php
+// Announcement marquee — editable via Online Store > Appearance > Announcement Marquee
+$ueMarqueeRaw = trim($settings->marquee_items ?? '');
+$ueMarqueeItems = $ueMarqueeRaw !== ''
+  ? array_values(array_filter(array_map('trim', preg_split('/[\r\n]+/', $ueMarqueeRaw))))
+  : ['Free Shipping Over ₦15,000', 'New Season Drop', 'Authentic Guaranteed', 'Pay On Delivery Available'];
+?>
 <div class="ueh-marquee" aria-hidden="true">
   <div class="ueh-marquee-track">
-    <span class="ueh-marquee-item"><span class="dot">●</span>Free Shipping Over ₦15,000</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>New Season Drop</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>Authentic Guaranteed</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>Pay On Delivery Available</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>Free Shipping Over ₦15,000</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>New Season Drop</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>Authentic Guaranteed</span>
-    <span class="ueh-marquee-item"><span class="dot">●</span>Pay On Delivery Available</span>
+    <?php foreach(array_merge($ueMarqueeItems, $ueMarqueeItems) as $ueItem): ?>
+    <span class="ueh-marquee-item"><span class="dot">●</span><?= htmlspecialchars($ueItem); ?></span>
+    <?php endforeach; ?>
   </div>
 </div>
 
