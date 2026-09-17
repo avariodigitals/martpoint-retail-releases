@@ -276,6 +276,8 @@ class Pos extends MY_Controller {
 		$data['user_initial'] = substr($data['user_initial'], 0, 2);
 
 		$data['service_staff_map'] = $service_staff_map;
+		$data['shipping_fees'] = $this->_get_shipping_fees();
+		$data['sale_shipping'] = null;
 		$this->load->view('pos_desktop',$data);
 	}
 
@@ -389,8 +391,23 @@ class Pos extends MY_Controller {
 				$data['till_account_name'] = (!empty($data['open_shift']) && !empty($data['open_shift']->account_name)) ? $data['open_shift']->account_name : get_account_name($data['till_account_id']);
 			}
 		}
+		$data['shipping_fees'] = $this->_get_shipping_fees();
+		$data['sale_shipping'] = ($this->db->field_exists('shipping_fee', 'db_sales') && !empty($sales_details->shipping_fee_id))
+			? ['id' => (int)$sales_details->shipping_fee_id, 'fee' => (float)$sales_details->shipping_fee, 'label' => (string)($sales_details->shipping_label ?? '')]
+			: null;
 		$this->load->view('pos',$data);
 	}
+
+	/**
+	 * Enabled manual-shipping fees for the current store (feature-flag gated).
+	 */
+	private function _get_shipping_fees(){
+		if(!mp_feature_enabled('manual_shipping') || !$this->db->table_exists('db_shipping_fees')) return [];
+		return $this->db->where('store_id', get_current_store_id())->where('is_enabled', 1)
+			->order_by('sort_order', 'asc')->order_by('id', 'asc')
+			->get('db_shipping_fees')->result();
+	}
+
 	public function fetch_sales($sales_id){
 	    $result=$this->pos_model->edit_pos($sales_id);
 	}

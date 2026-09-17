@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Frozen Food Retail Technical Setup</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .page-cover-ink { background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%) !important; }
+    .page-cover-ink .label { color: rgba(255,255,255,0.75); }
+    .page-cover-ink .footer-strip { border-top-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.75); }
+    .code-block { background: #F5F5F4; border: 1px solid #E7E5E4; border-radius: 12px; padding: 14px; font-family: 'SFMono-Regular', Consolas, Monaco, monospace; font-size: 0.76rem; line-height: 1.5; white-space: pre-wrap; color: #292524; page-break-inside: avoid; margin-bottom: 16px; }
+    .page-cover-ink .card { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
+    .page-cover-ink .card h3, .page-cover-ink .card p, .page-cover-ink .card li { color: #fff; }
+    .page-cover-ink .icon-circle { background: rgba(255,255,255,0.12); color: #fff; }
+
+    /* Print: exact A4 pages, no overflow */
+    @page { size: A4; margin: 0; }
+    @media print {
+      html, body { background:#fff; margin:0; padding:0; }
+      .document { max-width:100%; padding:0; margin:0; }
+      .page { width:210mm; height:297mm; min-height:auto; margin:0; padding:14mm 16mm; box-shadow:none; page-break-after:always; break-after:page; overflow:hidden; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .page-cover { padding:0; }
+      .page-cover .cover-inner { min-height:auto; height:297mm; padding:14mm 16mm; }
+      .page:last-child { page-break-after:auto; break-after:auto; }
+      .no-break { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <!-- Cover -->
+  <section class="page page-cover page-cover-ink">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Technical Guide</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label">Frozen Food Retail</span>
+        <h1>Setup &amp; Deployment</h1>
+        <p>Cold-chain schema, migrations, feature flags and the minimal configuration needed to put a Frozen Foods Retailer store live.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint Technical Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Module overview -->
+  <section class="page">
+    <span class="label">Architecture</span>
+    <h2 class="mb-2">What the cold chain adds</h2>
+    <p class="lead mb-3">Frozen food retail uses the cold-chain half of the Butchery &amp; Frozen module: freezer locations, temperature logs and per-item storage rules. It shares the same migrations and sidebar entry as the butchery workflow, but the carcass screens are not needed.</p>
+
+    <div class="grid cols-2 mb-3">
+      <div class="card no-break">
+        <div class="icon-circle"><i class="fa fa-table"></i></div>
+        <h3 class="mb-1">Tables used</h3>
+        <p class="small"><code>db_freezer_locations</code> and <code>db_temperature_logs</code>. Migration 016 also creates the carcass tables, which stay unused unless <code>meat_butchery_workflow</code> is enabled.</p>
+      </div>
+      <div class="card no-break">
+        <div class="icon-circle accent"><i class="fa fa-tags"></i></div>
+        <h3 class="mb-1">Item fields</h3>
+        <p class="small"><code>storage_temp_min, storage_temp_max, thaw_time_hours, use_within_hours_after_thaw, frozen_shelf_life_days</code> on <code>db_items</code>.</p>
+      </div>
+      <div class="card no-break">
+        <div class="icon-circle success"><i class="fa fa-flag-o"></i></div>
+        <h3 class="mb-1">Feature flag</h3>
+        <p class="small"><code>frozen_food_cold_chain</code> requires <code>warehouse_module()</code> and must be in the store feature list. The <code>frozen_foods_retailer</code> preset enables it automatically.</p>
+      </div>
+      <div class="card no-break">
+        <div class="icon-circle warning"><i class="fa fa-mobile"></i></div>
+        <h3 class="mb-1">Mobile shell</h3>
+        <p class="small"><code>/mobile/butchery_coldchain</code> is a dedicated mobile view — custom selects, bottom nav, alerts and MartPoint Assist chat.</p>
+      </div>
+    </div>
+
+    <div class="tip no-break">
+      <i class="fa fa-info-circle" style="margin-right:8px;"></i>
+      <strong>Preset applied:</strong> Choosing <em>Frozen Foods Retailer</em> sets theme <code>market_fresh</code>, dashboard <code>frozen_foods</code>, and relabels items as <em>Product / Pack</em>.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Frozen Food Technical Guide</span><span>Page 2</span></div>
+  </section>
+
+  <!-- Migration -->
+  <section class="page">
+    <span class="label">Database</span>
+    <h2 class="mb-2">Run the migrations</h2>
+    <p class="lead mb-3">The module uses the existing CodeIgniter migration system. Run from the project root to apply the schema.</p>
+
+    <div class="code-block">php index.php migrations</div>
+    <p class="small muted mb-3">Expected output:</p>
+    <div class="code-block" style="background:#F0F9FF;">Migrations complete. Current version: 24</div>
+
+    <div class="grid cols-2 mb-3">
+      <div class="card no-break">
+        <div class="icon-circle"><i class="fa fa-columns"></i></div>
+        <h3 class="mb-1">Migration 015</h3>
+        <p class="small">Adds the storage, thaw and shelf-life columns to <code>db_items</code>. Safe to re-run because it checks for existing columns.</p>
+      </div>
+      <div class="card no-break">
+        <div class="icon-circle success"><i class="fa fa-database"></i></div>
+        <h3 class="mb-1">Migration 016</h3>
+        <p class="small">Creates <code>db_freezer_locations</code> and <code>db_temperature_logs</code> alongside the carcass tables. Each <code>CREATE TABLE</code> is guarded by <code>table_exists</code>.</p>
+      </div>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-1">Verify after migrating</h3>
+      <div class="code-block" style="margin-bottom:0;">SHOW COLUMNS FROM db_items LIKE 'storage_temp_min';
+SHOW TABLES LIKE 'db_freezer_locations';
+SHOW TABLES LIKE 'db_temperature_logs';</div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Frozen Food Technical Guide</span><span>Page 3</span></div>
+  </section>
+
+  <!-- Business profile -->
+  <section class="page">
+    <span class="label">Configuration</span>
+    <h2 class="mb-2">Enable the module per store</h2>
+    <p class="lead mb-3">The feature must be enabled per store. Use the Business Profile page for new stores or SQL for existing deployments.</p>
+
+    <div class="steps mb-3">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-body">
+          <h4>Business Profile (recommended)</h4>
+          <p>Go to <strong>Settings → Business Profile</strong>. Choose <em>Frozen Foods Retailer</em>. In the Feature Flags tab, enable <em>Branch / Stock Transfer</em> (warehouse), <em>Frozen Food Cold Chain</em>, <em>Batch Tracking</em>, <em>Expiry Tracking</em> and <em>Multi-Unit Selling</em>. Save and refresh.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-body">
+          <h4>Force via SQL</h4>
+          <p>If the UI is not reachable, run this for the target store:</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">UPDATE db_store
+SET feature_flags_json = JSON_SET(
+    COALESCE(feature_flags_json, '{}'),
+    '$.warehouse', true,
+    '$.frozen_food_cold_chain', true,
+    '$.batch_tracking', true,
+    '$.expiry_tracking', true,
+    '$.multi_unit_selling', true,
+    '$.meat_butchery_workflow', true
+)
+WHERE id = {store_id};</div>
+
+    <div class="tip warning no-break">
+      <i class="fa fa-exclamation-circle" style="margin-right:8px;"></i>
+      <strong>Note:</strong> Replace <code>{store_id}</code>. If MySQL does not support <code>JSON_SET</code>, set the raw JSON string directly. If <code>db_store_industry_settings</code> exists, apply the same update to its row — it is checked first. <code>meat_butchery_workflow</code> is included because the desktop <code>/butchery/*</code> screens are gated by it — see next page.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Frozen Food Technical Guide</span><span>Page 4</span></div>
+  </section>
+
+  <!-- URLs -->
+  <section class="page">
+    <span class="label">Routing</span>
+    <h2 class="mb-2">URLs and feature gating</h2>
+    <p class="lead mb-3">Cold-chain screens live under the shared Butchery controller. The sidebar shows <strong>Butchery &amp; Frozen</strong> when either <code>meat_butchery_workflow</code> or <code>frozen_food_cold_chain</code> is enabled.</p>
+
+    <div class="grid cols-2 mb-3">
+      <div class="card no-break">
+        <div class="icon-circle"><i class="fa fa-desktop"></i></div>
+        <h3 class="mb-1">Desktop routes</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-angle-right"></i> <code>/butchery</code></li>
+          <li><i class="fa fa-angle-right"></i> <code>/butchery/freezers</code></li>
+          <li><i class="fa fa-angle-right"></i> <code>/butchery/temperature</code></li>
+          <li><i class="fa fa-angle-right"></i> <code>/butchery/receive</code> — butchery only</li>
+          <li><i class="fa fa-angle-right"></i> <code>/butchery/cut/{id}</code> — butchery only</li>
+          <li><i class="fa fa-angle-right"></i> <code>/butchery/shares</code> — butchery only</li>
+        </ul>
+      </div>
+      <div class="card no-break">
+        <div class="icon-circle"><i class="fa fa-mobile"></i></div>
+        <h3 class="mb-1">Mobile routes</h3>
+        <ul class="tick-list small">
+          <li><i class="fa fa-angle-right"></i> <code>/mobile/butchery_coldchain</code> — freezers + temperature</li>
+          <li><i class="fa fa-angle-right"></i> <code>/mobile/butchery</code> — butchery only</li>
+          <li><i class="fa fa-angle-right"></i> <code>/mobile/butchery_form</code> — butchery only</li>
+          <li><i class="fa fa-angle-right"></i> <code>/mobile/butchery_cut/{id}</code> — butchery only</li>
+          <li><i class="fa fa-angle-right"></i> <code>/mobile/butchery_shares</code> — butchery only</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tip warning no-break">
+      <i class="fa fa-exclamation-triangle" style="margin-right:8px;"></i>
+      <strong>Gating caveat:</strong> Every desktop <code>/butchery/*</code> route calls <code>_check_feature('meat_butchery_workflow')</code>, so desktop Freezers and Temperature require <code>meat_butchery_workflow</code> even though they are cold-chain features. Mobile <code>butchery_coldchain</code> accepts either flag. For a frozen-only store, enable both flags for desktop access — the carcass screens can simply be left unused.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Frozen Food Technical Guide</span><span>Page 5</span></div>
+  </section>
+
+  <!-- Item form & stock -->
+  <section class="page">
+    <span class="label">Integration</span>
+    <h2 class="mb-2">Item form, alerts &amp; stock</h2>
+    <p class="lead mb-3">When <code>frozen_food_cold_chain</code> (or <code>meat_butchery_workflow</code>) is on, the item add/edit form shows a <strong>Butchery &amp; Frozen</strong> card. It is hidden for service, digital, course and membership product types.</p>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-1">Item fields saved by <code>Items_model::save_record()</code></h3>
+      <div class="grid cols-2 small" style="margin-top:12px;">
+        <ul class="tick-list">
+          <li><i class="fa fa-check"></i> <code>storage_temp_min</code> / <code>storage_temp_max</code></li>
+          <li><i class="fa fa-check"></i> <code>thaw_time_hours</code></li>
+          <li><i class="fa fa-check"></i> <code>use_within_hours_after_thaw</code></li>
+        </ul>
+        <ul class="tick-list">
+          <li><i class="fa fa-check"></i> <code>frozen_shelf_life_days</code></li>
+          <li><i class="fa fa-check"></i> <code>is_carcass</code>, <code>carcass_template_id</code>, <code>portion_of_item_id</code> — unused for pure frozen retail</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-1">Temperature log statuses</h3>
+      <p class="small mb-2">Each reading on <code>db_temperature_logs</code> is saved with a status:</p>
+      <ul class="tick-list small">
+        <li><i class="fa fa-check"></i> <code>normal</code> — reading inside the freezer's min/max range.</li>
+        <li><i class="fa fa-check"></i> <code>warning</code> — reading below <code>temp_min</code> or above <code>temp_max</code>.</li>
+        <li><i class="fa fa-check"></i> <code>alert_sent</code> flag is stored per row for notification workflows.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-1">Inventory features that work alongside</h3>
+      <ul class="tick-list small">
+        <li><i class="fa fa-check"></i> <code>batch_tracking</code> + <code>expiry_tracking</code> — batch and expiry per carton; Stock Rotation screen under Operations.</li>
+        <li><i class="fa fa-check"></i> <code>multi_unit_inventory</code> + <code>multi_unit_selling</code> — sell the same item by carton, pack or kilo.</li>
+        <li><i class="fa fa-check"></i> <code>pos_retail_button</code> / <code>pos_wholesale_button</code> — quick price switching at the POS.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Frozen Food Technical Guide</span><span>Page 6</span></div>
+  </section>
+
+  <!-- Deployment -->
+  <section class="page">
+    <span class="label">Compliance &amp; go-live</span>
+    <h2 class="mb-2">Mobile &amp; deployment</h2>
+    <p class="lead mb-2">The cold-chain mobile view follows the MartPoint mobile rules and is gated by the same flags as the desktop module.</p>
+
+    <div class="card no-break mb-3">
+      <div class="flex gap-2" style="align-items:center;">
+        <div class="icon-circle" style="margin-bottom:0;flex-shrink:0;"><i class="fa fa-mobile"></i></div>
+        <div>
+          <h3 class="mb-1">Mobile shell &amp; isolation</h3>
+          <p class="small" style="margin:0;"><code>/mobile/butchery_coldchain</code> uses <code>mobile/</code> views, not <code>mp_layout</code> — store name in the title, custom <code>mp-select</code>, bottom nav, alert and chat partials. The module only appears for stores with the right profile and flags; other verticals are unaffected.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="mb-1">Deployment checklist</h3>
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> PHP 7.4 configured on the server.</li>
+          <li><i class="fa fa-check"></i> Migrations run to version <code>24</code>.</li>
+          <li><i class="fa fa-check"></i> <code>warehouse</code> flag enabled.</li>
+          <li><i class="fa fa-check"></i> <code>frozen_food_cold_chain</code> + <code>meat_butchery_workflow</code> on for desktop.</li>
+        </ul>
+      </div>
+      <div class="card no-break">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Butchery &amp; Frozen appears in sidebar and mobile More.</li>
+          <li><i class="fa fa-check"></i> Create a freezer; log in-range and out-of-range readings.</li>
+          <li><i class="fa fa-check"></i> Verify the Butchery &amp; Frozen card on the item form.</li>
+          <li><i class="fa fa-check"></i> Test a weighted POS sale and an online checkout.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Frozen Food Technical Guide</span><span>Page 7</span></div>
+  </section>
+
+</div>
+</body>
+</html>

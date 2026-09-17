@@ -66,6 +66,9 @@ th, td {
                            coalesce(b.other_charges_input,0) as other_charges_input,
                            other_charges_tax_id,
                            coalesce(b.other_charges_amt,0) as other_charges_amt,
+                           coalesce(b.shipping_fee,0) as shipping_fee,
+                           b.shipping_label,
+
                            discount_to_all_input,
                            b.discount_to_all_type,
                            coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,
@@ -107,6 +110,9 @@ th, td {
     $other_charges_input=$res3->other_charges_input;
     $other_charges_tax_id=$res3->other_charges_tax_id;
     $other_charges_amt=$res3->other_charges_amt;
+    $shipping_fee=(float)($res3->shipping_fee ?? 0);
+    $shipping_label=(string)($res3->shipping_label ?? '');
+
     $paid_amount=$res3->paid_amount;
     $discount_to_all_input=$res3->discount_to_all_input;
     $discount_to_all_type=$res3->discount_to_all_type;
@@ -278,6 +284,12 @@ th, td {
     <td colspan="1" style="text-align: right;" ><b><?php echo store_number_format($round_off); ?></b></td>
   </tr>
   
+  <?php if($shipping_fee > 0){ ?>
+  <tr>
+    <td colspan="10" style="text-align: right;"><b>Shipping<?= $shipping_label!=='' ? ' ('.htmlspecialchars($shipping_label).')' : ''; ?></b></td>
+    <td colspan="1" style="text-align: right;" ><b><?php echo store_number_format($shipping_fee); ?></b></td>
+  </tr>
+  <?php } ?>
   <tr>
     <td colspan="6" rowspan="2">
       <?php echo "<span class='amt-in-word'>".$this->lang->line('in_words').": <i style='font-weight:bold;'>".no_to_words(round($grand_total))." ".$this->lang->line('only')."</i></span>"; ?>

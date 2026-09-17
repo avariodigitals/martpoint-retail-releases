@@ -524,6 +524,9 @@ class Mobile extends MY_Controller {
 		$store_id = get_current_store_id();
 		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
 		$data['till_account_id'] = get_cash_account_id();
+		$data['shipping_fees'] = (mp_feature_enabled('manual_shipping') && $this->db->table_exists('db_shipping_fees'))
+			? $this->db->where('store_id', $store_id)->where('is_enabled', 1)->order_by('sort_order', 'asc')->order_by('id', 'asc')->get('db_shipping_fees')->result()
+			: [];
 		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
 		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
 		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
@@ -556,6 +559,9 @@ class Mobile extends MY_Controller {
 		$store_id = get_current_store_id();
 		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
 		$data['till_account_id'] = get_cash_account_id();
+		$data['shipping_fees'] = (mp_feature_enabled('manual_shipping') && $this->db->table_exists('db_shipping_fees'))
+			? $this->db->where('store_id', $store_id)->where('is_enabled', 1)->order_by('sort_order', 'asc')->order_by('id', 'asc')->get('db_shipping_fees')->result()
+			: [];
 
 		// Pre-load a held sale when recalling
 		$hold_id = (int) ($hold_id ?: ($this->input->get('hold_id', TRUE) ?: 0));
@@ -578,6 +584,7 @@ class Mobile extends MY_Controller {
 					'id' => $hold->id,
 					'customer_id' => $hold->customer_id,
 					'customer_name' => $hold->customer_name,
+					'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
 					'discount' => $hold->discount_to_all_input ?? 0,
 					'sales_note' => $hold->sales_note ?? '',
 					'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'wholesale',
@@ -1600,7 +1607,25 @@ class Mobile extends MY_Controller {
 			];
 		}
 
-		$total = $subtotal + $tax_total - $discount;
+		// Manual Shipping — same server-side verification as Mobile::save
+		$shipping_fee = 0;
+		$shipping_label = '';
+		$shipping_fee_id = 0;
+		if(!empty($input['shipping']) && is_array($input['shipping'])
+			&& $this->db->table_exists('db_shipping_fees') && $this->db->field_exists('shipping_fee', 'db_hold')){
+			$ship_id = (int) ($input['shipping']['id'] ?? 0);
+			if($ship_id){
+				$feeRow = $this->db->where('id', $ship_id)->where('store_id', $store_id)->where('is_enabled', 1)
+					->get('db_shipping_fees')->row();
+				if($feeRow){
+					$shipping_fee_id = (int)$feeRow->id;
+					$shipping_fee = (float)$feeRow->fee;
+					$shipping_label = (string)$feeRow->label;
+				}
+			}
+		}
+
+		$total = $subtotal + $tax_total - $discount + $shipping_fee;
 		$grand_total = round($total, 2);
 
 		$this->db->trans_begin();
@@ -1626,6 +1651,11 @@ class Mobile extends MY_Controller {
 			'sales_note' => $sales_note,
 			'warehouse_id' => $warehouse_id,
 		];
+		if($this->db->field_exists('shipping_fee', 'db_hold')){
+			$hold_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+			$hold_entry['shipping_label']  = $shipping_label ?: null;
+			$hold_entry['shipping_fee']    = $shipping_fee ?: null;
+		}
 
 		if(!$this->db->insert('db_hold', $hold_entry)){
 			$err = $this->db->error();
@@ -1689,6 +1719,7 @@ class Mobile extends MY_Controller {
 			'id' => $hold->id,
 			'customer_id' => $hold->customer_id,
 			'customer_name' => $hold->customer_name,
+			'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
 			'discount' => $hold->discount_to_all_input ?? 0,
 			'sales_note' => $hold->sales_note ?? '',
 			'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'wholesale',
@@ -1841,7 +1872,27 @@ class Mobile extends MY_Controller {
 			$_POST['conversion_factor_'.$i] = ($item['conversion_factor'] ?? 1) > 0 ? ($item['conversion_factor'] ?? 1) : 1;
 		}
 
-		$total = $subtotal + $tax_total - $discount;
+		// Manual Shipping — verify the chosen fee against db_shipping_fees so the
+		// amount cannot be forged client-side. Falls back to 0 when the flag/table
+		// is unavailable or the fee id is invalid.
+		$shipping_fee = 0;
+		$shipping_label = '';
+		$shipping_fee_id = 0;
+		if(!empty($input['shipping']) && is_array($input['shipping'])
+			&& $this->db->table_exists('db_shipping_fees') && $this->db->field_exists('shipping_fee', 'db_sales')){
+			$ship_id = (int) ($input['shipping']['id'] ?? 0);
+			if($ship_id){
+				$feeRow = $this->db->where('id', $ship_id)->where('store_id', $store_id)->where('is_enabled', 1)
+					->get('db_shipping_fees')->row();
+				if($feeRow){
+					$shipping_fee_id = (int)$feeRow->id;
+					$shipping_fee = (float)$feeRow->fee;
+					$shipping_label = (string)$feeRow->label;
+				}
+			}
+		}
+
+		$total = $subtotal + $tax_total - $discount + $shipping_fee;
 		$round_off = round($total, 2) - $total;
 		$grand_total = round($total, 2);
 
@@ -1876,6 +1927,9 @@ class Mobile extends MY_Controller {
 		$_POST['tot_subtotal_amt'] = number_format($subtotal, 2, '.', '');
 		$_POST['tot_round_off_amt'] = number_format($round_off, 2, '.', '');
 		$_POST['tot_total_amt'] = number_format($grand_total, 2, '.', '');
+		$_POST['shipping_fee_id'] = $shipping_fee_id;
+		$_POST['shipping_label'] = $shipping_label;
+		$_POST['shipping_fee'] = number_format($shipping_fee, 2, '.', '');
 		if($is_split && !empty($payment_rows) && is_array($payment_rows)){
 			// For split payments, calculate total paid from all rows for validation
 			$split_total_paid = 0;

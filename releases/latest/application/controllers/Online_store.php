@@ -1363,15 +1363,31 @@ class Online_store extends MY_Controller {
 			}
 		}
 		$type = $this->input->post('domain_type');
-		$value = strtolower(trim($this->input->post('domain_value')));
+		if(!in_array($type, ['subdomain', 'custom'])) $type = 'custom';
+		$value = $this->_normalize_domain($this->input->post('domain_value'));
 		if(!$value){
-			echo json_encode(['status' => 'error', 'message' => 'Domain is required']);
+			echo json_encode(['status' => 'error', 'message' => 'Enter a valid domain (e.g. shop.yourstore.com)']);
 			return;
+		}
+		$platformHost = $this->_normalize_domain($this->input->server('HTTP_HOST'));
+		if($value === $platformHost){
+			echo json_encode(['status' => 'error', 'message' => 'You cannot use the platform\'s own domain.']);
+			return;
+		}
+		// Prevent another store from claiming a domain that is already registered
+		$existing = $this->db->where('domain_value', $value)->get('db_storefront_domains')->row();
+		if($existing && (int)$existing->id !== $domainId){
+			echo json_encode(['status' => 'error', 'message' => 'This domain is already registered to another store.']);
+			return;
+		}
+		$instructions = trim((string)$this->input->post('dns_instructions'));
+		if($instructions === ''){
+			$instructions = $this->_domain_dns_instructions($value);
 		}
 		$data = [
 			'domain_type' => $type,
 			'domain_value' => $value,
-			'dns_instructions' => $this->input->post('dns_instructions')
+			'dns_instructions' => $instructions
 		];
 		if($domainId){
 			$this->storefront_model->saveDomain($data, $domainId);
@@ -1381,7 +1397,205 @@ class Online_store extends MY_Controller {
 			$data['connection_status'] = 'pending';
 			$this->storefront_model->saveDomain($data);
 		}
-		echo json_encode(['status' => 'success', 'message' => 'Domain saved']);
+		echo json_encode(['status' => 'success', 'message' => 'Domain saved. Follow the DNS instructions, then click "Verify & Connect".']);
+	}
+
+	/**
+	 * Normalize a domain value: lowercase, no scheme, path, port or trailing dot.
+	 */
+	private function _normalize_domain($value){
+		$value = strtolower(trim((string)$value));
+		$value = preg_replace('#^https?://#', '', $value);
+		$value = preg_replace('#/.*$#', '', $value);
+		$value = rtrim(preg_replace('/:\d+$/', '', $value), '.');
+		if($value === '' || strpos($value, '.') === false) return '';
+		if(!preg_match('/^[a-z0-9]([a-z0-9\-\.]*[a-z0-9])?$/', $value)) return '';
+		return $value;
+	}
+
+	/**
+	 * Auto-generated DNS instructions for a domain.
+	 */
+	private function _domain_dns_instructions($domain){
+		$platformHost = $this->_normalize_domain($this->input->server('HTTP_HOST'));
+		$serverIp = @gethostbyname($platformHost);
+		$lines = [
+			"Option A (recommended): create a CNAME record for {$domain} pointing to {$platformHost}.",
+		];
+		if($serverIp && $serverIp !== $platformHost){
+			$lines[] = "Option B: create an A record for {$domain} pointing to {$serverIp}.";
+		}
+		$lines[] = "Then return to Online Store > Domains and click \"Verify & Connect\". DNS changes can take up to 24-48 hours (usually a few minutes).";
+		return implode("\n", $lines);
+	}
+
+	/**
+	 * Verify that a domain's DNS actually points to this server, then connect it.
+	 */
+	public function verify_domain(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		$domainId = (int)$this->input->post('domain_id');
+		$domain = $this->storefront_model->getDomain($domainId, $storeId);
+		if(!$domain){
+			echo json_encode(['status' => 'error', 'message' => 'Domain not found']);
+			return;
+		}
+		$target = $domain->domain_value;
+		$platformHost = $this->_normalize_domain($this->input->server('HTTP_HOST'));
+		$serverIps = array_unique(array_filter([
+			@gethostbyname($platformHost),
+			isset($_SERVER['SERVER_ADDR']) ? $_SERVER['SERVER_ADDR'] : ''
+		]));
+
+		$ok = false;
+		$found = [];
+
+		$cnames = @dns_get_record($target, DNS_CNAME);
+		if(is_array($cnames)) foreach($cnames as $r){
+			if(empty($r['target'])) continue;
+			$t = rtrim(strtolower($r['target']), '.');
+			$found[] = 'CNAME → ' . $t;
+			if($t === $platformHost || substr($t, -strlen('.'.$platformHost)) === '.'.$platformHost) $ok = true;
+		}
+
+		$ares = @dns_get_record($target, DNS_A);
+		if(is_array($ares)) foreach($ares as $r){
+			if(empty($r['ip'])) continue;
+			$found[] = 'A → ' . $r['ip'];
+			if(in_array($r['ip'], $serverIps)) $ok = true;
+		}
+		if(empty($found)){
+			$ip = @gethostbyname($target);
+			if($ip && $ip !== $target){
+				$found[] = 'A → ' . $ip;
+				if(in_array($ip, $serverIps)) $ok = true;
+			}
+		}
+
+		// Proxy/CDN fallback (e.g. Cloudflare): DNS points at the proxy, not us.
+		// If the domain already serves this app's robots.txt, it is routed here.
+		if(!$ok && !empty($found)){
+			$ctx = stream_context_create(['http' => ['timeout' => 6, 'ignore_errors' => true, 'follow_location' => 0]]);
+			$body = @file_get_contents('http://' . $target . '/robots.txt', false, $ctx);
+			if(is_string($body) && strpos($body, 'Disallow: /online_store/') !== false){
+				$ok = true;
+				$found[] = 'routed via proxy';
+			}
+		}
+
+		// Probe HTTPS (port 443) — SSL becomes usable once the host issues a cert
+		$ssl = 'pending';
+		$fp = @fsockopen('ssl://' . $target, 443, $errno, $errstr, 5);
+		if($fp){ $ssl = 'active'; fclose($fp); }
+
+		$update = ['ssl_status' => $ssl];
+		if($ok){
+			$update['verification_status'] = 'verified';
+			$update['connection_status'] = 'connected';
+			$update['verified_at'] = date('Y-m-d H:i:s');
+			$this->db->where('id', $domainId)->update('db_storefront_domains', $update);
+			$msg = 'Domain verified and connected — https://' . $target . ' now serves your store.';
+			if($ssl !== 'active'){
+				$msg .= ' Note: HTTPS is not active yet — ask your hosting provider to add this domain (parked/alias) and issue an SSL certificate (e.g. cPanel AutoSSL).';
+			}
+			echo json_encode(['status' => 'success', 'message' => $msg]);
+		} else {
+			$update['verification_status'] = 'failed';
+			$this->db->where('id', $domainId)->update('db_storefront_domains', $update);
+			$msg = 'DNS is not pointing to this server yet.';
+			$msg .= $found ? ' Found: ' . implode(', ', $found) . '.' : ' No DNS records found for ' . $target . '.';
+			$msg .= ' Expected: CNAME → ' . $platformHost . ($serverIps ? ' or A → ' . implode(' / ', $serverIps) : '') . '.';
+			echo json_encode(['status' => 'error', 'message' => $msg]);
+		}
+	}
+
+	/**
+	 * Email the DNS setup instructions for a domain to a team member.
+	 */
+	public function send_domain_instructions(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		$domainId = (int)$this->input->post('domain_id');
+		$domain = $this->storefront_model->getDomain($domainId, $storeId);
+		if(!$domain){
+			echo json_encode(['status' => 'error', 'message' => 'Domain not found']);
+			return;
+		}
+		$email = trim((string)$this->input->post('email'));
+		if(!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)){
+			echo json_encode(['status' => 'error', 'message' => 'Enter a valid recipient email']);
+			return;
+		}
+		$name = trim((string)$this->input->post('name'));
+
+		$store = get_store_details($storeId);
+		$settings = $this->storefront_model->getSettings($storeId);
+		$storeName = $store->store_name ?? 'your store';
+		$platformHost = $this->_normalize_domain($this->input->server('HTTP_HOST'));
+		$serverIp = @gethostbyname($platformHost);
+		$freeUrl = base_url('store/' . ($settings->store_slug ?? ''));
+
+		$steps = [
+			"Log in to the DNS / domain management panel for <strong>" . htmlspecialchars($domain->domain_value) . "</strong> (e.g. Cloudflare, GoDaddy, Namecheap, cPanel DNS Zone Editor).",
+			"Create a <strong>CNAME</strong> record: <code>" . htmlspecialchars($domain->domain_value) . " → " . htmlspecialchars($platformHost) . "</code>"
+				. ($serverIp && $serverIp !== $platformHost ? " &nbsp;<em>(or an <strong>A</strong> record pointing to " . htmlspecialchars($serverIp) . ")</em>" : ""),
+			"If you also want <code>www." . htmlspecialchars($domain->domain_value) . "</code> to work, add the same record for the <code>www</code> host.",
+			"Wait for DNS propagation — usually a few minutes, up to 24-48 hours.",
+			"Tell the store admin to open <strong>Online Store → Domains</strong> in MartPoint and click <strong>Verify &amp; Connect</strong>.",
+			"For HTTPS: the domain must also be added on the hosting account that runs MartPoint (e.g. cPanel → Parked/Alias domain) so an SSL certificate can be issued (AutoSSL). Until then the store may load on http:// only."
+		];
+		$stepsText = [
+			"1. Log in to the DNS / domain management panel for {$domain->domain_value} (e.g. Cloudflare, GoDaddy, Namecheap, cPanel DNS Zone Editor).",
+			"2. Create a CNAME record: {$domain->domain_value} -> {$platformHost}" . ($serverIp && $serverIp !== $platformHost ? " (or an A record pointing to {$serverIp})" : ""),
+			"3. If you also want www.{$domain->domain_value} to work, add the same record for the www host.",
+			"4. Wait for DNS propagation — usually a few minutes, up to 24-48 hours.",
+			"5. Tell the store admin to open Online Store > Domains in MartPoint and click \"Verify & Connect\".",
+			"6. For HTTPS: the domain must also be added on the hosting account that runs MartPoint (e.g. cPanel > Parked/Alias domain) so an SSL certificate can be issued (AutoSSL). Until then the store may load on http:// only."
+		];
+
+		$subject = 'DNS setup instructions for ' . $domain->domain_value . ' — ' . $storeName;
+		$html = '<div style="font-family:Inter,system-ui,sans-serif;max-width:640px;margin:0 auto;padding:32px;color:#0F172A;">';
+		$html .= '<h2 style="margin-top:0;">Connect ' . htmlspecialchars($domain->domain_value) . ' to ' . htmlspecialchars($storeName) . '</h2>';
+		if($name) $html .= '<p>Hi ' . htmlspecialchars($name) . ',</p>';
+		$html .= '<p>Please point the domain below to our online store. Here are the steps:</p>';
+		$html .= '<ol style="line-height:1.9;padding-left:20px;">';
+		foreach($steps as $s){ $html .= '<li>' . $s . '</li>'; }
+		$html .= '</ol>';
+		$html .= '<div style="background:#F1F5F9;border:1px solid #E2E8F0;border-radius:10px;padding:14px 18px;font-size:14px;">';
+		$html .= '<strong>Platform host:</strong> ' . htmlspecialchars($platformHost) . '<br>';
+		if($serverIp && $serverIp !== $platformHost) $html .= '<strong>Server IP:</strong> ' . htmlspecialchars($serverIp) . '<br>';
+		$html .= '<strong>Current store URL:</strong> <a href="' . $freeUrl . '">' . $freeUrl . '</a>';
+		$html .= '</div>';
+		$html .= '<p style="margin-top:24px;font-size:13px;color:#64748B;">Sent from ' . htmlspecialchars($storeName) . ' via MartPoint.</p>';
+		$html .= '</div>';
+		$text = "Connect {$domain->domain_value} to {$storeName}\n\n" . implode("\n", $stepsText)
+			. "\n\nPlatform host: {$platformHost}"
+			. ($serverIp && $serverIp !== $platformHost ? "\nServer IP: {$serverIp}" : '')
+			. "\nCurrent store URL: {$freeUrl}\n";
+
+		try {
+			$this->load->model('email_service');
+			$this->email_service->setStoreId($storeId);
+			$res = $this->email_service->sendRaw($email, $subject, $html, $text, [
+				'template_key' => 'domain_instructions',
+				'related_module' => 'storefront',
+				'related_record_id' => $domainId
+			]);
+			if($res['success']){
+				echo json_encode(['status' => 'success', 'message' => 'Instructions sent to ' . $email]);
+			} else {
+				echo json_encode(['status' => 'error', 'message' => 'Could not send email: ' . $res['message'] . ' Configure one under Email Settings.']);
+			}
+		} catch (Throwable $e) {
+			echo json_encode(['status' => 'error', 'message' => 'Email failed: ' . $e->getMessage()]);
+		}
 	}
 
 	public function update_domain_status(){

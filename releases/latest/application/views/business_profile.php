@@ -217,10 +217,10 @@
                       'accounts','warehouse','multi_store'
                     ],
                     'Sales & Storefront' => [
-                      'online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','price_catalogue'
+                      'online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','price_catalogue','leads'
                     ],
                     'POS' => [
-                      'pos_retail_button','pos_wholesale_button'
+                      'pos_retail_button','pos_wholesale_button','manual_shipping'
                     ],
                     'Products & Inventory' => [
                       'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','digital_products','courses'

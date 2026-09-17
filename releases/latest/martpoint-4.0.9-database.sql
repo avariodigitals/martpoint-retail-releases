@@ -1084,6 +1084,60 @@ INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribu
 INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribute_value`,`sort_order`,`status`,`created_at`,`updated_at`) SELECT 0,'color','Orange',12,1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_attribute_options` WHERE `attribute_type`='color' AND `attribute_value`='Orange' AND `store_id`=0);
 INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribute_value`,`sort_order`,`status`,`created_at`,`updated_at`) SELECT 0,'color','Purple',13,1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_attribute_options` WHERE `attribute_type`='color' AND `attribute_value`='Purple' AND `store_id`=0);
 INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribute_value`,`sort_order`,`status`,`created_at`,`updated_at`) SELECT 0,'color','Maroon',14,1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_attribute_options` WHERE `attribute_type`='color' AND `attribute_value`='Maroon' AND `store_id`=0);
+
+-- ----------------------------------------------------------------------------
+-- Migration 15: Manual Shipping / POS Delivery Fee (v4.0.9.22)
+-- Source: updates/migrations/4.0.9.22_manual_shipping.sql
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `db_shipping_fees` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `store_id` INT NOT NULL,
+    `label` VARCHAR(160) NOT NULL,
+    `location` VARCHAR(200) DEFAULT NULL,
+    `fee` DOUBLE(20,2) NOT NULL DEFAULT 0,
+    `is_enabled` TINYINT(1) NOT NULL DEFAULT 1,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_store (store_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_sales' AND column_name = 'shipping_fee');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_sales` ADD COLUMN `shipping_fee` DOUBLE(20,2) DEFAULT NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_sales' AND column_name = 'shipping_label');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_sales` ADD COLUMN `shipping_label` VARCHAR(160) DEFAULT NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_sales' AND column_name = 'shipping_fee_id');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_sales` ADD COLUMN `shipping_fee_id` INT DEFAULT NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_hold' AND column_name = 'shipping_fee');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_hold` ADD COLUMN `shipping_fee` DOUBLE(20,2) DEFAULT NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_hold' AND column_name = 'shipping_label');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_hold` ADD COLUMN `shipping_label` VARCHAR(160) DEFAULT NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_hold' AND column_name = 'shipping_fee_id');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_hold` ADD COLUMN `shipping_fee_id` INT DEFAULT NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ----------------------------------------------------------------------------

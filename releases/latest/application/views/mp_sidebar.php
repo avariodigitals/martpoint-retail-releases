@@ -94,6 +94,7 @@ $mp_icons = [
         <?php if($CI->permissions('sales_return_view')): ?><a href="<?= base_url('sales_return'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Returns</a><?php endif; ?>
         <?php if($CI->permissions('quotation_add')): ?><a href="<?= base_url('quotation/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Quotation</a><?php endif; ?>
         <?php if($CI->permissions('quotation_view')): ?><a href="<?= base_url('quotation'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Quotation History</a><?php endif; ?>
+        <?php if(mp_feature_enabled('manual_shipping') && $CI->permissions('sales_view')): ?><a href="<?= base_url('shipping_fees'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><i class="fa fa-truck"></i></span> Shipping Fees</a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>

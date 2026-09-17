@@ -152,6 +152,7 @@
                                     <th style=""><?= $this->lang->line('customer_id'); ?></th>
                                     <th style=""><?= $this->lang->line('customer_name'); ?></th>
                                     <th style=""><?= $this->lang->line('invoice_total'); ?>(<?= $CI->currency(); ?>)</th>
+                                    <?php if($CI->db->field_exists('shipping_fee','db_sales')): ?><th style="">Shipping(<?= $CI->currency(); ?>)</th><?php endif; ?>
                                     <th style=""><?= $this->lang->line('paid_amount'); ?>(<?= $CI->currency(); ?>)</th>
                                     <th style=""><?= $this->lang->line('due_amount'); ?>(<?= $CI->currency(); ?>)</th>
                                     <th style=""><?= $this->lang->line('user'); ?></th>

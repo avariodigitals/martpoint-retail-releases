@@ -29,6 +29,7 @@ class Reports_model extends CI_Model {
 			$tot_grand_total=0;
 			$tot_paid_amount=0;
 			$tot_due_amount=0;
+			$tot_shipping=0;
 			foreach ($q1->result() as $res1) {
 				
 
@@ -126,7 +127,8 @@ class Reports_model extends CI_Model {
 				$this->db->where("a.warehouse_id",$warehouse_id);
 		}
 
-		$this->db->select("a.id,a.warehouse_id,a.sales_code,a.sales_date,b.customer_name,b.customer_code,a.grand_total,a.paid_amount,a.store_id,a.created_by");
+		$ship_sel = $this->db->field_exists('shipping_fee','db_sales') ? ',a.shipping_fee' : '';
+		$this->db->select("a.id,a.warehouse_id,a.sales_code,a.sales_date,b.customer_name,b.customer_code,a.grand_total,a.paid_amount,a.store_id,a.created_by".$ship_sel);
 	    
 		if($customer_id!=''){
 			
@@ -179,11 +181,15 @@ class Reports_model extends CI_Model {
 				echo "<td>".$res1->customer_code."</td>";
 				echo "<td>".$res1->customer_name."</td>";
 				echo "<td class='text-right'>".store_number_format($res1->grand_total)."</td>";
+				if($this->db->field_exists('shipping_fee','db_sales')){
+					echo "<td class='text-right'>".store_number_format((float)($res1->shipping_fee ?? 0))."</td>";
+				}
 				echo "<td class='text-right'>".store_number_format($res1->paid_amount)."</td>";
 				echo "<td class='text-right'>".store_number_format(($res1->grand_total-$res1->paid_amount))."</td>";
 				echo "<td>".$res1->created_by."</td>";
 				echo "</tr>";
 				$tot_grand_total+=$res1->grand_total;
+				$tot_shipping+= (float)($res1->shipping_fee ?? 0);
 				$tot_paid_amount+=$res1->paid_amount;
 				$tot_due_amount+=($res1->grand_total-$res1->paid_amount);
 
@@ -199,6 +205,7 @@ class Reports_model extends CI_Model {
 			echo "<tr>
 					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
 					  <td class='text-right text-bold'>".store_number_format($tot_grand_total)."</td>
+					  ".($this->db->field_exists('shipping_fee','db_sales') ? "<td class='text-right text-bold'>".store_number_format($tot_shipping)."</td>" : "")."
 					  <td class='text-right text-bold'>".store_number_format($tot_paid_amount)."</td>
 					  <td class='text-right text-bold'>".store_number_format($tot_due_amount)."</td>
 					  <td></td>

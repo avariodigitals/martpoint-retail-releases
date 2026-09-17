@@ -1043,7 +1043,12 @@ class Storefront_model extends CI_Model {
 	}
 
 	public function getStoreByDomain($domain){
-		return $this->db->where('domain_value', $domain)->where('connection_status', 'connected')->get('db_storefront_domains')->row();
+		$domain = strtolower(trim((string)$domain));
+		$domain = rtrim(preg_replace('/:\d+$/', '', $domain), '.');
+		if($domain === '') return null;
+		$candidates = [$domain];
+		$candidates[] = (strpos($domain, 'www.') === 0) ? substr($domain, 4) : 'www.'.$domain;
+		return $this->db->where_in('domain_value', $candidates)->where('connection_status', 'connected')->get('db_storefront_domains')->row();
 	}
 
 	public function saveDomain($data, $domainId = null){

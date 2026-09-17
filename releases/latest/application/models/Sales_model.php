@@ -186,6 +186,11 @@ class Sales_model extends CI_Model {
 		$tot_subtotal_amt = parse_amount($this->input->post_get('tot_subtotal_amt', TRUE));
 		$tot_round_off_amt = parse_amount($this->input->post_get('tot_round_off_amt', TRUE));
 		$tot_total_amt = parse_amount($this->input->post_get('tot_total_amt', TRUE));
+		// Manual Shipping — fee selected at POS (columns guarded for un-migrated installs)
+		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
+		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
+		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
+		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
 		$sales_note = $this->input->post('sales_note', TRUE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$sales_id = $this->input->post('sales_id', TRUE);
@@ -372,6 +377,11 @@ class Sales_model extends CI_Model {
 		    if(isset($quotation_id)){
 				$sales_entry['quotation_id'] = $quotation_id;
 			}
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
 		    $sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		    $sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 
@@ -421,6 +431,11 @@ class Sales_model extends CI_Model {
 		    				'sales_note' 			=> $sales_note,
 		    			);
 			//print_r($sales_entry);exit;
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
 			$sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));

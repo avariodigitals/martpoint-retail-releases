@@ -463,6 +463,28 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
               <!-- /.box-body -->
 
               <div class="box-footer bg-gray">
+                <?php if(!empty($shipping_fees)): ?>
+                <div class="row" style="margin-bottom:8px;">
+                  <div class="col-md-12">
+                    <label><i class="fa fa-truck"></i> Shipping / Delivery:</label>
+                    <div class="input-group">
+                      <select class="form-control" id="shipping_fee_id" name="shipping_fee_id" onchange="onShippingFeeChange()">
+                        <option value="" data-fee="0" data-label="">No shipping</option>
+                        <?php foreach($shipping_fees as $sf): ?>
+                        <option value="<?= (int)$sf->id; ?>" data-fee="<?= htmlspecialchars($sf->fee); ?>" data-label="<?= htmlspecialchars($sf->label); ?>" <?= (!empty($sale_shipping) && $sale_shipping['id'] == $sf->id) ? 'selected' : ''; ?>><?= htmlspecialchars($sf->label); ?><?= !empty($sf->location) ? ' (' . htmlspecialchars($sf->location) . ')' : ''; ?> — <?= htmlspecialchars(store_number_format($sf->fee)); ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                      <span class="input-group-addon" id="shipping_fee_display" style="font-weight:700;"></span>
+                    </div>
+                    <input type="hidden" name="shipping_fee" id="shipping_fee" value="<?= !empty($sale_shipping) ? htmlspecialchars($sale_shipping['fee']) : '0'; ?>">
+                    <input type="hidden" name="shipping_label" id="shipping_label" value="<?= !empty($sale_shipping) ? htmlspecialchars($sale_shipping['label']) : ''; ?>">
+                  </div>
+                </div>
+                <?php else: ?>
+                    <input type="hidden" name="shipping_fee_id" id="shipping_fee_id" value="">
+                    <input type="hidden" name="shipping_fee" id="shipping_fee" value="0">
+                    <input type="hidden" name="shipping_label" id="shipping_label" value="">
+                <?php endif; ?>
                 <div class="row">
                   <div class="col-md-3 text-right">
                           <label> <?= $this->lang->line('quantity'); ?>:</label><br>
@@ -1275,9 +1297,31 @@ function final_total(){
 
   var coupon_amt = discount_coupon_tot(subtotal);
       subtotal -=coupon_amt;
-    
+
+  subtotal += get_shipping_fee();
+
   set_total(item_qty,total,discount_amt,subtotal);
 }
+
+// Manual Shipping — fee chosen from the Shipping/Delivery select
+function get_shipping_fee(){
+  var f = parseFloat($("#shipping_fee").val());
+  return isNaN(f) ? 0 : f;
+}
+function onShippingFeeChange(){
+  var opt = $("#shipping_fee_id option:selected");
+  var fee = parseFloat(opt.data('fee')) || 0;
+  $("#shipping_fee").val(fee);
+  $("#shipping_label").val(opt.data('label') || '');
+  $("#shipping_fee_display").text(fee > 0 ? '+' + to_Fixed(fee) : '');
+  final_total();
+  adjust_payments();
+}
+$(document).ready(function(){
+  if($("#shipping_fee_id").length && $("#shipping_fee_id").val()){
+    onShippingFeeChange();
+  }
+});
 function set_total(tot_qty=0, tot_amt=0, tot_disc=0, tot_grand=0){
   $(".tot_qty   ").html(tot_qty);
   $(".tot_amt   ").html(to_Fixed(tot_amt));
@@ -1331,6 +1375,8 @@ function adjust_payments(){
   var subtotal = total-discount_amt;
   var coupon_amt = discount_coupon_tot(subtotal);
       subtotal -= coupon_amt;
+
+  subtotal += get_shipping_fee();
 
   var balance = subtotal-paid_amount;
 

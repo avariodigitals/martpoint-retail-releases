@@ -94,6 +94,9 @@ $q3 = $this->db->query("SELECT b.coupon_id,b.coupon_amt,b.due_date,b.customer_pr
                            coalesce(b.other_charges_input,0) as other_charges_input,
                            other_charges_tax_id,
                            coalesce(b.other_charges_amt,0) as other_charges_amt,
+                           coalesce(b.shipping_fee,0) as shipping_fee,
+                           b.shipping_label,
+
                            discount_to_all_input,
                            b.discount_to_all_type,
                            coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,
@@ -141,6 +144,8 @@ if(!empty($coupon_id)){
 
 $subtotal = $res3->subtotal;
 $grand_total = $res3->grand_total;
+$shipping_fee=(float)($res3->shipping_fee ?? 0);
+$shipping_label=(string)($res3->shipping_label ?? '');
 $other_charges_input = $res3->other_charges_input;
 $other_charges_tax_id = $res3->other_charges_tax_id;
 $other_charges_amt = $res3->other_charges_amt;
@@ -309,6 +314,9 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
         <tr><td class="label"><?= $this->lang->line('round_off'); ?></td><td class="value"><?= $CI->currency($round_off); ?></td></tr>
         <?php if(!empty($tot_tax_amt) && $tot_tax_amt != 0): ?>
         <tr><td class="label"><?= $this->lang->line('tax'); ?></td><td class="value"><?= $CI->currency($tot_tax_amt); ?></td></tr>
+        <?php endif; ?>
+        <?php if($shipping_fee > 0): ?>
+        <tr><td class="label">Shipping<?= $shipping_label!=='' ? ' ('.htmlspecialchars($shipping_label).')' : ''; ?></td><td class="value"><?= $CI->currency($shipping_fee); ?></td></tr>
         <?php endif; ?>
         <tr class="grand"><td class="label"><?= $this->lang->line('grand_total'); ?></td><td class="value"><?= $CI->currency($grand_total); ?></td></tr>
         <tr><td class="label"><?= $this->lang->line('paid_amount'); ?></td><td class="value"><?= $CI->currency($paid_amount); ?></td></tr>

@@ -1430,6 +1430,19 @@ CREATE TABLE IF NOT EXISTS db_storefront_analytics (
 -- Delivery Tables
 -- --------------------------------------------------------
 
+
+CREATE TABLE IF NOT EXISTS db_shipping_fees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    store_id INT NOT NULL,
+    label VARCHAR(160) NOT NULL,
+    location VARCHAR(200) DEFAULT NULL,
+    fee DOUBLE(20,2) NOT NULL DEFAULT 0,
+    is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_store (store_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS db_delivery_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     store_id INT NOT NULL DEFAULT 1,

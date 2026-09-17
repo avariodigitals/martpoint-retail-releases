@@ -776,11 +776,19 @@ class Storefront extends CI_Controller {
 	 */
 	public function sitemap(){
 		$storeSlug = $this->input->get('store');
-		if(!$storeSlug){ show_404(); return; }
-		$settings = $this->storefront_model->getStoreBySlug($storeSlug);
+		$settings = null;
+		$viaDomain = false;
+		if($storeSlug){
+			$settings = $this->storefront_model->getStoreBySlug($storeSlug);
+		} else {
+			// On a connected custom domain, resolve the store from the request host
+			$dom = $this->storefront_model->getStoreByDomain($this->input->server('HTTP_HOST'));
+			if($dom){ $settings = $this->storefront_model->getSettings($dom->store_id); $viaDomain = true; }
+		}
 		if(!$settings || $settings->store_status != 'active'){ show_404(); return; }
+		$storeSlug = $settings->store_slug;
 		$storeId = $settings->store_id;
-		$base = base_url('store/' . $storeSlug);
+		$base = $viaDomain ? rtrim(base_url(), '/') : base_url('store/' . $storeSlug);
 
 		$products = $this->storefront_model->getOnlineProducts($storeId, null, '', 500);
 		$services = $settings->allow_services ? $this->storefront_model->getOnlineServices($storeId, null, '', 500) : [];
@@ -820,6 +828,16 @@ class Storefront extends CI_Controller {
 	 */
 	public function robots(){
 		header('Content-Type: text/plain');
+		// On a connected custom domain the storefront is served from the root
+		$dom = $this->storefront_model->getStoreByDomain($this->input->server('HTTP_HOST'));
+		if($dom){
+			echo "User-agent: *\n";
+			echo "Allow: /\n";
+			echo "Disallow: /store/\n";
+			echo "Disallow: /storefront/\n";
+			echo "Sitemap: " . base_url('sitemap.xml') . "\n";
+			return;
+		}
 		echo "User-agent: *\n";
 		echo "Allow: /store/\n";
 		echo "Disallow: /online_store/\n";
@@ -1984,7 +2002,7 @@ class Storefront extends CI_Controller {
 		if(!is_dir($dir)) mkdir($dir, 0777, true);
 
 		// Unsupported or resize-fail: copy original to cache so the static URL works next time
-		if($ext === 'webp' || $ext === 'bmp' || $ext === 'gif'){
+		if($ext === 'bmp' || $ext === 'gif'){
 			copy($real, $cacheFull);
 			$this->_serveImage($cacheFull, $mime);
 			return;
@@ -2003,6 +2021,8 @@ class Storefront extends CI_Controller {
 			$config['quality'] = $quality . '%';
 		} elseif($ext === 'png'){
 			$config['quality'] = '9';
+		} elseif($ext === 'webp'){
+			$config['quality'] = $quality;
 		}
 
 		$this->image_lib->initialize($config);

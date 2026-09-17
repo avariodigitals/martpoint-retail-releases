@@ -851,6 +851,9 @@ CREATE TABLE `db_hold` (
   `other_charges_input` double(20,2) DEFAULT NULL,
   `other_charges_tax_id` int(5) DEFAULT NULL,
   `other_charges_amt` double(20,2) DEFAULT NULL,
+  `shipping_fee_id` int(5) DEFAULT NULL,
+  `shipping_label` varchar(160) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shipping_fee` double(20,2) DEFAULT NULL,
   `discount_to_all_input` double(20,2) DEFAULT NULL,
   `discount_to_all_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tot_discount_to_all_amt` double(20,2) DEFAULT NULL,
@@ -2048,6 +2051,9 @@ CREATE TABLE `db_sales` (
   `other_charges_input` double(20,2) DEFAULT NULL,
   `other_charges_tax_id` int(5) DEFAULT NULL,
   `other_charges_amt` double(20,2) DEFAULT NULL,
+  `shipping_fee_id` int(5) DEFAULT NULL,
+  `shipping_label` varchar(160) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shipping_fee` double(20,2) DEFAULT NULL,
   `discount_to_all_input` double(20,2) DEFAULT NULL,
   `discount_to_all_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tot_discount_to_all_amt` double(20,2) DEFAULT NULL,
@@ -2508,7 +2514,7 @@ CREATE TABLE `db_sitesettings` (
 --
 
 INSERT INTO `db_sitesettings` (`id`, `version`, `site_name`, `logo`, `machine_id`, `domain`, `unique_code`, `update_channel_url`, `sales_target`) VALUES
-(1, '4.0.9.21', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
+(1, '4.0.9.22', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
 
 -- --------------------------------------------------------
 

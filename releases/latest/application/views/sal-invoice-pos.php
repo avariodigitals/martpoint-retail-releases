@@ -68,6 +68,9 @@
                            coalesce(b.other_charges_input,0) as other_charges_input,
                            other_charges_tax_id,
                            coalesce(b.other_charges_amt,0) as other_charges_amt,
+                           coalesce(b.shipping_fee,0) as shipping_fee,
+                           b.shipping_label,
+
                            discount_to_all_input,
                            b.discount_to_all_type,
                            coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,
@@ -118,6 +121,8 @@
 
     $subtotal=$res3->subtotal;
     $grand_total=$res3->grand_total;
+    $shipping_fee=(float)($res3->shipping_fee ?? 0);
+    $shipping_label=(string)($res3->shipping_label ?? '');
     $other_charges_input=$res3->other_charges_input;
     $other_charges_tax_id=$res3->other_charges_tax_id;
     $other_charges_amt=$res3->other_charges_amt;
@@ -328,6 +333,12 @@
         </tr>
         <?php } ?>
 
+        <?php if($shipping_fee > 0){ ?>
+        <tr>
+            <td>Shipping<?= $shipping_label!=='' ? ' ('.htmlspecialchars($shipping_label).')' : ''; ?></td>
+            <td><?= $CI->currency($shipping_fee); ?></td>
+        </tr>
+        <?php } ?>
         <tr class="grand">
             <td><?= $this->lang->line('total'); ?></td>
             <td><?= $CI->currency($grand_total); ?></td>

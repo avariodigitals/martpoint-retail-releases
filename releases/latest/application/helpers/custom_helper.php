@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.21';
+    return '4.0.9.22';
   }
   function required_php_version(){
     return 7.4;
@@ -133,7 +133,8 @@
   }
 
   function return_item_image_thumb($path=''){
-    return str_replace(".", "_thumb.", $path);
+    $thumb = str_replace(".", "_thumb.", $path);
+    return (file_exists($thumb) && is_file($thumb)) ? $thumb : $path;
   }
 
   function mp_storefront_image_url($path='', $use_thumb = true){

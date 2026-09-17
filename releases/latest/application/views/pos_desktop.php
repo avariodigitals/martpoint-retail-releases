@@ -1408,7 +1408,18 @@
         <div class="summary-row"><span>Subtotal</span><span id="subtotal">₦0.00</span></div>
         <div class="summary-row" id="taxRow" style="display:none"><span id="taxLabel">Tax</span><span id="tax">₦0.00</span></div>
         <div class="summary-row" id="discountRow" style="display:none"><span>Discount</span><span id="discount">₦0.00</span></div>
+        <div class="summary-row" id="shippingRow" style="display:none"><span id="shippingLabel">Shipping</span><span id="shipping">₦0.00</span></div>
         <div class="summary-row total"><span>Total</span><span id="grandTotal">₦0.00</span></div>
+        <?php if(!empty($shipping_fees)): ?>
+        <div class="discount-control" style="margin-top:8px;">
+          <select id="shippingSelect" onchange="onShippingChange()" style="flex:1; padding:10px 14px; border:1px solid var(--mp-border); border-radius:12px; font-size:14px; font-weight:500; background:var(--mp-surface); color:var(--mp-ink);">
+            <option value="" data-fee="0" data-label="">No shipping</option>
+            <?php foreach($shipping_fees as $sf): ?>
+            <option value="<?= (int)$sf->id; ?>" data-fee="<?= htmlspecialchars($sf->fee); ?>" data-label="<?= htmlspecialchars($sf->label); ?>"><?= htmlspecialchars($sf->label); ?><?= !empty($sf->location) ? ' (' . htmlspecialchars($sf->location) . ')' : ''; ?> — <?= htmlspecialchars(store_number_format($sf->fee)); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php endif; ?>
         <div class="discount-control">
           <input type="number" id="discountInput" min="0" step="100" placeholder="Discount amount" disabled>
           <button class="header-btn" id="discountBtn" onclick="openApproval()">Apply Discount</button>
@@ -1679,6 +1690,9 @@
     let searchQuery = '';
     let productView = localStorage.getItem('posProductView') || 'grid';
     let discountAmount = 0;
+    let shippingFee = 0;
+    let shippingFeeId = 0;
+    let shippingFeeLabel = '';
     let couponCode = '';
     let couponValue = 0;
     let couponType = '';
@@ -2092,6 +2106,11 @@
       
       cart.length = 0;
       discountAmount = 0;
+      shippingFee = 0;
+      shippingFeeId = 0;
+      shippingFeeLabel = '';
+      const shipSel = document.getElementById('shippingSelect');
+      if (shipSel) shipSel.value = '';
       document.getElementById('discountInput').value = '';
       document.getElementById('discountInput').disabled = true;
       clearCouponCode();
@@ -2463,6 +2482,18 @@
       // Expose totals for other functions and hide tax row when there's no tax
       cartSubtotal = subtotal;
       cartTax = tax;
+
+      // Manual shipping row
+      const shippingRow = document.getElementById('shippingRow');
+      if (shippingRow) {
+        if (shippingFee > 0) {
+          shippingRow.style.display = 'flex';
+          document.getElementById('shippingLabel').textContent = 'Shipping' + (shippingFeeLabel ? ' (' + shippingFeeLabel + ')' : '');
+          document.getElementById('shipping').textContent = formatMoney(shippingFee);
+        } else {
+          shippingRow.style.display = 'none';
+        }
+      }
       const taxRow = document.getElementById('taxRow');
       if (taxRow) {
         taxRow.style.display = (tax > 0) ? 'flex' : 'none';
@@ -2476,7 +2507,7 @@
       discountAmount = Math.min(discountAmount, subtotal + tax);
       couponDiscountAmt = computeCouponDiscount(subtotal);
       const totalDiscount = discountAmount + couponDiscountAmt;
-      const total = Math.max(0, subtotal + tax - totalDiscount);
+      const total = Math.max(0, subtotal + tax - totalDiscount + shippingFee);
 
       document.getElementById('subtotal').textContent = formatMoney(subtotal);
       document.getElementById('tax').textContent = formatMoney(tax);
@@ -2519,6 +2550,16 @@
       redeemBtn.disabled = !canRedeem;
       redeemBtn.textContent = 'Redeem';
       document.getElementById('clockNotice').style.display = cart.length > 0 && !clockedIn && !attendanceExempt ? 'flex' : 'none';
+    }
+
+    // Manual shipping picker — fee is verified server-side on save
+    function onShippingChange() {
+      const sel = document.getElementById('shippingSelect');
+      const opt = sel.options[sel.selectedIndex];
+      shippingFeeId = parseInt(sel.value) || 0;
+      shippingFee = parseFloat(opt ? opt.dataset.fee : 0) || 0;
+      shippingFeeLabel = opt ? (opt.dataset.label || '') : '';
+      updateCart();
     }
 
     function splitPay() {
@@ -2986,6 +3027,7 @@
           tax_id: item.tax_id || 0
         })),
         discount: discountAmount || 0,
+        shipping: shippingFeeId ? { id: shippingFeeId } : null,
         sales_note: '',
         reference_id: reference,
         csrf_test_name: csrfToken
@@ -3066,6 +3108,14 @@
               }
               discountAmount = parseFloat(hold.discount) || 0;
               document.getElementById('discountInput').value = discountAmount;
+              // Restore held shipping selection
+              if (hold.shipping && hold.shipping.id) {
+                const shipSel = document.getElementById('shippingSelect');
+                if (shipSel && shipSel.querySelector('option[value="' + hold.shipping.id + '"]')) {
+                  shipSel.value = hold.shipping.id;
+                  onShippingChange();
+                }
+              }
               hold.items.forEach(it => {
                 const product = products.find(p => p.id === it.id) || {};
                 cart.push({
@@ -3651,6 +3701,7 @@
         warehouse_id: WAREHOUSE_ID ? parseInt(WAREHOUSE_ID) : 0,
         cart: cartItems,
         discount: discountAmount || 0,
+        shipping: shippingFeeId ? { id: shippingFeeId } : null,
         sales_note: '',
         sales_status: 'Final',
         coupon_code: couponCode || '',

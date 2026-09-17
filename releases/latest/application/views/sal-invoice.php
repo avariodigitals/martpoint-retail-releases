@@ -11,6 +11,8 @@ $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt, b.due_date,b.quotation_id
                            coalesce(b.other_charges_input,0) as other_charges_input,
                            other_charges_tax_id,
                            coalesce(b.other_charges_amt,0) as other_charges_amt,
+                           coalesce(b.shipping_fee,0) as shipping_fee,
+                           b.shipping_label,
                            discount_to_all_input,
                            b.discount_to_all_type,
                            coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,
@@ -436,6 +438,12 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
           <span class="label"><?= $this->lang->line('round_off'); ?></span>
           <span class="value"><?= store_number_format($round_off); ?></span>
         </div>
+        <?php $ship_fee=(float)($res3->shipping_fee ?? 0); $ship_lbl=(string)($res3->shipping_label ?? ''); if($ship_fee > 0){ ?>
+        <div class="totals-row">
+          <span class="label">Shipping<?= $ship_lbl!=='' ? ' ('.htmlspecialchars($ship_lbl).')' : ''; ?></span>
+          <span class="value"><?= store_number_format($ship_fee); ?></span>
+        </div>
+        <?php } ?>
         <div class="totals-row grand">
           <span class="label"><?= $this->lang->line('grand_total'); ?></span>
           <span class="value"><?= store_number_format($grand_total); ?></span>

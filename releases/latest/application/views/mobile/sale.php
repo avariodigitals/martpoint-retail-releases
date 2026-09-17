@@ -65,6 +65,10 @@
     .search-bar { display: flex; align-items: center; background: var(--mp-bg); border-radius: 14px; padding: 8px 12px; border: 1px solid var(--mp-border); margin-bottom: 0; }
     .search-bar input { border: none; background: transparent; flex: 1; font-size: 16px; outline: none; min-height: 40px; }
     .search-bar input::placeholder { color: var(--mp-muted); }
+    .ship-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ship-chip { padding: 9px 14px; border-radius: 999px; border: 1.5px solid var(--mp-border); background: var(--mp-surface); font-size: 12.5px; font-weight: 600; color: var(--mp-ink); cursor: pointer; min-height: 40px; }
+    .ship-chip.active { background: var(--mp-primary); border-color: var(--mp-primary); color: #fff; }
+    .ship-fee-note { font-size: 12px; color: var(--mp-muted); margin-top: 6px; display: none; }
     .cart-total { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; padding: 16px; background: var(--mp-surface); border-radius: 16px; border: 1px solid var(--mp-border); }
     .cart-total .label { font-size: 16px; color: var(--mp-muted); }
     .cart-total .value { font-size: clamp(20px, 6vw, 26px); font-weight: 700; color: var(--mp-primary); word-break: keep-all; overflow-wrap: break-word; }
@@ -305,6 +309,19 @@
         <input type="number" class="form-control" id="discount" value="0" min="0" step="0.01">
       </div>
 
+      <?php if(!empty($shipping_fees)): ?>
+      <div class="form-group">
+        <label>Shipping / Delivery</label>
+        <div class="ship-chips" id="shipping_chips">
+          <button type="button" class="ship-chip active" data-id="0" data-fee="0" data-label="">None</button>
+          <?php foreach($shipping_fees as $sf): ?>
+          <button type="button" class="ship-chip" data-id="<?= (int)$sf->id; ?>" data-fee="<?= htmlspecialchars($sf->fee); ?>" data-label="<?= htmlspecialchars($sf->label); ?>"><?= htmlspecialchars($sf->label); ?><?= !empty($sf->location) ? ' · ' . htmlspecialchars($sf->location) : ''; ?> — <?= htmlspecialchars(store_number_format($sf->fee)); ?></button>
+          <?php endforeach; ?>
+        </div>
+        <div class="ship-fee-note" id="ship_fee_note"></div>
+      </div>
+      <?php endif; ?>
+
       <div class="form-group">
         <label>Note</label>
         <textarea class="form-control" id="sales_note" rows="2" style="min-height:80px;" placeholder="Optional note..."></textarea>
@@ -507,6 +524,7 @@
   <script>
     var base_url = '<?= base_url(); ?>';
     var cart = [];
+    var shippingFee = 0, shippingFeeId = 0, shippingFeeLabel = '';
     var holdData = <?= json_encode($hold ?? null, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?>;
     var searchItemsMap = {};
     var catalogItemsMap = {};
@@ -534,6 +552,10 @@
       showToast('Recalling ' + hold.items.length + ' items', 'success');
       $('#discount').val(hold.discount || 0);
       $('#sales_note').val(hold.sales_note || '');
+      // Restore shipping chip selection from the held sale
+      if(hold.shipping && hold.shipping.id){
+        selectShippingChip(hold.shipping.id);
+      }
       cart = hold.items.map(function(it){
         return {
           id: it.id,
@@ -694,7 +716,7 @@
       });
       var discount = parseFloat($('#discount').val()) || 0;
       var redeem = parseFloat($('#redeem_discount').val()) || 0;
-      return Math.max(0, subtotal - discount - redeem);
+      return Math.max(0, subtotal - discount - redeem + shippingFee);
     }
 
     function updatePaymentChange(){
@@ -735,6 +757,27 @@
         $('#price_type').val($(this).data('value')).trigger('change');
       }
       calculatePlan();
+    });
+
+    // Manual shipping — chip selection (server verifies the fee on save)
+    function selectShippingChip(id){
+      var chip = $('#shipping_chips .ship-chip[data-id="' + id + '"]');
+      if(!chip.length) chip = $('#shipping_chips .ship-chip[data-id="0"]');
+      $('#shipping_chips .ship-chip').removeClass('active');
+      chip.addClass('active');
+      shippingFeeId = parseInt(chip.data('id')) || 0;
+      shippingFee = parseFloat(chip.data('fee')) || 0;
+      shippingFeeLabel = chip.data('label') || '';
+      var note = $('#ship_fee_note');
+      if(shippingFeeId && shippingFee > 0){
+        note.text('+' + formatMoney(shippingFee) + ' shipping added to total').show();
+      } else {
+        note.hide();
+      }
+      renderCart();
+    }
+    $(document).on('click', '#shipping_chips .ship-chip', function(){
+      selectShippingChip($(this).data('id'));
     });
 
     function renderCart(){
@@ -1207,7 +1250,8 @@
         redeem_gift_card_amount: $('#gift_card_redeem_amount').val() || 0,
         coupon_code: $('#coupon_code').val() || '',
         allow_tot_advance: $('#allow_tot_advance').is(':checked') ? 'checked' : '',
-        cart: cart
+        cart: cart,
+        shipping: shippingFeeId ? { id: shippingFeeId } : null
       };
       if(action === 'split'){
         payload.payment_rows = getPaymentRows();

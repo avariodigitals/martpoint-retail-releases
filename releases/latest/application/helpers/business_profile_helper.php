@@ -129,6 +129,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'cashier_shifts'            => 'Cashier Shifts / Tills',
             'medical_notes'             => 'Medical Notes (Pharmacy)',
             'leads'                     => 'Leads / CRM',
+            'manual_shipping'           => 'Manual Shipping (POS Delivery Fee)',
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
             'pos_retail_button'         => 'POS Retail Price Button',
             'pos_wholesale_button'      => 'POS Wholesale Price Button',
@@ -564,6 +565,10 @@ if (!function_exists('mp_get_business_presets')) {
             }
             if (isset($theme_map[$key])) {
                 $preset['theme_key'] = $theme_map[$key];
+            }
+            // Leads/CRM is available to every industry
+            if (!in_array('leads', $preset['features'], true)) {
+                $preset['features'][] = 'leads';
             }
         }
         unset($preset);

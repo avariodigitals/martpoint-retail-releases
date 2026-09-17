@@ -447,6 +447,11 @@ class Pos_model extends CI_Model {
 		$pay_all = $this->input->get_post('pay_all', TRUE);
 		$points_use = $this->input->post('points_use', TRUE);
 		$sales_note = $this->input->post('sales_note', TRUE);
+		// Manual Shipping — columns guarded for un-migrated installs
+		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
+		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
+		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
+		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
@@ -617,6 +622,11 @@ class Pos_model extends CI_Model {
 		    				'grand_total' 				=> $tot_grand,
 		    				'sales_note' 				=> $sales_note,
 		    			);
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
 				$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 				$q3 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
 				if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
@@ -662,6 +672,11 @@ class Pos_model extends CI_Model {
 		    				'status' 					=> 1,
 		    				'sales_note' 				=> $sales_note,
 		    			);
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
 			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 
 			
@@ -1427,6 +1442,11 @@ class Pos_model extends CI_Model {
 		$sales_note = $this->input->post('sales_note', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		// Manual Shipping — columns guarded for un-migrated installs
+		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
+		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
+		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
+		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
 		$store_id= get_current_store_id();
@@ -1471,6 +1491,11 @@ class Pos_model extends CI_Model {
 	    				'pos' 						=> 1,
 	    				'sales_note' 				=> $sales_note,
 	    			);
+		if($this->db->field_exists('shipping_fee', 'db_hold')){
+			$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+			$sales_entry['shipping_label']  = $shipping_label ?: null;
+			$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+		}
 		$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 		$q3 = $this->db->insert('db_hold', $sales_entry);
 		$hold_id = $this->db->insert_id();

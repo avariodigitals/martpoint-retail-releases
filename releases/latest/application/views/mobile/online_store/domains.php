@@ -85,8 +85,8 @@
             <input type="text" name="domain_value" class="form-control" placeholder="yourstore.martpoint.store or shop.yourstore.com">
           </div>
           <div class="form-group">
-            <label class="form-label">DNS Instructions</label>
-            <textarea name="dns_instructions" class="form-control" rows="3" placeholder="CNAME yourstore.martpoint.store -> martpoint.store"></textarea>
+            <label class="form-label">DNS Instructions <span style="font-weight:400;color:var(--mp-muted);">(optional)</span></label>
+            <textarea name="dns_instructions" class="form-control" rows="3" placeholder="Leave empty to auto-generate"></textarea>
           </div>
           <div class="form-group">
             <button type="button" class="btn btn-primary" onclick="saveDomain()">Add Domain</button>
@@ -104,15 +104,22 @@
             </div>
             <div class="domain-row">
               <span class="domain-type">Status</span>
-              <span class="status <?= $d->connection_status === 'connected' ? 'status-connected' : 'status-disconnected'; ?>"><?= ucfirst($d->connection_status); ?></span>
+              <span class="status <?= $d->connection_status === 'connected' ? 'status-connected' : 'status-disconnected'; ?>"><?= ucfirst($d->connection_status); ?><?= $d->ssl_status === 'active' ? ' · SSL' : ''; ?></span>
             </div>
+            <?php if($d->verification_status === 'failed'): ?>
+              <p style="font-size:12px;color:#DC2626;margin:0 0 10px;">DNS verification failed — check the records below and try again.</p>
+            <?php endif; ?>
+            <?php if(!empty($d->dns_instructions) && $d->connection_status !== 'connected'): ?>
+              <div class="url-box" style="font-size:12px;white-space:pre-line;"><?= htmlspecialchars($d->dns_instructions); ?></div>
+            <?php endif; ?>
             <?php if($can_edit): ?>
             <div class="domain-actions">
               <?php if($d->connection_status !== 'connected'): ?>
-                <button class="btn-connect" onclick="updateStatus(<?= $d->id; ?>, 'connected')">Connect</button>
+                <button class="btn-connect" onclick="verifyDomain(<?= $d->id; ?>, this)">Verify &amp; Connect</button>
               <?php else: ?>
                 <button class="btn-disconnect" onclick="updateStatus(<?= $d->id; ?>, 'disconnected')">Disconnect</button>
               <?php endif; ?>
+              <button class="btn-connect" style="background:#E0E7FF;color:#3730A3;" onclick="sendInstructions(<?= $d->id; ?>)">Email instructions</button>
               <button class="btn-delete" onclick="deleteDomain(<?= $d->id; ?>, this)">Delete</button>
             </div>
             <?php endif; ?>
@@ -142,6 +149,30 @@
       .then(r=>r.json()).then(res=>{
         if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed to save', true); }
       }).catch(()=>showToast('Network error', true));
+    }
+    function verifyDomain(id, btn){
+      btn.disabled = true;
+      const fd = new FormData();
+      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+      fd.append('domain_id', id);
+      fetch('<?= base_url('online_store/verify_domain'); ?>', {method:'POST', body:fd})
+      .then(r=>r.json()).then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); }
+        else { showToast(res.message || 'Verification failed', true); btn.disabled = false; }
+      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+    }
+    function sendInstructions(id){
+      const email = prompt('Send DNS setup instructions to (email):');
+      if(!email) return;
+      const name = prompt('Recipient name (optional):') || '';
+      const fd = new FormData();
+      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+      fd.append('domain_id', id);
+      fd.append('email', email);
+      fd.append('name', name);
+      fetch('<?= base_url('online_store/send_domain_instructions'); ?>', {method:'POST', body:fd})
+      .then(r=>r.json()).then(res=>{ showToast(res.message || 'Done', res.status !== 'success'); })
+      .catch(()=>showToast('Network error', true));
     }
     function updateStatus(id, status){
       const fd = new FormData();

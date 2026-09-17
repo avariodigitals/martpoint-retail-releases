@@ -105,6 +105,9 @@ body { margin: 5px; }
                            coalesce(b.other_charges_input,0) as other_charges_input,
                            other_charges_tax_id,
                            coalesce(b.other_charges_amt,0) as other_charges_amt,
+                           coalesce(b.shipping_fee,0) as shipping_fee,
+                           b.shipping_label,
+
                            discount_to_all_input,
                            b.discount_to_all_type,
                            coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,
@@ -161,6 +164,8 @@ body { margin: 5px; }
     
     $subtotal=$res3->subtotal;
     $grand_total=$res3->grand_total;
+    $shipping_fee=(float)($res3->shipping_fee ?? 0);
+    $shipping_label=(string)($res3->shipping_label ?? '');
     $other_charges_input=$res3->other_charges_input;
     $other_charges_tax_id=$res3->other_charges_tax_id;
     $other_charges_amt=$res3->other_charges_amt;
@@ -514,6 +519,12 @@ body { margin: 5px; }
     <td colspan="2" class='text-right' ><b><?php echo store_number_format($tot_discount_to_all_amt); ?></b></td>
   </tr>
   
+  <?php if($shipping_fee > 0){ ?>
+  <tr>
+    <td colspan="14" class='text-right'><b>Shipping<?= $shipping_label!=='' ? ' ('.htmlspecialchars($shipping_label).')' : ''; ?></b></td>
+    <td colspan="2" class='text-right' ><b><?php echo store_number_format($shipping_fee); ?></b></td>
+  </tr>
+  <?php } ?>
   <tr>
     <td colspan="14" class='text-right'><b><?= $this->lang->line('grand_total'); ?></b></td>
     <td colspan="2" class='text-right' ><b><?php echo store_number_format($grand_total); ?></b></td>
