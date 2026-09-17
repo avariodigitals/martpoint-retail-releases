@@ -1489,6 +1489,7 @@ class Online_store extends MY_Controller {
 	}
 
 	public function save_testimonial(){
+		header('Content-Type: application/json');
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
 		}

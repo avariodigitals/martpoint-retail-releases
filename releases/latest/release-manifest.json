@@ -1,6 +1,6 @@
 {
-  "version": "4.0.9.20",
-  "previous_version": "4.0.9.19",
+  "version": "4.0.9.21",
+  "previous_version": "4.0.9.20",
   "release_date": "2026-09-17",
   "files": [
     {
@@ -20,7 +20,7 @@
     },
     {
       "path": "sw.js",
-      "hash": "092d4d7a7da2d7590a234a7f1c2f1aeca44c1c77b21385145792cfc09e71a986",
+      "hash": "3c2171ed7a92c5eecd31e02e344ccd3404568423561d732e5b37086bb1437b8b",
       "size": 6579
     },
     {
@@ -400,8 +400,8 @@
     },
     {
       "path": "application/controllers/Online_store.php",
-      "hash": "44819f3c13fd3ae4cf810e76fed2e772eec88b0e2407f32d1a09a99fbb16c566",
-      "size": 72234
+      "hash": "9a5437f2c2a98bf6dfdd529f8dd8ccd08c590bd14d503a0f2c47017da025e63c",
+      "size": 72278
     },
     {
       "path": "application/controllers/Operations.php",
@@ -710,7 +710,7 @@
     },
     {
       "path": "application/helpers/custom_helper.php",
-      "hash": "a7db0dd0877dae1bce5acb49a9cd48e47a489c90fe4649fb003a94a1bee6e0ae",
+      "hash": "1d2df250ef76564db8b4cad09e3a753c01a8fbb649382025d37c2837fedc2895",
       "size": 93455
     },
     {
@@ -10040,8 +10040,8 @@
     },
     {
       "path": "application/views/online_store/brands.php",
-      "hash": "29ce711ca8f14506f0ab694d42132b5f5d1dd578bcf2b0ac2a91b9d6526ee71e",
-      "size": 6671
+      "hash": "3f3c767bf061a6399d4581c250b95e58aa2f202928a0b899e89e87cb463a2db4",
+      "size": 6688
     },
     {
       "path": "application/views/online_store/dashboard.php",
@@ -10065,8 +10065,8 @@
     },
     {
       "path": "application/views/online_store/instagram.php",
-      "hash": "3afdee4e8e98273d8e0418e45c808c4473c79c3e6acf549cc8d598361a0f5468",
-      "size": 8091
+      "hash": "cd0e5cad2a617999e52264b0645ffe307f7d3ec057cacdfce3485012b916655b",
+      "size": 8108
     },
     {
       "path": "application/views/online_store/order_detail.php",
@@ -10100,8 +10100,8 @@
     },
     {
       "path": "application/views/online_store/settings.php",
-      "hash": "7397f9ce3515d278170216e0f3a8190a6e6da4dcd9ed7cbf6a3aeb516e29a508",
-      "size": 18330
+      "hash": "b0dd59ec4172aff4a6e7e773386d4c5cbf5914e650cccf7f5747ea578b749b9d",
+      "size": 18354
     },
     {
       "path": "application/views/online_store/subscribers.php",
@@ -10110,8 +10110,8 @@
     },
     {
       "path": "application/views/online_store/testimonials.php",
-      "hash": "11f5590a0ce83b33e0573ed0c4201f13c9551e44b82391f0f736ca84530bc549",
-      "size": 9233
+      "hash": "32661662bfd9a016cc943040320f5e0be47457cb2f2fcac8292f6f05a0283437",
+      "size": 9302
     },
     {
       "path": "application/views/operations/assign_membership.php",
@@ -26474,6 +26474,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "91b8dfe64df6c32423642ee08ed79de7f473ce305331a225bdee0dd345a34fe1",
-  "changelog": "Editable announcement marquee (urban_fashion); fashion themes polished."
+  "signature": "5b61f5b4b6f2be7bb46feb6e7bff0292a4067df147d946eefefa2230416da41f",
+  "changelog": "Fix false Failed-to-save on testimonials/brands/instagram/settings saves."
 }

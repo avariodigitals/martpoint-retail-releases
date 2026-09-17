@@ -106,7 +106,7 @@ function editTestimonial(btn){
 }
 function saveTestimonial(){
   const fd = new FormData(document.getElementById('testimonialForm'));
-  $.ajax({ url:'<?= base_url('online_store/save_testimonial'); ?>', type:'POST', data:fd, processData:false, contentType:false, success:function(res){ if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); } else { toastr.error(res.message || 'Failed to save'); } } });
+  $.ajax({ url:'<?= base_url('online_store/save_testimonial'); ?>', type:'POST', data:fd, processData:false, contentType:false, dataType:'json', success:function(res){ if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); } else { toastr.error(res.message || 'Failed to save'); } }, error:function(){ toastr.error('Network error'); } });
 }
 function deleteTestimonial(id){
   if(typeof swal === 'undefined'){

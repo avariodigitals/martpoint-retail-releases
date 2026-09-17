@@ -176,6 +176,7 @@ $(function(){
       cache: false,
       contentType: false,
       processData: false,
+      dataType: 'json',
       success: function(result){
         btn.attr('disabled', false).html('<i class="fa fa-save"></i> Save Settings');
         $(".overlay").remove();
