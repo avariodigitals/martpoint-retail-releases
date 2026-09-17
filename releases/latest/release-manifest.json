@@ -20,7 +20,7 @@
     },
     {
       "path": "sw.js",
-      "hash": "9c4a7bc0840eb2e5c09b3c9296253b132c929fc6a2d8771e99501f507bbaf7ad",
+      "hash": "60728a4d94601dfc01a95c19a5a855289992a2977f99c41eed3b3317da53742d",
       "size": 6579
     },
     {
@@ -710,7 +710,7 @@
     },
     {
       "path": "application/helpers/custom_helper.php",
-      "hash": "81b6a1c071e870e15f363ec4b4d6586658ada8474b749e47d96ce973404496b7",
+      "hash": "17ba6b0b930ddad1291d5e822b33459283317e7b0e72b29eb6b19bf2a36d8005",
       "size": 93455
     },
     {
@@ -10910,18 +10910,18 @@
     },
     {
       "path": "application/views/themes/fashion_boutique/products.php",
-      "hash": "86daf4d3396dd6b332e816f1efca1b2242672af44ab05288fa91b79d87e175aa",
-      "size": 22688
+      "hash": "9c5d42830f50555fbc86b3835253bae73a3f96f3a02e87b7043ca3c22e47fdce",
+      "size": 22964
     },
     {
       "path": "application/views/themes/fashion_boutique/store.php",
-      "hash": "620b699660294e2b65014ea97e3e538da96923f9b4bcc12b424a71f96090fb48",
-      "size": 42509
+      "hash": "d76c0aac465c2a5def8f5cd8ac07ba3235f13c666ef1f755802dbdca1376a693",
+      "size": 44048
     },
     {
       "path": "application/views/themes/fashion_luxe/header.php",
-      "hash": "fade2a166047b7c6de88af6022b45d8f2ba80c83b3fab29761764330cbf35186",
-      "size": 11718
+      "hash": "4809a10eb93a27db37bcc8052705c0adfa525c036d6f0659417ecbc66189ee5c",
+      "size": 11712
     },
     {
       "path": "application/views/themes/fashion_luxe/product_detail.php",
@@ -10930,13 +10930,13 @@
     },
     {
       "path": "application/views/themes/fashion_luxe/products.php",
-      "hash": "6c4e1e24dd3353374434aaa231bd3bd13e164eaddf66dbd483b6833ed84f0d3c",
-      "size": 23595
+      "hash": "f24c88f7fd08b63d753178dbccd4edf90b05e846920a8adc3e6f4fe039660463",
+      "size": 23871
     },
     {
       "path": "application/views/themes/fashion_luxe/store.php",
-      "hash": "8ac8ad83f9b341c1b660a0e2ef987920e2db3abb12240a22a49c72a506a6dbbb",
-      "size": 59325
+      "hash": "f2537b091161fb4203a20c1b5857f3c247a4b6ebaf6d0df372e8be6dc1523bf7",
+      "size": 59745
     },
     {
       "path": "application/views/themes/fashion_modern/header.php",
@@ -10950,13 +10950,13 @@
     },
     {
       "path": "application/views/themes/fashion_modern/products.php",
-      "hash": "f536428986fb7c199191e1df108f4108ce6880d069c874d9a22c218a176b2a43",
-      "size": 21037
+      "hash": "8af482e423c10586fc71934000ed5a78455741c288c22938b98333f7f3d0add2",
+      "size": 21313
     },
     {
       "path": "application/views/themes/fashion_modern/store.php",
-      "hash": "25d103caac4e0b446fab7b97817d3dc3cbe5c86df1a28c031701511050a573c6",
-      "size": 41394
+      "hash": "199f1c3c55555bbebb378a618524f9aa5858fadd70038b6afe201ac72a77ce1e",
+      "size": 42933
     },
     {
       "path": "application/views/themes/fashion_modest/header.php",
@@ -10970,13 +10970,13 @@
     },
     {
       "path": "application/views/themes/fashion_modest/products.php",
-      "hash": "e7ce345d22945452c3a9c743b74e9d74250e2eacf6dc432aa6e9a774b0ca5c52",
-      "size": 21802
+      "hash": "e673a96927fb5cb93b6a716a4590b206edade86761a80859475e33ef92839ead",
+      "size": 22078
     },
     {
       "path": "application/views/themes/fashion_modest/store.php",
-      "hash": "dd15bc934c6655469afc847ed1d8b48ba3931fc6979fd9bcbd45a794b518db93",
-      "size": 41682
+      "hash": "6a753138dc1598116f47831085aa697dd659c791ac2ef327cd03af15e5d12aac",
+      "size": 43221
     },
     {
       "path": "application/views/themes/food_express/home.php",
@@ -11425,28 +11425,28 @@
     },
     {
       "path": "application/views/themes/urban_fashion/header.php",
-      "hash": "c22c59ee22811d583c8ad4ea57e02663c6245f122844426e9ec45161679f4d50",
-      "size": 11952
+      "hash": "fb962d68d1956ead0e234fecefe12ef21dbad497fd62e786ad22a94366141431",
+      "size": 11955
     },
     {
       "path": "application/views/themes/urban_fashion/home.php",
-      "hash": "ee3d6e966a2e25d021dcce4216b9946921fa4d96cfd21101126c3df35aa75c59",
-      "size": 1704
+      "hash": "7795b387a4d6d6660ff3ee51ae8619e27e623c776143f96cb378874cdb21be04",
+      "size": 2934
     },
     {
       "path": "application/views/themes/urban_fashion/product_detail.php",
-      "hash": "7b7d548cc046a611d9a6211b2c4e2151d75f97c2199853e4d48f859ea82569af",
-      "size": 10900
+      "hash": "fee0d7c831b5a18e4b77e7102f545c622bd0f9570e431d930835b753769f629f",
+      "size": 10918
     },
     {
       "path": "application/views/themes/urban_fashion/products.php",
-      "hash": "e14b496f5634edb1ed9ce78186e04b3d2ffc695f065c21ee946379862fd09937",
-      "size": 21498
+      "hash": "97d5dfec9eb6fe44059af8f1507b05222b524feb371ca508eb469617112d692e",
+      "size": 21540
     },
     {
       "path": "application/views/themes/urban_fashion/store.php",
-      "hash": "61116fc73182ffd9438379d375db05d6ab06fc12c8232729a643b04f52b6590e",
-      "size": 1764
+      "hash": "c74522788e39383c2928107fe871b1be2196829a6dc7c837afb70b5b1845e995",
+      "size": 2994
     },
     {
       "path": "application/views/themes/wholesale/home.php",
@@ -26473,6 +26473,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "f0626de8b9c8c74ab36bad2f2041c3bb4876d7a19acdfe5785eaace5089c07ec",
-  "changelog": "Fashion Luxe fully responsive; trust badges show all 4; mobile fixes."
+  "signature": "2b95ab2c111fb3f1ce153823aa7a4caac322deea2ef1ad5d49ece141779d9f94",
+  "changelog": "Fashion Luxe: nav label Shop, full responsiveness."
 }

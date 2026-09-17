@@ -108,6 +108,13 @@ $cur = $store_currency ?? null;
   .wa-order-modal-send:hover { background:#1FB855; }
   .wa-order-modal-cancel { padding:14px 20px; border-radius:4px; border:1px solid var(--bl-soft); background:#fff; color:var(--bl-ink); font-family:'Lora',serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; transition:background .2s; }
   .wa-order-modal-cancel:hover { background:var(--bl-soft); }
+
+  /* wa-modal-mobile-pass */
+  @media(max-width:767px){
+    .wa-order-modal-card { width:calc(100vw - 24px); max-height:92vh; }
+    .wa-order-modal-actions { flex-direction:column; }
+    .wa-order-modal-send, .wa-order-modal-cancel { width:100%; box-sizing:border-box; }
+  }
 </style>
 
 <div class="bl-container">

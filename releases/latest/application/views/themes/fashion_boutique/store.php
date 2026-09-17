@@ -212,6 +212,33 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .bl-hours-row:last-child { border-bottom:none; }
   .bl-hours-day { color:var(--bl-ink); font-weight:600; }
   .bl-hours-time { color:#6B5B4A; }
+
+  /* === World-class polish & mobile pass === */
+  .bl-product-card { border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .25s ease, box-shadow .25s ease; }
+  .bl-product-card:hover { transform:translateY(-5px); box-shadow:0 18px 44px rgba(0,0,0,.13); }
+  .bl-cat-card { border-radius:16px; overflow:hidden; }
+  .bl-promo, .bl-newsletter, .bl-testimonial, .bl-contact-card, .bl-faq-item, .bl-insta-item { border-radius:14px; }
+  .bl-btn { min-height:46px; }
+  .bl-add-btn, .bl-wa-btn { min-height:44px; }
+  .bl-values-grid { grid-template-columns:repeat(4,1fr); }
+  @media(max-width:1023px){ .bl-values-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:767px){
+    .bl-hero-content { padding:64px 16px 84px; }
+    .bl-hero-actions { flex-direction:column; width:100%; align-items:stretch; }
+    .bl-hero-actions .bl-btn { width:100%; box-sizing:border-box; }
+    .bl-cat-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+    .bl-values-grid { grid-template-columns:repeat(2,1fr); gap:18px; }
+    .bl-newsletter-form { flex-direction:column; }
+    .bl-newsletter-form button { width:100%; min-height:48px; }
+    .bl-section-head { flex-direction:column; align-items:flex-start; gap:8px; }
+    .bl-product-body { padding:14px; }
+    .wa-order-modal-actions { flex-direction:column; }
+    .wa-order-modal-card { width:calc(100vw - 24px); }
+  }
+  @media(max-width:380px){
+    .bl-cat-grid { grid-template-columns:1fr; }
+    .bl-values-grid { grid-template-columns:1fr; }
+  }
 </style>
 
 <?php
@@ -267,7 +294,7 @@ foreach($orderedSections as $sectionKey => $section):
 <div class="bl-values">
   <div class="bl-container">
     <div class="bl-values-grid">
-      <?php foreach(array_slice($blBadges, 0, 3) as $b): ?>
+      <?php foreach(array_slice($blBadges, 0, 4) as $b): ?>
       <div class="bl-value">
         <div class="bl-value-icon"><?= !empty($b['icon']) ? $b['icon'] : '&#10024;'; ?></div>
         <div class="bl-value-title"><?= htmlspecialchars($b['title'] ?? ''); ?></div>

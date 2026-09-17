@@ -874,6 +874,14 @@ endforeach;
     .fl-cat-grid { grid-template-columns:1fr; }
     .fl-values-grid { grid-template-columns:1fr; }
   }
+
+  /* Luxury card polish */
+  .fl-product-card { box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .fl-product-card:hover { transform:translateY(-5px); box-shadow:0 18px 44px rgba(0,0,0,.13); }
+  .fl-cat-card { border-radius:16px; }
+  .fl-promo, .fl-newsletter, .fl-testimonial, .fl-contact-card, .fl-faq-item, .fl-insta-item { border-radius:14px; }
+  .fl-btn { min-height:46px; }
+  .fl-add-btn, .fl-wa-btn { min-height:44px; }
 </style>
 
 <div class="wa-order-modal" id="wa-order-modal">

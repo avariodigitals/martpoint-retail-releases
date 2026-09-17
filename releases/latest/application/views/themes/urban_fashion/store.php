@@ -22,3 +22,23 @@ foreach($homepage_sections as $key => $section){
   }
 }
 ?>
+
+<style>
+/* Urban Fashion — luxury polish over shared sections */
+.theme-urban_fashion .mp-card { border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .25s ease, box-shadow .25s ease; }
+.theme-urban_fashion .mp-card:hover { transform:translateY(-5px); box-shadow:0 18px 44px rgba(0,0,0,.13); }
+.theme-urban_fashion .mp-hero-btn, .theme-urban_fashion .mp-hero-btn-secondary,
+.theme-urban_fashion .mp-card-add, .theme-urban_fashion .mp-service-btn,
+.theme-urban_fashion .mp-sticky-cart-btn, .theme-urban_fashion .mp-cart-checkout,
+.theme-urban_fashion .mp-modal-add { border-radius:12px; min-height:46px; }
+.theme-urban_fashion .mp-hero-img { border-radius:0; }
+.theme-urban_fashion .mp-section-title { letter-spacing:-0.01em; }
+@media(max-width:767px){
+  .theme-urban_fashion .mp-hero-img { height:340px; }
+  .theme-urban_fashion .mp-hero-title { font-size:clamp(28px,8.5vw,40px); }
+  .theme-urban_fashion .mp-hero-subtitle { font-size:15px; }
+  .theme-urban_fashion .mp-hero-btns { flex-direction:column; width:100%; }
+  .theme-urban_fashion .mp-hero-btns a { width:100%; text-align:center; box-sizing:border-box; }
+  .theme-urban_fashion .mp-section { padding:40px 16px; }
+}
+</style>

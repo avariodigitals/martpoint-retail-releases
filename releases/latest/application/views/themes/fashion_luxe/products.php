@@ -303,4 +303,11 @@ function sendWhatsAppOrder(){
   .flh-logo-text { font-size:30px; }
   .flh-nav-link:hover { color:var(--fl-gold); }
   .flh-icon-btn:hover { color:var(--fl-gold); background:var(--fl-soft); }
+
+  /* wa-modal-mobile-pass */
+  @media(max-width:767px){
+    .wa-order-modal-card { width:calc(100vw - 24px); max-height:92vh; }
+    .wa-order-modal-actions { flex-direction:column; }
+    .wa-order-modal-send, .wa-order-modal-cancel { width:100%; box-sizing:border-box; }
+  }
 </style>

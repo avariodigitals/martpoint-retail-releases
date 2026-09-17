@@ -21,7 +21,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .ue-pd { padding:32px 0 64px; }
   .ue-pd-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:48px; align-items:start; }
   @media(max-width:1023px){ .ue-pd-layout { grid-template-columns:1fr; gap:32px; } }
-  .ue-pd-gallery { position:sticky; top:90px; overflow:hidden; background:#F2F2F0; aspect-ratio:4/5; border-radius:0; }
+  .ue-pd-gallery { position:sticky; top:90px; overflow:hidden; background:#F2F2F0; aspect-ratio:4/5; border-radius:12px; }
   @media(max-width:1023px){ .ue-pd-gallery { position:static; } }
   .ue-pd-gallery img { width:100%; height:100%; object-fit:cover; }
   .ue-pd-gallery-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#CCC; font-family:'Montserrat',sans-serif; font-size:48px; font-weight:800; }
@@ -35,19 +35,19 @@ $hasDiscount = $product->original_price > $product->effective_price;
   .ue-pd-stock.out { color:#EF4444; }
   .ue-pd-desc { color:#4A4A4A; line-height:1.7; margin-bottom:32px; font-size:15px; }
   .ue-pd-qty { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
-  .ue-pd-qty button { width:48px; height:48px; border-radius:0; border:1px solid #0A0A0A; background:#fff; font-size:20px; cursor:pointer; color:#0A0A0A; transition:background .2s; }
+  .ue-pd-qty button { width:48px; height:48px; border-radius:12px; border:1px solid #0A0A0A; background:#fff; font-size:20px; cursor:pointer; color:#0A0A0A; transition:background .2s; }
   .ue-pd-qty button:hover { background:#0A0A0A; color:#fff; }
   .ue-pd-qty span { font-family:'Montserrat',sans-serif; font-size:20px; font-weight:800; min-width:40px; text-align:center; color:#0A0A0A; }
   .ue-pd-actions { display:flex; gap:12px; flex-wrap:wrap; }
   .ue-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:16px 36px; font-size:12px; font-weight:700; transition:transform .15s, background .2s; cursor:pointer; border:none; text-decoration:none; text-transform:uppercase; letter-spacing:0.1em; }
   .ue-btn:active { transform:scale(0.98); }
-  .ue-btn-primary { background:#FF3B30; color:#fff; border-radius:0; }
+  .ue-btn-primary { background:#FF3B30; color:#fff; border-radius:12px; }
   .ue-btn-primary:hover { background:#DC2F26; }
-  .ue-btn-dark { background:#0A0A0A; color:#fff; border-radius:0; }
+  .ue-btn-dark { background:#0A0A0A; color:#fff; border-radius:12px; }
   .ue-btn-dark:hover { background:#FF3B30; }
-  .ue-btn-outline { background:#fff; color:#0A0A0A; border:1.5px solid #0A0A0A; border-radius:0; }
+  .ue-btn-outline { background:#fff; color:#0A0A0A; border:1.5px solid #0A0A0A; border-radius:12px; }
   .ue-btn-outline:hover { background:#0A0A0A; color:#fff; }
-  .ue-btn-wa { background:#25D366; color:#fff; border-radius:0; }
+  .ue-btn-wa { background:#25D366; color:#fff; border-radius:12px; }
   .ue-btn-wa:hover { background:#1DA851; }
   .ue-pd-actions .ue-btn { flex:1; min-width:180px; }
 

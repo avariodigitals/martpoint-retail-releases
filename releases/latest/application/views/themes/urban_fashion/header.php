@@ -33,7 +33,7 @@ $social = $social_links ?? [];
   .ueh-logo-tag { font-size:9px; color:#999; letter-spacing:0.16em; text-transform:uppercase; }
   .ueh-actions { display:flex; align-items:center; gap:8px; flex:1; justify-content:flex-end; }
   .ueh-search { position:relative; max-width:220px; width:100%; }
-  .ueh-search input { width:100%; padding:10px 14px 10px 36px; border:1px solid #E5E5E0; border-radius:0; font-size:12px; outline:none; background:#FAFAF8; transition:border-color .2s; text-transform:uppercase; letter-spacing:0.04em; }
+  .ueh-search input { width:100%; padding:10px 14px 10px 36px; border:1px solid #E5E5E0; border-radius:12px; font-size:12px; outline:none; background:#FAFAF8; transition:border-color .2s; text-transform:uppercase; letter-spacing:0.04em; }
   .ueh-search input:focus { border-color:#0A0A0A; background:#fff; }
   .ueh-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#999; }
   .ueh-icon-btn { width:42px; height:42px; display:flex; align-items:center; justify-content:center; transition:background .2s; position:relative; text-decoration:none; color:#0A0A0A; }

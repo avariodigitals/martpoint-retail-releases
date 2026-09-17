@@ -210,6 +210,33 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .ms-hours-row:last-child { border-bottom:none; }
   .ms-hours-day { color:var(--ms-ink); font-weight:600; }
   .ms-hours-time { color:#6B6B6B; }
+
+  /* === World-class polish & mobile pass === */
+  .ms-product-card { border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .25s ease, box-shadow .25s ease; }
+  .ms-product-card:hover { transform:translateY(-5px); box-shadow:0 18px 44px rgba(0,0,0,.13); }
+  .ms-cat-card { border-radius:16px; overflow:hidden; }
+  .ms-promo, .ms-newsletter, .ms-testimonial, .ms-contact-card, .ms-faq-item, .ms-insta-item { border-radius:14px; }
+  .ms-btn { min-height:46px; }
+  .ms-add-btn, .ms-wa-btn { min-height:44px; }
+  .ms-values-grid { grid-template-columns:repeat(4,1fr); }
+  @media(max-width:1023px){ .ms-values-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:767px){
+    .ms-hero-content { padding:64px 16px 84px; }
+    .ms-hero-actions { flex-direction:column; width:100%; align-items:stretch; }
+    .ms-hero-actions .ms-btn { width:100%; box-sizing:border-box; }
+    .ms-cat-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+    .ms-values-grid { grid-template-columns:repeat(2,1fr); gap:18px; }
+    .ms-newsletter-form { flex-direction:column; }
+    .ms-newsletter-form button { width:100%; min-height:48px; }
+    .ms-section-head { flex-direction:column; align-items:flex-start; gap:8px; }
+    .ms-product-body { padding:14px; }
+    .wa-order-modal-actions { flex-direction:column; }
+    .wa-order-modal-card { width:calc(100vw - 24px); }
+  }
+  @media(max-width:380px){
+    .ms-cat-grid { grid-template-columns:1fr; }
+    .ms-values-grid { grid-template-columns:1fr; }
+  }
 </style>
 
 <?php
@@ -265,7 +292,7 @@ foreach($orderedSections as $sectionKey => $section):
 <div class="ms-values">
   <div class="ms-container">
     <div class="ms-values-grid">
-      <?php foreach(array_slice($msBadges, 0, 3) as $b): ?>
+      <?php foreach(array_slice($msBadges, 0, 4) as $b): ?>
       <div class="ms-value">
         <div class="ms-value-icon"><?= !empty($b['icon']) ? $b['icon'] : '&#10024;'; ?></div>
         <div class="ms-value-title"><?= htmlspecialchars($b['title'] ?? ''); ?></div>

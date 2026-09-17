@@ -206,6 +206,33 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fm-hours-row:last-child { border-bottom:none; }
   .fm-hours-day { color:var(--fm-ink); font-weight:600; }
   .fm-hours-time { color:#64748B; }
+
+  /* === World-class polish & mobile pass === */
+  .fm-product-card { border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .25s ease, box-shadow .25s ease; }
+  .fm-product-card:hover { transform:translateY(-5px); box-shadow:0 18px 44px rgba(0,0,0,.13); }
+  .fm-cat-card { border-radius:16px; overflow:hidden; }
+  .fm-promo, .fm-newsletter, .fm-testimonial, .fm-contact-card, .fm-faq-item, .fm-insta-item { border-radius:14px; }
+  .fm-btn { min-height:46px; }
+  .fm-add-btn, .fm-wa-btn { min-height:44px; }
+  .fm-values-grid { grid-template-columns:repeat(4,1fr); }
+  @media(max-width:1023px){ .fm-values-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:767px){
+    .fm-hero-content { padding:64px 16px 84px; }
+    .fm-hero-actions { flex-direction:column; width:100%; align-items:stretch; }
+    .fm-hero-actions .fm-btn { width:100%; box-sizing:border-box; }
+    .fm-cat-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+    .fm-values-grid { grid-template-columns:repeat(2,1fr); gap:18px; }
+    .fm-newsletter-form { flex-direction:column; }
+    .fm-newsletter-form button { width:100%; min-height:48px; }
+    .fm-section-head { flex-direction:column; align-items:flex-start; gap:8px; }
+    .fm-product-body { padding:14px; }
+    .wa-order-modal-actions { flex-direction:column; }
+    .wa-order-modal-card { width:calc(100vw - 24px); }
+  }
+  @media(max-width:380px){
+    .fm-cat-grid { grid-template-columns:1fr; }
+    .fm-values-grid { grid-template-columns:1fr; }
+  }
 </style>
 
 <?php
@@ -261,7 +288,7 @@ foreach($orderedSections as $sectionKey => $section):
 <div class="fm-values">
   <div class="fm-container">
     <div class="fm-values-grid">
-      <?php foreach(array_slice($fmBadges, 0, 3) as $b): ?>
+      <?php foreach(array_slice($fmBadges, 0, 4) as $b): ?>
       <div class="fm-value">
         <div class="fm-value-icon"><?= !empty($b['icon']) ? $b['icon'] : '&#10024;'; ?></div>
         <div class="fm-value-title"><?= htmlspecialchars($b['title'] ?? ''); ?></div>
