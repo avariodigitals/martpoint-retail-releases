@@ -12,16 +12,36 @@ class Core {
 	function show_message($type,$message) {
 		return $message;
 	}
-	
+
 	function getAllData($data) {
 		return $data;
 	}
 
+	// Write a file reliably: create it when missing, loosen permissions only
+	// where needed, and fail honestly only when nothing can write it.
+	private function _write_file($output_path, $contents)
+	{
+		if(!file_exists($output_path)){
+			@file_put_contents($output_path, '');
+		}
+		if(!file_exists($output_path)){
+			// Directory may be too strict for the PHP user - relax it when we own it.
+			@chmod(dirname($output_path), 0755);
+			@file_put_contents($output_path, '');
+		}
+		if(file_exists($output_path) && !is_writable($output_path)){
+			@chmod($output_path, 0664);
+		}
+		if(@file_put_contents($output_path, $contents) === false){
+			return false;
+		}
+		@chmod($output_path, 0644);
+		return true;
+	}
+
 	function write_config($data) {
 
-       
         $template_path 	= 'includes/templatevthree.php';
-
 		$output_path 	= '../../application/config/database.php';
 
 		$database_file = file_get_contents($template_path);
@@ -33,25 +53,10 @@ class Core {
 		$new  = str_replace("%PASSWORD%",addcslashes($data['password'],"'\\"),$new);
 		$new  = str_replace("%DATABASE%",addcslashes($data['database'],"'\\"),$new);
 
-		$handle = fopen($output_path,'w+');
-		@chmod($output_path,0777);
-		
-		if(is_writable(dirname($output_path))) {
-
-			if(fwrite($handle,$new)) {
-				//return true;
-				if($this->write_config2($data)){
-					@chmod($output_path,0644);
-					return true;
-				}
-				return false;
-
-			} else {
-				return false;
-			}
-		} else {
+		if(!$this->_write_file($output_path, $new)){
 			return false;
 		}
+		return $this->write_config2($data);
 	}
 	function write_config2($data) {
 
@@ -64,67 +69,35 @@ class Core {
 
 		$new  = str_replace("%BASE_URL%",$data['url'],$database_file);
 		$new  = str_replace("%ENCRYPTION_KEY%",$encryption_key,$new);
-		
-		$handle = fopen($output_path,'w+');
-		@chmod($output_path,0777);
-		
-		if(is_writable(dirname($output_path))) {
 
-			if(fwrite($handle,$new)) {
-				//return true;
-				if($this->write_config3($data)){
-					@chmod($output_path,0644);
-					return true;
-				}
-				return false;
-			} else {
-				return false;
-			}
-		} else {
+		if(!$this->_write_file($output_path, $new)){
 			return false;
 		}
+		return $this->write_config3($data);
 	}
 	function write_config3($data) {
 
         $template_path 	= 'assets/codeigniter_index_page/index.php';
 		$output_path 	= '../../index.php';
 
-
-		@chmod($template_path,0777);
-		@chmod($output_path,0777);
-		
-		if(copy($template_path, $output_path)){
-			if($this->write_config4($data)){
-				@chmod($output_path,0644);
-				return true;
-			}
+		$contents = @file_get_contents($template_path);
+		if($contents === false){
 			return false;
 		}
-		return false;
+		if(!$this->_write_file($output_path, $contents)){
+			return false;
+		}
+		return $this->write_config4($data);
 	}
 	function write_config4($data) {
 
         $mid_path = '../../application/controllers/Login.php';
-		
 
 		$mid_path_content = file_get_contents($mid_path);
 
 		$new  = str_replace("@@appinfo@@",appinfo(),$mid_path_content);
-		
-		$handle = fopen($mid_path,'w+');
-		@chmod($mid_path,0777);
-		
-		if(is_writable(dirname($mid_path))) {
 
-			if(fwrite($handle,$new)) {
-				@chmod($mid_path,0644);
-				return true;	
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
+		return $this->_write_file($mid_path, $new);
 	}
 	function checkFile(){
 	    $output_path = '../../application/config/database.php';
@@ -133,10 +106,10 @@ class Core {
 	    if (!file_exists($output_path)) {
 	        // Fresh clone may not contain database.php (it is git-ignored).
 	        // Seed it from the installer placeholder so write_config() succeeds.
-	        if (!file_exists($template_path) || !copy($template_path, $output_path)) {
+	        $tpl = @file_get_contents($template_path);
+	        if ($tpl === false || !$this->_write_file($output_path, $tpl)) {
 	            return false;
 	        }
-	        @chmod($output_path, 0777);
 	    }
 
 	    return true;
