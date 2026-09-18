@@ -3,7 +3,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
  * Butchery Controller — Carcass receiving, cutting worksheet, share management
- * Requires meat_butchery_workflow license flag.
+ * Carcass routes require meat_butchery_workflow; cold-chain routes (freezers,
+ * temperature, dashboard) accept meat_butchery_workflow or frozen_food_cold_chain.
  */
 class Butchery extends MY_Controller {
 
@@ -18,6 +19,15 @@ class Butchery extends MY_Controller {
         if (!mp_feature_enabled($flag)) {
             $this->_render_feature_not_activated($flag);
         }
+    }
+
+    private function _check_any_feature(array $flags) {
+        foreach ($flags as $flag) {
+            if (mp_feature_enabled($flag)) {
+                return;
+            }
+        }
+        $this->_render_feature_not_activated(reset($flags));
     }
 
     private function _render_feature_not_activated($flag, $description = '') {
@@ -43,7 +53,7 @@ class Butchery extends MY_Controller {
     }
 
     public function index() {
-        $this->_check_feature();
+        $this->_check_any_feature(['meat_butchery_workflow', 'frozen_food_cold_chain']);
         $this->_render('Butchery Dashboard', 'butchery/dashboard.php', [
             'received_count'  => count($this->butchery->get_received_carcasses()),
             'completed_count' => count($this->butchery->get_received_carcasses(null, 'completed')),
@@ -137,7 +147,7 @@ class Butchery extends MY_Controller {
     }
 
     public function temperature() {
-        $this->_check_feature();
+        $this->_check_any_feature(['frozen_food_cold_chain', 'meat_butchery_workflow']);
 
         $message = '';
         if ($this->input->post('freezer_location_id')) {
@@ -169,7 +179,7 @@ class Butchery extends MY_Controller {
     }
 
     public function freezers() {
-        $this->_check_feature();
+        $this->_check_any_feature(['frozen_food_cold_chain', 'meat_butchery_workflow']);
 
         $message = '';
         if ($this->input->post('location_name')) {

@@ -3111,6 +3111,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
 				['title' => 'Vehicles', 'desc' => 'Automobile inventory', 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
 				['title' => 'Butchery', 'desc' => 'Carcass & cuts', 'icon' => 'fa-cut', 'url' => 'mobile/butchery', 'perm' => 'items_view', 'color' => 'red', 'feature' => 'meat_butchery_workflow'],
+				['title' => 'Cold Chain', 'desc' => 'Freezers & temperature log', 'icon' => 'fa-snowflake-o', 'url' => 'mobile/butchery_coldchain', 'perm' => 'items_view', 'color' => 'blue', 'feature' => ['meat_butchery_workflow','frozen_food_cold_chain']],
 				['title' => 'Stock Transfers', 'desc' => 'Branch-to-branch transfers', 'icon' => 'fa-exchange', 'url' => 'mobile/stock_transfers', 'perm' => 'stock_transfer_view', 'color' => 'teal'],
 				['title' => 'Price Catalogue', 'desc' => 'Product & service prices', 'icon' => 'fa-tags', 'url' => 'mobile/price_catalogue', 'perm' => 'items_view', 'color' => 'purple'],
 				['title' => 'Items', 'desc' => 'View & edit products', 'icon' => 'fa-book', 'url' => 'mobile/catalogue', 'perm' => 'items_view', 'color' => 'purple'],
@@ -3220,7 +3221,11 @@ class Mobile extends MY_Controller {
 		foreach($menu_groups as $group => $items){
 			$visible = [];
 			foreach($items as $item){
-				if(!empty($item['feature']) && !mp_feature_enabled($item['feature'])) continue;
+				if(!empty($item['feature'])){
+					$feature_ok = false;
+					foreach((array)$item['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
+					if(!$feature_ok) continue;
+				}
 			if(empty($item['perm']) || $this->permissions($item['perm'])){
 					$visible[] = $item;
 				}
@@ -3308,7 +3313,11 @@ class Mobile extends MY_Controller {
 
 		$data['operations'] = [];
 		foreach($operations as $op){
-			if(!empty($op['feature']) && !mp_feature_enabled($op['feature'])) continue;
+			if(!empty($op['feature'])){
+				$feature_ok = false;
+				foreach((array)$op['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
+				if(!$feature_ok) continue;
+			}
 			if(!empty($op['perm']) && !$this->permissions($op['perm'])) continue;
 			$data['operations'][] = $op;
 		}

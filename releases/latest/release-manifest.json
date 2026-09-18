@@ -1,7 +1,7 @@
 {
-  "version": "4.0.9.22",
-  "previous_version": "4.0.9.21",
-  "release_date": "2026-09-17",
+  "version": "4.0.9.23",
+  "previous_version": "4.0.9.22",
+  "release_date": "2026-09-18",
   "files": [
     {
       "path": "favicon.ico",
@@ -180,8 +180,8 @@
     },
     {
       "path": "application/controllers/Butchery.php",
-      "hash": "94ca47f95f26518b14f1f563a190efd41b9fdaeed5e051e834eb7aea6e314022",
-      "size": 8194
+      "hash": "9a3085a3a27a8ecf217aaf507a3b9b4d42226b7c0bfdce8d615d6fe9f9e84bf4",
+      "size": 8729
     },
     {
       "path": "application/controllers/Cash_transactions.php",
@@ -370,8 +370,8 @@
     },
     {
       "path": "application/controllers/Mobile.php",
-      "hash": "91a6a25e559fcf71f598103d54b9d0e0ff30450c6cdade4d7ce46983dd171099",
-      "size": 235687
+      "hash": "211a8789d87b4959daec62d586323e2f63c2728b3d2cef18322b7e3f5f5d2fec",
+      "size": 236165
     },
     {
       "path": "application/controllers/Money_deposit.php",
@@ -700,8 +700,8 @@
     },
     {
       "path": "application/helpers/business_profile_helper.php",
-      "hash": "f4e693e884e878323da400b3db4cc088b9417c69240700a6bb85f6f67dd3aa66",
-      "size": 67859
+      "hash": "8725cb606de999456ab0b9a37312f34dd5d95440b91b73666f56d42571c46f45",
+      "size": 67935
     },
     {
       "path": "application/helpers/category_image_fix.php",
@@ -715,7 +715,7 @@
     },
     {
       "path": "application/helpers/custom_helper.php",
-      "hash": "f2ac15c13a4dddc156a378f7413e597b85be98abf3d79fb3e9a6cf96c0b647ca",
+      "hash": "4fecec994c43e3b9a1398edcaad9a2e1ada3b7cf5be3ed1479037f2ecfaba304",
       "size": 91075
     },
     {
@@ -870,8 +870,8 @@
     },
     {
       "path": "application/libraries/Email_template_parser.php",
-      "hash": "75fba011f2bca66c86bab32580d351e3a546e08f2440765c7e3e6053a18baaa5",
-      "size": 2258
+      "hash": "f1202859747b9ce70f626ad203cb78e61279b59fdf752fa02c996ac2adc96aa8",
+      "size": 2582
     },
     {
       "path": "application/libraries/Instamojo.php",
@@ -7445,8 +7445,8 @@
     },
     {
       "path": "application/models/Items_model.php",
-      "hash": "9567a5316bf1fba0d0b7695518b158d2265bf2b6e10240f567ea4cb603329367",
-      "size": 75127
+      "hash": "20e0c9e8472044debdb58db255d0e0a9e554a13ae49d767735ae5238cb68bcfc",
+      "size": 75287
     },
     {
       "path": "application/models/Kitchen_model.php",
@@ -8005,8 +8005,8 @@
     },
     {
       "path": "application/views/items.php",
-      "hash": "c113bc8d503ffc5bfb6c2b2c12686efa0388d993f0e4e4c96ab8807c329ab10d",
-      "size": 83424
+      "hash": "da2fe3190bafa5cef7202b156534d6377f453b45460fd7e95b4098a79e6a9806",
+      "size": 83578
     },
     {
       "path": "application/views/labels.php",
@@ -8800,8 +8800,8 @@
     },
     {
       "path": "application/views/butchery/dashboard.php",
-      "hash": "adef89054aeb6ab43e1b19d5e6e8aef486b7d5a0a79a27aa614b9f4448e265d9",
-      "size": 3141
+      "hash": "ce2f88aca5d7688a7f9b4a41a0137e5de6465f018eeefdd45c75447e2ee31bbd",
+      "size": 3497
     },
     {
       "path": "application/views/butchery/freezers.php",
@@ -9485,8 +9485,8 @@
     },
     {
       "path": "application/views/mobile/butchery_coldchain.php",
-      "hash": "f2ba67d361536140101de22ab975ed27d3f150a59509f8e7a352a843dcc1d5ed",
-      "size": 12232
+      "hash": "d15fed29139833228bdc8109c9275e98c3aa03bed68da8c4c5e6b08a2799eeb6",
+      "size": 12295
     },
     {
       "path": "application/views/mobile/butchery_cut.php",
@@ -26490,6 +26490,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "9a54be2afb37c77a52f220e73331313771f8c14f67f72a7094435f7b6340b8e6",
-  "changelog": "Manual Shipping: per-store delivery fees selectable at POS checkout, printed on invoices, reported in Sales Report; plus delivery customer guide."
+  "signature": "a877a6045c1951a341ed99ab7e46c6002bc36602ac589138aee30fdc8fb1881a",
+  "changelog": "Cold Chain standalone flag (frozen-only stores no longer need butchery), Cold Chain mobile tile, {site_logo} email placeholder, resilient installer config writes."
 }

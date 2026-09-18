@@ -1000,7 +1000,9 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 <div class="mp-card-form" id="butchery_frozen_card" style="<?= (in_array($product_type ?? 'physical', ['service','digital','course','membership'])) ? 'display:none;' : ''; ?>">
   <div class="mp-card-head"><h3>Butchery &amp; Frozen</h3></div>
   <div class="mp-card-body">
+    <input type="hidden" name="butchery_frozen_section" value="1">
     <div class="mp-form-grid">
+      <?php if(mp_feature_enabled('meat_butchery_workflow')): ?>
       <div class="mp-form-group">
         <label for="is_carcass">This is a whole carcass</label>
         <select name="is_carcass" id="is_carcass" class="mp-form-control">
@@ -1016,6 +1018,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <label for="portion_of_item_id">Portion of Item ID</label>
         <input type="number" name="portion_of_item_id" id="portion_of_item_id" class="mp-form-control" value="<?= $portion_of_item_id ?? ''; ?>" placeholder="Parent item ID if a cut">
       </div>
+      <?php endif; ?>
       <div class="mp-form-group">
         <label for="storage_temp_min">Min Storage Temp (°C)</label>
         <input type="number" step="0.1" name="storage_temp_min" id="storage_temp_min" class="mp-form-control" value="<?= $storage_temp_min ?? ''; ?>" placeholder="e.g. -25">

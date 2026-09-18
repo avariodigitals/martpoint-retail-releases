@@ -157,14 +157,13 @@ SET feature_flags_json = JSON_SET(
     '$.frozen_food_cold_chain', true,
     '$.batch_tracking', true,
     '$.expiry_tracking', true,
-    '$.multi_unit_selling', true,
-    '$.meat_butchery_workflow', true
+    '$.multi_unit_selling', true
 )
 WHERE id = {store_id};</div>
 
     <div class="tip warning no-break">
       <i class="fa fa-exclamation-circle" style="margin-right:8px;"></i>
-      <strong>Note:</strong> Replace <code>{store_id}</code>. If MySQL does not support <code>JSON_SET</code>, set the raw JSON string directly. If <code>db_store_industry_settings</code> exists, apply the same update to its row — it is checked first. <code>meat_butchery_workflow</code> is included because the desktop <code>/butchery/*</code> screens are gated by it — see next page.
+      <strong>Note:</strong> Replace <code>{store_id}</code>. If MySQL does not support <code>JSON_SET</code>, set the raw JSON string directly. If <code>db_store_industry_settings</code> exists, apply the same update to its row — it is checked first. <code>meat_butchery_workflow</code> is <em>not</em> required for cold-chain screens — see next page.
     </div>
 
     <div class="spacer"></div>
@@ -205,7 +204,7 @@ WHERE id = {store_id};</div>
 
     <div class="tip warning no-break">
       <i class="fa fa-exclamation-triangle" style="margin-right:8px;"></i>
-      <strong>Gating caveat:</strong> Every desktop <code>/butchery/*</code> route calls <code>_check_feature('meat_butchery_workflow')</code>, so desktop Freezers and Temperature require <code>meat_butchery_workflow</code> even though they are cold-chain features. Mobile <code>butchery_coldchain</code> accepts either flag. For a frozen-only store, enable both flags for desktop access — the carcass screens can simply be left unused.
+      <strong>Gating:</strong> Cold-chain screens (<code>freezers</code>, <code>temperature</code>) accept <em>either</em> flag, so a frozen-only store gets full desktop access with just <code>frozen_food_cold_chain</code>. The carcass routes (<code>receive</code>, <code>cut</code>, <code>shares</code>) stay gated by <code>meat_butchery_workflow</code>. For frozen-only stores <code>/butchery</code> renders a Cold Chain dashboard showing only the Freezers and Temperature cards. Mobile <code>butchery_coldchain</code> accepts either flag and appears as a <strong>Cold Chain</strong> tile under More &rarr; Inventory.
     </div>
 
     <div class="spacer"></div>
@@ -279,7 +278,7 @@ WHERE id = {store_id};</div>
           <li><i class="fa fa-check"></i> PHP 7.4 configured on the server.</li>
           <li><i class="fa fa-check"></i> Migrations run to version <code>24</code>.</li>
           <li><i class="fa fa-check"></i> <code>warehouse</code> flag enabled.</li>
-          <li><i class="fa fa-check"></i> <code>frozen_food_cold_chain</code> + <code>meat_butchery_workflow</code> on for desktop.</li>
+          <li><i class="fa fa-check"></i> <code>frozen_food_cold_chain</code> enabled for desktop and mobile.</li>
         </ul>
       </div>
       <div class="card no-break">

@@ -389,7 +389,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'frozen_foods_retailer' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','frozen_food_cold_chain','pos_retail_button'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','frozen_food_cold_chain','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'market_fresh','dashboard_template'=>'frozen_foods','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Product / Pack','batch'=>'Batch','expiry'=>'Expiry Date','warehouse'=>'Branch','customer'=>'Customer'],
             ],
@@ -922,6 +922,7 @@ if (!function_exists('mp_get_dashboard_templates')) {
             'distributor'         => 'Distributor',
             'wholesaler'          => 'Wholesaler',
             'service_business'    => 'Service Business',
+            'frozen_foods'        => 'Frozen Foods',
         ];
         foreach (mp_get_business_types() as $key => $label) {
             if (!isset($templates[$key])) {

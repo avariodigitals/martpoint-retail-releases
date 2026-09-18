@@ -474,10 +474,12 @@ class Items_model extends CI_Model {
 								$info['item_production_mode'] = $item_production_mode;
 							}
 							// Only include butchery/frozen fields if that section was visible
-							if ($this->input->post('is_carcass') !== false) {
-								$info['is_carcass'] = $is_carcass;
-								$info['carcass_template_id'] = $carcass_template_id;
-								$info['portion_of_item_id'] = $portion_of_item_id;
+							if ($this->input->post('butchery_frozen_section') !== false) {
+								if ($this->input->post('is_carcass') !== false) {
+									$info['is_carcass'] = $is_carcass;
+									$info['carcass_template_id'] = $carcass_template_id;
+									$info['portion_of_item_id'] = $portion_of_item_id;
+								}
 								$info['storage_temp_min'] = $storage_temp_min;
 								$info['storage_temp_max'] = $storage_temp_max;
 								$info['thaw_time_hours'] = $thaw_time_hours;
@@ -653,10 +655,12 @@ class Items_model extends CI_Model {
 				$parent_info['item_production_mode'] = $item_production_mode;
 			}
 			// Only include butchery/frozen fields if that section was visible
-			if ($this->input->post('is_carcass') !== false) {
-				$parent_info['is_carcass'] = $is_carcass;
-				$parent_info['carcass_template_id'] = $carcass_template_id;
-				$parent_info['portion_of_item_id'] = $portion_of_item_id;
+			if ($this->input->post('butchery_frozen_section') !== false) {
+				if ($this->input->post('is_carcass') !== false) {
+					$parent_info['is_carcass'] = $is_carcass;
+					$parent_info['carcass_template_id'] = $carcass_template_id;
+					$parent_info['portion_of_item_id'] = $portion_of_item_id;
+				}
 				$parent_info['storage_temp_min'] = $storage_temp_min;
 				$parent_info['storage_temp_max'] = $storage_temp_max;
 				$parent_info['thaw_time_hours'] = $thaw_time_hours;

@@ -55,7 +55,7 @@
   <div id="app">
     <section class="screen">
       <div class="topbar">
-        <a href="<?= base_url('mobile/butchery'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
+        <a href="<?= base_url(mp_feature_enabled('meat_butchery_workflow') ? 'mobile/butchery' : 'mobile/more'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
           <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Cold Chain</h1>

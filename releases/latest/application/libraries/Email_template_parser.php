@@ -39,11 +39,18 @@ class Email_template_parser {
 			}
 		}
 
+		// Site logo as an absolute URL — pulled from Site Settings (db_sitesettings.logo)
+		$site_logo = function_exists('get_site_logo') ? get_site_logo() : 'uploads/site/default.png';
+		if(function_exists('base_url')){
+			$site_logo = base_url($site_logo);
+		}
+
 		// Add global placeholders
 		$data['app_name']     = $data['app_name']     ?? 'MartPoint Retail';
 		$data['current_year'] = $data['current_year'] ?? date('Y');
 		$data['branch_name']  = $data['branch_name']  ?? $branch_name;
 		$data['store_name']   = $data['store_name']   ?? $store_name;
+		$data['site_logo']    = $data['site_logo']    ?? $site_logo;
 
 		return preg_replace_callback('/\{([a-zA-Z0-9_]+)\}/', function($matches) use ($data){
 			$key = $matches[1];
