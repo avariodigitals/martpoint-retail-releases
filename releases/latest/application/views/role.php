@@ -265,6 +265,25 @@
                                               </label></div>
                                           </td>
                                         </tr>
+                                        <!-- MONNIFY SETTINGS -->
+                                       <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Monnify Settings</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="monnify"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[monnify]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="monnify_all" id='monnify_settings' name="permission[monnify_settings]"> <?= $this->lang->line('view'); ?> / <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="monnify_all" id='monnify_transfers' name="permission[monnify_transfers]"> Send Transfers
+                                              </label></div>
+                                          </td>
+                                        </tr>
                                         <!-- EXPIRY SETTINGS -->
                                        <tr>
                                           <td><?= $i++;?></td>

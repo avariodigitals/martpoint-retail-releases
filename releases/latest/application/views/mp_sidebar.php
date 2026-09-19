@@ -418,6 +418,7 @@ $mp_icons = [
         <?php if($CI->permissions('payment_types_view')): ?><a href="<?= base_url('payment_types/'); ?>" class="mp-nav-item payment_types-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Types</a><?php endif; ?>
         <?php if($CI->permissions('payment_modes_view')): ?><a href="<?= base_url('payment_modes/'); ?>" class="mp-nav-item payment_modes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Modes</a><?php endif; ?>
         <?php if($CI->permissions('paystack_settings')): ?><a href="<?= base_url('paystack/settings'); ?>" class="mp-nav-item paystack-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Paystack Settings</a><?php endif; ?>
+        <?php if($CI->permissions('monnify_settings')): ?><a href="<?= base_url('monnify/settings'); ?>" class="mp-nav-item monnify-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Monnify Settings</a><?php endif; ?>
         <?php if($CI->permissions('expiry_settings') && mp_feature_enabled('expiry_tracking')): ?><a href="<?= base_url('expiry_settings'); ?>" class="mp-nav-item expiry-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Expiry Settings</a><?php endif; ?>
         <?php if($this->session->userdata('role_id') == 1 || is_store_admin()): ?>
           <a href="<?= base_url('currency/view'); ?>" class="mp-nav-item currency-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Currency List</a>

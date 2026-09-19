@@ -273,6 +273,9 @@
         ['Paystack Settings', 'paystack', [
           ['paystack_settings','Settings'],
         ]],
+        ['Monnify Settings', 'monnify', [
+          ['monnify_settings','Settings'], ['monnify_transfers','Send Transfers'],
+        ]],
         ['Print Labels', 'print_labels', [
           ['print_labels','Print'],
         ]],

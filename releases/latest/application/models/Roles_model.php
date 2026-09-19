@@ -384,6 +384,8 @@ class Roles_model extends CI_Model {
 							                            'payment_modes_delete',
 							                            'payment_modes_view',
 							                            'paystack_settings',
+							                            'monnify_settings',
+							                            'monnify_transfers',
 																					'expiry_settings',
 							                            'import_customers',
 							                            'import_suppliers',

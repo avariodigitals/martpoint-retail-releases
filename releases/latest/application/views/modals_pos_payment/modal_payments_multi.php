@@ -499,12 +499,45 @@
           <i class="fa fa-link"></i> Generate Paystack Link
         </button>
 
+        <!-- Moniepoint Transfer (Monnify pay-with-transfer) -->
+        <button type="button" id="btn-generate-moniepoint" class="btn btn-lg hide" style="background-color:#0357ee;color:#fff;" onclick="generateMoniepointAccount()">
+          <i class="fa fa-university"></i> Moniepoint Transfer
+        </button>
+
         <button type="button" class="btn bg-maroon btn-lg make_sale btn-lg" onclick="save()"><i class="fa  fa-save "></i> Save</button>
         <button type="button" class="btn btn-success btn-lg make_sale btn-lg" onclick="save(true)"><i class="fa  fa-print "></i> Save & Print</button>
         <a id="btn-share-whatsapp" href="#" target="_blank" class="btn btn-lg hide" style="background-color:#25D366;color:#fff;">
           <i class="fa fa-whatsapp"></i> Share WhatsApp
         </a>
 
+      </div>
+
+      <!-- Moniepoint Transfer Modal -->
+      <div class="modal fade" id="moniepoint-transfer-modal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header header-custom">
+              <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+              <h4 class="modal-title text-center"><i class="fa fa-university"></i> Moniepoint Transfer</h4>
+            </div>
+            <div class="modal-body text-center">
+              <div id="moniepoint-loading"><i class="fa fa-spinner fa-spin"></i> Generating account...</div>
+              <div id="moniepoint-result" class="hide">
+                <p class="text-muted">Ask the customer to transfer the <strong>exact amount</strong> to:</p>
+                <h2 id="moniepoint-account-number" style="letter-spacing:2px;margin:10px 0;"></h2>
+                <p><strong id="moniepoint-bank-name"></strong> — <span id="moniepoint-account-name"></span></p>
+                <p class="text-bold" id="moniepoint-amount" style="font-size:18px;"></p>
+                <p class="text-muted"><small>Account expires: <span id="moniepoint-expiry"></span></small></p>
+                <p class="text-muted"><small>Ref: <span id="moniepoint-reference"></span></small></p>
+                <button type="button" class="btn btn-success" id="btn-check-moniepoint" onclick="checkMoniepointPayment()">
+                  <i class="fa fa-check-circle"></i> Confirm Payment
+                </button>
+                <div id="moniepoint-status" style="margin-top:10px;"></div>
+              </div>
+              <div id="moniepoint-error" class="hide alert alert-danger"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Paystack Link Modal -->

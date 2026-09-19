@@ -1,6 +1,6 @@
 {
-  "version": "4.0.9.24",
-  "previous_version": "4.0.9.23",
+  "version": "4.0.9.25",
+  "previous_version": "4.0.9.24",
   "release_date": "2026-09-19",
   "files": [
     {
@@ -369,6 +369,11 @@
       "size": 5246
     },
     {
+      "path": "application/controllers/Monnify.php",
+      "hash": "68bc815510f8953b935035532fa1dfee07d21ba6b62b086ed9ed21fa83de2d24",
+      "size": 12813
+    },
+    {
       "path": "application/controllers/Ninverify.php",
       "hash": "cea99e6818377f21a474f69b0e7ece7f38dc0fbb8a5bc9191f595a6423ce5139",
       "size": 31605
@@ -705,7 +710,7 @@
     },
     {
       "path": "application/helpers/custom_helper.php",
-      "hash": "edba2fcc6955cab9011f9edf2649a867b85e6666ec9d67f9972cfe7a360bd715",
+      "hash": "57887c66c9526852702c2c2aa1fa6a7308921dcf89f4bdd664a630cf158a5c10",
       "size": 94576
     },
     {
@@ -7350,8 +7355,8 @@
     },
     {
       "path": "application/models/Default_data_model.php",
-      "hash": "9caaf44db06585d4fb38645e360db9749a42800f148f4d83febae5792ced122d",
-      "size": 79843
+      "hash": "da8c82462eaa534812868b95a8154d2106266216b2890506b04a1e1564c52401",
+      "size": 79882
     },
     {
       "path": "application/models/Delivery_model.php",
@@ -7494,6 +7499,11 @@
       "size": 9465
     },
     {
+      "path": "application/models/Monnify_model.php",
+      "hash": "a2c4422229ad218de98c8f0cbb660ab0d2bf9b159cff831bae3d3c30a84af38d",
+      "size": 19821
+    },
+    {
       "path": "application/models/Online_payments_model.php",
       "hash": "7b830509445b043487726a70912430a79d3ae0277d9d37baf0ceccf1d1b5bf49",
       "size": 1365
@@ -7580,8 +7590,8 @@
     },
     {
       "path": "application/models/Roles_model.php",
-      "hash": "1bec8cfaa3946f22ffcf6c6dcf286eb05db5d94d4fc0a43e154279c2c8942438",
-      "size": 21302
+      "hash": "82dc09385ce92e5e7efb4f74264c2ecae87998aa4535df4e0d82eeaedafc9abf",
+      "size": 21413
     },
     {
       "path": "application/models/Sales_model.php",
@@ -7735,8 +7745,8 @@
     },
     {
       "path": "application/models/Updates_model.php",
-      "hash": "bb6b1d7e657d8a895b064eed1730e80bd78761b51bb9ba64ab40d9b117037b0f",
-      "size": 3737
+      "hash": "2709c6d2fe67e1e45c81093abfca4f536614c2b04f61bf8ec299d48d09ef0169",
+      "size": 3790
     },
     {
       "path": "application/models/Users_model.php",
@@ -8034,6 +8044,16 @@
       "size": 3497
     },
     {
+      "path": "application/views/monnify_callback.php",
+      "hash": "b361beccb9244627f1e188335c9087a301bb95cb0d863e00177888dc697ca3c5",
+      "size": 1244
+    },
+    {
+      "path": "application/views/monnify_settings.php",
+      "hash": "4a7856b2accb15b7f9d66306299da232eba0c90daf79c68cbf66c199a11e261d",
+      "size": 5632
+    },
+    {
       "path": "application/views/mp_footer.php",
       "hash": "139d59343171e6205c66f8568196d83a46ef9aecc2b67ffc7b34d146c818d69b",
       "size": 21506
@@ -8070,8 +8090,8 @@
     },
     {
       "path": "application/views/mp_sidebar.php",
-      "hash": "fdadc9e2ee49232960ccef3c1d4f26bd3e7396a23be2469a2d3cf3d87e7381f5",
-      "size": 68689
+      "hash": "d9566b50efc0ad40120f767a1fcf13162807699f9a06d9f554c13754fc97e160",
+      "size": 68936
     },
     {
       "path": "application/views/ninverify_log.php",
@@ -8135,8 +8155,8 @@
     },
     {
       "path": "application/views/pos.php",
-      "hash": "017863611eba804d3ab48644d7df62c77c12e3558368342a1bb084e71f6edb01",
-      "size": 123839
+      "hash": "cce56dc9176a5fa1698ec59ce2d24e1bc4196c6e73cf9bef9a56ea5295ceb3ed",
+      "size": 128607
     },
     {
       "path": "application/views/pos_desktop.php",
@@ -8420,8 +8440,8 @@
     },
     {
       "path": "application/views/role.php",
-      "hash": "911182fa9b10eb8fbf3d25df03bf426791fd609bfd5ad8368e9cc96e01323bdc",
-      "size": 141327
+      "hash": "840e56a5d47c6154ee5d2b3c92b20652687cbb21b74514dfd7f5c871608e26f5",
+      "size": 142868
     },
     {
       "path": "application/views/roles-list.php",
@@ -8695,8 +8715,8 @@
     },
     {
       "path": "application/views/admin/desktop/roles_form.php",
-      "hash": "8e00488b4071c3acebc80329f0e84082cfabb3cbeb1401937f67802b08eee6b1",
-      "size": 20275
+      "hash": "f7eb3bec5cea5243989aef73f2c606e99dc3ac6a994aff6ae91418d71bb72385",
+      "size": 20412
     },
     {
       "path": "application/views/admin/desktop/users_form.php",
@@ -10025,8 +10045,8 @@
     },
     {
       "path": "application/views/modals_pos_payment/modal_payments_multi.php",
-      "hash": "fa152fb8f9833762bbe84307966b507ab83e30c5fee60cbe0c13d686bd084248",
-      "size": 27005
+      "hash": "a2c349a8c04196c0066b5cc64bbe3318c9226ab042656ecbb13546366a71f54b",
+      "size": 29122
     },
     {
       "path": "application/views/modals_pos_payment/modal_payments_multi_sub.php",
@@ -19789,6 +19809,11 @@
       "size": 22552
     },
     {
+      "path": "theme/js/monnify_settings.js",
+      "hash": "0b5ab17b47f55a728fa63e1c58a975c8fc9e20b9fdfe47f663084d2ab1f390c7",
+      "size": 1643
+    },
+    {
       "path": "theme/js/mousetrap.min.js",
       "hash": "373387a449c1732029bb742dac44f8cf74a853122fce3c5e77d181e86f163d34",
       "size": 4882
@@ -26516,6 +26541,7 @@
     "4.0.9.22_manual_shipping.sql",
     "4.0.9.24_audit_trail.sql",
     "4.0.9.24_perfumery_module.sql",
+    "4.0.9.25_monnify_integration.sql",
     "4.0.9.3_sku_limit.sql",
     "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
     "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
@@ -26532,6 +26558,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "1134b83298ad988da8f6f73846c7e3d487c8db15ba72d26166e583dc8f131cfa",
-  "changelog": "Perfumery module (Perfume Lab: maceration tracking, categorized wastage ledger, mobile lab) and Audit Trail module (db_audit_trail log + viewer, email settings, report schedules)."
+  "signature": "57261f10993529c9ecfc34749203cc60ac8f1afa97955d335a8b2e7f6735a623",
+  "changelog": "Monnify integration: collections (checkout + pay-with-transfer), disbursements with name enquiry, settings screen, webhook callback, POS transfer-account flow."
 }

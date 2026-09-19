@@ -648,7 +648,7 @@ class Default_data_model extends CI_Model {
             'show_purchase_price',
             // Settings
             'subscription','sms_settings','sms_api_view','sms_api_edit',
-            'smtp_settings','paystack_settings','expiry_settings',
+            'smtp_settings','paystack_settings','monnify_settings','monnify_transfers','expiry_settings',
             'approval_settings_edit','approval_logs_view','can_approve',
             'nin_settings','nin_usage','nin_logs','nin_verify',
             'system_settings',

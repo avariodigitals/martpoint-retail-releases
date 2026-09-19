@@ -1981,12 +1981,14 @@ $(document).ready(function(){
 $(document).on('change', '.payment-mode-select', function(){
   updatePaymentModeFields($(this).closest('.payments_div, .box'));
   togglePaystackButton();
+  toggleMoniepointButton();
 });
 
 // After adding new payment row, re-initialize
 $(document).ajaxComplete(function(){
   updatePaymentModeFields();
   togglePaystackButton();
+  toggleMoniepointButton();
 });
 
 // Show/hide Generate Paystack Link button
@@ -2076,6 +2078,127 @@ function copyPaystackLink(){
   copyText.select();
   document.execCommand('copy');
   toastr['success']('Link copied to clipboard!');
+}
+
+// Show/hide Moniepoint Transfer button
+function toggleMoniepointButton(){
+  var hasMoniepoint = false;
+  $('.payment-mode-select').each(function(){
+    if($(this).val() == 'moniepoint'){ hasMoniepoint = true; }
+  });
+  if(hasMoniepoint){
+    $('#btn-generate-moniepoint').removeClass('hide');
+  } else {
+    $('#btn-generate-moniepoint').addClass('hide');
+  }
+}
+
+// Generate a Monnify dynamic transfer account for this sale
+function generateMoniepointAccount(){
+  var base_url = $('#base_url').val();
+  var grand_total = $('.sales_div_tot_payble').text().replace(/,/g,'').trim();
+  var amount = parseFloat(grand_total) || 0;
+  var customer_id = $('#customer_id').val();
+
+  if(amount <= 0){
+    toastr['error']('Total amount must be greater than zero');
+    return;
+  }
+
+  $.ajax({
+    type: 'POST',
+    url: base_url + 'customers/get_customer_details',
+    data: { customer_id: customer_id },
+    dataType: 'json',
+    success: function(customer){
+      var email = (customer && customer.email) ? customer.email : '';
+      var phone = (customer && customer.mobile) ? customer.mobile : '';
+      var customer_name = (customer && customer.customer_name) ? customer.customer_name : '';
+
+      $('#moniepoint-transfer-modal').modal('show');
+      $('#moniepoint-loading').removeClass('hide');
+      $('#moniepoint-result').addClass('hide');
+      $('#moniepoint-error').addClass('hide');
+      $('#moniepoint-status').html('');
+
+      $.ajax({
+        type: 'POST',
+        url: base_url + 'monnify/generate_transfer_account',
+        data: {
+          amount: amount,
+          email: email,
+          phone: phone,
+          customer_name: customer_name,
+          customer_id: customer_id
+        },
+        dataType: 'json',
+        success: function(res){
+          $('#moniepoint-loading').addClass('hide');
+          if(res.status){
+            $('#moniepoint-account-number').text(res.account_number);
+            $('#moniepoint-bank-name').text(res.bank_name);
+            $('#moniepoint-account-name').text(res.account_name);
+            $('#moniepoint-amount').text('₦' + amount.toFixed(2));
+            $('#moniepoint-expiry').text(res.expiry_time || 'one-time account');
+            $('#moniepoint-reference').text(res.payment_reference);
+
+            // Auto-fill the reference input on the moniepoint payment row so the
+            // webhook can reconcile the saved sale to this transaction.
+            $('.payments_div').each(function(){
+              if($(this).find('.payment-mode-select').val() == 'moniepoint'){
+                $(this).find('.payment-reference').val(res.payment_reference);
+              }
+            });
+
+            $('#moniepoint-result').removeClass('hide');
+          } else {
+            $('#moniepoint-error').text(res.message || 'Failed to generate account').removeClass('hide');
+          }
+        },
+        error: function(){
+          $('#moniepoint-loading').addClass('hide');
+          $('#moniepoint-error').text('Network error. Please try again.').removeClass('hide');
+        }
+      });
+    }
+  });
+}
+
+// Verify the transfer live against Monnify
+function checkMoniepointPayment(){
+  var base_url = $('#base_url').val();
+  var reference = $('#moniepoint-reference').text().trim();
+  if(!reference){ return; }
+
+  $('#btn-check-moniepoint').prop('disabled', true);
+  $('#moniepoint-status').html('<i class="fa fa-spinner fa-spin"></i> Checking...');
+
+  $.ajax({
+    type: 'POST',
+    url: base_url + 'monnify/verify',
+    data: { payment_reference: reference },
+    dataType: 'json',
+    success: function(res){
+      $('#btn-check-moniepoint').prop('disabled', false);
+      if(res.status && (res.payment_status == 'PAID' || res.payment_status == 'OVERPAID')){
+        $('#moniepoint-status').html('<span class="label label-success" style="font-size:14px;"><i class="fa fa-check"></i> Payment confirmed — save the sale</span>');
+        // Flip the confirmation select on the moniepoint row to Confirmed
+        $('.payments_div').each(function(){
+          if($(this).find('.payment-mode-select').val() == 'moniepoint'){
+            $(this).find('.confirmation-status').val('1');
+          }
+        });
+      } else if(res.status){
+        $('#moniepoint-status').html('<span class="label label-warning">Status: ' + res.payment_status + ' — ask the customer to complete the transfer</span>');
+      } else {
+        $('#moniepoint-status').html('<span class="label label-danger">' + (res.message || 'Could not verify') + '</span>');
+      }
+    },
+    error: function(){
+      $('#btn-check-moniepoint').prop('disabled', false);
+      $('#moniepoint-status').html('<span class="label label-danger">Network error. Try again.</span>');
+    }
+  });
 }
 </script>
 
