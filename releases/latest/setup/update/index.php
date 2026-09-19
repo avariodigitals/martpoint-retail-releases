@@ -57,9 +57,9 @@ if (!file_exists($lock_file)) {
 <link rel="shortcut icon" href="../../theme/images/favicon.ico">
 <?php
 error_reporting(0);
-include '../../application/helpers/custom_helper.php';
-include '../../application/helpers/appinfo_helper.php';
-$db_config_path = '../../application/config/database.php';
+include dirname(__DIR__, 2) . '/application/helpers/custom_helper.php';
+include dirname(__DIR__, 2) . '/application/helpers/appinfo_helper.php';
+$db_config_path = dirname(__DIR__, 2) . '/application/config/database.php';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST) {
     
@@ -144,7 +144,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST) {
             Application Version <?=app_version();?>
             <hr>
             <?php 
-            if(is_writable($db_config_path))
+            if(is_writable($db_config_path) || (!file_exists($db_config_path) && is_writable(dirname($db_config_path))))
             {
             ?>
                 <?php if(isset($message)) {

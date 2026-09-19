@@ -42,7 +42,7 @@ class Core {
 	function write_config($data) {
 
         $template_path 	= 'includes/templatevthree.php';
-		$output_path 	= '../../application/config/database.php';
+		$output_path 	= dirname(__DIR__, 2) . '/application/config/database.php';
 
 		$database_file = file_get_contents($template_path);
 
@@ -61,7 +61,7 @@ class Core {
 	function write_config2($data) {
 
         $template_path 	= 'includes/config_file.php';
-		$output_path 	= '../../application/config/config.php';
+		$output_path 	= dirname(__DIR__, 2) . '/application/config/config.php';
 
 		$database_file = file_get_contents($template_path);
 
@@ -78,7 +78,7 @@ class Core {
 	function write_config3($data) {
 
         $template_path 	= 'assets/codeigniter_index_page/index.php';
-		$output_path 	= '../../index.php';
+		$output_path 	= dirname(__DIR__, 2) . '/index.php';
 
 		$contents = @file_get_contents($template_path);
 		if($contents === false){
@@ -91,7 +91,7 @@ class Core {
 	}
 	function write_config4($data) {
 
-        $mid_path = '../../application/controllers/Login.php';
+        $mid_path = dirname(__DIR__, 2) . '/application/controllers/Login.php';
 
 		$mid_path_content = file_get_contents($mid_path);
 
@@ -100,8 +100,8 @@ class Core {
 		return $this->_write_file($mid_path, $new);
 	}
 	function checkFile(){
-	    $output_path = '../../application/config/database.php';
-	    $template_path = 'includes/templatevthree.php';
+	    $output_path = dirname(__DIR__, 2) . '/application/config/database.php';
+	    $template_path = __DIR__ . '/includes/templatevthree.php';
 
 	    if (!file_exists($output_path)) {
 	        // Fresh clone may not contain database.php (it is git-ignored).

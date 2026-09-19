@@ -35,17 +35,17 @@ if (file_exists($lock_file)) {
     exit;
 }
 
-include '../../application/helpers/custom_helper.php';
-include '../../application/helpers/appinfo_helper.php';
-include '../../application/helpers/business_profile_helper.php';
+include dirname(__DIR__, 2) . '/application/helpers/custom_helper.php';
+include dirname(__DIR__, 2) . '/application/helpers/appinfo_helper.php';
+include dirname(__DIR__, 2) . '/application/helpers/business_profile_helper.php';
 
 $business_types  = mp_get_business_types();
 $business_models = mp_get_business_models();
 $default_industry_type   = 'general_retail';
 $default_business_model  = 'product_based';
 
-$db_config_path = '../../application/config/database.php';
-$codeigniter_index_page = '../../index.php';
+$db_config_path = dirname(__DIR__, 2) . '/application/config/database.php';
+$codeigniter_index_page = dirname(__DIR__, 2) . '/index.php';
 $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 
 // Do not leak HTML/PHP errors into the JSON response. Capture fatal/shutdown
@@ -112,6 +112,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST) {
 		}
 
 		if(!isset($message)) {
+            // Save any optional store details collected on the form.
+            // Best-effort: never blocks installation.
+            if(method_exists($database, 'save_store_details')){
+                @$database->save_store_details($_POST);
+            }
             $urlWb = $core->getAllData($_POST['url']);
             $seedUrl = rtrim($urlWb,'/').'/index.php/install_seed'
                 .'?industry_type='.urlencode($industry_type)
@@ -352,6 +357,33 @@ if ($is_ajax && !empty($message)) {
         }
         .help-text.show { display: block; }
 
+        /* Optional store-details sections */
+        .section-divider {
+            border: none; border-top: 1px solid var(--border);
+            margin: 26px 0 18px;
+        }
+        .section-title {
+            font-size: 15px; font-weight: 600; color: var(--text-primary);
+            margin: 0 0 4px;
+        }
+        .section-sub {
+            font-size: 12px; color: var(--text-secondary); margin: 0 0 16px;
+        }
+        .form-row { display: flex; gap: 12px; }
+        .form-row .form-group { flex: 1; min-width: 0; }
+        @media (max-width: 520px) { .form-row { flex-direction: column; gap: 0; } }
+        textarea.form-control { resize: vertical; min-height: 60px; }
+        input[type="file"].form-control { padding: 9px 14px; font-size: 13px; }
+        .staff-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px; padding: 16px; margin-bottom: 12px;
+        }
+        .staff-card h6 {
+            font-size: 13px; font-weight: 600; color: var(--text-secondary);
+            margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+
         .btn-install {
             width: 100%; padding: 14px;
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -536,7 +568,11 @@ if ($is_ajax && !empty($message)) {
         </div>
 
         <?php
-        if(is_writable($db_config_path) && is_writable($codeigniter_index_page))
+        $db_writable = is_writable($db_config_path)
+            || (!file_exists($db_config_path) && is_writable(dirname($db_config_path)));
+        $index_writable = is_writable($codeigniter_index_page)
+            || (!file_exists($codeigniter_index_page) && is_writable(dirname($codeigniter_index_page)));
+        if($db_writable && $index_writable)
         {
         ?>
             <?php if(isset($message)) { ?>
@@ -603,6 +639,140 @@ if ($is_ajax && !empty($message)) {
                         <?php endforeach; ?>
                     </select>
                 </div>
+
+                <hr class="section-divider">
+                <p class="section-title">Store Details</p>
+                <p class="section-sub">Optional — every field below can be set or changed later in Settings. Nothing here delays installation.</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Store Name</label>
+                        <input type="text" name="store_name" class="form-control" placeholder="My Store" />
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="text" name="store_phone" class="form-control" placeholder="+234 ..." />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Store Email</label>
+                        <input type="email" name="store_email" class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Country</label>
+                        <input type="text" name="store_country" class="form-control" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>State</label>
+                        <input type="text" name="store_state" class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>City</label>
+                        <input type="text" name="store_city" class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Postcode</label>
+                        <input type="text" name="store_postcode" class="form-control" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Store Address</label>
+                    <input type="text" name="store_address" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Store Logo <span class="section-sub" style="display:inline;">(png / jpg / webp)</span></label>
+                    <input type="file" name="store_logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp" />
+                </div>
+
+                <hr class="section-divider">
+                <p class="section-title">Banking &amp; Invoice</p>
+                <div class="form-group">
+                    <label>Bank Account Details <span class="section-sub" style="display:inline;">(shown on invoices)</span></label>
+                    <textarea name="bank_details" class="form-control" placeholder="Bank name, account name, account number"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Account Holder Name</label>
+                        <input type="text" name="bank_holder_name" class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Bank Name</label>
+                        <input type="text" name="bank_name" class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Account Number</label>
+                        <input type="text" name="bank_account_number" class="form-control" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Invoice Footer Text</label>
+                    <input type="text" name="invoice_footer_text" class="form-control" placeholder="Thank you for shopping with us!" />
+                </div>
+
+                <hr class="section-divider">
+                <p class="section-title">Email Delivery</p>
+                <p class="section-sub">Optional — MartPoint uses Resend by default. Enter your API key now or later in Settings &rarr; Email Settings.</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Resend API Key</label>
+                        <input type="password" name="resend_api_key" class="form-control" autocomplete="off" placeholder="re_..." />
+                    </div>
+                    <div class="form-group">
+                        <label>From Email</label>
+                        <input type="text" name="resend_from_email" class="form-control" placeholder="hello@yourdomain.com" />
+                    </div>
+                    <div class="form-group">
+                        <label>From Name</label>
+                        <input type="text" name="resend_from_name" class="form-control" placeholder="My Store" />
+                    </div>
+                </div>
+
+                <hr class="section-divider">
+                <p class="section-title">Staff Users</p>
+                <p class="section-sub">Optional — up to 2 staff accounts aside from the store admin. Leave the password blank to use the default <code>martpoint123</code>.</p>
+                <?php for ($i = 1; $i <= 2; $i++): ?>
+                <div class="staff-card">
+                    <h6>Staff User <?php echo $i; ?></h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" name="staff<?php echo $i; ?>_name" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="staff<?php echo $i; ?>_username" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select name="staff<?php echo $i; ?>_role" class="form-control">
+                                <option value="Manager">Manager</option>
+                                <option value="Cashier">Cashier</option>
+                                <option value="Business Owner">Business Owner</option>
+                                <option value="Partner">Partner</option>
+                                <option value="Accountant">Accountant</option>
+                                <option value="Inventory Officer">Inventory Officer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="text" name="staff<?php echo $i; ?>_email" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile</label>
+                            <input type="text" name="staff<?php echo $i; ?>_mobile" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" name="staff<?php echo $i; ?>_password" class="form-control" autocomplete="new-password" />
+                        </div>
+                    </div>
+                </div>
+                <?php endfor; ?>
 
                 <button type="button" class="btn-install" id="send">Install MartPoint</button>
                 <div style="text-align:center;margin-top:14px;">
