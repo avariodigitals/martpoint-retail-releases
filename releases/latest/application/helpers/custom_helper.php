@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.23';
+    return '4.0.9.24';
   }
   function required_php_version(){
     return 7.4;
@@ -2181,6 +2181,56 @@
   }
 
   /**
+   * All units in the same family tree as $unit_id (ancestors AND descendants,
+   * e.g. Litre + Millilitre + fl oz, or Kilogram + Gram), each with
+   * equivalent_qty = how many of that unit fit in ONE base unit.
+   * Used by recipe ingredient rows so a gram- or ml-stocked item can still be
+   * measured in any related unit.
+   */
+  function get_unit_family($unit_id, $store_id = null) {
+    $CI =& get_instance();
+    if (!$store_id) $store_id = get_current_store_id();
+    $all = $CI->db->where('store_id', $store_id)->where('status', 1)->get('db_units')->result();
+    $by_id = []; $by_parent = [];
+    foreach ($all as $u) {
+      $by_id[$u->id] = $u;
+      if ($u->parent_unit_id) $by_parent[$u->parent_unit_id][] = $u;
+    }
+    if (empty($by_id[$unit_id])) return [];
+
+    // Walk to the root of this unit's tree
+    $root = $by_id[$unit_id];
+    $guard = 0;
+    while ($root->parent_unit_id && isset($by_id[$root->parent_unit_id]) && $guard++ < 50) {
+      $root = $by_id[$root->parent_unit_id];
+    }
+
+    // units-per-root for every node in the tree (1 L = 1000 ml; 1 KG = 1000 g)
+    $per_root = [$root->id => 1.0];
+    $stack = [$root->id];
+    while (!empty($stack)) {
+      $pid = array_pop($stack);
+      foreach ($by_parent[$pid] ?? [] as $child) {
+        $per_root[$child->id] = $per_root[$pid] * (float)$child->conversion_factor;
+        $stack[] = $child->id;
+      }
+    }
+
+    $base_per_root = $per_root[$unit_id] ?? 1;
+    $results = [];
+    foreach ($per_root as $id => $upr) {
+      if ($id == $unit_id || !isset($by_id[$id]) || $upr <= 0) continue;
+      $results[] = (object)[
+        'id'             => $id,
+        'unit_name'      => $by_id[$id]->unit_name,
+        'equivalent_qty' => $upr / $base_per_root,
+        'parent_unit_id' => $by_id[$id]->parent_unit_id,
+      ];
+    }
+    return $results;
+  }
+
+  /**
    * Convert cost from base unit to a target child unit.
    * Returns cost per target unit = base_cost / equivalent_qty.
    */
@@ -2452,3 +2502,39 @@
     return (bool) preg_match('/iPad|Tablet|Kindle|PlayBook|SM-T|Nexus 7|Nexus 9|KFTT|Silk|Lenovo.*Tab|Galaxy.*Tab|Tab/i', $ua);
   }
  
+  /**
+   * Write an entry to the store audit trail (db_audit_trail).
+   * No-op when the table does not exist or the DB is unavailable,
+   * so callers never break on older schemas.
+   *
+   * @param string $module      e.g. 'auth', 'sales', 'users', 'roles', 'settings'
+   * @param string $action      e.g. 'login', 'create', 'update', 'delete'
+   * @param string $ref_id      optional record reference (invoice no, user id, ...)
+   * @param string $description human readable detail
+   */
+  function mp_audit_log($module, $action, $ref_id = null, $description = null){
+    try {
+      $CI =& get_instance();
+      if (!isset($CI->db) || !$CI->db->table_exists('db_audit_trail')) {
+        return false;
+      }
+      $store_id = function_exists('get_current_store_id') ? get_current_store_id() : 1;
+      $row = array(
+        'store_id'     => $store_id,
+        'user_id'      => $CI->session->userdata('inv_userid'),
+        'username'     => $CI->session->userdata('inv_username'),
+        'module'       => substr((string)$module, 0, 100),
+        'action'       => substr((string)$action, 0, 100),
+        'ref_id'       => $ref_id !== null ? substr((string)$ref_id, 0, 100) : null,
+        'description'  => $description !== null ? (string)$description : null,
+        'ip_address'   => $CI->input->ip_address(),
+        'created_date' => date('Y-m-d'),
+        'created_time' => date('h:i:s a'),
+        'created_at'   => date('Y-m-d H:i:s'),
+      );
+      return (bool) $CI->db->insert('db_audit_trail', $row);
+    } catch (Exception $e) {
+      log_message('error', 'mp_audit_log failed: ' . $e->getMessage());
+      return false;
+    }
+  }

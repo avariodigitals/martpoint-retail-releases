@@ -597,6 +597,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
             <option value="standard" <?= ($workflow_template_key=='standard') ? 'selected' : ''; ?>>Standard (New → Production → Ready → Delivered)</option>
             <option value="food" <?= ($workflow_template_key=='food') ? 'selected' : ''; ?>>Food / Bakery (New → Confirmed → Baking → Ready → Picked Up)</option>
             <option value="furniture" <?= ($workflow_template_key=='furniture') ? 'selected' : ''; ?>>Furniture (Quote → Deposit → Build → QC → Delivery)</option>
+            <option value="perfume" <?= ($workflow_template_key=='perfume') ? 'selected' : ''; ?>>Perfumery (Quote → Deposit → Sampling → Blend → Macerate → Bottle → Delivered)</option>
           </select>
         </div>
       </div>

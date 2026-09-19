@@ -122,6 +122,9 @@ class Login_model extends CI_Model
 
 			$this->session->set_userdata('login_attempts', 0);
 			$this->session->set_userdata('welcome_alert', 'Welcome '.ucfirst($display_name)." !");
+			if(function_exists('mp_audit_log')){
+				mp_audit_log('auth', 'login', $query->row()->username, 'User logged in');
+			}
 			// Mobile users go to the mobile app first
 			if(is_mobile()){
 				if(stripos(trim($query->row()->role_name), 'cashier') !== false){

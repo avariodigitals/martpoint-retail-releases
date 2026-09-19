@@ -223,7 +223,7 @@
                       'pos_retail_button','pos_wholesale_button','manual_shipping'
                     ],
                     'Products & Inventory' => [
-                      'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','digital_products','courses'
+                      'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','perfumery_workflow','digital_products','courses'
                     ],
                     'Services & Appointments' => [
                       'appointments','service_workflow','custom_orders','packages','memberships'

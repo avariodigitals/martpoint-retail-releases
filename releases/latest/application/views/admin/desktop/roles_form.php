@@ -279,6 +279,9 @@
         ['Recent Sales', 'recent_sales', [
           ['recent_sales_invoice_list','View'],
         ]],
+        ['Audit Trail', 'audit_trail', [
+          ['audit_trail_view','View'],
+        ]],
       ];
 
       // Fetch existing permissions for this role (edit mode)

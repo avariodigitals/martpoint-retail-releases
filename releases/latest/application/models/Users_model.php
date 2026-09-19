@@ -150,6 +150,9 @@ class Users_model extends CI_Model {
 		}
 
 		$this->db->trans_commit();
+		if(function_exists('mp_audit_log')){
+			mp_audit_log('users', 'create', $next_user_id, 'Created user '.$username);
+		}
 		$this->session->set_flashdata('success', 'Success!! New User created Succssfully!!');
 		return "success";
 
@@ -405,6 +408,9 @@ class Users_model extends CI_Model {
 
 		$query1=$this->db->delete("db_users");
         if ($query1){
+        	if(function_exists('mp_audit_log')){
+        		mp_audit_log('users', 'delete', $id, 'Deleted user id '.$id);
+        	}
         	$this->session->set_flashdata('success', 'Success!! User Deleted Succssfully!');
             echo "success";
         }

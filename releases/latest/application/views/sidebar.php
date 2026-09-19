@@ -723,7 +723,7 @@
         <!-- 11. OPERATIONS (includes Staff + Table Management) -->
         <?php if(true){ ?>
         <?php
-          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking'];
+          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','perfumery_workflow'];
           $has_ops = false;
           foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
           $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -768,6 +768,9 @@
             <?php if(mp_feature_enabled('expiry_tracking')) { ?>
             <li class="stock-rotation-active-li"><a href="<?= $base_url; ?>operations/stock_rotation"><i class="fa fa-refresh"></i> Stock Rotation</a></li>
             <?php } ?>
+            <?php if(mp_feature_enabled('perfumery_workflow')) { ?>
+            <li class="perfume-active-li"><a href="<?= $base_url; ?>perfume"><i class="fa fa-flask"></i> Perfume Lab</a></li>
+            <?php } ?>
             <?php if(mp_feature_enabled('delivery_scheduling')) { ?>
             <li class="delivery-scheduling-active-li"><a href="<?= $base_url; ?>operations/delivery_scheduling"><i class="fa fa-truck"></i> Delivery Scheduling</a></li>
             <?php } ?>
@@ -794,7 +797,7 @@
 
         <!-- 12. ADMINISTRATION (Settings + Users & Roles + Attendance + SMS + Branches + Stores + Places) -->
         <?php if($change_password=true) { ?>
-        <li class=" site-settings-active-li  change-pass-active-li dbbackup-active-li  tax-active-li currency-view-active-li  store_profile-active-li business-profile-active-li currency-active-li  database_updater-active-li tax-list-active-li units-list-active-li unit-active-li payment_types_list-active-li payment_types-active-li gateways-active-li package-active-li subscription-active-li  subscription-list-active-li  sms-api-active-li smtp-active-li expiry_settings-active-li debt-reminder-active-li users-view-active-li users-active-li roles-list-active-li role-active-li attendance-shifts-active-li attendance-assign-active-li attendance-daily-active-li attendance-report-active-li sms-active-li sms-templates-list-active-li email-active-li email-templates-list-active-li warehouse-active-li warehouse-list-active-li store_list-active-li store-active-li subscribers-active-li subscribers_list-active-li country-active-li city-list-active-li country-list-active-li state-active-li state-list-active-li city-active-li approval-settings-active-li ninverify_usage-active-li ninverify_log-active-li system-updates-active-li manifest-active-li release-active-li subscription-license-active-li subscription-plans-active-li subscription-usage-active-li paystack_settings-active-li payment_modes_list-active-li payment_modes-active-li migrate-active-li treeview">
+        <li class=" site-settings-active-li  change-pass-active-li dbbackup-active-li  tax-active-li currency-view-active-li  store_profile-active-li business-profile-active-li currency-active-li  database_updater-active-li tax-list-active-li units-list-active-li unit-active-li payment_types_list-active-li payment_types-active-li gateways-active-li package-active-li subscription-active-li  subscription-list-active-li  sms-api-active-li smtp-active-li expiry_settings-active-li debt-reminder-active-li users-view-active-li users-active-li roles-list-active-li role-active-li attendance-shifts-active-li attendance-assign-active-li attendance-daily-active-li attendance-report-active-li sms-active-li sms-templates-list-active-li email-active-li email-templates-list-active-li warehouse-active-li warehouse-list-active-li store_list-active-li store-active-li subscribers-active-li subscribers_list-active-li country-active-li city-list-active-li country-list-active-li state-active-li state-list-active-li city-active-li approval-settings-active-li ninverify_usage-active-li ninverify_log-active-li system-updates-active-li manifest-active-li release-active-li subscription-license-active-li subscription-plans-active-li subscription-usage-active-li paystack_settings-active-li payment_modes_list-active-li payment_modes-active-li migrate-active-li audit-trail-active-li treeview">
           <a href="#">
             <i class="fa fa-cogs text-gray"></i> <span>Administration</span>
             <span class="pull-right-container">
@@ -968,6 +971,11 @@
             <!-- Security & Approvals -->
             <?php if(($CI->permissions('approval_settings_edit') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('manager_approvals')) { ?>
             <li class="approval-settings-active-li"><a href="<?php echo $base_url; ?>approvals/settings"><i class="fa fa-shield"></i> <span>Security &amp; Approvals</span></a></li>
+            <?php } ?>
+
+            <!-- Audit Trail -->
+            <?php if($CI->permissions('audit_trail_view')) { ?>
+            <li class="audit-trail-active-li"><a href="<?php echo $base_url; ?>audit_trail"><i class="fa fa-history "></i> <span>Audit Trail</span></a></li>
             <?php } ?>
 
             <!-- NIN -->

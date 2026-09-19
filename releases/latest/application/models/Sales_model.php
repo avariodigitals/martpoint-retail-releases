@@ -1076,6 +1076,9 @@ class Sales_model extends CI_Model {
 
 
 		$this->db->trans_commit();
+		if(function_exists('mp_audit_log')){
+			mp_audit_log('sales', 'delete', $ids, 'Deleted sale(s) '.$ids);
+		}
 		return "success";
 	}
 	public function search_item($q){

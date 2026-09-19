@@ -75,6 +75,9 @@
             <div class="mp-form-group"><label>Yield Unit</label><input type="text" class="mp-form-control" name="yield_unit" id="yield_unit" value="<?= isset($edit_recipe) ? htmlspecialchars($edit_recipe->yield_unit) : 'piece'; ?>" placeholder="auto from product" readonly></div>
             <div class="mp-form-group"><label>Prep Time (mins)</label><input type="number" class="mp-form-control" name="prep_time" value="<?= isset($edit_recipe) ? $edit_recipe->prep_time : ''; ?>" placeholder="30"></div>
             <div class="mp-form-group"><label>Cook Time (mins)</label><input type="number" class="mp-form-control" name="cook_time" value="<?= isset($edit_recipe) ? $edit_recipe->cook_time : ''; ?>" placeholder="45"></div>
+            <?php if ($this->db->field_exists('maceration_days', 'db_recipes')): ?>
+            <div class="mp-form-group"><label>Aging / Maceration (days)</label><input type="number" min="0" class="mp-form-control" name="maceration_days" value="<?= isset($edit_recipe) ? (int)$edit_recipe->maceration_days : ''; ?>" placeholder="e.g. 28"><p class="mp-form-hint">Perfumery: days the blend must rest before bottling</p></div>
+            <?php endif; ?>
           </div>
 
           <div class="mp-form-grid" style="margin-top:20px">
@@ -99,7 +102,7 @@
                       <?php foreach($items as $it):
                         $unit_descendants = [];
                         if (!empty($it->unit_id) && isset($unit_hierarchy[$it->unit_id])) {
-                          $unit_descendants = get_unit_descendants($it->unit_id, $it->store_id);
+                          $unit_descendants = get_unit_family($it->unit_id, $it->store_id);
                         }
                       ?>
                       <option value="<?= $it->id; ?>" data-name="<?= htmlspecialchars($it->item_name); ?>" data-cost="<?= $it->purchase_price ?? 0; ?>" data-unit="<?= htmlspecialchars($it->unit_name ?? 'gram'); ?>" data-unit-id="<?= $it->unit_id ?? ''; ?>" data-alternates='<?= json_encode($unit_descendants); ?>' <?= ($ing->item_id==$it->id)?'selected':''; ?>><?= htmlspecialchars($it->item_name); ?></option>
@@ -193,7 +196,7 @@ var itemOptions = '';
 <?php foreach($items as $it):
   $unit_descendants = [];
   if (!empty($it->unit_id) && isset($unit_hierarchy[$it->unit_id])) {
-    $unit_descendants = get_unit_descendants($it->unit_id, $it->store_id);
+    $unit_descendants = get_unit_family($it->unit_id, $it->store_id);
   }
 ?>
 itemOptions += '<option value="<?= $it->id; ?>" data-name="<?= htmlspecialchars($it->item_name); ?>" data-cost="<?= $it->purchase_price ?? 0; ?>" data-unit="<?= htmlspecialchars($it->unit_name ?? 'gram'); ?>" data-unit-id="<?= $it->unit_id ?? ''; ?>" data-alternates=\'<?= json_encode($unit_descendants); ?>\'><?= htmlspecialchars($it->item_name); ?></option>';

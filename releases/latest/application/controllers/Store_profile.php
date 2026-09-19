@@ -58,6 +58,9 @@ class Store_profile extends MY_Controller {
 		$this->db->where('id', 1)->update('db_sitesettings', array('sales_target' => $sales_target));
 
 		$result=$this->store->update_store();
+		if($result === 'success' && function_exists('mp_audit_log')){
+			mp_audit_log('settings', 'update', 'store_profile', 'Updated store profile');
+		}
 		echo $result;
 	}
 

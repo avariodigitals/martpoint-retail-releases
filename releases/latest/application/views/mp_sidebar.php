@@ -312,7 +312,7 @@ $mp_icons = [
 
     <!-- Operations -->
     <?php
-      $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','meat_butchery_workflow','frozen_food_cold_chain','automobile_workflow'];
+      $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','meat_butchery_workflow','frozen_food_cold_chain','automobile_workflow','perfumery_workflow'];
       if($is_creator) { $ops_flags = array_diff($ops_flags, ['memberships']); } /* creator gets memberships in its own menu */
       $has_ops = false; foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
       $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -334,6 +334,7 @@ $mp_icons = [
         <?php if(mp_feature_enabled('public_catalogue')): ?><a href="<?= base_url('operations/public_catalogue_settings'); ?>" class="mp-nav-item operations-public_catalogue_settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Public Catalogue</a><?php endif; ?>
         <?php if(mp_feature_enabled('expiry_tracking')): ?><a href="<?= base_url('operations/stock_rotation'); ?>" class="mp-nav-item operations-stock_rotation-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Stock Rotation</a><?php endif; ?>
         <?php if(mp_feature_enabled('meat_butchery_workflow') || mp_feature_enabled('frozen_food_cold_chain')): ?><a href="<?= base_url('butchery'); ?>" class="mp-nav-item butchery-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Butchery &amp; Frozen</a><?php endif; ?>
+        <?php if(mp_feature_enabled('perfumery_workflow')): ?><a href="<?= base_url('perfume'); ?>" class="mp-nav-item perfume-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Perfume Lab</a><?php endif; ?>
         <?php if(mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking') || mp_feature_enabled('warranty_tracking')): ?><a href="<?= base_url('operations/warranty_lookup'); ?>" class="mp-nav-item operations-warranty_lookup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Warranty Lookup</a><?php endif; ?>
         <?php if($has_staff && mp_feature_enabled('staff_assignment')): ?><a href="<?= base_url('operations/staff_assignment'); ?>" class="mp-nav-item operations-staff_assignment-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Staff Assignment</a><?php endif; ?>
         <?php if($has_staff && mp_feature_enabled('staff_commission')): ?><a href="<?= base_url('operations/staff_commission'); ?>" class="mp-nav-item operations-staff_commission-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Staff Commission</a><?php endif; ?>
@@ -430,6 +431,7 @@ $mp_icons = [
           <a href="<?= base_url('city'); ?>" class="mp-nav-item city-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Cities</a>
         <?php endif; ?>
         <?php if(($CI->permissions('approval_settings_edit') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('manager_approvals')): ?><a href="<?= base_url('approvals/settings'); ?>" class="mp-nav-item approvals-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Security & Approvals</a><?php endif; ?>
+        <?php if($CI->permissions('audit_trail_view')): ?><a href="<?= base_url('audit_trail'); ?>" class="mp-nav-item audit-trail-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Audit Trail</a><?php endif; ?>
         <?php if($CI->permissions('nin_usage')): ?><a href="<?= base_url('ninverify/usage'); ?>" class="mp-nav-item ninverify-usage-active-li"><i class="fa fa-bar-chart mp-nav-icon"></i> NIN Usage</a><?php endif; ?>
         <?php if($CI->permissions('nin_logs')): ?><a href="<?= base_url('ninverify/log'); ?>" class="mp-nav-item ninverify-log-active-li"><i class="fa fa-id-card mp-nav-icon"></i> NIN Verification Log</a><?php endif; ?>
         <a href="<?= base_url('users/password_reset'); ?>" class="mp-nav-item change-password-active-li"><i class="fa fa-lock mp-nav-icon"></i> Change Password</a>

@@ -31,6 +31,9 @@ class Site extends MY_Controller {
 		$this->form_validation->set_rules('site_name', 'Site Name', 'trim|required');
 		if ($this->form_validation->run() == TRUE) {
 			$result=$this->site_model->update_site();
+			if($result === 'success' && function_exists('mp_audit_log')){
+				mp_audit_log('settings', 'update', 'site', 'Updated site settings');
+			}
 			echo $result;
 		} else {
 			echo "Please Enter Compulsary(* marked) fields!";

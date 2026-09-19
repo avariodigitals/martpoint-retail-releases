@@ -3111,6 +3111,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
 				['title' => 'Vehicles', 'desc' => 'Automobile inventory', 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
 				['title' => 'Butchery', 'desc' => 'Carcass & cuts', 'icon' => 'fa-cut', 'url' => 'mobile/butchery', 'perm' => 'items_view', 'color' => 'red', 'feature' => 'meat_butchery_workflow'],
+				['title' => 'Perfume Lab', 'desc' => 'Blending, maceration & losses', 'icon' => 'fa-flask', 'url' => 'mobile/perfume', 'perm' => 'items_view', 'color' => 'purple', 'feature' => 'perfumery_workflow'],
 				['title' => 'Cold Chain', 'desc' => 'Freezers & temperature log', 'icon' => 'fa-snowflake-o', 'url' => 'mobile/butchery_coldchain', 'perm' => 'items_view', 'color' => 'blue', 'feature' => ['meat_butchery_workflow','frozen_food_cold_chain']],
 				['title' => 'Stock Transfers', 'desc' => 'Branch-to-branch transfers', 'icon' => 'fa-exchange', 'url' => 'mobile/stock_transfers', 'perm' => 'stock_transfer_view', 'color' => 'teal'],
 				['title' => 'Price Catalogue', 'desc' => 'Product & service prices', 'icon' => 'fa-tags', 'url' => 'mobile/price_catalogue', 'perm' => 'items_view', 'color' => 'purple'],
@@ -5378,6 +5379,49 @@ class Mobile extends MY_Controller {
 		$data['logs']     = $this->butchery_m->get_recent_temperature_logs(50, $store_id);
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$this->load->view('mobile/butchery_coldchain', $data);
+	}
+
+	public function perfume()
+	{
+		if(!mp_feature_enabled('perfumery_workflow')){
+			show_404();
+		}
+		$this->load->model('Perfume_model', 'perfume_m');
+		$data = $this->data;
+		$data['page_title'] = 'Perfume Lab';
+		$store_id = get_current_store_id();
+		$data['stats']         = $this->perfume_m->get_lab_stats($store_id);
+		$data['macerating']    = $this->perfume_m->get_macerating($store_id);
+		$data['wastage']       = $this->perfume_m->get_wastage($store_id, 10);
+		$data['items']         = $this->perfume_m->get_losable_items($store_id);
+		$data['batches']       = $this->perfume_m->get_open_batches($store_id);
+		$data['stages']        = Perfume_model::wastage_stages();
+		$data['display_name']  = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/perfume_lab', $data);
+	}
+
+	public function save_perfume_wastage()
+	{
+		if(!mp_feature_enabled('perfumery_workflow')){
+			show_404();
+		}
+		$this->load->model('Perfume_model', 'perfume_m');
+		$saved = $this->perfume_m->log_wastage([
+			'item_id'    => (int)$this->input->post('item_id', TRUE),
+			'batch_id'   => (int)$this->input->post('batch_id', TRUE) ?: null,
+			'stage'      => $this->input->post('stage', TRUE) ?: 'other',
+			'qty'        => (float)$this->input->post('qty', TRUE),
+			'unit_name'  => $this->input->post('unit_name', TRUE),
+			'unit_cost'  => $this->input->post('unit_cost', TRUE),
+			'reason'     => $this->input->post('reason', TRUE),
+			'created_by' => $this->session->userdata('username') ?: 'System',
+		]);
+		if($saved !== false){
+			$this->session->set_flashdata('success', 'Loss recorded and stock adjusted.');
+		} else {
+			$this->session->set_flashdata('failed', 'Could not record the loss.');
+		}
+		redirect(base_url('mobile/perfume'));
 	}
 
 	public function sell_vehicle($id)

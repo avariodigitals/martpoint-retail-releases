@@ -37,8 +37,17 @@
           <div class="mp-form-group">
             <label>Batch Type</label>
             <select class="mp-form-control" name="batch_type">
+              <?php
+                $pb_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+                $pb_is_perfumery = (($pb_profile['industry_type'] ?? '') === 'perfume_shop');
+              ?>
+              <?php if ($pb_is_perfumery): ?>
+              <option value="blending" <?= (!isset($edit_batch) || $edit_batch->batch_type=='blending')?'selected':''; ?>>Blending</option>
+              <option value="bottling" <?= (isset($edit_batch) && $edit_batch->batch_type=='bottling')?'selected':''; ?>>Bottling Run</option>
+              <?php else: ?>
               <option value="bakery" <?= (isset($edit_batch) && $edit_batch->batch_type=='bakery')?'selected':''; ?>>Bakery</option>
               <option value="kitchen" <?= (isset($edit_batch) && $edit_batch->batch_type=='kitchen')?'selected':''; ?>>Kitchen</option>
+              <?php endif; ?>
               <option value="general" <?= (isset($edit_batch) && $edit_batch->batch_type=='general')?'selected':''; ?>>General</option>
             </select>
           </div>
@@ -75,14 +84,24 @@
         </div>
 
         <div class="mp-section-divider"><i class="fa fa-list"></i> Items in this Batch</div>
+        <?php if(isset($edit_batch) && $edit_batch->status === 'completed'): ?>
+        <div class="alert alert-info" style="font-size:13px">This batch is completed — its stock was already posted and quantities can no longer change it. To produce more, create a new batch.</div>
+        <?php endif; ?>
         <table class="mp-batch-items" id="batch-items-table">
           <thead><tr><th>Item</th><th>Type</th><th>Qty</th><th>Notes</th><th style="width:40px;"></th></tr></thead>
           <tbody id="batch-items-body">
-            <?php if(!empty($batch_items)): foreach($batch_items as $bi): ?>
+            <?php if(!empty($batch_items)): foreach($batch_items as $bi):
+              $bi_is_completed = isset($edit_batch) && $edit_batch->status === 'completed';
+              $bi_unit_hint = '';
+              if ($bi->item_type == 'recipe_product') {
+                $bi_recipe = $this->db->select('yield_unit')->where('id', $bi->item_id)->get('db_recipes')->row();
+                if ($bi_recipe && $bi_recipe->yield_unit) $bi_unit_hint = ' <small class="text-muted">'.htmlspecialchars($bi_recipe->yield_unit).' to produce</small>';
+              }
+            ?>
             <tr class="bi-row">
               <td><input type="hidden" name="item_id[]" value="<?= $bi->item_id; ?>"><input type="hidden" name="item_name[]" value="<?= htmlspecialchars($bi->item_name); ?>"><?= htmlspecialchars($bi->item_name); ?></td>
               <td><input type="hidden" name="item_type[]" value="<?= $bi->item_type; ?>"><?= $bi->item_type == 'recipe_product' ? 'Recipe' : ucfirst($bi->item_type); ?></td>
-              <td><input type="number" step="1" name="quantity[]" value="<?= $bi->quantity; ?>" style="width:80px"></td>
+              <td><input type="number" step="0.01" name="quantity[]" value="<?= $bi->quantity; ?>" style="width:80px" <?= $bi_is_completed ? 'readonly' : ''; ?>><?= $bi_unit_hint; ?></td>
               <td><input type="text" name="item_notes[]" value="<?= htmlspecialchars($bi->notes); ?>"></td>
               <td><div class="mp-actions"><button type="button" class="mp-delete" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></div></td>
             </tr>
@@ -128,7 +147,7 @@
               <td><?= htmlspecialchars($rec->name); ?></td>
               <td><?= htmlspecialchars($rec->category ?: '-'); ?></td>
               <td><?= $rec->yield_qty . ' ' . htmlspecialchars($rec->yield_unit); ?></td>
-              <td><div class="mp-actions"><button type="button" class="mp-edit" onclick="addBatchItem('recipe_product', <?= $rec->id; ?>, '<?= addslashes($rec->name); ?>')"><i class="fa fa-plus"></i></button></div></td>
+              <td><div class="mp-actions"><button type="button" class="mp-edit" onclick="addBatchItem('recipe_product', <?= $rec->id; ?>, '<?= addslashes($rec->name); ?>', <?= (float)($rec->yield_qty ?? 1); ?>, '<?= addslashes($rec->yield_unit ?: ''); ?>')"><i class="fa fa-plus"></i></button></div></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
@@ -174,12 +193,16 @@ $(function(){
   <?php endif; ?>
 });
 
-function addBatchItem(type, id, name){
+function addBatchItem(type, id, name, defaultQty, unit){
   var typeLabel = type == 'recipe_product' ? 'Recipe' : type.charAt(0).toUpperCase()+type.slice(1);
+  var qty = (typeof defaultQty !== 'undefined' && defaultQty !== null && defaultQty !== '') ? defaultQty : 1;
+  // For recipe rows the qty is the amount to produce in the recipe's yield unit
+  // (e.g. 2000 ml for a 2-litre blend) — show the unit so it can't be misread as "number of runs"
+  var unitHint = (type == 'recipe_product' && unit) ? ' <small class="text-muted">'+unit+' to produce</small>' : '';
   var html = '<tr class="bi-row">'+
     '<td><input type="hidden" name="item_id[]" value="'+id+'"><input type="hidden" name="item_name[]" value="'+name+'">'+name+'</td>'+
     '<td><input type="hidden" name="item_type[]" value="'+type+'">'+typeLabel+'</td>'+
-    '<td><input type="number" step="1" name="quantity[]" value="1" style="width:80px"></td>'+
+    '<td><input type="number" step="0.01" name="quantity[]" value="'+qty+'" style="width:80px">'+unitHint+'</td>'+
     '<td><input type="text" name="item_notes[]" value=""></td>'+
     '<td><div class="mp-actions"><button type="button" class="mp-delete" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></div></td>'+
     '</tr>';

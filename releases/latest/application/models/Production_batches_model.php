@@ -27,8 +27,32 @@ class Production_batches_model extends CI_Model {
     }
 
     // ========== Workflow helpers ==========
-    public static function get_statuses() {
+    /**
+     * Status pipeline for production batches. Perfumeries follow the
+     * global blending workflow: source raw materials → blend → macerate
+     * (age the compound) → filter → bottle → ready. Other industries keep
+     * the bakery/kitchen pipeline.
+     */
+    public static function get_statuses($industry_type = null) {
+        if ($industry_type === null) {
+            $industry_type = self::_store_industry_type();
+        }
+        if ($industry_type === 'perfume_shop') {
+            return ['planned','sourcing','blending','macerating','filtering','bottling','ready','completed','cancelled'];
+        }
         return ['planned','prepping','in_production','cooling','decorating','ready','completed','cancelled'];
+    }
+
+    private static function _store_industry_type() {
+        $CI =& get_instance();
+        if (!function_exists('mp_get_store_profile')) {
+            $CI->load->helper('business_profile');
+        }
+        if (function_exists('mp_get_store_profile')) {
+            $profile = mp_get_store_profile();
+            return $profile['industry_type'] ?? 'general_retail';
+        }
+        return 'general_retail';
     }
 
     public static function status_label($status) {
@@ -37,6 +61,9 @@ class Production_batches_model extends CI_Model {
             'in_production' => 'In Production', 'cooling' => 'Cooling',
             'decorating' => 'Decorating', 'ready' => 'Ready',
             'completed' => 'Completed', 'cancelled' => 'Cancelled',
+            'sourcing' => 'Sourcing Materials', 'blending' => 'Blending',
+            'macerating' => 'Macerating', 'filtering' => 'Filtering',
+            'bottling' => 'Bottling',
         ];
         return $labels[$status] ?? ucfirst(str_replace('_',' ',$status));
     }
@@ -47,6 +74,9 @@ class Production_batches_model extends CI_Model {
             'in_production' => 'primary', 'cooling' => 'warning',
             'decorating' => 'warning', 'ready' => 'success',
             'completed' => 'success', 'cancelled' => 'danger',
+            'sourcing' => 'info', 'blending' => 'primary',
+            'macerating' => 'warning', 'filtering' => 'warning',
+            'bottling' => 'primary',
         ];
         return $map[$status] ?? 'default';
     }
@@ -56,6 +86,20 @@ class Production_batches_model extends CI_Model {
         $this->db->trans_begin();
         try {
             if ($id) {
+                // Stamp maceration start when a batch first enters the
+                // macerating stage, copying the aging requirement from its
+                // formula so the tracker can compute the ready date.
+                if (($data['status'] ?? '') === 'macerating' && $this->db->field_exists('maceration_started', 'db_production_batches')) {
+                    $existing = $this->db->where('id', $id)->get('db_production_batches')->row();
+                    if ($existing && $existing->status !== 'macerating') {
+                        if (empty($data['maceration_started'])) {
+                            $data['maceration_started'] = date('Y-m-d');
+                        }
+                        if (!isset($data['maceration_days'])) {
+                            $data['maceration_days'] = $this->_batch_maceration_days($id);
+                        }
+                    }
+                }
                 $this->db->where('id', $id);
                 $this->db->update('db_production_batches', $data);
                 $batch_id = $id;
@@ -78,6 +122,26 @@ class Production_batches_model extends CI_Model {
             $this->db->trans_rollback();
             throw $e;
         }
+    }
+
+    /**
+     * Highest maceration_days across the formulas linked to a batch.
+     * A batch that blends several formulas must age for the longest one.
+     */
+    private function _batch_maceration_days($batch_id) {
+        if (!$this->db->field_exists('maceration_days', 'db_recipes')) {
+            return 0;
+        }
+        $days = 0;
+        $items = $this->get_items($batch_id);
+        foreach ($items as $item) {
+            if ($item->item_type !== 'recipe_product') continue;
+            $recipe = $this->db->where('id', $item->item_id)->get('db_recipes')->row();
+            if ($recipe && (int)$recipe->maceration_days > $days) {
+                $days = (int)$recipe->maceration_days;
+            }
+        }
+        return $days;
     }
 
     public function save_items($batch_id, $items) {
@@ -107,6 +171,26 @@ class Production_batches_model extends CI_Model {
         $this->db->delete('db_production_batches');
         $this->db->where('batch_id', $id);
         $this->db->delete('db_production_batch_items');
+    }
+
+    /**
+     * Convert a recipe ingredient qty from its selected unit into the item's
+     * base (stock) unit. Recipes store the unit name the user picked; stock
+     * is always kept in the item's base unit.
+     */
+    private function ingredient_qty_in_base($item_id, $unit_name, $qty) {
+        if (empty($item_id) || empty($unit_name) || $qty == 0) return $qty;
+        $item = $this->db->select('unit_id, store_id')->where('id', $item_id)->get('db_items')->row();
+        if (!$item || empty($item->unit_id)) return $qty;
+        $base = $this->db->select('unit_name')->where('id', $item->unit_id)->get('db_units')->row();
+        if (!$base || $base->unit_name === $unit_name) return $qty;
+        if (!function_exists('get_unit_family')) return $qty;
+        foreach (get_unit_family($item->unit_id, $item->store_id) as $u) {
+            if ($u->unit_name === $unit_name && $u->equivalent_qty > 0) {
+                return $qty / (float)$u->equivalent_qty;
+            }
+        }
+        return $qty;
     }
 
     /**
@@ -167,7 +251,7 @@ class Production_batches_model extends CI_Model {
 
             foreach ($ings as $ing) {
                 if (!$ing->item_id) continue;
-                $deduct_qty = (float)$ing->qty * $scale;
+                $deduct_qty = $this->ingredient_qty_in_base($ing->item_id, $ing->unit ?? '', (float)$ing->qty) * $scale;
                 if ($deduct_qty <= 0) continue;
 
                 $ing_cost = $deduct_qty * (float)$ing->cost_per_unit;
@@ -315,7 +399,7 @@ class Production_batches_model extends CI_Model {
 
             foreach ($ings as $ing) {
                 if (!$ing->item_id) continue;
-                $needed = (float)$ing->qty * $scale;
+                $needed = $this->ingredient_qty_in_base($ing->item_id, $ing->unit ?? '', (float)$ing->qty) * $scale;
                 if ($needed <= 0) continue;
 
                 $available = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $ing->item_id);

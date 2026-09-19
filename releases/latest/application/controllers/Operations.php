@@ -420,6 +420,11 @@ class Operations extends MY_Controller {
             return;
         }
         if ($status == 'completed') {
+            $existing = $this->pb->get($id);
+            if ($existing && $existing->status === 'completed') {
+                echo json_encode(['success' => false, 'message' => 'This batch is already completed and its stock was already posted. Create a new batch to produce more.']);
+                return;
+            }
             $completed = $this->pb->complete_batch($id);
             if (!$completed) {
                 echo json_encode(['success' => false, 'message' => 'Stock update failed. Please check the error log or contact support.']);
@@ -465,6 +470,11 @@ class Operations extends MY_Controller {
         }
 
         if ($new_status == 'completed') {
+            $existing = $this->pb->get($id);
+            if ($existing && $existing->status === 'completed') {
+                echo json_encode(['success' => false, 'message' => 'This batch is already completed and its stock was already posted. Create a new batch to produce more.']);
+                return;
+            }
             $shortages = $this->pb->validate_stock_for_batch($id);
             if (!empty($shortages)) {
                 $msg = 'Cannot complete — not enough stock:\n';
@@ -563,7 +573,14 @@ class Operations extends MY_Controller {
             $data['cost_per_unit'] = $this->recipe->calculate_cost_per_unit($id);
         }
         // Only show not_for_sale items (raw materials) in ingredient dropdown
-        $data['items'] = $this->db->where('store_id', $store_id)->where('status', 1)->where('not_for_sale', 1)->get('db_items')->result();
+        // Join db_units so each option carries the real base unit_name for the unit dropdown
+        $data['items'] = $this->db->select('a.*, u.unit_name')
+            ->from('db_items a')
+            ->join('db_units u', 'u.id = a.unit_id', 'left')
+            ->where('a.store_id', $store_id)
+            ->where('a.status', 1)
+            ->where('a.not_for_sale', 1)
+            ->get()->result();
         // Load unit hierarchy for centralized multi-unit conversion
         $data['unit_hierarchy'] = [];
         if ($this->db->field_exists('parent_unit_id', 'db_units')) {
@@ -615,6 +632,9 @@ class Operations extends MY_Controller {
             'notes' => $this->input->post('notes', TRUE),
             'status' => $this->input->post('status', TRUE) ?? 1,
         ];
+        if ($this->db->field_exists('maceration_days', 'db_recipes')) {
+            $recipe_data['maceration_days'] = $this->input->post('maceration_days', TRUE) !== '' ? (int)$this->input->post('maceration_days', TRUE) : 0;
+        }
 
         $id = $this->input->post('id', TRUE) ?: null;
         $recipe_id = $this->recipe->save($recipe_data, $id);

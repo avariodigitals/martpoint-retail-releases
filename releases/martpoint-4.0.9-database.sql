@@ -1175,4 +1175,149 @@ SET @sql = IF(@col_exists > 0,
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+
+-- ============================================================================
+-- Migration 16: Perfumery Module (v4.0.9.24)
+-- ============================================================================
+
+-- ============================================================================
+-- MartPoint 4.0.9.24 — Perfumery Module Schema
+-- Perfume Lab: maceration tracking on formulas & blend batches, and a
+-- categorized wastage ledger (evaporation, spillage, breakage, testers, QC).
+-- Idempotent: safe to run more than once. MySQL 5.7+/MariaDB compatible.
+-- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES';
+
+-- ----------------------------------------------------------------------------
+-- Formula-level maceration requirement (db_recipes.maceration_days)
+-- How many days a compounded blend must rest before filtering & bottling.
+-- ----------------------------------------------------------------------------
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_recipes' AND column_name = 'maceration_days');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_recipes` ADD COLUMN `maceration_days` INT(11) NOT NULL DEFAULT 0 COMMENT ''Days the blend must macerate/age before bottling'' AFTER `cook_time`',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ----------------------------------------------------------------------------
+-- Batch-level maceration tracking (db_production_batches)
+-- maceration_started: date the blend entered the maceration stage.
+-- maceration_days:    aging requirement copied from the formula at start.
+-- ----------------------------------------------------------------------------
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_production_batches' AND column_name = 'maceration_started');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_production_batches` ADD COLUMN `maceration_started` DATE NULL COMMENT ''Date batch entered maceration stage'' AFTER `status`',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_production_batches' AND column_name = 'maceration_days');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_production_batches` ADD COLUMN `maceration_days` INT(11) NOT NULL DEFAULT 0 COMMENT ''Required maceration days, copied from formula'' AFTER `maceration_started`',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ----------------------------------------------------------------------------
+-- Perfumery wastage ledger (db_perfume_wastage)
+-- Every physical loss event in the lab: evaporation during maceration,
+-- spillage/residue during transfer & decanting, breakage, testers opened for
+-- the counter, QC rejects. Each row also drives a stock adjustment so the
+-- ledger and the inventory always agree.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `db_perfume_wastage` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) NOT NULL,
+  `warehouse_id` INT(11) NOT NULL DEFAULT 0,
+  `batch_id` INT(11) UNSIGNED DEFAULT NULL COMMENT 'db_production_batches id when loss belongs to a blend batch',
+  `item_id` INT(11) NOT NULL COMMENT 'db_items id of the material lost',
+  `item_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stage` VARCHAR(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other' COMMENT 'blending|maceration|filtering|bottling|decanting|breakage|tester|expired|other',
+  `qty` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'Quantity lost, in the item base unit',
+  `unit_name` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unit_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Cost per unit at time of loss',
+  `total_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'qty x unit_cost',
+  `reason` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Free-text explanation e.g. Evaporation during 4-week rest',
+  `stock_adjustment_id` INT(11) DEFAULT NULL COMMENT 'db_stockadjustment id created for this loss',
+  `created_date` DATE DEFAULT NULL,
+  `created_time` TIME DEFAULT NULL,
+  `created_by` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_stage` (`stage`),
+  KEY `idx_batch` (`batch_id`),
+  KEY `idx_item` (`item_id`),
+  KEY `idx_date` (`created_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================================
+-- Migration 17: Audit Trail + Email Settings + Report Schedules (v4.0.9.24)
+-- ============================================================================
+
+-- ============================================================================
+-- MartPoint 4.0.9.24 — Audit Trail + fresh-install settings table parity
+--
+-- 1. Creates db_audit_trail (operational log of user actions). The page lives
+--    under Settings → Audit Trail and is gated by the `audit_trail_view`
+--    permission key — assign it to roles that should see the log.
+-- 2. Back-fills the modular store settings tables for installs whose schema
+--    predates the 4.0.2→4.0.3 modularization migration (all IF NOT EXISTS).
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS `db_audit_trail` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) UNSIGNED NOT NULL DEFAULT 1,
+  `user_id` int(11) UNSIGNED DEFAULT NULL,
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `module` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ref_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_date` date DEFAULT NULL,
+  `created_time` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_store` (`store_id`),
+  KEY `idx_module` (`module`),
+  KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_email_settings` (
+  `store_id` int(11) NOT NULL,
+  `email_provider` varchar(50) DEFAULT 'smtp',
+  `email_from_name` varchar(255) DEFAULT NULL,
+  `email_from_email` varchar(255) DEFAULT NULL,
+  `email_reply_to` varchar(255) DEFAULT NULL,
+  `smtp_crypto` varchar(50) DEFAULT NULL,
+  `resend_api_key` varchar(255) DEFAULT NULL,
+  `resend_from_email` varchar(255) DEFAULT NULL,
+  `resend_from_name` varchar(255) DEFAULT NULL,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_report_schedules` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) UNSIGNED NOT NULL DEFAULT 1,
+  `report_type` varchar(64) NOT NULL COMMENT 'daily_summary, low_stock, overdue_debt',
+  `template_name` varchar(128) DEFAULT NULL,
+  `frequency` varchar(16) NOT NULL DEFAULT 'daily' COMMENT 'daily, weekly',
+  `send_time` varchar(8) NOT NULL DEFAULT '18:00' COMMENT 'HH:MM 24h format',
+  `email_enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `email_recipients` varchar(500) DEFAULT NULL COMMENT 'comma-separated emails',
+  `email_template_key` varchar(64) DEFAULT 'daily_business_summary',
+  `whatsapp_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `whatsapp_numbers` varchar(500) DEFAULT NULL COMMENT 'comma-separated with country code',
+  `whatsapp_message_template` text DEFAULT NULL,
+  `last_run_at` datetime DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_report_type_store` (`report_type`,`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

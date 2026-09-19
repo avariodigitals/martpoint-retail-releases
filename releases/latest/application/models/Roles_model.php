@@ -118,6 +118,9 @@ class Roles_model extends CI_Model {
 						return "Please Select Permissions";
 					}
 					$this->db->trans_commit();
+					if(function_exists('mp_audit_log')){
+						mp_audit_log('roles', 'create', $role_name, 'Created role '.$role_name);
+					}
 					$this->session->set_flashdata('success', 'Success!! New Role Name Added Successfully!');
 			        return "success";
 			}
@@ -188,6 +191,9 @@ class Roles_model extends CI_Model {
 					}
 
 					$this->db->trans_commit();
+					if(function_exists('mp_audit_log')){
+						mp_audit_log('roles', 'update', $q_id, 'Updated role '.$role_name);
+					}
 					$this->session->set_flashdata('success', 'Success!! Role Updated Successfully!');
 			        return "success";
 			}
@@ -235,6 +241,9 @@ class Roles_model extends CI_Model {
 
 	        if ($query1 && $query2){
 	        	$this->db->trans_commit();
+	        	if(function_exists('mp_audit_log')){
+	        		mp_audit_log('roles', 'delete', $ids, 'Deleted role(s) '.$ids);
+	        	}
 	            echo "success";
 	        }
 	        else{
@@ -524,6 +533,8 @@ class Roles_model extends CI_Model {
                     'leads_add',
                     'leads_edit',
                     'leads_delete',
+
+                    'audit_trail_view',
 
 													)));
 		

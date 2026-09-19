@@ -33,6 +33,7 @@ class Custom_orders_model extends CI_Model {
             'standard' => ['new','quoted','deposit_paid','in_production','ready','delivered','cancelled'],
             'food'     => ['new','confirmed','deposit_paid','baking','ready','picked_up','cancelled'],
             'furniture'=> ['new','quoted','deposit_paid','in_production','qc_passed','delivered','cancelled'],
+            'perfume'  => ['new','quoted','deposit_paid','sampling','approved','blending','macerating','bottling','ready','delivered','cancelled'],
         ];
         return $workflows[$key] ?? $workflows['standard'];
     }
@@ -44,6 +45,9 @@ class Custom_orders_model extends CI_Model {
             'ready' => 'Ready', 'qc_passed' => 'QC Passed',
             'delivered' => 'Delivered', 'picked_up' => 'Picked Up',
             'cancelled' => 'Cancelled', 'confirmed' => 'Confirmed',
+            'sampling' => 'Sampling', 'approved' => 'Formula Approved',
+            'blending' => 'Blending', 'macerating' => 'Macerating',
+            'bottling' => 'Bottling',
         ];
         return $labels[$status] ?? ucfirst(str_replace('_',' ',$status));
     }
@@ -55,6 +59,9 @@ class Custom_orders_model extends CI_Model {
             'ready' => 'success', 'qc_passed' => 'success',
             'delivered' => 'success', 'picked_up' => 'success',
             'cancelled' => 'danger', 'confirmed' => 'info',
+            'sampling' => 'info', 'approved' => 'primary',
+            'blending' => 'primary', 'macerating' => 'warning',
+            'bottling' => 'primary',
         ];
         return $map[$status] ?? 'default';
     }

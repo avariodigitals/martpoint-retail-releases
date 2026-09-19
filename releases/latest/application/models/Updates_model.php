@@ -57,16 +57,19 @@ class Updates_model extends CI_Model {
 			'4.0.9.13' => '4.0.9.13_storefront_columns.sql',
 			'4.0.9.20' => '4.0.9.20_marquee_setting.sql',
 			'4.0.9.22' => '4.0.9.22_manual_shipping.sql',
+			'4.0.9.24' => ['4.0.9.24_perfumery_module.sql', '4.0.9.24_audit_trail.sql'],
 		];
 		$latest_applied = $this->db_version;
-		foreach($migrations as $target_version => $file){
+		foreach($migrations as $target_version => $files){
 			if(version_compare($this->db_version, $target_version, '<')){
-				$migration_file = FCPATH . 'updates/migrations/' . $file;
-				if(file_exists($migration_file)){
-					$this->_run_sql_file($migration_file);
-					$latest_applied = $target_version;
-				} else {
-					log_message('error', 'MartPoint migration file not found: ' . $migration_file);
+				foreach((array)$files as $file){
+					$migration_file = FCPATH . 'updates/migrations/' . $file;
+					if(file_exists($migration_file)){
+						$this->_run_sql_file($migration_file);
+						$latest_applied = $target_version;
+					} else {
+						log_message('error', 'MartPoint migration file not found: ' . $migration_file);
+					}
 				}
 			}
 		}

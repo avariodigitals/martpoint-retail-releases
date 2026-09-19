@@ -125,6 +125,13 @@ class Business_profile extends MY_Controller {
 
         $result = $this->bp_model->update_profile($store_id, $update);
 
+        // Seed industry-specific master data (units, categories, formula types).
+        // Idempotent — safe on every save, only creates what is missing.
+        if ($result) {
+            $this->load->model('Default_data_model', 'default_data');
+            $this->default_data->seed_industry_defaults($store_id, $industry_type);
+        }
+
         // Sync storefront_theme_key to db_storefront_settings.theme_id so the theme takes effect immediately.
         // Business Profile is the source of truth; Appearance settings can override later.
         if ($result) {
