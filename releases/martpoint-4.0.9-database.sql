@@ -1577,7 +1577,12 @@ CREATE TABLE IF NOT EXISTS `db_customer_notes` (
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_store_id` (`store_id`),
     INDEX `idx_customer_id` (`customer_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Normalise collation if the table already exists with the server default
+-- (utf8mb4_general_ci on some cPanel hosts) — the seed below compares
+-- db_customer_notes.note against db_customers.notes, which is unicode_ci.
+ALTER TABLE `db_customer_notes` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Seed the legacy single notes blob into history (only once per note text)
 INSERT INTO `db_customer_notes` (`store_id`, `customer_id`, `note`, `created_by`, `created_by_id`, `created_date`, `created_time`)
@@ -1586,10 +1591,12 @@ FROM `db_customers` c
 WHERE c.notes IS NOT NULL AND TRIM(c.notes) <> ''
   AND NOT EXISTS (
       SELECT 1 FROM `db_customer_notes` n
-      WHERE n.customer_id = c.id AND n.note = c.notes
+      WHERE n.customer_id = c.id AND n.note = c.notes COLLATE utf8mb4_unicode_ci
   );
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+KS = 1;
 
 
 -- ============================================================================
