@@ -3724,6 +3724,7 @@ class Mobile extends MY_Controller {
 				$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 				$this->db->where('a.store_id', $store_id);
 				$this->db->where('a.service_bit', 0);
+				$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 				$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 				if($category_id){
 					$this->db->where('a.category_id', $category_id);

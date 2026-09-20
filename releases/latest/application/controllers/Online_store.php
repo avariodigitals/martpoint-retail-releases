@@ -577,6 +577,7 @@ class Online_store extends MY_Controller {
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', get_current_store_id());
 		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		if($category_id){
 			$this->db->where('a.category_id', $category_id);
@@ -621,6 +622,11 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$newVal = $product->publish_online ? 0 : 1;
+		// Items flagged "not for sale" (raw materials/consumables) can never go online
+		if($newVal == 1 && !empty($product->not_for_sale)){
+			echo json_encode(['status' => 'error', 'message' => 'This item is flagged Not for Sale and cannot be published online']);
+			return;
+		}
 		// Only enforce the online product limit when turning ON (publishing)
 		if($newVal == 1){
 			$online_check = check_online_product_limit(1);
@@ -743,6 +749,7 @@ class Online_store extends MY_Controller {
 		$this->db->where('status', 1);
 		$this->db->where('publish_online', 0);
 		$this->db->where('online_excluded', 0);
+		$this->db->where('(not_for_sale IS NULL OR not_for_sale = 0)', null, false);
 		$this->db->where("(item_group IS NULL OR item_group='Single')", null, false);
 		if($categoryId){
 			$this->db->where('category_id', $categoryId);
@@ -893,7 +900,11 @@ class Online_store extends MY_Controller {
 				return;
 		}
 
-		$this->db->where('store_id', $storeId)->where_in('id', $ids)->update('db_items', $updateData);
+		$this->db->where('store_id', $storeId)->where_in('id', $ids);
+		if($action === 'publish'){
+			$this->db->where('(not_for_sale IS NULL OR not_for_sale = 0)', null, false);
+		}
+		$this->db->update('db_items', $updateData);
 		$count = $this->db->affected_rows();
 		echo json_encode([
 			'status' => 'success',

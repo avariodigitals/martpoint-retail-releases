@@ -386,6 +386,85 @@ chmod -R 777 application/cache/ application/logs/ uploads/</pre>
     </div>
   </section>
 
+  <!-- Custom domains for the online store -->
+  <section class="page">
+    <span class="label">Part B — Setup & Support Guide</span>
+    <h2 class="mb-2">Custom domains for the online store</h2>
+    <p class="lead mb-3">Each store can serve its online storefront on its own domain (e.g. <code>shop.retailer.com</code>) instead of the free <code>/store/{slug}</code> URL. Three layers must line up: DNS, a hosting alias, and the in-app connection.</p>
+
+    <h3 class="mb-1">Setup steps</h3>
+    <div class="steps mb-3">
+      <div class="step no-break">
+        <div class="step-number">1</div>
+        <div class="step-body">
+          <h4>Add the domain in MartPoint</h4>
+          <p>Go to <strong>Online Store → Domains → Add Domain</strong>. The plan's <code>custom_domain_limit</code> (from the subscription licence key) caps how many custom domains a store may register; each domain value can only be claimed by one store.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">2</div>
+        <div class="step-body">
+          <h4>Point DNS at the platform</h4>
+          <p>Create a <strong>CNAME</strong> record for the domain pointing to the platform host (recommended), or an <strong>A</strong> record pointing to the server IP. Repeat for the <code>www</code> host if needed — both variants are matched automatically. The exact records are auto-generated on the Domains screen and can be emailed to the client's IT team.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">3</div>
+        <div class="step-body">
+          <h4>Alias the domain on the hosting account</h4>
+          <p>Add the domain to the hosting account that runs MartPoint (e.g. cPanel → <strong>Aliases / Parked domains</strong>) and issue an SSL certificate (AutoSSL). Without this step the store works on <code>http://</code> only, or the host may serve a default page.</p>
+        </div>
+      </div>
+      <div class="step no-break">
+        <div class="step-number">4</div>
+        <div class="step-body">
+          <h4>Verify &amp; Connect</h4>
+          <p>In <strong>Online Store → Domains</strong>, click <strong>Verify &amp; Connect</strong>. The app checks CNAME/A records via <code>dns_get_record()</code>, falls back to fetching <code>http://{domain}/robots.txt</code> for proxied domains (Cloudflare), and probes port 443 for SSL. On success the domain is marked <code>verified</code> + <code>connected</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="mb-1">How requests are routed</h3>
+    <p class="small mb-2">Before CodeIgniter boots, <code>index.php</code> reads <code>HTTP_HOST</code> and queries <code>db_storefront_domains</code> for a row with <code>connection_status = 'connected'</code>. On a match, <code>REQUEST_URI</code> is rewritten to <code>/store/{store_slug}/…</code> so the storefront is served at the domain root. The check fails open — any error leaves normal app routing untouched.</p>
+    <div class="grid cols-2" style="gap:16px;">
+      <div class="card no-break" style="background:#FAFAF9;">
+        <ul class="tick-list small">
+          <li><i class="fa fa-check"></i> Both <code>example.com</code> and <code>www.example.com</code> resolve to the store.</li>
+          <li><i class="fa fa-check"></i> <code>robots.txt</code> and <code>sitemap.xml</code> are domain-aware and serve per-store content.</li>
+        </ul>
+      </div>
+      <div class="card no-break" style="background:#FAFAF9;">
+        <p class="small" style="margin:0;">Reserved prefixes keep their normal routes on a custom domain: <code>store/</code>, <code>storefront/</code>, <code>image/</code>, <code>qr/</code>, <code>sitemap.xml</code>, <code>robots.txt</code>, <code>favicon</code>, <code>uploads/</code>, <code>assets/</code>, <code>themes/</code>, <code>setup/</code>, <code>install</code>, <code>index.php</code>, <code>api/</code>, <code>cron</code>.</p>
+      </div>
+    </div>
+
+    <h3 class="mb-1 mt-3">Troubleshooting</h3>
+    <div class="grid cols-2" style="gap:16px;">
+      <div class="tip warning no-break">
+        <strong>Domain loads the main app, not the store</strong><br>
+        The domain is not <code>connected</code> in Online Store → Domains, or it is not aliased to the hosting account. Check <code>db_storefront_domains.connection_status</code>.
+      </div>
+      <div class="tip danger no-break">
+        <strong>Works on http:// but fails on https://</strong><br>
+        No certificate yet — add the domain as a parked/alias domain on the hosting account and run AutoSSL, then re-verify.
+      </div>
+      <div class="tip no-break">
+        <strong>Verify fails but DNS looks right</strong><br>
+        Wait for propagation (up to 24–48h) and confirm with <code>dig CNAME {domain}</code>. The error message lists the records actually found versus expected.
+      </div>
+      <div class="tip no-break">
+        <strong>"Custom domain limit reached"</strong><br>
+        The subscription's <code>custom_domain_limit</code> is exhausted. Remove an unused domain or issue an upgraded licence key.
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>Part B — Setup & Support Guide</span>
+      <span>Page 7</span>
+    </div>
+  </section>
+
   <!-- Post-install / Rollback -->
   <section class="page">
     <span class="label">Part B — Setup & Support Guide</span>
@@ -447,7 +526,7 @@ chmod -R 777 application/cache/ application/logs/ uploads/</pre>
     <div class="spacer"></div>
     <div class="footer-strip">
       <span>Part B — Setup & Support Guide</span>
-      <span>Page 7</span>
+      <span>Page 8</span>
     </div>
   </section>
 

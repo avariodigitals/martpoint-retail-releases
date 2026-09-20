@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.29';
+    return '4.0.9.30';
   }
   function required_php_version(){
     return 7.4;
@@ -728,7 +728,10 @@
 
   function get_warehouse_name($id){
     $CI =& get_instance();
-    return $CI->db->select('warehouse_name')->where('id',$id)->get('db_warehouse')->row()->warehouse_name;
+    if(empty($id)){ return ''; }
+    $row = $CI->db->select('warehouse_name')->where('id',$id)->get('db_warehouse');
+    $row = $row ? $row->row() : null;
+    return $row ? $row->warehouse_name : '';
   }
   function get_total_qty_of_warehouse_item($item_id,$warehouse_id='',$store_id=''){
     if(empty($warehouse_id)){
@@ -1510,6 +1513,7 @@
                      ->where('status',1)
                      ->where('publish_online',1)
                      ->where('service_bit',0)
+                     ->where('(not_for_sale IS NULL OR not_for_sale = 0)', null, false)
                      ->where("(item_group IS NULL OR item_group='Single')", null, false)
                      ->count_all_results('db_items');
     return (int) $total;

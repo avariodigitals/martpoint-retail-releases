@@ -104,8 +104,11 @@ class Stock_adjustment extends MY_Controller {
 	
 
 	//Stock Adjustment invoice form
-	public function details($id)
+	public function details($id = null)
 	{
+		if(empty($id) || !is_numeric($id)){
+			$this->show_access_denied_page('Invalid stock adjustment reference.');
+		}
 		$this->belong_to('db_stockadjustment',$id);
 		if(!$this->permissions('stock_adjustment_view')){
 			$this->show_access_denied_page();

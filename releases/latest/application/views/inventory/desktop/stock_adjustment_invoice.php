@@ -4,7 +4,7 @@
 $q3 = $this->db->query("SELECT b.store_id, b.adjustment_date, b.created_time, b.reference_no, b.adjustment_note, b.warehouse_id
                         FROM db_stockadjustment b
                         WHERE b.id = ? AND b.store_id = ?", array($adjustment_id, get_current_store_id()));
-if($q3->num_rows() == 0){
+if(!$q3 || $q3->num_rows() == 0){
   $CI->show_access_denied_page();
   exit();
 }
@@ -22,7 +22,7 @@ $store = $this->db->query("SELECT * FROM db_store WHERE id = ?", array($res3->st
 <div class="mp-page-head no-print">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">Reference: <?= htmlspecialchars($reference_no); ?></div>
+    <div class="mp-page-sub">Reference: <?= htmlspecialchars($reference_no ?? ''); ?></div>
   </div>
   <div class="mp-form-actions" style="margin:0;">
     <?php if($CI->permissions('stock_adjustment_edit')): ?>
@@ -37,7 +37,7 @@ $store = $this->db->query("SELECT * FROM db_store WHERE id = ?", array($res3->st
   <div class="inv-meta-row">
     <div class="inv-meta-group">
       <span class="inv-meta-label">Store</span>
-      <span class="inv-meta-value"><?= htmlspecialchars($store->store_name); ?></span>
+      <span class="inv-meta-value"><?= htmlspecialchars($store->store_name ?? ''); ?></span>
     </div>
     <div class="inv-meta-group">
       <span class="inv-meta-label">Date</span>
@@ -45,7 +45,7 @@ $store = $this->db->query("SELECT * FROM db_store WHERE id = ?", array($res3->st
     </div>
     <div class="inv-meta-group">
       <span class="inv-meta-label">Reference No</span>
-      <span class="inv-meta-value"><?= htmlspecialchars($reference_no); ?></span>
+      <span class="inv-meta-value"><?= htmlspecialchars($reference_no ?? ''); ?></span>
     </div>
     <?php if(warehouse_module()): ?>
     <div class="inv-meta-group">

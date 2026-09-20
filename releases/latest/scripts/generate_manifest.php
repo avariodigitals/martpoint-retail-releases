@@ -26,7 +26,7 @@ if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'cgi-fcgi') {
 }
 
 $version = $argv[1] ?? '';
-if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) {
+if (!preg_match('/^\d+\.\d+\.\d+(\.\d+)?$/', $version)) {
     echo "ERROR: Provide a valid semantic version, e.g. php generate_manifest.php 3.10.0\n";
     exit(1);
 }
@@ -43,11 +43,15 @@ if (!is_dir($releaseDir)) {
 }
 
 // Directories to include in the manifest scan
+// Scan matches the live manifest convention: every file under application/,
+// theme/, docs/ (all extensions — includes index.html placeholders, fonts,
+// images, json) plus the root PWA/entry files. vendor/ and system/ are NOT
+// in the update manifest: they ship complete in the fresh zip and are
+// upstream-stable, so per-file update downloads would be wasteful.
 $scanDirs = [
-    'application' => ['php'],
-    'theme' => ['php', 'css', 'js', 'html'],
-    'system' => ['php'],
-    'vendor' => ['php'],
+    'application' => '*',
+    'theme' => '*',
+    'docs' => '*',
     'index.php' => ['php'],
 ];
 
@@ -71,7 +75,7 @@ $files = [];
 
 foreach ($scanDirs as $dir => $exts) {
     if ($dir === 'index.php') {
-        foreach (['index.php', 'sw.js', 'manifest.json', 'offline.html', '.htaccess'] as $rel) {
+        foreach (['index.php', 'sw.js', 'manifest.json', 'favicon.ico'] as $rel) {
             $abs = $projectRoot . '/' . $rel;
             if (file_exists($abs)) {
                 $files[] = [
@@ -105,6 +109,12 @@ foreach ($scanDirs as $dir => $exts) {
         }
         if ($skip) continue;
 
+        // Local junk must never enter the manifest
+        if (substr($relPath, -9) === '.DS_Store') continue;
+        // Dev log files: keep only the index.html placeholder
+        if (strpos($relPath, 'application/logs/') === 0 && $relPath !== 'application/logs/index.html') continue;
+        if ($relPath === 'application/config/installed.lock') continue;
+
         $ext = strtolower(pathinfo($absPath, PATHINFO_EXTENSION));
         if ($exts !== '*' && !in_array($ext, $exts, true)) continue;
 
@@ -125,6 +135,12 @@ if (is_dir($migrationDir)) {
     }
 }
 
+// Informational integrity fingerprint over the sorted file list (RSA
+// signing lands in Phase 3; the updater does not verify this yet).
+$sigFiles = $files;
+usort($sigFiles, function ($a, $b) { return strcmp($a['path'], $b['path']); });
+$signature = hash('sha256', json_encode($sigFiles, JSON_UNESCAPED_SLASHES));
+
 $manifest = [
     'version' => $version,
     'previous_version' => $previousVersion,
@@ -138,8 +154,7 @@ $manifest = [
         'uploads/',
         'backups/',
     ],
-    // signature field added later when RSA signing is implemented in Phase 3
-    'signature' => null,
+    'signature' => $signature,
     'changelog' => 'Auto-generated release ' . $version,
 ];
 

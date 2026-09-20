@@ -470,10 +470,20 @@ class Updater {
             // Download with retry
             $data = $this->httpGet($remoteUrl, 30);
             if ($data === null) {
+                if ($this->isNonCritical($relPath)) {
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
                 throw new Exception("Failed to download after retries: {$relPath}");
             }
 
             if (@file_put_contents($localTemp, $data) === false) {
+                if ($this->isNonCritical($relPath)) {
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
                 throw new Exception("Failed to write temp file: {$relPath}");
             }
         }
@@ -531,10 +541,21 @@ class Updater {
             $this->resetTimer();
             $tempPath = $this->tempDir . '/' . $relPath;
             if (!file_exists($tempPath)) {
+                if ($this->isNonCritical($relPath)) {
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
                 throw new Exception("Missing downloaded file: {$relPath}");
             }
             $expected = $manifestMap[$relPath] ?? null;
             if ($expected && hash_file('sha256', $tempPath) !== $expected) {
+                if ($this->isNonCritical($relPath)) {
+                    @unlink($tempPath);
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
                 throw new Exception("Hash mismatch for: {$relPath}");
             }
         }
@@ -582,10 +603,11 @@ class Updater {
             ];
         }
 
+        $skipped = array_flip($state['files_skipped'] ?? []);
         $batch = array_slice($allFiles, $offset, $this->batchSize);
         foreach ($batch as $relPath) {
             $this->resetTimer();
-            if ($this->isProtected($relPath)) {
+            if ($this->isProtected($relPath) || isset($skipped[$relPath])) {
                 continue;
             }
             $source = $this->tempDir . '/' . $relPath;
@@ -921,6 +943,12 @@ class Updater {
             }
         }
         return false;
+    }
+
+    // Non-executable content (docs/guides) must never block a code update:
+    // a stale or missing doc is skipped with a warning, not fatal.
+    protected function isNonCritical(string $path): bool {
+        return strpos($path, 'docs/') === 0;
     }
 
     protected function resetTimer(): void {

@@ -366,6 +366,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		if($categoryId){
@@ -393,6 +394,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'desc');
@@ -409,6 +411,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		return $this->db->get()->row();
@@ -424,6 +427,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'asc');
 		return $this->db->get()->result();
@@ -437,6 +441,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		if($categoryId){
@@ -512,7 +517,7 @@ class Storefront_model extends CI_Model {
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.id, a.category_name, a.category_image');
 		$this->db->from('db_category a');
-		$this->db->join('db_items b', "b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.item_group IS NULL OR b.item_group='Single')", 'inner');
+		$this->db->join('db_items b', "b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.not_for_sale IS NULL OR b.not_for_sale = 0) AND (b.item_group IS NULL OR b.item_group='Single')", 'inner');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.status', 1);
 		$this->db->where($this->_expiredWhere('b', $storeId), NULL, FALSE);
@@ -670,7 +675,7 @@ class Storefront_model extends CI_Model {
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
-			WHERE o.store_id=$storeId AND oi.item_type='product' AND o.status=1
+			WHERE o.store_id=$storeId AND oi.item_type='product' AND o.status=1 AND (i.not_for_sale IS NULL OR i.not_for_sale = 0)
 			GROUP BY oi.item_id
 			ORDER BY total_qty DESC
 			LIMIT $limit")->result();
@@ -1145,7 +1150,7 @@ class Storefront_model extends CI_Model {
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
-			WHERE o.store_id=? AND oi.item_type IN ('product','digital','course','membership') AND o.status=1 AND i.publish_online=1 AND (i.item_group IS NULL OR i.item_group='Single') AND $expiryClause
+			WHERE o.store_id=? AND oi.item_type IN ('product','digital','course','membership') AND o.status=1 AND i.publish_online=1 AND (i.not_for_sale IS NULL OR i.not_for_sale = 0) AND (i.item_group IS NULL OR i.item_group='Single') AND $expiryClause
 			GROUP BY oi.item_id
 			ORDER BY sold_count DESC
 			LIMIT ?", [$storeId, $limit])->result();
@@ -1163,6 +1168,7 @@ class Storefront_model extends CI_Model {
 			$this->db->where('a.publish_online', 1);
 			$this->db->where('a.status', 1);
 			$this->db->where('a.service_bit', 0);
+			$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 			$this->db->where("(a.item_group IS NULL OR a.item_group='Single')", null, false);
 			if($flaggedOnly){
 				$this->db->where('a.is_new_arrival', 1);

@@ -795,9 +795,9 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     </div>
     <!-- Opening Stock for simple items (no barcode/unit table) -->
     <div class="mp-form-group mp-item-only" style="margin-top:16px;max-width:240px;">
-      <label for="simple_opening_stock">Opening Stock</label>
-      <input class="mp-form-control only_currency" id="simple_opening_stock" name="simple_opening_stock" type="text" value="<?php print store_number_format($opening_stock,0); ?>" placeholder="0" onchange="$('#adjustment_qty').val(this.value);">
-      <p class="mp-form-hint">Current stock: <?= store_number_format($stock ?? 0, 0); ?></p>
+      <label for="simple_opening_stock"><?= !empty($q_id) ? 'Current Stock' : 'Opening Stock'; ?></label>
+      <input class="mp-form-control only_currency" id="simple_opening_stock" name="simple_opening_stock" type="text" value="<?php print store_number_format(!empty($q_id) ? ($stock ?? 0) : $opening_stock,0); ?>" placeholder="0" <?=$opening_stock_readonly;?> onchange="$('#adjustment_qty').val(this.value);">
+      <?php if(empty($q_id)): ?><p class="mp-form-hint">Stock is added once here &mdash; after saving, use Purchases or Stock Adjustments to change it.</p><?php endif; ?>
     </div>
     <?php else: ?>
     <!-- Hidden price fields when barcode table is visible -->
@@ -925,7 +925,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
           <td><input type="text" class="only_currency" name="barcode_pprice[]" value="<?=store_number_format($brow->purchase_price,0);?>" placeholder="0.00"></td>
           <td><input type="text" class="only_currency" name="barcode_sprice[]" value="<?=store_number_format($brow->sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
           <td><input type="text" class="only_currency" name="barcode_mrp[]" value="<?=store_number_format($brow->mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
-          <td><input type="text" class="only_currency" name="barcode_qty[]" value="<?=store_number_format($brow->qty,0);?>" placeholder="0"></td>
+          <td><input type="text" class="only_currency" name="barcode_qty[]" value="<?=store_number_format($brow->qty,0);?>" placeholder="0" <?=$opening_stock_readonly;?>></td>
           <?php if(mp_feature_enabled('expiry_tracking')): ?><td><input type="date" name="barcode_expire_date[]" value="<?=htmlspecialchars($brow->expire_date ?? '');?>"></td><?php endif; ?>
           <?php if(mp_feature_enabled('mfg_tracking')): ?><td><input type="date" name="barcode_mfg_date[]" value="<?=htmlspecialchars($brow->mfg_date ?? '');?>"></td><?php endif; ?>
           <?php if(mp_feature_enabled('warranty_tracking')): ?><td><input type="text" name="barcode_warranty[]" value="<?=htmlspecialchars($brow->warranty_months ?? '');?>" placeholder="Months" style="min-width:60px;"></td><?php endif; ?>
@@ -940,7 +940,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
           <td><input type="text" class="only_currency" name="barcode_pprice[]" value="<?=store_number_format($purchase_price,0);?>" placeholder="0.00"></td>
           <td><input type="text" class="only_currency" name="barcode_sprice[]" value="<?=store_number_format($sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
           <td><input type="text" class="only_currency" name="barcode_mrp[]" value="<?=store_number_format($mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
-          <td><input type="text" class="only_currency" name="barcode_qty[]" value="<?=store_number_format($opening_stock,0);?>" placeholder="0"></td>
+          <td><input type="text" class="only_currency" name="barcode_qty[]" value="<?=store_number_format($opening_stock,0);?>" placeholder="0" <?=$opening_stock_readonly;?>></td>
           <?php if(mp_feature_enabled('expiry_tracking')): ?><td><input type="date" name="barcode_expire_date[]" value="<?=htmlspecialchars($expire_date);?>"></td><?php endif; ?>
           <?php if(mp_feature_enabled('mfg_tracking')): ?><td><input type="date" name="barcode_mfg_date[]" value="<?=htmlspecialchars($mfg_date);?>"></td><?php endif; ?>
           <?php if(mp_feature_enabled('warranty_tracking')): ?><td><input type="text" name="barcode_warranty[]" value="<?=htmlspecialchars($warranty_months);?>" placeholder="Months" style="min-width:60px;"></td><?php endif; ?>
@@ -1256,7 +1256,7 @@ function addBarcodeRow(){
     <?php endif; ?>'<td><input type="text" class="only_currency" name="barcode_pprice[]" placeholder="0.00"></td>'+
     '<td><input type="text" class="only_currency" name="barcode_sprice[]" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>'+
     '<td><input type="text" class="only_currency" name="barcode_mrp[]" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>'+
-    '<td><input type="text" class="only_currency" name="barcode_qty[]" placeholder="0"></td>'+
+    '<td><input type="text" class="only_currency" name="barcode_qty[]" placeholder="0" <?=$opening_stock_readonly;?>></td>'+
     <?php if(mp_feature_enabled('expiry_tracking')): ?>'<td><input type="date" name="barcode_expire_date[]"></td>'+
     <?php endif; ?><?php if(mp_feature_enabled('mfg_tracking')): ?>'<td><input type="date" name="barcode_mfg_date[]"></td>'+
     <?php endif; ?><?php if(mp_feature_enabled('warranty_tracking')): ?>'<td><input type="text" name="barcode_warranty[]" placeholder="Months" style="min-width:60px;"></td>'+

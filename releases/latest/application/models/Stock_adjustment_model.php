@@ -310,14 +310,15 @@ class Stock_adjustment_model extends CI_Model {
 		$q1=$this->db->select('*')->from('db_stockadjustmentitems')->where("adjustment_id=$adjustment_id")->get();
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
-			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
+			$q2=$this->db->query("select * from db_items where id=".(int)$res1->item_id);
+			$res2 = $q2 ? $q2->row() : null;
 			
 			$info = array(
 							'item_id' 					=> $res1->item_id, 
 							'description' 				=> $res1->description, 
-							'item_name' 				=> $res2->item_name,
+							'item_name' 				=> $res2 ? $res2->item_name : '(deleted item)',
 							'item_adjustment_qty' 		=> $res1->adjustment_qty, 
-							'service_bit' 				=> $res2->service_bit, 
+							'service_bit' 				=> $res2 ? $res2->service_bit : 0,
 						);
 
 			$result = $this->return_row_with_data($rowcount++,$info);

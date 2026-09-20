@@ -474,6 +474,10 @@ class Items_model extends CI_Model {
 			    				'item_code' 				=> $item_code,
 
 			    			);
+			// Items flagged "not for sale" must never stay published online
+			if($not_for_sale){
+				$info['publish_online'] = 0;
+			}
 			if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
 							}
@@ -570,8 +574,8 @@ class Items_model extends CI_Model {
 				));
 			}
 
-			//Opening Stock Exist
-			if($adjustment_qty>0){
+			//Opening Stock Exist (create only — re-adding on update duplicates stock each save)
+			if($command == 'save' && $adjustment_qty>0){
 				$array_params = array(  'store_id'			=> 	$store_id,
                                         'item_id'			=>	$item_id, 
                                         'warehouse_id'		=>	$warehouse_id, 
@@ -655,6 +659,10 @@ class Items_model extends CI_Model {
 	    							'item_code' 				=> $item_code,
 	    							'child_bit' 				=> 0,
 	    						);
+			// Items flagged "not for sale" must never stay published online
+			if($not_for_sale){
+				$parent_info['publish_online'] = 0;
+			}
 			if(!empty($file_name)){
 				$parent_info['item_image'] = 'uploads/items/'.$file_name;
 			}
@@ -797,7 +805,10 @@ class Items_model extends CI_Model {
 								'consumable_unit'			=> $consumable_unit,
 			    			
 			    			);
-							
+							// Items flagged "not for sale" must never stay published online
+							if($not_for_sale){
+								$info['publish_online'] = 0;
+							}
 							$variant_file_name = '';
 							if(!empty($_FILES['variant_image_'.$i]['name'])){
 								if(!isset($this->upload)){
@@ -830,8 +841,10 @@ class Items_model extends CI_Model {
 							exit;*/
 							$info = $this->_filter_item_columns(array_merge($info,$initial));
 							$query1 = false; // Initialize per iteration
+							$child_inserted = false;
 							if ( $command == 'save'){
 								$query1 = $this->db->insert('db_items', $info);
+								$child_inserted = true;
 							}
 							else{
 								//FIND THE THIS VARIANT SAVED IN DB_ITEMS OR NOT
@@ -846,6 +859,7 @@ class Items_model extends CI_Model {
 									}
 									else{
 										$query1 = $this->db->insert('db_items', $info);
+										$child_inserted = true;
 									}
 								}
 								else{
@@ -869,8 +883,8 @@ class Items_model extends CI_Model {
 								$this->selling_units->clone_template_to_child($item_id, $variant_item_id, $store_id);
 							}
 
-							//Opening Stock Exist
-							if($opening_stock>0){
+							//Opening Stock Exist (only for newly inserted child rows)
+							if($child_inserted && $opening_stock>0){
 								$array_params = array(  'store_id'			=> 	$store_id,
 		                                                'item_id'			=>	$variant_item_id, 
 		                                                'warehouse_id'		=>	$warehouse_id, 
@@ -1434,7 +1448,7 @@ class Items_model extends CI_Model {
                <td id="td_<?=$rowcount;?>_10"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="form-control text-right no-padding only_currency text-center" placeholder='Optional' value="<?=$item_mrp;?>"></td>
 
                <!-- Opening Stock -->
-               <td id="td_<?=$rowcount;?>_11"><input type="text" name="td_data_<?=$rowcount;?>_11" id="td_data_<?=$rowcount;?>_11" class="form-control text-right no-padding only_currency text-center" placeholder='Optional' value="<?=$opening_stock;?>"></td>
+               <td id="td_<?=$rowcount;?>_11"><input type="text" name="td_data_<?=$rowcount;?>_11" id="td_data_<?=$rowcount;?>_11" class="form-control text-right no-padding only_currency text-center" placeholder='Optional' value="<?=$opening_stock;?>" <?= !empty($item_id) ? 'readonly' : ''; ?>></td>
 
                
                <!-- Delete button -->
