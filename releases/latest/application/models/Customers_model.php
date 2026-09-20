@@ -1532,7 +1532,7 @@ class Customers_model extends CI_Model {
 		return $singleCustomerData;
 	}
 
-	public function get_statement($customer_id, $store_id = null){
+	public function get_statement($customer_id, $store_id = null, $from = null, $to = null){
 		$store_id = $store_id ?: get_current_store_id();
 		$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
 		if(!$customer) return array('opening' => 0, 'rows' => array(), 'summary' => array());
@@ -1610,6 +1610,33 @@ class Customers_model extends CI_Model {
 			if($ad == $bd) return strcmp($a['sort'], $b['sort']);
 			return strcmp($ad, $bd);
 		});
+
+		// Date-range filter: rows before `from` are folded into the period
+		// opening balance; rows after `to` are dropped entirely.
+		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
+		$to   = ($to && strtotime($to)) ? date('Y-m-d', strtotime($to)) : null;
+		if($from || $to){
+			$period_opening = $opening;
+			$kept = array();
+			foreach($rows as $r){
+				if($r['type'] === 'opening') continue;
+				$d = $r['date'] ?: '1970-01-01';
+				if($from && $d < $from){ $period_opening += $r['debit'] - $r['credit']; continue; }
+				if($to && $d > $to){ continue; }
+				$kept[] = $r;
+			}
+			$rows = array_merge(array(array(
+				'date' => $from ?: ($customer->created_date ?? '1970-01-01'),
+				'sort' => 0,
+				'type' => 'opening',
+				'description' => 'Opening Balance',
+				'reference' => '-',
+				'debit' => ($period_opening > 0) ? $period_opening : 0,
+				'credit' => ($period_opening < 0) ? abs($period_opening) : 0,
+				'balance' => $period_opening
+			)), $kept);
+			$opening = $period_opening;
+		}
 
 		$balance = 0;
 		$total_debit = 0;

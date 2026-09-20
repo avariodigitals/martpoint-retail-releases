@@ -97,10 +97,11 @@
             foreach($savedMethods as $idx => $m):
           ?>
           <div class="os-ship-row shipping-method-row">
+            <input type="hidden" class="sm-rowid" name="sm_rowid[]" value="<?= $idx; ?>">
             <input type="text" class="os-ship-name sm-name" name="sm_name[]" value="<?= htmlspecialchars($m['name'] ?? ''); ?>" placeholder="Method name (e.g. Home Delivery)">
             <input type="number" step="0.01" min="0" class="os-ship-fee sm-fee" name="sm_fee[]" value="<?= htmlspecialchars($m['fee'] ?? ''); ?>" placeholder="Fee 0.00">
             <input type="text" class="os-ship-desc sm-desc" name="sm_desc[]" value="<?= htmlspecialchars($m['description'] ?? ''); ?>" placeholder="Description (optional)">
-            <label class="os-ship-en"><input type="checkbox" class="sm-enabled" name="sm_enabled[]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
+            <label class="os-ship-en"><input type="checkbox" class="sm-enabled" name="sm_enabled[<?= $idx; ?>]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
             <button type="button" class="os-ship-rm sm-remove" onclick="removeShippingMethod(this)"><i class="fa fa-trash"></i></button>
           </div>
           <?php endforeach; ?>
@@ -180,20 +181,17 @@ $(function(){
       success: function(result){
         btn.attr('disabled', false).html('<i class="fa fa-save"></i> Save Settings');
         $(".overlay").remove();
-        try {
-          var res = JSON.parse(result);
-          if(res.status === 'success'){
-            toastr.success(res.message);
-            if(res.store_url){
-              $('.os-url-box').fadeOut(200, function(){ $(this).text(res.store_url).fadeIn(200); });
-            }
-            $('.os-badge-unsaved').removeClass('os-badge-unsaved').html('<i class="fa fa-check"></i> Saved');
-          } else {
-            toastr.error(res.message || 'Failed to save settings');
+        var res = result;
+        try { if(typeof res === 'string'){ res = JSON.parse(res); } } catch(err){ res = null; }
+        if(res && res.status === 'success'){
+          toastr.success(res.message);
+          if(res.store_url){
+            $('.os-url-box').fadeOut(200, function(){ $(this).text(res.store_url).fadeIn(200); });
           }
-        } catch(err) {
-          toastr.error('Unexpected server response. Check console.');
-          console.log('Raw response:', result);
+          $('.os-badge-unsaved').removeClass('os-badge-unsaved').html('<i class="fa fa-check"></i> Saved');
+        } else {
+          toastr.error((res && res.message) || 'Failed to save settings');
+          if(!res){ console.log('Raw response:', result); }
         }
       },
       error: function(xhr, status, error){
@@ -205,15 +203,18 @@ $(function(){
   });
 });
 
+var smIndex = <?= count($savedMethods); ?>;
 function addShippingMethod(){
   var container = document.getElementById('shipping-methods-container');
   var row = document.createElement('div');
+  var i = smIndex++;
   row.className = 'os-ship-row shipping-method-row';
   row.innerHTML = ''
+    + '<input type="hidden" class="sm-rowid" name="sm_rowid[]" value="' + i + '">'
     + '<input type="text" class="os-ship-name sm-name" name="sm_name[]" value="" placeholder="Method name (e.g. Home Delivery)">'
     + '<input type="number" step="0.01" min="0" class="os-ship-fee sm-fee" name="sm_fee[]" value="" placeholder="Fee 0.00">'
     + '<input type="text" class="os-ship-desc sm-desc" name="sm_desc[]" value="" placeholder="Description (optional)">'
-    + '<label class="os-ship-en"><input type="checkbox" class="sm-enabled" name="sm_enabled[]" value="1" checked> Enabled</label>'
+    + '<label class="os-ship-en"><input type="checkbox" class="sm-enabled" name="sm_enabled[' + i + ']" value="1" checked> Enabled</label>'
     + '<button type="button" class="os-ship-rm sm-remove" onclick="removeShippingMethod(this)"><i class="fa fa-trash"></i></button>';
   container.appendChild(row);
 }

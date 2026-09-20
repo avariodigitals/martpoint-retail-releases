@@ -17,19 +17,32 @@ class Perfume_model extends CI_Model {
     }
 
     private function _ensure_tables() {
-        if (!$this->db->table_exists('db_perfume_wastage')) {
-            $sql_path = APPPATH . '../updates/migrations/4.0.9.23_perfumery_module.sql';
-            if (file_exists($sql_path)) {
-                $sql = file_get_contents($sql_path);
-                $statements = array_filter(array_map('trim', explode(';', $sql)));
-                foreach ($statements as $stmt) {
-                    if (!empty($stmt)) {
-                        $this->db->query($stmt);
-                    }
+        $migrations = [
+            'db_perfume_wastage' => '4.0.9.24_perfumery_module.sql',
+            'db_bottling_runs'   => '4.0.9.26_bottling_runs.sql',
+        ];
+        foreach ($migrations as $table => $file) {
+            if ($this->db->table_exists($table)) continue;
+            $this->_run_migration_file($file);
+        }
+        // Bottled-SKU link columns on db_items (fill_qty, bottle_item_id, capacity_ml)
+        if (!$this->db->field_exists('fill_qty', 'db_items')) {
+            $this->_run_migration_file('4.0.9.27_bottling_sku_link.sql');
+        }
+    }
+
+    private function _run_migration_file($file) {
+        $sql_path = APPPATH . '../updates/migrations/' . $file;
+        if (file_exists($sql_path)) {
+            $sql = file_get_contents($sql_path);
+            $statements = array_filter(array_map('trim', explode(';', $sql)));
+            foreach ($statements as $stmt) {
+                if (!empty($stmt)) {
+                    $this->db->query($stmt);
                 }
-            } else {
-                log_message('error', 'Missing perfumery migration SQL file.');
             }
+        } else {
+            log_message('error', 'Missing perfumery migration SQL file: ' . $file);
         }
     }
 
@@ -395,5 +408,174 @@ class Perfume_model extends CI_Model {
             ->where_not_in('status', ['completed', 'cancelled'])
             ->order_by('id', 'desc')
             ->get('db_production_batches')->result();
+    }
+
+    // ========== Bottling runs ==========
+
+    /**
+     * Bulk liquid items a batch can be bottled from: the product_item_id of
+     * every recipe linked to the batch, enriched with unit + live stock.
+     */
+    public function get_batch_bulk_items($batch_id, $store_id = null, $warehouse_id = null) {
+        $store_id = $store_id ?? get_current_store_id();
+        $warehouse_id = $warehouse_id ?? get_store_warehouse_id();
+        $items = $this->db->where('batch_id', $batch_id)
+            ->where('item_type', 'recipe_product')
+            ->get('db_production_batch_items')->result();
+        $bulk = [];
+        foreach ($items as $bi) {
+            $recipe = $this->db->where('id', $bi->item_id)->get('db_recipes')->row();
+            if (!$recipe || !$recipe->product_item_id || isset($bulk[$recipe->product_item_id])) continue;
+            $item = $this->db->select('a.id, a.item_name, u.unit_name')
+                ->from('db_items a')
+                ->join('db_units u', 'u.id = a.unit_id', 'left')
+                ->where('a.id', $recipe->product_item_id)
+                ->get()->row();
+            if (!$item) continue;
+            $item->available = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $item->id);
+            $item->recipe_name = $recipe->name;
+            $bulk[$item->id] = $item;
+        }
+        return array_values($bulk);
+    }
+
+    /**
+     * Record a bottling run: takes empty bottles and bulk liquid out of
+     * stock and puts the finished bottled product in — all inside one
+     * stock adjustment so inventory and the ledger stay in lock-step.
+     * Returns the run id, or false on failure.
+     */
+    public function record_bottling(array $data) {
+        $store_id = $data['store_id'] ?? get_current_store_id();
+        $warehouse_id = $data['warehouse_id'] ?? get_store_warehouse_id();
+        $batch_id = (int)($data['batch_id'] ?? 0) ?: null;
+        $product_item_id = (int)($data['product_item_id'] ?? 0);
+        $bottle_item_id = (int)($data['bottle_item_id'] ?? 0);
+        $bulk_item_id = (int)($data['bulk_item_id'] ?? 0);
+        $fill_qty = (float)($data['fill_qty'] ?? 0);
+        $bottles = (float)($data['bottles_filled'] ?? 0);
+        if ($product_item_id <= 0 || $bottle_item_id <= 0 || $bottles <= 0) return false;
+        if ($bulk_item_id > 0 && $fill_qty <= 0) return false;
+
+        $product = $this->db->where('id', $product_item_id)->get('db_items')->row();
+        $bottle  = $this->db->where('id', $bottle_item_id)->get('db_items')->row();
+        $bulk    = $bulk_item_id ? $this->db->where('id', $bulk_item_id)->get('db_items')->row() : null;
+        if (!$product || !$bottle || ($bulk_item_id > 0 && !$bulk)) return false;
+
+        $bulk_used = ($bulk && $fill_qty > 0) ? round($fill_qty * $bottles, 3) : 0;
+        $batch = $batch_id ? $this->db->where('id', $batch_id)->get('db_production_batches')->row() : null;
+
+        $unit_cost = (float)$bottle->purchase_price;
+        if ($bulk) $unit_cost += $fill_qty * (float)$bulk->purchase_price;
+
+        $created_by = $data['created_by'] ?? ($this->session->userdata('username') ?: 'System');
+
+        $this->db->trans_begin();
+        try {
+            $adj = [
+                'store_id'        => $store_id,
+                'warehouse_id'    => $warehouse_id,
+                'reference_no'    => 'BOTTLE-' . ($batch->batch_code ?? date('Ymd')) . '-' . $product_item_id,
+                'adjustment_date' => date('Y-m-d'),
+                'adjustment_note' => 'Bottling run: ' . $bottles . ' x ' . $product->item_name,
+                'created_date'    => date('Y-m-d'),
+                'created_time'    => date('H:i:s'),
+                'created_by'      => $created_by,
+                'system_ip'       => '127.0.0.1',
+                'system_name'     => 'Perfume Lab',
+                'status'          => 1,
+            ];
+            if (!$this->db->insert('db_stockadjustment', $adj)) {
+                throw new Exception('Failed to create stock adjustment');
+            }
+            $adjustment_id = $this->db->insert_id();
+            if (!$adjustment_id) throw new Exception('Failed to get adjustment ID');
+
+            $affected = [$bottle_item_id, $product_item_id];
+            $lines = [
+                [$bottle_item_id, -$bottles, 'Bottling: ' . $bottles . ' empty bottles consumed'],
+                [$product_item_id, $bottles, 'Bottling: ' . $bottles . ' finished units stocked in'],
+            ];
+            if ($bulk_used > 0) {
+                $affected[] = $bulk_item_id;
+                $lines[] = [$bulk_item_id, -$bulk_used, 'Bottling: ' . $bulk_used . ' bulk liquid drawn'];
+            }
+            foreach ($lines as $line) {
+                $ok = $this->db->insert('db_stockadjustmentitems', [
+                    'store_id'       => $store_id,
+                    'warehouse_id'   => $warehouse_id,
+                    'adjustment_id'  => $adjustment_id,
+                    'item_id'        => $line[0],
+                    'adjustment_qty' => $line[1],
+                    'description'    => $line[2],
+                    'status'         => 1,
+                ]);
+                if (!$ok) throw new Exception('Failed to insert adjustment item ' . $line[0]);
+            }
+
+            $run = [
+                'store_id'            => $store_id,
+                'warehouse_id'        => $warehouse_id,
+                'batch_id'            => $batch_id,
+                'product_item_id'     => $product_item_id,
+                'product_name'        => $product->item_name,
+                'bottle_item_id'      => $bottle_item_id,
+                'bottle_name'         => $bottle->item_name,
+                'bulk_item_id'        => $bulk ? $bulk_item_id : null,
+                'bulk_name'           => $bulk ? $bulk->item_name : null,
+                'fill_qty'            => $fill_qty,
+                'bottles_filled'      => $bottles,
+                'bulk_used'           => $bulk_used,
+                'unit_cost'           => round($unit_cost, 2),
+                'total_cost'          => round($unit_cost * $bottles, 2),
+                'notes'               => $data['notes'] ?? null,
+                'stock_adjustment_id' => $adjustment_id,
+                'created_date'        => date('Y-m-d'),
+                'created_time'        => date('H:i:s'),
+                'created_by'          => $created_by,
+                'status'              => 1,
+            ];
+            if (!$this->db->insert('db_bottling_runs', $run)) {
+                throw new Exception('Failed to write bottling run');
+            }
+            $run_id = $this->db->insert_id();
+
+            $this->load->model('pos_model');
+            $unique_ids = array_values(array_unique($affected));
+            foreach ($unique_ids as $uid) {
+                if (!$this->pos_model->update_items_quantity($uid)) {
+                    throw new Exception('Failed to refresh item stock ' . $uid);
+                }
+            }
+            $two_array = [];
+            foreach ($unique_ids as $uid) { $two_array[] = [$uid]; }
+            if (!update_warehouse_items($two_array)) {
+                throw new Exception('Failed to refresh warehouse stock');
+            }
+
+            $this->db->trans_commit();
+            return $run_id;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            log_message('error', 'Perfume_model::record_bottling failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Bottling runs, newest first. Pass a batch_id to scope to one batch.
+     */
+    public function get_bottling_runs($store_id = null, $batch_id = null, $limit = 50) {
+        $store_id = $store_id ?? get_current_store_id();
+        if (!$this->db->table_exists('db_bottling_runs')) return [];
+        $q = $this->db->select('r.*, b.batch_code')
+            ->from('db_bottling_runs r')
+            ->join('db_production_batches b', 'b.id = r.batch_id', 'left')
+            ->where('r.store_id', $store_id)
+            ->where('r.status', 1)
+            ->order_by('r.id', 'desc')
+            ->limit($limit);
+        if ($batch_id) $q->where('r.batch_id', $batch_id);
+        return $q->get()->result();
     }
 }

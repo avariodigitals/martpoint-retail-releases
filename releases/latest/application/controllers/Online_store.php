@@ -184,16 +184,18 @@ class Online_store extends MY_Controller {
 		$fees = $this->input->post('sm_fee');
 		$descs = $this->input->post('sm_desc');
 		$enabled = $this->input->post('sm_enabled');
+		$rowids = $this->input->post('sm_rowid');
 		if(!is_array($names)) return json_encode([]);
 		$methods = [];
 		foreach($names as $i => $name){
 			$name = trim($name);
 			if($name === '') continue;
+			$rowKey = (is_array($rowids) && isset($rowids[$i])) ? $rowids[$i] : $i;
 			$methods[] = [
 				'name' => $name,
 				'fee' => (float)($fees[$i] ?? 0),
 				'description' => trim($descs[$i] ?? ''),
-				'enabled' => isset($enabled[$i]) ? 1 : 0
+				'enabled' => (is_array($enabled) && isset($enabled[$rowKey])) ? 1 : 0
 			];
 		}
 		return json_encode($methods);
@@ -971,6 +973,25 @@ class Online_store extends MY_Controller {
 			'robots_index' => (int)$this->input->post('robots_index'),
 			'custom_head_scripts' => trim($this->input->post('custom_head_scripts'))
 		];
+
+		// Store logo upload → db_storefront_settings.store_logo
+		if(!empty($_FILES['store_logo']['name'])){
+			$media_check = check_media_storage_limit();
+			if($media_check !== true){
+				echo json_encode(['status' => 'error', 'message' => $media_check]);
+				return;
+			}
+			$uploadDir = './uploads/storefront/' . $storeId . '/';
+			if(!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp', 'max_size' => 1024, 'file_name' => 'logo_' . time()];
+			$this->load->library('upload');
+			$this->upload->initialize($config);
+			if($this->upload->do_upload('store_logo')){
+				$up = $this->upload->data();
+				$data['store_logo'] = 'uploads/storefront/' . $storeId . '/' . $up['file_name'];
+			}
+		}
+
 		$ok = $this->storefront_model->saveSettings($storeId, $data);
 		if($ok){
 			echo json_encode(['status' => 'success', 'message' => 'Appearance saved']);

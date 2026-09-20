@@ -159,16 +159,17 @@
               <?php
                 $savedMethods = json_decode($settings->shipping_methods_json ?? '', true);
                 if(!is_array($savedMethods) || empty($savedMethods)){ $savedMethods = [['name'=>'','fee'=>'','description'=>'','enabled'=>1]]; }
-                foreach($savedMethods as $m):
+                foreach($savedMethods as $idx => $m):
               ?>
               <div class="sm-card">
+                <input type="hidden" name="sm_rowid[]" value="<?= $idx; ?>">
                 <input type="text" name="sm_name[]" class="form-control" value="<?= htmlspecialchars($m['name'] ?? ''); ?>" placeholder="Method name" style="margin-bottom:10px;">
                 <div class="sm-grid">
                   <input type="number" step="0.01" min="0" name="sm_fee[]" class="form-control" value="<?= htmlspecialchars($m['fee'] ?? ''); ?>" placeholder="Fee">
                   <input type="text" name="sm_desc[]" class="form-control" value="<?= htmlspecialchars($m['description'] ?? ''); ?>" placeholder="Description">
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
-                  <label class="check" style="margin:0;"><input type="checkbox" name="sm_enabled[]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
+                  <label class="check" style="margin:0;"><input type="checkbox" name="sm_enabled[<?= $idx; ?>]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
                   <button type="button" class="btn btn-danger" onclick="removeShippingMethod(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button>
                 </div>
               </div>
@@ -255,14 +256,17 @@
       t.style.borderRadius='12px'; t.style.textAlign='center'; t.style.zIndex='1000'; t.style.fontWeight='600';
       document.body.appendChild(t); setTimeout(()=>t.remove(), 3000);
     }
+    let smIndex = <?= count($savedMethods); ?>;
     function addShippingMethod(){
       const c = document.getElementById('shipping-methods-container');
       const d = document.createElement('div');
+      const i = smIndex++;
       d.className = 'sm-card';
-      d.innerHTML = '<input type="text" name="sm_name[]" class="form-control" placeholder="Method name" style="margin-bottom:10px;">'
+      d.innerHTML = '<input type="hidden" name="sm_rowid[]" value="' + i + '">'
+        + '<input type="text" name="sm_name[]" class="form-control" placeholder="Method name" style="margin-bottom:10px;">'
         + '<div class="sm-grid"><input type="number" step="0.01" min="0" name="sm_fee[]" class="form-control" placeholder="Fee"><input type="text" name="sm_desc[]" class="form-control" placeholder="Description"></div>'
         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">'
-        + '<label class="check" style="margin:0;"><input type="checkbox" name="sm_enabled[]" value="1" checked> Enabled</label>'
+        + '<label class="check" style="margin:0;"><input type="checkbox" name="sm_enabled[' + i + ']" value="1" checked> Enabled</label>'
         + '<button type="button" class="btn btn-danger" onclick="removeShippingMethod(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button></div>';
       c.appendChild(d);
     }

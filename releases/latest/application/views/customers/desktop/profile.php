@@ -396,14 +396,58 @@
 
         <!-- Notes -->
         <div class="tab-pane" id="notes" style="padding:20px;">
-          <div class="mp-form-group full" style="margin-bottom:16px;">
-            <label>Customer Notes</label>
-            <textarea class="form-control mp-form-control" rows="10" readonly><?= nl2br(htmlspecialchars($customer->notes ?? '')); ?></textarea>
-          </div>
-          <?php if (empty($customer->notes)): ?><p class="text-muted">No notes recorded for this customer.</p><?php endif; ?>
           <?php if ($CI->permissions('customers_edit')): ?>
-            <a href="<?= base_url('customers/update/' . $customer->id); ?>" class="mp-qa-btn blue" style="padding:6px 12px;"><i class="fa fa-edit"></i> Edit Notes</a>
+          <form method="post" action="<?= base_url('customers/save_note/' . $customer->id); ?>" style="margin-bottom:16px;">
+            <input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>">
+            <div class="mp-form-group full" style="margin-bottom:10px;">
+              <label>Add Note</label>
+              <textarea name="note" class="form-control mp-form-control" rows="3" placeholder="Write a note about this customer..." required></textarea>
+            </div>
+            <button type="submit" class="mp-qa-btn green" style="padding:6px 12px;"><i class="fa fa-plus"></i> Add Note</button>
+          </form>
           <?php endif; ?>
+
+          <table class="mp-static-table">
+            <thead>
+              <tr><th style="width:130px;">Date</th><th style="width:140px;">Added By</th><th>Note</th><th style="width:70px;"></th></tr>
+            </thead>
+            <tbody>
+              <?php if (!empty($customer_notes)): ?>
+                <?php
+                  $__note_uid = (int)$CI->session->userdata('inv_userid');
+                  $__note_uname = (string)$CI->session->userdata('inv_username');
+                ?>
+                <?php foreach ($customer_notes as $n): ?>
+                <?php
+                  $__owns = !empty($n->id)
+                         && ((!empty($n->created_by_id) && (int)$n->created_by_id === $__note_uid)
+                         || (!empty($n->created_by) && $__note_uname !== '' && strcasecmp($n->created_by, $__note_uname) === 0));
+                ?>
+                <tr>
+                  <td><?= !empty($n->created_date) ? show_date($n->created_date) : '-'; ?><br><small class="text-muted"><?= !empty($n->created_time) ? show_time($n->created_time) : ''; ?></small></td>
+                  <td><?= htmlspecialchars($n->created_by ?: 'System'); ?></td>
+                  <td>
+                    <span style="font-size:13px;"><?= nl2br(htmlspecialchars($n->note)); ?></span>
+                    <?php if ($__owns && $CI->permissions('customers_edit')): ?>
+                    <form method="post" action="<?= base_url('customers/edit_note/' . $n->id); ?>" class="note-edit-form" style="display:none;margin-top:8px;">
+                      <input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>">
+                      <textarea name="note" class="form-control mp-form-control" rows="3" required style="margin-bottom:6px;"><?= htmlspecialchars($n->note); ?></textarea>
+                      <button type="submit" class="mp-qa-btn green" style="padding:4px 10px;font-size:12px;"><i class="fa fa-save"></i> Save</button>
+                    </form>
+                    <?php endif; ?>
+                  </td>
+                  <td>
+                    <?php if ($__owns && $CI->permissions('customers_edit')): ?>
+                      <button type="button" class="mp-qa-btn blue note-edit-toggle" style="padding:4px 10px;font-size:12px;"><i class="fa fa-edit"></i> Edit</button>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <tr><td colspan="4" class="text-center text-muted">No notes recorded for this customer.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
         </div>
 
         <!-- Treatment Notes -->
@@ -625,4 +669,17 @@ $(function(){
   $('.mp-nav-item').removeClass('active');
   $('.customers_list-active-li').addClass('active');
   $('.customers_list-active-li').closest('.mp-nav-group').addClass('open');
+
+  // Open the tab referenced by the URL hash (e.g. #notes after add/edit)
+  if (window.location.hash) {
+    var $tabLink = $('a[href="' + window.location.hash + '"][data-toggle="tab"]');
+    if ($tabLink.length) { $tabLink.tab('show'); }
+  }
+
+  // Toggle inline edit form for creator-owned notes
+  $(document).on('click', '.note-edit-toggle', function(){
+    var $form = $(this).closest('tr').find('.note-edit-form');
+    $form.toggle();
+    if ($form.is(':visible')) { $form.find('textarea').focus(); }
+  });
 </script>

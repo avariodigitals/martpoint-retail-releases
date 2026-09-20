@@ -59,6 +59,10 @@ class Updates_model extends CI_Model {
 			'4.0.9.22' => '4.0.9.22_manual_shipping.sql',
 			'4.0.9.24' => ['4.0.9.24_perfumery_module.sql', '4.0.9.24_audit_trail.sql'],
 			'4.0.9.25' => '4.0.9.25_monnify_integration.sql',
+			'4.0.9.26' => ['4.0.9.26_bottling_runs.sql', '4.0.9.26_parfum_themes.sql'],
+			'4.0.9.27' => '4.0.9.27_bottling_sku_link.sql',
+			'4.0.9.28' => '4.0.9.28_customer_notes.sql',
+			'4.0.9.29' => '4.0.9.29_storefront_settings_columns.sql',
 		];
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $files){

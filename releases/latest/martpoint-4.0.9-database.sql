@@ -1435,4 +1435,423 @@ WHERE d.permissions = 'paystack_settings' AND p2.id IS NULL;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
+
+-- ============================================================================
+-- Migration 19: Bottling Runs (v4.0.9.26)
+-- ============================================================================
+
+-- ============================================================================
+-- MartPoint 4.0.9.26 — Bottling Runs
+-- Records each filling event against a blend batch: how many bottles were
+-- filled, which packaging item was consumed, and how much bulk liquid was
+-- drawn. Every run posts one stock adjustment (bottles out, bulk out,
+-- finished units in) so inventory and the ledger never diverge.
+-- Idempotent: safe to run more than once. MySQL 5.7+/MariaDB compatible.
+-- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES';
+
+CREATE TABLE IF NOT EXISTS `db_bottling_runs` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) NOT NULL,
+  `warehouse_id` INT(11) NOT NULL DEFAULT 0,
+  `batch_id` INT(11) UNSIGNED DEFAULT NULL COMMENT 'db_production_batches id this fill belongs to',
+  `product_item_id` INT(11) NOT NULL COMMENT 'db_items id of the finished bottled SKU stocked in',
+  `product_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bottle_item_id` INT(11) NOT NULL COMMENT 'db_items id of the empty bottle/packaging consumed',
+  `bottle_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bulk_item_id` INT(11) DEFAULT NULL COMMENT 'db_items id of the bulk liquid drawn down (optional)',
+  `bulk_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fill_qty` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'Volume per bottle, in the bulk item base unit (e.g. ml)',
+  `bottles_filled` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'Number of bottles filled',
+  `bulk_used` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'fill_qty x bottles_filled',
+  `unit_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Bulk + bottle cost per finished unit',
+  `total_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'unit_cost x bottles_filled',
+  `notes` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stock_adjustment_id` INT(11) DEFAULT NULL COMMENT 'db_stockadjustment id created for this run',
+  `created_date` DATE DEFAULT NULL,
+  `created_time` TIME DEFAULT NULL,
+  `created_by` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_batch` (`batch_id`),
+  KEY `idx_product` (`product_item_id`),
+  KEY `idx_date` (`created_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ============================================================================
+-- Migration 20: Parfum Storefront Themes (v4.0.9.26)
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Perfumery storefront themes (4 luxury designs)
+-- Idempotent: theme_key is unique; INSERT IGNORE skips existing rows.
+-- ----------------------------------------------------------------------------
+
+INSERT IGNORE INTO `db_storefront_themes` (`theme_key`,`theme_name`,`industry`,`description`,`default_primary_color`,`default_secondary_color`,`default_font_family`,`sort_order`,`status`) VALUES
+('noir_parfum','Noir Parfum','perfumery','Midnight luxury flagship theme — deep black, champagne gold and italic serif typography for a dramatic haute-parfumerie storefront.','#C9A961','#0B0A08','Cormorant Garamond',32,1),
+('maison_blanche','Maison Blanche','perfumery','Ivory Parisian maison theme — cream canvas, black ink and old-gold hairlines for a refined French fragrance boutique.','#A98954','#1C1917','Playfair Display',33,1),
+('oud_royale','Oud Royale','perfumery','Arabian opulence theme — espresso darkness, royal gold and arched gallery for oud, attar and musk houses.','#D4A24E','#150E07','Marcellus',34,1),
+('atelier_essence','Atelier Essence','perfumery','Niche-lab minimalism — bone white, mono ink and stark grid for artisan perfumeries and custom formulation labs.','#161513','#9C4A2F','Inter',35,1);
+
+-- Repoint perfume-shop businesses to the dedicated perfumery theme group.
+UPDATE `db_store_business_profile` SET `storefront_theme_key` = 'noir_parfum'
+  WHERE `industry_type` = 'perfume_shop'
+    AND (`storefront_theme_key` IS NULL OR `storefront_theme_key` = '' OR `storefront_theme_key` = 'beauty_luxe');
+
+UPDATE `db_store_industry_settings` SET `storefront_theme_key` = 'noir_parfum'
+  WHERE `industry_type` = 'perfume_shop'
+    AND (`storefront_theme_key` IS NULL OR `storefront_theme_key` = '' OR `storefront_theme_key` = 'beauty_luxe');
+
+
+-- ============================================================================
+-- Migration 21: Bottling SKU Link — item columns (v4.0.9.27)
+-- ============================================================================
+
+-- ============================================================================
+-- MartPoint 4.0.9.27 — Bottled-SKU link
+-- Lets a sellable item know which bottle it fills and how much liquid it
+-- takes, so a bottling run can resolve bottle + volume from the SKU alone.
+-- Also lets a packaging item declare its physical capacity.
+-- Idempotent: safe to run more than once. MySQL 5.7+/MariaDB compatible.
+-- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES';
+
+-- fill_qty: volume of bulk liquid one unit of this item takes (bulk base unit, e.g. ml)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'fill_qty');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_items` ADD COLUMN `fill_qty` DECIMAL(10,3) NULL DEFAULT NULL COMMENT ''Volume per unit when bottled (e.g. 150 ml)''',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- bottle_item_id: the packaging item consumed once per unit sold/filled
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'bottle_item_id');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_items` ADD COLUMN `bottle_item_id` INT(11) NULL DEFAULT NULL COMMENT ''db_items id of the bottle/packaging consumed per unit''',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- capacity_ml: on packaging items, the max volume the bottle can hold
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_items' AND column_name = 'capacity_ml');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `db_items` ADD COLUMN `capacity_ml` DECIMAL(10,3) NULL DEFAULT NULL COMMENT ''Bottle/packaging capacity in ml (packaging items only)''',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ============================================================================
+-- Migration 22: Customer Notes (v4.0.9.28)
+-- ============================================================================
+
+-- ============================================================================
+-- MartPoint 4.0.9.28 — Customer notes history
+-- Customer notes become append-only entries in db_customer_notes so every
+-- note keeps its own author and timestamp (full history). Only the creator
+-- of a note may edit it. The legacy db_customers.notes blob is seeded into
+-- the history table once, then left untouched for backwards compatibility.
+-- Idempotent: safe to run more than once. MySQL 5.7+/MariaDB compatible.
+-- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES';
+
+CREATE TABLE IF NOT EXISTS `db_customer_notes` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `store_id` INT NOT NULL DEFAULT 1,
+    `customer_id` INT NOT NULL,
+    `note` TEXT NOT NULL,
+    `created_by` VARCHAR(255) NULL,
+    `created_by_id` INT NULL,
+    `created_date` DATE NULL,
+    `created_time` VARCHAR(20) NULL,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_store_id` (`store_id`),
+    INDEX `idx_customer_id` (`customer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed the legacy single notes blob into history (only once per note text)
+INSERT INTO `db_customer_notes` (`store_id`, `customer_id`, `note`, `created_by`, `created_by_id`, `created_date`, `created_time`)
+SELECT c.store_id, c.id, c.notes, c.created_by, NULL, c.created_date, c.created_time
+FROM `db_customers` c
+WHERE c.notes IS NOT NULL AND TRIM(c.notes) <> ''
+  AND NOT EXISTS (
+      SELECT 1 FROM `db_customer_notes` n
+      WHERE n.customer_id = c.id AND n.note = c.notes
+  );
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ============================================================================
+-- Migration 23: Storefront Settings Columns (v4.0.9.29)
+-- ============================================================================
+
+-- ============================================================================
+-- MartPoint 4.0.9.29 — db_storefront_settings column backfill
+-- Fixes "can't save online store settings" (DB error: Unknown column) on
+-- installs upgraded before the shipping/integrations/newsletter fields were
+-- introduced — no earlier migration ever added them, they only existed in the
+-- fresh-install schema. Idempotent: safe to run more than once. MySQL 5.7+.
+-- NOTE: no DELIMITER/stored procedures — this file runs via mysqli_multi_query.
+-- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES';
+
+SET @tbl = 'db_storefront_settings';
+
+-- Emit one idempotent ALTER per column via information_schema + PREPARE.
+
+SET @col := 'shipping_notice';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'shipping_methods_json';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'theme_id';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` INT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'primary_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''#3B82F6'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'secondary_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''#10B981'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'font_family';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(100) NULL DEFAULT ''Inter'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'button_style';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(50) NULL DEFAULT ''rounded'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'store_headline';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'store_subheadline';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'favicon';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'desktop_banner';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'mobile_banner';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'instagram_url';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'facebook_url';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'tiktok_url';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'x_url';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'youtube_url';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'business_hours';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'announcement_bar';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'announcement_bar_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''#0F172A'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'marquee_items';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'preview_mode';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TINYINT(1) NULL DEFAULT 0'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'preview_theme_id';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` INT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'meta_title';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'meta_description';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'footer_bg_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''#0F172A'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'header_text_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT '''''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'footer_style';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(50) NULL DEFAULT ''standard'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'footer_about_us';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'footer_text_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''#94A3B8'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'footer_address_url';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'button_color';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''#3B82F6'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'meta_keywords';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'google_analytics_id';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(50) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'facebook_pixel_id';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(50) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'robots_index';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TINYINT(1) NULL DEFAULT 1'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'custom_head_scripts';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'testimonial_source';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(20) NULL DEFAULT ''custom'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'trust_badges_json';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'newsletter_title';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT ''Stay in the Loop'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'newsletter_subtitle';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT ''Subscribe for updates, deals and new arrivals.'''), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'instagram_access_token';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(500) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'instagram_username';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(100) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'google_places_api_key';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'gmb_place_id';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(100) NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := 'sendchamp_json';
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=@tbl AND column_name=@col)=0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT NULL DEFAULT NULL'), 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- store_status must accept 'deactivated'; the legacy repair script
+-- (scripts/sql/missing_tables_fix.sql) created it as a 2-value enum, which
+-- makes saving 'Deactivated' fail under STRICT mode.
+ALTER TABLE `db_storefront_settings`
+  MODIFY COLUMN `store_status` ENUM('active','maintenance','deactivated') NULL DEFAULT 'active';
+
+-- Widened: international formats like "+234 (801) 234-5678" overflow VARCHAR(20)
+ALTER TABLE `db_storefront_settings`
+  MODIFY COLUMN `whatsapp_number` VARCHAR(50) NULL DEFAULT '';
+
+SET FOREIGN_KEY_CHECKS = 1;
+
 SET FOREIGN_KEY_CHECKS = 1;

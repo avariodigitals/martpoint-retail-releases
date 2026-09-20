@@ -1012,6 +1012,23 @@ class Mobile extends MY_Controller {
 			$data['medical_enabled'] = false;
 		}
 
+		if($this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model','cust_notes');
+			$data['customer_notes'] = $this->cust_notes->get_by_customer($id);
+		} else {
+			$data['customer_notes'] = array();
+			if(!empty($customer->notes)){
+				$legacy = new stdClass();
+				$legacy->id = 0;
+				$legacy->note = $customer->notes;
+				$legacy->created_by = $customer->created_by ?? null;
+				$legacy->created_by_id = null;
+				$legacy->created_date = $customer->created_date ?? null;
+				$legacy->created_time = $customer->created_time ?? null;
+				$data['customer_notes'] = array($legacy);
+			}
+		}
+
 		if($this->db->table_exists('db_custom_orders')){
 			$this->load->model('custom_orders_model','custom_orders');
 			$data['custom_orders'] = $this->custom_orders->get_by_customer($id);
@@ -1055,10 +1072,56 @@ class Mobile extends MY_Controller {
 	{
 		$this->belong_to('db_customers', $customer_id);
 		$this->permission_check('customers_edit');
-		$notes = $this->input->post('notes', TRUE);
-		$this->db->where('id', $customer_id)->update('db_customers', array('notes' => $notes));
-		$this->session->set_flashdata('success', 'Customer notes updated.');
+		$note = trim((string)$this->input->post('notes', TRUE));
+		if($note === ''){
+			$this->session->set_flashdata('failed', 'Please write a note before saving.');
+			redirect('mobile/customer_profile/' . $customer_id . '?tab=notes');
+			return;
+		}
+		if($this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model','cust_notes');
+			$this->cust_notes->add($customer_id, $note);
+		} else {
+			// Fallback before the notes-history migration runs: append with
+			// timestamp + author so the single notes blob still keeps history.
+			$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+			$existing = trim((string)($customer->notes ?? ''));
+			$entry = '[' . date('d-m-Y H:i') . ' ' . $this->session->userdata('inv_username') . '] ' . $note;
+			$this->db->where('id', $customer_id)->update('db_customers', array('notes' => ($existing !== '' ? $existing . "\n\n" . $entry : $entry)));
+		}
+		$this->session->set_flashdata('success', 'Note added.');
 		redirect('mobile/customer_profile/' . $customer_id . '?tab=notes');
+	}
+
+	public function edit_customer_note($note_id)
+	{
+		$this->permission_check('customers_edit');
+		if(!$this->db->table_exists('db_customer_notes')){
+			$this->session->set_flashdata('failed', 'Notes history is not available yet.');
+			redirect('mobile/customers');
+			return;
+		}
+		$this->load->model('customer_notes_model','cust_notes');
+		$note = $this->cust_notes->get($note_id);
+		if(!$note || (int)$note->store_id !== (int)get_current_store_id()){
+			$this->session->set_flashdata('failed', 'Note not found.');
+			redirect('mobile/customers');
+			return;
+		}
+		if(!$this->cust_notes->is_owner($note)){
+			$this->session->set_flashdata('failed', 'Only the creator can edit this note.');
+			redirect('mobile/customer_profile/' . $note->customer_id . '?tab=notes');
+			return;
+		}
+		$text = trim((string)$this->input->post('note', TRUE));
+		if($text === ''){
+			$this->session->set_flashdata('failed', 'Note cannot be empty.');
+			redirect('mobile/customer_profile/' . $note->customer_id . '?tab=notes');
+			return;
+		}
+		$this->cust_notes->update($note_id, $text);
+		$this->session->set_flashdata('success', 'Note updated.');
+		redirect('mobile/customer_profile/' . $note->customer_id . '?tab=notes');
 	}
 
 	public function save_treatment_note($customer_id)
@@ -1132,8 +1195,14 @@ class Mobile extends MY_Controller {
 		$data['page_title'] = 'Customer Statement';
 		$this->load->model('customers_model', 'customers');
 		$data['customer'] = $this->db->where('id', $customer_id)->get('db_customers')->row();
-		$statement = $this->customers->get_statement($customer_id);
+		$from = $this->input->get('from');
+		$to = $this->input->get('to');
+		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
+		$to = ($to && strtotime($to)) ? date('Y-m-d', strtotime($to)) : null;
+		$statement = $this->customers->get_statement($customer_id, null, $from, $to);
 		$data = array_merge($data, $statement);
+		$data['from'] = $from;
+		$data['to'] = $to;
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');

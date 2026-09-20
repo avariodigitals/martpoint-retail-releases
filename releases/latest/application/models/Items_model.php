@@ -244,6 +244,13 @@ class Items_model extends CI_Model {
 		$track_imei = $this->input->post('track_imei', TRUE) ? 1 : 0;
 		$not_for_sale = $this->input->post('not_for_sale', TRUE) ? 1 : 0;
 		$consumable_unit = $this->input->post('consumable_unit', TRUE);
+		// Perfumery bottled-product link (columns only exist after 4.0.9.27; _filter_item_columns skips otherwise)
+		$fill_qty = $this->input->post('fill_qty', TRUE);
+		$fill_qty = ($fill_qty !== '' && $fill_qty !== null) ? (float)$fill_qty : null;
+		$bottle_item_id = $this->input->post('bottle_item_id', TRUE);
+		$bottle_item_id = !empty($bottle_item_id) ? (int)$bottle_item_id : null;
+		$capacity_ml = $this->input->post('capacity_ml', TRUE);
+		$capacity_ml = ($capacity_ml !== '' && $capacity_ml !== null) ? (float)$capacity_ml : null;
 		$accept_custom_order = $this->input->post('accept_custom_order', TRUE) ? 1 : 0;
 		$requires_quote = $this->input->post('requires_quote', TRUE) ? 1 : 0;
 		$requires_deposit = $this->input->post('requires_deposit', TRUE) ? 1 : 0;
@@ -455,6 +462,9 @@ class Items_model extends CI_Model {
 								'track_imei'				=> $track_imei,
 								'not_for_sale'				=> $not_for_sale,
 								'consumable_unit'			=> !empty($consumable_unit) ? $consumable_unit : null,
+								'fill_qty'					=> $fill_qty,
+								'bottle_item_id'			=> $bottle_item_id,
+								'capacity_ml'				=> $capacity_ml,
 								'accept_custom_order'		=> $accept_custom_order,
 								'custom_order_fields_json'	=> $custom_order_fields_json,
 								'requires_quote'			=> $requires_quote,
@@ -967,6 +977,9 @@ class Items_model extends CI_Model {
 			$data['track_imei']=$query->track_imei ?? 0;
 			$data['not_for_sale']=$query->not_for_sale ?? 0;
 			$data['consumable_unit']=$query->consumable_unit ?? '';
+			$data['fill_qty']=$query->fill_qty ?? '';
+			$data['bottle_item_id']=$query->bottle_item_id ?? '';
+			$data['capacity_ml']=$query->capacity_ml ?? '';
 			$data['recipe_id']=$query->recipe_id ?? null;
 			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
 			$data['item_production_mode']=$query->item_production_mode ?? 'batch';

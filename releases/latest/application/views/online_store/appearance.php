@@ -101,6 +101,17 @@
     <div class="mp-card-head"><h3><i class="fa fa-store"></i> Store Branding</h3></div>
     <div class="mp-card-body">
       <div class="os-form-grid">
+        <div class="mp-form-group">
+          <label for="store_logo">Store Logo</label>
+          <?php
+            $osLogo = '';
+            if(!empty($settings->store_logo) && file_exists($settings->store_logo)) $osLogo = base_url($settings->store_logo);
+            elseif(!empty($store->store_logo) && file_exists($store->store_logo)) $osLogo = base_url($store->store_logo);
+          ?>
+          <?php if($osLogo): ?><div style="margin-bottom:8px;"><img src="<?= $osLogo; ?>" alt="Logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
+          <input type="file" class="mp-form-control" id="store_logo" name="store_logo" accept="image/*">
+          <div class="mp-form-hint">Shown in the storefront header and footer. Leave empty to keep the current logo.</div>
+        </div>
         <div class="mp-form-group"><label for="store_headline">Store Headline</label><input type="text" class="mp-form-control" id="store_headline" name="store_headline" value="<?= htmlspecialchars($settings->store_headline ?? ''); ?>" placeholder="Welcome to our store"></div>
         <div class="mp-form-group"><label for="store_subheadline">Store Subheadline</label><input type="text" class="mp-form-control" id="store_subheadline" name="store_subheadline" value="<?= htmlspecialchars($settings->store_subheadline ?? ''); ?>" placeholder="Discover amazing products"></div>
         <div class="mp-form-group"><label for="footer_style">Footer Style</label>

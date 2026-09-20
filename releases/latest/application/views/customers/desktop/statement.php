@@ -19,6 +19,23 @@
   <a href="<?= base_url('customers/profile/' . $customer->id); ?>" class="mp-qa-btn teal"><i class="fa fa-user"></i> Back to Profile</a>
 </div>
 
+<form method="get" action="<?= base_url('customers/statement/' . $customer->id); ?>" class="mp-card no-print" style="margin-bottom:16px;">
+  <div class="mp-card-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+    <div class="mp-form-group" style="margin:0;min-width:170px;">
+      <label>From Date</label>
+      <input type="date" name="from" class="form-control mp-form-control" value="<?= htmlspecialchars($from ?? ''); ?>">
+    </div>
+    <div class="mp-form-group" style="margin:0;min-width:170px;">
+      <label>To Date</label>
+      <input type="date" name="to" class="form-control mp-form-control" value="<?= htmlspecialchars($to ?? ''); ?>">
+    </div>
+    <button type="submit" class="mp-qa-btn blue"><i class="fa fa-filter"></i> Apply</button>
+    <?php if (!empty($from) || !empty($to)): ?>
+      <a href="<?= base_url('customers/statement/' . $customer->id); ?>" class="mp-qa-btn teal"><i class="fa fa-times"></i> Clear</a>
+    <?php endif; ?>
+  </div>
+</form>
+
 <div class="mp-kpi-grid">
   <div class="mp-kpi-card summary">
     <div class="mp-kpi-icon"><i class="fa fa-file-text-o"></i></div>
@@ -47,6 +64,9 @@
     <h3><?= htmlspecialchars($customer->customer_name ?? ''); ?> — <?= htmlspecialchars($customer->customer_code ?? ''); ?></h3>
     <div class="no-print" style="font-size:13px;color:var(--mp-muted);">
       <?= htmlspecialchars($customer->mobile ?? ''); ?> · <?= htmlspecialchars($customer->email ?? ''); ?>
+      <?php if (!empty($from) || !empty($to)): ?>
+        <br>Period: <?= !empty($from) ? show_date($from) : 'Start'; ?> → <?= !empty($to) ? show_date($to) : 'Today'; ?>
+      <?php endif; ?>
     </div>
   </div>
   <div class="mp-card-body" style="padding:0;">

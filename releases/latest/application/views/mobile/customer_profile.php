@@ -466,10 +466,46 @@
         <form action="<?= base_url('mobile/save_customer_notes/' . $customer->id); ?>" method="post">
           <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
           <div class="form-group" style="margin-bottom:12px;">
-            <textarea name="notes" rows="6" class="notes-box" style="width:100%; border:none; resize:vertical;"><?= htmlspecialchars($customer->notes ?? ''); ?></textarea>
+            <textarea name="notes" rows="3" class="notes-box" style="width:100%; border:none; resize:vertical;" placeholder="Add a note about this customer..." required></textarea>
           </div>
-          <button type="submit" class="btn-block"><i class="fa fa-save"></i> Save Notes</button>
+          <button type="submit" class="btn-block"><i class="fa fa-plus"></i> Add Note</button>
         </form>
+
+        <div class="card" style="margin-top:14px;">
+          <?php if(!empty($customer_notes)): ?>
+            <?php
+              $__note_uid = (int)$this->session->userdata('inv_userid');
+              $__note_uname = (string)$this->session->userdata('inv_username');
+            ?>
+            <?php foreach($customer_notes as $n): ?>
+              <?php
+                $__owns = !empty($n->id)
+                       && ((!empty($n->created_by_id) && (int)$n->created_by_id === $__note_uid)
+                       || (!empty($n->created_by) && $__note_uname !== '' && strcasecmp($n->created_by, $__note_uname) === 0));
+              ?>
+              <div class="list-item" style="display:block;">
+                <div class="desc" style="margin-bottom:6px;">
+                  <?= !empty($n->created_date) ? show_date($n->created_date) : '-'; ?><?= !empty($n->created_time) ? ' ' . show_time($n->created_time) : ''; ?> · <?= htmlspecialchars($n->created_by ?: 'System'); ?>
+                </div>
+                <div class="notes-box"><?= nl2br(htmlspecialchars($n->note)); ?></div>
+                <?php if($__owns): ?>
+                  <details style="margin-top:8px;">
+                    <summary style="color:var(--mp-primary);font-size:12px;font-weight:600;cursor:pointer;"><i class="fa fa-pencil"></i> Edit</summary>
+                    <form action="<?= base_url('mobile/edit_customer_note/' . $n->id); ?>" method="post" style="margin-top:8px;">
+                      <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+                      <div class="form-group" style="margin-bottom:8px;">
+                        <textarea name="note" rows="3" class="notes-box" style="width:100%; border:none; resize:vertical;" required><?= htmlspecialchars($n->note); ?></textarea>
+                      </div>
+                      <button type="submit" class="btn-block" style="padding:9px;margin-top:0;"><i class="fa fa-save"></i> Save Note</button>
+                    </form>
+                  </details>
+                <?php endif; ?>
+              </div>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <div class="empty-state">No notes yet</div>
+          <?php endif; ?>
+        </div>
       </div>
 
       <div id="idcard" class="tab-panel">

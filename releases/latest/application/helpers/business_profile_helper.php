@@ -433,7 +433,7 @@ if (!function_exists('mp_get_business_presets')) {
             'perfume_shop' => [
                 'business_model'=>'product_and_service',
                 'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','loyalty','gift_cards','store_credit','bundles','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','perfumery_workflow','manager_approvals','price_catalogue','pos_retail_button','pos_wholesale_button'],
-                'theme_key'=>'beauty_luxe','dashboard_template'=>'perfume_shop','workflow_template'=>'perfumery_standard',
+                'theme_key'=>'noir_parfum','dashboard_template'=>'perfume_shop','workflow_template'=>'perfumery_standard',
                 'labels'=>['item'=>'Fragrance','product'=>'Fragrance','service'=>'Blending Service','service_order'=>'Bespoke Order','customer'=>'Client','staff'=>'Perfumer','category'=>'Fragrance Family','brand'=>'House','batch'=>'Batch Code','recipe'=>'Formula','production'=>'Blend Batch','custom_order'=>'Bespoke Blend','expiry'=>'Best Before','mfg'=>'Blended On','warehouse'=>'Branch'],
             ],
             'jewellery_store' => [

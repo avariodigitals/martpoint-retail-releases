@@ -113,8 +113,9 @@ class Perfume extends MY_Controller {
         $this->_check_feature();
         $id     = (int)$this->input->post('id', TRUE);
         $status = $this->input->post('status', TRUE);
-        $allowed = ['planned','sourcing','blending','macerating','filtering','bottling','ready','completed','cancelled'];
-        if (!$id || !in_array($status, $allowed, true)) {
+        $batch  = $id ? $this->pb->get($id) : null;
+        $allowed = Production_batches_model::get_statuses('perfume_shop', $batch ? $batch->batch_type : null);
+        if (!$id || !$batch || !in_array($status, $allowed, true)) {
             echo json_encode(['success' => false, 'message' => 'Missing or invalid data']);
             return;
         }

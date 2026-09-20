@@ -258,12 +258,12 @@ class Operations extends MY_Controller {
         $list = $this->pb->get_datatables();
         $data = [];
         $no = $_POST['start'] ?? 0;
-        $statuses = Production_batches_model::get_statuses();
         $warehouse_id = get_store_warehouse_id();
         $store_id = get_current_store_id();
         foreach ($list as $batch) {
             $no++;
             $badge = Production_batches_model::status_badge($batch->status);
+            $statuses = Production_batches_model::get_statuses(null, $batch->batch_type);
             $row = [];
             $row[] = $no;
             $row[] = '<span class="label label-default">'.htmlspecialchars($batch->batch_code).'</span>';
@@ -337,6 +337,33 @@ class Operations extends MY_Controller {
         // Active recipes for direct recipe-based production
         $data['active_recipes'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_recipes')->result();
 
+        // Perfumery: bottling-run form — finished SKUs, packaging items,
+        // the batch's bulk liquids, and runs already recorded against it.
+        $pb_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+        $data['is_perfumery'] = (($pb_profile['industry_type'] ?? '') === 'perfume_shop');
+        $data['bottle_products'] = [];
+        $data['bottle_items'] = [];
+        $data['bulk_items'] = [];
+        $data['bottling_runs'] = [];
+        if ($data['is_perfumery'] && $id) {
+            $this->load->model('perfume_model', 'perfume');
+            $warehouse_id = get_store_warehouse_id();
+            $data['bottle_products'] = $this->db->select('a.id, a.item_name, a.stock, a.fill_qty, a.bottle_item_id, u.unit_name')
+                ->from('db_items a')
+                ->join('db_units u', 'u.id = a.unit_id', 'left')
+                ->where('a.store_id', $store_id)->where('a.status', 1)
+                ->where('a.not_for_sale', 0)->where('a.service_bit', 0)
+                ->order_by('a.item_name', 'asc')->get()->result();
+            $data['bottle_items'] = $this->db->select('a.id, a.item_name, a.stock, a.capacity_ml, u.unit_name')
+                ->from('db_items a')
+                ->join('db_units u', 'u.id = a.unit_id', 'left')
+                ->where('a.store_id', $store_id)->where('a.status', 1)
+                ->where('a.not_for_sale', 1)->where('a.service_bit', 0)
+                ->order_by('a.item_name', 'asc')->get()->result();
+            $data['bulk_items'] = $this->perfume->get_batch_bulk_items($id, $store_id, $warehouse_id);
+            $data['bottling_runs'] = $this->perfume->get_bottling_runs($store_id, $id);
+        }
+
         $this->_render($id ? 'Edit Production Batch' : 'New Production Batch', 'operations/production_batch', $data);
     }
 
@@ -356,16 +383,25 @@ class Operations extends MY_Controller {
 
         $staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
 
+        $batch_type = $this->input->post('batch_type', TRUE) ?: 'general';
+        $status = $this->input->post('status', TRUE) ?: 'planned';
+        // A batch may only sit in statuses valid for its type (a Bottling Run
+        // never macerates, a blending batch never skips the chain).
+        if (!in_array($status, Production_batches_model::get_statuses(null, $batch_type), true)) {
+            echo json_encode(['success' => false, 'message' => 'Status "' . Production_batches_model::status_label($status) . '" is not valid for this batch type.']);
+            return;
+        }
+
         $batch_data = [
             'store_id' => $store_id,
             'batch_name' => $this->input->post('batch_name', TRUE),
-            'batch_type' => $this->input->post('batch_type', TRUE) ?: 'general',
+            'batch_type' => $batch_type,
             'scheduled_date' => $this->input->post('scheduled_date', TRUE),
             'scheduled_time' => $this->input->post('scheduled_time', TRUE) ?: null,
             'equipment' => $this->input->post('equipment', TRUE),
             'staff_id' => (int)($this->input->post('staff_id', TRUE) ?: 0),
             'staff_name' => $staff ? ($staff->first_name . ' ' . $staff->last_name) : '',
-            'status' => $this->input->post('status', TRUE) ?: 'planned',
+            'status' => $status,
             'notes' => $this->input->post('notes', TRUE),
         ];
 
@@ -419,6 +455,11 @@ class Operations extends MY_Controller {
             echo json_encode(['success' => false, 'message' => 'Missing data']);
             return;
         }
+        $batch_for_type = $this->pb->get($id);
+        if ($batch_for_type && !in_array($status, Production_batches_model::get_statuses(null, $batch_for_type->batch_type), true)) {
+            echo json_encode(['success' => false, 'message' => 'Status "' . Production_batches_model::status_label($status) . '" is not valid for this batch type.']);
+            return;
+        }
         if ($status == 'completed') {
             $existing = $this->pb->get($id);
             if ($existing && $existing->status === 'completed') {
@@ -435,6 +476,89 @@ class Operations extends MY_Controller {
         echo json_encode([
             'success' => true,
             'message' => 'Status updated to ' . Production_batches_model::status_label($status),
+            'csrf_hash' => $this->security->get_csrf_hash(),
+        ]);
+    }
+
+    /**
+     * Record a bottling run against a batch (perfumery): empties bottles and
+     * bulk liquid out of stock, finished bottled units in — one adjustment.
+     */
+    public function production_bottle_save() {
+        $this->_check_feature('production_workflow');
+        $this->permission_check('production_batches_edit');
+        $this->load->model('production_batches_model', 'pb');
+        $this->load->model('perfume_model', 'perfume');
+        $store_id = get_current_store_id();
+        $warehouse_id = get_store_warehouse_id();
+
+        $batch_id = (int)$this->input->post('batch_id', TRUE);
+        $product_item_id = (int)$this->input->post('product_item_id', TRUE);
+        $bottle_item_id = (int)$this->input->post('bottle_item_id', TRUE);
+        $bulk_item_id = (int)$this->input->post('bulk_item_id', TRUE);
+        $fill_qty = (float)$this->input->post('fill_qty', TRUE);
+        $bottles = (float)$this->input->post('bottles_filled', TRUE);
+
+        $batch = $batch_id ? $this->pb->get($batch_id) : null;
+        if (!$batch) {
+            echo json_encode(['success' => false, 'message' => 'Batch not found.']);
+            return;
+        }
+        if ($product_item_id <= 0 || $bottle_item_id <= 0 || $bottles <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Select the finished product, the bottle item and how many were filled.']);
+            return;
+        }
+        if ($bulk_item_id > 0 && $fill_qty <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Enter the volume filled per bottle.']);
+            return;
+        }
+
+        // Capacity guard: a bottle can't physically hold more than its size
+        if ($fill_qty > 0 && $this->db->field_exists('capacity_ml', 'db_items')) {
+            $cap = $this->db->select('capacity_ml')->where('id', $bottle_item_id)->get('db_items')->row();
+            if ($cap && (float)$cap->capacity_ml > 0 && $fill_qty > (float)$cap->capacity_ml) {
+                echo json_encode(['success' => false, 'message' => 'Fill of ' . format_qty($fill_qty) . ' exceeds this bottle\'s capacity of ' . format_qty($cap->capacity_ml) . ' ml.']);
+                return;
+            }
+        }
+
+        // Stock check — never let a fill take bottles or bulk below zero.
+        $shortages = [];
+        $avail_bottle = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $bottle_item_id);
+        if ($avail_bottle < $bottles) {
+            $bi = $this->db->select('item_name')->where('id', $bottle_item_id)->get('db_items')->row();
+            $shortages[] = ($bi->item_name ?? 'Bottles') . ': need ' . format_qty($bottles) . ', have ' . format_qty($avail_bottle);
+        }
+        if ($bulk_item_id > 0) {
+            $bulk_used = $fill_qty * $bottles;
+            $avail_bulk = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $bulk_item_id);
+            if ($avail_bulk < $bulk_used) {
+                $bi = $this->db->select('item_name')->where('id', $bulk_item_id)->get('db_items')->row();
+                $shortages[] = ($bi->item_name ?? 'Bulk liquid') . ': need ' . format_qty($bulk_used) . ', have ' . format_qty($avail_bulk) . ' (complete the blend batch first to post bulk stock)';
+            }
+        }
+        if (!empty($shortages)) {
+            echo json_encode(['success' => false, 'message' => 'Not enough stock — ' . implode('; ', $shortages)]);
+            return;
+        }
+
+        $run_id = $this->perfume->record_bottling([
+            'batch_id'        => $batch_id,
+            'product_item_id' => $product_item_id,
+            'bottle_item_id'  => $bottle_item_id,
+            'bulk_item_id'    => $bulk_item_id,
+            'fill_qty'        => $fill_qty,
+            'bottles_filled'  => $bottles,
+            'notes'           => $this->input->post('notes', TRUE),
+            'created_by'      => $this->session->userdata('username') ?: 'System',
+        ]);
+        if (!$run_id) {
+            echo json_encode(['success' => false, 'message' => 'Could not record the bottling run. Please check the error log.']);
+            return;
+        }
+        echo json_encode([
+            'success' => true,
+            'message' => 'Bottling recorded: ' . format_qty($bottles) . ' bottles filled and stocked in.',
             'csrf_hash' => $this->security->get_csrf_hash(),
         ]);
     }
@@ -457,7 +581,8 @@ class Operations extends MY_Controller {
             return;
         }
 
-        $status_order = array_flip(Production_batches_model::get_statuses());
+        $batch_for_type = $this->pb->get($id);
+        $status_order = array_flip(Production_batches_model::get_statuses(null, $batch_for_type ? $batch_for_type->batch_type : null));
         $current_idx = $status_order[$current_status] ?? -1;
         $new_idx = $status_order[$new_status] ?? -1;
 

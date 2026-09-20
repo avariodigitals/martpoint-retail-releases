@@ -95,8 +95,67 @@ class Storefront_model extends CI_Model {
 				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 			}
 
-			if($this->db->table_exists('db_storefront_settings') && !$this->db->field_exists('sendchamp_json', 'db_storefront_settings')){
-				$this->db->query("ALTER TABLE db_storefront_settings ADD sendchamp_json TEXT NULL DEFAULT NULL");
+			if($this->db->table_exists('db_storefront_settings')){
+				$have = $this->db->list_fields('db_storefront_settings');
+				$need = [
+					'store_logo' => "VARCHAR(255) NULL DEFAULT NULL",
+					'shipping_notice' => "TEXT NULL DEFAULT NULL",
+					'shipping_methods_json' => "TEXT NULL DEFAULT NULL",
+					'theme_id' => "INT NULL DEFAULT NULL",
+					'primary_color' => "VARCHAR(20) NULL DEFAULT '#3B82F6'",
+					'secondary_color' => "VARCHAR(20) NULL DEFAULT '#10B981'",
+					'font_family' => "VARCHAR(100) NULL DEFAULT 'Inter'",
+					'button_style' => "VARCHAR(50) NULL DEFAULT 'rounded'",
+					'store_headline' => "VARCHAR(255) NULL DEFAULT NULL",
+					'store_subheadline' => "VARCHAR(500) NULL DEFAULT NULL",
+					'favicon' => "VARCHAR(255) NULL DEFAULT NULL",
+					'desktop_banner' => "VARCHAR(255) NULL DEFAULT NULL",
+					'mobile_banner' => "VARCHAR(255) NULL DEFAULT NULL",
+					'instagram_url' => "VARCHAR(500) NULL DEFAULT NULL",
+					'facebook_url' => "VARCHAR(500) NULL DEFAULT NULL",
+					'tiktok_url' => "VARCHAR(500) NULL DEFAULT NULL",
+					'x_url' => "VARCHAR(500) NULL DEFAULT NULL",
+					'youtube_url' => "VARCHAR(500) NULL DEFAULT NULL",
+					'business_hours' => "TEXT NULL DEFAULT NULL",
+					'announcement_bar' => "VARCHAR(500) NULL DEFAULT NULL",
+					'announcement_bar_color' => "VARCHAR(20) NULL DEFAULT '#0F172A'",
+					'marquee_items' => "TEXT NULL DEFAULT NULL",
+					'preview_mode' => "TINYINT(1) NULL DEFAULT 0",
+					'preview_theme_id' => "INT NULL DEFAULT NULL",
+					'meta_title' => "VARCHAR(255) NULL DEFAULT NULL",
+					'meta_description' => "VARCHAR(500) NULL DEFAULT NULL",
+					'footer_bg_color' => "VARCHAR(20) NULL DEFAULT '#0F172A'",
+					'header_text_color' => "VARCHAR(20) NULL DEFAULT ''",
+					'footer_style' => "VARCHAR(50) NULL DEFAULT 'standard'",
+					'footer_about_us' => "TEXT NULL DEFAULT NULL",
+					'footer_text_color' => "VARCHAR(20) NULL DEFAULT '#94A3B8'",
+					'footer_address_url' => "VARCHAR(500) NULL DEFAULT NULL",
+					'button_color' => "VARCHAR(20) NULL DEFAULT '#3B82F6'",
+					'meta_keywords' => "VARCHAR(255) NULL DEFAULT NULL",
+					'google_analytics_id' => "VARCHAR(50) NULL DEFAULT NULL",
+					'facebook_pixel_id' => "VARCHAR(50) NULL DEFAULT NULL",
+					'robots_index' => "TINYINT(1) NULL DEFAULT 1",
+					'custom_head_scripts' => "TEXT NULL DEFAULT NULL",
+					'testimonial_source' => "VARCHAR(20) NULL DEFAULT 'custom'",
+					'trust_badges_json' => "TEXT NULL DEFAULT NULL",
+					'newsletter_title' => "VARCHAR(255) NULL DEFAULT 'Stay in the Loop'",
+					'newsletter_subtitle' => "VARCHAR(500) NULL DEFAULT 'Subscribe for updates, deals and new arrivals.'",
+					'instagram_access_token' => "VARCHAR(500) NULL DEFAULT NULL",
+					'instagram_username' => "VARCHAR(100) NULL DEFAULT NULL",
+					'google_places_api_key' => "VARCHAR(255) NULL DEFAULT NULL",
+					'gmb_place_id' => "VARCHAR(100) NULL DEFAULT NULL",
+					'sendchamp_json' => "TEXT NULL DEFAULT NULL"
+				];
+				foreach($need as $col => $def){
+					if(!in_array($col, $have)){
+						$this->db->query("ALTER TABLE db_storefront_settings ADD $col $def");
+					}
+				}
+				$statusCol = $this->db->query("SHOW COLUMNS FROM db_storefront_settings LIKE 'store_status'")->row();
+				if($statusCol && strpos($statusCol->Type, 'deactivated') === false){
+					$this->db->query("ALTER TABLE db_storefront_settings MODIFY store_status ENUM('active','maintenance','deactivated') DEFAULT 'active'");
+				}
+			}
 
 			// Omni-channel fields for db_online_orders
 			if($this->db->table_exists('db_online_orders')){
@@ -115,7 +174,6 @@ class Storefront_model extends CI_Model {
 				if(!$this->db->field_exists('stock_adjusted', 'db_online_orders')){
 					$this->db->query("ALTER TABLE db_online_orders ADD stock_adjusted TINYINT(1) NOT NULL DEFAULT 0");
 				}
-			}
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Storefront ensureTables optional migration failed: ' . $e->getMessage());
@@ -813,6 +871,10 @@ class Storefront_model extends CI_Model {
 			'laundry' => 'laundry',
 			'laundrydrycleaning' => 'laundry',
 			'laundryanddrycleaning' => 'laundry',
+			'perfumery' => 'perfumery',
+			'perfume' => 'perfumery',
+			'perfumeshop' => 'perfumery',
+			'fragrance' => 'perfumery',
 		];
 		return $map[$industry] ?? $industry;
 	}
@@ -861,6 +923,11 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'creator_focus', 'theme_name' => 'Creator Focus', 'industry' => 'creator', 'description' => 'Dark, modern digital storefront with purple-pink gradients and neon accents. Ideal for courses, ebooks and downloads.', 'default_primary_color' => '#7C3AED', 'default_secondary_color' => '#EC4899', 'default_font_family' => 'Inter', 'sort_order' => 29],
 			['theme_key' => 'creator_bold', 'theme_name' => 'Creator Bold', 'industry' => 'creator', 'description' => 'High-contrast black and orange creative theme. Bold, editorial and built for selling digital products and memberships.', 'default_primary_color' => '#FF4D00', 'default_secondary_color' => '#FFD700', 'default_font_family' => 'Inter', 'sort_order' => 30],
 			['theme_key' => 'creator_studio', 'theme_name' => 'Creator Studio', 'industry' => 'creator', 'description' => 'Warm, light and elegant studio theme with terracotta and cream. Perfect for coaches, creators and course creators.', 'default_primary_color' => '#C75D3A', 'default_secondary_color' => '#E4A15A', 'default_font_family' => 'Inter', 'sort_order' => 31],
+			// Perfumery presets (4 world-class luxury designs, WhatsApp-first)
+			['theme_key' => 'noir_parfum', 'theme_name' => 'Noir Parfum', 'industry' => 'perfumery', 'description' => 'Midnight luxury flagship theme — deep black, champagne gold and italic serif typography for a dramatic haute-parfumerie storefront.', 'default_primary_color' => '#C9A961', 'default_secondary_color' => '#0B0A08', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 32],
+			['theme_key' => 'maison_blanche', 'theme_name' => 'Maison Blanche', 'industry' => 'perfumery', 'description' => 'Ivory Parisian maison theme — cream canvas, black ink and old-gold hairlines for a refined French fragrance boutique.', 'default_primary_color' => '#A98954', 'default_secondary_color' => '#1C1917', 'default_font_family' => 'Playfair Display', 'sort_order' => 33],
+			['theme_key' => 'oud_royale', 'theme_name' => 'Oud Royale', 'industry' => 'perfumery', 'description' => 'Arabian opulence theme — espresso darkness, royal gold and arched gallery for oud, attar and musk houses.', 'default_primary_color' => '#D4A24E', 'default_secondary_color' => '#150E07', 'default_font_family' => 'Marcellus', 'sort_order' => 34],
+			['theme_key' => 'atelier_essence', 'theme_name' => 'Atelier Essence', 'industry' => 'perfumery', 'description' => 'Niche-lab minimalism — bone white, mono ink and stark grid for artisan perfumeries and custom formulation labs.', 'default_primary_color' => '#161513', 'default_secondary_color' => '#9C4A2F', 'default_font_family' => 'Inter', 'sort_order' => 35],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
@@ -891,6 +958,10 @@ class Storefront_model extends CI_Model {
 			'laundry' => 'laundry',
 			'laundry_fresh' => 'laundry',
 			'online_store' => 'general',
+			'noir_parfum' => 'perfumery',
+			'maison_blanche' => 'perfumery',
+			'oud_royale' => 'perfumery',
+			'atelier_essence' => 'perfumery',
 		];
 		foreach($canonical as $key => $industry){
 			$this->db->where('theme_key', $key)->update('db_storefront_themes', ['industry' => $industry]);

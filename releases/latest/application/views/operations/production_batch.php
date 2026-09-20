@@ -36,7 +36,7 @@
           </div>
           <div class="mp-form-group">
             <label>Batch Type</label>
-            <select class="mp-form-control" name="batch_type">
+            <select class="mp-form-control" name="batch_type" id="batch_type">
               <?php
                 $pb_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
                 $pb_is_perfumery = (($pb_profile['industry_type'] ?? '') === 'perfume_shop');
@@ -53,8 +53,8 @@
           </div>
           <div class="mp-form-group">
             <label>Status</label>
-            <select class="mp-form-control" name="status">
-              <?php foreach(Production_batches_model::get_statuses() as $st): ?>
+            <select class="mp-form-control" name="status" id="batch_status">
+              <?php foreach(Production_batches_model::get_statuses(null, isset($edit_batch) ? $edit_batch->batch_type : 'blending') as $st): ?>
               <option value="<?= $st; ?>" <?= (isset($edit_batch) && $edit_batch->status==$st)?'selected':''; ?>><?= Production_batches_model::status_label($st); ?></option>
               <?php endforeach; ?>
             </select>
@@ -168,7 +168,7 @@
   <div class="mp-card-form" style="margin-bottom:0">
     <div class="mp-card-head"><h3>Quick Status</h3></div>
     <div class="mp-card-body">
-      <?php foreach(Production_batches_model::get_statuses() as $st):
+      <?php foreach(Production_batches_model::get_statuses(null, $edit_batch->batch_type) as $st):
         $badge = Production_batches_model::status_badge($st);
         $colors = ['success'=>'#059669','danger'=>'#DC2626','info'=>'#0057FF','warning'=>'#F59E0B','default'=>'#78716C'];
         $c = $colors[$badge] ?? '#78716C';
@@ -183,6 +183,85 @@
   </div>
   <?php endif; ?>
 </div>
+
+<?php if (!empty($is_perfumery) && isset($edit_batch)): ?>
+<div class="mp-card-form" style="margin-top:24px">
+  <div class="mp-card-head"><h3><i class="fa fa-eyedropper"></i> Bottling Runs</h3></div>
+  <div class="mp-card-body">
+    <p class="mp-form-hint" style="margin-top:0">Record how this blend was filled into bottles. Each run takes the empty bottles and the bulk liquid out of stock and puts the finished product in.</p>
+
+    <form id="bottling-form">
+      <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+      <input type="hidden" name="batch_id" value="<?= $edit_batch->id; ?>">
+      <div class="mp-form-grid">
+        <div class="mp-form-group" style="grid-column:span 2">
+          <label>Finished Product <span class="text-danger">*</span></label>
+          <select class="mp-form-control select2" name="product_item_id" id="btl-product">
+            <option value="">-- e.g. Oud Royale 50ml --</option>
+            <?php foreach($bottle_products as $p): ?>
+            <option value="<?= $p->id; ?>" data-fill="<?= htmlspecialchars($p->fill_qty ?? ''); ?>" data-bottle="<?= htmlspecialchars($p->bottle_item_id ?? ''); ?>"><?= htmlspecialchars($p->item_name); ?><?= !empty($p->fill_qty) ? ' — ' . format_qty($p->fill_qty) . ' ml fill' : ''; ?></option>
+            <?php endforeach; ?>
+          </select>
+          <p class="mp-form-hint">Sellable SKU — picking one fills in its bottle and volume automatically (set on the item card)</p>
+        </div>
+        <div class="mp-form-group" style="grid-column:span 2">
+          <label>Bottle / Packaging <span class="text-danger">*</span></label>
+          <select class="mp-form-control select2" name="bottle_item_id" id="btl-bottle">
+            <option value="">-- e.g. 50ml glass bottle --</option>
+            <?php foreach($bottle_items as $p): ?>
+            <option value="<?= $p->id; ?>" data-cap="<?= htmlspecialchars($p->capacity_ml ?? ''); ?>" data-stock="<?= $p->stock; ?>"><?= htmlspecialchars($p->item_name); ?><?= !empty($p->capacity_ml) ? ' ' . format_qty($p->capacity_ml) . 'ml' : ''; ?> (<?= format_qty($p->stock); ?> in stock)</option>
+            <?php endforeach; ?>
+          </select>
+          <p class="mp-form-hint">Raw material / packaging item consumed, one per bottle</p>
+        </div>
+        <div class="mp-form-group" style="grid-column:span 2">
+          <label>Bulk Liquid Drawn From</label>
+          <select class="mp-form-control select2" name="bulk_item_id" id="btl-bulk">
+            <option value="" data-unit="units" data-stock="">— No bulk deduction —</option>
+            <?php foreach($bulk_items as $p): ?>
+            <option value="<?= $p->id; ?>" data-unit="<?= htmlspecialchars($p->unit_name ?: 'units'); ?>" data-stock="<?= $p->available; ?>"><?= htmlspecialchars($p->item_name); ?> — <?= format_qty($p->available); ?> <?= htmlspecialchars($p->unit_name ?: ''); ?> in stock</option>
+            <?php endforeach; ?>
+          </select>
+          <p class="mp-form-hint" id="btl-remaining">Produced by this batch's formulas — complete the batch first so bulk stock exists</p>
+        </div>
+        <div class="mp-form-group">
+          <label>Volume per Bottle (<span id="btl-fill-unit">units</span>)</label>
+          <input type="number" step="0.001" min="0" class="mp-form-control" name="fill_qty" id="btl-fill" placeholder="e.g. 50">
+        </div>
+        <div class="mp-form-group">
+          <label>Bottles Filled <span class="text-danger">*</span></label>
+          <input type="number" step="1" min="1" class="mp-form-control" name="bottles_filled" id="btl-count" placeholder="e.g. 20" required>
+        </div>
+        <div class="mp-form-group" style="grid-column:span 2">
+          <label>Notes</label>
+          <input type="text" class="mp-form-control" name="notes" placeholder="e.g. Filled after filtering, 1 tester kept aside">
+        </div>
+      </div>
+      <div id="btl-preview" class="mp-form-hint" style="margin:4px 0 12px;font-weight:600"></div>
+      <button type="button" id="btn-bottle" class="mp-btn-primary"><i class="fa fa-check"></i> Record Bottling Run</button>
+    </form>
+
+    <?php if(!empty($bottling_runs)): ?>
+    <div class="mp-section-divider"><i class="fa fa-history"></i> Runs on this Batch</div>
+    <table class="mp-static-table" style="font-size:12px">
+      <thead><tr><th>Date</th><th>Product</th><th>Bottles</th><th>Bulk Used</th><th>Bottle Item</th><th>Cost</th></tr></thead>
+      <tbody>
+      <?php foreach($bottling_runs as $r): ?>
+        <tr>
+          <td><?= show_date($r->created_date); ?></td>
+          <td><?= htmlspecialchars($r->product_name); ?></td>
+          <td><?= format_qty($r->bottles_filled); ?></td>
+          <td><?= $r->bulk_name ? format_qty($r->bulk_used) . ' ' . htmlspecialchars($r->bulk_name) : '-'; ?></td>
+          <td><?= htmlspecialchars($r->bottle_name); ?></td>
+          <td><?= number_format($r->total_cost, 2); ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+    <?php endif; ?>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
 $(function(){
@@ -222,6 +301,25 @@ $('#btn-save').on('click', function(){
   }, 'json').fail(function(){ toastr.error('Server error'); $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Save Batch'); });
 });
 
+<?php if ($pb_is_perfumery): ?>
+// A Bottling Run has its own short pipeline — rebuild the status list when the type changes
+var pbStatusSets = {
+  blending: [['planned','Planned'],['sourcing','Sourcing Materials'],['blending','Blending'],['macerating','Macerating'],['filtering','Filtering'],['bottling','Bottling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']],
+  bottling: [['planned','Planned'],['bottling','Bottling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']],
+  general:  [['planned','Planned'],['sourcing','Sourcing Materials'],['blending','Blending'],['macerating','Macerating'],['filtering','Filtering'],['bottling','Bottling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']]
+};
+$('#batch_type').on('change', function(){
+  var set = pbStatusSets[$(this).val()] || pbStatusSets.general;
+  var $st = $('#batch_status');
+  var cur = $st.val(), found = false, opts = '';
+  for (var i = 0; i < set.length; i++) {
+    opts += '<option value="' + set[i][0] + '">' + set[i][1] + '</option>';
+    if (set[i][0] === cur) found = true;
+  }
+  $st.html(opts).val(found ? cur : 'planned');
+});
+<?php endif; ?>
+
 function updateBatchStatus(status){
   $.post('<?= base_url('operations/production_batch_update_status'); ?>', {
     id: <?= $edit_batch->id ?? 0; ?>, status: status
@@ -232,4 +330,83 @@ function updateBatchStatus(status){
     toastr.error('Server error: ' + (xhr.responseText ? xhr.responseText.substring(0,200) : 'Could not reach server'));
   });
 }
+
+<?php if (!empty($is_perfumery) && isset($edit_batch)): ?>
+function btlPreview(){
+  var count = parseFloat($('#btl-count').val()) || 0;
+  var fill = parseFloat($('#btl-fill').val()) || 0;
+  var $bulkOpt = $('#btl-bulk option:selected');
+  var unit = $bulkOpt.data('unit') || 'units';
+  var bulkStock = parseFloat($bulkOpt.data('stock'));
+  var hasBulk = !!$('#btl-bulk').val();
+  var parts = [];
+  if (count > 0) parts.push(count + ' bottle(s) out');
+  var draw = (hasBulk && fill > 0) ? fill * count : 0;
+  if (draw > 0) parts.push(draw + ' ' + unit + ' bulk out');
+  if (count > 0) parts.push(count + ' finished unit(s) in');
+  $('#btl-preview').text(parts.length ? 'Will post: ' + parts.join(' + ') : '');
+
+  // Live bulk-remaining readout + capacity warning
+  if (hasBulk && !isNaN(bulkStock)) {
+    var left = bulkStock - draw;
+    $('#btl-remaining').text('Bulk remaining after this run: ' + Math.round(left * 1000) / 1000 + ' ' + unit + (left < 0 ? ' — exceeds available stock!' : ''))
+      .css('color', left < 0 ? '#DC2626' : '');
+  }
+}
+
+// Blocks the submit on client-side overdraw / overfill before the server sees it
+function btlProblems(){
+  var problems = [];
+  var count = parseFloat($('#btl-count').val()) || 0;
+  var fill = parseFloat($('#btl-fill').val()) || 0;
+  var $bulkOpt = $('#btl-bulk option:selected');
+  var bulkStock = parseFloat($bulkOpt.data('stock'));
+  if ($('#btl-bulk').val() && !isNaN(bulkStock) && fill * count > bulkStock) {
+    problems.push('That fill needs ' + (fill * count) + ' ' + ($bulkOpt.data('unit') || 'units') + ' but only ' + bulkStock + ' is in stock. Complete the blend batch first or reduce the count.');
+  }
+  var cap = parseFloat($('#btl-bottle option:selected').data('cap'));
+  if (!isNaN(cap) && cap > 0 && fill > cap) {
+    problems.push('Fill of ' + fill + ' ml exceeds this bottle\'s ' + cap + ' ml capacity.');
+  }
+  return problems;
+}
+
+// Picking a finished SKU auto-resolves its linked bottle + fill volume
+$('#btl-product').on('change', function(){
+  var $opt = $(this).find('option:selected');
+  var bottle = $opt.data('bottle');
+  var fill = $opt.data('fill');
+  if (bottle) { $('#btl-bottle').val(bottle).trigger('change.select2'); }
+  if (fill !== undefined && fill !== '') { $('#btl-fill').val(fill); }
+  var cap = parseFloat($('#btl-bottle option:selected').data('cap'));
+  if (!isNaN(cap) && cap > 0 && parseFloat($('#btl-fill').val()) > cap) {
+    toastr.warning('Fill exceeds the selected bottle\'s ' + cap + ' ml capacity');
+  }
+  btlPreview();
+});
+$('#btl-bottle').on('change', btlPreview);
+$('#btl-bulk').on('change', function(){
+  $('#btl-fill-unit').text($(this).find('option:selected').data('unit') || 'units');
+  btlPreview();
+});
+$('#btl-fill, #btl-count').on('input', btlPreview);
+
+$('#btn-bottle').on('click', function(){
+  var problems = btlProblems();
+  if (problems.length) { toastr.error(problems.join(' ')); return; }
+  var $btn = $(this); $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Recording...');
+  $.post('<?= base_url('operations/production_bottle_save'); ?>', $('#bottling-form').serialize(), function(res){
+    if(res.success){
+      toastr.success(res.message);
+      setTimeout(function(){ location.reload(); }, 800);
+    } else {
+      toastr.error(res.message || 'Failed to record bottling');
+      $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Record Bottling Run');
+    }
+  }, 'json').fail(function(xhr){
+    toastr.error('Server error: ' + (xhr.responseText ? xhr.responseText.substring(0,200) : 'Could not reach server'));
+    $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Record Bottling Run');
+  });
+});
+<?php endif; ?>
 </script>

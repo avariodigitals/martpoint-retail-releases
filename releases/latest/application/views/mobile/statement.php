@@ -21,6 +21,10 @@
     .topbar h1 { font-size: 20px; font-weight: 700; margin: 0;}
     .customer-title { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
     .customer-meta { font-size: 13px; color: var(--mp-muted); margin-bottom: 14px; }
+    .filters { display: flex; gap: 8px; margin-bottom: 14px; }
+    .filters input[type="date"] { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid var(--mp-border); border-radius: 12px; font-size: 14px; background: #fff; }
+    .filters button { padding: 11px 18px; border: none; border-radius: 12px; background: var(--mp-primary); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .filters a.clear { display: flex; align-items: center; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--mp-border); color: var(--mp-muted); font-size: 13px; font-weight: 600; text-decoration: none; }
     .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
     .stat-card { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid var(--mp-border); }
     .stat-card .label { font-size: 11px; color: var(--mp-muted); margin-bottom: 4px; }
@@ -41,7 +45,7 @@
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 14px; border: none; background: transparent; color: var(--mp-muted); font-size: 10px; font-weight: 500; text-decoration: none; }
     .nav-item .icon { font-size: 20px; }
     .nav-item.active { color: var(--mp-primary); }
-    @media print { .topbar, .bottom-nav, .btn-block { display: none; } .screen { padding-bottom: 20px; } }
+    @media print { .topbar, .bottom-nav, .btn-block, .filters { display: none; } .screen { padding-bottom: 20px; } }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .bottom-nav { max-width: 100%; left: 0; right: 0; transform: none; } .screen { padding: 16px 16px 100px; } }
     .topbar .topbar-titles { flex: 1; min-width: 0; }
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
@@ -60,6 +64,15 @@
 
       <div class="customer-title"><?= $customer->customer_name; ?></div>
       <div class="customer-meta"><?= $customer->customer_code; ?> · <?= $customer->mobile; ?></div>
+
+      <form method="get" class="filters" action="<?= base_url('mobile/statement/' . $customer->id); ?>">
+        <input type="date" name="from" value="<?= htmlspecialchars($from ?? ''); ?>">
+        <input type="date" name="to" value="<?= htmlspecialchars($to ?? ''); ?>">
+        <button type="submit">Go</button>
+        <?php if(!empty($from) || !empty($to)): ?>
+          <a class="clear" href="<?= base_url('mobile/statement/' . $customer->id); ?>"><i class="fa fa-times"></i></a>
+        <?php endif; ?>
+      </form>
 
       <div class="summary-grid">
         <div class="stat-card">

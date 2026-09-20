@@ -1,7 +1,7 @@
 {
-  "version": "4.0.9.25",
-  "previous_version": "4.0.9.24",
-  "release_date": "2026-09-19",
+  "version": "4.0.9.29",
+  "previous_version": "4.0.9.25",
+  "release_date": "2026-09-20",
   "files": [
     {
       "path": "application/.htaccess",
@@ -220,8 +220,8 @@
     },
     {
       "path": "application/controllers/Customers.php",
-      "hash": "ade4d84e84512021d36e3028a1e552f1a5f96e933ba4408c2ddb5956904599c0",
-      "size": 19832
+      "hash": "944c476be535e5957905f0ca2dca1330c68b906eca8103851406705068cd48ad",
+      "size": 22972
     },
     {
       "path": "application/controllers/Customers_advance.php",
@@ -355,8 +355,8 @@
     },
     {
       "path": "application/controllers/Mobile.php",
-      "hash": "89fbec1aaddb8d86d52fdab708af4c9c7599d4a5a49ba48ea0d96c92bd9e4b03",
-      "size": 238163
+      "hash": "3df669f58f1344d9bf768027b1c55cab960a96f6794ed66d3d9e5981d026d991",
+      "size": 241071
     },
     {
       "path": "application/controllers/Money_deposit.php",
@@ -390,13 +390,13 @@
     },
     {
       "path": "application/controllers/Online_store.php",
-      "hash": "77a305ea342a3a79a514bad18dd2846e862e0bb5136e51c787515c0f86d0fd33",
-      "size": 82975
+      "hash": "b2a2bb87858ad639610cd66c86dec4345cf2e61fc802a719c319f7f16a22e8a7",
+      "size": 83902
     },
     {
       "path": "application/controllers/Operations.php",
-      "hash": "817df09687084251ab62da8791454ccb5dc377d9cddbb1be8993f66b9f41549f",
-      "size": 104323
+      "hash": "29272c2758325f294ff9d29b505c434fb56aeae96008f32593e764b4b9bafe4a",
+      "size": 111413
     },
     {
       "path": "application/controllers/Payment_modes.php",
@@ -420,8 +420,8 @@
     },
     {
       "path": "application/controllers/Perfume.php",
-      "hash": "fb7547a0c9d1caddad3a70f9f945f30eb06a7d331b51410736d1044c8e5f039f",
-      "size": 6268
+      "hash": "555f5356964c83368a09b5040619777f31631f158d4b5743b9005153a8d8f9c3",
+      "size": 6320
     },
     {
       "path": "application/controllers/Permission_audit.php",
@@ -695,7 +695,7 @@
     },
     {
       "path": "application/helpers/business_profile_helper.php",
-      "hash": "92a1700d09f040a5a64c81292fc6fc6aba196f136bc5cc6cb366c0e610e48528",
+      "hash": "39ceb72d7acb4625120ae86fd8f616c83b584b1065ae40a1ebba08784ae1df13",
       "size": 68675
     },
     {
@@ -710,7 +710,7 @@
     },
     {
       "path": "application/helpers/custom_helper.php",
-      "hash": "57887c66c9526852702c2c2aa1fa6a7308921dcf89f4bdd664a630cf158a5c10",
+      "hash": "ed5e946b67e1513e7fb3897c7510f2fbcab34a58b0d8fa13999ec0ff131c7246",
       "size": 94576
     },
     {
@@ -7224,6 +7224,16 @@
       "size": 2354
     },
     {
+      "path": "application/migrations/028_add_parfum_themes.php",
+      "hash": "5680b43d79c7093b4de20e752af22927c308f8792adc36c12574674cbcf4c145",
+      "size": 3054
+    },
+    {
+      "path": "application/migrations/029_add_customer_notes.php",
+      "hash": "0bee8b9ad841e38243cd141e475614dc6f33565912f1e23fbc538e278fe12778",
+      "size": 2336
+    },
+    {
       "path": "application/models/Account_transactions_model.php",
       "hash": "f9685e538debc58a4cc8ef25922cd941f8cf95cfc578acb14167d766c97b8923",
       "size": 4047
@@ -7334,14 +7344,19 @@
       "size": 7420
     },
     {
+      "path": "application/models/Customer_notes_model.php",
+      "hash": "c91ff423478eb3357542648ff9415cf6ef3fe63a0de114667bd49bb14f895026",
+      "size": 2000
+    },
+    {
       "path": "application/models/Customers_advance_model.php",
       "hash": "21af1afc4609595ffbd4ad1ced9abb411c043845725c8a9ed8405f69971e952c",
       "size": 6702
     },
     {
       "path": "application/models/Customers_model.php",
-      "hash": "86e5a53d3790e53de49d9576c044042baa600af5c1d17c986f50e1465849c7d7",
-      "size": 65449
+      "hash": "28b68b7480784b504e21971b0ccf219146ce405b78bf677cfe11b669aec6386f",
+      "size": 66501
     },
     {
       "path": "application/models/Dashboard_model.php",
@@ -7440,8 +7455,8 @@
     },
     {
       "path": "application/models/Items_model.php",
-      "hash": "b5f310a8c2043ada7eecd00747829f8f659886235770e65297e381c04ff6272f",
-      "size": 75339
+      "hash": "5adc259fab60b36a5e9b8dffc3b3069665755b811f235a8582e03907cb4e6b46",
+      "size": 76153
     },
     {
       "path": "application/models/Kitchen_model.php",
@@ -7530,8 +7545,8 @@
     },
     {
       "path": "application/models/Perfume_model.php",
-      "hash": "88cff527169dfabd60bb979c3dbd7ca7ed8e33efbe275fb84276dd9fc2b47607",
-      "size": 17161
+      "hash": "f465a31609b80540d2fee901defedcd2ce451901db93b69b117f5c62fa85841f",
+      "size": 25915
     },
     {
       "path": "application/models/Pos_model.php",
@@ -7540,8 +7555,8 @@
     },
     {
       "path": "application/models/Production_batches_model.php",
-      "hash": "d1845cc2a079f39d1cc3847531d622654e07d5e7b020bdec45092cab7a7d6ee6",
-      "size": 21289
+      "hash": "a215b102f7de8c2c148ae12190147607da2b8c1c1cbaa6a31fcfee0688ea6a24",
+      "size": 21607
     },
     {
       "path": "application/models/Promotions_model.php",
@@ -7670,8 +7685,8 @@
     },
     {
       "path": "application/models/Storefront_model.php",
-      "hash": "9ac1472f8ac3f191dcd2629826a2e2795a81213eec88296fc5e5196b2e906455",
-      "size": 66844
+      "hash": "add66a8a3ee4db8ff730c3b253eff2298483cdaa4b718e757d51dc7f68a0c82b",
+      "size": 71863
     },
     {
       "path": "application/models/Stripe_model.php",
@@ -7745,8 +7760,8 @@
     },
     {
       "path": "application/models/Updates_model.php",
-      "hash": "2709c6d2fe67e1e45c81093abfca4f536614c2b04f61bf8ec299d48d09ef0169",
-      "size": 3790
+      "hash": "6b4435c2c728cc2c7e4846e3fec9469cabcdcc61d7fa8878761250ccb77fbb71",
+      "size": 4029
     },
     {
       "path": "application/models/Users_model.php",
@@ -8015,8 +8030,8 @@
     },
     {
       "path": "application/views/items.php",
-      "hash": "7be601980af789a5efbaec1513f53b25fd347ba810befba7028f205239662899",
-      "size": 83776
+      "hash": "b88fee9b80616d0d2feab324762c80f33bc25c63cb68cfeba3cd5e5f30001763",
+      "size": 86368
     },
     {
       "path": "application/views/labels.php",
@@ -9020,13 +9035,13 @@
     },
     {
       "path": "application/views/customers/desktop/profile.php",
-      "hash": "e42e49f799359722afda59f17f492288134e3b9e87e569145e9579614f5653f4",
-      "size": 34576
+      "hash": "17351e33f5546546dcc4ac3defdcfad3776a3824fa74fcae94c1ee960b28ff93",
+      "size": 37891
     },
     {
       "path": "application/views/customers/desktop/statement.php",
-      "hash": "d44c297f1d47ca844074068dcf3bf6759992651be50fb7ba789f52c13c34cfc9",
-      "size": 3700
+      "hash": "f839148fa8c8014428c086e39707703729fd9d805338cefcbc7de4d7a518c455",
+      "size": 4894
     },
     {
       "path": "application/views/customers_advance/create.php",
@@ -9555,8 +9570,8 @@
     },
     {
       "path": "application/views/mobile/customer_profile.php",
-      "hash": "564a3704e0cad0d74217de79e5a5fcdaff62cff27c2897d7acc6259def5b8b7f",
-      "size": 37598
+      "hash": "5313aa6862e78c69563bcf7c835e6e1c9bd6095b87686df30c1e8ced067b2820",
+      "size": 39904
     },
     {
       "path": "application/views/mobile/customers.php",
@@ -9715,8 +9730,8 @@
     },
     {
       "path": "application/views/mobile/report_viewer.php",
-      "hash": "63ca428b95409253579cbb9c930c532c263c1db97fea57703fcb61b432805451",
-      "size": 24578
+      "hash": "569d76992987a8a1638b673f2aaf38f26e4f427f3ae0893a4dc5c7846fea47e9",
+      "size": 26710
     },
     {
       "path": "application/views/mobile/reports.php",
@@ -9745,8 +9760,8 @@
     },
     {
       "path": "application/views/mobile/statement.php",
-      "hash": "9d30197584d05290d6b00451770cd49d64f191bcdf65599cd3e9a83115f2673e",
-      "size": 7700
+      "hash": "0c4467a0a6114c997c1f25e3f5c3f0fa6abceb2eb35a8ec91ff13b1786ddf4e4",
+      "size": 8864
     },
     {
       "path": "application/views/mobile/stock.php",
@@ -9955,8 +9970,8 @@
     },
     {
       "path": "application/views/mobile/online_store/settings.php",
-      "hash": "7f2873787cb45cb60535cf807b2dbfdee24ec553f6c611ba42f8338b1c8b32f0",
-      "size": 19159
+      "hash": "81d45fd6a258a8d25e4c28a0f98826b8740bc36bfec8faa1c747492464580b2f",
+      "size": 19410
     },
     {
       "path": "application/views/mobile/online_store/subscribers.php",
@@ -10065,8 +10080,8 @@
     },
     {
       "path": "application/views/online_store/appearance.php",
-      "hash": "ac8fa86483aab56c565b4fed9fb65bed9a98d01dd05737459be16000f8da6aea",
-      "size": 16579
+      "hash": "4c9c82bd3cc423b22eafce4fa24238e61f05bbd97d88caabd88dc90a63808472",
+      "size": 17459
     },
     {
       "path": "application/views/online_store/banner_form.php",
@@ -10090,7 +10105,7 @@
     },
     {
       "path": "application/views/online_store/domains.php",
-      "hash": "541f137a6b99b81ca5651f94ac665275254a717c8ef58cd39180079b20b00181",
+      "hash": "b27022acd644e74dd49f010f30527efc1b0362793c4bba9b45bd0d992abd8b47",
       "size": 11231
     },
     {
@@ -10140,8 +10155,8 @@
     },
     {
       "path": "application/views/online_store/settings.php",
-      "hash": "b0dd59ec4172aff4a6e7e773386d4c5cbf5914e650cccf7f5747ea578b749b9d",
-      "size": 18354
+      "hash": "4878199b66002ce5050dc0a9eec6c049e0058cd4080ac4b0741f8b4991d0e5ad",
+      "size": 18588
     },
     {
       "path": "application/views/online_store/subscribers.php",
@@ -10245,8 +10260,8 @@
     },
     {
       "path": "application/views/operations/production_batch.php",
-      "hash": "a2f712b0729598a1816b32f0df5e55f308955a1165c4c18b60b914417261434c",
-      "size": 15574
+      "hash": "9dbc5c8f4ccb742fae33bcc305a99008adff472366d2503c75646122b8929ef3",
+      "size": 25712
     },
     {
       "path": "application/views/operations/production_schedule.php",
@@ -10455,8 +10470,8 @@
     },
     {
       "path": "application/views/reports/desktop/profit_loss.php",
-      "hash": "b820536ce6fc148b7f2efa7a55a3612990bba706dc205ae982f590fff72eaefa",
-      "size": 14839
+      "hash": "2d30b0a691809b8551cac07e3cd74f79da0d6407cab7fed9f36770a85cf8607b",
+      "size": 15065
     },
     {
       "path": "application/views/reports/desktop/purchase.php",
@@ -10752,6 +10767,26 @@
       "path": "application/views/themes/agro/store.php",
       "hash": "61116fc73182ffd9438379d375db05d6ab06fc12c8232729a643b04f52b6590e",
       "size": 1764
+    },
+    {
+      "path": "application/views/themes/atelier_essence/header.php",
+      "hash": "83983136180e68ed838f52afe26cbd42c9e158074d37d15068fd02fc74f5e035",
+      "size": 164
+    },
+    {
+      "path": "application/views/themes/atelier_essence/product_detail.php",
+      "hash": "1ec4ff2c454dea1c3e0d43b9107e80f7e4513db0ba5aeed0a1380f8d63415f15",
+      "size": 172
+    },
+    {
+      "path": "application/views/themes/atelier_essence/products.php",
+      "hash": "e122271a7cb4608e032bc7b09a73e3d7825df1a0c89347a55fbc769277d91ef2",
+      "size": 166
+    },
+    {
+      "path": "application/views/themes/atelier_essence/store.php",
+      "hash": "08a286f0b1143210b049f08d26a24b73e9f8b46daf9000f3966bfdc132b0134a",
+      "size": 163
     },
     {
       "path": "application/views/themes/auto_garage/store.php",
@@ -11209,6 +11244,26 @@
       "size": 1066
     },
     {
+      "path": "application/views/themes/maison_blanche/header.php",
+      "hash": "5733579edd2b13725c72938680d64161d1e5de5c7d2287b227350af9aa62e955",
+      "size": 163
+    },
+    {
+      "path": "application/views/themes/maison_blanche/product_detail.php",
+      "hash": "2b821aaacd58c58f325727e5788ef0a56d2af014678044008e9de1da8d892780",
+      "size": 171
+    },
+    {
+      "path": "application/views/themes/maison_blanche/products.php",
+      "hash": "145f74be5dd21d3ebf474effa36854feec22b4c489bea774e80e2b24e8a657cf",
+      "size": 165
+    },
+    {
+      "path": "application/views/themes/maison_blanche/store.php",
+      "hash": "682b0116d09e7fd712fa860ffade668a97cbb8ff48054e63b70c298037d8c00d",
+      "size": 162
+    },
+    {
       "path": "application/views/themes/market_fresh/header.php",
       "hash": "415a772da5ec41a70bc4f8dc3f0ea8105862198df4cc0da0822502bc1edd0782",
       "size": 14449
@@ -11229,6 +11284,26 @@
       "size": 61462
     },
     {
+      "path": "application/views/themes/noir_parfum/header.php",
+      "hash": "9311dde4db994481c5b9941337784843bdad4cfacea596fc5ff4389fcd482ba1",
+      "size": 152
+    },
+    {
+      "path": "application/views/themes/noir_parfum/product_detail.php",
+      "hash": "91270144b13e52e0359486e3aa262c55e9f3cdce2c76ed01616f519db22f71ef",
+      "size": 160
+    },
+    {
+      "path": "application/views/themes/noir_parfum/products.php",
+      "hash": "1edcc8d9b75e359dd980e1ec5e54f16f35206235b5a44264d139cc8c7a86f1e9",
+      "size": 154
+    },
+    {
+      "path": "application/views/themes/noir_parfum/store.php",
+      "hash": "73a3761e0fe2738c111343071621ada1af6f232e4d25622d990e0cb8593d1b3a",
+      "size": 151
+    },
+    {
       "path": "application/views/themes/online_store/home.php",
       "hash": "ee3d6e966a2e25d021dcce4216b9946921fa4d96cfd21101126c3df35aa75c59",
       "size": 1704
@@ -11237,6 +11312,51 @@
       "path": "application/views/themes/online_store/store.php",
       "hash": "61116fc73182ffd9438379d375db05d6ab06fc12c8232729a643b04f52b6590e",
       "size": 1764
+    },
+    {
+      "path": "application/views/themes/oud_royale/header.php",
+      "hash": "ddf61ba704fe57b21e1f09f72dc784d36a194b96c4ed17ae40895c3cdf871854",
+      "size": 154
+    },
+    {
+      "path": "application/views/themes/oud_royale/product_detail.php",
+      "hash": "0556f1a1d972f843d7278393858fe28bc5f2cae33b71fa9ff2473da757c0b45e",
+      "size": 162
+    },
+    {
+      "path": "application/views/themes/oud_royale/products.php",
+      "hash": "990e7954dbdf7f9f35ae154f4da8c87d62695c0ffab24a6287f6a372727fa550",
+      "size": 156
+    },
+    {
+      "path": "application/views/themes/oud_royale/store.php",
+      "hash": "660403ac0f4ff362a90edf090b70149944afba27526d9ddbb3273288bb3ce13b",
+      "size": 153
+    },
+    {
+      "path": "application/views/themes/parfum_core/_skin.php",
+      "hash": "a7a4c5a4b2933a0ea12abb63343af931d8649e287291918546c5bb24e6762915",
+      "size": 9712
+    },
+    {
+      "path": "application/views/themes/parfum_core/header.php",
+      "hash": "7c3c86089d19db78bd2e00021fdc08a5337ab7bc566931def5d0b72ab67d3821",
+      "size": 48546
+    },
+    {
+      "path": "application/views/themes/parfum_core/product_detail.php",
+      "hash": "756ff5acccfdcaa7c6104409062e63218e0acb56b2838787f0c5018ab2ded63c",
+      "size": 7495
+    },
+    {
+      "path": "application/views/themes/parfum_core/products.php",
+      "hash": "0184c89b8634133be0598cdd6e59dc071b80014ad5ba38019fbb2dd131a8251c",
+      "size": 3782
+    },
+    {
+      "path": "application/views/themes/parfum_core/store.php",
+      "hash": "6f9b1b0e8d652e6ccd6033fab65383feddc2e29fbb3342e2c3aed0a1428a9252",
+      "size": 22870
     },
     {
       "path": "application/views/themes/pharma_care/header.php",
@@ -11320,8 +11440,8 @@
     },
     {
       "path": "application/views/themes/shared/footer.php",
-      "hash": "eaa748f94a435c4834e49106af3f49455d191cd4525ab624ffe5dfa9774e6358",
-      "size": 15087
+      "hash": "7d5654a48ccdf201d57d51bfebfa76117d5e2bcd2d95563ca8247ed10f72a58e",
+      "size": 15639
     },
     {
       "path": "application/views/themes/shared/header.php",
@@ -26542,6 +26662,11 @@
     "4.0.9.24_audit_trail.sql",
     "4.0.9.24_perfumery_module.sql",
     "4.0.9.25_monnify_integration.sql",
+    "4.0.9.26_bottling_runs.sql",
+    "4.0.9.26_parfum_themes.sql",
+    "4.0.9.27_bottling_sku_link.sql",
+    "4.0.9.28_customer_notes.sql",
+    "4.0.9.29_storefront_settings_columns.sql",
     "4.0.9.3_sku_limit.sql",
     "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
     "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
@@ -26558,6 +26683,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "57261f10993529c9ecfc34749203cc60ac8f1afa97955d335a8b2e7f6735a623",
-  "changelog": "Monnify integration: collections (checkout + pay-with-transfer), disbursements with name enquiry, settings screen, webhook callback, POS transfer-account flow."
+  "signature": "7fdf1b2989ed2b189be75ff0708e8ce71492a3da617ccae830a3cf44e83892c0",
+  "changelog": "Bottling runs for perfumery (fill bottles from batch bulk, stock-guarded), 4 parfum storefront themes, customer notes, db_storefront_settings column backfill, installer path fixes."
 }

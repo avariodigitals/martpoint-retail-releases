@@ -715,7 +715,7 @@ CREATE TABLE `db_customers` (
 
 INSERT INTO `db_customers` (`id`, `store_id`, `count_id`, `customer_code`, `customer_name`, `mobile`, `phone`, `email`, `gstin`, `tax_number`, `vatin`, `opening_balance`, `sales_due`, `sales_return_due`, `country_id`, `state_id`, `city`, `postcode`, `address`, `ship_country_id`, `ship_state_id`, `ship_city`, `ship_postcode`, `ship_address`, `system_ip`, `system_name`, `created_date`, `created_time`, `created_by`, `company_id`, `status`, `location_link`, `attachment_1`, `price_level_type`, `price_level`, `delete_bit`, `tot_advance`, `credit_limit`, `payment_terms_days`, `shippingaddress_id`) VALUES
 (1, 1, NULL, 'CU0001', 'Walk-in customer', NULL, '', '', '', '', NULL, 0.0000, 0.0000, 0.0000, 1, NULL, NULL, '', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2019-01-01', '10:55:54 pm', 'admin', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, NULL, -1.0000, 0, 1),
-(2, 2, 1, 'CU/02/0001', 'Walk-in customer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0.6000, 0.0000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2021-02-12', '05:53:37 pm', '', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, 0.0000, -1.0000, 0, 2);
+(2, 2, 1, 'CU/02/0001', 'Walk-in customer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0.6000, 0.0000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2026-01-05', '05:53:37 pm', '', NULL, 1, NULL, NULL, 'Increase', 0.0000, 1, 0.0000, -1.0000, 0, 2);
 
 -- --------------------------------------------------------
 
@@ -919,7 +919,7 @@ CREATE TABLE `db_instamojo` (
 --
 
 INSERT INTO `db_instamojo` (`id`, `store_id`, `sandbox`, `api_key`, `api_token`, `updated_at`, `updated_by`, `status`) VALUES
-(1, 1, 1, '', '', '2021-02-22', 'Admin', 1);
+(1, 1, 1, '', '', '2026-02-22', 'Admin', 1);
 
 -- --------------------------------------------------------
 
@@ -1040,9 +1040,9 @@ CREATE TABLE `db_items` (
 --
 
 INSERT INTO `db_items` (`id`, `store_id`, `count_id`, `item_code`, `item_name`, `category_id`, `sku`, `hsn`, `sac`, `unit_id`, `alert_qty`, `brand_id`, `lot_number`, `expire_date`, `price`, `tax_id`, `purchase_price`, `tax_type`, `profit_margin`, `sales_price`, `stock`, `item_image`, `system_ip`, `system_name`, `created_date`, `created_time`, `created_by`, `company_id`, `status`, `discount_type`, `discount`, `service_bit`, `package_bit`, `commission_type`, `commission_value`, `seller_points`, `custom_barcode`, `description`, `item_group`, `parent_id`, `variant_id`, `child_bit`, `mrp`) VALUES
-(1, 2, 1, 'IT020001', 'Sandisk 32GB USB 2.0 Flash Drive', 82, '', '', '', 61, 0, 0, NULL, NULL, 1.5000, 149, 1.5000, 'Inclusive', 86.67, 2.8000, 41.00, NULL, '37.28.46.147', 'dynamic.isp.ooredoo.om', '2022-08-09', '12:00:19 pm', 'Chris', NULL, 1, 'Percentage', 0.00, 0, 0, 'none', 0.00, 0.00, '619659069193', '', 'Single', NULL, NULL, 0, 0.0000),
-(2, 2, 2, 'IT020002', 'Imation 64GB Flash Drive', 82, '', '', '', 61, 0, 0, NULL, NULL, 2.0000, 149, 2.0000, 'Inclusive', 95.00, 3.9000, 120.00, NULL, '37.28.46.147', 'dynamic.isp.ooredoo.om', '2022-08-09', '01:38:51 pm', 'Chris', NULL, 1, 'Percentage', 0.00, 0, 0, 'none', 0.00, 0.00, '3536403352219', '', 'Single', NULL, NULL, 0, 0.0000),
-(3, 2, 3, 'IT020003', 'Sandisk Flash Drive USB C', 82, '', '', '', 61, 0, 0, NULL, NULL, 2.5000, 149, 2.5000, 'Inclusive', 100.00, 5.0000, 67.00, NULL, '5.21.237.233', '5.21.237.233', '2022-08-10', '09:23:28 am', 'Chris', NULL, 1, 'Percentage', 0.00, 0, 0, 'none', 0.00, 0.00, '619659142049', '', 'Single', NULL, NULL, 0, 0.0000);
+(1, 2, 1, 'IT020001', 'Sandisk 32GB USB 2.0 Flash Drive', 82, '', '', '', 61, 0, 0, NULL, NULL, 1.5000, 149, 1.5000, 'Inclusive', 86.67, 2.8000, 41.00, NULL, '37.28.46.147', 'dynamic.isp.ooredoo.om', '2026-01-05', '12:00:19 pm', 'Matthew', NULL, 1, 'Percentage', 0.00, 0, 0, 'none', 0.00, 0.00, '619659069193', '', 'Single', NULL, NULL, 0, 0.0000),
+(2, 2, 2, 'IT020002', 'Imation 64GB Flash Drive', 82, '', '', '', 61, 0, 0, NULL, NULL, 2.0000, 149, 2.0000, 'Inclusive', 95.00, 3.9000, 120.00, NULL, '37.28.46.147', 'dynamic.isp.ooredoo.om', '2026-01-05', '01:38:51 pm', 'Matthew', NULL, 1, 'Percentage', 0.00, 0, 0, 'none', 0.00, 0.00, '3536403352219', '', 'Single', NULL, NULL, 0, 0.0000),
+(3, 2, 3, 'IT020003', 'Sandisk Flash Drive USB C', 82, '', '', '', 61, 0, 0, NULL, NULL, 2.5000, 149, 2.5000, 'Inclusive', 100.00, 5.0000, 67.00, NULL, '5.21.237.233', '5.21.237.233', '2026-01-06', '09:23:28 am', 'Matthew', NULL, 1, 'Percentage', 0.00, 0, 0, 'none', 0.00, 0.00, '619659142049', '', 'Single', NULL, NULL, 0, 0.0000);
 
 -- --------------------------------------------------------
 
@@ -1102,9 +1102,9 @@ CREATE TABLE `db_package` (
 --
 
 INSERT INTO `db_package` (`id`, `store_id`, `package_type`, `package_code`, `package_name`, `description`, `monthly_price`, `annual_price`, `trial_days`, `max_users`, `max_items`, `max_invoices`, `max_warehouses`, `expire_date`, `system_ip`, `system_name`, `created_date`, `created_time`, `created_by`, `status`) VALUES
-(1, 1, 'Free', NULL, 'Free', 'Test description', 0.00, 0.00, 10, 2, 20, 20, 2, '2021-01-14', '127.0.0.1', 'LAPTOP-I5OUIM4R', '2021-01-13', '06:37:21 pm', 'admin', 1),
-(2, 1, 'Paid', NULL, 'Regular', 'Test description', 250.00, 2000.00, 15, 20, 200, 200, 20, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2021-01-13', '06:39:23 pm', 'admin', 1),
-(3, 1, 'Paid', NULL, 'Ultimate', 'Description', 500.00, 5000.00, 15, -1, -1, -1, -1, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2021-01-24', '12:35:30 pm', 'admin', 1);
+(1, 1, 'Free', NULL, 'Free', 'Test description', 0.00, 0.00, 10, 2, 20, 20, 2, '2026-01-14', '127.0.0.1', 'LAPTOP-I5OUIM4R', '2026-01-13', '06:37:21 pm', 'admin', 1),
+(2, 1, 'Paid', NULL, 'Regular', 'Test description', 250.00, 2000.00, 15, 20, 200, 200, 20, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2026-01-13', '06:39:23 pm', 'admin', 1),
+(3, 1, 'Paid', NULL, 'Ultimate', 'Description', 500.00, 5000.00, 15, -1, -1, -1, -1, NULL, '127.0.0.1', 'LAPTOP-I5OUIM4R', '2026-01-24', '12:35:30 pm', 'admin', 1);
 
 -- --------------------------------------------------------
 
@@ -1147,7 +1147,7 @@ CREATE TABLE `db_paypal` (
 --
 
 INSERT INTO `db_paypal` (`id`, `store_id`, `sandbox`, `email`, `updated_at`, `updated_by`, `status`) VALUES
-(1, 1, 1, '', '2021-02-22', 'Admin', 1);
+(1, 1, 1, '', '2026-02-22', 'Admin', 1);
 
 -- --------------------------------------------------------
 
@@ -1184,173 +1184,6 @@ CREATE TABLE `db_permissions` (
 --
 
 INSERT INTO `db_permissions` (`id`, `store_id`, `role_id`, `permissions`) VALUES
-(4414, 1, 17, 'items_add'),
-(4415, 1, 17, 'items_edit'),
-(4416, 1, 17, 'items_delete'),
-(4417, 1, 17, 'items_view'),
-(4418, 1, 17, 'import_items'),
-(4419, 1, 17, 'brand_add'),
-(4420, 1, 17, 'brand_edit'),
-(4421, 1, 17, 'brand_delete'),
-(4422, 1, 17, 'brand_view'),
-(4423, 1, 17, 'customers_add'),
-(4424, 1, 17, 'customers_edit'),
-(4425, 1, 17, 'customers_delete'),
-(4426, 1, 17, 'customers_view'),
-(4427, 1, 17, 'sales_add'),
-(4428, 1, 17, 'sales_edit'),
-(4429, 1, 17, 'sales_delete'),
-(4430, 1, 17, 'sales_view'),
-(4431, 1, 17, 'sales_payment_view'),
-(4432, 1, 17, 'sales_payment_add'),
-(4433, 1, 17, 'sales_payment_delete'),
-(4434, 1, 17, 'sales_report'),
-(4435, 1, 17, 'sales_payments_report'),
-(4436, 1, 17, 'items_category_add'),
-(4437, 1, 17, 'items_category_edit'),
-(4438, 1, 17, 'items_category_delete'),
-(4439, 1, 17, 'items_category_view'),
-(4440, 1, 17, 'print_labels'),
-(4441, 1, 17, 'dashboard_view'),
-(4442, 1, 17, 'dashboard_info_box_1'),
-(4443, 1, 17, 'dashboard_info_box_2'),
-(4444, 1, 17, 'dashboard_pur_sal_chart'),
-(4445, 1, 17, 'dashboard_recent_items'),
-(4446, 1, 17, 'dashboard_stock_alert'),
-(4447, 1, 17, 'dashboard_trending_items_chart'),
-(4448, 1, 17, 'sales_return_add'),
-(4449, 1, 17, 'sales_return_edit'),
-(4450, 1, 17, 'sales_return_delete'),
-(4451, 1, 17, 'sales_return_view'),
-(4452, 1, 17, 'sales_return_report'),
-(4453, 1, 17, 'sales_return_payment_view'),
-(4454, 1, 17, 'sales_return_payment_add'),
-(4455, 1, 17, 'sales_return_payment_delete'),
-(4456, 1, 17, 'payment_types_add'),
-(4457, 1, 17, 'payment_types_edit'),
-(4458, 1, 17, 'payment_types_delete'),
-(4459, 1, 17, 'payment_types_view'),
-(4460, 1, 17, 'import_customers'),
-(4461, 1, 17, 'stock_transfer_add'),
-(4462, 1, 17, 'stock_transfer_edit'),
-(4463, 1, 17, 'stock_transfer_delete'),
-(4464, 1, 17, 'stock_transfer_view'),
-(4465, 1, 17, 'seller_points_report'),
-(4466, 1, 17, 'services_add'),
-(4467, 1, 17, 'services_edit'),
-(4468, 1, 17, 'services_delete'),
-(4469, 1, 17, 'services_view'),
-(4470, 1, 17, 'import_services'),
-(4471, 1, 17, 'stock_adjustment_add'),
-(4472, 1, 17, 'stock_adjustment_edit'),
-(4473, 1, 17, 'stock_adjustment_delete'),
-(4474, 1, 17, 'stock_adjustment_view'),
-(4475, 1, 17, 'variant_add'),
-(4476, 1, 17, 'variant_edit'),
-(4477, 1, 17, 'variant_delete'),
-(4478, 1, 17, 'variant_view'),
-(4479, 1, 17, 'accounts_add'),
-(4480, 1, 17, 'accounts_edit'),
-(4481, 1, 17, 'accounts_delete'),
-(4482, 1, 17, 'accounts_view'),
-(4483, 1, 17, 'money_transfer_add'),
-(4484, 1, 17, 'money_transfer_edit'),
-(4485, 1, 17, 'money_transfer_delete'),
-(4486, 1, 17, 'money_transfer_view'),
-(4487, 1, 17, 'money_deposit_add'),
-(4488, 1, 17, 'money_deposit_edit'),
-(4489, 1, 17, 'money_deposit_delete'),
-(4490, 1, 17, 'money_deposit_view'),
-(4491, 1, 17, 'sales_tax_report'),
-(4492, 1, 18, 'tax_add'),
-(4493, 1, 18, 'tax_edit'),
-(4494, 1, 18, 'tax_delete'),
-(4495, 1, 18, 'tax_view'),
-(4496, 1, 18, 'units_add'),
-(4497, 1, 18, 'units_edit'),
-(4498, 1, 18, 'units_delete'),
-(4499, 1, 18, 'units_view'),
-(4500, 1, 18, 'items_add'),
-(4501, 1, 18, 'items_edit'),
-(4502, 1, 18, 'items_delete'),
-(4503, 1, 18, 'items_view'),
-(4504, 1, 18, 'import_items'),
-(4505, 1, 18, 'brand_add'),
-(4506, 1, 18, 'brand_edit'),
-(4507, 1, 18, 'brand_delete'),
-(4508, 1, 18, 'brand_view'),
-(4509, 1, 18, 'suppliers_add'),
-(4510, 1, 18, 'suppliers_edit'),
-(4511, 1, 18, 'suppliers_delete'),
-(4512, 1, 18, 'suppliers_view'),
-(4513, 1, 18, 'purchase_add'),
-(4514, 1, 18, 'purchase_edit'),
-(4515, 1, 18, 'purchase_delete'),
-(4516, 1, 18, 'purchase_view'),
-(4517, 1, 18, 'purchase_report'),
-(4518, 1, 18, 'purchase_payments_report'),
-(4519, 1, 18, 'items_category_add'),
-(4520, 1, 18, 'items_category_edit'),
-(4521, 1, 18, 'items_category_delete'),
-(4522, 1, 18, 'items_category_view'),
-(4523, 1, 18, 'print_labels'),
-(4524, 1, 18, 'dashboard_view'),
-(4525, 1, 18, 'dashboard_info_box_1'),
-(4526, 1, 18, 'dashboard_info_box_2'),
-(4527, 1, 18, 'dashboard_pur_sal_chart'),
-(4528, 1, 18, 'dashboard_recent_items'),
-(4529, 1, 18, 'dashboard_stock_alert'),
-(4530, 1, 18, 'dashboard_trending_items_chart'),
-(4531, 1, 18, 'purchase_return_add'),
-(4532, 1, 18, 'purchase_return_edit'),
-(4533, 1, 18, 'purchase_return_delete'),
-(4534, 1, 18, 'purchase_return_view'),
-(4535, 1, 18, 'purchase_return_report'),
-(4536, 1, 18, 'purchase_return_payment_view'),
-(4537, 1, 18, 'purchase_return_payment_add'),
-(4538, 1, 18, 'purchase_return_payment_delete'),
-(4539, 1, 18, 'purchase_payment_view'),
-(4540, 1, 18, 'purchase_payment_add'),
-(4541, 1, 18, 'purchase_payment_delete'),
-(4542, 1, 18, 'payment_types_add'),
-(4543, 1, 18, 'payment_types_edit'),
-(4544, 1, 18, 'payment_types_delete'),
-(4545, 1, 18, 'payment_types_view'),
-(4546, 1, 18, 'import_suppliers'),
-(4547, 1, 18, 'stock_transfer_add'),
-(4548, 1, 18, 'stock_transfer_edit'),
-(4549, 1, 18, 'stock_transfer_delete'),
-(4550, 1, 18, 'stock_transfer_view'),
-(4551, 1, 18, 'warehouse_add'),
-(4552, 1, 18, 'warehouse_edit'),
-(4553, 1, 18, 'warehouse_delete'),
-(4554, 1, 18, 'warehouse_view'),
-(4555, 1, 18, 'services_add'),
-(4556, 1, 18, 'services_edit'),
-(4557, 1, 18, 'services_delete'),
-(4558, 1, 18, 'services_view'),
-(4559, 1, 18, 'import_services'),
-(4560, 1, 18, 'stock_adjustment_add'),
-(4561, 1, 18, 'stock_adjustment_edit'),
-(4562, 1, 18, 'stock_adjustment_delete'),
-(4563, 1, 18, 'stock_adjustment_view'),
-(4564, 1, 18, 'variant_add'),
-(4565, 1, 18, 'variant_edit'),
-(4566, 1, 18, 'variant_delete'),
-(4567, 1, 18, 'variant_view'),
-(4568, 1, 18, 'accounts_add'),
-(4569, 1, 18, 'accounts_edit'),
-(4570, 1, 18, 'accounts_delete'),
-(4571, 1, 18, 'accounts_view'),
-(4572, 1, 18, 'money_transfer_add'),
-(4573, 1, 18, 'money_transfer_edit'),
-(4574, 1, 18, 'money_transfer_delete'),
-(4575, 1, 18, 'money_transfer_view'),
-(4576, 1, 18, 'money_deposit_add'),
-(4577, 1, 18, 'money_deposit_edit'),
-(4578, 1, 18, 'money_deposit_delete'),
-(4579, 1, 18, 'money_deposit_view'),
-(4580, 1, 18, 'purchase_tax_report'),
 (5818, 1, 2, 'users_add'),
 (5819, 1, 2, 'users_edit'),
 (5820, 1, 2, 'users_delete'),
@@ -1512,170 +1345,6 @@ INSERT INTO `db_permissions` (`id`, `store_id`, `role_id`, `permissions`) VALUES
 (5976, 1, 2, 'cust_adv_payments_edit'),
 (5977, 1, 2, 'cust_adv_payments_delete'),
 (5978, 1, 2, 'cust_adv_payments_view'),
-(5999, 2, 28, 'cust_adv_payments_add'),
-(6000, 2, 28, 'cust_adv_payments_edit'),
-(6001, 2, 28, 'cust_adv_payments_delete'),
-(6002, 2, 28, 'cust_adv_payments_view'),
-(6011, 2, 29, 'users_add'),
-(6012, 2, 29, 'users_edit'),
-(6013, 2, 29, 'users_delete'),
-(6014, 2, 29, 'users_view'),
-(6015, 2, 29, 'tax_add'),
-(6016, 2, 29, 'tax_edit'),
-(6017, 2, 29, 'tax_delete'),
-(6018, 2, 29, 'tax_view'),
-(6019, 2, 29, 'store_edit'),
-(6020, 2, 29, 'units_add'),
-(6021, 2, 29, 'units_edit'),
-(6022, 2, 29, 'units_delete'),
-(6023, 2, 29, 'units_view'),
-(6024, 2, 29, 'roles_add'),
-(6025, 2, 29, 'roles_edit'),
-(6026, 2, 29, 'roles_delete'),
-(6027, 2, 29, 'roles_view'),
-(6028, 2, 29, 'expense_add'),
-(6029, 2, 29, 'expense_edit'),
-(6030, 2, 29, 'expense_delete'),
-(6031, 2, 29, 'expense_view'),
-(6032, 2, 29, 'items_add'),
-(6033, 2, 29, 'items_edit'),
-(6034, 2, 29, 'items_delete'),
-(6035, 2, 29, 'items_view'),
-(6036, 2, 29, 'import_items'),
-(6037, 2, 29, 'brand_add'),
-(6038, 2, 29, 'brand_edit'),
-(6039, 2, 29, 'brand_delete'),
-(6040, 2, 29, 'brand_view'),
-(6041, 2, 29, 'suppliers_add'),
-(6042, 2, 29, 'suppliers_edit'),
-(6043, 2, 29, 'suppliers_delete'),
-(6044, 2, 29, 'suppliers_view'),
-(6045, 2, 29, 'customers_add'),
-(6046, 2, 29, 'customers_edit'),
-(6047, 2, 29, 'customers_delete'),
-(6048, 2, 29, 'customers_view'),
-(6049, 2, 29, 'purchase_add'),
-(6050, 2, 29, 'purchase_edit'),
-(6051, 2, 29, 'purchase_delete'),
-(6052, 2, 29, 'purchase_view'),
-(6053, 2, 29, 'sales_add'),
-(6054, 2, 29, 'sales_edit'),
-(6055, 2, 29, 'sales_delete'),
-(6056, 2, 29, 'sales_view'),
-(6057, 2, 29, 'sales_payment_view'),
-(6058, 2, 29, 'sales_payment_add'),
-(6059, 2, 29, 'sales_payment_delete'),
-(6060, 2, 29, 'sales_report'),
-(6061, 2, 29, 'purchase_report'),
-(6062, 2, 29, 'expense_report'),
-(6063, 2, 29, 'profit_report'),
-(6064, 2, 29, 'stock_report'),
-(6065, 2, 29, 'item_sales_report'),
-(6066, 2, 29, 'purchase_payments_report'),
-(6067, 2, 29, 'sales_payments_report'),
-(6068, 2, 29, 'items_category_add'),
-(6069, 2, 29, 'items_category_edit'),
-(6070, 2, 29, 'items_category_delete'),
-(6071, 2, 29, 'items_category_view'),
-(6072, 2, 29, 'print_labels'),
-(6073, 2, 29, 'expense_category_add'),
-(6074, 2, 29, 'expense_category_edit'),
-(6075, 2, 29, 'expense_category_delete'),
-(6076, 2, 29, 'expense_category_view'),
-(6077, 2, 29, 'dashboard_view'),
-(6078, 2, 29, 'dashboard_info_box_1'),
-(6079, 2, 29, 'dashboard_info_box_2'),
-(6080, 2, 29, 'dashboard_pur_sal_chart'),
-(6081, 2, 29, 'dashboard_recent_items'),
-(6082, 2, 29, 'dashboard_stock_alert'),
-(6083, 2, 29, 'dashboard_trending_items_chart'),
-(6084, 2, 29, 'send_sms'),
-(6085, 2, 29, 'sms_template_edit'),
-(6086, 2, 29, 'sms_template_view'),
-(6087, 2, 29, 'sms_api_view'),
-(6088, 2, 29, 'sms_api_edit'),
-(6089, 2, 29, 'purchase_return_add'),
-(6090, 2, 29, 'purchase_return_edit'),
-(6091, 2, 29, 'purchase_return_delete'),
-(6092, 2, 29, 'purchase_return_view'),
-(6093, 2, 29, 'purchase_return_report'),
-(6094, 2, 29, 'sales_return_add'),
-(6095, 2, 29, 'sales_return_edit'),
-(6096, 2, 29, 'sales_return_delete'),
-(6097, 2, 29, 'sales_return_view'),
-(6098, 2, 29, 'sales_return_report'),
-(6099, 2, 29, 'sales_return_payment_view'),
-(6100, 2, 29, 'sales_return_payment_add'),
-(6101, 2, 29, 'sales_return_payment_delete'),
-(6102, 2, 29, 'purchase_return_payment_view'),
-(6103, 2, 29, 'purchase_return_payment_add'),
-(6104, 2, 29, 'purchase_return_payment_delete'),
-(6105, 2, 29, 'purchase_payment_view'),
-(6106, 2, 29, 'purchase_payment_add'),
-(6107, 2, 29, 'purchase_payment_delete'),
-(6108, 2, 29, 'payment_types_add'),
-(6109, 2, 29, 'payment_types_edit'),
-(6110, 2, 29, 'payment_types_delete'),
-(6111, 2, 29, 'payment_types_view'),
-(6112, 2, 29, 'import_customers'),
-(6113, 2, 29, 'import_suppliers'),
-(6114, 2, 29, 'stock_transfer_add'),
-(6115, 2, 29, 'stock_transfer_edit'),
-(6116, 2, 29, 'stock_transfer_delete'),
-(6117, 2, 29, 'stock_transfer_view'),
-(6118, 2, 29, 'warehouse_add'),
-(6119, 2, 29, 'warehouse_edit'),
-(6120, 2, 29, 'warehouse_delete'),
-(6121, 2, 29, 'warehouse_view'),
-(6122, 2, 29, 'supplier_items_report'),
-(6123, 2, 29, 'seller_points_report'),
-(6124, 2, 29, 'services_add'),
-(6125, 2, 29, 'services_edit'),
-(6126, 2, 29, 'services_delete'),
-(6127, 2, 29, 'services_view'),
-(6128, 2, 29, 'quotation_add'),
-(6129, 2, 29, 'quotation_edit'),
-(6130, 2, 29, 'quotation_delete'),
-(6131, 2, 29, 'quotation_view'),
-(6132, 2, 29, 'import_services'),
-(6133, 2, 29, 'stock_adjustment_add'),
-(6134, 2, 29, 'stock_adjustment_edit'),
-(6135, 2, 29, 'stock_adjustment_delete'),
-(6136, 2, 29, 'stock_adjustment_view'),
-(6137, 2, 29, 'variant_add'),
-(6138, 2, 29, 'variant_edit'),
-(6139, 2, 29, 'variant_delete'),
-(6140, 2, 29, 'variant_view'),
-(6141, 2, 29, 'accounts_add'),
-(6142, 2, 29, 'accounts_edit'),
-(6143, 2, 29, 'accounts_delete'),
-(6144, 2, 29, 'accounts_view'),
-(6145, 2, 29, 'money_transfer_add'),
-(6146, 2, 29, 'money_transfer_edit'),
-(6147, 2, 29, 'money_transfer_delete'),
-(6148, 2, 29, 'money_transfer_view'),
-(6149, 2, 29, 'money_deposit_add'),
-(6150, 2, 29, 'money_deposit_edit'),
-(6151, 2, 29, 'money_deposit_delete'),
-(6152, 2, 29, 'money_deposit_view'),
-(6153, 2, 29, 'sales_tax_report'),
-(6154, 2, 29, 'purchase_tax_report'),
-(6155, 2, 29, 'cash_transactions'),
-(6156, 2, 29, 'show_all_users_sales_invoices'),
-(6157, 2, 29, 'show_all_users_sales_return_invoices'),
-(6158, 2, 29, 'show_all_users_purchase_invoices'),
-(6159, 2, 29, 'show_all_users_purchase_return_invoices'),
-(6160, 2, 29, 'show_all_users_expenses'),
-(6161, 2, 29, 'show_all_users_quotations'),
-(6162, 2, 29, 'smtp_settings'),
-(6163, 2, 29, 'send_email'),
-(6164, 2, 29, 'sms_settings'),
-(6165, 2, 29, 'email_template_edit'),
-(6166, 2, 29, 'email_template_view'),
-(6167, 2, 29, 'cust_adv_payments_add'),
-(6168, 2, 29, 'cust_adv_payments_edit'),
-(6169, 2, 29, 'cust_adv_payments_delete'),
-(6170, 2, 29, 'cust_adv_payments_view'),
 (6179, 1, 2, 'gstr_1_report'),
 (6180, 1, 2, 'gstr_2_report'),
 (6181, 1, 2, 'delivery_sheet_report'),
@@ -1711,7 +1380,8 @@ INSERT INTO `db_permissions` (`id`, `store_id`, `role_id`, `permissions`) VALUES
 (6211, 2, 31, 'sales_return_payment_delete'),
 (6212, 2, 31, 'show_all_users_sales_invoices'),
 (6213, 2, 31, 'show_all_users_sales_return_invoices'),
-(6214, 2, 31, 'show_purchase_price');
+(6214, 2, 31, 'show_purchase_price')
+;
 
 -- --------------------------------------------------------
 
@@ -1755,9 +1425,6 @@ CREATE TABLE `db_purchase` (
 -- Dumping data for table `db_purchase`
 --
 
-INSERT INTO `db_purchase` (`id`, `store_id`, `warehouse_id`, `count_id`, `purchase_code`, `reference_no`, `purchase_date`, `purchase_status`, `supplier_id`, `other_charges_input`, `other_charges_tax_id`, `other_charges_amt`, `discount_to_all_input`, `discount_to_all_type`, `tot_discount_to_all_amt`, `subtotal`, `round_off`, `grand_total`, `purchase_note`, `payment_status`, `paid_amount`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`, `company_id`, `status`, `return_bit`) VALUES
-(1, 2, 2, 1, 'PU0001', '', '2022-08-09', 'Received', 1, NULL, NULL, NULL, NULL, 'in_percentage', NULL, 50.0000, NULL, 50.0000, '', 'Paid', 50.0000, '2022-08-09', '01:59:42 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, NULL),
-(2, 2, 2, 2, 'PU0002', '', '2022-08-10', 'Received', 1, NULL, NULL, NULL, NULL, 'in_percentage', NULL, 50.0000, NULL, 50.0000, '', 'Paid', 50.0000, '2022-08-10', '09:25:01 am', 'Chris', '5.21.237.233', '5.21.237.233', NULL, 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -1802,9 +1469,6 @@ CREATE TABLE `db_purchaseitems` (
 -- Dumping data for table `db_purchaseitems`
 --
 
-INSERT INTO `db_purchaseitems` (`id`, `store_id`, `purchase_id`, `purchase_status`, `item_id`, `purchase_qty`, `price_per_unit`, `tax_type`, `tax_id`, `tax_amt`, `discount_type`, `discount_input`, `discount_amt`, `unit_total_cost`, `total_cost`, `profit_margin_per`, `unit_sales_price`, `status`, `description`) VALUES
-(201, 2, 1, 'Received', 2, 25.00, 2.0000, 'Inclusive', 149, 2.3800, 'Percentage', 0.0000, 0.0000, 2.0000, 50.0000, NULL, NULL, 1, ''),
-(202, 2, 2, 'Received', 3, 20.00, 2.5000, 'Inclusive', 149, 2.3800, 'Percentage', 0.0000, 0.0000, 2.5000, 50.0000, NULL, NULL, 1, '');
 
 -- --------------------------------------------------------
 
@@ -1867,9 +1531,6 @@ CREATE TABLE `db_purchasepayments` (
 -- Dumping data for table `db_purchasepayments`
 --
 
-INSERT INTO `db_purchasepayments` (`id`, `count_id`, `payment_code`, `store_id`, `purchase_id`, `payment_date`, `payment_type`, `payment`, `payment_note`, `system_ip`, `system_name`, `created_time`, `created_date`, `created_by`, `status`, `account_id`, `supplier_id`, `short_code`) VALUES
-(108, 1, 'PP0001', 2, 1, '2022-08-09', 'CASH', 50.0000, '', '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:59:42', '2022-08-09', 'Chris', 1, NULL, 1, NULL),
-(109, 2, 'PP0002', 2, 2, '2022-08-10', 'CASH', 50.0000, '', '5.21.237.233', '5.21.237.233', '09:25:01', '2022-08-10', 'Chris', 1, NULL, 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -2085,65 +1746,6 @@ CREATE TABLE `db_sales` (
 -- Dumping data for table `db_sales`
 --
 
-INSERT INTO `db_sales` (`id`, `store_id`, `warehouse_id`, `init_code`, `count_id`, `sales_code`, `reference_no`, `sales_date`, `due_date`, `sales_status`, `customer_id`, `other_charges_input`, `other_charges_tax_id`, `other_charges_amt`, `discount_to_all_input`, `discount_to_all_type`, `tot_discount_to_all_amt`, `subtotal`, `round_off`, `grand_total`, `sales_note`, `payment_status`, `paid_amount`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`, `company_id`, `pos`, `status`, `return_bit`, `customer_previous_due`, `customer_total_due`, `quotation_id`, `coupon_id`, `coupon_amt`, `invoice_terms`) VALUES
-(1, 2, 2, 'SL/2025/02/', 1, 'SL/2025/02/1', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 5.60, 0.40, 6.0000, '', 'Paid', 6.0000, '2022-08-09', '12:04:50 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(2, 2, 2, 'SL/2025/02/', 2, 'SL/2025/02/2', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 5.60, 0.40, 6.0000, '', 'Partial', 5.4000, '2022-08-09', '12:05:49 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(3, 2, 2, 'SL/2025/02/', 3, 'SL/2025/02/3', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:06:55 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(4, 2, 2, 'SL/2025/02/', 4, 'SL/2025/02/4', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:07:13 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(5, 2, 2, 'SL/2025/02/', 5, 'SL/2025/02/5', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:10:57 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(6, 2, 2, 'SL/2025/02/', 6, 'SL/2025/02/6', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:12:02 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(7, 2, 2, 'SL/2025/02/', 7, 'SL/2025/02/7', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:14:12 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(8, 2, 2, 'SL/2025/02/', 8, 'SL/2025/02/8', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:16:01 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(9, 2, 2, 'SL/2025/02/', 9, 'SL/2025/02/9', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:16:41 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(10, 2, 2, 'SL/2025/02/', 10, 'SL/2025/02/10', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:17:33 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(11, 2, 2, 'SL/2025/02/', 11, 'SL/2025/02/11', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:18:50 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(12, 2, 2, 'SL/2025/02/', 12, 'SL/2025/02/12', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:23:57 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(13, 2, 2, 'SL/2025/02/', 13, 'SL/2025/02/13', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:34:13 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(14, 2, 2, 'SL/2025/02/', 14, 'SL/2025/02/14', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:37:35 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(15, 2, 2, 'SL/2025/02/', 15, 'SL/2025/02/15', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:38:50 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(16, 2, 2, 'SL/2025/02/', 16, 'SL/2025/02/16', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:49:10 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(17, 2, 2, 'SL/2025/02/', 17, 'SL/2025/02/17', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:51:00 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(18, 2, 2, 'SL/2025/02/', 18, 'SL/2025/02/18', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:51:40 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(19, 2, 2, 'SL/2025/02/', 19, 'SL/2025/02/19', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:56:20 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(20, 2, 2, 'SL/2025/02/', 20, 'SL/2025/02/20', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:56:37 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(21, 2, 2, 'SL/2025/02/', 21, 'SL/2025/02/21', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:57:46 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(22, 2, 2, 'SL/2025/02/', 22, 'SL/2025/02/22', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:58:07 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(23, 2, 2, 'SL/2025/02/', 23, 'SL/2025/02/23', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '12:59:18 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(24, 2, 2, 'SL/2025/02/', 24, 'SL/2025/02/24', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:06:31 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(25, 2, 2, 'SL/2025/02/', 25, 'SL/2025/02/25', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:10:17 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(26, 2, 2, 'SL/2025/02/', 26, 'SL/2025/02/26', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:16:45 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(27, 2, 2, 'SL/2025/02/', 27, 'SL/2025/02/27', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:18:51 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(28, 2, 2, 'SL/2025/02/', 28, 'SL/2025/02/28', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:24:13 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(29, 2, 2, 'SL/2025/02/', 29, 'SL/2025/02/29', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:24:37 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(30, 2, 2, 'SL/2025/02/', 30, 'SL/2025/02/30', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:25:33 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(31, 2, 2, 'SL/2025/02/', 31, 'SL/2025/02/31', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:27:11 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(32, 2, 2, 'SL22', 32, 'SL2232', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:29:55 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(33, 2, 2, 'SL22222', 33, 'SL2222233', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:32:12 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(34, 2, 2, 'SL22222', 34, 'SL2222234', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:37:06 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(35, 2, 2, 'SL', 35, 'SL35', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:37:32 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(36, 2, 2, 'SL', 36, 'SL36', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 6.70, 0.30, 7.0000, '', 'Paid', 7.0000, '2022-08-09', '01:39:26 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(37, 2, 2, 'SL', 37, 'SL37', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:41:51 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(38, 2, 2, 'SL', 38, 'SL38', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:42:13 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(39, 2, 2, 'SL', 39, 'SL39', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:44:36 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(40, 2, 2, 'SL', 40, 'SL40', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:46:04 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(41, 2, 2, 'SL', 41, 'SL41', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:46:45 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(42, 2, 2, 'SL', 42, 'SL42', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:49:14 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(43, 2, 2, 'SL', 43, 'SL43', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:49:54 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(44, 2, 2, 'SL', 44, 'SL44', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 6.70, 0.30, 7.0000, '', 'Paid', 7.0000, '2022-08-09', '01:51:01 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(45, 2, 2, 'SL', 45, 'SL45', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:52:46 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(46, 2, 2, 'SL', 46, 'SL46', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:53:20 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(47, 2, 2, 'SL', 47, 'SL47', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '01:53:41 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(48, 2, 2, 'SL', 48, 'SL48', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 6.70, 0.30, 7.0000, '', 'Paid', 7.0000, '2022-08-09', '01:54:18 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(49, 2, 2, 'SL', 49, 'SL49', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '02:26:10 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(50, 2, 2, 'SL', 50, 'SL50', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 6.70, 0.30, 7.0000, '', 'Paid', 7.0000, '2022-08-09', '02:26:25 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(51, 2, 2, 'SL', 51, 'SL51', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '02:30:27 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(52, 2, 2, 'SL', 52, 'SL52', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '02:32:04 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(53, 2, 2, 'SL', 53, 'SL53', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '02:32:25 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(54, 2, 2, 'SL', 54, 'SL54', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '02:32:48 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(55, 2, 2, 'SL', 55, 'SL55', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-09', '02:33:35 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(56, 2, 2, 'SL', 56, 'SL56', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 5.00, 0.00, 5.0000, '', 'Paid', 5.0000, '2022-08-10', '09:23:50 am', 'Chris', '5.21.237.233', '5.21.237.233', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(57, 2, 2, 'SL', 57, 'SL57', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 16.70, 0.30, 17.0000, '', 'Paid', 17.0000, '2022-08-10', '09:55:42 am', 'Chris', '5.21.237.233', '5.21.237.233', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL),
-(58, 2, 2, 'SL', 58, 'SL58', NULL, '2025-02-01', NULL, 'Final', 2, NULL, NULL, NULL, 0.00, 'in_percentage', 0.00, 2.80, 0.20, 3.0000, '', 'Paid', 3.0000, '2022-08-10', '09:55:59 am', 'Chris', '5.21.237.233', '5.21.237.233', NULL, 1, 1, NULL, NULL, NULL, NULL, NULL, 0.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -2189,71 +1791,6 @@ CREATE TABLE `db_salesitems` (
 -- Dumping data for table `db_salesitems`
 --
 
-INSERT INTO `db_salesitems` (`id`, `store_id`, `sales_id`, `sales_status`, `item_id`, `description`, `sales_qty`, `price_per_unit`, `tax_type`, `tax_id`, `tax_amt`, `discount_type`, `discount_input`, `discount_amt`, `unit_total_cost`, `total_cost`, `status`, `seller_points`, `purchase_price`) VALUES
-(556, 2, 1, 'Final', 1, '', 2.00, 2.8000, 'Inclusive', 149, 0.2700, 'Percentage', 0.0000, 0.0000, 2.8000, 5.6000, 1, 0.00, 0.000),
-(557, 2, 2, 'Final', 1, '', 2.00, 2.8000, 'Inclusive', 149, 0.2700, 'Percentage', 0.0000, 0.0000, 2.8000, 5.6000, 1, 0.00, 0.000),
-(558, 2, 3, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(559, 2, 4, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(560, 2, 5, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(561, 2, 6, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(562, 2, 7, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(563, 2, 8, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(564, 2, 9, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(565, 2, 10, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(566, 2, 11, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(567, 2, 12, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(568, 2, 13, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(569, 2, 14, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(570, 2, 15, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(571, 2, 16, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(572, 2, 17, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(573, 2, 18, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(574, 2, 19, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(575, 2, 20, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(576, 2, 21, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(577, 2, 22, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(578, 2, 23, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(579, 2, 24, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(580, 2, 25, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(581, 2, 26, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(582, 2, 27, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(583, 2, 28, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(584, 2, 29, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(585, 2, 30, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(586, 2, 31, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(587, 2, 32, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(588, 2, 33, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(589, 2, 34, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(590, 2, 35, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(591, 2, 36, 'Final', 2, '', 1.00, 3.9000, 'Inclusive', 149, 0.1900, 'Percentage', 0.0000, 0.0000, 3.9000, 3.9000, 1, 0.00, 0.000),
-(592, 2, 36, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(593, 2, 37, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(594, 2, 38, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(595, 2, 39, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(596, 2, 40, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(597, 2, 41, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(598, 2, 42, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(599, 2, 43, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(600, 2, 44, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(601, 2, 44, 'Final', 2, '', 1.00, 3.9000, 'Inclusive', 149, 0.1900, 'Percentage', 0.0000, 0.0000, 3.9000, 3.9000, 1, 0.00, 0.000),
-(602, 2, 45, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(603, 2, 46, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(604, 2, 47, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(605, 2, 48, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(606, 2, 48, 'Final', 2, '', 1.00, 3.9000, 'Inclusive', 149, 0.1900, 'Percentage', 0.0000, 0.0000, 3.9000, 3.9000, 1, 0.00, 0.000),
-(607, 2, 49, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(608, 2, 50, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(609, 2, 50, 'Final', 2, '', 1.00, 3.9000, 'Inclusive', 149, 0.1900, 'Percentage', 0.0000, 0.0000, 3.9000, 3.9000, 1, 0.00, 0.000),
-(610, 2, 51, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(611, 2, 52, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(612, 2, 53, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(613, 2, 54, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(614, 2, 55, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(615, 2, 56, 'Final', 3, '', 1.00, 5.0000, 'Inclusive', 149, 0.2400, 'Percentage', 0.0000, 0.0000, 5.0000, 5.0000, 1, 0.00, 0.000),
-(616, 2, 57, 'Final', 3, '', 2.00, 5.0000, 'Inclusive', 149, 0.4800, 'Percentage', 0.0000, 0.0000, 5.0000, 10.0000, 1, 0.00, 0.000),
-(617, 2, 57, 'Final', 2, '', 1.00, 3.9000, 'Inclusive', 149, 0.1900, 'Percentage', 0.0000, 0.0000, 3.9000, 3.9000, 1, 0.00, 0.000),
-(618, 2, 57, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000),
-(619, 2, 58, 'Final', 1, '', 1.00, 2.8000, 'Inclusive', 149, 0.1300, 'Percentage', 0.0000, 0.0000, 2.8000, 2.8000, 1, 0.00, 0.000);
 
 -- --------------------------------------------------------
 
@@ -2331,66 +1868,6 @@ CREATE TABLE `db_salespayments` (
 -- Dumping data for table `db_salespayments`
 --
 
-INSERT INTO `db_salespayments` (`id`, `count_id`, `payment_code`, `store_id`, `sales_id`, `payment_date`, `payment_type`, `payment`, `payment_note`, `change_return`, `system_ip`, `system_name`, `created_time`, `created_date`, `created_by`, `status`, `account_id`, `customer_id`, `short_code`, `advance_adjusted`, `cheque_number`, `cheque_period`, `cheque_status`) VALUES
-(290, 1, 'SP/2025/02/0001', 2, 1, '2022-08-09', 'CASH', 6.0000, '', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:04:50 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(291, 2, 'SP/2025/02/0002', 2, 2, '2022-08-09', 'CASH', 5.4000, '', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:05:49 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(292, 3, 'SP/2025/02/0003', 2, 3, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:06:55 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(293, 4, 'SP/2025/02/0004', 2, 4, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:07:13 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(294, 5, 'SP/2025/02/0005', 2, 5, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:10:57 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(295, 6, 'SP/2025/02/0006', 2, 6, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:12:02 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(296, 7, 'SP/2025/02/0007', 2, 7, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:14:12 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(297, 8, 'SP/2025/02/0008', 2, 8, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:16:01 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(298, 9, 'SP/2025/02/0009', 2, 9, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:16:41 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(299, 10, 'SP/2025/02/0010', 2, 10, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:17:33 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(300, 11, 'SP/2025/02/0011', 2, 11, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:18:50 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(301, 12, 'SP/2025/02/0012', 2, 12, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:23:57 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(302, 13, 'SP/2025/02/0013', 2, 13, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:34:13 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(303, 14, 'SP/2025/02/0014', 2, 14, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:37:35 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(304, 15, 'SP/2025/02/0015', 2, 15, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:38:50 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(305, 16, 'SP/2025/02/0016', 2, 16, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:49:10 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(306, 17, 'SP/2025/02/0017', 2, 17, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:51:00 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(307, 18, 'SP/2025/02/0018', 2, 18, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:51:40 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(308, 19, 'SP/2025/02/0019', 2, 19, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:56:20 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(309, 20, 'SP/2025/02/0020', 2, 20, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:56:37 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(310, 21, 'SP/2025/02/0021', 2, 21, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:57:46 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(311, 22, 'SP/2025/02/0022', 2, 22, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:58:07 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(312, 23, 'SP/2025/02/0023', 2, 23, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '12:59:18 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(313, 24, 'SP/2025/02/0024', 2, 24, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:06:31 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(314, 25, 'SP/2025/02/0025', 2, 25, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:10:17 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(315, 26, 'SP/2025/02/0026', 2, 26, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:16:45 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(316, 27, 'SP/2025/02/0027', 2, 27, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:18:51 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(317, 28, 'SP/2025/02/0028', 2, 28, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:24:13 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(318, 29, 'SP/2025/02/0029', 2, 29, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:24:37 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(319, 30, 'SP/2025/02/0030', 2, 30, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:25:33 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(320, 31, 'SP/2025/02/0031', 2, 31, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:27:11 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(321, 32, 'SP22/0032', 2, 32, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:29:55 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(322, 33, 'SP22/0033', 2, 33, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:32:12 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(323, 34, 'SP0034', 2, 34, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:37:06 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(324, 35, 'SP0035', 2, 35, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:37:32 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(325, 36, 'SP0036', 2, 36, '2022-08-09', 'Cash', 7.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:39:26 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(326, 37, 'SP0037', 2, 37, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:41:51 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(327, 38, 'SP0038', 2, 38, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:42:13 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(328, 39, 'SP0039', 2, 39, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:44:36 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(329, 40, 'SP0040', 2, 40, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:46:04 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(330, 41, 'SP0041', 2, 41, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:46:45 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(331, 42, 'SP0042', 2, 42, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:49:14 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(332, 43, 'SP0043', 2, 43, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:49:54 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(333, 44, 'SP0044', 2, 44, '2022-08-09', 'Cash', 7.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:51:01 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(334, 45, 'SP0045', 2, 45, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:52:46 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(335, 46, 'SP0046', 2, 46, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:53:20 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(336, 47, 'SP0047', 2, 47, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:53:41 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(337, 48, 'SP0048', 2, 48, '2022-08-09', 'Cash', 7.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '01:54:18 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(338, 49, 'SP0049', 2, 49, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:26:10 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(339, 50, 'SP0050', 2, 50, '2022-08-09', 'Cash', 7.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:26:25 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(340, 51, 'SP0051', 2, 51, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:30:27 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(341, 52, 'SP0052', 2, 52, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:32:04 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(342, 53, 'SP0053', 2, 53, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:32:25 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(343, 54, 'SP0054', 2, 54, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:32:48 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(344, 55, 'SP0055', 2, 55, '2022-08-09', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '37.28.46.147', 'dynamic.isp.ooredoo.om', '02:33:35 pm', '2022-08-09', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(345, 56, 'SP0056', 2, 56, '2022-08-10', 'Cash', 5.0000, 'Paid By Cash', 0.0000, '5.21.237.233', '5.21.237.233', '09:23:50 am', '2022-08-10', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(346, 57, 'SP0057', 2, 57, '2022-08-10', 'CASH', 10.0000, '', 0.0000, '5.21.237.233', '5.21.237.233', '09:55:42 am', '2022-08-10', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(347, 58, 'SP0058', 2, 57, '2022-08-10', 'CASH', 7.0000, '', 0.0000, '5.21.237.233', '5.21.237.233', '09:55:42 am', '2022-08-10', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL),
-(348, 59, 'SP0059', 2, 58, '2022-08-10', 'Cash', 3.0000, 'Paid By Cash', 0.0000, '5.21.237.233', '5.21.237.233', '09:55:59 am', '2022-08-10', 'Chris', 1, NULL, 2, NULL, 0.0000, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -2514,7 +1991,7 @@ CREATE TABLE `db_sitesettings` (
 --
 
 INSERT INTO `db_sitesettings` (`id`, `version`, `site_name`, `logo`, `machine_id`, `domain`, `unique_code`, `update_channel_url`, `sales_target`) VALUES
-(1, '4.0.9.23', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
+(1, '4.0.9.29', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
 
 -- --------------------------------------------------------
 
@@ -2672,10 +2149,6 @@ CREATE TABLE `db_stockadjustment` (
 -- Dumping data for table `db_stockadjustment`
 --
 
-INSERT INTO `db_stockadjustment` (`id`, `store_id`, `warehouse_id`, `reference_no`, `adjustment_date`, `adjustment_note`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`, `status`) VALUES
-(18, 2, 2, NULL, '2022-08-09', NULL, '2022-08-09', '12:00:19 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', 1),
-(19, 2, 2, NULL, '2022-08-09', NULL, '2022-08-09', '01:38:51 pm', 'Chris', '37.28.46.147', 'dynamic.isp.ooredoo.om', 1),
-(20, 2, 2, NULL, '2022-08-10', NULL, '2022-08-10', '09:23:28 am', 'Chris', '5.21.237.233', '5.21.237.233', 1);
 
 -- --------------------------------------------------------
 
@@ -2698,10 +2171,6 @@ CREATE TABLE `db_stockadjustmentitems` (
 -- Dumping data for table `db_stockadjustmentitems`
 --
 
-INSERT INTO `db_stockadjustmentitems` (`id`, `store_id`, `warehouse_id`, `adjustment_id`, `item_id`, `adjustment_qty`, `status`, `description`) VALUES
-(363, 2, 2, 18, 1, 100.00, 1, NULL),
-(364, 2, 2, 19, 2, 100.00, 1, NULL),
-(365, 2, 2, 20, 3, 50.00, 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -2814,7 +2283,7 @@ CREATE TABLE `db_store` (
 
 INSERT INTO `db_store` (`id`, `store_code`, `store_name`, `mobile`, `phone`, `email`, `country`, `state`, `city`, `address`, `postcode`, `location_lat`, `location_lng`, `currency_id`, `currency_placement`, `timezone`, `date_format`, `time_format`, `status`, `user_id`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`) VALUES
 (1, 'ST0001', 'SAAS ADMIN', '+919999999999', '', 'admin@example.com', 'India', 'Karnataka', 'Bengalore', 'Gandhi Road', '', NULL, NULL, 35, 'Left', 'Asia/Kolkata\r\n', 'dd-mm-yyyy', 12, 1, 0, NULL, NULL, NULL, NULL, NULL),
-(2, 'ST0002', 'MartPoint Retail', '+2348000000000', '', 'adminmng@martpoint.com.ng', 'Nigeria', 'Lagos', 'Lagos', 'MartPoint HQ', '101241', NULL, NULL, 21, 'Left', 'Africa/Lagos\r\n', 'dd-mm-yyyy', 12, 1, 0, '2025-01-01', '05:53:37 pm', '', '127.0.0.1', 'LAPTOP-I5OUIM4R');
+(2, 'ST0002', 'MartPoint Retail', '+2348000000000', '', 'adminmng@martpoint.com.ng', 'Nigeria', 'Lagos', 'Lagos', 'MartPoint HQ', '101241', NULL, NULL, 21, 'Left', 'Africa/Lagos\r\n', 'dd-mm-yyyy', 12, 1, 0, '2026-01-05', '05:53:37 pm', '', '127.0.0.1', 'LAPTOP-I5OUIM4R');
 
 -- --------------------------------------------------------
 
@@ -2893,12 +2362,12 @@ CREATE TABLE `db_subscription` (
 --
 
 INSERT INTO `db_subscription` (`id`, `store_id`, `payment_id`, `package_id`, `package_type`, `package_name`, `description`, `subscription_date`, `expire_date`, `trial_days`, `max_users`, `max_warehouses`, `max_items`, `max_invoices`, `payment_by`, `txn_id`, `payment_gross`, `currency_code`, `payer_email`, `payment_status`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`, `package_status`, `payment_type`, `package_count`) VALUES
-(13, 22, NULL, 2, NULL, 'Regular', 'Test description', '2021-01-25', NULL, 15, 20, 20, 200, 200, 'PayPal', '48R18927X78299709', 250.00, 'USD', 'sb-9fy504805522@business.example.com', 'Pending', '2021-01-25', '01:30:45 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
-(14, 22, NULL, 2, 'Paid', 'Regular', 'Test description', '2021-01-25', NULL, 15, 20, 20, 200, 200, 'PayPal', '9M838440FH9266015', 250.00, 'USD', 'sb-9fy504805522@business.example.com', 'Pending', '2021-01-25', '01:32:28 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
-(16, 22, NULL, 2, 'Paid', 'Regular', 'Test description', '2021-01-25', '2021-02-25', 15, 20, 20, 200, 200, 'PayPal', '2PT61144W90213341', 250.00, 'USD', 'sb-9fy504805522@business.example.com', 'Pending', '2021-01-25', '02:00:38 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
-(26, 1, NULL, 1, 'Free', 'Free', 'Test description', '2021-01-25', '2021-02-04', 10, 2, 2, 20, 20, 'Self', '', 0.00, '', '', '', '2021-01-25', '06:32:32 pm', 'admin', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
-(27, 24, NULL, 1, 'Free', 'Free', 'Test description', '2021-02-11', '2021-02-21', 10, 2, 2, 20, 20, 'Self', '', 0.00, '', '', '', '2021-02-11', '03:09:47 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
-(28, 2, NULL, 1, 'Free', 'Free', 'Test description', '2021-02-12', '2021-02-22', 10, 2, 2, 20, 20, 'Self', '', 0.00, '', '', '', '2021-02-12', '06:57:18 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL);
+(13, 22, NULL, 2, NULL, 'Regular', 'Test description', '2026-01-25', NULL, 15, 20, 20, 200, 200, 'PayPal', '48R18927X78299709', 250.00, 'USD', 'sb-9fy504805522@business.example.com', 'Pending', '2026-01-25', '01:30:45 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
+(14, 22, NULL, 2, 'Paid', 'Regular', 'Test description', '2026-01-25', NULL, 15, 20, 20, 200, 200, 'PayPal', '9M838440FH9266015', 250.00, 'USD', 'sb-9fy504805522@business.example.com', 'Pending', '2026-01-25', '01:32:28 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
+(16, 22, NULL, 2, 'Paid', 'Regular', 'Test description', '2026-01-25', '2026-02-25', 15, 20, 20, 200, 200, 'PayPal', '2PT61144W90213341', 250.00, 'USD', 'sb-9fy504805522@business.example.com', 'Pending', '2026-01-25', '02:00:38 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
+(26, 1, NULL, 1, 'Free', 'Free', 'Test description', '2026-01-25', '2026-02-04', 10, 2, 2, 20, 20, 'Self', '', 0.00, '', '', '', '2026-01-25', '06:32:32 pm', 'admin', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
+(27, 24, NULL, 1, 'Free', 'Free', 'Test description', '2026-02-11', '2026-02-21', 10, 2, 2, 20, 20, 'Self', '', 0.00, '', '', '', '2026-02-11', '03:09:47 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL),
+(28, 2, NULL, 1, 'Free', 'Free', 'Test description', '2026-02-05', '2026-03-05', 10, 2, 2, 20, 20, 'Self', '', 0.00, '', '', '', '2026-02-05', '06:57:18 pm', 'Tester', '127.0.0.1', 'LAPTOP-I5OUIM4R', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -2940,7 +2409,7 @@ CREATE TABLE `db_suppliers` (
 --
 
 INSERT INTO `db_suppliers` (`id`, `store_id`, `count_id`, `supplier_code`, `supplier_name`, `mobile`, `phone`, `email`, `gstin`, `tax_number`, `vatin`, `opening_balance`, `purchase_due`, `purchase_return_due`, `country_id`, `state_id`, `city`, `postcode`, `address`, `system_ip`, `system_name`, `created_date`, `created_time`, `created_by`, `company_id`, `status`) VALUES
-(1, 2, 1, 'SU0001', 'EZ tech', '', '', '', '', '', NULL, 0.0000, 0.0000, NULL, 0, 0, '', '', '', '37.28.46.147', 'dynamic.isp.ooredoo.om', '2022-08-09', '01:59:07 pm', 'Chris', NULL, 1);
+(1, 2, 1, 'SU0001', 'EZ tech', '', '', '', '', '', NULL, 0.0000, 0.0000, NULL, 0, 0, '', '', '', '37.28.46.147', 'dynamic.isp.ooredoo.om', '2026-01-05', '01:59:07 pm', 'Matthew', NULL, 1);
 
 -- --------------------------------------------------------
 
@@ -3653,7 +3122,7 @@ CREATE TABLE `db_users` (
 
 INSERT INTO `db_users` (`id`, `store_id`, `username`, `first_name`, `last_name`, `password`, `member_of`, `firstname`, `lastname`, `mobile`, `email`, `photo`, `gender`, `dob`, `country`, `state`, `city`, `address`, `postcode`, `role_name`, `role_id`, `profile_picture`, `created_date`, `created_time`, `created_by`, `system_ip`, `system_name`, `status`, `creater_id`, `updater_id`, `updated_at`) VALUES
 (1, 1, 'master', 'MartPoint', 'Admin', 0x3262616236663435633063653165376335333035363230356464636635316339, '', NULL, NULL, '', 'mng@martpoint.com.ng', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'uploads/users/admin.png', '2019-01-01', '::1', NULL, NULL, NULL, 1, NULL, NULL, NULL),
-(2, 2, 'storeadm', 'Store', 'Admin', 0x3265373631646439323962623739383330393464363963373936366563326164, NULL, NULL, NULL, '9999999999', 'adminmng@martpoint.com.ng', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 2, 'uploads/users/avatar1.png', '2025-01-01', '05:53:37 pm', '', '127.0.0.1', 'LAPTOP-I5OUIM4R', 1, NULL, NULL, NULL);
+(2, 2, 'storeadm', 'Store', 'Admin', 0x3265373631646439323962623739383330393464363963373936366563326164, NULL, NULL, NULL, '9999999999', 'adminmng@martpoint.com.ng', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 2, 'uploads/users/avatar1.png', '2026-01-05', '05:53:37 pm', '', '127.0.0.1', 'LAPTOP-I5OUIM4R', 1, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -3737,7 +3206,7 @@ CREATE TABLE `db_warehouse` (
 
 INSERT INTO `db_warehouse` (`id`, `store_id`, `warehouse_type`, `warehouse_name`, `branch_type`, `is_distribution_center`, `mobile`, `email`, `status`) VALUES
 (1, 1, 'System', 'Warehouse-A', 'branch', 0, '', 'warehouse_a@example.com', 1),
-(2, 2, 'System', 'System Warehouse', 'branch', 0, '', '', 1);
+(2, 2, 'System', 'Business HQ', 'branch', 0, '', '', 1);
 
 -- --------------------------------------------------------
 
@@ -5401,4 +4870,474 @@ CREATE TABLE IF NOT EXISTS `db_leads` (
   KEY `idx_store_status` (`store_id`,`status`),
   KEY `idx_converted_customer` (`converted_customer_id`),
   KEY `store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Modular store settings tables (mirrors 4.0.2_to_4.0.3 migration)
+-- These exist so fresh installs have the same schema as upgraded
+-- installs; the app reads them before falling back to db_store.
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `db_store_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `setting_group` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'general',
+  `setting_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setting_value` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `value_type` enum('string','int','float','bool','json') COLLATE utf8mb4_unicode_ci DEFAULT 'string',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store_group_key` (`store_id`,`setting_group`,`setting_key`),
+  KEY `idx_store_group` (`store_id`,`setting_group`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_receipt_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `invoice_view` int(5) DEFAULT 1,
+  `sales_invoice_format_id` int(5) DEFAULT 3,
+  `pos_invoice_format_id` int(5) DEFAULT 1,
+  `sales_invoice_footer_text` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invoice_terms` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `previous_balance_bit` int(1) DEFAULT 1,
+  `round_off` int(1) DEFAULT 1,
+  `change_return` int(2) DEFAULT 1,
+  `decimals` int(1) DEFAULT 2,
+  `qty_decimals` int(1) DEFAULT 2,
+  `number_to_words` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Default',
+  `t_and_c_status` int(1) DEFAULT 1,
+  `t_and_c_status_pos` int(1) DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_pos_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `sales_discount` double(20,4) DEFAULT 0.0000,
+  `mrp_column` int(1) DEFAULT 0,
+  `show_signature` int(1) DEFAULT 0,
+  `previous_balance_bit` int(1) DEFAULT 1,
+  `default_account_id` int(11) DEFAULT NULL,
+  `cash_account_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_inventory_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `category_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `item_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplier_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `purchase_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `purchase_return_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sales_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sales_return_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expense_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `accounts_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `journal_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cust_advance_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `quotation_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `money_transfer_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sales_payment_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sales_return_payment_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `purchase_payment_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `purchase_return_payment_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expense_payment_init` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `purchase_code` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_storefront_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `store_website` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `website` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `storefront_theme_key` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'general_retail',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_notification_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `sms_status` int(1) DEFAULT 0,
+  `sms_url` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_host` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_port` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_user` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_pass` varchar(250) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_status` int(1) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_theme_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `store_logo` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `logo` mediumtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fav_icon` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_industry_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `industry_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'general_retail',
+  `business_model` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'product_based',
+  `workflow_template_key` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'retail_standard',
+  `dashboard_template_key` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'general_retail',
+  `storefront_theme_key` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'general_retail',
+  `feature_flags_json` json DEFAULT NULL,
+  `label_overrides_json` json DEFAULT NULL,
+  `industry_settings_json` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_tax_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `gst_no` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `vat_no` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pan_no` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `regno_key` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `currencysymbol_id` int(5) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_store_payment_settings` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(10) UNSIGNED NOT NULL,
+  `upi_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `upi_code` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_details` mediumtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_email_settings` (
+  `store_id` int(11) NOT NULL,
+  `email_provider` varchar(50) DEFAULT 'smtp',
+  `email_from_name` varchar(255) DEFAULT NULL,
+  `email_from_email` varchar(255) DEFAULT NULL,
+  `email_reply_to` varchar(255) DEFAULT NULL,
+  `smtp_crypto` varchar(50) DEFAULT NULL,
+  `resend_api_key` varchar(255) DEFAULT NULL,
+  `resend_from_email` varchar(255) DEFAULT NULL,
+  `resend_from_name` varchar(255) DEFAULT NULL,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_report_schedules` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) UNSIGNED NOT NULL DEFAULT 1,
+  `report_type` varchar(64) NOT NULL COMMENT 'daily_summary, low_stock, overdue_debt',
+  `template_name` varchar(128) DEFAULT NULL,
+  `frequency` varchar(16) NOT NULL DEFAULT 'daily' COMMENT 'daily, weekly',
+  `send_time` varchar(8) NOT NULL DEFAULT '18:00' COMMENT 'HH:MM 24h format',
+  `email_enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `email_recipients` varchar(500) DEFAULT NULL COMMENT 'comma-separated emails',
+  `email_template_key` varchar(64) DEFAULT 'daily_business_summary',
+  `whatsapp_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `whatsapp_numbers` varchar(500) DEFAULT NULL COMMENT 'comma-separated with country code',
+  `whatsapp_message_template` text DEFAULT NULL,
+  `last_run_at` datetime DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_report_type_store` (`report_type`,`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_audit_trail` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) UNSIGNED NOT NULL DEFAULT 1,
+  `user_id` int(11) UNSIGNED DEFAULT NULL,
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `module` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ref_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_date` date DEFAULT NULL,
+  `created_time` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_store` (`store_id`),
+  KEY `idx_module` (`module`),
+  KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Services + production (recipes) tables (mirrors 4.0.1→4.0.2)
+-- Needed so service-led and production business profiles can
+-- seed their demo data on a fresh install.
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `db_services` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 0,
+  `service_name` varchar(200) NOT NULL,
+  `service_image` varchar(255) DEFAULT NULL,
+  `category_id` int(11) DEFAULT 0,
+  `price` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `discount_price` decimal(12,2) DEFAULT NULL,
+  `service_duration` varchar(50) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `available_online` tinyint(1) DEFAULT 1,
+  `requires_appointment` tinyint(1) DEFAULT 0,
+  `requires_note` tinyint(1) DEFAULT 0,
+  `location_type` enum('in-store','customer-location','online') DEFAULT 'in-store',
+  `sort_order` int(11) DEFAULT 0,
+  `deposit_required` tinyint(1) DEFAULT 0,
+  `deposit_percent` decimal(10,2) DEFAULT 0.00,
+  `status` tinyint(1) DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_status` (`store_id`,`status`,`available_online`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_recipe_categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 1,
+  `name` varchar(100) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_recipes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 1,
+  `recipe_code` varchar(50) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `product_item_id` int(11) DEFAULT NULL COMMENT 'db_items id of final product',
+  `margin_pct` decimal(5,2) NOT NULL DEFAULT 30.00 COMMENT 'Sales margin % applied to production cost',
+  `yield_qty` decimal(10,3) NOT NULL DEFAULT 1.000,
+  `yield_unit` varchar(50) NOT NULL DEFAULT 'piece',
+  `prep_time` int(11) DEFAULT NULL COMMENT 'minutes',
+  `cook_time` int(11) DEFAULT NULL COMMENT 'minutes',
+  `notes` text DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_category` (`category`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_recipe_ingredients` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recipe_id` int(11) NOT NULL,
+  `item_id` int(11) DEFAULT NULL COMMENT 'db_items id if linked',
+  `item_name` varchar(255) NOT NULL,
+  `qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `unit` varchar(50) NOT NULL DEFAULT 'gram',
+  `cost_per_unit` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `wastage_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_recipe_id` (`recipe_id`),
+  KEY `idx_item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_recipe_production_runs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 1,
+  `recipe_id` int(11) NOT NULL,
+  `batch_id` int(11) DEFAULT NULL COMMENT 'db_production_batches id if linked',
+  `planned_qty` decimal(10,3) NOT NULL DEFAULT 0.000,
+  `actual_yield` decimal(10,3) DEFAULT NULL,
+  `actual_cost` decimal(15,2) DEFAULT NULL,
+  `staff_id` int(11) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `run_date` date NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_recipe_id` (`recipe_id`),
+  KEY `idx_batch_id` (`batch_id`),
+  KEY `idx_run_date` (`run_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_production_batches` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 1,
+  `batch_code` varchar(50) NOT NULL,
+  `batch_name` varchar(255) NOT NULL,
+  `batch_type` varchar(50) DEFAULT 'general',
+  `scheduled_date` date NOT NULL,
+  `scheduled_time` varchar(20) DEFAULT NULL,
+  `equipment` varchar(255) DEFAULT NULL,
+  `staff_id` int(11) DEFAULT NULL,
+  `staff_name` varchar(255) DEFAULT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'planned',
+  `notes` text DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_scheduled_date` (`scheduled_date`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_production_batch_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `batch_id` int(11) NOT NULL,
+  `item_type` varchar(50) NOT NULL DEFAULT 'custom_order',
+  `item_id` int(11) NOT NULL,
+  `item_name` varchar(255) DEFAULT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `notes` text DEFAULT NULL,
+  `status` varchar(50) DEFAULT 'pending',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_batch_id` (`batch_id`),
+  KEY `idx_item_type` (`item_type`,`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_service_packages` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 1,
+  `package_code` varchar(50) NOT NULL,
+  `package_name` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `package_image` varchar(255) DEFAULT NULL,
+  `pricing_model` enum('fixed','calculated') NOT NULL DEFAULT 'fixed',
+  `package_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `discount_type` varchar(20) DEFAULT NULL,
+  `discount` decimal(15,2) DEFAULT NULL,
+  `redemption_type` enum('single','multi') NOT NULL DEFAULT 'single',
+  `expiry_type` enum('none','days','date') NOT NULL DEFAULT 'none',
+  `expiry_days` int(11) DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_date` date DEFAULT NULL,
+  `created_time` varchar(20) DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `system_ip` varchar(50) DEFAULT NULL,
+  `system_name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_service_package_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `package_id` int(11) NOT NULL,
+  `item_type` enum('service','product') NOT NULL DEFAULT 'service',
+  `item_id` int(11) NOT NULL,
+  `quantity` decimal(10,2) NOT NULL DEFAULT 1.00,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_package_id` (`package_id`),
+  KEY `idx_item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_customer_packages` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) NOT NULL DEFAULT 1,
+  `customer_id` int(11) NOT NULL,
+  `package_id` int(11) NOT NULL,
+  `sale_id` int(11) DEFAULT NULL,
+  `sale_items_id` int(11) DEFAULT NULL,
+  `package_code` varchar(50) NOT NULL,
+  `total_uses` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `remaining_uses` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `expiry_date` date DEFAULT NULL,
+  `status` enum('active','fully_redeemed','expired','cancelled') NOT NULL DEFAULT 'active',
+  `created_date` date DEFAULT NULL,
+  `created_time` varchar(20) DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_package_id` (`package_id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_customer_package_redemptions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `customer_package_id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `quantity_redeemed` decimal(10,2) NOT NULL DEFAULT 1.00,
+  `service_order_id` int(11) DEFAULT NULL,
+  `sale_id` int(11) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `redeemed_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `redeemed_by` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_package_id` (`customer_package_id`),
+  KEY `idx_item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `db_email_logs` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) UNSIGNED NOT NULL DEFAULT 1,
+  `email_type` varchar(64) NOT NULL DEFAULT '',
+  `provider_used` varchar(32) NOT NULL DEFAULT '',
+  `recipient` varchar(512) NOT NULL DEFAULT '',
+  `subject` varchar(255) NOT NULL DEFAULT '',
+  `status` enum('sent','failed','pending','retrying') NOT NULL DEFAULT 'pending',
+  `error_message` text DEFAULT NULL,
+  `triggered_by` varchar(64) DEFAULT NULL,
+  `related_module` varchar(64) DEFAULT NULL,
+  `related_record_id` varchar(64) DEFAULT NULL,
+  `provider_response` text DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_type` (`email_type`),
+  KEY `idx_store` (`store_id`),
+  KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_email_templates` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` int(11) UNSIGNED NOT NULL DEFAULT 1,
+  `template_key` varchar(64) NOT NULL,
+  `template_name` varchar(128) NOT NULL,
+  `subject` varchar(255) NOT NULL DEFAULT '',
+  `html_body` text DEFAULT NULL,
+  `text_body` text DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `send_copy_to_owner` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_template_key_store` (`template_key`,`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

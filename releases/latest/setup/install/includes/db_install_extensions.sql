@@ -1656,6 +1656,25 @@ CREATE TABLE IF NOT EXISTS db_treatment_note_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
+-- Customer Notes History (append-only, creator-only edits)
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS db_customer_notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    store_id INT NOT NULL DEFAULT 1,
+    customer_id INT NOT NULL,
+    note TEXT NOT NULL,
+    created_by VARCHAR(255) NULL,
+    created_by_id INT NULL,
+    created_date DATE NULL,
+    created_time VARCHAR(20) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_store_id (store_id),
+    INDEX idx_customer_id (customer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
 -- Email & Report Tables
 -- --------------------------------------------------------
 
@@ -3396,6 +3415,16 @@ INSERT IGNORE INTO `db_storefront_themes` (`theme_key`,`theme_name`,`industry`,`
 ('auto_luxe','Auto Luxe','automotive','Dark, premium luxury vehicle theme with gold accents, dramatic hero, and a premium buying experience.','#C9A961','#0B0F1A','Inter',27,1),
 ('auto_garage','Auto Garage','automotive','Rugged, high-energy auto theme for trucks, SUVs and performance vehicles with bold red and charcoal styling.','#DC2626','#1F2937','Inter',28,1);
 
+-- ----------------------------------------------------------------------------
+-- Perfumery storefront themes (4 luxury designs, WhatsApp-first)
+-- ----------------------------------------------------------------------------
+
+INSERT IGNORE INTO `db_storefront_themes` (`theme_key`,`theme_name`,`industry`,`description`,`default_primary_color`,`default_secondary_color`,`default_font_family`,`sort_order`,`status`) VALUES
+('noir_parfum','Noir Parfum','perfumery','Midnight luxury flagship theme — deep black, champagne gold and italic serif typography for a dramatic haute-parfumerie storefront.','#C9A961','#0B0A08','Cormorant Garamond',32,1),
+('maison_blanche','Maison Blanche','perfumery','Ivory Parisian maison theme — cream canvas, black ink and old-gold hairlines for a refined French fragrance boutique.','#A98954','#1C1917','Playfair Display',33,1),
+('oud_royale','Oud Royale','perfumery','Arabian opulence theme — espresso darkness, royal gold and arched gallery for oud, attar and musk houses.','#D4A24E','#150E07','Marcellus',34,1),
+('atelier_essence','Atelier Essence','perfumery','Niche-lab minimalism — bone white, mono ink and stark grid for artisan perfumeries and custom formulation labs.','#161513','#9C4A2F','Inter',35,1);
+
 -- Default vehicle makes (guarded: only when absent)
 INSERT INTO `db_vehicle_makes` (`store_id`,`name`,`status`,`created_at`,`updated_at`) SELECT 0,'Toyota',1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_makes` WHERE `name`='Toyota' AND `store_id`=0);
 INSERT INTO `db_vehicle_makes` (`store_id`,`name`,`status`,`created_at`,`updated_at`) SELECT 0,'Honda',1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_makes` WHERE `name`='Honda' AND `store_id`=0);
@@ -3631,3 +3660,156 @@ INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribu
 INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribute_value`,`sort_order`,`status`,`created_at`,`updated_at`) SELECT 0,'color','Purple',13,1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_attribute_options` WHERE `attribute_type`='color' AND `attribute_value`='Purple' AND `store_id`=0);
 INSERT INTO `db_vehicle_attribute_options` (`store_id`,`attribute_type`,`attribute_value`,`sort_order`,`status`,`created_at`,`updated_at`) SELECT 0,'color','Maroon',14,1,NOW(),NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `db_vehicle_attribute_options` WHERE `attribute_type`='color' AND `attribute_value`='Maroon' AND `store_id`=0);
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================================
+-- Perfumery Module (Perfume Lab) — maceration tracking + wastage ledger
+-- Mirrors updates/migrations/4.0.9.23_perfumery_module.sql for fresh installs.
+-- ============================================================================
+
+ALTER TABLE `db_recipes` ADD COLUMN `maceration_days` INT(11) NOT NULL DEFAULT 0 COMMENT 'Days the blend must macerate/age before bottling' AFTER `cook_time`;
+
+ALTER TABLE `db_production_batches` ADD COLUMN `maceration_started` DATE NULL COMMENT 'Date batch entered maceration stage' AFTER `status`,
+  ADD COLUMN `maceration_days` INT(11) NOT NULL DEFAULT 0 COMMENT 'Required maceration days, copied from formula' AFTER `maceration_started`;
+
+CREATE TABLE IF NOT EXISTS `db_perfume_wastage` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) NOT NULL,
+  `warehouse_id` INT(11) NOT NULL DEFAULT 0,
+  `batch_id` INT(11) UNSIGNED DEFAULT NULL COMMENT 'db_production_batches id when loss belongs to a blend batch',
+  `item_id` INT(11) NOT NULL COMMENT 'db_items id of the material lost',
+  `item_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stage` VARCHAR(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other' COMMENT 'blending|maceration|filtering|bottling|decanting|breakage|tester|expired|other',
+  `qty` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'Quantity lost, in the item base unit',
+  `unit_name` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unit_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Cost per unit at time of loss',
+  `total_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'qty x unit_cost',
+  `reason` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stock_adjustment_id` INT(11) DEFAULT NULL COMMENT 'db_stockadjustment id created for this loss',
+  `created_date` DATE DEFAULT NULL,
+  `created_time` TIME DEFAULT NULL,
+  `created_by` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_stage` (`stage`),
+  KEY `idx_batch` (`batch_id`),
+  KEY `idx_item` (`item_id`),
+  KEY `idx_date` (`created_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ----------------------------------------------------------------------------
+-- Monnify Integration (v4.0.9.25) — settings, collections, disbursements
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `db_monnify_settings` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `store_id` INT NOT NULL DEFAULT 1,
+  `api_key` VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'Monnify API Key (MK_PROD_.../MK_TEST_...)',
+  `secret_key` VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'Monnify Secret Key',
+  `contract_code` VARCHAR(50) NOT NULL DEFAULT '' COMMENT 'Monnify Contract Code',
+  `wallet_account_number` VARCHAR(20) NOT NULL DEFAULT '' COMMENT 'Monnify wallet account number — sourceAccountNumber for disbursements',
+  `enabled` TINYINT(1) NOT NULL DEFAULT 0,
+  `disbursements_enabled` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Requires Monnify approval + IP whitelist',
+  `test_mode` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=Sandbox, 0=Live',
+  `access_token` TEXT DEFAULT NULL COMMENT 'Cached OAuth2 bearer token',
+  `token_expires_at` DATETIME DEFAULT NULL,
+  `callback_url` VARCHAR(500) DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_date` DATE DEFAULT NULL,
+  `created_time` TIME DEFAULT NULL,
+  `created_by` VARCHAR(50) DEFAULT NULL,
+  UNIQUE KEY `uk_store` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_monnify_payments` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `store_id` INT NOT NULL,
+  `sales_id` INT DEFAULT NULL,
+  `customer_id` INT DEFAULT NULL,
+  `customer_name` VARCHAR(255) DEFAULT NULL,
+  `customer_email` VARCHAR(255) DEFAULT NULL,
+  `customer_phone` VARCHAR(50) DEFAULT NULL,
+  `amount` DECIMAL(18,2) NOT NULL,
+  `currency` VARCHAR(10) DEFAULT 'NGN',
+  `payment_reference` VARCHAR(255) NOT NULL COMMENT 'Merchant-generated payment reference',
+  `transaction_reference` VARCHAR(255) DEFAULT NULL COMMENT 'Monnify transaction reference',
+  `checkout_url` VARCHAR(500) DEFAULT NULL,
+  `transfer_account_number` VARCHAR(20) DEFAULT NULL COMMENT 'Dynamic account for pay-with-transfer',
+  `transfer_bank_name` VARCHAR(100) DEFAULT NULL,
+  `transfer_bank_code` VARCHAR(20) DEFAULT NULL,
+  `transfer_account_name` VARCHAR(255) DEFAULT NULL,
+  `transfer_account_expiry` VARCHAR(50) DEFAULT NULL,
+  `payment_status` VARCHAR(50) DEFAULT 'PENDING' COMMENT 'PENDING, PAID, OVERPAID, PARTIALLY_PAID, FAILED, EXPIRED',
+  `payment_method` VARCHAR(50) DEFAULT NULL,
+  `amount_paid` DECIMAL(18,2) DEFAULT NULL,
+  `paid_at` DATETIME DEFAULT NULL,
+  `meta_data` TEXT DEFAULT NULL COMMENT 'JSON of extra metadata',
+  `created_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_date` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_reference` (`payment_reference`),
+  INDEX `idx_sales` (`sales_id`),
+  INDEX `idx_status` (`payment_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `db_monnify_transfers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `store_id` INT NOT NULL,
+  `reference` VARCHAR(255) NOT NULL COMMENT 'Merchant-generated transfer reference',
+  `amount` DECIMAL(18,2) NOT NULL,
+  `currency` VARCHAR(10) DEFAULT 'NGN',
+  `narration` VARCHAR(100) DEFAULT NULL,
+  `destination_bank_code` VARCHAR(20) NOT NULL,
+  `destination_bank_name` VARCHAR(100) DEFAULT NULL,
+  `destination_account_number` VARCHAR(20) NOT NULL,
+  `destination_account_name` VARCHAR(255) DEFAULT NULL COMMENT 'Verified by name enquiry',
+  `source_account_number` VARCHAR(20) DEFAULT NULL,
+  `transfer_status` VARCHAR(50) DEFAULT 'PENDING' COMMENT 'PENDING_AUTHORIZATION, PENDING, SUCCESS, FAILED, REVERSED',
+  `session_id` VARCHAR(100) DEFAULT NULL,
+  `response_message` VARCHAR(255) DEFAULT NULL,
+  `meta_data` TEXT DEFAULT NULL,
+  `initiated_by` VARCHAR(50) DEFAULT NULL,
+  `created_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_date` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_reference` (`reference`),
+  INDEX `idx_status` (`transfer_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ----------------------------------------------------------------------------
+-- Bottling Runs (v4.0.9.26) + item bottling columns (v4.0.9.27)
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `db_bottling_runs` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `store_id` INT(11) NOT NULL,
+  `warehouse_id` INT(11) NOT NULL DEFAULT 0,
+  `batch_id` INT(11) UNSIGNED DEFAULT NULL COMMENT 'db_production_batches id this fill belongs to',
+  `product_item_id` INT(11) NOT NULL COMMENT 'db_items id of the finished bottled SKU stocked in',
+  `product_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bottle_item_id` INT(11) NOT NULL COMMENT 'db_items id of the empty bottle/packaging consumed',
+  `bottle_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bulk_item_id` INT(11) DEFAULT NULL COMMENT 'db_items id of the bulk liquid drawn down (optional)',
+  `bulk_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fill_qty` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'Volume per bottle, in the bulk item base unit (e.g. ml)',
+  `bottles_filled` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'Number of bottles filled',
+  `bulk_used` DECIMAL(15,3) NOT NULL DEFAULT 0.000 COMMENT 'fill_qty x bottles_filled',
+  `unit_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Bulk + bottle cost per finished unit',
+  `total_cost` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'unit_cost x bottles_filled',
+  `notes` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stock_adjustment_id` INT(11) DEFAULT NULL COMMENT 'db_stockadjustment id created for this run',
+  `created_date` DATE DEFAULT NULL,
+  `created_time` TIME DEFAULT NULL,
+  `created_by` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_batch` (`batch_id`),
+  KEY `idx_product` (`product_item_id`),
+  KEY `idx_date` (`created_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `db_items`
+  ADD COLUMN `fill_qty` DECIMAL(10,3) NULL DEFAULT NULL COMMENT 'Volume per unit when bottled (e.g. 150 ml)',
+  ADD COLUMN `bottle_item_id` INT(11) NULL DEFAULT NULL COMMENT 'db_items id of the bottle/packaging consumed per unit',
+  ADD COLUMN `capacity_ml` DECIMAL(10,3) NULL DEFAULT NULL COMMENT 'Bottle/packaging capacity in ml (packaging items only)';

@@ -51,6 +51,9 @@
     .mp-select-option { padding: 12px 14px; cursor: pointer; border-bottom: 1px solid var(--mp-border); font-size: 15px; }
     .mp-select-option:last-child { border-bottom: none; }
     .mp-select-option:hover, .mp-select-option.active { background: var(--mp-bg); }
+    .preset-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 12px; }
+    .preset-chip { padding: 7px 12px; font-size: 11px; font-weight: 700; border: 1px solid var(--mp-border); border-radius: 16px; background: #fff; color: var(--mp-muted); cursor: pointer; }
+    .preset-chip.active { background: var(--mp-primary); border-color: var(--mp-primary); color: #fff; }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 120px; } }
     @media (min-width: 1024px) { .screen { padding: 24px 48px 120px; } }
     .topbar .topbar-titles { flex: 1; min-width: 0; }
@@ -82,6 +85,13 @@
             <label>To Date</label>
             <input type="date" name="to_date" value="<?= date('Y-m-d'); ?>" required>
           </div>
+        </div>
+        <div class="preset-chips" id="datePresets">
+          <button type="button" class="preset-chip" data-preset="this_month">This Month</button>
+          <button type="button" class="preset-chip" data-preset="last_month">Last Month</button>
+          <button type="button" class="preset-chip" data-preset="this_year">This Year</button>
+          <button type="button" class="preset-chip" data-preset="last_year">Last Year</button>
+          <button type="button" class="preset-chip" data-preset="all_time">All Time</button>
         </div>
 
         <?php if(warehouse_module() && warehouse_count() > 0): ?>
@@ -226,6 +236,25 @@
     var result = document.getElementById('report-result');
     var actionBar = document.getElementById('actions');
     var reportData = null;
+
+    function ymd(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+    document.querySelectorAll('#datePresets .preset-chip').forEach(function(chip){
+      chip.addEventListener('click', function(){
+        var now = new Date();
+        var from = new Date(now.getFullYear(), now.getMonth(), 1), to = now;
+        switch(this.dataset.preset){
+          case 'this_month': from = new Date(now.getFullYear(), now.getMonth(), 1); break;
+          case 'last_month': from = new Date(now.getFullYear(), now.getMonth()-1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); break;
+          case 'this_year':  from = new Date(now.getFullYear(), 0, 1); break;
+          case 'last_year':  from = new Date(now.getFullYear()-1, 0, 1); to = new Date(now.getFullYear()-1, 11, 31); break;
+          case 'all_time':   from = new Date(2000, 0, 1); break;
+        }
+        form.elements['from_date'].value = ymd(from);
+        form.elements['to_date'].value = ymd(to);
+        document.querySelectorAll('#datePresets .preset-chip').forEach(function(c){ c.classList.remove('active'); });
+        this.classList.add('active');
+      });
+    });
 
     form.addEventListener('submit', async function(e){
       e.preventDefault();

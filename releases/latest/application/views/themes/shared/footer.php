@@ -14,6 +14,7 @@ $aboutUs = $settings->footer_about_us ?? '';
   <div class="mp-footer-inner mp-footer-compact">
     <!-- Brand + About + Social (centered) -->
     <div class="mp-footer-compact-top">
+      <?php if(!empty($logo_url)): ?><img src="<?= $logo_url; ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>" style="max-height:44px;max-width:180px;margin:0 auto 12px;display:inline-block;background:#fff;padding:6px 12px;border-radius:8px;"><?php endif; ?>
       <div class="mp-footer-brand"><?= htmlspecialchars($store->store_name ?? 'Store'); ?></div>
       <?php if(!empty($aboutUs)): ?>
       <div class="mp-footer-desc"><?= nl2br(htmlspecialchars($aboutUs)); ?></div>
@@ -61,6 +62,7 @@ $aboutUs = $settings->footer_about_us ?? '';
   <!-- Standard / About-Focused 4-Column Footer -->
   <div class="mp-footer-inner">
     <div>
+      <?php if(!empty($logo_url)): ?><img src="<?= $logo_url; ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>" style="max-height:44px;max-width:180px;margin-bottom:12px;display:inline-block;background:#fff;padding:6px 12px;border-radius:8px;"><?php endif; ?>
       <div class="mp-footer-brand"><?= htmlspecialchars($store->store_name ?? 'Store'); ?></div>
       <?php if(!empty($aboutUs)): ?>
       <div class="mp-footer-desc"><?= nl2br(htmlspecialchars($aboutUs)); ?></div>

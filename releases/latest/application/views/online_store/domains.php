@@ -5,6 +5,7 @@
 @media(max-width:1024px){.os-domains-grid{grid-template-columns:1fr!important}}
 .os-url-box{background:var(--mp-bg)!important;padding:14px 18px!important;border-radius:12px!important;font-family:'SFMono-Regular',Consolas,Menlo,monospace!important;font-size:13px!important;word-break:break-all!important;border:1px solid var(--mp-border)!important;color:var(--mp-ink)!important}
 .os-dns{background:var(--mp-bg)!important;border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:10px 14px!important;font-size:12px!important;color:var(--mp-muted)!important;white-space:pre-line!important;margin-top:6px!important;display:none!important}
+.os-dns.show{display:block!important}
 .os-badges{display:flex!important;gap:6px!important;flex-wrap:wrap!important}
 .os-badge{font-size:11px!important;font-weight:600!important;padding:3px 9px!important;border-radius:20px!important}
 .os-badge.ok{background:#D1FAE5!important;color:#065F46!important}
@@ -36,7 +37,7 @@
                   <a href="https://<?= htmlspecialchars($d->domain_value); ?>" target="_blank" rel="noopener" title="Open storefront"><i class="fa fa-external-link" style="font-size:11px;margin-left:4px;color:var(--mp-muted);"></i></a>
                 <?php endif; ?>
                 <?php if(!empty($d->dns_instructions) && $d->connection_status !== 'connected'): ?>
-                  <a href="javascript:void(0)" style="font-size:11px;display:block;margin-top:4px;" onclick="var e=document.getElementById('dns-<?= (int)$d->id; ?>');e.style.display=e.style.display==='block'?'none':'block';">DNS instructions</a>
+                  <a href="javascript:void(0)" style="font-size:11px;display:block;margin-top:4px;" onclick="document.getElementById('dns-<?= (int)$d->id; ?>').classList.toggle('show');">DNS instructions</a>
                   <div class="os-dns" id="dns-<?= (int)$d->id; ?>"><?= htmlspecialchars($d->dns_instructions); ?></div>
                 <?php endif; ?>
               </td>

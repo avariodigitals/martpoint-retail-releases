@@ -68,6 +68,9 @@ else{
   if(!isset($custom_order_fields_json)) $custom_order_fields_json='';
   if(!isset($not_for_sale)) $not_for_sale=0;
   if(!isset($consumable_unit)) $consumable_unit='';
+  if(!isset($fill_qty)) $fill_qty='';
+  if(!isset($bottle_item_id)) $bottle_item_id='';
+  if(!isset($capacity_ml)) $capacity_ml='';
   if(!isset($track_serial)) $track_serial=0;
   if(!isset($track_imei)) $track_imei=0;
   if(!isset($item_barcodes)) $item_barcodes=[];
@@ -96,6 +99,7 @@ $show_unit_table = !$is_service && (mp_feature_enabled('batch_tracking') || mp_f
 // Laundry detection
 $profile = mp_get_store_profile();
 $is_laundry = ($profile['industry_type'] ?? '') === 'laundry' || mp_feature_enabled('laundry_workflow');
+$is_perfumery = ($profile['industry_type'] ?? '') === 'perfume_shop' || mp_feature_enabled('perfumery_workflow');
 
 // Save vs Update button
 if(!empty($item_name)){
@@ -564,6 +568,13 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <input class="mp-form-control" id="consumable_unit" name="consumable_unit" placeholder="e.g. ml, bottle, pump, sachet" type="text" value="<?php print htmlspecialchars($consumable_unit); ?>">
         <span id="consumable_unit_msg" style="display:none" class="text-danger"></span>
       </div>
+      <?php if($is_perfumery && $this->db->field_exists('capacity_ml', 'db_items')): ?>
+      <div class="mp-form-group">
+        <label for="capacity_ml">Bottle Capacity (ml) <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(perfumery — only if this item is a bottle)</span></label>
+        <input class="mp-form-control" id="capacity_ml" name="capacity_ml" type="number" step="0.001" min="0" placeholder="e.g. 150" value="<?php print htmlspecialchars($capacity_ml); ?>">
+        <p class="mp-form-hint">Set on the empty bottle item so fills can't exceed its size</p>
+      </div>
+      <?php endif; ?>
       <div class="mp-form-group full">
         <label class="mp-check-label">
           <input type="checkbox" id="accept_custom_order" name="accept_custom_order" value="1" <?= ($accept_custom_order==1) ? 'checked' : ''; ?>>
@@ -708,6 +719,30 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         </select>
         <p class="mp-form-hint">Tells the POS how this item consumes stock</p>
       </div>
+      <?php if($is_perfumery && $this->db->field_exists('fill_qty', 'db_items')): ?>
+      <div class="mp-form-group">
+        <label for="fill_qty">Fill per Bottle <small class="text-muted">(perfumery)</small></label>
+        <input class="mp-form-control" id="fill_qty" name="fill_qty" type="number" step="0.001" min="0" placeholder="e.g. 50" value="<?= htmlspecialchars($fill_qty); ?>">
+        <p class="mp-form-hint">Ml of bulk liquid one unit takes — bottling runs deduct this automatically</p>
+      </div>
+      <div class="mp-form-group">
+        <label for="bottle_item_id">Bottle / Packaging Item <small class="text-muted">(perfumery)</small></label>
+        <select class="mp-form-control select2" id="bottle_item_id" name="bottle_item_id" style="width:100%;">
+          <option value="">-- Not bottled --</option>
+          <?php
+            $pack_items = $this->db->select('a.id, a.item_name' . ($this->db->field_exists('capacity_ml','db_items') ? ', a.capacity_ml' : ''))
+              ->from('db_items a')
+              ->where('a.store_id', get_current_store_id())
+              ->where('a.status', 1)->where('a.not_for_sale', 1)->where('a.service_bit', 0)
+              ->order_by('a.item_name', 'asc')->get()->result();
+            foreach($pack_items as $pk):
+          ?>
+          <option value="<?= $pk->id; ?>" <?= (isset($bottle_item_id) && $bottle_item_id==$pk->id)?'selected':''; ?>><?= htmlspecialchars($pk->item_name); ?><?= !empty($pk->capacity_ml) ? ' (' . format_qty($pk->capacity_ml) . ' ml)' : ''; ?></option>
+          <?php endforeach; ?>
+        </select>
+        <p class="mp-form-hint">The empty bottle consumed each time one unit is filled</p>
+      </div>
+      <?php endif; ?>
       <div class="mp-form-group full">
         <div class="mp-recipe-stats">
           <div class="mp-recipe-stat">

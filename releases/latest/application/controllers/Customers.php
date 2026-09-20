@@ -226,10 +226,68 @@ class Customers extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Customer Statement';
 		$data['customer'] = $this->db->where('id', $id)->get('db_customers')->row();
-		$statement = $this->customers->get_statement($id);
+		$from = $this->input->get('from');
+		$to = $this->input->get('to');
+		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
+		$to = ($to && strtotime($to)) ? date('Y-m-d', strtotime($to)) : null;
+		$statement = $this->customers->get_statement($id, null, $from, $to);
 		$data = array_merge($data, $statement);
+		$data['from'] = $from;
+		$data['to'] = $to;
 		$data['content']=$this->load->view('customers/desktop/statement',$data,TRUE);
 		$this->load->view('mp_layout',$data);
+	}
+
+	public function save_note($customer_id){
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_edit');
+		$note = trim((string)$this->input->post('note', TRUE));
+		if($note === ''){
+			$this->session->set_flashdata('failed', 'Please write a note before saving.');
+			redirect('customers/profile/' . $customer_id . '#notes');
+			return;
+		}
+		if($this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model','cust_notes');
+			$this->cust_notes->add($customer_id, $note);
+		} else {
+			$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+			$existing = trim((string)($customer->notes ?? ''));
+			$entry = '[' . date('d-m-Y H:i') . ' ' . $this->session->userdata('inv_username') . '] ' . $note;
+			$this->db->where('id', $customer_id)->update('db_customers', array('notes' => ($existing !== '' ? $existing . "\n\n" . $entry : $entry)));
+		}
+		$this->session->set_flashdata('success', 'Note added.');
+		redirect('customers/profile/' . $customer_id . '#notes');
+	}
+
+	public function edit_note($note_id){
+		$this->permission_check('customers_edit');
+		if(!$this->db->table_exists('db_customer_notes')){
+			$this->session->set_flashdata('failed', 'Notes history is not available yet.');
+			redirect('customers');
+			return;
+		}
+		$this->load->model('customer_notes_model','cust_notes');
+		$note = $this->cust_notes->get($note_id);
+		if(!$note || (int)$note->store_id !== (int)get_current_store_id()){
+			$this->session->set_flashdata('failed', 'Note not found.');
+			redirect('customers');
+			return;
+		}
+		if(!$this->cust_notes->is_owner($note)){
+			$this->session->set_flashdata('failed', 'Only the creator can edit this note.');
+			redirect('customers/profile/' . $note->customer_id . '#notes');
+			return;
+		}
+		$text = trim((string)$this->input->post('note', TRUE));
+		if($text === ''){
+			$this->session->set_flashdata('failed', 'Note cannot be empty.');
+			redirect('customers/profile/' . $note->customer_id . '#notes');
+			return;
+		}
+		$this->cust_notes->update($note_id, $text);
+		$this->session->set_flashdata('success', 'Note updated.');
+		redirect('customers/profile/' . $note->customer_id . '#notes');
 	}
 	
 	public function delete_customers(){
@@ -376,6 +434,24 @@ class Customers extends MY_Controller {
 		} else {
 			$data['medical_notes'] = array();
 			$data['medical_allergies'] = array();
+		}
+
+		// Customer Notes history
+		if($this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model', 'cust_notes');
+			$data['customer_notes'] = $this->cust_notes->get_by_customer($id);
+		} else {
+			$data['customer_notes'] = array();
+			if(!empty($customer->notes)){
+				$legacy = new stdClass();
+				$legacy->id = 0;
+				$legacy->note = $customer->notes;
+				$legacy->created_by = $customer->created_by ?? null;
+				$legacy->created_by_id = null;
+				$legacy->created_date = $customer->created_date ?? null;
+				$legacy->created_time = $customer->created_time ?? null;
+				$data['customer_notes'] = array($legacy);
+			}
 		}
 
 		// Custom Orders

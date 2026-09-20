@@ -33,11 +33,16 @@ class Production_batches_model extends CI_Model {
      * (age the compound) → filter → bottle → ready. Other industries keep
      * the bakery/kitchen pipeline.
      */
-    public static function get_statuses($industry_type = null) {
+    public static function get_statuses($industry_type = null, $batch_type = null) {
         if ($industry_type === null) {
             $industry_type = self::_store_industry_type();
         }
         if ($industry_type === 'perfume_shop') {
+            // A Bottling Run skips the compounding stages entirely — it only
+            // fills bottles, so planned → bottling → ready → completed.
+            if ($batch_type === 'bottling') {
+                return ['planned','bottling','ready','completed','cancelled'];
+            }
             return ['planned','sourcing','blending','macerating','filtering','bottling','ready','completed','cancelled'];
         }
         return ['planned','prepping','in_production','cooling','decorating','ready','completed','cancelled'];
