@@ -125,6 +125,19 @@ class Stock_adjustment_model extends CI_Model {
 			return "Invalid stock adjustment reference.";
 		}
 
+		// Preflight: older installs may be missing columns added to db.txt later
+		// — a silent schema gap makes every save fail with no visible reason.
+		foreach (array('store_id','warehouse_id','reference_no','adjustment_date','adjustment_note','status') as $col) {
+			if(!$this->db->field_exists($col, 'db_stockadjustment')){
+				return "Stock adjustment failed: your database is missing the column db_stockadjustment.$col — run pending migrations or contact support.";
+			}
+		}
+		foreach (array('adjustment_id','item_id','adjustment_qty','store_id','warehouse_id','status') as $col) {
+			if(!$this->db->field_exists($col, 'db_stockadjustmentitems')){
+				return "Stock adjustment failed: your database is missing the column db_stockadjustmentitems.$col — run pending migrations or contact support.";
+			}
+		}
+
 		$this->db->trans_begin();
 		$adjustment_date=system_fromatted_date($adjustment_date);
 
@@ -154,8 +167,9 @@ class Stock_adjustment_model extends CI_Model {
 			$q1 = $this->db->insert('db_stockadjustment', $purchase_entry);
 			$adjustment_id = $this->db->insert_id();
 			if(!$q1 || empty($adjustment_id)){
+				$err = $this->db->error();
 				$this->db->trans_rollback();
-				return "failed";
+				return "Save failed: " . (isset($err['message']) && $err['message'] !== '' ? $err['message'] : 'database error');
 			}
 		}
 		else if($command=='update'){	
@@ -177,7 +191,8 @@ class Stock_adjustment_model extends CI_Model {
 
 			$q11=$this->db->where('adjustment_id', $adjustment_id)->delete('db_stockadjustmentitems');
 			if(!$q11){
-				return "failed";
+				$this->db->trans_rollback();
+				return "Save failed while replacing adjustment lines.";
 			}
 		}
 		//end
@@ -204,12 +219,18 @@ class Stock_adjustment_model extends CI_Model {
 		    			);
 				
 				$q2 = $this->db->insert('db_stockadjustmentitems', $adjustment_entry);
-				
+				if(!$q2){
+					$err = $this->db->error();
+					$this->db->trans_rollback();
+					return "Save failed on item line: " . (isset($err['message']) && $err['message'] !== '' ? $err['message'] : 'database error');
+				}
+
 				//UPDATE itemS QUANTITY IN itemS TABLE
-				$this->load->model('pos_model');				
+				$this->load->model('pos_model');
 				$q6=$this->pos_model->update_items_quantity($item_id);
 				if(!$q6){
-					return "failed";
+					$this->db->trans_rollback();
+					return "Save failed while recalculating item stock.";
 				}
 
 				
@@ -226,10 +247,11 @@ class Stock_adjustment_model extends CI_Model {
 		/*Update items in all warehouses of the item*/
 		$q7=update_warehouse_items($two_array);
 		if(!$q7){
-			return "failed";
+			$this->db->trans_rollback();
+			return "Save failed while updating warehouse stock.";
 		}
 		##############################################END
-		
+
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully!');
 		return "success<<<###>>>$adjustment_id";

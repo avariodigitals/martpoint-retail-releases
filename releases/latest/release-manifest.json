@@ -6935,8 +6935,8 @@
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
-            "hash": "51e263fd72a11081da2ed0c99e0f34042a0764456ddc558a04953b55942fd1c2",
-            "size": 12890
+            "hash": "cfd7f64f4087cc7e497880e729717c633e81141550380fd55c5dfcdbc530e206",
+            "size": 14254
         },
         {
             "path": "application/models/Email_model.php",
@@ -26968,6 +26968,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "d4f1840d3d72619bcf830e814e189edb8bed9425a215bc1a2bc60637675ec061",
+    "signature": "709a530b74ca2cddbf7a681c6aaea4c8ea073cced4cd3b05421f546da496e660",
     "changelog": "Auto-generated release 4.0.9.30"
 }
