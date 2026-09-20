@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Perfume Shop Use Case</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+    .do-dont { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+    .do, .dont { border:1px solid var(--mp-border); border-radius:var(--radius); padding:16px; }
+    .do { background:#F0FDF4; border-color:var(--mp-success); }
+    .dont { background:#FEF2F2; border-color:var(--mp-danger); }
+    .do h4 { margin:-16px -16px 14px -16px; padding:12px 16px; font-size:1rem; color:#fff; background:var(--mp-success); border-radius:var(--radius) var(--radius) 0 0; }
+    .dont h4 { margin:-16px -16px 14px -16px; padding:12px 16px; font-size:1rem; color:#fff; background:var(--mp-danger); border-radius:var(--radius) var(--radius) 0 0; }
+    .do ul, .dont ul { margin:0; padding-left:18px; font-size:0.85rem; color:var(--mp-ink); }
+    .do li, .dont li { margin-bottom:5px; }
+    .readiness-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:16px; background:#fff; }
+    .readiness-card h3 { margin-bottom:10px; font-size:1rem; }
+    .readiness-card ul { margin:0; padding-left:18px; font-size:0.85rem; color:var(--mp-ink); }
+    .readiness-card li { margin-bottom:6px; }
+    .chat { display:flex; gap:14px; margin-bottom:16px; page-break-inside:avoid; }
+    .chat-avatar { width:40px; height:40px; border-radius:50%; background:var(--mp-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+    .chat-bubble { background:#F5F5F4; border-radius:12px; padding:12px 16px; flex:1; }
+    .chat-bubble strong { display:block; color:var(--mp-text); margin-bottom:4px; }
+    .chat-bubble p { margin:0; font-size:0.85rem; color:var(--mp-ink); line-height:1.55; }
+    .blend-table { width:100%; border-collapse:collapse; font-size:0.82rem; margin-top:8px; }
+    .blend-table th { text-align:left; padding:7px 10px; border-bottom:2px solid var(--mp-border); color:var(--mp-muted); font-size:0.72rem; text-transform:uppercase; }
+    .blend-table td { padding:7px 10px; border-bottom:1px solid var(--mp-border); }
+
+    /* Print: exact A4 pages, no overflow */
+    @page { size: A4; margin: 0; }
+    @media print {
+      html, body { background:#fff; margin:0; padding:0; }
+      .document { max-width:100%; padding:0; margin:0; }
+      .page { width:210mm; height:297mm; min-height:auto; margin:0; padding:14mm 16mm; box-shadow:none; page-break-after:always; break-after:page; overflow:hidden; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .page-cover { padding:0; }
+      .page-cover .cover-inner { min-height:auto; height:297mm; padding:14mm 16mm; }
+      .page:last-child { page-break-after:auto; break-after:auto; }
+      .no-break { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Perfume Shop</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>A day at Adaeze&rsquo;s House of Scents</h1>
+        <p>See how a blending perfumery uses MartPoint to stock fragrance oils and alcohol, write formulas, blend batches, track maceration, bottle the result &mdash; and know exactly what every drop of wastage costs.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Perfumery workflow</span>
+    <h2 class="mb-2">What a blending perfumery does every day</h2>
+    <p class="lead mb-3">You are part retailer, part lab. You buy oils, alcohol and bottles as raw materials, compound them into fragrances, let the blend rest, then bottle and sell &mdash; in bottles, decants and bespoke orders. MartPoint tracks the whole pipeline and every ml of loss along the way.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-cog"></i> Set business type</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-tint"></i> Stock raw materials</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-book"></i> Write formulas</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-flask"></i> Blend batch</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-hourglass-half"></i> Macerate</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-tag"></i> Bottle &amp; sell</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-trash-o"></i> Log losses</div>
+    </div>
+
+    <div class="do-dont">
+      <div class="do">
+        <h4><i class="fa fa-check" style="margin-right:8px;"></i>Always do</h4>
+        <ul>
+          <li>Keep raw materials as <strong>Not for Sale</strong> items &mdash; they are consumed by batches, never sold at the till.</li>
+          <li>Set the <strong>waste %</strong> on every formula ingredient &mdash; alcohol evaporates, oils leave residue.</li>
+          <li>Set <strong>maceration days</strong> on every formula so the tracker can predict the ready date.</li>
+          <li>Log <strong>every loss</strong> &mdash; evaporation, spills, broken bottles, counter testers &mdash; in Wastage &amp; Losses.</li>
+          <li>Count the lab before ordering &mdash; low material alerts fire before a blend stalls.</li>
+        </ul>
+      </div>
+      <div class="dont">
+        <h4><i class="fa fa-times" style="margin-right:8px;"></i>Never do</h4>
+        <ul>
+          <li>Bottle a blend before its maceration days are up &mdash; the scent has not settled.</li>
+          <li>Adjust stock by hand without a wastage record &mdash; you lose the <em>why</em> and the cost.</li>
+          <li>Mix a new delivery of oil into old stock without a batch code.</li>
+          <li>Sell decants without defining them as selling units &mdash; stock will not deduct in ml.</li>
+          <li>Complete a batch without enough raw material &mdash; MartPoint will block it; source first.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="gap:16px; margin-bottom:18px;">
+      <div class="readiness-card no-break">
+        <h3><i class="fa fa-list-alt" style="color:var(--mp-primary); margin-right:8px;"></i>Before your first blend</h3>
+        <ul>
+          <li><strong>Set the business type</strong> &mdash; choose Perfume Shop in Business Profile.</li>
+          <li><strong>Check your units</strong> &mdash; ml, Litre, Bottle, Decant and PCS are created for you.</li>
+          <li><strong>Add raw materials</strong> &mdash; oils, alcohol, bottles &mdash; flagged Not for Sale, stocked in ml/PCS.</li>
+          <li><strong>Have measuring tools ready</strong> &mdash; graduated cylinders, a funnel, a scale.</li>
+        </ul>
+      </div>
+      <div class="readiness-card no-break">
+        <h3><i class="fa fa-heart" style="color:var(--mp-primary); margin-right:8px;"></i>Lab habits that pay</h3>
+        <ul>
+          <li><strong>Name batches like a perfumer</strong> &mdash; &ldquo;Oud Royale EDP &mdash; 2L &mdash; Week 12&rdquo;.</li>
+          <li><strong>Weigh the bottle run</strong> &mdash; actual yield vs planned shows your true loss.</li>
+          <li><strong>Store blends dark and cool</strong> &mdash; and record where each batch rests.</li>
+          <li><strong>Review the waste report monthly</strong> &mdash; the costliest stage tells you where to improve.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break" style="padding:16px;">
+      <h3><i class="fa fa-lightbulb-o" style="color:var(--mp-warning); margin-right:8px;"></i>The perfumery golden rule</h3>
+      <p class="small" style="margin:0;">Every drop has a cost and a destination: into a bottle, into a decant, or into the wastage ledger. If stock and reality ever disagree, the answer is always in one of the three. That discipline is what separates a scent shop from a perfumery.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Morning</span>
+    <h2 class="mb-2">Tell MartPoint you run a perfumery</h2>
+    <p class="lead mb-3">Adaeze runs a perfume shop in Lagos. She blends her own fragrances &mdash; buying oils, perfumer&rsquo;s alcohol and bottles &mdash; and also sells designer scents, decants and a bespoke blending service. She starts by setting the business profile.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Adaeze, Owner</strong>
+        <p>&ldquo;I buy fragrance oil by the litre and alcohol in bulk, blend to my own recipes, let them rest for weeks, then bottle at 30, 50 and 100&nbsp;ml. Customers also buy 3&ndash;10&nbsp;ml decants, and some order custom blends. I need the app to track raw materials, batches, maceration and what all the spills and evaporation actually cost me.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Adaeze does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>She opens <strong>More &rarr; Business Profile</strong>.</li>
+        <li>She picks <strong>Perfume Shop</strong> as the industry type. MartPoint turns on the full kit: warehouse, batch &amp; expiry tracking, multi-unit selling, formulas (recipes), production batches and the <strong>Perfumery Workflow</strong>.</li>
+        <li>She saves the profile. A <strong>Perfume Lab</strong> section appears under Operations on desktop and under More on mobile &mdash; and MartPoint seeds ml, Litre, Bottle and Decant units plus fragrance-family categories automatically.</li>
+        <li>Labels change too: items become <strong>Fragrances</strong>, recipes become <strong>Formulas</strong>, production runs become <strong>Blend Batches</strong>, and staff become <strong>Perfumers</strong>.</li>
+      </ol>
+    </div>
+
+    <div class="tip"><strong>Why the profile matters:</strong> Choosing <strong>Perfume Shop</strong> gives you the entire blending pipeline &mdash; formulas, blend batches, maceration tracking and the wastage ledger &mdash; without any extra setup. The storefront also switches to the luxe beauty theme automatically.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: stock the raw materials.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Late morning</span>
+    <h2 class="mb-2">Stock oils, alcohol and packaging</h2>
+    <p class="lead mb-3">A supplier just delivered 5&nbsp;L of Oud concentrate, 20&nbsp;L of perfumer&rsquo;s alcohol and 500 glass bottles. Adaeze enters each as a raw material &mdash; flagged <em>Not for Sale</em> &mdash; so they appear in formulas but never on the till.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Adaeze, Owner</strong>
+        <p>&ldquo;The Oud cost &#x20A6;85,000 a litre, the alcohol &#x20A6;3,200 a litre, bottles &#x20A6;450 each. Some oils have best-before dates &mdash; I need those tracked too. And everything liquid must be measured in ml, not pieces.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Adaeze does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>She goes to <strong>Inventory &rarr; Add Product</strong>.</li>
+        <li>She names it <strong>Oud Concentrate</strong>, category <strong>Fragrance Oils &amp; Concentrates</strong>, unit <strong>ml</strong>, and ticks <strong>Not for Sale</strong> so it stays off the till.</li>
+        <li>She enters opening stock 5,000&nbsp;ml at &#x20A6;85/ml and the supplier batch code.</li>
+        <li>She repeats for <strong>Perfumer&rsquo;s Alcohol</strong> (20,000&nbsp;ml, Solvents &amp; Bases) and <strong>50&nbsp;ml Glass Bottle + Atomizer</strong> (500&nbsp;pcs, Bottles &amp; Packaging).</li>
+        <li>For oils with shelf life, she enters the best-before date &mdash; expiry tracking flags them before they turn.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>The form, field by field &mdash; a raw material</h3>
+      <p class="small" style="margin-bottom:8px;">Only the starred fields are required. Everything else can be left alone.</p>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why / can I skip it?</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Item Type</strong></td><td>Item</td><td>Raw materials are physical items</td></tr>
+          <tr><td><strong>Fragrance Name *</strong></td><td>Oud Concentrate</td><td>Required &mdash; the name used in formulas</td></tr>
+          <tr><td><strong>Fragrance Code *</strong></td><td>Leave as-is</td><td>Auto-generated, required</td></tr>
+          <tr><td><strong>Barcode</strong></td><td>Skip</td><td>Optional &mdash; only if the supplier barcode matters</td></tr>
+          <tr><td><strong>SKU, HSN, Brand</strong></td><td>Skip</td><td>Optional</td></tr>
+          <tr><td><strong>Category *</strong></td><td>Fragrance Oils &amp; Concentrates</td><td>Required &mdash; seeded by the perfume profile</td></tr>
+          <tr><td><strong>Base / Stock Unit *</strong></td><td>Millilitre (ml)</td><td>Required &mdash; liquids are counted in ml; packaging in PCS</td></tr>
+          <tr><td><strong>Selling Units</strong></td><td>Skip</td><td>Only for items sold in packs &mdash; raw materials are never sold</td></tr>
+          <tr><td><strong>Product Type *</strong></td><td>Single Product</td><td>Required</td></tr>
+          <tr><td><strong>Alert Qty</strong></td><td>500</td><td>Optional &mdash; the Lab&rsquo;s &ldquo;low materials&rdquo; counter uses it</td></tr>
+          <tr><td><strong>Seller Points, Description</strong></td><td>Skip</td><td>Optional</td></tr>
+          <tr><td><strong>Not for Sale</strong></td><td><strong>Tick it</strong></td><td>The key field &mdash; hides the oil from the till and lists it as formula stock</td></tr>
+          <tr><td><strong>Unit Label (consumable)</strong></td><td>ml</td><td>Display label on recipe rows</td></tr>
+          <tr><td><strong>Accept Custom Orders</strong></td><td>Skip</td><td>Only for bespoke service items</td></tr>
+          <tr><td><strong>Recipe &amp; Costing</strong></td><td>Skip</td><td>Raw materials have no recipe &mdash; they are ingredients</td></tr>
+          <tr><td><strong>Pricing &amp; Stock section</strong></td><td>Nothing here</td><td>With batch tracking on, the simple price fields are hidden &mdash; everything goes into the Unit / Variant row below</td></tr>
+          <tr><td><strong>Unit / Variant Details row</strong></td><td>Batch = supplier batch &middot; Purchase Price = &#x20A6;85 &middot; Wholesale = &#x20A6;85 &middot; Retail (MRP) = &#x20A6;85 &middot; <strong>Qty in Stock = 5,000</strong> &middot; Expiry = best-before</td><td><strong>This row IS your opening stock + cost.</strong> 5&nbsp;litres = 5,000&nbsp;ml. The cost per ml here prices every formula and every logged loss. Leave barcode and serial empty.</td></tr>
+          <tr><td><strong>Discount, Tax, Image</strong></td><td>Defaults / skip</td><td>Optional</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tip"><strong>Cost basis is everything:</strong> The purchase price on each raw material is what formulas use to cost a blend and what the wastage ledger uses to price a loss. Enter real costs, not round numbers. In the Unit / Variant row, fill the batch, qty and dates &mdash; leave the serial and barcode cells empty.</div>
+
+    <div class="screen-card no-break">
+      <h3>One more product before the formula &mdash; the finished fragrance shell</h3>
+      <p class="small" style="margin-bottom:8px;"><strong>Order matters:</strong> the formula&rsquo;s <em>Final Product</em> dropdown only lists sellable items &mdash; so the finished product must exist <strong>before</strong> you write the formula. Its base unit also becomes the formula&rsquo;s Yield Unit &mdash; set it to ml now and the formula measures yield in ml automatically.</p>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Fragrance Name *</strong></td><td>Oud Royale EDP</td><td>What customers see on the till and receipts</td></tr>
+          <tr><td><strong>Category *</strong></td><td>Finished Perfumes</td><td>Seeded by the profile</td></tr>
+          <tr><td><strong>Base / Stock Unit *</strong></td><td><strong>Millilitre (ml)</strong></td><td>Stock is the blended liquid &mdash; bottles and decants deduct ml. <strong>This is what the formula&rsquo;s Yield Unit copies</strong></td></tr>
+          <tr><td><strong>Product Type *</strong></td><td>Single Product</td><td>Sizes are selling units, not variants</td></tr>
+          <tr><td><strong>Selling Units table</strong></td><td>One row per size &mdash; see the breakdown below</td><td><strong>The decant mechanic</strong> &mdash; one stock pool in ml, every size deducts the right amount</td></tr>
+          <tr><td><strong>Not for Sale</strong></td><td>Unticked</td><td>This one IS sold &mdash; and sellable items are what the formula&rsquo;s Final Product list shows</td></tr>
+          <tr><td><strong>Unit / Variant Details row</strong></td><td>Purchase Price = 0 &middot; Wholesale = sell price &middot; Retail (MRP) = sell price &middot; <strong>Qty in Stock = 0</strong></td><td>With batch tracking on, prices and stock go in this row &mdash; there is no separate Opening Stock field. Batch completion credits ml here and auto-prices from ingredient cost + margin %</td></tr>
+          <tr><td><strong>Production Mode</strong></td><td>Batch &mdash; produce first, then sell</td><td>Default; correct for blends made in the lab</td></tr>
+          <tr><td><strong>Alert Qty</strong></td><td>e.g. 100</td><td>Warns when the shelf is running low</td></tr>
+          <tr><td><strong>Everything else</strong></td><td>Skip</td><td>Barcode, SKU, serial, discounts, custom orders &mdash; all optional</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Selling Units, field by field &mdash; every column, no surprises</h3>
+      <p class="small" style="margin-bottom:8px;">Each row is one package size the customer can buy. Stock still lives in ml &mdash; the row just says &ldquo;one of these = N&nbsp;ml, priced at &#x20A6;X&rdquo;.</p>
+      <table class="blend-table">
+        <thead><tr><th>Column</th><th>What it means</th><th>Bottle 50ml example</th><th>Decant 10ml example</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Unit</strong></td><td>The package label shown at the till</td><td>Bottle</td><td>Decant</td></tr>
+          <tr><td><strong>Conversion</strong></td><td>How many base units (ml) in ONE of this size</td><td>50</td><td>10</td></tr>
+          <tr><td><strong>Selling Price</strong></td><td>Retail price for one of this size</td><td>&#x20A6;28,000</td><td>&#x20A6;2,500</td></tr>
+          <tr><td><strong>Wholesale Price</strong></td><td>Wholesale-tier price for one unit (used on wholesale sales); leave blank if you don&rsquo;t sell wholesale</td><td>&#x20A6;25,000</td><td>Skip</td></tr>
+          <tr><td><strong>Purchase Price</strong></td><td><strong>Cost of ONE of this size</strong> = conversion &times; cost-per-ml (+ packaging for bottles). Drives profit-per-size reports. Not sure yet? Put conversion &times; a rough cost, or 0 &mdash; the formula margin will price the product anyway</td><td>50 &times; &#x20A6;280/ml + &#x20A6;450 bottle &asymp; &#x20A6;14,450</td><td>10 &times; &#x20A6;280/ml = &#x20A6;2,800</td></tr>
+          <tr><td><strong>SKU</strong></td><td>Optional code for this size &mdash; reports and search can find it</td><td>OUR-50</td><td>OUR-D10</td></tr>
+          <tr><td><strong>Barcode</strong></td><td>Optional &mdash; scanning this at the POS picks this exact size automatically</td><td>Skip or printed code</td><td>Skip</td></tr>
+          <tr><td><strong>Default</strong></td><td>Radio &mdash; the size pre-selected when the product is tapped at the till</td><td><strong>Tick on your bestseller</strong> (50ml)</td><td>Off</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;margin-bottom:0;">Adaeze&rsquo;s full setup: <strong>Bottle</strong> &times;30 @ &#x20A6;18,000 &middot; <strong>Bottle</strong> &times;50 @ &#x20A6;28,000 (default) &middot; <strong>Bottle</strong> &times;100 @ &#x20A6;50,000 &middot; <strong>Decant</strong> &times;3 @ &#x20A6;900 &middot; <strong>Decant</strong> &times;5 @ &#x20A6;1,400 &middot; <strong>Decant</strong> &times;10 @ &#x20A6;2,500. At the till each row shows as <em>Bottle &times;50 &mdash; &#x20A6;28,000</em> so sizes never confuse the cashier.</p>
+    </div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Setup done: materials in, product shell created. Next: write the formula.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Midday</span>
+    <h2 class="mb-2">Write the formula &mdash; then blend</h2>
+    <p class="lead mb-3">Adaeze&rsquo;s bestseller is &ldquo;Oud Royale&rdquo;, an Eau de Parfum at 18% concentration. She writes the formula once; from then on every blend batch costs itself and prices the finished perfume automatically.</p>
+
+    <div class="screen-card no-break">
+      <h3>The formula: Oud Royale EDP &mdash; 1,000&nbsp;ml</h3>
+      <table class="blend-table">
+        <thead><tr><th>Ingredient</th><th>Qty</th><th>Waste %</th><th>Why the allowance</th></tr></thead>
+        <tbody>
+          <tr><td>Oud Concentrate</td><td>180 ml</td><td>1.5%</td><td>Viscous &mdash; residue stays in the vessel</td></tr>
+          <tr><td>Perfumer&rsquo;s Alcohol</td><td>780 ml</td><td>2%</td><td>Evaporation during mixing &amp; resting</td></tr>
+          <tr><td>Fixative (DPG)</td><td>40 ml</td><td>1%</td><td>Transfer loss</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>The formula form, field by field &mdash; Operations &rarr; Recipe Book &rarr; New Formula</h3>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why / can I skip it?</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Recipe Name *</strong></td><td>Oud Royale &mdash; Extrait</td><td>Required &mdash; shows on batches and reports</td></tr>
+          <tr><td><strong>Category</strong></td><td>Extrait de Parfum</td><td>Optional &mdash; seeded formula types (EDP, EDT, attar&hellip;) or add your own via Configure Categories</td></tr>
+          <tr><td><strong>Status</strong></td><td>Active</td><td>Only active formulas appear in blend batches</td></tr>
+          <tr><td><strong>Description / Instructions</strong></td><td>&ldquo;Blend oils into alcohol slowly, no heat, airtight vessel&rdquo;</td><td>Optional &mdash; method notes for whoever runs the batch</td></tr>
+          <tr><td><strong>Final Product</strong></td><td>Oud Royale EDP</td><td>Links the formula to the sellable item &mdash; completion credits its stock and sets its price</td></tr>
+          <tr><td><strong>Yield Qty *</strong></td><td>1000</td><td>Required &mdash; what one run produces</td></tr>
+          <tr><td><strong>Yield Unit</strong></td><td>ml &mdash; fills itself</td><td>Locked; comes from the product&rsquo;s base unit</td></tr>
+          <tr><td><strong>Prep Time (mins)</strong></td><td>60</td><td>Optional &mdash; blending time</td></tr>
+          <tr><td><strong>Cook Time (mins)</strong></td><td>Skip</td><td>Food label &mdash; a blend isn&rsquo;t cooked</td></tr>
+          <tr><td><strong>Aging / Maceration (days)</strong></td><td>28</td><td><strong>The perfumery field</strong> &mdash; drives the tracker&rsquo;s ready date when the batch enters maceration</td></tr>
+          <tr><td><strong>Sales Margin %</strong></td><td>70</td><td>On completion: product price = cost per ml + this margin</td></tr>
+          <tr><td><strong>Ingredients &rarr; Ingredient</strong></td><td>Oud Concentrate / Alcohol / DPG</td><td>Any item you created &mdash; raw materials appear here</td></tr>
+          <tr><td><strong>Ingredients &rarr; Qty</strong></td><td>180 / 780 / 40</td><td>Amount needed per run, in the row&rsquo;s unit</td></tr>
+          <tr><td><strong>Ingredients &rarr; Unit</strong></td><td>ml</td><td>Shows the item&rsquo;s unit + convertible units (Litre items also offer ml)</td></tr>
+          <tr><td><strong>Ingredients &rarr; Cost/Unit</strong></td><td>Fills itself</td><td>Locked &mdash; item cost converted into the row&rsquo;s unit</td></tr>
+          <tr><td><strong>Ingredients &rarr; Waste %</strong></td><td>1.5 / 2 / 1</td><td>Expected loss per material &mdash; adds to what the batch deducts (evaporation, vessel residue)</td></tr>
+          <tr><td><strong>Total Ingredient Cost / Cost Per Unit</strong></td><td>Fills itself</td><td>Footer: the formula&rsquo;s true cost per ml</td></tr>
+          <tr><td><strong>Notes</strong></td><td>Skip</td><td>Optional</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>The blend batch form, field by field &mdash; Perfume Lab &rarr; New Blend Batch</h3>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why / can I skip it?</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Batch Name *</strong></td><td>Oud Royale &mdash; Run #7</td><td>Required &mdash; the name the tracker and wastage ledger show</td></tr>
+          <tr><td><strong>Batch Type</strong></td><td>Blending</td><td>Perfumery types: Blending / Bottling Run / General</td></tr>
+          <tr><td><strong>Status</strong></td><td>Planned</td><td>Leave at start &mdash; move it forward as work happens (or via the tracker buttons)</td></tr>
+          <tr><td><strong>Scheduled Date *</strong></td><td>Today</td><td>Required &mdash; when the run happens</td></tr>
+          <tr><td><strong>Scheduled Time</strong></td><td>Skip</td><td>Optional</td></tr>
+          <tr><td><strong>Equipment / Location</strong></td><td>Blending table / amber carboy</td><td>Optional &mdash; where the blend lives while resting</td></tr>
+          <tr><td><strong>Assigned Staff</strong></td><td>Adaeze</td><td>Optional &mdash; who owns the run</td></tr>
+          <tr><td><strong>Notes</strong></td><td>Skip</td><td>Optional</td></tr>
+          <tr><td><strong>Items in this Batch</strong></td><td>Empty &mdash; fill via the tables below</td><td>Rows land here from &ldquo;Produce from Recipe&rdquo; or &ldquo;Add Pending Orders&rdquo;</td></tr>
+          <tr><td><strong>Produce from Recipe</strong></td><td>+ on &ldquo;Oud Royale &mdash; Extrait&rdquo; &mdash; the row lands prefilled with Qty = 1,000 (the formula&rsquo;s yield)</td><td><strong>This is how the formula enters the batch.</strong> Qty = the amount to produce <strong>in the yield unit</strong> &mdash; for a 2-litre blend, change it to <strong>2,000</strong> (ml), not 2</td></tr>
+          <tr><td><strong>Add Pending Orders</strong></td><td>Skip for stock runs</td><td>Adds a bespoke order to this batch when blending to order</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;margin-bottom:0;">Saved as <strong>Planned</strong>, the batch then walks the pipeline &mdash; <em>Sourcing &rarr; Blending &rarr; Macerating &rarr; Filtering &rarr; Bottling &rarr; Ready &rarr; Completed</em>. Entering <strong>Macerating</strong> stamps the start date and copies the formula&rsquo;s 28 days onto the batch; entering <strong>Completed</strong> deducts materials (with waste %), credits the finished ml, and prices the product.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>While it rests &mdash; the Maceration Tracker</h3>
+      <p class="small" style="margin-bottom:8px;">Perfume Lab &rarr; Maceration Tracker shows every resting batch: days in, days needed, progress bar, ready date. A batch 28+ days in shows <strong>Ready now</strong> and can be released to Filtering &rarr; Bottling &rarr; Ready &rarr; <strong>Complete</strong>.</p>
+      <p class="small" style="margin:0;">Completing the batch deducts the raw materials (with their waste allowances), credits the finished perfume to stock, records the production run&rsquo;s planned-vs-actual yield, and sets the sales price from the formula&rsquo;s margin.</p>
+    </div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: bottling &mdash; <strong>optional</strong>, only if you pre-fill bottles for the shelf. Selling by the pour? Skip to page 8.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Bottling day</span>
+    <h2 class="mb-2">Bottle the batch &mdash; every step spelled out</h2>
+    <p class="lead mb-3">Completing the batch put <strong>1,000&nbsp;ml of bulk Oud Royale</strong> into stock. Now Adaeze fills real bottles from it. This page covers the whole thing: the idea, the one-time setup, and the run itself &mdash; nothing skipped.</p>
+
+    <div class="screen-card no-break">
+      <h3>First, the idea &mdash; pick how you sell it</h3>
+      <p class="small" style="margin-bottom:8px;">When a blend batch completes, the liquid lands in stock as the bulk item &mdash; <strong>&ldquo;Oud Royale EDP&rdquo;</strong>, measured in ml. From there you sell it one of two ways. <strong>Pick one &mdash; most shops never need both.</strong></p>
+      <table class="blend-table">
+        <thead><tr><th></th><th>A &mdash; Pour at the counter <span class="text-muted">(simplest)</span></th><th>B &mdash; Fill bottles in the lab</th></tr></thead>
+        <tbody>
+          <tr><td><strong>What the customer buys</strong></td><td>A decant or bottle poured while they wait</td><td>A sealed bottle filled, capped and boxed earlier</td></tr>
+          <tr><td><strong>What the cashier taps</strong></td><td>&ldquo;Oud Royale EDP&rdquo; &rarr; pick a size (Bottle &times;50 = 50&nbsp;ml)</td><td>&ldquo;Oud Royale &mdash; 50ml Bottle&rdquo;, a ready-made product</td></tr>
+          <tr><td><strong>Extra setup</strong></td><td><strong>None.</strong> The Selling Units you set on page 4 already do it &mdash; skip the rest of this page</td><td>One empty-bottle item + one bottled product per size (Steps 1&ndash;2 below), then a Bottling Run per fill</td></tr>
+          <tr><td><strong>What a sale deducts</strong></td><td>Ml of liquid straight from the bulk pool</td><td>1 filled bottle &mdash; bulk ml and the empty bottle were already deducted at fill time</td></tr>
+          <tr><td><strong>Empty bottles tracked?</strong></td><td>No</td><td>Yes &mdash; one packaging item per fill, automatically</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;margin-bottom:0;"><strong>Running both? No problem</strong> &mdash; bottling converts bulk into bottles, so stock never double-counts. Just name the bulk item clearly (e.g. &ldquo;Oud Royale EDP <em>(Bulk)</em>&rdquo;) so the till shows one liquid and one bottle, never two of the same. Keep it sellable: the formula&rsquo;s Final Product link needs it. That is exactly what Adaeze does below.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Option B setup, once only &mdash; Step 1: the empty bottle</h3>
+      <p class="small" style="margin-bottom:8px;color:var(--mp-muted);"><em>Only needed if you pre-fill bottles. Pouring at the counter? Skip to page 8 &mdash; selling.</em></p>
+      <p class="small" style="margin-bottom:8px;">Each bottle size exists as a raw-material item so the system knows its cost and its capacity. Do this once per size (50&nbsp;ml, 100&nbsp;ml, 150&nbsp;ml&hellip;). Go to <strong>Inventory &rarr; Add Product</strong>:</p>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Fragrance Name *</strong></td><td>Glass Bottle 50ml</td><td>The name bottling runs will show</td></tr>
+          <tr><td><strong>Category *</strong></td><td>Bottles &amp; Packaging</td><td>Seeded by the perfume profile</td></tr>
+          <tr><td><strong>Base / Stock Unit *</strong></td><td>PCS (pieces)</td><td>Bottles are counted, not measured</td></tr>
+          <tr><td><strong>Not for Sale</strong></td><td><strong>Tick it</strong></td><td>Keeps it off the till; lists it as lab stock</td></tr>
+          <tr><td><strong>Bottle Capacity (ml)</strong></td><td>50</td><td>The perfumery field on this item &mdash; the most this bottle can hold. MartPoint refuses a fill larger than this</td></tr>
+          <tr><td><strong>Unit / Variant Details row</strong></td><td>Purchase Price = &#x20A6;450 &middot; Qty in Stock = 500</td><td>Opening stock and cost &mdash; the cost feeds every bottling run&rsquo;s unit cost</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;margin-bottom:0;">She repeats this for <strong>Glass Bottle 100ml</strong> (capacity 100) and any other sizes she stocks.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Option B setup &mdash; Step 2: the bottled product</h3>
+      <p class="small" style="margin-bottom:8px;">Each filled size is its own sellable product &mdash; one per fragrance per size. Go to <strong>Inventory &rarr; Add Product</strong>:</p>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Fragrance Name *</strong></td><td>Oud Royale &mdash; 50ml Bottle</td><td>What the cashier taps; name the size so sizes never confuse</td></tr>
+          <tr><td><strong>Category *</strong></td><td>Finished Perfumes</td><td>Same category as the bulk fragrance</td></tr>
+          <tr><td><strong>Base / Stock Unit *</strong></td><td>PCS (pieces)</td><td><strong>Pieces, not ml</strong> &mdash; one unit = one filled bottle</td></tr>
+          <tr><td><strong>Fill per Bottle</strong> <span class="text-muted">(Recipe &amp; Costing card)</span></td><td>50</td><td>Ml of bulk liquid one unit draws when bottled</td></tr>
+          <tr><td><strong>Bottle / Packaging Item</strong> <span class="text-muted">(Recipe &amp; Costing card)</span></td><td>Glass Bottle 50ml</td><td>The empty bottle deducted once per unit filled</td></tr>
+          <tr><td><strong>Selling Price</strong></td><td>&#x20A6;28,000</td><td>Set on the Unit / Variant row as usual</td></tr>
+          <tr><td><strong>Qty in Stock</strong></td><td>0</td><td>Bottling runs create the stock &mdash; never type it in by hand</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;margin-bottom:0;">Repeat per size: &ldquo;Oud Royale &mdash; 100ml Bottle&rdquo; with Fill 100 + the 100&nbsp;ml bottle item. That is all the setup there is &mdash; from here on, a bottling run is three taps.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 6</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Bottling day, continued</span>
+    <h2 class="mb-2">Recording the run, field by field</h2>
+    <p class="lead mb-3">The blend for Run #7 is completed &mdash; 1,000&nbsp;ml of bulk Oud Royale sits in stock and 500 empty 50&nbsp;ml bottles on the shelf. Adaeze fills 14 bottles at 50&nbsp;ml, then 3 bottles at 100&nbsp;ml.</p>
+
+    <div class="screen-card no-break">
+      <h3>Option B &mdash; Step 3: open the batch and record the run</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;margin-bottom:10px;">
+        <li>Go to <strong>Operations &rarr; Production Schedule</strong> and open the batch (e.g. &ldquo;Oud Royale &mdash; Run #7&rdquo;).</li>
+        <li>Below the batch form, find the <strong>Bottling Runs</strong> card. Fill it in:</li>
+      </ol>
+      <table class="blend-table">
+        <thead><tr><th>Field on the card</th><th>What Adaeze enters</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Finished Product *</strong></td><td>Oud Royale &mdash; 50ml Bottle</td><td>Picking it auto-fills the bottle and the volume below &mdash; from the Step-2 link</td></tr>
+          <tr><td><strong>Bottle / Packaging *</strong></td><td>Glass Bottle 50ml (fills itself)</td><td>One of these is deducted per bottle filled; overridable for a one-off fill</td></tr>
+          <tr><td><strong>Bulk Liquid Drawn From</strong></td><td>Oud Royale EDP &mdash; 1,000 ml in stock</td><td>The batch&rsquo;s own bulk item. Pick &ldquo;No bulk deduction&rdquo; only for untracked liquid</td></tr>
+          <tr><td><strong>Volume per Bottle</strong></td><td>50 (fills itself)</td><td>Ml drawn per bottle &mdash; can&rsquo;t exceed the bottle&rsquo;s capacity</td></tr>
+          <tr><td><strong>Bottles Filled *</strong></td><td>14</td><td>How many were physically filled</td></tr>
+          <tr><td><strong>Notes</strong></td><td>&ldquo;Filled after filtering&rdquo;</td><td>Optional &mdash; shows on the run&rsquo;s history row</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;">As she types, two live readouts keep her honest: <strong>&ldquo;Will post: 14 bottle(s) out + 700 ml bulk out + 14 finished unit(s) in&rdquo;</strong> and <strong>&ldquo;Bulk remaining after this run: 300 ml&rdquo;</strong>. If a run would take more bulk or bottles than exist &mdash; or a fill bigger than the bottle&rsquo;s capacity &mdash; MartPoint refuses it with a plain-language reason.</p>
+      <p class="small" style="margin:0;">She clicks <strong>Record Bottling Run</strong>. Then she runs it again for the second size: Finished Product = &ldquo;Oud Royale &mdash; 100ml Bottle&rdquo;, Bottles Filled = 3 &mdash; another 300&nbsp;ml and 3 bottles deducted. 700&nbsp;+&nbsp;300&nbsp;=&nbsp;1,000&nbsp;ml, the whole batch accounted for.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What stock looks like before and after</h3>
+      <table class="blend-table">
+        <thead><tr><th>Item</th><th>Before bottling</th><th>After run 1 (14&times;50ml)</th><th>After run 2 (3&times;100ml)</th></tr></thead>
+        <tbody>
+          <tr><td>Oud Royale EDP (bulk, ml)</td><td>1,000 ml</td><td>300 ml</td><td>0 ml</td></tr>
+          <tr><td>Glass Bottle 50ml (pcs)</td><td>500</td><td>486</td><td>486</td></tr>
+          <tr><td>Glass Bottle 100ml (pcs)</td><td>120</td><td>120</td><td>117</td></tr>
+          <tr><td>Oud Royale &mdash; 50ml Bottle (pcs)</td><td>0</td><td>14</td><td>14</td></tr>
+          <tr><td>Oud Royale &mdash; 100ml Bottle (pcs)</td><td>0</td><td>0</td><td>3</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;margin-bottom:0;">Every run appears under <strong>Runs on this Batch</strong> with its date, bottle count, bulk drawn and cost &mdash; that is how you always know how many bottles a batch used. Each run also carries a true unit cost (bulk ml cost + bottle cost), so the bottled SKUs have a real cost basis for profit reports.</p>
+    </div>
+
+    <div class="tip"><strong>Spills at the filling table?</strong> If 20&nbsp;ml never made it into a bottle, log it under Perfume Lab &rarr; Wastage &amp; Losses with stage <em>Bottling</em> &mdash; don&rsquo;t pad the bottle count to hide it. Leftover bulk ml simply stays in stock for decants.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: sell bottles and decants.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 7</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Afternoon</span>
+    <h2 class="mb-2">Sell bottles, decants and bespoke blends</h2>
+    <p class="lead mb-3">Three customers, three ways to buy: a 50&nbsp;ml bottle, a 10&nbsp;ml decant, and a bespoke blend ordered for a wedding. All three draw down the same stock correctly.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Kunle, Sales Attendant</strong>
+        <p>&ldquo;Customer one takes a 50&nbsp;ml bottle of Oud Royale. Customer two wants a 10&nbsp;ml decant to try it first. The bride&rsquo;s party wants a custom scent &mdash; consultation today, sample next week, delivery in two months.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>How each sale works</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li><strong>Bottle filled at the counter (simplest):</strong> tap the bulk &ldquo;Oud Royale EDP&rdquo; item and pick the <strong>50ml Bottle</strong> selling unit &mdash; stock drops 50&nbsp;ml straight from the bulk pool. Nothing else to set up.</li>
+        <li><strong>Decant:</strong> same product, pick <strong>Decant 10ml</strong> at its own price &mdash; stock drops 10&nbsp;ml. No separate product needed.</li>
+        <li><strong>Pre-filled bottle (if you bottling-run):</strong> sell the <strong>Oud Royale &mdash; 50ml Bottle</strong> product made by the bottling run &mdash; stock drops one piece; the liquid and the empty bottle were already deducted at fill time.</li>
+        <li><strong>Bespoke:</strong> a custom order follows the perfumery workflow &mdash; <em>New &rarr; Quoted &rarr; Deposit Paid &rarr; Sampling &rarr; Approved &rarr; Blending &rarr; Macerating &rarr; Bottling &rarr; Ready &rarr; Delivered</em> &mdash; with the deposit tracked from day one.</li>
+        <li><strong>Tester:</strong> the bottle opened for the counter is logged in Wastage &amp; Losses under <em>Counter Tester</em> &mdash; it is a marketing cost, not a mystery gap in stock.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>A bespoke order, field by field &mdash; Operations &rarr; Custom Orders &rarr; New Order</h3>
+      <p class="small" style="margin-bottom:8px;">Prerequisite: a service item (e.g. &ldquo;Bespoke Blend Consultation&rdquo;) with <strong>Accept Custom Orders</strong> ticked and Workflow = <strong>Perfumery</strong> &mdash; that is what makes the order follow the blending pipeline.</p>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why / can I skip it?</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Customer *</strong></td><td>The bride&rsquo;s contact</td><td>Required &mdash; deposits and delivery are tracked per client</td></tr>
+          <tr><td><strong>Product Template *</strong></td><td>Bespoke Blend Consultation</td><td>Required &mdash; sets the workflow and loads the spec fields</td></tr>
+          <tr><td><strong>Order Date *</strong></td><td>Today</td><td>Required</td></tr>
+          <tr><td><strong>Due Date</strong></td><td>Wedding week</td><td>Optional &mdash; shows in pending orders when building a batch</td></tr>
+          <tr><td><strong>Assigned Staff</strong></td><td>Adaeze</td><td>Optional &mdash; the perfumer who owns the blend</td></tr>
+          <tr><td><strong>Customer Specifications</strong></td><td>Preferred notes, occasion, allergies</td><td>Fills itself from the item&rsquo;s custom fields &mdash; capture what the client asked for</td></tr>
+          <tr><td><strong>Quoted Price</strong></td><td>&#x20A6;150,000</td><td>Set after consultation when Requires Quote is on</td></tr>
+          <tr><td><strong>Deposit Required / Paid</strong></td><td>&#x20A6;75,000 / &#x20A6;75,000</td><td>The 50% deposit before blending starts</td></tr>
+          <tr><td><strong>Total Amount</strong></td><td>&#x20A6;150,000</td><td>Final price &mdash; balance collected on delivery</td></tr>
+          <tr><td><strong>Status</strong></td><td>New</td><td>Follows the perfumery pipeline automatically from the item&rsquo;s workflow</td></tr>
+          <tr><td><strong>Notes</strong></td><td>&ldquo;Sample vials Friday&rdquo;</td><td>Optional</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;margin-bottom:0;">The order then moves <em>Quoted &rarr; Deposit Paid &rarr; Sampling &rarr; Approved &rarr; Blending &rarr; Macerating &rarr; Bottling &rarr; Delivered</em> &mdash; and appears under <strong>Add Pending Orders</strong> when building the blend batch.</p>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Log a Loss, field by field &mdash; Perfume Lab &rarr; Wastage &amp; Losses</h3>
+      <table class="blend-table">
+        <thead><tr><th>Field on the form</th><th>What Adaeze enters</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Material *</strong></td><td>e.g. Perfumer&rsquo;s Alcohol, or Oud Royale EDP</td><td>Required &mdash; any raw material or finished item; its unit shows beside the qty</td></tr>
+          <tr><td><strong>Loss Stage *</strong></td><td>Bottling / Decanting / Breakage / Tester&hellip;</td><td>Required &mdash; what powers the cost-by-stage report</td></tr>
+          <tr><td><strong>Quantity *</strong></td><td>15</td><td>Required &mdash; in the material&rsquo;s own unit (ml for liquids, PCS for bottles)</td></tr>
+          <tr><td><strong>Blend Batch</strong></td><td>Oud Royale &mdash; Run #7</td><td>Optional &mdash; links the loss to a run so the yield-variance report stays honest</td></tr>
+          <tr><td><strong>Reason</strong></td><td>&ldquo;Funnel dripped while bottling&rdquo;</td><td>Optional &mdash; shows in the losses table</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;margin-bottom:0;">On save, MartPoint posts a matching stock adjustment automatically &mdash; the ledger and the inventory can never drift apart &mdash; and prices the loss at the material&rsquo;s cost. Review the cost-by-stage chart monthly: if bottling losses spike, retrain; if maceration losses spike, check your storage.</p>
+    </div>
+
+    <div class="tip"><strong>The decant is your best marketing:</strong> A &#x20A6;2,500 10&nbsp;ml decant converts browsers into bottle buyers. Keep 3/5/10&nbsp;ml selling units on every fragrance &mdash; the margin per ml on decants is often higher than on bottles.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 8</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">End of day</span>
+    <h2 class="mb-2">What the numbers tell Adaeze</h2>
+    <p class="lead mb-3">Before closing, Adaeze opens the Perfume Lab dashboard. In one glance: what is blending, what is resting, what is ready &mdash; and what waste cost her this month.</p>
+
+    <div class="screen-card no-break">
+      <h3>The Perfume Lab dashboard</h3>
+      <div class="field-list">
+        <div class="field"><strong>Active batches</strong><span>Everything between planned and ready</span></div>
+        <div class="field"><strong>Macerating now</strong><span>Count + ready dates from the tracker</span></div>
+        <div class="field"><strong>Ready this week</strong><span>Resting blends hitting their minimum days</span></div>
+        <div class="field"><strong>Losses this month</strong><span>Total cost of every spill, evaporation and breakage</span></div>
+        <div class="field"><strong>Low materials</strong><span>Raw materials at or below their alert level</span></div>
+        <div class="field"><strong>Formulas</strong><span>Active fragrance recipes</span></div>
+      </div>
+    </div>
+
+    <div class="do-dont" style="margin-bottom:0;">
+      <div class="do">
+        <h4><i class="fa fa-check" style="margin-right:8px;"></i>The numbers to watch</h4>
+        <ul>
+          <li><strong>Yield variance</strong> &mdash; a run that yielded 940&nbsp;ml of a planned 1,000&nbsp;ml lost 6%: more than the formula&rsquo;s allowance. Investigate.</li>
+          <li><strong>Waste cost by stage</strong> &mdash; if bottling out-costs maceration, you have a handling problem, not an evaporation problem.</li>
+          <li><strong>Decant sales share</strong> &mdash; decants should feed bottle sales; track both.</li>
+        </ul>
+      </div>
+      <div class="dont">
+        <h4><i class="fa fa-times" style="margin-right:8px;"></i>What hides your profit</h4>
+        <ul>
+          <li>Unlogged testers &mdash; every open bottle is a cost; log it under Counter Tester.</li>
+          <li>&ldquo;Mystery&rdquo; stock gaps &mdash; they are always an unlogged loss or a forgotten batch.</li>
+          <li>Bottling early &mdash; a blend sold before maceration finishes costs you repeat customers.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break" style="padding:16px;margin-top:18px;">
+      <h3><i class="fa fa-check-circle" style="color:var(--mp-success); margin-right:8px;"></i>Day one checklist</h3>
+      <ul class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.8;margin:0;">
+        <li>Business Profile set to <strong>Perfume Shop</strong> (Perfume Lab appears under Operations).</li>
+        <li>Units seeded: ml, Litre, Bottle, Decant, PCS &mdash; categories for oils, solvents, packaging.</li>
+        <li>Raw materials added as <strong>Not for Sale</strong>, in ml or pieces, with real costs.</li>
+        <li><em>Only if pre-filling bottles:</em> empty bottles added as <strong>Not for Sale</strong> packaging items, each with its <strong>Bottle Capacity (ml)</strong> set.</li>
+        <li><em>Only if pre-filling bottles:</em> bottled products (e.g. &ldquo;Oud Royale 50ml&rdquo;) created with <strong>Fill per Bottle</strong> + <strong>Bottle / Packaging Item</strong> linked.</li>
+        <li>First formula written with ingredient waste % and maceration days.</li>
+        <li>First blend batch created and moved to Macerating.</li>
+        <li><em>Only if pre-filling bottles:</em> first bottling run recorded on the completed batch &mdash; confirm bottles and bulk ml dropped and the bottled SKU gained stock.</li>
+        <li>Selling units (Bottle/Decant sizes) added to each finished fragrance &mdash; this alone is enough to sell.</li>
+        <li>One test loss logged &mdash; confirm the stock adjustment and the ledger row both appear.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Perfume Shop Use Case</span><span>Page 9</span></div>
+  </section>
+
+</div>
+</body>
+</html>
