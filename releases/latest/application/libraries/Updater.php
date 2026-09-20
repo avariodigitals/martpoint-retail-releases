@@ -866,8 +866,13 @@ class Updater {
             'current_step' => $step,
             'step_label' => $label . ($message ? " — {$message}" : ''),
             'log' => $message,
-            'status' => 'running',
         ]);
+        // Terminal steps (finalize/cleanup) already wrote success — never
+        // regress a finished job back to running, or the watchdog will mark
+        // it failed ten minutes after it actually completed.
+        $this->CI->db->where('id', $this->updateRecordId)
+            ->where_not_in('status', ['success', 'restored'])
+            ->update('db_system_updates', ['status' => 'running']);
     }
 
     protected function ensureJobExists(): void {

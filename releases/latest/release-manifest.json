@@ -3015,8 +3015,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "673f7b8039df99d628016a8edef51d5c7acb715d939d1b52f5bacc88ed5b4894",
-            "size": 41420
+            "hash": "f67537734a49f181ac5bcea8804c6910f04f4eabbe63d27748dc288a78a5ac2c",
+            "size": 41789
         },
         {
             "path": "application/libraries/Resend_provider.php",
@@ -26965,6 +26965,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "8801690f020784b37336ec7ccae84b8f66923fc9355c6ed6120a8e39eb05e1f8",
+    "signature": "d0602fa7ba0e37064079927c5b911df1183f2e529f68b105c86e4919f2886e57",
     "changelog": "Auto-generated release 4.0.9.31"
 }
