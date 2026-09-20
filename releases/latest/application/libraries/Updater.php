@@ -540,21 +540,27 @@ class Updater {
         foreach ($batch as $relPath) {
             $this->resetTimer();
             $tempPath = $this->tempDir . '/' . $relPath;
-            if (!file_exists($tempPath)) {
-                if ($this->isNonCritical($relPath)) {
-                    $state['files_skipped'][] = $relPath;
-                    $this->writeState($state);
-                    continue;
-                }
-                throw new Exception("Missing downloaded file: {$relPath}");
-            }
             $expected = $manifestMap[$relPath] ?? null;
-            if ($expected && hash_file('sha256', $tempPath) !== $expected) {
+
+            $ok = file_exists($tempPath)
+                && (!$expected || hash_file('sha256', $tempPath) === $expected);
+
+            // Self-heal: a stale or truncated temp file from an earlier failed
+            // run must not doom every retry — re-fetch once before failing.
+            if (!$ok && $this->redownloadFile($relPath, $tempPath)) {
+                $ok = file_exists($tempPath)
+                    && (!$expected || hash_file('sha256', $tempPath) === $expected);
+            }
+
+            if (!$ok) {
                 if ($this->isNonCritical($relPath)) {
                     @unlink($tempPath);
                     $state['files_skipped'][] = $relPath;
                     $this->writeState($state);
                     continue;
+                }
+                if (!file_exists($tempPath)) {
+                    throw new Exception("Missing downloaded file: {$relPath}");
                 }
                 throw new Exception("Hash mismatch for: {$relPath}");
             }
@@ -949,6 +955,21 @@ class Updater {
     // a stale or missing doc is skipped with a warning, not fatal.
     protected function isNonCritical(string $path): bool {
         return strpos($path, 'docs/') === 0;
+    }
+
+    // Re-fetch a single file from the update channel into the temp dir.
+    // Used by verify to repair stale/truncated downloads from earlier runs.
+    protected function redownloadFile(string $relPath, string $tempPath): bool {
+        $channel = $this->getUpdateChannelUrl();
+        $data = $this->httpGet(rtrim($channel, '/') . '/' . $relPath, 30);
+        if ($data === null) {
+            return false;
+        }
+        $dir = dirname($tempPath);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        return @file_put_contents($tempPath, $data) !== false;
     }
 
     protected function resetTimer(): void {
