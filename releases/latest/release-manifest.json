@@ -26619,6 +26619,291 @@
       "size": 407
     },
     {
+      "path": "docs/phase1_audit_summary.md",
+      "hash": "1bc1778b264682bea243c60dc463bcb7dcd58ffc87d630e421a3f1f5e7756fea",
+      "size": 20554
+    },
+    {
+      "path": "docs/whatsapp-omni-flow.html",
+      "hash": "586f5f8429a1419e780c92775c6a3cee31dd69e18ae6229d6af90c52b3d789fb",
+      "size": 17733
+    },
+    {
+      "path": "docs/whatsapp-omni-flow.md",
+      "hash": "a5336b4962238bdd77cbefefd8ca9767c02d89cabeeb7a187804274032059153",
+      "size": 9295
+    },
+    {
+      "path": "docs/whatsapp-omni-flow.pdf",
+      "hash": "1d05c10dfb4a3c4a812cc51cf577aa0f482d04116032f7a6b90489e9526fde2c",
+      "size": 57616
+    },
+    {
+      "path": "docs/plans/MartPoint-Plans.pdf",
+      "hash": "5bfc6f98a8ad3d0301ac0d111dd4dbd8e1034ee80e39915ea7e722b2b1646bdd",
+      "size": 112450
+    },
+    {
+      "path": "docs/plans/generate_pdf.php",
+      "hash": "aea383f9d745c6038fd53f590524322ade3ad5371ab6e3102e1f5902ea5c106c",
+      "size": 1581
+    },
+    {
+      "path": "docs/plans/martpoint-logo.png",
+      "hash": "3fe8705475bfd86a21939bd8d2e6a58160d6ce642f78e95affed96e1c00fbd39",
+      "size": 88869
+    },
+    {
+      "path": "docs/plans/martpoint-plans.html",
+      "hash": "322c70049a28785a1eb24986cccca849897807fbe4c16ec75862c7e481a88219",
+      "size": 21397
+    },
+    {
+      "path": "docs/process-guides/MartPoint-New-Installation.pdf",
+      "hash": "167269d83b14df9abf86438826dff3fcd3fc0869cbd3bf0ef59983a2eea44488",
+      "size": 14929
+    },
+    {
+      "path": "docs/process-guides/MartPoint-Update-4.0-Upwards.pdf",
+      "hash": "d60159de6a2afd056ea9cc6b4cf834f42f2dfd499c11ea677e7372d369ad6af2",
+      "size": 3340
+    },
+    {
+      "path": "docs/process-guides/MartPoint-Upgrade-Existing-Backup.pdf",
+      "hash": "6e3d41c9999e81a935b6e2a1f28d3307607643172b1059354b5db2476fc52c50",
+      "size": 3587
+    },
+    {
+      "path": "docs/product-design/MartPoint-Appendix-Document-Index.html",
+      "hash": "e185f8683e94c22807fdda7822555fdb557bc80f003cdd3e3c74bf8b59491bce",
+      "size": 7595
+    },
+    {
+      "path": "docs/product-design/MartPoint-Appendix-Document-Index.pdf",
+      "hash": "22e1383b37fb80fde4177beb0e4ee1a60bf1fec5e751a0b6ac85014c41bfa670",
+      "size": 245981
+    },
+    {
+      "path": "docs/product-design/MartPoint-Brochure-whatsapp.pdf",
+      "hash": "39e6646fbe6b3cb99e7068a661eff4eb7d11cf556276f90e6204f6d87fd10816",
+      "size": 3299610
+    },
+    {
+      "path": "docs/product-design/MartPoint-Brochure.html",
+      "hash": "ba94c7853c40c3f301a5a2bdd8396ab418eadda31910a4833cd5e2a5a4d093b6",
+      "size": 40597
+    },
+    {
+      "path": "docs/product-design/MartPoint-Brochure.pdf",
+      "hash": "a9a02e8e9b1546d3d6e46fc968aad300f2c0f80b9ef832b9a8e7939247012650",
+      "size": 3291994
+    },
+    {
+      "path": "docs/product-design/MartPoint-Pricing-Catalogue.html",
+      "hash": "b6cec4cb1f25bcaa75766ff02d1ed8716512b0a80ab2699df1e5d6311cdf9f90",
+      "size": 36209
+    },
+    {
+      "path": "docs/product-design/MartPoint-Pricing-Catalogue.pdf",
+      "hash": "cafd3efe5b31c426e29547718561ff238b8f9399220d0b5731d8221fa3ef103b",
+      "size": 688605
+    },
+    {
+      "path": "docs/product-design/brochure.html",
+      "hash": "0fe7dfb7dd7e11b44f79988a6748f71655d329674b7aeca9933bf6d8310f426c",
+      "size": 134047
+    },
+    {
+      "path": "docs/product-design/favicon.webp",
+      "hash": "ae2d5bbf0ebc3dfd2974e24ce2a208a87532b0d4856b69f2d370d9b21d59ae28",
+      "size": 6332
+    },
+    {
+      "path": "docs/product-design/generate-pricing-catalogue.php",
+      "hash": "d1fecda389f6d744583f36abddda993b38be8db6b772e3d8e0ca8300106977b4",
+      "size": 32118
+    },
+    {
+      "path": "docs/product-design/instagram-flyer-features.html",
+      "hash": "cabf869d08a2ba401e1eda99bae56ef85bcc76257c0cca4d86e3450e730f9a6e",
+      "size": 128577
+    },
+    {
+      "path": "docs/product-design/instagram-flyer.html",
+      "hash": "4b1197db2b5d349ba1e38d3ee58ad1b560b32f7f4adf46d1524d277506b09e6f",
+      "size": 127277
+    },
+    {
+      "path": "docs/product-design/logo-white.png",
+      "hash": "8d189aa588fb70c8c31cc184300c663104bf51bd16c5744ec7ff7cae2bf6f7fd",
+      "size": 29954
+    },
+    {
+      "path": "docs/product-design/logo.png",
+      "hash": "3fe8705475bfd86a21939bd8d2e6a58160d6ce642f78e95affed96e1c00fbd39",
+      "size": 88869
+    },
+    {
+      "path": "docs/product-design/martpoint-brand.css",
+      "hash": "d93620a5eb8337425640ab8da79191674098d7d076e792b86d7ca3ad713ffb8d",
+      "size": 10684
+    },
+    {
+      "path": "docs/product-design/qr-demo.png",
+      "hash": "e1276faf2ae6a21bbccc71f352184cb3a8ad4b55ae78b2c94565483efde63a74",
+      "size": 5172
+    },
+    {
+      "path": "docs/product-design/.tmp/logo.b64",
+      "hash": "6a19d221653e17c92104c46e914757726d9f2442118858cd5a94a16c5e325de4",
+      "size": 118493
+    },
+    {
+      "path": "docs/product-design/.tmp/qr.b64",
+      "hash": "8978daaf9c991c13b74efc01c06aa9b34c0150a95be1d1f024b076ef7da46837",
+      "size": 609
+    },
+    {
+      "path": "docs/product-design/.tmp/qr.png",
+      "hash": "5dabb081a6e29b159ad7d1160889cb9c85d65a7785a94be5db7d3eb751a1ecf2",
+      "size": 454
+    },
+    {
+      "path": "docs/product-design/customer-guide/automobile-customer-guide.html",
+      "hash": "30f796c95803c06d36f0f33cad49ef1af2e5759d7f3467739f840df2afc48ec1",
+      "size": 25566
+    },
+    {
+      "path": "docs/product-design/customer-guide/automobile-customer-guide.pdf",
+      "hash": "af1954fdd01d44f1b195f5f7487f99c0616df01a13bab49dddd4eba2024ae261",
+      "size": 608013
+    },
+    {
+      "path": "docs/product-design/customer-guide/butchery-frozen-customer-guide.html",
+      "hash": "64a2400d16175dddef6dfbb77f58c17fe3b0b22e4d498b74c98b0641fcfa442e",
+      "size": 12838
+    },
+    {
+      "path": "docs/product-design/customer-guide/butchery-frozen-customer-guide.pdf",
+      "hash": "ccdd8f85a1b4ea35f0608c99b95ff764e21c37f502869e0e7c6704f4c26292cf",
+      "size": 122090
+    },
+    {
+      "path": "docs/product-design/customer-guide/cashier-guide.html",
+      "hash": "16d4ebe5ce3adfccafc0e43db192bc83c40074d59be8eaf7a456956a432c978e",
+      "size": 137423
+    },
+    {
+      "path": "docs/product-design/customer-guide/delivery-customer-guide.html",
+      "hash": "2d6646515472404e765c40e356b4b8a5ad09b35aa4825be81d77a129dce1e70e",
+      "size": 17406
+    },
+    {
+      "path": "docs/product-design/customer-guide/delivery-customer-guide.pdf",
+      "hash": "2664e1a772a15c0bcc0a380fb5515b6667443a11897835ec33fc8097f4b7f712",
+      "size": 81565
+    },
+    {
+      "path": "docs/product-design/customer-guide/fashion-scenario.html",
+      "hash": "59fd5f4dc3a9754834bc1b1235ca899dc94babe40dbad1b5f109a3178cae78ee",
+      "size": 128936
+    },
+    {
+      "path": "docs/product-design/customer-guide/frozen-food-customer-guide.html",
+      "hash": "885bb4aa13f3ad32457841514a106040bc97da37c094146b96fd5cde5c12d9a8",
+      "size": 23018
+    },
+    {
+      "path": "docs/product-design/customer-guide/frozen-food-customer-guide.pdf",
+      "hash": "62871aa306aae58f0782619a25ac884140470b083d342ccd5f52ef85a1ddaa22",
+      "size": 83740
+    },
+    {
+      "path": "docs/product-design/customer-guide/index.html",
+      "hash": "492b176d2293e561e3aec6a40a458028289b14fc49f944f3745f5482d9ed9fc3",
+      "size": 5460
+    },
+    {
+      "path": "docs/product-design/customer-guide/item-import-guide.html",
+      "hash": "24e34df5dc8ba90e726ae28be3ba4fd422af6452a6cf86e98277c82dc758b7bd",
+      "size": 17952
+    },
+    {
+      "path": "docs/product-design/customer-guide/item-import-guide.pdf",
+      "hash": "999ca0eed370c594a7ea336ad20560884e3466926cde284434086e68301f151e",
+      "size": 72455
+    },
+    {
+      "path": "docs/product-design/customer-guide/perfume-shop-customer-guide.html",
+      "hash": "592de19a57bfa10cbe0d0fc34f9abb09f1504b2e5aa6b260be1f4934f19026c0",
+      "size": 53443
+    },
+    {
+      "path": "docs/product-design/customer-guide/perfume-shop-customer-guide.pdf",
+      "hash": "d4f8862cb36c96062b5b1017cbf0aca6f4e5cb3a23bfef0d3f2bbb8fc7a9633e",
+      "size": 129121
+    },
+    {
+      "path": "docs/product-design/customer-guide/products.html",
+      "hash": "7501dd47f06df0e82de9b3b3f387af96fcdd799b41b853cc0f137d41f9e97223",
+      "size": 134817
+    },
+    {
+      "path": "docs/product-design/customer-guide/purchase.html",
+      "hash": "08e5caa8bdc854185447573489c958cbe40b738f243a1228f0500ba108b73938",
+      "size": 130445
+    },
+    {
+      "path": "docs/product-design/customer-guide/reports.html",
+      "hash": "f5438b8cd835c360ece360d11b7970ddcb180664a6d7733a49d1a228fc4b246f",
+      "size": 35683
+    },
+    {
+      "path": "docs/product-design/customer-guide/sales.html",
+      "hash": "54c194da8daf5c016e8183df3c3199cdf0b235b80851c8067964d81f2812a088",
+      "size": 135053
+    },
+    {
+      "path": "docs/product-design/customer-guide/services.html",
+      "hash": "bd7cce7b44e764e5d9fcf5c55b540a7c92617e9615333d59f22b12a089269a5c",
+      "size": 130910
+    },
+    {
+      "path": "docs/product-design/customer-guide/user-manual.html",
+      "hash": "4b66eac23370e1dee06dec6a643774d32656796909fb14a085fa0fc867a5db61",
+      "size": 143192
+    },
+    {
+      "path": "docs/product-design/partner-guide/index.html",
+      "hash": "c5525e8d55f3679c898db241e298c1f714b5a690ebdf2cee046d52bdd09b0eca",
+      "size": 4002
+    },
+    {
+      "path": "docs/product-design/technical-guide/butchery-frozen-technical-guide.html",
+      "hash": "7b7618ce51ee4954a14bde4e85412a1d239ae624ddd49afcf0112a6f330c3813",
+      "size": 13598
+    },
+    {
+      "path": "docs/product-design/technical-guide/butchery-frozen-technical-guide.pdf",
+      "hash": "aca2bfa0a5a576b14c986dea8e80791d27e09655df7510cbfc0e3d24e3ecce74",
+      "size": 160500
+    },
+    {
+      "path": "docs/product-design/technical-guide/frozen-food-technical-guide.html",
+      "hash": "23cd3ba7dc15c229fb62f2312e5498dccf0a9c811d2212537af4c477f7196253",
+      "size": 16813
+    },
+    {
+      "path": "docs/product-design/technical-guide/frozen-food-technical-guide.pdf",
+      "hash": "ec38c6455d371b7426533002fbf0d7d1fd357465074a2f5b292d3d17e12609eb",
+      "size": 167349
+    },
+    {
+      "path": "docs/product-design/technical-guide/technical-guide.html",
+      "hash": "9094a71dec77b53d946c5ce44fde72c56899edc4d8afc458da822746c2060973",
+      "size": 149322
+    },
+    {
       "path": "favicon.ico",
       "hash": "f880fa39b4a1374e9f44a133f0cfdf9fe18b070158271917e37204f6cc5c63c2",
       "size": 21882
@@ -26683,6 +26968,6 @@
     "uploads/",
     "backups/"
   ],
-  "signature": "7fdf1b2989ed2b189be75ff0708e8ce71492a3da617ccae830a3cf44e83892c0",
+  "signature": "140385e786b8d98f5a71f793a8af196519dd9a32d3f6fa2631b4a9d1d5710738",
   "changelog": "Bottling runs for perfumery (fill bottles from batch bulk, stock-guarded), 4 parfum storefront themes, customer notes, db_storefront_settings column backfill, installer path fixes."
 }
