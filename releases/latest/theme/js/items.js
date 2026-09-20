@@ -83,10 +83,16 @@ $(document).on("click", "#save, #update", function (e) {
 
 		var bc_has_data = ($bc_pprice.length > 0); // table exists if first pprice input exists
 		if(bc_has_data){
+			// Raw materials / consumables (not for sale) only carry a unit cost —
+			// mirror it into wholesale/retail so those fields stay meaningful
+			if($('#not_for_sale').is(':checked')){
+				if(bc_sprice_val <= 0){ $bc_sprice.val($bc_pprice.val()); bc_sprice_val = bc_pprice_val; }
+				if(bc_mrp_val <= 0){ $bc_mrp.val($bc_pprice.val()); bc_mrp_val = bc_pprice_val; }
+			}
 			// Barcode table is visible — prices MUST be entered in the first row
 			if(bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0){
 				$('#barcode_table_msg').fadeIn(200).show();
-				$('#barcode_table_msg_text').html('Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.');
+				$('#barcode_table_msg_text').html($('#not_for_sale').is(':checked') ? 'Purchase Price (unit cost) is required for the first unit row.' : 'Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.');
 				if(bc_pprice_val <= 0) $bc_pprice.focus();
 				else if(bc_sprice_val <= 0) $bc_sprice.focus();
 				else $bc_mrp.focus();
