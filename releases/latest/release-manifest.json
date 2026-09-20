@@ -6935,8 +6935,8 @@
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
-            "hash": "6d6860c233018323d051ffbd2c0a331cf79a50901f93e5f126830b26bfcd1870",
-            "size": 12688
+            "hash": "51e263fd72a11081da2ed0c99e0f34042a0764456ddc558a04953b55942fd1c2",
+            "size": 12890
         },
         {
             "path": "application/models/Email_model.php",
@@ -7335,8 +7335,8 @@
         },
         {
             "path": "application/controllers/Stock_adjustment.php",
-            "hash": "f2833cf75beea2cee1da4926f28a2dfd0ed3001805dd471e30b23e1695e42372",
-            "size": 4542
+            "hash": "5ad8b8397ad3c6674b39ab806ac387fbf59c3495a6c62dacc0ddf25f0d592a1b",
+            "size": 4665
         },
         {
             "path": "application/controllers/Discount_coupon.php",
@@ -26968,6 +26968,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "d1facdd7bfca77c40cbeeaa23bf7196788815bfe8663ae7087000da87d396f70",
+    "signature": "d4f1840d3d72619bcf830e814e189edb8bed9425a215bc1a2bc60637675ec061",
     "changelog": "Auto-generated release 4.0.9.30"
 }

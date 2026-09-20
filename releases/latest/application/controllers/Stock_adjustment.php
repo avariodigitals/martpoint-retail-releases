@@ -106,8 +106,11 @@ class Stock_adjustment extends MY_Controller {
 	//Stock Adjustment invoice form
 	public function details($id = null)
 	{
+		// Missing/garbled reference is a navigation issue, not a permissions
+		// failure — send the user back to the list instead of a 403 page.
 		if(empty($id) || !is_numeric($id)){
-			$this->show_access_denied_page('Invalid stock adjustment reference.');
+			redirect('stock_adjustment','refresh');
+			return;
 		}
 		$this->belong_to('db_stockadjustment',$id);
 		if(!$this->permissions('stock_adjustment_view')){

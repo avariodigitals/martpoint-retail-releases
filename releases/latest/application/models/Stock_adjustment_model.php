@@ -121,6 +121,10 @@ class Stock_adjustment_model extends CI_Model {
 		$adjustment_id = $this->input->post('adjustment_id', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
+		if($command=='update' && empty($adjustment_id)){
+			return "Invalid stock adjustment reference.";
+		}
+
 		$this->db->trans_begin();
 		$adjustment_date=system_fromatted_date($adjustment_date);
 
@@ -149,6 +153,10 @@ class Stock_adjustment_model extends CI_Model {
 		     	
 			$q1 = $this->db->insert('db_stockadjustment', $purchase_entry);
 			$adjustment_id = $this->db->insert_id();
+			if(!$q1 || empty($adjustment_id)){
+				$this->db->trans_rollback();
+				return "failed";
+			}
 		}
 		else if($command=='update'){	
 			$purchase_entry = array(
