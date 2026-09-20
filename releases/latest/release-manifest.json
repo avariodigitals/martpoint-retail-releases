@@ -5394,11 +5394,6 @@
             "size": 268
         },
         {
-            "path": "application/libraries/stripe/README.md",
-            "hash": "1602305d691e05545f2cf90eae529408f8e384b2d4083547a48b74e9ae209be3",
-            "size": 10910
-        },
-        {
             "path": "application/libraries/stripe/.coveralls.github-actions.yml",
             "hash": "95ac74f06d6842d0e7c40bce66350b3d7d71ef8ae7c54346a54e6a7c469ecc77",
             "size": 90
@@ -26970,6 +26965,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "8021310937ba8380427ac90c0c4a4f0c8570c3a0f594a6a1289adde2bfb98bed",
+    "signature": "f819a87222c3a56ceb9fae807f811227b2e535d319421c7ddfdee2e35890bd51",
     "changelog": "Auto-generated release 4.0.9.31"
 }
