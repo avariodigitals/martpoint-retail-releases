@@ -145,6 +145,63 @@ class System_updates extends MY_Controller {
     }
 
     /**
+     * AJAX: Rebuild the stock ledger (db_warehouseitems) and item stock from
+     * transaction history. Chunked like the updater — the browser keeps
+     * calling with an increasing offset until done. Needed on installs where
+     * earlier fatals left the warehouse ledger unpopulated: items show stock
+     * on the edit screen but the Stock Report is empty.
+     */
+    public function rebuild_stock() {
+        @set_time_limit(60);
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+
+        $offset = (int) $this->input->post('offset', TRUE);
+        $batch  = 150;
+        $total  = (int) $this->db->count_all('db_items');
+
+        $items = $this->db->select('id, store_id')
+            ->order_by('id', 'ASC')
+            ->limit($batch, $offset)
+            ->get('db_items');
+
+        if (!$items) {
+            $err = $this->db->error();
+            echo json_encode(['status' => 'error', 'message' => 'Item query failed: ' . ($err['message'] ?? 'unknown')]);
+            return;
+        }
+
+        $this->load->model('pos_model');
+        $errors = 0;
+        foreach ($items->result() as $item) {
+            // Recompute the item master stock from transactions
+            if (!$this->pos_model->update_items_quantity($item->id)) {
+                $errors++;
+            }
+            // Rebuild the warehouse ledger for every warehouse of the store
+            $whs = $this->db->select('id')->where('store_id', $item->store_id)->get('db_warehouse');
+            if ($whs) {
+                foreach ($whs->result() as $w) {
+                    if (update_warehousewise_items_qty($item->id, $w->id, $item->store_id) === false) {
+                        $errors++;
+                    }
+                }
+            }
+        }
+
+        $processed = min($offset + $batch, $total);
+        echo json_encode([
+            'status'    => 'ok',
+            'done'      => ($offset + $batch) >= $total,
+            'progress'  => $processed,
+            'total'     => $total,
+            'errors'    => $errors,
+            'message'   => "Rebuilt stock for {$processed} of {$total} items" . ($errors ? " ({$errors} item errors)" : ''),
+        ]);
+    }
+
+    /**
      * AJAX: Get current update channel URL
      */
     public function get_channel() {

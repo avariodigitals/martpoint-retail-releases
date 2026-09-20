@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.31",
-    "previous_version": "4.0.9.30",
+    "version": "4.0.9.32",
+    "previous_version": "4.0.9.31",
     "release_date": "2026-09-20",
     "files": [
         {
@@ -6680,8 +6680,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "7bf0420dc453d351d80faf1aed5e562da9ca4041f171e0931ab011d1ed76874d",
-            "size": 4146
+            "hash": "fb4790f0c1847e83f52326d211d908d27d753f1ea9e128d260a01dcd16d22ed6",
+            "size": 4202
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -7545,8 +7545,8 @@
         },
         {
             "path": "application/controllers/System_updates.php",
-            "hash": "7736662a54e976e1b5021f41524c3706aaabe816d3c2d483fab2fbd7e1ad1df2",
-            "size": 5156
+            "hash": "adee86fb619cb753f6958b862df957b19fbbf7a8470c00430f35362f501b81bd",
+            "size": 7381
         },
         {
             "path": "application/controllers/Paystack.php",
@@ -8390,8 +8390,8 @@
         },
         {
             "path": "application/views/system-updates.php",
-            "hash": "6b72ae795eadff128be944e7adb9c64b6f02150af7f971b0b3d59fe26e9089e1",
-            "size": 19055
+            "hash": "28622ac49c53bdfaac10e6c4b175173b4ea719dee01e28c804bc687d43be2764",
+            "size": 21467
         },
         {
             "path": "application/views/brand-view.php",
@@ -11625,7 +11625,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "b596aad42eb5936c13219aaa08eaf0f996b7c43969c4f65ba45ecffc72e1a8fd",
+            "hash": "0e0606ad7064bc87c6038cde270a4622b1da03b54af498e8b2c5996c4bde55a2",
             "size": 95175
         },
         {
@@ -26949,6 +26949,7 @@
         "4.0.9.29_storefront_settings_columns.sql",
         "4.0.9.30_stock_adjustment_repair.sql",
         "4.0.9.31_stock_recalculation_repair.sql",
+        "4.0.9.32_warehouse_stock_repair.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
@@ -26965,6 +26966,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "d0602fa7ba0e37064079927c5b911df1183f2e529f68b105c86e4919f2886e57",
-    "changelog": "Auto-generated release 4.0.9.31"
+    "signature": "3bd8cc59843c1bf252bd586875584221a29cc05eb339ed36edd86628645a7837",
+    "changelog": "Auto-generated release 4.0.9.32"
 }

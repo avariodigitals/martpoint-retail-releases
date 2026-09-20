@@ -65,6 +65,7 @@ class Updates_model extends CI_Model {
 			'4.0.9.29' => '4.0.9.29_storefront_settings_columns.sql',
 			'4.0.9.30' => '4.0.9.30_stock_adjustment_repair.sql',
 			'4.0.9.31' => '4.0.9.31_stock_recalculation_repair.sql',
+			'4.0.9.32' => '4.0.9.32_warehouse_stock_repair.sql',
 		];
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $files){

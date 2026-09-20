@@ -84,6 +84,15 @@
         <h4>Live Log</h4>
         <div class="log-box" id="liveLog">Ready.</div>
       </div>
+
+      <div style="margin-top:20px; border-top:1px solid #eee; padding-top:14px">
+        <h4>Maintenance</h4>
+        <p class="text-muted" style="font-size:12px">
+          Rebuilds the stock ledger from transaction history — use when items
+          show stock on the edit screen but the Stock Report is empty.
+        </p>
+        <button id="btnRebuildStock" class="btn btn-warning"><i class="fa fa-wrench"></i> Repair Stock Ledger</button>
+      </div>
     </div>
   </div>
 
@@ -348,6 +357,44 @@
       });
     }
 
+    var rebuilding = false;
+    function rebuildStock(offset) {
+      if (offset === 0) {
+        if (rebuilding) return;
+        if (!confirm('Rebuild the stock ledger for all items from transaction history? Existing stock figures are recalculated.')) return;
+        rebuilding = true;
+        document.getElementById('btnRebuildStock').disabled = true;
+        setStatus('info', 'Rebuilding stock ledger...');
+      }
+      $.post('<?= base_url('system_updates/rebuild_stock'); ?>', { offset: offset }, function(res) {
+        if (res.status !== 'ok') {
+          setStatus('danger', 'Stock rebuild failed: ' + (res.message || 'unknown error'));
+          rebuilding = false;
+          document.getElementById('btnRebuildStock').disabled = false;
+          return;
+        }
+        log(res.message);
+        document.getElementById('progressWrap').style.display = 'block';
+        var pct = res.total > 0 ? Math.round((res.progress / res.total) * 100) : 100;
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('progressPct').textContent = pct + '%';
+        document.getElementById('progressLabel').textContent = 'Repair Stock Ledger — ' + res.progress + ' / ' + res.total;
+        if (res.done) {
+          rebuilding = false;
+          document.getElementById('btnRebuildStock').disabled = false;
+          var bar = document.getElementById('progressBar');
+          bar.classList.remove('active');
+          bar.classList.remove('progress-bar-striped');
+          setStatus('success', 'Stock ledger rebuilt. ' + res.message);
+          log('Stock rebuild complete.');
+        } else {
+          setTimeout(function() { rebuildStock(res.progress); }, 200);
+        }
+      }, 'json').fail(function() {
+        setTimeout(function() { rebuildStock(offset); }, 3000);
+      });
+    }
+
     function saveChannel() {
       var url = document.getElementById('channelUrl').value.trim();
       if (!url) { toastr.error('Enter a URL'); return; }
@@ -391,6 +438,7 @@
     document.getElementById('btnPreview').addEventListener('click', previewChanges);
     document.getElementById('btnUpdate').addEventListener('click', startUpdate);
     document.getElementById('btnRestore').addEventListener('click', doRestore);
+    document.getElementById('btnRebuildStock').addEventListener('click', function() { rebuildStock(0); });
     document.getElementById('btnSaveChannel').addEventListener('click', saveChannel);
 
     // Init
