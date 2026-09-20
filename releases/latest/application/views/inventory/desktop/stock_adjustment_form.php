@@ -21,7 +21,7 @@ if(isset($adjustment_id)){
     $store_id         = $row->store_id;
 
     $items_count_q = $this->db->query("SELECT count(*) as items_count FROM db_stockadjustmentitems WHERE adjustment_id = ?", array($adjustment_id));
-    $items_count = $items_count_q->row()->items_count;
+    $items_count = ($items_count_q && $items_count_q->row()) ? $items_count_q->row()->items_count : 0;
     $btn_id      = 'update';
     $btn_name    = 'Update';
   }

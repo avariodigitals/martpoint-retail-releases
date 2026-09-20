@@ -89,14 +89,14 @@ class Stock_adjustment_model extends CI_Model {
 		if(isset($_POST['length']) && $_POST['length'] != -1)
 		$this->db->limit($_POST['length'], $_POST['start']);
 		$query = $this->db->get();
-		return $query->result();
+		return $query ? $query->result() : array();
 	}
 
 	function count_filtered()
 	{
 		$this->_get_datatables_query();
 		$query = $this->db->get();
-		return $query->num_rows();
+		return $query ? $query->num_rows() : 0;
 	}
 
 	public function count_all()
@@ -337,8 +337,10 @@ class Stock_adjustment_model extends CI_Model {
 
 	/* For Stock_adjustment Items List Retrieve*/
 	public function return_stock_adjustment_list($adjustment_id){
-		$q1=$this->db->select('*')->from('db_stockadjustmentitems')->where("adjustment_id=$adjustment_id")->get();
+		$q1=$this->db->select('*')->from('db_stockadjustmentitems')->where("adjustment_id=".(int)$adjustment_id)->get();
 		$rowcount =1;
+		$result = '';
+		if(!$q1){ return $result; }
 		foreach ($q1->result() as $res1) {
 			$q2=$this->db->query("select * from db_items where id=".(int)$res1->item_id);
 			$res2 = $q2 ? $q2->row() : null;

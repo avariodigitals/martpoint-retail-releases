@@ -434,9 +434,9 @@
  		//Find the previllaged wareshouses to the user
  		$q3 = $CI->db->select("warehouse_id")->where("user_id",get_current_user_id())->get("db_userswarehouses");
  		$ids = array();
- 		foreach ($q3->result() as $res3) {
+ 		if($q3){ foreach ($q3->result() as $res3) {
  			$ids[] = $res3->warehouse_id;
- 		}
+ 		} }
  		$ids = implode(',', $ids);
  		$CI->db->where("id in ($ids)");
  		

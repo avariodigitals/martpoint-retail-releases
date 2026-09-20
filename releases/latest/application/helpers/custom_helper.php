@@ -1194,7 +1194,9 @@
   function is_it_belong_to_store($table,$rec_id){
     $CI =& get_instance();
     $store_id = get_current_store_id();
-    return $CI->db->select('count(*) as tot_rec')->where('id',$rec_id)->where('store_id',$store_id)->get($table)->row()->tot_rec;
+    $q = $CI->db->select('count(*) as tot_rec')->where('id',$rec_id)->where('store_id',$store_id)->get($table);
+    $row = $q ? $q->row() : null;
+    return $row ? (int)$row->tot_rec : 0;
   }
   function get_coupon_master_details($id){
     $CI =& get_instance();

@@ -6685,8 +6685,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "6b4435c2c728cc2c7e4846e3fec9469cabcdcc61d7fa8878761250ccb77fbb71",
-            "size": 4029
+            "hash": "522dda7c65df0890b6ad38e2fefa7d35040be3e58382487b1df051095571bd3c",
+            "size": 4086
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -6935,8 +6935,8 @@
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
-            "hash": "cfd7f64f4087cc7e497880e729717c633e81141550380fd55c5dfcdbc530e206",
-            "size": 14254
+            "hash": "5dcc1b8b02cc5e65f9be98ed2d7eb4e2a5f2aa1f339b1d7664422c63dde88899",
+            "size": 14338
         },
         {
             "path": "application/models/Email_model.php",
@@ -9700,8 +9700,8 @@
         },
         {
             "path": "application/views/inventory/desktop/stock_adjustment_form.php",
-            "hash": "087ab168090d2bade2441d44cba7aa99a9b33e5f746eecc9e85b3ccb919b9b8b",
-            "size": 9049
+            "hash": "82e7f65d05d7d0efb67d41a0f9271bb921d75bfd3562bee0d93241f6ff0837d5",
+            "size": 9097
         },
         {
             "path": "application/views/suppliers.php",
@@ -11630,8 +11630,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "745b524be14414002e5a8e8b6ab73966385a083e0e7a2bddb16899ea968adb7c",
-            "size": 94757
+            "hash": "eaef7e15a1297c76d5ca2089555e1ef19ac05e484c7008b7656472b30fe35df2",
+            "size": 94815
         },
         {
             "path": "application/helpers/advance_helper.php",
@@ -11655,8 +11655,8 @@
         },
         {
             "path": "application/helpers/inventory_helper.php",
-            "hash": "6c42ae61f9de5cb454af180b4993edc659aff973f6fff4f3073ae2a6a9ba4d81",
-            "size": 20464
+            "hash": "caa9be67f581fdc2ce5748824ac2a64c0e44eeb4da958c0ca97e3757767d0acd",
+            "size": 20475
         },
         {
             "path": "application/helpers/foreign_currency_helper.php",
@@ -26952,6 +26952,7 @@
         "4.0.9.27_bottling_sku_link.sql",
         "4.0.9.28_customer_notes.sql",
         "4.0.9.29_storefront_settings_columns.sql",
+        "4.0.9.30_stock_adjustment_repair.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
@@ -26968,6 +26969,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "4d5353e297a4ad1b65121f9042afae35eb04024dded0ba3b2cd5b73c86671548",
+    "signature": "84072372d7a72a8fd695059e7da7882d524ed84a49184ed1217411ffb300b0e9",
     "changelog": "Auto-generated release 4.0.9.30"
 }
