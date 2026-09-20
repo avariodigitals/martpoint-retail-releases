@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.30",
-    "previous_version": "4.0.9.29",
+    "version": "4.0.9.31",
+    "previous_version": "4.0.9.30",
     "release_date": "2026-09-20",
     "files": [
         {
@@ -6685,8 +6685,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "522dda7c65df0890b6ad38e2fefa7d35040be3e58382487b1df051095571bd3c",
-            "size": 4086
+            "hash": "7bf0420dc453d351d80faf1aed5e562da9ca4041f171e0931ab011d1ed76874d",
+            "size": 4146
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -6695,8 +6695,8 @@
         },
         {
             "path": "application/models/Pos_model.php",
-            "hash": "28bb6c7d712475b10f6bc478b7d95ec3487ea45bb044cd3534bb3550273553e0",
-            "size": 74466
+            "hash": "051b2abaa044cc78a3bb77e859b8e15b2ec425d5d93e1706110699cb6ae58013",
+            "size": 74677
         },
         {
             "path": "application/models/Subscribers_model.php",
@@ -6935,8 +6935,8 @@
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
-            "hash": "5dcc1b8b02cc5e65f9be98ed2d7eb4e2a5f2aa1f339b1d7664422c63dde88899",
-            "size": 14338
+            "hash": "d99ecf54aa3024b5a9f575c37e1b2ff1055d325cc9e7752d38876922fb7e64e5",
+            "size": 15413
         },
         {
             "path": "application/models/Email_model.php",
@@ -11630,8 +11630,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "eaef7e15a1297c76d5ca2089555e1ef19ac05e484c7008b7656472b30fe35df2",
-            "size": 94815
+            "hash": "b596aad42eb5936c13219aaa08eaf0f996b7c43969c4f65ba45ecffc72e1a8fd",
+            "size": 95175
         },
         {
             "path": "application/helpers/advance_helper.php",
@@ -26953,6 +26953,7 @@
         "4.0.9.28_customer_notes.sql",
         "4.0.9.29_storefront_settings_columns.sql",
         "4.0.9.30_stock_adjustment_repair.sql",
+        "4.0.9.31_stock_recalculation_repair.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
@@ -26969,6 +26970,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "84072372d7a72a8fd695059e7da7882d524ed84a49184ed1217411ffb300b0e9",
-    "changelog": "Auto-generated release 4.0.9.30"
+    "signature": "8021310937ba8380427ac90c0c4a4f0c8570c3a0f594a6a1289adde2bfb98bed",
+    "changelog": "Auto-generated release 4.0.9.31"
 }

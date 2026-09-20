@@ -138,6 +138,25 @@ class Stock_adjustment_model extends CI_Model {
 			}
 		}
 
+		// Saving recalculates stock across purchase/sales/return/transfer tables;
+		// a missing column there kills the request mid-transaction (HTTP 500).
+		$recalc_columns = array(
+			'db_items'               => array('service_bit','item_production_mode','stock'),
+			'db_purchaseitems'       => array('received_qty','purchase_qty','base_unit_qty','purchase_status','item_id'),
+			'db_salesitems'          => array('sales_qty','base_unit_qty','sales_status','item_id'),
+			'db_purchaseitemsreturn' => array('return_qty','base_unit_qty','item_id'),
+			'db_salesitemsreturn'    => array('return_qty','base_unit_qty','item_id'),
+			'db_stocktransferitems'  => array('transfer_qty','warehouse_to','warehouse_from','item_id'),
+			'db_warehouseitems'      => array('warehouse_id','item_id','available_qty'),
+		);
+		foreach ($recalc_columns as $tbl => $cols) {
+			foreach ($cols as $col) {
+				if(!$this->db->field_exists($col, $tbl)){
+					return "Stock adjustment failed: your database is missing the column $tbl.$col — run pending migrations or contact support.";
+				}
+			}
+		}
+
 		$this->db->trans_begin();
 		$adjustment_date=system_fromatted_date($adjustment_date);
 

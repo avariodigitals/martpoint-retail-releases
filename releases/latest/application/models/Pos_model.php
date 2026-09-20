@@ -1112,7 +1112,10 @@ class Pos_model extends CI_Model {
 
 	public function update_items_quantity($item_id){
 		//FIND IS IS SERVICE OR NOT
-		$item = $this->db->query("select service_bit, item_production_mode from db_items where id='$item_id'")->row();
+		$iq = $this->db->query("select service_bit, item_production_mode from db_items where id='$item_id'");
+		if(!$iq){ return false; }
+		$item = $iq->row();
+		if(!$item){ return false; }
 		if($item->service_bit==1){
 			return true;
 		}
@@ -1124,20 +1127,25 @@ class Pos_model extends CI_Model {
 		
 		//UPDATE itemS QUANTITY IN itemS TABLE
 		$q7=$this->db->query("select COALESCE(SUM(adjustment_qty),0) as stock_qty from db_stockadjustmentitems where item_id='$item_id'");
+		if(!$q7){ return false; }
 		$stock_qty=$q7->row()->stock_qty;
 
 		$q8=$this->db->query("select COALESCE(SUM(CASE WHEN received_qty IS NOT NULL THEN COALESCE(base_unit_qty, received_qty) ELSE COALESCE(base_unit_qty, purchase_qty) END),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status IN ('Received','Partially Received')");
+		if(!$q8){ return false; }
 		$pu_tot_qty=$q8->row()->pu_tot_qty;
 		
 		$q9=$this->db->query("select coalesce(SUM(COALESCE(base_unit_qty, sales_qty)),0) as sl_tot_qty from db_salesitems where item_id='$item_id' and sales_status='Final'");
+		if(!$q9){ return false; }
 		$sl_tot_qty=$q9->row()->sl_tot_qty;
 
 		/*Fid Return Items Count*/
 		$q6=$this->db->query("select COALESCE(SUM(return_qty),0) as pu_return_tot_qty from db_purchaseitemsreturn where item_id='$item_id' ");/*and purchase_id is null */
+		if(!$q6){ return false; }
 		$pu_return_tot_qty=$q6->row()->pu_return_tot_qty;
 
 		/*Fid Return Items Count*/
 		$q6=$this->db->query("select COALESCE(SUM(return_qty),0) as sl_return_tot_qty from db_salesitemsreturn where item_id='$item_id' ");/*and sales_id is null */
+		if(!$q6){ return false; }
 		$sl_return_tot_qty=$q6->row()->sl_return_tot_qty;
 
 		$stock=((($stock_qty+$pu_tot_qty)-$sl_tot_qty)+$sl_return_tot_qty)-$pu_return_tot_qty;

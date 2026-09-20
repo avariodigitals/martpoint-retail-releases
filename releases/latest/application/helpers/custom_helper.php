@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.30';
+    return '4.0.9.31';
   }
   function required_php_version(){
     return 7.4;
@@ -742,56 +742,70 @@
     }
     $CI =& get_instance();
     /*Sum purchase quantity of purchase entry*/
-    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)), 0) AS purchase_qty FROM
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)), 0) AS purchase_qty FROM
                               db_purchaseitems AS a,
                               db_purchase AS b
                               WHERE
                               a.`item_id`=$item_id AND a.`purchase_id`=b.id AND
-                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id and b.purchase_status IN ('Received','Partially Received')")->row()->purchase_qty;
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id and b.purchase_status IN ('Received','Partially Received')");
+    if(!$q){ return false; }
+    $purchase_qty=$q->row()->purchase_qty;
 
 
     /*Sum purchase quantity of purchase entry*/
-    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS purchase_return_qty FROM 
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS purchase_return_qty FROM 
                               db_purchaseitemsreturn AS a,
                               db_purchasereturn AS b
                               WHERE 
                               a.`item_id`=$item_id AND a.`return_id`=b.id AND 
-                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id")->row()->purchase_return_qty;
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id");
+    if(!$q){ return false; }
+    $purchase_return_qty=$q->row()->purchase_return_qty;
 
     /*Sum sales quantity of sales entry*/
-    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.sales_qty)), 0) AS sales_qty FROM 
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.sales_qty)), 0) AS sales_qty FROM 
                               db_salesitems AS a,
                               db_sales AS b
                               WHERE 
                               a.`item_id`=$item_id AND a.`sales_id`=b.id AND 
-                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id")->row()->sales_qty;
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id");
+    if(!$q){ return false; }
+    $sales_qty=$q->row()->sales_qty;
 
     /*Sum sales return quantity of invoice*/
-    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS sales_return_qty FROM 
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS sales_return_qty FROM 
                               db_salesitemsreturn AS a,
                               db_salesreturn AS b
                               WHERE 
                               a.`item_id`=$item_id AND a.`return_id`=b.id AND 
-                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id")->row()->sales_return_qty;
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id");
+    if(!$q){ return false; }
+    $sales_return_qty=$q->row()->sales_return_qty;
 
 
-    $stock_entry_qty=$CI->db->query("SELECT COALESCE(SUM(adjustment_qty),0) AS adjustment_qty FROM db_stockadjustmentitems 
+    $q = $CI->db->query("SELECT COALESCE(SUM(adjustment_qty),0) AS adjustment_qty FROM db_stockadjustmentitems 
                               WHERE 
                               store_id=$store_id AND 
                               warehouse_id=$warehouse_id AND
-                              item_id=$item_id")->row()->adjustment_qty;
+                              item_id=$item_id");
+    if(!$q){ return false; }
+    $stock_entry_qty=$q->row()->adjustment_qty;
     /*Add Stock Transfer*/
-    $stocktransfer_qty_add=$CI->db->query("SELECT COALESCE(SUM(transfer_qty),0) AS stocktransfer_qty FROM db_stocktransferitems 
+    $q = $CI->db->query("SELECT COALESCE(SUM(transfer_qty),0) AS stocktransfer_qty FROM db_stocktransferitems 
                               WHERE 
                               store_id=$store_id AND 
                               warehouse_to=$warehouse_id AND
-                              item_id=$item_id")->row()->stocktransfer_qty;
+                              item_id=$item_id");
+    if(!$q){ return false; }
+    $stocktransfer_qty_add=$q->row()->stocktransfer_qty;
     /*Deduct Stock from warerhouse*/
-    $stocktransfer_qty_deduct=$CI->db->query("SELECT COALESCE(SUM(transfer_qty),0) AS stocktransfer_qty FROM db_stocktransferitems 
+    $q = $CI->db->query("SELECT COALESCE(SUM(transfer_qty),0) AS stocktransfer_qty FROM db_stocktransferitems 
                               WHERE 
                               store_id=$store_id AND 
                               warehouse_from=$warehouse_id AND
-                              item_id=$item_id")->row()->stocktransfer_qty;
+                              item_id=$item_id");
+    if(!$q){ return false; }
+    $stocktransfer_qty_deduct=$q->row()->stocktransfer_qty;
     
     return ($stock_entry_qty + $purchase_qty + $stocktransfer_qty_add - $stocktransfer_qty_deduct + $sales_return_qty - $purchase_return_qty)-$sales_qty;
   }
@@ -894,6 +908,9 @@
     //If item id exist
       $CI->db->where("store_id",$store_id)->where("warehouse_id",$warehouse_id)->where('item_id',$item_id)->delete("db_warehouseitems");
       $available_qty = get_total_qty_of_warehouse_item($item_id,$warehouse_id,$store_id);
+      if($available_qty === false){
+        return false;
+      }
       if($available_qty>0){
         $info=array(  'store_id'      =>  $store_id,
                       'warehouse_id'  =>  $warehouse_id,
