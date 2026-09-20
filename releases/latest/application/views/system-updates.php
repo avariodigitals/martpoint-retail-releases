@@ -227,19 +227,28 @@
       });
     }
 
+    function finishUpdateUI() {
+      isUpdating = false;
+      setStatus('success', 'Update completed successfully!');
+      log('Update finished.');
+      clearInterval(pollInterval);
+      var bar = document.getElementById('progressBar');
+      bar.classList.remove('active');
+      bar.classList.remove('progress-bar-striped');
+      showActions('idle');
+    }
+
     function runStep(step) {
       if (step > totalSteps) {
-        isUpdating = false;
-        setStatus('success', 'Update completed successfully!');
-        log('Update finished.');
-        clearInterval(pollInterval);
-        showActions('idle');
+        finishUpdateUI();
         return;
       }
 
       setStepIcon(step, 'running');
 
       $.post('<?= base_url('system_updates/run_step'); ?>', { step: step }, function(res) {
+        // Server may have overridden the step (state resume) — trust res.step
+        var srvStep = res.step || step;
         if (res.status === 'error') {
           setStepIcon(step, 'fail');
           setStatus('danger', 'Step ' + step + ' failed: ' + res.message);
@@ -252,35 +261,31 @@
 
         // Update the progress bar for this step
         if (res.progress && res.total) {
-          var overallPct = Math.round(((step - 1 + (res.progress / res.total)) / totalSteps) * 100);
+          var overallPct = Math.round(((srvStep - 1 + (res.progress / res.total)) / totalSteps) * 100);
           document.getElementById('progressBar').style.width = overallPct + '%';
           document.getElementById('progressPct').textContent = overallPct + '%';
           if (res.step_label) {
-            document.getElementById('progressLabel').textContent = 'Step ' + step + ' of ' + totalSteps + ' — ' + res.step_label;
+            document.getElementById('progressLabel').textContent = 'Step ' + srvStep + ' of ' + totalSteps + ' — ' + res.step_label;
           }
-          log('Step ' + step + ': ' + res.message);
+          log('Step ' + srvStep + ': ' + res.message);
         } else {
-          setStepIcon(step, 'done');
-          updateProgress(step);
-          log('Step ' + step + ' completed.');
+          setStepIcon(srvStep, 'done');
+          updateProgress(srvStep);
+          log('Step ' + srvStep + ' completed.');
         }
 
         if (res.done) {
-          setStepIcon(step, 'done');
-          updateProgress(step);
-          if (step >= totalSteps) {
-            isUpdating = false;
-            setStatus('success', 'Update completed successfully!');
-            log('Update finished.');
-            clearInterval(pollInterval);
-            showActions('idle');
+          setStepIcon(srvStep, 'done');
+          updateProgress(srvStep);
+          if (srvStep >= totalSteps) {
+            finishUpdateUI();
           } else {
             // Proceed to next step after short delay
-            setTimeout(function() { runStep(step + 1); }, 800);
+            setTimeout(function() { runStep(srvStep + 1); }, 800);
           }
         } else {
           // Same step, next chunk
-          setTimeout(function() { runStep(step); }, 200);
+          setTimeout(function() { runStep(srvStep); }, 200);
         }
       }, 'json').fail(function(xhr) {
         setStepIcon(step, 'fail');

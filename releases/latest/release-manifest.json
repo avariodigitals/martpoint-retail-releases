@@ -3015,8 +3015,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "5f55cae9990b36ec52a9b27f457d6048f2805df688dfef1b9ca96bfd657794e1",
-            "size": 40873
+            "hash": "673f7b8039df99d628016a8edef51d5c7acb715d939d1b52f5bacc88ed5b4894",
+            "size": 41420
         },
         {
             "path": "application/libraries/Resend_provider.php",
@@ -8390,8 +8390,8 @@
         },
         {
             "path": "application/views/system-updates.php",
-            "hash": "c53a3c8c15c4f856fd94a7f3c70913ef982054d7c36e90048c7958ec44bba6e9",
-            "size": 18881
+            "hash": "6b72ae795eadff128be944e7adb9c64b6f02150af7f971b0b3d59fe26e9089e1",
+            "size": 19055
         },
         {
             "path": "application/views/brand-view.php",
@@ -26965,6 +26965,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "f819a87222c3a56ceb9fae807f811227b2e535d319421c7ddfdee2e35890bd51",
+    "signature": "8801690f020784b37336ec7ccae84b8f66923fc9355c6ed6120a8e39eb05e1f8",
     "changelog": "Auto-generated release 4.0.9.31"
 }

@@ -247,6 +247,18 @@ class Updater {
         // We always need a record id. If none, this is the first call to step 1.
         $state = $this->readState();
         if (empty($state)) {
+            // A request for any step other than 1 with no stored state means a
+            // stray/retried call arrived after cleanup cleared the state.
+            // Report done — never spawn a second update job for it.
+            if ($step > 1) {
+                return [
+                    'status' => 'ok',
+                    'message' => 'Update already completed.',
+                    'step_label' => $this->stepLabel($step),
+                    'done' => true,
+                    'step' => $step,
+                ];
+            }
             $this->updateRecordId = 0;
         } else {
             $this->updateRecordId = $state['record_id'] ?? 0;
