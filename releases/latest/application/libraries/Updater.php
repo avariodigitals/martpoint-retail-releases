@@ -30,6 +30,12 @@ class Updater {
     // Keeps each request under ~5-10 seconds on shared hosting.
     protected $batchSize = 50;
 
+    // Wall-clock budget per run_step request. Host request limits (FPM,
+    // LiteSpeed, mod_php) kill a request that runs too long — and a killed
+    // request never writes state, so the batch restarts and dies again in an
+    // infinite "running" loop. Bound every step well under typical limits.
+    protected $stepTimeBudget = 40;
+
     // State file used to resume across HTTP requests.
     protected $statePath;
     protected $tempDir;
@@ -193,6 +199,7 @@ class Updater {
     }
 
     public function getProgress(): ?object {
+        $this->failStalledJobs();
         // Prefer the latest DB record; fallback to state file
         $job = $this->CI->db->order_by('id', 'DESC')
             ->limit(1)
@@ -235,6 +242,7 @@ class Updater {
      */
     public function runStep(int $step, array $manifest, array $preview): array {
         $this->resetTimer();
+        $this->failStalledJobs();
 
         // We always need a record id. If none, this is the first call to step 1.
         $state = $this->readState();
@@ -456,10 +464,17 @@ class Updater {
         }
 
         $batch = array_slice($allFiles, $offset, $this->batchSize);
-        $batchEnd = min($offset + count($batch), $total);
+        $deadline = microtime(true) + $this->stepTimeBudget;
+        $processed = 0;
 
         foreach ($batch as $relPath) {
+            // Hand control back to the browser before the host kills us —
+            // the next call resumes from $state['batch'].
+            if (microtime(true) >= $deadline) {
+                break;
+            }
             $this->resetTimer();
+            $processed++;
             $remoteUrl = rtrim($channel, '/') . '/' . $relPath;
             $localTemp = $this->tempDir . '/' . $relPath;
             $dir = dirname($localTemp);
@@ -488,6 +503,7 @@ class Updater {
             }
         }
 
+        $batchEnd = $offset + $processed;
         $state['batch'] = $batchEnd;
         $this->writeState($state);
 
@@ -955,6 +971,23 @@ class Updater {
     // a stale or missing doc is skipped with a warning, not fatal.
     protected function isNonCritical(string $path): bool {
         return strpos($path, 'docs/') === 0;
+    }
+
+    // A killed request leaves status='running' forever (state was never
+    // written). Any "running" job with no DB write for 10+ minutes is dead —
+    // mark it failed so the UI shows the truth; the persisted state file lets
+    // a retry resume from the last checkpoint.
+    protected function failStalledJobs(): void {
+        if (!$this->CI->db->field_exists('updated_at', 'db_system_updates')) {
+            return;
+        }
+        $staleBefore = date('Y-m-d H:i:s', time() - 600);
+        $this->CI->db->where('status', 'running')
+            ->where('updated_at <', $staleBefore)
+            ->update('db_system_updates', [
+                'status' => 'failed',
+                'error_message' => 'Update stalled — the server stopped responding mid-step. Retry the update; it resumes from the last checkpoint.',
+            ]);
     }
 
     // Re-fetch a single file from the update channel into the temp dir.
