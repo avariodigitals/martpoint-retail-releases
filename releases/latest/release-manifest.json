@@ -9125,8 +9125,8 @@
         },
         {
             "path": "application/views/mobile/sale.php",
-            "hash": "d2b30ac2f6450d549b961aa255d575017b94acfb92e1084c7ab44ea38a87ff7b",
-            "size": 71265
+            "hash": "2cff5041e28e6c9cea1dcdca6ac0a360be5dc0f1da9d6c83bafa6e1fb893318d",
+            "size": 71611
         },
         {
             "path": "application/views/mobile/login.php",
@@ -11300,8 +11300,8 @@
         },
         {
             "path": "application/views/pos_desktop.php",
-            "hash": "05af09cabb9a6316238d5552bee7de4482665767cf3d1734a7140063ae7b39a5",
-            "size": 159331
+            "hash": "dfc8110a86e8007343bddbbb6b9cf3a4a563389eda294a92323db29faae31da1",
+            "size": 159577
         },
         {
             "path": "application/views/payment_types_list.php",
@@ -26966,6 +26966,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "d7c48da324d80d735f7f5c014e66b2ad38ee8a04a059cf890227e001ad9dc916",
+    "signature": "0b17b6b504d9bb5c102fc28387d50d4d6947a4e5c2e609aecdba923e8322e9aa",
     "changelog": "Auto-generated release 4.0.9.33"
 }

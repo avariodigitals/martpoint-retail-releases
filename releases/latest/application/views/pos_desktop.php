@@ -2000,15 +2000,17 @@
 
       const unitId = selectedUnit ? (selectedUnit.unit_id || '') : '';
       const unitName = selectedUnit ? (selectedUnit.unit_shortcode || selectedUnit.unit_name || '') : (product.unit || '');
-      const conversionFactor = selectedUnit ? (selectedUnit.conversion_factor || 1) : 1;
+      const conversionFactor = selectedUnit ? (parseFloat(selectedUnit.conversion_factor) || 1) : 1;
 
-      if (selectedUnit && selectedUnit.conversion_factor > product.stock) {
-        showToast('Not enough stock', product.name + ' only has ' + product.stock + ' pieces', 'warning');
+      const existing = cart.find(c => c.id === id && c.unit_id === unitId);
+      const nextBaseQty = ((existing ? existing.qty : 0) + 1) * conversionFactor;
+      if (nextBaseQty > product.stock) {
+        showToast('Not enough stock', product.name + ': 1 ' + (unitName || 'unit') + ' uses ' + conversionFactor + ' stock units — only ' + product.stock + ' available', 'warning');
         return;
       }
 
       const unitPrice = getPrice(product, selectedUnit);
-      const item = cart.find(c => c.id === id && c.unit_id === unitId);
+      const item = existing;
       if (item) {
         item.qty++;
       } else {
@@ -2065,7 +2067,7 @@
       const conversion = parseFloat(item.conversion_factor || 1);
       const nextQty = item.qty + delta;
       if (product && product.stock < nextQty * conversion) {
-        showToast('Not enough stock', product.name + ' only has ' + product.stock + ' pieces', 'warning');
+        showToast('Not enough stock', product.name + ': 1 ' + (item.unit_name || 'unit') + ' uses ' + conversion + ' stock units — only ' + product.stock + ' available', 'warning');
         return;
       }
       item.qty = nextQty;
