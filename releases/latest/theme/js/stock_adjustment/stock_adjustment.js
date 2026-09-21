@@ -100,6 +100,18 @@ $('#save,#update').on("click",function (e) {
 					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 					$(".overlay").remove();
 
+			   },
+			   error: function(xhr){
+					$("#"+this_id).attr('disabled',false);
+					$(".overlay").remove();
+					var msg = "Save request failed (HTTP "+xhr.status+"). Please try again.";
+					if(xhr.responseText){
+						//strip HTML so a PHP error page surfaces as readable text
+						var txt = xhr.responseText.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+						if(txt.length){ msg = txt.substring(0,300); }
+					}
+					toastr['error'](msg);
+					console.error("Stock adjustment save failed:", xhr.status, xhr.responseText);
 			   }
 			   });
 		//}

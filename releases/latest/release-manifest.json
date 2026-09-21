@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.32",
-    "previous_version": "4.0.9.31",
-    "release_date": "2026-09-20",
+    "version": "4.0.9.33",
+    "previous_version": "4.0.9.32",
+    "release_date": "2026-09-21",
     "files": [
         {
             "path": "application/migrations/007_add_service_packages.php",
@@ -6580,8 +6580,8 @@
         },
         {
             "path": "application/models/Subscription_model.php",
-            "hash": "142373b3d01a12fa5a81c34c630896f0d9b9bf115103f5c06b89e745b89cfd6e",
-            "size": 7399
+            "hash": "92844501e29ef2c23ca3edb9ec79a49a91abe0b8a98b44e9de5554cab7dbda97",
+            "size": 7403
         },
         {
             "path": "application/models/Production_batches_model.php",
@@ -6590,8 +6590,8 @@
         },
         {
             "path": "application/models/Sales_return_model.php",
-            "hash": "030dfa4606d41e8fadd51b9d5b8c23baf35f41302d15dc4d62d51829d8ff9d84",
-            "size": 60973
+            "hash": "a52b556f59ce0bb2dd7c47833ff818dc70a714a0c29082203316019c528b361e",
+            "size": 61005
         },
         {
             "path": "application/models/Money_deposit_model.php",
@@ -6665,8 +6665,8 @@
         },
         {
             "path": "application/models/Delivery_model.php",
-            "hash": "3e62e91a6b6a3beaf21d4c4026daf13470940c85d0a4fcaf55f1682c9b5a08cc",
-            "size": 13746
+            "hash": "c35a077c9a5d481fd709bd900f970c979444979b8438f177aa2ab382da45c865",
+            "size": 13750
         },
         {
             "path": "application/models/Custom_orders_model.php",
@@ -6690,13 +6690,13 @@
         },
         {
             "path": "application/models/Pos_model.php",
-            "hash": "051b2abaa044cc78a3bb77e859b8e15b2ec425d5d93e1706110699cb6ae58013",
-            "size": 74677
+            "hash": "34cdabe8b4c806513fae3cfaccd845be5725bd489fe7b96f817340473fc4e83b",
+            "size": 74685
         },
         {
             "path": "application/models/Subscribers_model.php",
-            "hash": "f1c795bad68783d2a7e71ec54b57c82e62951eebcdb1ea3c2b74616e2b005e8b",
-            "size": 7512
+            "hash": "7958338b2ba6b3537289c8bc8c67331efa3da24fd28d446e2eb36cbb40fa35e3",
+            "size": 7516
         },
         {
             "path": "application/models/Suppliers_model.php",
@@ -6710,8 +6710,8 @@
         },
         {
             "path": "application/models/Discount_coupon_model.php",
-            "hash": "dd8c3df654b2365e0a649a8adc1b9419fc7c89cd09ef1981d6d7105236574b5e",
-            "size": 6081
+            "hash": "09cf69ee8f147b72f30517a32eaf937f9fe3432171adda4ebc3e580d74307ba6",
+            "size": 6085
         },
         {
             "path": "application/models/Quotation_model.php",
@@ -6725,8 +6725,8 @@
         },
         {
             "path": "application/models/Items_model.php",
-            "hash": "1d369ce5ab49c39e8e0e186eb1cdeddaf3b393e0e5dc21029d156561cea7ab1e",
-            "size": 76836
+            "hash": "cfc56c004fec3c029f7dae724989d064766a25c29740c8530ff164cfacc6b98a",
+            "size": 76840
         },
         {
             "path": "application/models/Loyalty_model.php",
@@ -6815,13 +6815,13 @@
         },
         {
             "path": "application/models/Stock_transfer_model.php",
-            "hash": "028e0a9f84f28eed20835f0e9bee3ab2ef2ad8de9f421934af011eacb470175f",
-            "size": 14263
+            "hash": "fedaf31e2aec778da2448db0b7b31f8ea4a754d2386bfeb9f478bcdabf2f38ef",
+            "size": 14271
         },
         {
             "path": "application/models/Purchase_returns_model.php",
-            "hash": "39e9b477cc1791d88ef11887bafe927fc4b8793d8f59cdc658ba921fcdfae9cf",
-            "size": 51832
+            "hash": "6a099364c6f15bad6514bcbe72ab721ac70e81d6eb85029d99a984af37687138",
+            "size": 51860
         },
         {
             "path": "application/models/Send_email_model.php",
@@ -6850,8 +6850,8 @@
         },
         {
             "path": "application/models/Promotions_model.php",
-            "hash": "a7913b878e233c89e8e98a320c329ec0f65c412a230049772fbf8a47d2e34008",
-            "size": 13980
+            "hash": "a460cc4db6f82be18c179b16f1c491762c8d863aa5640b6c867774ad4ca0be1a",
+            "size": 13984
         },
         {
             "path": "application/models/Sales_model.php",
@@ -6870,8 +6870,8 @@
         },
         {
             "path": "application/models/Purchase_model.php",
-            "hash": "6e7ef02e8fbf0740dc0377d68371c2d19a8aeaf76a2c54274493a4194968f3cc",
-            "size": 76724
+            "hash": "dd321979633c9208d0b154dc22a9861665f7fb85d1cec75bdc3ae90de0b80927",
+            "size": 76752
         },
         {
             "path": "application/models/Customers_model.php",
@@ -6930,8 +6930,8 @@
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
-            "hash": "d99ecf54aa3024b5a9f575c37e1b2ff1055d325cc9e7752d38876922fb7e64e5",
-            "size": 15413
+            "hash": "a2d8cb130d2e6a9093fbef66c5f1648b40608783642bd979af7c3ac88a986412",
+            "size": 15736
         },
         {
             "path": "application/models/Email_model.php",
@@ -6995,8 +6995,8 @@
         },
         {
             "path": "application/models/Service_package_model.php",
-            "hash": "07f40cfbee28930d14e74022b6659ddd5bdf47a672dbf1dd32476dd42e438914",
-            "size": 17186
+            "hash": "70b67523b63f6d2cbcf22e87825e1889a2ca1315d6901be04078770e2b717d32",
+            "size": 17190
         },
         {
             "path": "application/models/Course_model.php",
@@ -7015,8 +7015,8 @@
         },
         {
             "path": "application/models/Store_model.php",
-            "hash": "5f85d62f57c0462bb1a902497d3ef2929978eafb4363b3fae9a4e63b6bf4d9ec",
-            "size": 31852
+            "hash": "c7d734745b6e9546d6b3a32c5205be695c6ce8b8fa5b35a5fcaf1d8b47596322",
+            "size": 31856
         },
         {
             "path": "application/models/Email_templates_model.php",
@@ -7090,13 +7090,13 @@
         },
         {
             "path": "application/models/Customer_coupon_model.php",
-            "hash": "25257aba024764af8669f7e3677780dd6f658a3ce69f4b91b3d021116f10148e",
-            "size": 7420
+            "hash": "576b837e0dcecc5bbba8bfecc7b1d73013991793c5c7717bbcc6b80bdccd5918",
+            "size": 7424
         },
         {
             "path": "application/models/Package_model.php",
-            "hash": "e97b8de063ed62bcda248942f5f517fc0760049aa700a98a94ed56d214234320",
-            "size": 14054
+            "hash": "553bc073a14e7b83321cdc46afd13a1815ae612031dfb866f35746192a96f3fb",
+            "size": 14058
         },
         {
             "path": "application/models/Payment_types_model.php",
@@ -11625,7 +11625,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "0e0606ad7064bc87c6038cde270a4622b1da03b54af498e8b2c5996c4bde55a2",
+            "hash": "db27876ea935d152ba0617edd57ef072265e3f834630a477ae9181a19ac06cd1",
             "size": 95175
         },
         {
@@ -25790,8 +25790,8 @@
         },
         {
             "path": "theme/js/stock_adjustment/stock_adjustment.js",
-            "hash": "409d30a5e94a56e9ce4335917589191374141d1c681d2aa20f9b7b204f4d3861",
-            "size": 10566
+            "hash": "ad2334e2a2da012ee99a7acd0eb252c1e55789f75bc1de0e6920e78c189f8250",
+            "size": 11113
         },
         {
             "path": "theme/js/report-sales.js",
@@ -26966,6 +26966,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "3bd8cc59843c1bf252bd586875584221a29cc05eb339ed36edd86628645a7837",
-    "changelog": "Auto-generated release 4.0.9.32"
+    "signature": "d7c48da324d80d735f7f5c014e66b2ad38ee8a04a059cf890227e001ad9dc916",
+    "changelog": "Auto-generated release 4.0.9.33"
 }

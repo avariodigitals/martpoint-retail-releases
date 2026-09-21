@@ -134,22 +134,22 @@ class Purchase_returns_model extends CI_Model {
 
 	//Save Cutomers
 	public function verify_save_and_update(){
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$return_date = $this->input->post('return_date', TRUE);
 		$reference_no = $this->input->post('reference_no', TRUE);
 		$return_status = $this->input->post('return_status', TRUE);
 		$supplier_id = $this->input->post('supplier_id', TRUE);
 		$other_charges_input = $this->input->post('other_charges_input', TRUE);
 		$other_charges_tax_id = $this->input->post('other_charges_tax_id', TRUE);
-		$other_charges_amt = $this->input->post('other_charges_amt', TRUE);
+		$other_charges_amt = $this->input->post_get('other_charges_amt', TRUE);
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
-		$tot_discount_to_all_amt = $this->input->post('tot_discount_to_all_amt', TRUE);
-		$tot_subtotal_amt = $this->input->post('tot_subtotal_amt', TRUE);
-		$tot_round_off_amt = $this->input->post('tot_round_off_amt', TRUE);
-		$tot_total_amt = $this->input->post('tot_total_amt', TRUE);
+		$tot_discount_to_all_amt = $this->input->post_get('tot_discount_to_all_amt', TRUE);
+		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
+		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
+		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
 		$return_note = $this->input->post('return_note', TRUE);
-		$rowcount = $this->input->post('rowcount', TRUE);
+		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$return_id = $this->input->post('return_id', TRUE);
 		$purchase_id = $this->input->post('purchase_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);

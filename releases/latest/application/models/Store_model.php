@@ -549,7 +549,7 @@ Thank you Visit Again",
 		
 	}
 	public function verify_and_save(){
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
 		$store_code = $this->input->post('store_code', TRUE);
 		$store_name = $this->input->post('store_name', TRUE);

@@ -434,7 +434,7 @@ class Pos_model extends CI_Model {
 		$count_id = $this->input->post('count_id', TRUE);
 		$init_code = $this->input->post('init_code', TRUE);
 		$table_id = (int) $this->input->post('table_id', TRUE);
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$sales_id = $this->input->post('sales_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
@@ -1441,7 +1441,7 @@ class Pos_model extends CI_Model {
 
 		$this->db->trans_begin();
 		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
-		$reference_id = $this->input->post('reference_id', TRUE);
+		$reference_id = $this->input->post_get('reference_id', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$discount_input = $this->input->post('discount_input', TRUE);
 		$tot_disc = $this->input->get_post('tot_disc', TRUE);

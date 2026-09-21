@@ -113,16 +113,23 @@ class Stock_adjustment_model extends CI_Model {
 
 	//Save Cutomers
 	public function verify_save_and_update(){
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$adjustment_date = $this->input->post('adjustment_date', TRUE);
 		$reference_no = $this->input->post('reference_no', TRUE);
 		$adjustment_note = $this->input->post('adjustment_note', TRUE);
-		$rowcount = $this->input->post('rowcount', TRUE);
-		$adjustment_id = $this->input->post('adjustment_id', TRUE);
+		$rowcount = $this->input->post_get('rowcount', TRUE);
+		$adjustment_id = $this->input->post_get('adjustment_id', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
-		
+
+		//command arrives as a URL param from the JS layer; without it nothing would save
+		if(!in_array($command, array('save','update'))){
+			return "Save failed: missing save command — please reload the page and try again.";
+		}
 		if($command=='update' && empty($adjustment_id)){
 			return "Invalid stock adjustment reference.";
+		}
+		if((int)$rowcount < 1){
+			return "Save failed: no item rows were submitted.";
 		}
 
 		// Preflight: older installs may be missing columns added to db.txt later

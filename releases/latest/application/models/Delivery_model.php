@@ -75,7 +75,7 @@ class Delivery_model extends CI_Model {
     }
 
     public function save_and_update() {
-        $command = $this->input->post('command', TRUE);
+        $command = $this->input->post_get('command', TRUE);
         $q_id = $this->input->post('q_id', TRUE);
         $route_name = $this->input->post('route_name', TRUE);
         $schedule_date = $this->input->post('schedule_date', TRUE);

@@ -109,14 +109,14 @@ class Stock_transfer_model extends CI_Model {
 
 	//Save Stock
 	public function verify_save_and_update(){
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$transfer_date = $this->input->post('transfer_date', TRUE);
 		$note = $this->input->post('note', TRUE);
 		$store_from = $this->input->post('store_from', TRUE);
 		$warehouse_from = $this->input->post('warehouse_from', TRUE);
 		$warehouse_to = $this->input->post('warehouse_to', TRUE);
 		$stocktransfer_id = $this->input->post('stocktransfer_id', TRUE);
-		$rowcount = $this->input->post('rowcount', TRUE);
+		$rowcount = $this->input->post_get('rowcount', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
 		$this->db->trans_begin();

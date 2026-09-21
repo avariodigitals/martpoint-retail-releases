@@ -314,7 +314,7 @@ class Items_model extends CI_Model {
 		$custom_order_fields_json = !empty($custom_fields) ? json_encode($custom_fields) : null;
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$adjustment_qty = $this->input->post('adjustment_qty', TRUE);
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		if(empty($command) && isset($modal_post['command'])){
 			$command = $modal_post['command'];
 		}

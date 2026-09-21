@@ -73,7 +73,7 @@ class Service_package_model extends CI_Model {
 
     // Save package definition + items
     public function save_and_update() {
-        $command = $this->input->post('command', TRUE);
+        $command = $this->input->post_get('command', TRUE);
         $q_id = $this->input->post('q_id', TRUE);
 
         $package_code = $this->input->post('package_code', TRUE);

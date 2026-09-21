@@ -62,7 +62,7 @@ class Promotions_model extends CI_Model {
 	}
 
 	public function verify_save_and_update(){
-		$command          = $this->input->post('command', TRUE);
+		$command          = $this->input->post_get('command', TRUE);
 		$promotion_id     = $this->input->post('promotion_id', TRUE);
 		$promotion_name   = $this->input->post('promotion_name', TRUE);
 		$promotion_code   = $this->input->post('promotion_code', TRUE);

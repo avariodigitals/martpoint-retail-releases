@@ -86,7 +86,7 @@ class Customer_coupon_model extends CI_Model {
 		$code = $this->input->post('code', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
-		$command = $this->input->post('command', TRUE) ?: $this->input->get('command', TRUE);
+		$command = $this->input->post_get('command', TRUE) ?: $this->input->get('command', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
 		$CI =& get_instance();
 		$global = property_exists($CI, 'data') && is_array($CI->data) ? $CI->data : [];

@@ -108,7 +108,7 @@ class Package_model extends CI_Model {
 		$max_items = $this->input->post('max_items', TRUE);
 		$max_invoices = $this->input->post('max_invoices', TRUE);
 		$plan_type = $this->input->post('plan_type', TRUE);
-		$command = $this->input->post('command', TRUE);
+		$command = $this->input->post_get('command', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
