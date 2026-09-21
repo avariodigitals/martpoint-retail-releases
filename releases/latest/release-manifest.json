@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.33",
-    "previous_version": "4.0.9.32",
+    "version": "4.0.9.34",
+    "previous_version": "4.0.9.33",
     "release_date": "2026-09-21",
     "files": [
         {
@@ -11300,8 +11300,8 @@
         },
         {
             "path": "application/views/pos_desktop.php",
-            "hash": "dfc8110a86e8007343bddbbb6b9cf3a4a563389eda294a92323db29faae31da1",
-            "size": 159577
+            "hash": "cafafdc8fd65a9e32ab39fd1c423df36e19cc5a15c0aa5b2d47aa4f89576d2db",
+            "size": 159603
         },
         {
             "path": "application/views/payment_types_list.php",
@@ -11625,7 +11625,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "db27876ea935d152ba0617edd57ef072265e3f834630a477ae9181a19ac06cd1",
+            "hash": "442e015c7d9ab6c53e7bf7b132c5deccca9e27d6c8abb28c91fc77e10003a87f",
             "size": 95175
         },
         {
@@ -26966,6 +26966,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "0b17b6b504d9bb5c102fc28387d50d4d6947a4e5c2e609aecdba923e8322e9aa",
-    "changelog": "Auto-generated release 4.0.9.33"
+    "signature": "284388c117bc10777e48e35ebe61b6504537553196715dadf3574c9fcf09a68c",
+    "changelog": "Auto-generated release 4.0.9.34"
 }

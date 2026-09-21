@@ -616,7 +616,8 @@
       border: 1px solid var(--mp-border);
       border-radius: 16px;
       box-shadow: var(--shadow-sm);
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
     .cart-header {
       padding: 16px;
@@ -692,6 +693,7 @@
     .customer-select select { display: none; }
     .cart-items {
       flex: 1;
+      min-height: 160px;
       overflow-y: auto;
       padding: 12px 16px;
     }
@@ -1154,7 +1156,7 @@
     .payment-ref:focus { border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,0.10); }
 
     /* Compact POS layout for 1366x768 and similar POS terminals */
-    @media (min-width: 1101px) and (max-width: 1400px) and (max-height: 800px) {
+    @media (min-width: 901px) and (max-height: 900px) {
       .app-header { padding: 8px 16px; gap: 12px; }
       .brand h1 { font-size: 16px; }
       .brand .sub { font-size: 11px; }
