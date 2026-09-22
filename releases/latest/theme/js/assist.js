@@ -196,6 +196,7 @@
       var message = input.value.trim();
       if(!message) return;
       input.value = '';
+      input.style.height = 'auto';
       this._hideSuggestions();
       this._addUserMessage(message);
       this._showTyping();
@@ -711,6 +712,9 @@
       var debounceTimer = null;
       input.addEventListener('input', function(){
         clearTimeout(debounceTimer);
+        // Auto-grow for pasted multi-line lists (bulk entry)
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 110) + 'px';
         var val = input.value.trim();
         if(val.length < 2){
           self._hideSuggestions();

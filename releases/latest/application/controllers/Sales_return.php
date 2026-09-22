@@ -19,6 +19,12 @@ class Sales_return extends MY_Controller {
 	public function index()
 	{
 		$this->permission_check('sales_return_view');
+
+		if(is_mobile() && !is_tablet() && $this->input->get('mobile') !== '0'){
+			redirect(base_url('mobile/sales_returns'), 'refresh');
+			return;
+		}
+
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_returns_list');
 		$data['content']=$this->load->view('sales-return-list',$data,TRUE);
@@ -27,6 +33,12 @@ class Sales_return extends MY_Controller {
 
 	public function create(){
 		$this->permission_check('sales_return_add');
+
+		if(is_mobile() && !is_tablet() && $this->input->get('mobile') !== '0'){
+			redirect(base_url('mobile/sales_return_form'), 'refresh');
+			return;
+		}
+
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_return');
 		$data['oper']='create_new_return';
@@ -38,6 +50,12 @@ class Sales_return extends MY_Controller {
   		//echo "db_sales <br>";
   		$this->belong_to('db_sales',$id);
   		$this->permission_check('sales_return_edit');
+
+  		if(is_mobile() && !is_tablet() && $this->input->get('mobile') !== '0'){
+  			redirect(base_url('mobile/sales_return_form/'.$id), 'refresh');
+  			return;
+  		}
+
   		$q2=$this->db->query("select sales_status from db_sales where id=".$id);
 		if($q2->row()->sales_status=='Quotation'){
 			$this->session->set_flashdata('warning','Sorry! Quotation could not be returned!');
@@ -76,6 +94,12 @@ class Sales_return extends MY_Controller {
 	public function edit($id){
 		$this->belong_to('db_salesreturn',$id);
 		$this->permission_check('sales_return_edit');
+
+		if(is_mobile() && !is_tablet() && $this->input->get('mobile') !== '0'){
+			redirect(base_url('mobile/sales_return_edit/'.$id), 'refresh');
+			return;
+		}
+
 		$data=$this->data;
 		$data=array_merge($data,array('return_id'=>$id));
 		$data['oper']='edit_existing_return';
@@ -233,6 +257,12 @@ class Sales_return extends MY_Controller {
 		if(!$this->permissions('sales_return_add') && !$this->permissions('sales_return_edit')){
 			$this->show_access_denied_page();
 		}
+
+		if(is_mobile() && !is_tablet() && $this->input->get('mobile') !== '0'){
+			redirect(base_url('mobile/sales_return_invoice/'.$id), 'refresh');
+			return;
+		}
+
 		$data=$this->data;
 		$data=array_merge($data,array('return_id'=>$id));
 		$data['page_title']=$this->lang->line('sales_return_invoice');

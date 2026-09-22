@@ -78,6 +78,58 @@
          <!-- /.tab-content -->
       </div>
       <!-- nav-tabs-custom -->
+      <hr style="border-top:1px solid #eee;margin:20px 0;">
+      <div class="row">
+         <div class="col-md-12">
+            <h4 style="margin:0 0 14px;"><i class="fa fa-comment"></i> MartPoint Assist — AI Understanding <span class="label label-default" style="font-weight:400;">Optional</span></h4>
+            <p class="text-muted" style="margin-bottom:14px;">When enabled, Assist understands free-form instructions via an AI provider and routes them to its built-in actions. The AI never writes data directly — every action still goes through the normal permission checks. Without a key, Assist keeps working with its built-in commands.</p>
+            <div class="row">
+               <div class="col-md-5">
+                  <div class="form-group">
+                     <label for="assist_ai_enabled" class="col-sm-4 control-label">Enable AI</label>
+                     <div class="col-sm-8" style="padding-top:7px;">
+                        <input type="checkbox" id="assist_ai_enabled" name="assist_ai_enabled" value="1" <?= !empty($assist_ai_enabled) ? 'checked' : ''; ?>>
+                        <span class="text-muted"><small>Turn on AI understanding</small></span>
+                     </div>
+                  </div>
+                  <div class="form-group">
+                     <label for="assist_ai_provider" class="col-sm-4 control-label">Provider</label>
+                     <div class="col-sm-8">
+                        <select class="form-control" id="assist_ai_provider" name="assist_ai_provider">
+                           <option value="groq"    <?= ($assist_ai_provider ?? '')=='groq'    ? 'selected' : ''; ?>>Groq — Free tier (recommended)</option>
+                           <option value="gemini"  <?= ($assist_ai_provider ?? '')=='gemini'  ? 'selected' : ''; ?>>Google Gemini — Free tier</option>
+                           <option value="openai"  <?= ($assist_ai_provider ?? '')=='openai'  ? 'selected' : ''; ?>>OpenAI — Paid</option>
+                           <option value="custom"  <?= ($assist_ai_provider ?? '')=='custom'  ? 'selected' : ''; ?>>Custom OpenAI-compatible endpoint</option>
+                        </select>
+                        <span class="text-muted"><small>Groq &amp; Gemini have free tiers — sign up, copy an API key, paste below.</small></span>
+                     </div>
+                  </div>
+                  <div class="form-group">
+                     <label for="assist_ai_key" class="col-sm-4 control-label">API Key</label>
+                     <div class="col-sm-8">
+                        <input type="password" autocomplete="new-password" class="form-control" id="assist_ai_key" name="assist_ai_key" placeholder="<?= !empty($assist_ai_key_set) ? '•••••••• saved — leave blank to keep' : 'Paste API key here'; ?>" value="">
+                        <span id="assist_ai_key_msg" style="display:none" class="text-danger"></span>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-md-5">
+                  <div class="form-group">
+                     <label for="assist_ai_endpoint" class="col-sm-4 control-label">Endpoint</label>
+                     <div class="col-sm-8">
+                        <input type="text" class="form-control" id="assist_ai_endpoint" name="assist_ai_endpoint" value="<?php print htmlspecialchars($assist_ai_endpoint ?? ''); ?>" placeholder="https://api.groq.com/openai/v1/chat/completions">
+                        <span class="text-muted"><small>OpenAI-compatible chat-completions URL.</small></span>
+                     </div>
+                  </div>
+                  <div class="form-group">
+                     <label for="assist_ai_model" class="col-sm-4 control-label">Model</label>
+                     <div class="col-sm-8">
+                        <input type="text" class="form-control" id="assist_ai_model" name="assist_ai_model" value="<?php print htmlspecialchars($assist_ai_model ?? ''); ?>" placeholder="openai/gpt-oss-120b">
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
       <div>
          <div class="col-sm-8 col-sm-offset-2 text-center">
             <center>
@@ -118,6 +170,27 @@
    });
 </script>
 <script src="<?php echo $theme_link; ?>js/site-settings.js"></script>
+<script>
+// MartPoint Assist AI — provider presets autofill endpoint + model
+(function(){
+  var presets = {
+    groq:   { endpoint: 'https://api.groq.com/openai/v1/chat/completions', model: 'openai/gpt-oss-120b' },
+    gemini: { endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-2.0-flash' },
+    openai: { endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' }
+  };
+  var sel = document.getElementById('assist_ai_provider');
+  if(!sel) return;
+  function fill(){
+    var p = presets[sel.value];
+    if(!p) return; // custom — leave fields as-is
+    document.getElementById('assist_ai_endpoint').value = p.endpoint;
+    document.getElementById('assist_ai_model').value = p.model;
+  }
+  sel.addEventListener('change', fill);
+  // On first load, fill blanks so a fresh install gets sane free defaults
+  if(document.getElementById('assist_ai_endpoint').value === '' && presets[sel.value]) fill();
+})();
+</script>
 
 <!-- Make sidebar menu hughlighter/selector -->
 <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");$(".<?php echo basename(__FILE__,'.php');?>-active-li").closest(".mp-nav-group").addClass("open");</script>

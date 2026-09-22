@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.34",
-    "previous_version": "4.0.9.33",
-    "release_date": "2026-09-21",
+    "version": "4.0.9.35",
+    "previous_version": "4.0.9.34",
+    "release_date": "2026-09-22",
     "files": [
         {
             "path": "application/migrations/007_add_service_packages.php",
@@ -124,6 +124,11 @@
             "size": 4379
         },
         {
+            "path": "application/migrations/030_add_assist_ai_settings.php",
+            "hash": "884c5501d5e8f84ebad1123bf27e32b8c5950e446c48c2d30c4f36dbabb0bb24",
+            "size": 1327
+        },
+        {
             "path": "application/migrations/015_add_meat_frozen_item_fields.php",
             "hash": "37d9d1d833461288ebbcfadd72f501d8912c5ec85cb26711ce27a0cf3688f6eb",
             "size": 3620
@@ -184,6 +189,11 @@
             "size": 131
         },
         {
+            "path": "application/config/assist_ai.php",
+            "hash": "4516d0abb4701b399a5194065ddaeb478a487456f46ee727619c72cc199d1905",
+            "size": 2163
+        },
+        {
             "path": "application/config/instamojo.php",
             "hash": "9e14a8ca5aa018b96feb3e7eee414a97b661ae66f597182cddc602dea48c5be9",
             "size": 2230
@@ -215,8 +225,8 @@
         },
         {
             "path": "application/config/assist_kb.json",
-            "hash": "4cdac046cab75f97cd06a95da851f5c613baee284faab130a676b5da1d03af80",
-            "size": 49273
+            "hash": "0b897eb218a5b4eab70b35854757830b5afa1ef4d507833e7467ef2be80be7aa",
+            "size": 60832
         },
         {
             "path": "application/config/routes.php",
@@ -240,7 +250,7 @@
         },
         {
             "path": "application/config/migration.php",
-            "hash": "baf7833ab4b1f40a7fc0cc15b2adf087151ede775d3f7a113d9cd126da32ef4c",
+            "hash": "06654ac94cbcff55c7b043719b81212b1b170b16d3ac1c46e06245cfc6dc1e24",
             "size": 3032
         },
         {
@@ -3017,6 +3027,11 @@
             "path": "application/libraries/Updater.php",
             "hash": "f67537734a49f181ac5bcea8804c6910f04f4eabbe63d27748dc288a78a5ac2c",
             "size": 41789
+        },
+        {
+            "path": "application/libraries/Assist_brain.php",
+            "hash": "2dea87057ef7d5f67394ebf3f6fa709ce7cd88bc1944ebfd11d13fdda4894bf8",
+            "size": 10163
         },
         {
             "path": "application/libraries/Resend_provider.php",
@@ -6590,8 +6605,8 @@
         },
         {
             "path": "application/models/Sales_return_model.php",
-            "hash": "a52b556f59ce0bb2dd7c47833ff818dc70a714a0c29082203316019c528b361e",
-            "size": 61005
+            "hash": "9b141351489833daca6244ee9cbb4b7c78133e5c7e8e008bff9f87d36a57f3b3",
+            "size": 61353
         },
         {
             "path": "application/models/Money_deposit_model.php",
@@ -6625,8 +6640,8 @@
         },
         {
             "path": "application/models/Site_model.php",
-            "hash": "08b629c9a9f61d3343ac59f9104307006f69d6382b55d84321849e1439409420",
-            "size": 2488
+            "hash": "f84cb515923c6c92e150a366c70940b56356456eb4d56f1ec934b0bfc1e6c5ea",
+            "size": 3856
         },
         {
             "path": "application/models/Warehouse_model.php",
@@ -6680,8 +6695,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "fb4790f0c1847e83f52326d211d908d27d753f1ea9e128d260a01dcd16d22ed6",
-            "size": 4202
+            "hash": "93375864ad4f9b42d898539a23833b09674f021f433197bda98b771473f1e669",
+            "size": 4254
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -6785,8 +6800,8 @@
         },
         {
             "path": "application/models/Assist_knowledge_model.php",
-            "hash": "e9947395bae66d74f6183e363bf396777c0b3ab16f3cdd491009bb88edceebd6",
-            "size": 7092
+            "hash": "614e88eb89588183fee2a4a7ba3755caad86f8addde77a69a3637c9b33319824",
+            "size": 9500
         },
         {
             "path": "application/models/Variants_model.php",
@@ -7065,8 +7080,8 @@
         },
         {
             "path": "application/models/Assist_model.php",
-            "hash": "fc711f0999dc169f594a8e1503ba8c5bd2f95f02428208464d4574ff49f10b4f",
-            "size": 112361
+            "hash": "d896044691e7fdfa17c838ccd3730c5a6cbf0219a2bef941688a8f49dda1b001",
+            "size": 146850
         },
         {
             "path": "application/models/Recipe_model.php",
@@ -7295,8 +7310,8 @@
         },
         {
             "path": "application/controllers/Assist.php",
-            "hash": "91088cddbdebe2e97d11b503bc8585d7f9830c84210d83ff45ea7765dd015798",
-            "size": 5180
+            "hash": "0b5ae5a2264898df3017588821310e36afdf8634d26f7dd3aed6c588f537bd99",
+            "size": 5242
         },
         {
             "path": "application/controllers/City.php",
@@ -7430,8 +7445,8 @@
         },
         {
             "path": "application/controllers/Sales_return.php",
-            "hash": "c8b55c6f103307ea0cf0b7baab73f85bf8ac490b37c703aa5d65bc8f0e359a16",
-            "size": 10988
+            "hash": "b8801bea39aa0aa9f150444e806da7483c36b73119e4ad5d5050df91e1ddb22c",
+            "size": 11775
         },
         {
             "path": "application/controllers/Loyalty.php",
@@ -7520,8 +7535,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "1b2d62f5e24de45effd09ba761338b775555e2756b78383ed255c653077fd136",
-            "size": 241156
+            "hash": "a0453ce18b5e24162cdd4ecab3e28704a57e5aaf0b52b8ccad1b75d3f5cca757",
+            "size": 256689
         },
         {
             "path": "application/controllers/Store_credit.php",
@@ -7910,8 +7925,8 @@
         },
         {
             "path": "application/views/assist/panel.php",
-            "hash": "d54c246b12b96840ede307d838d3ad804eef46d0cad4b638518ca737ba3dcaa0",
-            "size": 6681
+            "hash": "2b478c613b26fb42cc027119f9aaf7d7a1295c8e8b4ac447145088d7c85e0ab3",
+            "size": 6692
         },
         {
             "path": "application/views/items.php",
@@ -9149,6 +9164,11 @@
             "size": 12663
         },
         {
+            "path": "application/views/mobile/sales_return_form.php",
+            "hash": "b392b8aef4eaaaa4e14502c37101a7385a1dc279f1fe3fd9d713587bdaa52685",
+            "size": 30169
+        },
+        {
             "path": "application/views/mobile/discount_coupon/view.php",
             "hash": "3d9d75010c6e1ff22b4da98dfe17451bea2192efaa20a7c472a4a26a20c6d87e",
             "size": 8264
@@ -9190,8 +9210,8 @@
         },
         {
             "path": "application/views/mobile/sales_invoice.php",
-            "hash": "4ec92f17095f265f99e45bfc85ce2db170923e0b8b9a0063b828fb840fea95ba",
-            "size": 19761
+            "hash": "dba1ee205c20ce50e932fc68e531f0bb663babb447017da11489005d39fa0923",
+            "size": 19769
         },
         {
             "path": "application/views/mobile/purchase.php",
@@ -9247,6 +9267,11 @@
             "path": "application/views/mobile/quotation_report.php",
             "hash": "b002abbc2d17d17d24787fc7302fca60dc4ab724e09d6baa22da42b3f0290d57",
             "size": 7715
+        },
+        {
+            "path": "application/views/mobile/sales_return_invoice.php",
+            "hash": "bb1114f73387567cc3ea6e8568a5d343819f572dca03e874ccd6cba2442bf149",
+            "size": 17266
         },
         {
             "path": "application/views/mobile/user_form.php",
@@ -9322,6 +9347,11 @@
             "path": "application/views/mobile/quotation_form.php",
             "hash": "4cc6b9c8ecb218c424e2e3d2ef15eef468d52155f664fb8e8ff42b9b6dd65fd9",
             "size": 20881
+        },
+        {
+            "path": "application/views/mobile/sales_returns.php",
+            "hash": "b2ddc7bf44c5aa03716986579b666586dcf50efd1e7a8b2f7c25fa52cc5e71b2",
+            "size": 13197
         },
         {
             "path": "application/views/mobile/users.php",
@@ -9720,8 +9750,8 @@
         },
         {
             "path": "application/views/site-settings.php",
-            "hash": "4b2de6996d271b11f4b4bb48ef41be2c0da5a84107a6ffa4391a67d1660eca59",
-            "size": 6144
+            "hash": "4fa07a46f432a6a8038fa057b497fa57c02ba6fe61ee3a73bd8672befcb3d53a",
+            "size": 11295
         },
         {
             "path": "application/views/footer.php",
@@ -11625,7 +11655,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "442e015c7d9ab6c53e7bf7b132c5deccca9e27d6c8abb28c91fc77e10003a87f",
+            "hash": "00c330abde756453567651b2069becd28ac0aa1d2783fc3ebbfee60f83e77725",
             "size": 95175
         },
         {
@@ -11890,8 +11920,8 @@
         },
         {
             "path": "theme/css/assist.css",
-            "hash": "414138e9f8667e6d4e9f94f3de1ce0fecfddfb402575f7e9eb6418199df9292e",
-            "size": 17579
+            "hash": "61266c7931b0bb270dbe63a05c5362d45f33a9c8d4f0821e3254141ecc73fbcb",
+            "size": 17680
         },
         {
             "path": "theme/css/page_loader.css",
@@ -25775,8 +25805,8 @@
         },
         {
             "path": "theme/js/assist.js",
-            "hash": "7b820298ba2981bcd7562f9f6942bdf2c2c728a72ac25f81ca5bb0301ca349ab",
-            "size": 31979
+            "hash": "e6014cf18f4c9f775cc75f2a2744937e0a7d1e1c95b7f66c0c01dbe4304e5f11",
+            "size": 32184
         },
         {
             "path": "theme/js/pos-custom-orders.js",
@@ -26754,9 +26784,49 @@
             "size": 35683
         },
         {
+            "path": "docs/product-design/partner-guide/user-manual.pdf",
+            "hash": "b012022f11953e9689c094e14dfdb840c58a9be0824d9b451ab810c2890f29f9",
+            "size": 212390
+        },
+        {
             "path": "docs/product-design/partner-guide/index.html",
-            "hash": "c5525e8d55f3679c898db241e298c1f714b5a690ebdf2cee046d52bdd09b0eca",
-            "size": 4002
+            "hash": "eccfe813316bd938c6df1b5cea5deab3c2e80850aa6a1fc10d76493f75a6d4b2",
+            "size": 7765
+        },
+        {
+            "path": "docs/product-design/partner-guide/partner-programme-guide.html",
+            "hash": "6ccacb2797ea4a01569928a620e96e20d7f938a403bb610e92336065dec18b1e",
+            "size": 32647
+        },
+        {
+            "path": "docs/product-design/partner-guide/partner-programme-guide.pdf",
+            "hash": "0c5749d1a7265a9cdf2cfa95ee682c932aa2c7f595810fbb72c9fd0e1461f996",
+            "size": 131709
+        },
+        {
+            "path": "docs/product-design/partner-guide/product-brochure.html",
+            "hash": "77893c754f0d02553034f946fb2785ad39a133ec806bcc5bce6ad5de9be5ddda",
+            "size": 40615
+        },
+        {
+            "path": "docs/product-design/partner-guide/user-manual.html",
+            "hash": "4b66eac23370e1dee06dec6a643774d32656796909fb14a085fa0fc867a5db61",
+            "size": 143192
+        },
+        {
+            "path": "docs/product-design/partner-guide/commission-schedule.pdf",
+            "hash": "ff8bc7f40c088d6240d83c041b1866907fe9a974a3d40ffe68a00245fba17516",
+            "size": 37234
+        },
+        {
+            "path": "docs/product-design/partner-guide/product-brochure.pdf",
+            "hash": "a9a02e8e9b1546d3d6e46fc968aad300f2c0f80b9ef832b9a8e7939247012650",
+            "size": 3291994
+        },
+        {
+            "path": "docs/product-design/partner-guide/commission-schedule.html",
+            "hash": "af8900b5d7dc022e9302680d40681439ed515dbdd573bf69b84fa8b28bc80e8c",
+            "size": 11481
         },
         {
             "path": "docs/product-design/technical-guide/frozen-food-technical-guide.html",
@@ -26785,8 +26855,8 @@
         },
         {
             "path": "docs/product-design/MartPoint-Appendix-Document-Index.html",
-            "hash": "e185f8683e94c22807fdda7822555fdb557bc80f003cdd3e3c74bf8b59491bce",
-            "size": 7595
+            "hash": "957c8a04677d5cf0ae54db38f4ef2b6449ced01f93c0975c08b079bb7d7b9edb",
+            "size": 8553
         },
         {
             "path": "docs/product-design/instagram-flyer-features.html",
@@ -26950,6 +27020,7 @@
         "4.0.9.30_stock_adjustment_repair.sql",
         "4.0.9.31_stock_recalculation_repair.sql",
         "4.0.9.32_warehouse_stock_repair.sql",
+        "4.0.9.35_assist_ai_settings.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
@@ -26966,6 +27037,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "284388c117bc10777e48e35ebe61b6504537553196715dadf3574c9fcf09a68c",
-    "changelog": "Auto-generated release 4.0.9.34"
+    "signature": "555760b1f88aed742b0ccdbeded200ee47aa83bd0aa835306f2fcbe398ec6be3",
+    "changelog": "Auto-generated release 4.0.9.35"
 }

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Commercial / Commission Schedule</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .sched-fields { width:100%; border-collapse:collapse; font-size:0.86rem; }
+    .sched-fields td { padding:9px 12px; border-bottom:1px solid var(--mp-border); vertical-align:top; }
+    .sched-fields td:first-child { font-weight:700; width:34%; color:var(--mp-text); }
+    .sched-fields tr:last-child td { border-bottom:none; }
+    .fill { color:var(--mp-muted); letter-spacing:0.04em; }
+    .fill-line { display:inline-block; min-width:180px; border-bottom:1.5px solid var(--mp-border); height:1em; }
+    .sched-num { display:flex; align-items:center; gap:12px; margin:22px 0 10px; }
+    .sched-num .n { flex:0 0 30px; height:30px; border-radius:9px; background:rgba(0,87,255,0.08); color:var(--mp-primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; }
+    .sched-num h3 { margin:0; font-size:1.05rem; }
+    .sched-num:first-of-type { margin-top:0; }
+    .sched-body { padding-left:42px; font-size:0.88rem; color:var(--mp-ink); }
+    .sched-body p { font-size:0.88rem; }
+    .sign-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:10px; }
+    .sign-box { border:1px solid var(--mp-border); border-radius:var(--radius-sm); padding:16px; page-break-inside:avoid; }
+    .sign-box .sign-label { font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--mp-muted); margin-bottom:26px; display:block; }
+    .sign-box .sig-line { border-bottom:1.5px solid var(--mp-ink); height:1.6em; margin-bottom:6px; }
+    .sign-box .sig-caption { font-size:0.74rem; color:var(--mp-muted); }
+    @media (max-width: 640px) { .sign-grid { grid-template-columns:1fr; } .sched-body { padding-left:0; } }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <!-- Page 1: Details & appointment -->
+  <section class="page">
+    <a href="./index.html" style="display:inline-flex;align-items:center;gap:8px;color:var(--mp-primary);font-weight:600;text-decoration:none;margin-bottom:16px;" class="no-print"><i class="fa fa-chevron-left"></i> Partner Guide</a>
+    <span class="label">Partner Schedule &middot; Template</span>
+    <h1 style="font-size:2.1rem;" class="mb-1">Commercial / Commission Schedule</h1>
+    <p class="lead mb-3">The exact earning basis, eligible revenue, exclusions, clearance conditions, holding period, adjustments and payment process that apply to the named partner.</p>
+
+    <div class="tip no-break mb-3">
+      <i class="fa fa-info-circle"></i> <strong>How to use:</strong> this schedule is completed per partner and signed alongside the Partner Agreement. It controls the partner&rsquo;s specific commercial terms and prevails over the general programme guide.
+    </div>
+
+    <div class="sched-num"><div class="n">1</div><h3>Partner details</h3></div>
+    <div class="card no-break mb-2" style="padding:6px 18px;">
+      <table class="sched-fields">
+        <tr><td>Partner legal name</td><td><span class="fill-line"></span></td></tr>
+        <tr><td>Partner ID</td><td><span class="fill-line" style="min-width:120px;"></span></td></tr>
+        <tr><td>Approved partner type</td><td><span class="pill" style="padding:3px 10px;">Referral</span>&nbsp; <span class="pill" style="padding:3px 10px;">Channel</span>&nbsp; <span class="pill" style="padding:3px 10px;">Implementation</span>&nbsp; <span class="pill" style="padding:3px 10px;">Technology</span>&nbsp; <span class="pill" style="padding:3px 10px;">Payment Provider</span></td></tr>
+        <tr><td>Grade at signing</td><td><span class="fill-line" style="min-width:100px;"></span></td></tr>
+        <tr><td>Effective date</td><td><span class="fill-line" style="min-width:120px;"></span></td></tr>
+        <tr><td>MartPoint contact</td><td><span class="fill-line"></span></td></tr>
+      </table>
+    </div>
+
+    <div class="sched-num"><div class="n">2</div><h3>Earning basis</h3></div>
+    <div class="sched-body mb-2">
+      <p class="mb-2">Tick and complete the basis that applies. Any basis not listed here does not apply.</p>
+      <table class="no-break">
+        <thead><tr><th style="width:34%;">Basis</th><th>Rate / fee</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Referral commission</strong></td><td><span class="fill-line" style="min-width:80px;"></span> % of eligible revenue</td><td>Applies after payment clearance and licence activation</td></tr>
+          <tr><td><strong>Acquisition commission</strong></td><td><span class="fill-line" style="min-width:80px;"></span> % of eligible revenue</td><td>Channel partners only</td></tr>
+          <tr><td><strong>Renewal commission</strong></td><td><span class="fill-line" style="min-width:80px;"></span> % of eligible revenue</td><td>Only while the partner remains assigned and completes renewal activities</td></tr>
+          <tr><td><strong>Implementation fee</strong></td><td><span class="fill-line" style="min-width:80px;"></span> fixed / milestone</td><td>Per signed Work Order — not a licence percentage</td></tr>
+          <tr><td><strong>Technology economics</strong></td><td><span class="fill-line" style="min-width:80px;"></span></td><td>Product margin, development, subscription or integration fee</td></tr>
+          <tr><td><strong>Payment provider terms</strong></td><td><span class="fill-line" style="min-width:80px;"></span></td><td>Per Provider Agreement — settlement, reversals and reporting</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Commercial / Commission Schedule</span>
+      <span>Page 1</span>
+    </div>
+  </section>
+
+  <!-- Page 2: Revenue, exclusions, clearance -->
+  <section class="page">
+    <div class="sched-num"><div class="n">3</div><h3>Eligible revenue</h3></div>
+    <div class="sched-body mb-2">
+      <p>Commission or fees are calculated only on <strong>cleared MartPoint licence payments</strong> made by an eligible referred or assigned customer through an approved payment route, after the required licence activation is completed.</p>
+    </div>
+
+    <div class="sched-num"><div class="n">4</div><h3>Exclusions</h3></div>
+    <div class="sched-body mb-2">
+      <ul class="dont-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;">
+        <li style="display:flex;gap:10px;"><i class="fa fa-times-circle" style="color:var(--mp-danger);margin-top:3px;"></i> Names, contact details, meetings, demonstrations, quotations, verbal commitments or registered leads.</li>
+        <li style="display:flex;gap:10px;"><i class="fa fa-times-circle" style="color:var(--mp-danger);margin-top:3px;"></i> Invoices issued but not paid, or payments that fail, are reversed or refunded.</li>
+        <li style="display:flex;gap:10px;"><i class="fa fa-times-circle" style="color:var(--mp-danger);margin-top:3px;"></i> Taxes (including VAT), hardware pass-through, third-party fees and expenses.</li>
+        <li style="display:flex;gap:10px;"><i class="fa fa-times-circle" style="color:var(--mp-danger);margin-top:3px;"></i> Payments collected outside an approved route, including any amount collected by the partner without written authorisation.</li>
+        <li style="display:flex;gap:10px;"><i class="fa fa-times-circle" style="color:var(--mp-danger);margin-top:3px;"></i> Other exclusions: <span class="fill-line" style="min-width:200px;"></span></li>
+      </ul>
+    </div>
+
+    <div class="sched-num"><div class="n">5</div><h3>Clearance conditions &amp; holding period</h3></div>
+    <div class="sched-body mb-2">
+      <p class="mb-2">A commission or fee becomes eligible only when all of the following are satisfied:</p>
+      <ul class="tick-list mb-2">
+        <li><i class="fa fa-check-circle"></i> Customer payment clears through the approved payment route.</li>
+        <li><i class="fa fa-check-circle"></i> Required licence activation is completed.</li>
+        <li><i class="fa fa-check-circle"></i> Holding period of <span class="fill-line" style="min-width:60px;"></span> days passes without refund or reversal.</li>
+        <li><i class="fa fa-check-circle"></i> Any further conditions in the signed schedule: <span class="fill-line" style="min-width:160px;"></span></li>
+      </ul>
+    </div>
+
+    <div class="sched-num"><div class="n">6</div><h3>Adjustments</h3></div>
+    <div class="sched-body">
+      <p style="margin:0;">Refunds, chargebacks, failed activations and credit notes reduce or reverse the related commission or fee. MartPoint may offset adjustments against future payouts and will show each adjustment on the partner statement with a reference.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Commercial / Commission Schedule</span>
+      <span>Page 2</span>
+    </div>
+  </section>
+
+  <!-- Page 3: Payment & signatures -->
+  <section class="page">
+    <div class="sched-num"><div class="n">7</div><h3>Payment process</h3></div>
+    <div class="card no-break mb-3" style="padding:6px 18px;">
+      <table class="sched-fields">
+        <tr><td>Statement cycle</td><td><span class="fill-line" style="min-width:100px;"></span> (e.g. monthly)</td></tr>
+        <tr><td>Currency</td><td><span class="fill-line" style="min-width:60px;"></span> (default: NGN)</td></tr>
+        <tr><td>Minimum payout</td><td><span class="fill-line" style="min-width:100px;"></span></td></tr>
+        <tr><td>Payout method / details</td><td><span class="fill-line"></span></td></tr>
+        <tr><td>Finance contact</td><td>Route shown in the partner&rsquo;s Activation Confirmation</td></tr>
+        <tr><td>Payment reference</td><td>Shown on each partner statement line</td></tr>
+      </table>
+    </div>
+
+    <div class="tip warning no-break mb-3">
+      <i class="fa fa-exclamation-triangle"></i> <strong>Remember:</strong> lead registration protects attribution — it does not create a debt or guaranteed commission. No payment arises for names, meetings, demos, quotations or unpaid invoices.
+    </div>
+
+    <div class="sched-num"><div class="n">8</div><h3>Authorisation</h3></div>
+    <div class="sign-grid mb-3">
+      <div class="sign-box">
+        <span class="sign-label">For MartPoint</span>
+        <div class="sig-line"></div>
+        <div class="sig-caption">Signature</div>
+        <div class="sig-line"></div>
+        <div class="sig-caption">Name &amp; title</div>
+        <div class="sig-line"></div>
+        <div class="sig-caption">Date</div>
+      </div>
+      <div class="sign-box">
+        <span class="sign-label">For the Partner</span>
+        <div class="sig-line"></div>
+        <div class="sig-caption">Signature</div>
+        <div class="sig-line"></div>
+        <div class="sig-caption">Name &amp; title</div>
+        <div class="sig-line"></div>
+        <div class="sig-caption">Date</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Commercial / Commission Schedule</span>
+      <span>Page 3</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -78,7 +78,7 @@
   </div>
   <div class="mp-assist-input-area">
     <div id="mp-assist-suggestions" class="mp-assist-suggestions"></div>
-    <input type="text" id="mp-assist-input" class="mp-assist-input" placeholder="Ask MartPoint..." onkeydown="MPAssist.handleKey(event)">
+    <textarea id="mp-assist-input" class="mp-assist-input" rows="1" placeholder="Ask MartPoint..." onkeydown="MPAssist.handleKey(event)"></textarea>
     <button class="mp-assist-send" onclick="MPAssist.send()">
       <i class="fa fa-paper-plane"></i>
     </button>

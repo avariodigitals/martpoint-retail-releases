@@ -29,6 +29,7 @@ class Assist extends MY_Controller {
 		}
 
 		$response = $this->assist_model->processMessage($message, $sessionId);
+		$this->assist_model->rememberExchange($message, $response);
 		$this->_json($response);
 	}
 

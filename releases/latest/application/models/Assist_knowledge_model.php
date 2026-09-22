@@ -76,6 +76,23 @@ class Assist_knowledge_model extends CI_Model {
 	 * @param string $message User query
 	 * @return array|null Matching KB entry or null
 	 */
+	/**
+	 * Is a KB entry visible to this user/store? Role check plus optional
+	 * 'features' gate — entries tagged with feature flags only apply when
+	 * the store's business-type preset enables at least one of them.
+	 */
+	private function _entryVisible($entry, $userLevel){
+		$requiredLevel = $this->roleHierarchy[$entry['required_role']] ?? 0;
+		if($userLevel < $requiredLevel) return false;
+		if(!empty($entry['features']) && is_array($entry['features']) && function_exists('mp_feature_enabled')){
+			foreach($entry['features'] as $f){
+				if(mp_feature_enabled($f)) return true;
+			}
+			return false;
+		}
+		return true;
+	}
+
 	public function search($message){
 		$message = strtolower(trim($message));
 		$userRole = $this->getUserRoleLevel();
@@ -85,8 +102,7 @@ class Assist_knowledge_model extends CI_Model {
 		$bestScore = 0;
 
 		foreach($this->knowledgeBase as $entry){
-			$requiredLevel = $this->roleHierarchy[$entry['required_role']] ?? 0;
-			if($userLevel < $requiredLevel) continue; // Skip restricted topics
+			if(!$this->_entryVisible($entry, $userLevel)) continue;
 
 			// Score against keywords
 			$score = $this->_scoreMatch($message, $entry['keywords'] ?? []);
@@ -103,7 +119,38 @@ class Assist_knowledge_model extends CI_Model {
 			}
 		}
 
-		return ($bestScore > 0) ? $bestMatch : null;
+		// Require a real signal: at least a 5+ char word match or a phrase hit.
+		// A lone weak word ('add', 'two') must not hijack an operational request.
+		return ($bestScore >= 5) ? $bestMatch : null;
+	}
+
+	/**
+	 * Rank all visible entries against a message (same scoring as search(),
+	 * lower threshold). Used to feed grounded context to the AI layer so it
+	 * can answer usage questions in the business's own terminology.
+	 * @return array of ['id','preview','answer','score'], best first
+	 */
+	public function rank($message, $limit = 3){
+		$message = strtolower(trim($message));
+		if($message === '') return [];
+		$userRole = $this->getUserRoleLevel();
+		$userLevel = $this->roleHierarchy[$userRole] ?? 0;
+
+		$ranked = [];
+		foreach($this->knowledgeBase as $entry){
+			if(!$this->_entryVisible($entry, $userLevel)) continue;
+			$score = $this->_scoreMatch($message, $entry['keywords'] ?? []);
+			if($score >= 3){
+				$ranked[] = [
+					'id'      => $entry['id'] ?? '',
+					'preview' => $entry['preview'] ?? '',
+					'answer'  => strip_tags($entry['answer'] ?? ''),
+					'score'   => $score,
+				];
+			}
+		}
+		usort($ranked, function($a, $b){ return $b['score'] <=> $a['score']; });
+		return array_slice($ranked, 0, $limit);
 	}
 
 	/**
@@ -205,14 +252,17 @@ class Assist_knowledge_model extends CI_Model {
 	 * Fuzzy: checks full substring, word overlap, and individual word matches
 	 */
 	private function _scoreMatch($message, $keywords){
+		$stopWords = ['add','new','how','to','the','and','for','of','on','in','my','me','do','is','it','its','can','you','what','where','when','who','one','two','get','make','use','a','an','or'];
 		$msgWords = array_filter(preg_split('/\s+/', $message));
 		$score = 0;
 		foreach($keywords as $kw){
 			$kw = strtolower(trim($kw));
 			if(empty($kw)) continue;
 
-			// Full substring match (highest score)
-			if(strpos($message, $kw) !== false){
+			// Whole-word match (highest score) — substring matching lets 'hi'
+			// fire inside 'his'/'this' and hijacks unrelated messages.
+			$plural = strlen($kw) >= 3 ? 's?' : '';
+			if(preg_match('/\b'.preg_quote($kw, '/').$plural.'\b/i', $message)){
 				$score += strlen($kw) * 2;
 				continue;
 			}
@@ -227,11 +277,16 @@ class Assist_knowledge_model extends CI_Model {
 			$kwWords = array_filter(preg_split('/\s+/', $kw));
 			$overlap = 0;
 			foreach($kwWords as $w){
-				if(strlen($w) < 3) continue; // Skip tiny words
+				if(strlen($w) < 3 || in_array($w, $stopWords, true)) continue;
 				foreach($msgWords as $mw){
+					if(in_array($mw, $stopWords, true)) continue;
 					if($w === $mw){
 						$overlap += strlen($w);
-					} elseif(strpos($mw, $w) === 0 || strpos($w, $mw) === 0){
+					} elseif(strpos($mw, $w) === 0 && strlen($mw) <= strlen($w) + 3){
+						// "adding" stems to "add" — but "cartons" must not match "cart"
+						$overlap += strlen($w);
+					} elseif(strlen($mw) >= 4 && strpos($w, $mw) === 0){
+						// truncated word ("custom" -> "customer"), short words like "for" can't match "form"
 						$overlap += strlen($mw);
 					}
 				}

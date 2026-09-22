@@ -730,6 +730,345 @@ class Mobile extends MY_Controller {
 		$this->load->view('mobile/sales_list', $data);
 	}
 
+	public function sales_returns()
+	{
+		$this->permission_check('sales_return_view');
+		$data = $this->data;
+		$data['page_title'] = 'Sales Returns';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->db->select('a.id, a.return_code, a.return_date, a.return_status, a.reference_no, a.grand_total, a.paid_amount, a.payment_status, a.customer_id, a.sales_id, c.customer_name, s.sales_code');
+		$this->db->from('db_salesreturn a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->join('db_sales s', 's.id = a.sales_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		// Cashiers without cross-user visibility permission may only view their own sales returns.
+		if(is_cashier() && !$this->permissions('show_all_users_sales_return_invoices')){
+			$this->db->where("upper(a.created_by)", strtoupper($this->session->userdata('inv_username')));
+		}
+		$this->db->order_by('a.id', 'desc');
+		$this->db->limit(200);
+		$data['records'] = $this->db->get()->result();
+
+		$data['customers'] = get_customers_select_list('', $store_id);
+		$statuses = [];
+		foreach($data['records'] as $r){
+			if(!empty($r->payment_status) && !in_array($r->payment_status, $statuses)){
+				$statuses[] = $r->payment_status;
+			}
+		}
+		$data['statuses'] = $statuses;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_returns', $data);
+	}
+
+	public function sales_return_invoice($id)
+	{
+		$this->belong_to('db_salesreturn', $id);
+		if(!$this->permissions('sales_return_view') && !$this->permissions('sales_return_add') && !$this->permissions('sales_return_edit')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$return = $this->db->where('id', $id)->get('db_salesreturn')->row();
+		// Cashiers without cross-user visibility permission may only open their own return invoices.
+		if($return && is_cashier() && !$this->permissions('show_all_users_sales_return_invoices')){
+			if(strtoupper($return->created_by) !== strtoupper($this->session->userdata('inv_username'))){
+				$this->show_access_denied_page();
+				return;
+			}
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Return Invoice';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['return_id'] = $id;
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_return_invoice', $data);
+	}
+
+	public function sales_return_form($sales_id = null)
+	{
+		$this->permission_check('sales_return_add');
+		$data = $this->data;
+		$store_id = get_current_store_id();
+		$data['page_title'] = 'New Return';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['mode'] = 'create';
+		$data['return_id'] = '';
+		$data['return_header'] = null;
+		$data['sale'] = null;
+		$data['customer_id'] = '';
+		$data['customer_name'] = '';
+		$data['already_refunded'] = 0;
+		$data['prefill_items'] = [];
+
+		if(!empty($sales_id)){
+			$sale = $this->db->where('id', $sales_id)->where('store_id', $store_id)->get('db_sales')->row();
+			if(empty($sale)){
+				$this->session->set_flashdata('failed', 'Sale not found.');
+				redirect('mobile/sales_returns');
+				return;
+			}
+			if($sale->sales_status == 'Quotation'){
+				$this->session->set_flashdata('warning', 'Sorry! Quotation could not be returned!');
+				redirect('mobile/sales_invoice/'.$sales_id);
+				return;
+			}
+			$existing = $this->db->select('id')->where('sales_id', $sales_id)->where('store_id', $store_id)->get('db_salesreturn')->row();
+			if($existing){
+				$this->session->set_flashdata('success', 'Sales Return Invoice Already Generated!');
+				redirect($this->permissions('sales_return_edit') ? 'mobile/sales_return_edit/'.$existing->id : 'mobile/sales_return_invoice/'.$existing->id);
+				return;
+			}
+			$data['sale'] = $sale;
+			$data['page_title'] = 'Return '.$sale->sales_code;
+			$data['customer_id'] = $sale->customer_id;
+			$cust = $this->db->select('customer_name')->where('id', $sale->customer_id)->get('db_customers')->row();
+			$data['customer_name'] = ($cust && !empty($cust->customer_name)) ? $cust->customer_name : 'Walk-in Customer';
+			$data['prefill_items'] = $this->db
+				->select('si.item_id as id, i.item_name as name, si.sales_qty as sold_qty, si.sales_qty as qty, si.price_per_unit as price, si.tax_id, si.tax_type, si.discount_input, si.discount_type, si.discount_amt, si.description, t.tax as tax_value, t.tax_name')
+				->from('db_salesitems si')
+				->join('db_items i', 'i.id = si.item_id', 'left')
+				->join('db_tax t', 't.id = si.tax_id', 'left')
+				->where('si.sales_id', $sales_id)
+				->where('si.status', 1)
+				->get()->result();
+		}
+
+		$data['payment_types'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('payment_type', 'asc')->get('db_paymenttypes')->result();
+		$data['accounts'] = get_accounts_select_list(get_store_details()->default_account_id);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_return_form', $data);
+	}
+
+	public function sales_return_edit($return_id)
+	{
+		$this->belong_to('db_salesreturn', $return_id);
+		$this->permission_check('sales_return_edit');
+		$data = $this->data;
+		$store_id = get_current_store_id();
+		$ret = $this->db->where('id', $return_id)->where('store_id', $store_id)->get('db_salesreturn')->row();
+		if(empty($ret)){
+			$this->session->set_flashdata('failed', 'Return not found.');
+			redirect('mobile/sales_returns');
+			return;
+		}
+		$data['page_title'] = 'Edit '.$ret->return_code;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['mode'] = 'edit';
+		$data['return_id'] = $return_id;
+		$data['return_header'] = $ret;
+		$data['sale'] = !empty($ret->sales_id) ? $this->db->where('id', $ret->sales_id)->get('db_sales')->row() : null;
+		$data['customer_id'] = $ret->customer_id;
+		$cust = $this->db->select('customer_name')->where('id', $ret->customer_id)->get('db_customers')->row();
+		$data['customer_name'] = ($cust && !empty($cust->customer_name)) ? $cust->customer_name : 'Walk-in Customer';
+		$data['already_refunded'] = (float)($this->db->select('COALESCE(SUM(payment),0) as p')->where('return_id', $return_id)->get('db_salespaymentsreturn')->row()->p ?? 0);
+
+		if(!empty($ret->sales_id)){
+			$data['prefill_items'] = $this->db
+				->select('ri.item_id as id, i.item_name as name, si.sales_qty as sold_qty, ri.return_qty as qty, ri.price_per_unit as price, ri.tax_id, ri.tax_type, ri.discount_input, ri.discount_type, ri.discount_amt, ri.description, t.tax as tax_value, t.tax_name')
+				->from('db_salesitemsreturn ri')
+				->join('db_items i', 'i.id = ri.item_id', 'left')
+				->join('db_tax t', 't.id = ri.tax_id', 'left')
+				->join('db_salesitems si', 'si.sales_id = '.(int)$ret->sales_id.' AND si.item_id = ri.item_id', 'left')
+				->where('ri.return_id', $return_id)
+				->where('ri.status', 1)
+				->get()->result();
+		} else {
+			$data['prefill_items'] = $this->db
+				->select('ri.item_id as id, i.item_name as name, ri.return_qty as qty, ri.price_per_unit as price, ri.tax_id, ri.tax_type, ri.discount_input, ri.discount_type, ri.discount_amt, ri.description, t.tax as tax_value, t.tax_name')
+				->from('db_salesitemsreturn ri')
+				->join('db_items i', 'i.id = ri.item_id', 'left')
+				->join('db_tax t', 't.id = ri.tax_id', 'left')
+				->where('ri.return_id', $return_id)
+				->where('ri.status', 1)
+				->get()->result();
+		}
+
+		$data['payment_types'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('payment_type', 'asc')->get('db_paymenttypes')->result();
+		$data['accounts'] = get_accounts_select_list(get_store_details()->default_account_id);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_return_form', $data);
+	}
+
+	public function save_return()
+	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		ob_start();
+		// For JSON requests, manually verify CSRF token before permission check
+		$input = json_decode(file_get_contents('php://input'), true);
+		if(!empty($input) && isset($input['csrf_test_name'])){
+			$csrf_token = $input['csrf_test_name'];
+			$csrf_cookie = $this->input->cookie('csrf_cookie_name');
+			if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed']);
+				exit;
+			}
+		}
+
+		$return_id = trim((string)($input['return_id'] ?? ''));
+		if(!empty($return_id)){
+			$this->belong_to('db_salesreturn', $return_id);
+			$this->permission_check('sales_return_edit');
+		} else {
+			$this->permission_check('sales_return_add');
+		}
+		if(empty($input)){
+			$input = $this->input->post();
+		}
+
+		$store_id = get_current_store_id();
+		$customer_id = $input['customer_id'] ?? '';
+		$sales_id = $input['sales_id'] ?? '';
+		$cart = $input['cart'] ?? [];
+		$return_status = in_array(($input['return_status'] ?? ''), ['Return', 'Warranty', 'Cancel']) ? $input['return_status'] : 'Return';
+		$cart = array_values(array_filter($cart, function($it){ return !empty($it['id']) && (float)($it['qty'] ?? 0) > 0; }));
+
+		if(empty($customer_id) || empty($cart)){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Select a customer and at least one item with quantity.']);
+			exit;
+		}
+
+		$subtotal = 0;
+		$grand = 0;
+		$rowcount = count($cart);
+
+		$_POST = [];
+		$_POST['command'] = !empty($return_id) ? 'update' : 'save';
+		$_POST['return_id'] = $return_id;
+		$_POST['sales_id'] = $sales_id;
+		$_POST['return_date'] = !empty($input['return_date']) ? $input['return_date'] : date('Y-m-d');
+		$_POST['reference_no'] = $input['reference_no'] ?? '';
+		$_POST['return_status'] = $return_status;
+		$_POST['customer_id'] = $customer_id;
+		$_POST['other_charges_input'] = '0';
+		$_POST['other_charges_tax_id'] = '';
+		$_POST['other_charges_amt'] = '0';
+		$discount = parse_amount($input['discount'] ?? 0);
+		$_POST['discount_to_all_input'] = number_format($discount, 2, '.', '');
+		$_POST['discount_to_all_type'] = 'in_fixed';
+		$_POST['tot_discount_to_all_amt'] = number_format($discount, 2, '.', '');
+		$_POST['return_note'] = $input['return_note'] ?? '';
+		$_POST['rowcount'] = $rowcount;
+		$_POST['warehouse_id'] = (warehouse_module() && warehouse_count() > 1) ? ($input['warehouse_id'] ?? get_store_warehouse_id()) : get_store_warehouse_id();
+		$_POST['store_id'] = $store_id;
+		$_POST['coupon_code'] = '';
+		$_POST['coupon_discount_amt'] = '0';
+
+		for($i = 1; $i <= $rowcount; $i++){
+			$item = $cart[$i - 1];
+			$qty = (float) $item['qty'];
+			$price = (float) $item['price'];
+			$disc_amt = min(max((float)($item['discount_amt'] ?? 0), 0), $qty * $price);
+			$tax_id = (int)($item['tax_id'] ?? 0);
+			$tax_value = (float)($item['tax_value'] ?? 0);
+			$tax_type = (($item['tax_type'] ?? 'Exclusive') === 'Inclusive') ? 'Inclusive' : 'Exclusive';
+			$line_net = $qty * $price - $disc_amt;
+			if($tax_type == 'Inclusive'){
+				$tax_amount = $line_net - ($line_net / (1 + ($tax_value / 100)));
+				$line_total = $line_net;
+				$subtotal += ($line_net - $tax_amount);
+			} else {
+				$tax_amount = $line_net * $tax_value / 100;
+				$line_total = $line_net + $tax_amount;
+				$subtotal += $line_net;
+			}
+			$grand += $line_total;
+			$unit_total = ($tax_type == 'Exclusive') ? $price + ($tax_value * $price / 100) : $price;
+			$unit_total -= ($qty > 0) ? $disc_amt / $qty : 0;
+
+			$_POST['tr_item_id_'.$i] = $item['id'];
+			$_POST['td_data_'.$i.'_3'] = $qty;
+			$_POST['td_data_'.$i.'_4'] = $price;
+			$_POST['td_data_'.$i.'_8'] = number_format($disc_amt, 2, '.', '');
+			$_POST['td_data_'.$i.'_9'] = number_format($line_total, 2, '.', '');
+			$_POST['td_data_'.$i.'_10'] = number_format($unit_total, 2, '.', '');
+			$_POST['td_data_'.$i.'_11'] = number_format($tax_amount, 2, '.', '');
+			$_POST['td_data_'.$i.'_15'] = $tax_id;
+			$_POST['tr_tax_value_'.$i] = $tax_value;
+			$_POST['tr_tax_type_'.$i] = $tax_type;
+			$_POST['item_discount_type_'.$i] = $item['discount_type'] ?? 'Percentage';
+			$_POST['item_discount_input_'.$i] = (float)($item['discount_input'] ?? 0);
+			$_POST['description_'.$i] = $item['description'] ?? '';
+			$_POST['sold_serial_number_'.$i] = '';
+			$_POST['sold_imei_number_'.$i] = '';
+			$_POST['barcode_id_'.$i] = 0;
+		}
+
+		$grand -= $discount;
+		if($grand < 0){ $grand = 0; }
+		$round_off = round($grand, 2) - $grand;
+		$grand_total = round($grand, 2);
+		$_POST['tot_subtotal_amt'] = number_format($subtotal, 2, '.', '');
+		$_POST['tot_round_off_amt'] = number_format($round_off, 2, '.', '');
+		$_POST['tot_total_amt'] = number_format($grand_total, 2, '.', '');
+
+		$refund = parse_amount($input['amount'] ?? 0);
+		if($refund > 0 && empty($input['payment_type'])){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Choose a payment type for the refund.']);
+			exit;
+		}
+		$prev_paid = 0;
+		if(!empty($return_id)){
+			$prev_paid = (float)($this->db->select('COALESCE(SUM(payment),0) as p')->where('return_id', $return_id)->get('db_salespaymentsreturn')->row()->p ?? 0);
+		}
+		if($refund > ($grand_total - $prev_paid) + 0.01){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Refund amount cannot exceed the return total.']);
+			exit;
+		}
+		$_POST['amount'] = number_format($refund, 2, '.', '');
+		$_POST['payment_type'] = $input['payment_type'] ?? '';
+		$_POST['payment_note'] = $input['payment_note'] ?? '';
+		$_POST['account_id'] = $input['account_id'] ?? '';
+
+		// Sales_return_model reads item fields from $_REQUEST (e.g. $_REQUEST['tr_item_id_1']).
+		// $_REQUEST is a snapshot taken at request start and is NOT updated when $_POST is
+		// assigned at runtime, so we must mirror $_POST into $_REQUEST or the item loop
+		// finds nothing and the return is saved without any items.
+		foreach($_POST as $k => $v){
+			$_REQUEST[$k] = $v;
+		}
+
+		$this->load->model('sales_return_model', 'sales_return');
+		ob_start();
+		try {
+			$result = $this->sales_return->verify_save_and_update();
+		} catch (Throwable $e) {
+			$result = 'EXCEPTION: ' . $e->getMessage();
+			log_message('error', 'Mobile save_return() exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+		}
+		$ob_output = ob_get_clean();
+		if($ob_output && stripos($result, 'success') === false){
+			$result = trim($result . "\n" . $ob_output);
+		}
+
+		ob_end_clean();
+		if(stripos($result, 'success') !== false){
+			$parts = explode('<<<###>>>', $result);
+			$rid = isset($parts[1]) ? (int)$parts[1] : 0;
+			echo json_encode(['status' => 'success', 'return_id' => $rid, 'redirect' => base_url('mobile/sales_return_invoice/'.$rid)]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => trim(strip_tags($result)) ?: 'Return could not be saved.']);
+		}
+		exit;
+	}
+
 	public function staff()
 	{
 		$data = $this->data;
@@ -3168,6 +3507,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Quotations', 'desc' => 'Quotes & converted invoices', 'icon' => 'fa-list-alt', 'url' => 'mobile/quotations', 'perm' => 'quotation_view', 'color' => 'yellow'],
 				['title' => 'Holds', 'desc' => 'Resume saved sales', 'icon' => 'fa-hand-paper-o', 'url' => 'mobile/holds', 'perm' => 'sales_add', 'color' => 'orange'],
 				['title' => 'Sales List', 'desc' => 'View all sales', 'icon' => 'fa-list', 'url' => 'mobile/sales_list', 'perm' => 'sales_view', 'color' => 'blue'],
+				['title' => 'Sales Returns', 'desc' => 'Returned sales invoices', 'icon' => 'fa-undo', 'url' => 'mobile/sales_returns', 'perm' => 'sales_return_view', 'color' => 'orange'],
 				['title' => 'Due Payments', 'desc' => 'Unpaid invoices', 'icon' => 'fa-money', 'url' => 'mobile/due', 'perm' => 'sales_view', 'color' => 'red'],
 			],
 			'Purchase' => [

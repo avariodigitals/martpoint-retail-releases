@@ -14,6 +14,14 @@
     .guide-card .icon { width:54px; height:54px; border-radius:50%; background:rgba(0,87,255,0.08); color:var(--mp-primary); display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
     .guide-card h3 { font-size:1rem; margin:0; }
     .guide-card p { font-size:0.8rem; color:var(--mp-muted); margin:0; }
+    .doc-card { display:flex; flex-direction:column; gap:8px; padding:18px; border:1px solid var(--mp-border); border-radius:var(--radius); background:#fff; text-decoration:none; color:var(--mp-ink); box-shadow:var(--shadow-sm); page-break-inside:avoid; }
+    .doc-card:hover { transform:translateY(-2px); transition:transform .15s; }
+    .doc-card .doc-head { display:flex; align-items:center; gap:10px; }
+    .doc-card .doc-head i { color:var(--mp-primary); font-size:1.1rem; }
+    .doc-card .doc-head h3 { font-size:0.92rem; margin:0; }
+    .doc-card .doc-links { display:flex; gap:8px; margin-top:4px; }
+    .doc-card .doc-links a { font-size:0.74rem; font-weight:700; padding:4px 12px; border-radius:999px; background:rgba(0,87,255,0.08); color:var(--mp-primary); text-decoration:none; }
+    .section-label { font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--mp-primary); margin:20px 0 6px; display:block; }
     .back-link { display:inline-flex; align-items:center; gap:8px; color:var(--mp-primary); font-weight:600; text-decoration:none; margin-bottom:16px; }
   </style>
 </head>
@@ -23,10 +31,55 @@
     <a href="../brochure.html" class="back-link"><i class="fa fa-chevron-left"></i> Back to MartPoint</a>
     <span class="label">Partner Guide</span>
     <h1 class="mb-1">Resources for partners</h1>
-    <p class="lead mb-3">Partners have access to the same customer-facing guides. Use these to train clients and answer common questions. Technical documentation is handled separately.</p>
+    <p class="lead mb-3">Start with the Partner Welcome &amp; Programme Guide — it covers your activation pack, earnings rules, grades and support routes. Partners also have access to the customer-facing guides below for client training.</p>
 
-    <div class="guide-grid">
-      <a href="../customer-guide/user-manual.html" class="guide-card no-break">
+    <a href="./partner-programme-guide.html" class="card no-break mb-3" style="display:flex; align-items:center; gap:16px; text-decoration:none; color:var(--mp-ink); border:1.5px solid var(--mp-primary); background:linear-gradient(135deg, rgba(0,87,255,0.05), rgba(0,87,255,0.02));">
+      <div class="icon-circle" style="margin:0; flex-shrink:0;"><i class="fa fa-handshake-o"></i></div>
+      <div>
+        <h3 style="margin:0 0 4px;">Partner Welcome &amp; Programme Guide</h3>
+        <p class="small" style="margin:0; color:var(--mp-muted);">What you receive, how we work together and when partner earnings become payable. Version 1.0.</p>
+      </div>
+      <i class="fa fa-chevron-right" style="margin-left:auto; color:var(--mp-primary);"></i>
+    </a>
+
+    <span class="section-label">Partner documents</span>
+    <div class="guide-grid" style="margin-top:6px;">
+      <div class="doc-card no-break">
+        <div class="doc-head"><i class="fa fa-file-text-o"></i><h3>Commercial / Commission Schedule</h3></div>
+        <p class="small" style="margin:0; color:var(--mp-muted);">Earning basis, eligible revenue, exclusions, holding period and payment process — completed per signed agreement.</p>
+        <div class="doc-links">
+          <a href="./commission-schedule.html">View</a>
+          <a href="./commission-schedule.pdf">PDF</a>
+        </div>
+      </div>
+      <div class="doc-card no-break">
+        <div class="doc-head"><i class="fa fa-book"></i><h3>Usage Guide (User Manual)</h3></div>
+        <p class="small" style="margin:0; color:var(--mp-muted);">Quick start, icons, everyday workflows, and fixes — the same guide your customers use.</p>
+        <div class="doc-links">
+          <a href="./user-manual.html">View</a>
+          <a href="./user-manual.pdf">PDF</a>
+        </div>
+      </div>
+      <div class="doc-card no-break">
+        <div class="doc-head"><i class="fa fa-star"></i><h3>Product Brochure</h3></div>
+        <p class="small" style="margin:0; color:var(--mp-muted);">Approved product overview and feature highlights — safe to share with prospects.</p>
+        <div class="doc-links">
+          <a href="./product-brochure.html">View</a>
+          <a href="./product-brochure.pdf">PDF</a>
+        </div>
+      </div>
+      <div class="doc-card no-break">
+        <div class="doc-head"><i class="fa fa-handshake-o"></i><h3>Programme Guide (PDF)</h3></div>
+        <p class="small" style="margin:0; color:var(--mp-muted);">Print-friendly version of the Partner Welcome &amp; Programme Guide above.</p>
+        <div class="doc-links">
+          <a href="./partner-programme-guide.pdf">PDF</a>
+        </div>
+      </div>
+    </div>
+
+    <span class="section-label">Client training guides</span>
+    <div class="guide-grid" style="margin-top:6px;">
+      <a href="./user-manual.html" class="guide-card no-break">
         <div class="icon"><i class="fa fa-book"></i></div>
         <h3>User Manual</h3>
         <p>Start here. Icons, quick start, workflows, and fixes.</p>

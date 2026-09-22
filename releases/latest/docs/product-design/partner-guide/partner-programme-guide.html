@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Partner Welcome &amp; Programme Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .doc-fields { width:100%; border-collapse:collapse; font-size:0.86rem; }
+    .doc-fields td { padding:9px 12px; border-bottom:1px solid var(--mp-border); vertical-align:top; }
+    .doc-fields td:first-child { font-weight:700; width:32%; color:var(--mp-text); }
+    .doc-fields tr:last-child td { border-bottom:none; }
+    .rule-callout { border:1.5px solid var(--mp-primary); border-radius:var(--radius); padding:20px 22px; background:linear-gradient(135deg, rgba(0,87,255,0.05), rgba(0,87,255,0.02)); page-break-inside:avoid; }
+    .rule-callout .rule-title { display:flex; align-items:center; gap:10px; font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--mp-primary); margin-bottom:10px; }
+    .rule-callout p { font-size:1rem; line-height:1.6; color:var(--mp-text); margin:0; }
+    .pack-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .pack-item { border:1px solid var(--mp-border); border-radius:var(--radius-sm); padding:14px 16px; display:flex; gap:12px; align-items:flex-start; page-break-inside:avoid; }
+    .pack-item i { color:var(--mp-primary); font-size:1.05rem; margin-top:2px; flex-shrink:0; }
+    .pack-item strong { display:block; font-size:0.86rem; color:var(--mp-text); margin-bottom:2px; }
+    .pack-item span { font-size:0.78rem; color:var(--mp-muted); line-height:1.45; display:block; }
+    .pack-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .pack-num { flex:0 0 44px; height:44px; border-radius:12px; background:rgba(0,87,255,0.08); color:var(--mp-primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.05rem; }
+    .dont-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px; }
+    .dont-list li { display:flex; gap:10px; align-items:flex-start; font-size:0.85rem; color:var(--mp-ink); }
+    .dont-list li i { color:var(--mp-danger); margin-top:3px; flex-shrink:0; }
+    .boundaries-card { border:1px solid #FECACA; background:#FEF2F2; border-radius:var(--radius); padding:16px 18px; page-break-inside:avoid; }
+    .boundaries-card h3 { font-size:0.82rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--mp-danger); margin-bottom:10px; }
+    .grade-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; page-break-inside:avoid; }
+    .grade-badge { display:inline-block; font-size:0.72rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; border-radius:999px; padding:4px 12px; margin-bottom:10px; }
+    .grade-silver .grade-badge { background:rgba(120,113,108,0.12); color:#57534E; }
+    .grade-gold .grade-badge { background:rgba(217,119,6,0.12); color:var(--mp-pay); }
+    .grade-platinum .grade-badge { background:rgba(71,85,105,0.12); color:#475569; }
+    .grade-diamond .grade-badge { background:rgba(0,87,255,0.1); color:var(--mp-primary); }
+    .grade-card h3 { font-size:1rem; margin-bottom:4px; }
+    .grade-card .grade-meaning { font-size:0.85rem; color:var(--mp-ink); margin-bottom:8px; }
+    .grade-card .grade-perks { font-size:0.78rem; color:var(--mp-muted); margin:0; }
+    .route-table td:first-child { font-weight:600; width:42%; }
+    @media (max-width: 640px) { .pack-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <!-- Cover -->
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Version 1.0</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Partner Welcome Pack</span>
+        <h1>Partner Welcome &amp; Programme Guide</h1>
+        <p>What you receive, how we work together and when partner earnings become payable.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="grid cols-4 text-center mb-3">
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-briefcase"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Your pack</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-users"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Partner types</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-diamond"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Grades</span>
+        </div>
+        <div>
+          <div class="icon-circle" style="margin:0 auto 10px;"><i class="fa fa-headphones"></i></div>
+          <span class="small" style="color:rgba(255,255,255,0.8);">Support</span>
+        </div>
+      </div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint Partner Programme</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- About this guide -->
+  <section class="page">
+    <span class="label">About this guide</span>
+    <h2 class="mb-2">Read this first</h2>
+    <p class="lead mb-3">This guide explains the standard MartPoint partner programme. Your signed agreement and schedules control your specific appointment.</p>
+
+    <div class="card no-break mb-3" style="padding:6px 18px;">
+      <table class="doc-fields">
+        <tr><td>Issued by</td><td>MartPoint</td></tr>
+        <tr><td>Version</td><td>1.0</td></tr>
+        <tr><td>Effective date</td><td>21 September 2026</td></tr>
+        <tr><td>Who should read this</td><td>Approved Referral, Channel, Implementation, Technology and Payment Provider Partners</td></tr>
+        <tr><td>Purpose</td><td>Partner-facing programme information. Your signed agreement and schedules control your specific appointment.</td></tr>
+      </table>
+    </div>
+
+    <div class="rule-callout no-break mb-3">
+      <div class="rule-title"><i class="fa fa-exclamation-circle"></i> The most important commercial rule</div>
+      <p>MartPoint does not pay for names, contact details, meetings, demonstrations, quotations, verbal commitments or registered leads. A referral or sales commission can arise only when an eligible referred customer <strong>pays MartPoint through an approved payment route</strong>, the payment clears, the required licence activation is completed and the conditions in the partner&rsquo;s signed Commission Schedule are satisfied.</p>
+    </div>
+
+    <div class="tip warning no-break">
+      <i class="fa fa-info-circle"></i> <strong>Lead registration protects attribution.</strong> It does not create a debt or guaranteed commission.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 2</span>
+    </div>
+  </section>
+
+  <!-- Section 1: Activation pack -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">1</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Activation pack</span>
+        <h2 style="margin:0;">What every activated partner receives</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">Your activation pack is tailored to your approved partner type. Every active partner receives the following core items.</p>
+
+    <div class="pack-grid mb-3">
+      <div class="pack-item">
+        <i class="fa fa-id-card-o"></i>
+        <div><strong>Activation Confirmation</strong><span>Your Partner ID, approved partner type, operating status, grade, effective date, MartPoint contact and approved description.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-file-text-o"></i>
+        <div><strong>Signed Partner Agreement</strong><span>The legal terms governing the relationship, confidentiality, conduct, data, intellectual property, suspension and termination.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-money"></i>
+        <div><strong>Commercial or Commission Schedule</strong><span>The exact earning basis, eligible revenue, exclusions, clearance conditions, holding period, adjustments and payment process that apply to you.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-map-signs"></i>
+        <div><strong>Partner Programme Guide</strong><span>The working process, responsibilities, boundaries and support route described in this document.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-bullhorn"></i>
+        <div><strong>Brand &amp; Communication Guide</strong><span>Approved MartPoint description, current logos or materials and the rules for public references.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-shield"></i>
+        <div><strong>Security &amp; Data Rules</strong><span>Account-security, confidentiality, customer-consent and incident-reporting requirements relevant to your role.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-user-circle-o"></i>
+        <div><strong>Partner Account</strong><span>Access to your own documents, activities and status, limited to your approved role.</span></div>
+      </div>
+      <div class="pack-item">
+        <i class="fa fa-life-ring"></i>
+        <div><strong>Support &amp; Escalation Route</strong><span>Where to direct programme, sales, delivery, technical or payment questions.</span></div>
+      </div>
+    </div>
+
+    <div class="tip warning no-break">
+      <i class="fa fa-exclamation-triangle"></i> <strong>What is not included automatically:</strong> activation does not guarantee leads, customers, minimum income, exclusivity, a territory, discounts, unrestricted customer information, API access, production access or authority to collect MartPoint licence payments. Any exception must appear in a written document signed or issued by MartPoint.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 3</span>
+    </div>
+  </section>
+
+  <!-- Section 2: Referral Partner -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">2</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Partner pack &middot; 1 of 5</span>
+        <h2 style="margin:0;">Referral Partner</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">You introduce a genuinely new business that may benefit from MartPoint. MartPoint handles qualification, demonstration, quotation, payment collection, licensing, deployment and customer onboarding unless your agreement states otherwise.</p>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-folder-open-o" style="color:var(--mp-primary);margin-right:8px;"></i>Documents &amp; tools you receive</h3>
+      <ul class="tick-list">
+        <li><i class="fa fa-check-circle"></i> Referral Partner Agreement and Commission Schedule.</li>
+        <li><i class="fa fa-check-circle"></i> Activation Confirmation and Partner ID.</li>
+        <li><i class="fa fa-check-circle"></i> Referral guide explaining eligible introductions and prohibited claims.</li>
+        <li><i class="fa fa-check-circle"></i> Approved customer-safe product and marketing materials.</li>
+        <li><i class="fa fa-check-circle"></i> Lead registration and status view for your own submissions.</li>
+        <li><i class="fa fa-check-circle"></i> Commission statement for eligible paid customer conversions.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>How earnings work</h3>
+      <table>
+        <thead><tr><th>Stage</th><th>What it means for you</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Lead submitted</strong></td><td>Recorded for review. No commission exists.</td></tr>
+          <tr><td><strong>Lead accepted</strong></td><td>Attribution is protected for the stated period. No commission exists.</td></tr>
+          <tr><td><strong>Customer interested or quoted</strong></td><td>Sales activity is progressing. No commission exists.</td></tr>
+          <tr><td><strong>Customer invoice issued</strong></td><td>An amount has been requested but not collected. No commission exists.</td></tr>
+          <tr><td><strong>Customer pays MartPoint</strong></td><td>The transaction moves to payment clearance and activation checks.</td></tr>
+          <tr><td><strong>Payment cleared &amp; activation completed</strong></td><td>Commission may become eligible under the signed Commission Schedule and holding period.</td></tr>
+          <tr><td><strong>Commission approved &amp; paid</strong></td><td>The amount appears on your partner statement with the payment reference.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="boundaries-card">
+      <h3><i class="fa fa-ban" style="margin-right:6px;"></i>Your boundaries</h3>
+      <p class="small" style="margin:0;color:var(--mp-ink);">Referral status does not grant customer-account access. You must obtain consent before sharing a prospect&rsquo;s details, use approved claims and never collect MartPoint licence payments or promise discounts, features or outcomes.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 4</span>
+    </div>
+  </section>
+
+  <!-- Section 3: Channel Partner -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">3</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Partner pack &middot; 2 of 5</span>
+        <h2 style="margin:0;">Channel Sales &amp; Support Partner</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">You help suitable businesses understand and choose MartPoint and provide agreed first-line usage guidance to customers formally assigned to you. MartPoint remains responsible for quotations, billing, licensing, deployment and platform-level support.</p>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-folder-open-o" style="color:var(--mp-primary);margin-right:8px;"></i>Documents &amp; tools you receive</h3>
+      <ul class="tick-list">
+        <li><i class="fa fa-check-circle"></i> Channel Partner Agreement and Commission Schedule.</li>
+        <li><i class="fa fa-check-circle"></i> Activation Confirmation, Partner ID and authorised status.</li>
+        <li><i class="fa fa-check-circle"></i> Approved sales deck, demo guidance, current pricing reference and qualification tools.</li>
+        <li><i class="fa fa-check-circle"></i> Opportunity registration, approved quotation support and sales handover process.</li>
+        <li><i class="fa fa-check-circle"></i> Customer Assignment for every customer you are permitted to support.</li>
+        <li><i class="fa fa-check-circle"></i> First-line support guide, escalation route, renewal tasks and partner statements.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>How earnings work</h3>
+      <p class="small mb-2">No payment is made for an opportunity, meeting, demo, quotation or invoice alone. <strong>Acquisition commission</strong> is considered only after the eligible customer payment clears and activation conditions are completed.</p>
+      <p class="small" style="margin:0;"><strong>Renewal commission</strong> applies only where your signed schedule provides for it and you remain assigned while completing the required customer-support and renewal activities.</p>
+    </div>
+
+    <div class="boundaries-card">
+      <h3><i class="fa fa-ban" style="margin-right:6px;"></i>Your boundaries</h3>
+      <ul class="dont-list">
+        <li><i class="fa fa-times-circle"></i> Access only assigned customers and approved information.</li>
+        <li><i class="fa fa-times-circle"></i> Do not alter prices or approve discounts.</li>
+        <li><i class="fa fa-times-circle"></i> Do not create licences or change entitlements.</li>
+        <li><i class="fa fa-times-circle"></i> Do not collect licence payments outside an approved route.</li>
+        <li><i class="fa fa-times-circle"></i> Do not deploy the platform or promise resolution times that MartPoint has not approved.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 5</span>
+    </div>
+  </section>
+
+  <!-- Section 4: Implementation Partner -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">4</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Partner pack &middot; 3 of 5</span>
+        <h2 style="margin:0;">Implementation Partner</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">You perform a customer-specific implementation assignment after MartPoint has provisioned the environment. Work may include approved configuration, data preparation, user training, testing and handover.</p>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-folder-open-o" style="color:var(--mp-primary);margin-right:8px;"></i>Documents &amp; tools you receive</h3>
+      <ul class="tick-list">
+        <li><i class="fa fa-check-circle"></i> Implementation Partner Agreement and certification confirmation.</li>
+        <li><i class="fa fa-check-circle"></i> Fee Schedule for standard work where applicable.</li>
+        <li><i class="fa fa-check-circle"></i> Customer-specific Work Order stating scope, deliverables, dates, fee, access, evidence and acceptance requirements.</li>
+        <li><i class="fa fa-check-circle"></i> Data Processing Agreement where the assignment requires personal-data processing.</li>
+        <li><i class="fa fa-check-circle"></i> Implementation checklist, training resources, testing requirements and handover form.</li>
+        <li><i class="fa fa-check-circle"></i> Time-limited access to the assigned customer functions required for the approved work.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>How earnings work</h3>
+      <p class="small" style="margin:0;">Implementation work normally earns the <strong>fixed or milestone fee stated in the Work Order</strong>, not a percentage of the software licence. A fee becomes payable only after the applicable customer funds have cleared and MartPoint has accepted the required milestone, unless the Work Order states a different approved condition.</p>
+    </div>
+
+    <div class="boundaries-card">
+      <h3><i class="fa fa-ban" style="margin-right:6px;"></i>Your boundaries</h3>
+      <ul class="dont-list">
+        <li><i class="fa fa-times-circle"></i> Work only under an active Work Order.</li>
+        <li><i class="fa fa-times-circle"></i> MartPoint provisions and deploys the system and makes the final go-live decision.</li>
+        <li><i class="fa fa-times-circle"></i> Do not expand scope, retain access after the assignment or charge the customer outside the approved arrangement.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 6</span>
+    </div>
+  </section>
+
+  <!-- Section 5: Technology Partner -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">5</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Partner pack &middot; 4 of 5</span>
+        <h2 style="margin:0;">Technology Partner</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">You provide an approved hardware product, software service, API, connector, infrastructure service or embedded solution that works with MartPoint for a defined use case.</p>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-folder-open-o" style="color:var(--mp-primary);margin-right:8px;"></i>Documents &amp; tools you receive</h3>
+      <ul class="tick-list">
+        <li><i class="fa fa-check-circle"></i> Mutual NDA where required and Technology Partner Agreement.</li>
+        <li><i class="fa fa-check-circle"></i> Commercial Schedule defining approved product, development, subscription, transaction or integration economics.</li>
+        <li><i class="fa fa-check-circle"></i> Solution Profile and the technical, security, privacy and support requirements for the approved product or version.</li>
+        <li><i class="fa fa-check-circle"></i> Integration Work Order or Statement of Work for development or customer-specific work.</li>
+        <li><i class="fa fa-check-circle"></i> Testing plan, approved documentation, controlled test access and production approval where applicable.</li>
+        <li><i class="fa fa-check-circle"></i> Service-level, warranty, maintenance, change-notice and incident procedures relevant to the solution.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>How earnings work</h3>
+      <p class="small" style="margin:0;">Technology Partner status does not create a software-licence discount or commission. Earnings are limited to the <strong>product margin, development fee, subscription, integration fee or other basis stated in the signed Commercial Schedule</strong>. A separately registered referral is treated under an approved Referral Schedule only after the customer pays and all eligibility conditions are met.</p>
+    </div>
+
+    <div class="boundaries-card">
+      <h3><i class="fa fa-ban" style="margin-right:6px;"></i>Your boundaries</h3>
+      <ul class="dont-list">
+        <li><i class="fa fa-times-circle"></i> Approval is product, version and use-case specific.</li>
+        <li><i class="fa fa-times-circle"></i> It does not grant unrestricted API, production, tenant, source-code, server or customer-data access.</li>
+        <li><i class="fa fa-times-circle"></i> Public listing or co-marketing requires separate approval.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 7</span>
+    </div>
+  </section>
+
+  <!-- Section 6: Payment Provider Partner -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">6</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Partner pack &middot; 5 of 5</span>
+        <h2 style="margin:0;">Payment Provider Partner</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">You enable an approved payment capability under the legal, technical, settlement, security and commercial responsibilities stated in the provider agreement.</p>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-folder-open-o" style="color:var(--mp-primary);margin-right:8px;"></i>Documents &amp; tools you receive</h3>
+      <ul class="tick-list">
+        <li><i class="fa fa-check-circle"></i> Provider Agreement and Commercial Schedule.</li>
+        <li><i class="fa fa-check-circle"></i> Data Processing Agreement and service-level terms where applicable.</li>
+        <li><i class="fa fa-check-circle"></i> Settlement and Reconciliation Schedule.</li>
+        <li><i class="fa fa-check-circle"></i> Approved fund-flow and responsibility record.</li>
+        <li><i class="fa fa-check-circle"></i> Sandbox or test plan, acceptance results and Production Approval.</li>
+        <li><i class="fa fa-check-circle"></i> Named integration, finance, reconciliation and incident contacts.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-money" style="color:var(--mp-primary);margin-right:8px;"></i>How earnings work</h3>
+      <p class="small" style="margin:0;">No transaction fee, rebate, referral payment or revenue share should be assumed. <strong>Only the signed Provider Agreement and Commercial Schedule</strong> create payment rights and define the revenue base, deductions, taxes, settlement timing, reversals and reporting. A separate software referral follows the paid-customer rule.</p>
+    </div>
+
+    <div class="boundaries-card">
+      <h3><i class="fa fa-ban" style="margin-right:6px;"></i>Your boundaries</h3>
+      <ul class="dont-list">
+        <li><i class="fa fa-times-circle"></i> Maintain applicable authorisation, security, settlement, reconciliation, refund and chargeback obligations.</li>
+        <li><i class="fa fa-times-circle"></i> Access is limited to the approved payment service and the data required for that service.</li>
+      </ul>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 8</span>
+    </div>
+  </section>
+
+  <!-- Section 7: Grades -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">7</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Recognition</span>
+        <h2 style="margin:0;">Partner grades</h2>
+      </div>
+    </div>
+    <p class="lead mb-3">MartPoint may recognise sustained performance using four grades. Grade is recorded separately for each partner type, so an organisation may hold different grades for different roles.</p>
+
+    <div class="grid cols-2 mb-3">
+      <div class="grade-card grade-silver no-break">
+        <span class="grade-badge">Silver</span>
+        <h3>Activated &amp; compliant</h3>
+        <p class="grade-meaning">Activated and meeting the programme&rsquo;s baseline requirements.</p>
+        <p class="grade-perks">Current badge, approved verification listing, core materials and standard support route.</p>
+      </div>
+      <div class="grade-card grade-gold no-break">
+        <span class="grade-badge">Gold</span>
+        <h3>Reliable performer</h3>
+        <p class="grade-meaning">Demonstrating reliable, repeatable performance and good operational quality.</p>
+        <p class="grade-perks">Gold badge, performance feedback, priority enablement and eligibility for approved case studies or co-marketing.</p>
+      </div>
+      <div class="grade-card grade-platinum no-break">
+        <span class="grade-badge">Platinum</span>
+        <h3>Sustained excellence</h3>
+        <p class="grade-meaning">Sustaining strong results, customer outcomes and programme compliance.</p>
+        <p class="grade-perks">Platinum badge, business reviews, priority partner support and featured-listing consideration.</p>
+      </div>
+      <div class="grade-card grade-diamond no-break">
+        <span class="grade-badge">Diamond</span>
+        <h3>Strategic value</h3>
+        <p class="grade-meaning">Delivering outstanding strategic value with consistently high standards.</p>
+        <p class="grade-perks">Diamond badge, executive engagement, strategic planning and consideration for suitable pilots.</p>
+      </div>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-1"><i class="fa fa-balance-scale" style="color:var(--mp-primary);margin-right:8px;"></i>How grade decisions work</h3>
+      <p class="small" style="margin:0;">MartPoint reviews relevant results, quality, customer experience, service performance, security and compliance. The partner receives its grade decision and next review date. <strong>Grade does not automatically change commission, fees, access, territory, exclusivity or lead allocation</strong> — any commercial change must be documented separately.</p>
+    </div>
+
+    <div class="tip danger no-break">
+      <i class="fa fa-exclamation-triangle"></i> <strong>Maintaining your grade:</strong> serious misconduct, data misuse, security failure, misleading claims, regulatory failure, persistent service problems or inactivity may block promotion, lead to a lower grade or cause suspension. MartPoint will communicate the applicable decision and any required corrective action, subject to the partner agreement.
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 9</span>
+    </div>
+  </section>
+
+  <!-- Section 8: Safety & support -->
+  <section class="page">
+    <div class="pack-head">
+      <div class="pack-num">8</div>
+      <div>
+        <span class="label" style="margin-bottom:2px;">Working safely</span>
+        <h2 style="margin:0;">Getting support</h2>
+      </div>
+    </div>
+
+    <div class="card no-break mb-3">
+      <h3 class="mb-2"><i class="fa fa-shield" style="color:var(--mp-primary);margin-right:8px;"></i>Protect customers &amp; the MartPoint relationship</h3>
+      <ul class="tick-list">
+        <li><i class="fa fa-check-circle"></i> Use only your individual account and protect passwords and access devices.</li>
+        <li><i class="fa fa-check-circle"></i> Access only the customer, system and information specifically assigned to you.</li>
+        <li><i class="fa fa-check-circle"></i> Obtain consent before submitting prospect or customer information.</li>
+        <li><i class="fa fa-check-circle"></i> Use current approved descriptions, prices and marketing materials.</li>
+        <li><i class="fa fa-check-circle"></i> Report suspected security, privacy, fraud or access incidents immediately.</li>
+        <li><i class="fa fa-check-circle"></i> Do not collect MartPoint licence payments unless a written agreement authorises the exact route.</li>
+        <li><i class="fa fa-check-circle"></i> Do not present yourself as a MartPoint employee, agent with unlimited authority or exclusive representative.</li>
+      </ul>
+    </div>
+
+    <div class="card no-break mb-3" style="padding:6px 18px;">
+      <h3 class="mb-0 mt-2" style="padding:0 0 6px;"><i class="fa fa-headphones" style="color:var(--mp-primary);margin-right:8px;"></i>Support routes</h3>
+      <table class="route-table">
+        <thead><tr><th>Need</th><th>Route</th></tr></thead>
+        <tbody>
+          <tr><td>Partner status, documents or profile</td><td>Partner Operations through the partner account or named programme contact</td></tr>
+          <tr><td>Opportunity, quotation or customer handover</td><td>Assigned MartPoint sales or commercial contact</td></tr>
+          <tr><td>Commission, fee or payment statement</td><td>Finance route shown in your Activation Confirmation</td></tr>
+          <tr><td>Implementation or technical matter</td><td>Assigned work-order or integration owner</td></tr>
+          <tr><td>Security, privacy or suspected fraud</td><td>Immediate incident route stated in your agreement or partner account</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tip no-break mb-3">
+      <i class="fa fa-files-o"></i> <strong>Document priority:</strong> this guide explains the standard programme. Your signed Partner Agreement, Commercial or Commission Schedule, Work Order, Customer Assignment and technical schedules control your specific rights and obligations. If documents appear inconsistent, pause the affected activity and contact MartPoint for written clarification.
+    </div>
+
+    <div class="card no-break" style="background:#FAFAF9;">
+      <h3 class="mb-1"><i class="fa fa-check-square-o" style="color:var(--mp-success);margin-right:8px;"></i>Before you begin</h3>
+      <p class="small" style="margin:0;">Confirm that your organisation name, Partner ID, approved type, grade, contacts, payout details and signed documents are correct. <strong>Do not begin customer-facing or technical activity until MartPoint confirms activation and any required assignment.</strong></p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint Partner Programme Guide</span>
+      <span>Page 10</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

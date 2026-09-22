@@ -155,6 +155,11 @@
   outline: none;
   background: #fff;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  resize: none;
+  font-family: inherit;
+  line-height: 1.4;
+  max-height: 110px;
+  overflow-y: auto;
 }
 .mp-assist-input:focus { box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
 .mp-assist-send {

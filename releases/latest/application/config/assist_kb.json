@@ -486,5 +486,128 @@
     "category": "accounts",
     "preview": "How to create a new account or ledger",
     "answer": "To create a new account or ledger in MartPoint:\n\n1. **Go to Accounts**: Click **Accounts -> New Account** from the sidebar.\n2. **Account Name**: Enter a clear name for the account (e.g., 'Petty Cash', 'Rent Expense', 'Sales Income').\n3. **Account Type**: Choose the type:\n   - **Asset** - What you own (Cash, Inventory, Equipment)\n   - **Liability** - What you owe (Loans, Payables)\n   - **Income** - Revenue sources (Sales, Services)\n   - **Expense** - Business costs (Rent, Utilities, Salaries)\n4. **Parent Account** (optional): Link to a parent account for grouping.\n5. **Opening Balance**: Enter the starting balance if applicable.\n6. **Description**: Add a brief description for reference.\n7. **Save**: Click **Save** to add the account to your Chart of Accounts.\n\n**Note:** Proper account setup is essential for accurate financial reports. Use consistent naming conventions."
+  },
+  {
+    "id": "business_profile",
+    "keywords": ["business profile","business type","industry type","set up my business","perfume shop","perfumery","restaurant setup","pharmacy setup","change business type","what kind of business","configure my business","set up as"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "How to set your business type (Business Profile)",
+    "answer": "To set up MartPoint for your kind of business:\n\n1. **Open Business Profile**: Click **Business Profile** in the sidebar (needs Business Setup permission).\n2. **Pick Industry Type**: Choose the closest match — e.g. **Perfume Shop**, Pharmacy, Restaurant, Supermarket, Fashion, Electronics.\n3. **Save**: The matching preset applies automatically — feature flags, terminology (Fragrance vs Medicine vs Menu Item), workflow, dashboard and storefront theme.\n4. **Seeded Data**: Units, categories and other master data for that industry are created for you (safe to re-save, nothing is duplicated).\n\n**Example — Perfumery:** choosing Perfume Shop enables batch & expiry tracking, formulas (recipes), blend batches (production), bespoke orders, gift sets and the Noir Parfum storefront theme — and I will start saying Fragrance and Client instead of item and customer.\n\n**Tip:** You can fine-tune individual feature flags and labels on the same screen after saving."
+  },
+  {
+    "id": "getting_started",
+    "keywords": ["getting started","new store setup","set up my shop","first time setup","how to start","onboarding","where do i begin","start using martpoint","initial setup"],
+    "required_role": "business_owner",
+    "category": "settings",
+    "preview": "Getting started checklist for a new store",
+    "answer": "Suggested order to set up a new MartPoint store:\n\n1. **Business Profile**: Pick your industry type — this turns on the right features and terminology automatically.\n2. **Site Settings**: Store name, logo, currency, receipt footer, tax.\n3. **Users & Roles**: Add your staff and assign roles (cashier, manager...).\n4. **Catalog**: Create categories/brands, then add items — or bulk import from CSV.\n5. **Stock**: Enter opening stock quantities, or receive via a purchase.\n6. **Customers**: Import or add key customers, set credit limits where needed.\n7. **Payment Modes & Accounts**: Cash, POS/bank, transfer accounts.\n8. **Try a Sale**: Run a test sale in POS, then check the dashboard.\n\nAsk me about any step and I will walk you through it."
+  },
+  {
+    "id": "raw_materials",
+    "keywords": ["raw material","ingredient","consumable","add material","materials","fragrance oil","base oil","supplies for production","inputs","not for sale"],
+    "required_role": "business_owner",
+    "features": ["recipe_tracking","production_workflow"],
+    "category": "inventory",
+    "preview": "How to add raw materials / ingredients / inputs",
+    "answer": "Raw materials are items used in recipes/production but not sold directly:\n\n1. **Quick way**: Just tell me — e.g. 'add raw material Musk Oil 500ml bottle at 4500' — I will ask the missing details (single or in bulk).\n2. **Manual**: Go to **Items -> New Item** and tick **Not for Sale / Raw Material**.\n3. **Bulk**: Paste a list like 'Oud Oil, ml, 120, 250; Amber, ml, 90, 300' (Name, Unit, Cost, Qty) — I will preview and confirm.\n\nThese items get cost tracking and low-stock alerts but never appear on the sell screen."
+  },
+  {
+    "id": "recipes_formulas",
+    "keywords": ["recipe","formula","bill of materials","ingredients list","recipe for","make product from","composition"],
+    "required_role": "business_owner",
+    "features": ["recipe_tracking"],
+    "category": "inventory",
+    "preview": "How to create a recipe / formula",
+    "answer": "Recipes (formulas) define what goes into a finished product:\n\n1. **Open Operations -> Recipe** (name may differ by business type — e.g. Formula for perfumery).\n2. **Pick the finished item** and add raw materials with quantities per unit.\n3. **Save**: stock of raw materials is consumed and finished item stock increases when you produce.\n\nThe recipe links raw material costs into the finished item's cost."
+  },
+  {
+    "id": "production_batches",
+    "keywords": ["production","blend batch","batch production","produce","manufacture","make batch","production queue","run production"],
+    "required_role": "business_owner",
+    "features": ["production_workflow"],
+    "category": "inventory",
+    "preview": "How to run a production / blend batch",
+    "answer": "Production turns raw materials into finished stock using a recipe:\n\n1. **Operations -> Production**: start a new batch.\n2. **Choose the recipe** and the quantity to produce.\n3. **Confirm**: raw materials are deducted and finished items added, all costed automatically.\n4. **Queue**: track pending and completed batches on the dashboard widget.\n\nEvery batch keeps a code and date for traceability."
+  },
+  {
+    "id": "custom_orders",
+    "keywords": ["custom order","bespoke","special order","made to order","deposit order","advance order","order on request"],
+    "required_role": "cashier",
+    "features": ["custom_orders"],
+    "category": "sales",
+    "preview": "How to take a custom / bespoke order",
+    "answer": "Custom orders let you take requests for items made or sourced on demand:\n\n1. **New Custom Order**: record the customer, description and agreed price.\n2. **Deposit**: collect part-payment up front — the balance shows until completion.\n3. **Track**: pending custom orders appear on the dashboard; mark complete on delivery and collect the balance.\n\nGreat for bespoke blends, tailoring, event orders and special requests."
+  },
+  {
+    "id": "bundles_giftsets",
+    "keywords": ["bundle","gift set","combo","package deal","kit","set of items"],
+    "required_role": "business_owner",
+    "features": ["bundles"],
+    "category": "inventory",
+    "preview": "How to sell bundles / gift sets / combos",
+    "answer": "Bundles sell several items together at one price:\n\n1. **Create the bundle item** and link its component items.\n2. **Sell it like a normal item** — component stock is deducted automatically.\n\nPerfect for gift sets, combo deals and promotional packs."
+  },
+  {
+    "id": "batch_expiry_tracking",
+    "keywords": ["batch","batch code","expiry","expiration","best before","expiring stock","near expiry","mfg date","manufacture date","lot number"],
+    "required_role": "all",
+    "features": ["batch_tracking","expiry_tracking","mfg_tracking"],
+    "category": "inventory",
+    "preview": "How batch and expiry tracking works",
+    "answer": "With batch/expiry tracking enabled:\n\n1. **On purchase**: record batch code, manufacture date and best-before date per item.\n2. **On sale**: the system can pick the earliest-expiring batch (FEFO).\n3. **Dashboard**: 'Near Expiry' and 'Expired Items' widgets warn you early so you can discount or return stock.\n\nCheck **Reports -> Stock** filtered by batch to trace any lot."
+  },
+  {
+    "id": "multi_unit",
+    "keywords": ["multi unit","carton","pack of","pieces per carton","units per pack","sell by carton","wholesale unit","retail unit","box and pieces"],
+    "required_role": "all",
+    "features": ["multi_unit_inventory","multi_unit_selling"],
+    "category": "inventory",
+    "preview": "How to stock and sell in multiple units (carton/pack/piece)",
+    "answer": "Multi-unit lets one item sell by piece, pack or carton:\n\n1. **On the item**: define units and conversion (e.g. 1 carton = 24 pieces) with a price per unit.\n2. **In POS**: pick the unit when adding to cart — stock converts automatically.\n3. **Purchases**: buy in cartons, sell in pieces — quantities stay accurate.\n\nWorks for retail vs wholesale pricing too."
+  },
+  {
+    "id": "gift_cards_loyalty",
+    "keywords": ["gift card","voucher","loyalty","reward points","store credit","credit note","points"],
+    "required_role": "cashier",
+    "features": ["gift_cards","loyalty","store_credit"],
+    "category": "sales",
+    "preview": "Gift cards, loyalty points and store credit",
+    "answer": "Three ways to keep customers coming back:\n\n1. **Gift Cards**: sell a code with a value; redeem at checkout like cash.\n2. **Loyalty**: customers earn points on purchases and redeem them later.\n3. **Store Credit**: issue credit instead of cash refunds; it is applied on their next purchase.\n\nBalances are tracked per customer — ask me 'what is [customer] balance' any time."
+  },
+  {
+    "id": "storefront_theme",
+    "keywords": ["theme","storefront theme","appearance","change look","shop theme","store design","online store theme","customize storefront"],
+    "required_role": "business_owner",
+    "features": ["online_store"],
+    "category": "settings",
+    "preview": "How to change the storefront theme / appearance",
+    "answer": "Your online store's look comes from the storefront theme:\n\n1. **Business Profile**: the industry preset picks a matching theme automatically (e.g. Noir Parfum for perfume shops).\n2. **Appearance settings**: override the theme, colours and branding later.\n3. **Storefront settings**: store slug, status and catalogue visibility.\n\nThe theme applies to your public online store, not the admin screens."
+  },
+  {
+    "id": "pos_retail_wholesale",
+    "keywords": ["wholesale","retail price","wholesale price","sell wholesale","pos wholesale","retail vs wholesale","price type"],
+    "required_role": "all",
+    "features": ["pos_retail_button","pos_wholesale_button","price_catalogue"],
+    "category": "sales",
+    "preview": "Retail vs wholesale selling in POS",
+    "answer": "Your store can sell at retail and wholesale prices:\n\n1. **In POS**: toggle the retail/wholesale button to switch the price list for that sale.\n2. **Price levels**: items and customers can carry their own price levels.\n3. **Price catalogue**: maintain the different prices per item.\n\nWholesale invoices are tracked separately in reports."
+  },
+  {
+    "id": "manager_approvals",
+    "keywords": ["approval","manager approval","authorize","authorise","discount approval","void approval","approve request"],
+    "required_role": "business_owner",
+    "features": ["manager_approvals"],
+    "category": "settings",
+    "preview": "How manager approvals work",
+    "answer": "Manager approvals add a control step to sensitive actions:\n\n1. Cashiers request approval (e.g. large discount, void).\n2. A manager/owner approves or rejects — from the dashboard or the notification.\n3. The action only completes once approved.\n\nTurn individual approval rules on or off under settings."
+  },
+  {
+    "id": "assist_what_can_you_do",
+    "keywords": ["what can you do","help me","assist features","how to use assist","chat commands","what do you know","who are you","azera"],
+    "required_role": "all",
+    "category": "general",
+    "preview": "What MartPoint Assist can do",
+    "answer": "I can both DO things and EXPLAIN things:\n\n**Do** — tell me naturally: 'sell 2 packs of indomie to Musa', 'add a new customer', 'record a 5000 transport expense', 'create raw material'. I will ask only what is missing and confirm before saving.\n\n**Look up** — 'stock of indomie', 'who owes me', 'today's sales', 'low stock', 'best sellers'.\n\n**Explain** — ask 'how do I...' about anything in MartPoint: POS, purchases, reports, recipes, custom orders, settings.\n\nI only show and do what YOUR role allows, and I speak your business's language (Fragrance, Medicine, Menu Item...)."
   }
 ]

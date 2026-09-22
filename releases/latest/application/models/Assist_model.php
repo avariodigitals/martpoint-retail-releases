@@ -6,6 +6,7 @@ class Assist_model extends CI_Model {
 	private $intents = [
 		'SEARCH_CUSTOMER'     => ['find','search','lookup','customer','who is'],
 		'CREATE_CUSTOMER'     => ['create customer','add customer','new customer','register customer'],
+		'CREATE_RAW_MATERIAL' => ['raw material','raw materials','ingredient','ingredients','consumable','consumables','add material','new material','add ingredient','new ingredient','create ingredient','create material'],
 		'SEARCH_PRODUCT'      => ['find product','search product','product','item'],
 		'CHECK_STOCK'         => ['stock','how many','quantity','left','available'],
 		'LOW_STOCK'           => ['low stock','running low','reorder','out of stock'],
@@ -40,6 +41,7 @@ class Assist_model extends CI_Model {
 		parent::__construct();
 		$this->load->database();
 		$this->load->model('assist_knowledge_model');
+		$this->load->library('assist_brain');
 	}
 
 	/**
@@ -49,17 +51,24 @@ class Assist_model extends CI_Model {
 		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
 		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
 
+		$itemLabel = $this->_term('item', 'Item');
 		$allTasks = [
 			['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
 			['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
-			['label' => 'Find Customer', 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
+			['label' => 'Find '.$this->_term('customer', 'Customer'), 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
 			['label' => "Today's Sales", 'action' => 'today_sales', 'icon' => 'fa-line-chart', 'min_role' => 'cashier'],
 			['label' => 'Daily Summary', 'action' => 'daily_summary', 'icon' => 'fa-file-text-o', 'min_role' => 'cashier'],
 			['label' => 'Record Expense', 'action' => 'record_expense', 'icon' => 'fa-money', 'min_role' => 'cashier'],
 			['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
 			['label' => 'View Debts', 'action' => 'view_debts', 'icon' => 'fa-handshake-o', 'min_role' => 'cashier'],
 			['label' => 'Online Orders', 'action' => 'online_orders', 'icon' => 'fa-globe', 'min_role' => 'all'],
+			['label' => 'New '.$itemLabel, 'action' => 'create_item', 'icon' => 'fa-plus-circle', 'min_role' => 'business_owner'],
 		];
+
+		// Business-type aware tasks: only show when the store's preset enables the feature
+		if($this->_featAny(['recipe_tracking','production_workflow'])){
+			$allTasks[] = ['label' => 'Add '.$this->_rawMaterialLabel(), 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner'];
+		}
 
 		$filtered = [];
 		foreach($allTasks as $task){
@@ -164,6 +173,20 @@ class Assist_model extends CI_Model {
 			case 'CREATE_CUSTOMER':
 				if(!$this->_hasPermission('customers_add')) return $this->_roleDeniedResponse();
 				return $this->_startFlow('create_customer', $sessionId);
+			case 'CREATE_RAW_MATERIAL':
+				if(!$this->_featAny(['recipe_tracking','production_workflow'])) return $this->_rawMaterialUnavailable();
+				if(!$this->_hasPermission('items_add')) return $this->_roleDeniedResponse();
+				$conversation = [
+					'flow'       => 'entity_raw_material',
+					'step'       => 'init',
+					'data'       => ['values' => []],
+					'created_at' => time()
+				];
+				if(!empty($entities['name'])){
+					$conversation['data']['values']['item_name'] = ucwords($entities['name']);
+				}
+				$this->_setConversation($conversation, $sessionId);
+				return $this->_processFlowStep('', $conversation, $sessionId);
 			case 'SEARCH_PRODUCT':
 			case 'CHECK_STOCK':
 				return $this->_checkStock($message, $entities['item'] ?? null);
@@ -200,7 +223,11 @@ class Assist_model extends CI_Model {
 				return $this->_customerBalances($message);
 			case 'ONLINE_ORDER_SUMMARY': return $this->_onlineOrders();
 			case 'HELP': return $this->_welcomeResponse();
-			default: return $this->_fallbackResponse();
+			default:
+				// Rule-based engine didn't recognize it — let the AI try
+				$ai = $this->_aiDecide($message, $sessionId);
+				if($ai !== null) return $ai;
+				return $this->_fallbackResponse();
 		}
 	}
 
@@ -241,6 +268,10 @@ class Assist_model extends CI_Model {
 			case 'create_item':
 				if($levelVal < 2) return $this->_roleDeniedResponse();
 				return $this->_startFlow('create_item', $sessionId);
+			case 'create_raw_material':
+				if($levelVal < 2 || !$this->_hasPermission('items_add')) return $this->_roleDeniedResponse();
+				if(!$this->_featAny(['recipe_tracking','production_workflow'])) return $this->_rawMaterialUnavailable();
+				return $this->_startFlow('entity_raw_material', $sessionId);
 			default: return $this->_fallbackResponse();
 		}
 	}
@@ -346,6 +377,9 @@ class Assist_model extends CI_Model {
 		if($flow === 'create_item'){
 			return $this->_flowCreateItem($step, $message, $conversation, $sessionId);
 		}
+		if(strpos($flow, 'entity_') === 0){
+			return $this->_flowEntityCreate(substr($flow, 7), $step, $message, $conversation, $sessionId);
+		}
 
 		// Unknown flow - clear and fallback
 		$this->_clearConversation($sessionId);
@@ -448,7 +482,7 @@ class Assist_model extends CI_Model {
 			case 'init':
 			case 'ask_customer':
 				$this->_advanceStep('search_customer_result', [], $sessionId);
-				return $this->_conversational("Great! Let's create a sale. Who is this sale for? Please enter the customer name or phone number.", ['step'=>'search_customer_result']);
+				return $this->_conversational("Great! Let's create a sale. Who is this sale for? Please enter the ".$this->_term('customer','customer')." name or phone number.", ['step'=>'search_customer_result']);
 
 			case 'search_customer_result':
 				if(empty($msg)){
@@ -475,7 +509,7 @@ class Assist_model extends CI_Model {
 					if(!empty($conv['data']['item'])){
 						return $this->_processFlowStep($conv['data']['item'], $conv, $sessionId);
 					}
-					return $this->_conversational('Found customer: <strong>'.($c->customer_name ?? 'Unknown').'</strong> ('.($c->mobile ?? 'N/A').'). Now, what item are you selling?', ['step'=>'ask_item']);
+					return $this->_conversational('Found '.$this->_term('customer','customer').': <strong>'.($c->customer_name ?? 'Unknown').'</strong> ('.($c->mobile ?? 'N/A').'). Now, what '.strtolower($this->_term('item','item')).' are you selling?', ['step'=>'ask_item']);
 				}
 
 				$options = [];
@@ -603,14 +637,17 @@ class Assist_model extends CI_Model {
 
 			case 'ask_item':
 				if(empty($msg) || strlen($msg) < 2){
-					return $this->_conversational('Please tell me the product name or code:', ['step'=>'ask_item']);
+					return $this->_conversational('Please tell me the '.strtolower($this->_term('item','item')).' name or code:', ['step'=>'ask_item']);
 				}
 				$this->db->like('item_name', $msg, 'both');
 				$this->db->or_like('item_code', $msg, 'both');
+				if($this->db->field_exists('not_for_sale', 'db_items')){
+					$this->db->where("(not_for_sale IS NULL OR not_for_sale = 0)");
+				}
 				$items = $this->db->get('db_items')->result();
 
 				if(empty($items)){
-					return $this->_conversational('No product found matching "'.ucwords($msg).'". Please try again, or type "cancel" to stop.', ['step'=>'ask_item']);
+					return $this->_conversational('No '.strtolower($this->_term('item','item')).' found matching "'.ucwords($msg).'". Please try again, or type "cancel" to stop.', ['step'=>'ask_item']);
 				}
 				if(count($items) === 1){
 					$item = $this->_getItemWithBarcode($items[0]->id);
@@ -644,7 +681,7 @@ class Assist_model extends CI_Model {
 					return $this->_conversational('<span style="color:#e74c3c;"><strong>All matching items are expired.</strong></span> No items available to sell. Please search for a different item:', ['step'=>'ask_item']);
 				}
 				$this->_advanceStep('pick_item', ['search_name'=>$msg], $sessionId);
-				return $this->_conversational('Multiple products found. Please pick one:', ['step'=>'pick_item', 'options'=>$options]);
+				return $this->_conversational('Multiple '.$this->_pluralize(strtolower($this->_term('item','item'))).' found. Please pick one:', ['step'=>'pick_item', 'options'=>$options]);
 
 			case 'pick_item':
 				if(strpos($msg, 'product_') === 0){
@@ -925,11 +962,11 @@ class Assist_model extends CI_Model {
 		switch($step){
 			case 'init':
 				$this->_advanceStep('collect_name', [], $sessionId);
-				return $this->_conversational("Let's create a new customer. What is the customer's full name?", ['step'=>'collect_name']);
+				return $this->_conversational("Let's create a new ".$this->_term('customer','customer').". What is the ".$this->_term('customer','customer')."'s full name?", ['step'=>'collect_name']);
 
 			case 'collect_name':
 				if(empty($msg) || strlen($msg) < 2){
-					return $this->_conversational('I need a valid name. Please enter the customer\'s full name:', ['step'=>'collect_name']);
+					return $this->_conversational('I need a valid name. Please enter the '.$this->_term('customer','customer').'\'s full name:', ['step'=>'collect_name']);
 				}
 				$this->_advanceStep('collect_email', ['new_customer_name'=>ucwords(trim($message))], $sessionId);
 				return $this->_conversational('Got it. What is the email address? (Type "skip" if none)', ['step'=>'collect_email']);
@@ -1336,7 +1373,7 @@ class Assist_model extends CI_Model {
 		switch($step){
 			case 'init':
 				$this->_advanceStep('ask_supplier', [], $sessionId);
-				return $this->_conversational("Let's create a purchase order. Who is the supplier? Enter supplier name or phone.", ['step'=>'ask_supplier']);
+				return $this->_conversational("Let's create a purchase order. Who is the ".$this->_term('supplier','supplier')."? Enter ".$this->_term('supplier','supplier')." name or phone.", ['step'=>'ask_supplier']);
 			case 'ask_supplier':
 				if(empty($msg)){
 					return $this->_conversational('Please enter a supplier name or phone:', ['step'=>'ask_supplier']);
@@ -1350,7 +1387,7 @@ class Assist_model extends CI_Model {
 				if(count($suppliers) === 1){
 					$s = $suppliers[0];
 					$this->_advanceStep('ask_warehouse', ['supplier_id'=>$s->id, 'supplier_name'=>$s->supplier_name], $sessionId);
-					return $this->_conversational('Selected supplier: <strong>'.htmlspecialchars($s->supplier_name).'</strong>. Which warehouse?', ['step'=>'ask_warehouse']);
+					return $this->_conversational('Selected '.$this->_term('supplier','supplier').': <strong>'.htmlspecialchars($s->supplier_name).'</strong>. Which '.$this->_term('warehouse','warehouse').'?', ['step'=>'ask_warehouse']);
 				}
 				$options = [];
 				foreach($suppliers as $s){
@@ -1517,10 +1554,10 @@ class Assist_model extends CI_Model {
 		switch($step){
 			case 'init':
 				$this->_advanceStep('ask_name', [], $sessionId);
-				return $this->_conversational("Let's create a new item. What is the item name?", ['step'=>'ask_name']);
+				return $this->_conversational("Let's create a new ".strtolower($this->_term('item','item')).". What is the ".strtolower($this->_term('item','item'))." name?", ['step'=>'ask_name']);
 			case 'ask_name':
 				if(empty($msg) || strlen($msg) < 2){
-					return $this->_conversational('Please enter a valid item name:', ['step'=>'ask_name']);
+					return $this->_conversational('Please enter a valid '.strtolower($this->_term('item','item')).' name:', ['step'=>'ask_name']);
 				}
 				$this->_advanceStep('ask_category', ['item_name'=>ucwords(trim($message))], $sessionId);
 				return $this->_conversational('Got it. What category does this item belong to? (e.g. Electronics, Food, Clothing)', ['step'=>'ask_category']);
@@ -1646,7 +1683,7 @@ class Assist_model extends CI_Model {
 					return $this->_conversational('Please enter a valid stock quantity:', ['step'=>'ask_stock']);
 				}
 				$this->_advanceStep('ask_warehouse', ['stock'=>$stock], $sessionId);
-				return $this->_conversational('Stock: '.$stock.'. Which warehouse?', ['step'=>'ask_warehouse']);
+				return $this->_conversational('Stock: '.$stock.'. Which '.$this->_term('warehouse','warehouse').'?', ['step'=>'ask_warehouse']);
 			case 'ask_warehouse':
 				if(empty($msg)){
 					return $this->_conversational('Please enter a warehouse name:', ['step'=>'ask_warehouse']);
@@ -1748,6 +1785,718 @@ class Assist_model extends CI_Model {
 		return $this->_fallbackResponse();
 	}
 
+	// =================== BUSINESS CONTEXT ===================
+
+	private $_bizProfile = null;
+
+	private function _biz(){
+		if($this->_bizProfile === null){
+			$this->_bizProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile(get_current_store_id()) : [];
+		}
+		return $this->_bizProfile;
+	}
+
+	private function _feat($flag){
+		return function_exists('mp_feature_enabled') ? mp_feature_enabled($flag) : false;
+	}
+
+	private function _featAny($flags){
+		foreach((array)$flags as $f){ if($this->_feat($f)) return true; }
+		return false;
+	}
+
+	private function _term($key, $fallback = null){
+		if(function_exists('mp_label')) return mp_label($key, $fallback);
+		return $fallback ?: ucwords(str_replace('_', ' ', $key));
+	}
+
+	private function _rawMaterialLabel(){
+		$biz = $this->_biz();
+		$foodTypes = ['restaurant','fast_food','cafe','pizza_shop','shawarma','juice_bar','buka','canteen','butcher','bakery_cake_studio','frozen_foods_retailer'];
+		return in_array($biz['industry_type'] ?? '', $foodTypes) ? 'Ingredient' : 'Raw Material';
+	}
+
+	private function _rawMaterialUnavailable(){
+		return $this->_response('text',
+			'Your current business setup does not use '.$this->_rawMaterialLabel().'s — this feature is for businesses with recipe tracking or production workflows. You can ask me to add a regular '.$this->_term('item','item').' instead.',
+			['quick_tasks' => $this->_getFilteredQuickTasks()]);
+	}
+
+	// =================== ENTITY REGISTRY (declarative create flows) ===================
+	//
+	// Each entry describes one "thing" Assist can create conversationally.
+	// The generic _flowEntityCreate() engine walks `fields` as slots: asks each
+	// question, validates, allows "skip" on optional fields, then confirms and
+	// inserts. `supports_bulk` adds a single-or-bulk choice up front.
+	// To teach Assist a new entity, add a definition here plus a flow name
+	// `entity_<key>`.
+
+	private function _getEntityRegistry(){
+		$rmLabel = $this->_rawMaterialLabel();
+		return [
+			'raw_material' => [
+				'label'         => $rmLabel,
+				'permission'    => 'items_add',
+				'features'      => ['recipe_tracking','production_workflow'],
+				'supports_bulk' => true,
+				'auto_category' => $rmLabel.'s',
+				'bulk_columns'  => ['item_name','unit_name','purchase_price','stock'],
+				'bulk_hint'     => 'Send them like: <em>Flour, kg, 500, 20; Sugar, kg, 480, 10</em><br>That is <strong>Name, Unit, Cost per unit, Opening qty</strong> — separate each '.strtolower($rmLabel).' with a semicolon (;) or paste them line by line.',
+				'fields'        => [
+					['key' => 'item_name',       'type' => 'text',   'required' => true,  'prompt' => 'What is the name of this {label}?'],
+					['key' => 'unit_id',         'type' => 'unit',   'required' => true,  'prompt' => 'Which unit is it measured in? (e.g. kg, litre, pcs)'],
+					['key' => 'consumable_unit', 'type' => 'text',   'required' => false, 'prompt' => 'Unit label used in recipes/production? (e.g. ml, gram, sachet) — type "skip" to use the base unit'],
+					['key' => 'purchase_price',  'type' => 'number', 'required' => false, 'prompt' => 'Cost price per unit? (type "skip" to set it later)'],
+					['key' => 'stock',           'type' => 'number', 'required' => false, 'prompt' => 'Opening quantity in stock? (type "0" or "skip" if none)'],
+					['key' => 'alert_qty',       'type' => 'number', 'required' => false, 'prompt' => 'Low-stock alert quantity? (type "skip" if none)'],
+					['key' => 'expire_date',     'type' => 'date',   'required' => false, 'feature' => 'expiry_tracking', 'prompt' => 'Expiry date? (YYYY-MM-DD, or "none")'],
+				],
+			],
+		];
+	}
+
+	private function _entityFields($def){
+		$out = [];
+		foreach($def['fields'] as $f){
+			if(!empty($f['feature']) && !$this->_feat($f['feature'])) continue;
+			$out[] = $f;
+		}
+		return array_values($out);
+	}
+
+	private function _flowEntityCreate($entityKey, $step, $message, $conversation, $sessionId){
+		$registry = $this->_getEntityRegistry();
+		$def = $registry[$entityKey] ?? null;
+		if(!$def){
+			$this->_clearConversation($sessionId);
+			return $this->_fallbackResponse();
+		}
+		$msg = strtolower(trim($message));
+		$data = $conversation['data'] ?? [];
+		$storeId = get_current_store_id();
+		$fields = $this->_entityFields($def);
+		$label = $def['label'];
+
+		switch($step){
+
+			case 'init':
+				if(!empty($def['supports_bulk'])){
+					$this->_advanceStep('ask_mode', [], $sessionId);
+					return $this->_conversational('Let\'s add '.$this->_pluralize($label).'. Do you want to add a <strong>single</strong> '.strtolower($label).' or <strong>several at once</strong>?', [
+						'step' => 'ask_mode',
+						'options' => [
+							['label' => 'Single '.strtolower($label), 'value' => 'single'],
+							['label' => 'Bulk (paste a list)', 'value' => 'bulk'],
+						]
+					]);
+				}
+				return $this->_entityAskNextField($entityKey, $def, $fields, $data, $sessionId, 0);
+
+			case 'ask_mode':
+				if(in_array($msg, ['bulk','many','several','list','multiple'])){
+					$this->_advanceStep('bulk_paste', ['mode' => 'bulk'], $sessionId);
+					return $this->_conversational($def['bulk_hint'], ['step' => 'bulk_paste']);
+				}
+				if(in_array($msg, ['single','one','1'])){
+					return $this->_entityAskNextField($entityKey, $def, $fields, $data, $sessionId, 0);
+				}
+				return $this->_conversational('Please pick one:', [
+					'step' => 'ask_mode',
+					'options' => [
+						['label' => 'Single '.strtolower($label), 'value' => 'single'],
+						['label' => 'Bulk (paste a list)', 'value' => 'bulk'],
+					]
+				]);
+
+			case 'field':
+				$idx = $data['field_idx'] ?? 0;
+				$f = $fields[$idx] ?? null;
+				if(!$f){
+					return $this->_entityAskNextField($entityKey, $def, $fields, $data, $sessionId, $idx);
+				}
+				$parsed = $this->_entityParseField($f, $message, $storeId);
+				if(!empty($parsed['error'])){
+					$opts = [];
+					if($f['type'] === 'unit') $opts = $this->_unitOptions($storeId);
+					return $this->_conversational($parsed['error'], ['step' => 'field', 'options' => $opts]);
+				}
+				$data['values'][$f['key']] = $parsed['value'];
+				if(!empty($parsed['display'])) $data['display'][$f['key']] = $parsed['display'];
+				if(!empty($parsed['note'])) $data['notes'][] = $parsed['note'];
+				$this->_advanceStep('field', $data, $sessionId);
+				return $this->_entityAskNextField($entityKey, $def, $fields, $this->_getConversation($sessionId)['data'], $sessionId, $idx + 1);
+
+			case 'bulk_paste':
+				$result = $this->_entityParseBulk($def, $message, $storeId);
+				// If the strict parser struggled, let the AI read the list —
+				// it handles messy text like "flour two bags at 500 each"
+				if((empty($result['rows']) || !empty($result['errors'])) && $this->assist_brain->enabled()){
+					$aiRows = $this->assist_brain->extractBulkRows($message, $def['bulk_columns'] ?? ['item_name'], $label);
+					if(!empty($aiRows)){
+						$aiResult = $this->_entityRowsFromRaw($aiRows, $def['bulk_columns'] ?? ['item_name'], $storeId);
+						if(!empty($aiResult['rows'])) $result = $aiResult;
+					}
+				}
+				if(!empty($result['errors'])){
+					$errHtml = '<div class="assist-card"><h4>Some lines need fixing</h4><ul style="margin:6px 0 0 16px;">';
+					foreach($result['errors'] as $e) $errHtml .= '<li>'.$e.'</li>';
+					$errHtml .= '</ul></div>';
+					return $this->_conversational('I could not read part of that list. Please resend the corrected lines:', ['step' => 'bulk_paste', 'html' => $errHtml]);
+				}
+				if(empty($result['rows'])){
+					return $this->_conversational('I did not find any '.$this->_pluralize(strtolower($label)).' in that. '.$def['bulk_hint'], ['step' => 'bulk_paste']);
+				}
+				$this->_advanceStep('bulk_confirm', ['bulk_rows' => $result['rows'], 'created_units' => $result['created_units']], $sessionId);
+				return $this->_conversational('Here is what I will create. Confirm?', [
+					'step' => 'bulk_confirm',
+					'html' => $this->_entityBulkPreviewHtml($def, $result['rows'], $result['created_units']),
+					'options' => [
+						['label' => 'Yes, create them', 'value' => 'yes'],
+						['label' => 'No, cancel', 'value' => 'no'],
+					]
+				]);
+
+			case 'bulk_confirm':
+				if(in_array($msg, ['yes','y','yeah','sure','ok','okay'])){
+					$rows = $data['bulk_rows'] ?? [];
+					$created = 0;
+					foreach($rows as $row){
+						if($this->_entityInsert($entityKey, $def, $row, $storeId)) $created++;
+					}
+					$this->_clearConversation($sessionId);
+					$extra = '';
+					if(!empty($data['created_units'])){
+						$extra = '<br>New units added: '.implode(', ', array_map('htmlspecialchars', $data['created_units']));
+					}
+					return $this->_response('success', '<strong>Done!</strong> '.$created.' '.$this->_pluralize(strtolower($label)).' created.'.$extra, [
+						'quick_tasks' => $this->_getFilteredQuickTasks()
+					]);
+				}
+				if(in_array($msg, ['no','n','nope','nah','cancel'])){
+					$this->_clearConversation($sessionId);
+					return $this->_response('text', 'Cancelled.', ['delayed_followup' => 'Would you want to do any other thing? I am available.', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+				}
+				return $this->_conversational('Please confirm:', [
+					'step' => 'bulk_confirm',
+					'options' => [
+						['label' => 'Yes, create them', 'value' => 'yes'],
+						['label' => 'No, cancel', 'value' => 'no'],
+					]
+				]);
+
+			case 'confirm':
+				if(in_array($msg, ['yes','y','yeah','sure','ok','okay'])){
+					$itemId = $this->_entityInsert($entityKey, $def, $data['values'] ?? [], $storeId);
+					if(!$itemId){
+						$this->_clearConversation($sessionId);
+						return $this->_response('error', 'Something went wrong creating the '.strtolower($label).'. Please try again.', ['quick_tasks' => $this->_getFilteredQuickTasks()]);
+					}
+					$this->_clearConversation($sessionId);
+					$note = !empty($data['notes']) ? '<br>'.implode('<br>', array_map('htmlspecialchars', $data['notes'])) : '';
+					return $this->_response('success', '<strong>'.$label.' created!</strong><br>Name: '.htmlspecialchars($data['values']['item_name'] ?? '').' (ID: '.$itemId.')'.$note, [
+						'quick_tasks' => $this->_getFilteredQuickTasks()
+					]);
+				}
+				if(in_array($msg, ['no','n','nope','nah','cancel'])){
+					$this->_clearConversation($sessionId);
+					return $this->_response('text', 'Cancelled.', ['delayed_followup' => 'Would you want to do any other thing? I am available.', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+				}
+				return $this->_conversational('Shall I create it?', [
+					'step' => 'confirm',
+					'options' => [
+						['label' => 'Yes, create it', 'value' => 'yes'],
+						['label' => 'No, cancel', 'value' => 'no'],
+					]
+				]);
+
+			default:
+				$this->_clearConversation($sessionId);
+				return $this->_fallbackResponse();
+		}
+	}
+
+	private function _entityAskNextField($entityKey, $def, $fields, $data, $sessionId, $startIdx){
+		$values = $data['values'] ?? [];
+		$idx = $startIdx;
+		while(isset($fields[$idx]) && array_key_exists($fields[$idx]['key'], $values)){
+			$idx++;
+		}
+		if(!isset($fields[$idx])){
+			// All slots filled — show confirmation card
+			$this->_advanceStep('confirm', ['field_idx' => $idx], $sessionId);
+			return $this->_conversational('Here is the '.strtolower($def['label']).'. Shall I create it?', [
+				'step' => 'confirm',
+				'html' => $this->_entityPreviewHtml($def, $values, $data['display'] ?? []),
+				'options' => [
+					['label' => 'Yes, create it', 'value' => 'yes'],
+					['label' => 'No, cancel', 'value' => 'no'],
+				]
+			]);
+		}
+		$f = $fields[$idx];
+		$this->_advanceStep('field', ['field_idx' => $idx], $sessionId);
+		$prompt = str_replace('{label}', strtolower($def['label']), $f['prompt']);
+		$opts = [];
+		if($f['type'] === 'unit') $opts = $this->_unitOptions(get_current_store_id());
+		return $this->_conversational($prompt, ['step' => 'field', 'options' => $opts]);
+	}
+
+	private function _entityParseField($f, $message, $storeId){
+		$val = trim($message);
+		$msg = strtolower($val);
+		$skips = ['skip','none','no','n/a','na','-'];
+		$skipped = in_array($msg, $skips);
+
+		if($skipped){
+			if(!empty($f['required'])) return ['error' => 'This one is required — please give me an answer, or type "cancel" to stop.'];
+			return ['value' => null];
+		}
+
+		switch($f['type'] ?? 'text'){
+			case 'number':
+				$num = floatval(str_replace([',',' '], '', $val));
+				if($val === '' || !is_numeric(str_replace([',',' '], '', $val)) || $num < 0){
+					return ['error' => 'Please enter a valid number (0 or more)'.(empty($f['required']) ? ', or "skip"' : '').':'];
+				}
+				return ['value' => $num];
+
+			case 'date':
+				if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)){
+					return ['error' => 'Please enter the date as YYYY-MM-DD, or "none":'];
+				}
+				return ['value' => $val];
+
+			case 'unit':
+				// Option button sends unit_{id}
+				if(strpos($msg, 'unit_') === 0){
+					$uid = (int)str_replace('unit_', '', $msg);
+					$u = $this->db->where('id', $uid)->where('store_id', $storeId)->get('db_units')->row();
+					if($u) return ['value' => (int)$u->id, 'display' => $u->unit_name];
+					return ['error' => 'That unit was not found. Please pick one or type a new unit name:'];
+				}
+				if($val === ''){
+					return ['error' => 'Please type a unit (e.g. kg, pcs) or pick one below:'];
+				}
+				$found = $this->_findUnitByName($val, $storeId);
+				if($found) return ['value' => (int)$found->id, 'display' => $found->unit_name];
+				$newId = $this->_createUnit($val, $storeId);
+				if(!$newId) return ['error' => 'I could not create that unit. Please try again:'];
+				return ['value' => $newId, 'display' => ucwords($val), 'note' => 'New unit "'.ucwords($val).'" added'];
+
+			case 'text':
+			default:
+				if($val === '' || strlen($val) < 2){
+					return ['error' => 'Please enter a valid value:'];
+				}
+				return ['value' => ucwords($val)];
+		}
+	}
+
+	private function _unitOptions($storeId){
+		$units = $this->db->where('store_id', $storeId)->where('status', 1)->order_by('id', 'asc')->limit(8)->get('db_units')->result();
+		$opts = [];
+		foreach($units as $u){
+			$opts[] = ['label' => $u->unit_name, 'value' => 'unit_'.$u->id];
+		}
+		return $opts;
+	}
+
+	private function _findUnitByName($name, $storeId){
+		$name = trim($name);
+		if($name === '') return null;
+		return $this->db->where('store_id', $storeId)
+			->where('status', 1)
+			->group_start()
+				->where('LOWER(unit_name)', strtolower($name))
+				->or_where('LOWER(shortcode)', strtolower($name))
+			->group_end()
+			->get('db_units')->row();
+	}
+
+	private function _createUnit($name, $storeId){
+		$name = ucwords(trim($name));
+		if($name === '') return null;
+		$insert = [
+			'unit_name' => $name,
+			'store_id'  => $storeId,
+			'status'    => 1,
+		];
+		if($this->db->field_exists('shortcode', 'db_units')) $insert['shortcode'] = strtolower(substr($name, 0, 3));
+		if($this->db->field_exists('description', 'db_units')) $insert['description'] = 'Created via MartPoint Assist';
+		$this->db->insert('db_units', $insert);
+		return $this->db->insert_id();
+	}
+
+	private function _entityParseBulk($def, $message, $storeId){
+		$cols = $def['bulk_columns'] ?? ['item_name'];
+		$lines = preg_split('/[\r\n;|]+/', $message);
+		$rawRows = [];
+		foreach($lines as $line){
+			$line = trim($line);
+			if($line === '') continue;
+			$parts = array_map('trim', explode(',', $line));
+			$raw = [];
+			foreach($cols as $ci => $colKey){ $raw[$colKey] = $parts[$ci] ?? ''; }
+			$rawRows[] = $raw;
+		}
+		return $this->_entityRowsFromRaw($rawRows, $cols, $storeId);
+	}
+
+	/**
+	 * Normalize raw column-keyed rows (from regex parse OR AI extraction) into
+	 * insertable rows: resolves/creates units, coerces numbers, validates names.
+	 */
+	private function _entityRowsFromRaw($rawRows, $cols, $storeId){
+		$rows = [];
+		$errors = [];
+		$createdUnits = [];
+		$unitCache = [];
+		$rowNo = 0;
+
+		foreach($rawRows as $rawRow){
+			$rowNo++;
+			$row = [];
+			$display = [];
+
+			foreach($cols as $colKey){
+				$raw = trim((string)($rawRow[$colKey] ?? ''));
+				switch($colKey){
+					case 'item_name':
+						if($raw === '' || strlen($raw) < 2){
+							$errors[] = 'Entry '.$rowNo.': missing a name';
+							continue 3;
+						}
+						$row['item_name'] = ucwords($raw);
+						break;
+
+					case 'unit_name':
+						$unitName = ($raw !== '') ? $raw : 'Piece';
+						$lk = strtolower($unitName);
+						if(!isset($unitCache[$lk])){
+							$u = $this->_findUnitByName($unitName, $storeId);
+							if(!$u){
+								$uid = $this->_createUnit($unitName, $storeId);
+								$unitCache[$lk] = $uid ?: 0;
+								if($uid) $createdUnits[] = ucwords($unitName);
+							} else {
+								$unitCache[$lk] = (int)$u->id;
+							}
+						}
+						$row['unit_id'] = $unitCache[$lk] ?: null;
+						$display['unit_id'] = ucwords($unitName);
+						break;
+
+					case 'purchase_price':
+					case 'stock':
+					case 'alert_qty':
+						$num = str_replace([',',' '], '', $raw);
+						$row[$colKey] = ($raw !== '' && is_numeric($num) && $num >= 0) ? (float)$num : 0;
+						break;
+
+					default:
+						$row[$colKey] = $raw;
+				}
+			}
+			$row['_display'] = $display;
+			$rows[] = $row;
+		}
+
+		return ['rows' => $rows, 'errors' => $errors, 'created_units' => $createdUnits];
+	}
+
+	private function _entityPreviewHtml($def, $values, $display){
+		$rows = '';
+		foreach($this->_entityFields($def) as $f){
+			$key = $f['key'];
+			if(!array_key_exists($key, $values) || $values[$key] === null) continue;
+			$val = $display[$key] ?? $values[$key];
+			if(in_array($f['type'] ?? 'text', ['number'])) $val = number_format((float)$val, 2);
+			$rows .= '<tr><td>'.ucwords(str_replace('_', ' ', $key)).'</td><td>'.htmlspecialchars((string)$val).'</td></tr>';
+		}
+		return '<div class="assist-card"><h4>'.htmlspecialchars($def['label']).' Preview</h4><table class="assist-table">'.$rows.'</table></div>';
+	}
+
+	private function _entityBulkPreviewHtml($def, $rows, $createdUnits){
+		$html = '<div class="assist-card"><h4>'.count($rows).' '.$this->_pluralize($def['label']).'</h4>';
+		$html .= '<div class="assist-table-wrap"><table class="assist-table">';
+		$html .= '<tr><th>Name</th><th>Unit</th><th>Cost</th><th>Qty</th></tr>';
+		foreach($rows as $r){
+			$html .= '<tr><td>'.htmlspecialchars($r['item_name'] ?? '').'</td><td>'.htmlspecialchars($r['_display']['unit_id'] ?? '').'</td><td>'.number_format($r['purchase_price'] ?? 0, 2).'</td><td>'.number_format($r['stock'] ?? 0).'</td></tr>';
+		}
+		$html .= '</table></div>';
+		if(!empty($createdUnits)){
+			$html .= '<p style="margin-top:6px;font-size:12px;color:#666;">New units will be added: '.implode(', ', array_map('htmlspecialchars', $createdUnits)).'</p>';
+		}
+		$html .= '</div>';
+		return $html;
+	}
+
+	private function _entityInsert($entityKey, $def, $values, $storeId){
+		if($entityKey === 'raw_material'){
+			return $this->_insertRawMaterial($def, $values, $storeId);
+		}
+		return null;
+	}
+
+	private function _insertRawMaterial($def, $values, $storeId){
+		$name = trim($values['item_name'] ?? '');
+		if($name === '') return null;
+
+		$countId = get_count_id('db_items');
+		$prefix = get_only_init_code('item');
+		$itemCode = ($prefix ?: 'RM-') . $countId;
+		$categoryId = $this->_ensureCategory($def['auto_category'] ?? 'Raw Materials', $storeId);
+
+		$cost = (float)($values['purchase_price'] ?? 0);
+		$insert = [
+			'item_code'      => $itemCode,
+			'count_id'       => $countId,
+			'item_name'      => $name,
+			'category_id'    => $categoryId,
+			'brand_id'       => 0,
+			'sku'            => $itemCode,
+			'hsn'            => '',
+			'unit_id'        => (int)($values['unit_id'] ?? 0),
+			'alert_qty'      => (float)($values['alert_qty'] ?? 0),
+			'purchase_price' => $cost,
+			'sales_price'    => $cost,
+			'stock'          => (float)($values['stock'] ?? 0),
+			'tax_id'         => 0,
+			'tax_type'       => 'Inclusive',
+			'profit_margin'  => null,
+			'seller_points'  => null,
+			'custom_barcode' => '',
+			'description'    => 'Created via MartPoint Assist',
+			'item_group'     => 'Single',
+			'discount_type'  => 'Percentage',
+			'discount'       => 0,
+			'mrp'            => $cost,
+			'expire_date'    => !empty($values['expire_date']) ? $values['expire_date'] : null,
+			'mfg_date'       => null,
+			'service_bit'    => 0,
+			'status'         => 1,
+			'store_id'       => $storeId,
+			'created_date'   => date('Y-m-d'),
+			'created_time'   => date('H:i:s'),
+			'created_by'     => $this->session->userdata('inv_username') ?: 'system',
+			'system_ip'      => $this->input->ip_address(),
+			'system_name'    => 'MartPoint Assist'
+		];
+		// These columns only exist on installs that ran the consumables migration
+		if($this->db->field_exists('not_for_sale', 'db_items')) $insert['not_for_sale'] = 1;
+		if($this->db->field_exists('consumable_unit', 'db_items') && !empty($values['consumable_unit'])){
+			$insert['consumable_unit'] = $values['consumable_unit'];
+		}
+
+		$this->db->insert('db_items', $insert);
+		return $this->db->insert_id();
+	}
+
+	private function _ensureCategory($name, $storeId){
+		$cat = $this->db->like('category_name', $name, 'both')->where('store_id', $storeId)->get('db_category')->row();
+		if($cat) return $cat->id;
+		$this->db->insert('db_category', [
+			'count_id'       => get_count_id('db_category'),
+			'category_code'  => get_init_code('category'),
+			'category_name'  => $name,
+			'description'    => '',
+			'category_image' => '',
+			'store_id'       => $storeId,
+			'status'         => 1
+		]);
+		return $this->db->insert_id();
+	}
+
+	private function _pluralize($word){
+		if(substr(strtolower($word), -1) === 's') return $word;
+		return $word.'s';
+	}
+
+	// =================== AI UNDERSTANDING (optional layer) ===================
+	//
+	// When config/assist_ai.php is enabled with an API key, messages the
+	// keyword engine cannot classify are sent to an OpenAI-compatible LLM.
+	// The AI only picks a capability + extracts entities — execution stays
+	// deterministic inside this model. Returns null on any failure so the
+	// caller falls back cleanly.
+
+	private function _aiDecide($message, $sessionId){
+		if(!$this->assist_brain->enabled()) return null;
+
+		$decision = $this->assist_brain->decide($message, $this->_aiContext($message));
+		if(!$decision) return null;
+
+		switch($decision['action']){
+			case 'capability':
+				return $this->_executeCapability($decision['name'], $decision['entities'] ?? [], $sessionId, $message);
+			case 'answer':
+				return $this->_response('text', $decision['text'], ['quick_tasks' => $this->_getFilteredQuickTasks()]);
+			case 'clarify':
+				return $this->_response('text', $decision['text']);
+			case 'cancel':
+				return $this->_response('text', 'Okay — cancelled.', ['quick_tasks' => $this->_getFilteredQuickTasks()]);
+		}
+		return null;
+	}
+
+	private function _aiContext($message = ''){
+		$biz = $this->_biz();
+		$types = function_exists('mp_get_business_types') ? mp_get_business_types() : [];
+		return [
+			'business' => [
+				'industry'       => $biz['industry_type'] ?? 'general_retail',
+				'industry_label' => $types[$biz['industry_type'] ?? ''] ?? 'General Retail',
+				'labels'         => $biz['labels'] ?? [],
+				'features'       => $biz['features'] ?? [],
+			],
+			'role'         => $this->assist_knowledge_model->getUserRoleLevel(),
+			'capabilities' => $this->_aiCapabilities(),
+			'history'      => $this->session->userdata('assist_history') ?: [],
+			'knowledge'    => $this->assist_knowledge_model->rank($message, 3),
+		];
+	}
+
+	/**
+	 * Capabilities the AI may trigger — filtered by role, permission,
+	 * business-type feature flags and the config whitelist.
+	 */
+	private function _aiCapabilities(){
+		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
+		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
+		$itemLabel = strtolower($this->_term('item', 'item'));
+		$custLabel = strtolower($this->_term('customer', 'customer'));
+
+		$caps = [
+			['name' => 'create_sale',       'desc' => "create a sale/invoice for a {$custLabel} (entities: customer, item, qty)", 'min' => 0, 'perm' => 'sales_add'],
+			['name' => 'create_customer',   'desc' => "add a new {$custLabel} (entities: name, phone)", 'min' => 0, 'perm' => 'customers_add'],
+			['name' => 'check_stock',       'desc' => "check stock level or find a {$itemLabel} (entities: item)", 'min' => 0],
+			['name' => 'low_stock',         'desc' => 'list items running low on stock', 'min' => 0],
+			['name' => 'find_customer',     'desc' => "look up a {$custLabel} (entities: customer)", 'min' => 0],
+			['name' => 'online_orders',     'desc' => 'online order status summary', 'min' => 0],
+			['name' => 'today_sales',       'desc' => "today's sales totals", 'min' => 1],
+			['name' => 'daily_summary',     'desc' => 'today sales vs expenses summary', 'min' => 1],
+			['name' => 'today_profit',      'desc' => "today's profit figure", 'min' => 1],
+			['name' => 'top_products',      'desc' => 'best selling items today', 'min' => 1],
+			['name' => 'record_expense',    'desc' => 'record a business expense (entities: category, amount)', 'min' => 1],
+			['name' => 'view_debts',        'desc' => "who owes money / outstanding balances (entities: customer)", 'min' => 1],
+			['name' => 'create_item',       'desc' => "add a new {$itemLabel} to the catalog (entities: name)", 'min' => 2],
+			['name' => 'create_purchase',   'desc' => 'record stock purchased from a supplier (entities: supplier, item, qty)', 'min' => 2],
+			['name' => 'create_account',    'desc' => 'create an accounting ledger/account (entities: name, type)', 'min' => 2],
+			['name' => 'edit_store',        'desc' => 'update store details like name, phone, address (entities: field, value)', 'min' => 2],
+		];
+		if($this->_featAny(['recipe_tracking','production_workflow'])){
+			$caps[] = ['name' => 'create_raw_material', 'desc' => 'add a '.strtolower($this->_rawMaterialLabel()).' — a not-for-sale input used in recipes/production (entities: name, unit, price, qty). Can create several at once.', 'min' => 2, 'perm' => 'items_add'];
+		}
+
+		$out = [];
+		foreach($caps as $c){
+			if($levelVal < ($c['min'] ?? 0)) continue;
+			if(!empty($c['perm']) && !$this->_hasPermission($c['perm'])) continue;
+			if(!$this->assist_brain->capAllowed($c['name'])) continue;
+			$out[] = ['name' => $c['name'], 'desc' => $c['desc']];
+		}
+		return $out;
+	}
+
+	private function _executeCapability($name, $entities, $sessionId, $message){
+		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
+		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
+		$storeId = get_current_store_id();
+
+		switch($name){
+			case 'create_sale':
+				if(!$this->_hasPermission('sales_add')) return $this->_roleDeniedResponse();
+				if(!empty($entities['customer'])){
+					$conversation = [
+						'flow' => 'create_sale', 'step' => 'search_customer_result',
+						'data' => $entities, 'created_at' => time()
+					];
+					$this->_setConversation($conversation, $sessionId);
+					return $this->_processFlowStep((string)$entities['customer'], $conversation, $sessionId);
+				}
+				return $this->_startFlow('create_sale', $sessionId);
+
+			case 'create_customer':
+				if(!$this->_hasPermission('customers_add')) return $this->_roleDeniedResponse();
+				return $this->_startFlow('create_customer', $sessionId);
+
+			case 'create_item':
+				if($levelVal < 2) return $this->_roleDeniedResponse();
+				return $this->_startFlow('create_item', $sessionId);
+
+			case 'create_raw_material':
+				if($levelVal < 2 || !$this->_hasPermission('items_add')) return $this->_roleDeniedResponse();
+				if(!$this->_featAny(['recipe_tracking','production_workflow'])) return $this->_rawMaterialUnavailable();
+				$conversation = [
+					'flow' => 'entity_raw_material', 'step' => 'init',
+					'data' => ['values' => []], 'created_at' => time()
+				];
+				if(!empty($entities['name'])){
+					$conversation['data']['values']['item_name'] = ucwords(trim((string)$entities['name']));
+				}
+				if(!empty($entities['unit'])){
+					$u = $this->_findUnitByName((string)$entities['unit'], $storeId);
+					if($u){
+						$conversation['data']['values']['unit_id'] = (int)$u->id;
+						$conversation['data']['display']['unit_id'] = $u->unit_name;
+					}
+				}
+				if(isset($entities['price']) && is_numeric($entities['price'])){
+					$conversation['data']['values']['purchase_price'] = (float)$entities['price'];
+				}
+				if(isset($entities['qty']) && is_numeric($entities['qty'])){
+					$conversation['data']['values']['stock'] = (float)$entities['qty'];
+				}
+				$this->_setConversation($conversation, $sessionId);
+				return $this->_processFlowStep('', $conversation, $sessionId);
+
+			case 'create_purchase':
+				if($levelVal < 2) return $this->_roleDeniedResponse();
+				return $this->_startFlow('create_purchase', $sessionId);
+			case 'create_account':
+				if($levelVal < 2) return $this->_roleDeniedResponse();
+				return $this->_startFlow('create_account', $sessionId);
+			case 'edit_store':
+				if($levelVal < 2) return $this->_roleDeniedResponse();
+				return $this->_startFlow('edit_store', $sessionId);
+
+			case 'check_stock':      return $this->_checkStock('', $entities['item'] ?? '');
+			case 'low_stock':        return $this->_lowStock();
+			case 'find_customer':    return $this->_searchCustomer('', $entities['customer'] ?? '');
+			case 'online_orders':    return $this->_onlineOrders();
+			case 'today_sales':
+			case 'daily_summary':
+				if($levelVal < 1) return $this->_roleDeniedResponse();
+				return $this->_businessSummary();
+			case 'today_profit':
+				if($levelVal < 1) return $this->_roleDeniedResponse();
+				return $this->_todayProfit();
+			case 'top_products':
+				if($levelVal < 1) return $this->_roleDeniedResponse();
+				return $this->_topProducts();
+			case 'record_expense':
+				if($levelVal < 1) return $this->_roleDeniedResponse();
+				return $this->_createExpenseDraft($message);
+			case 'view_debts':
+			case 'customer_balance':
+				if($levelVal < 1) return $this->_roleDeniedResponse();
+				return $this->_customerBalances($entities['customer'] ?? '');
+		}
+		return null; // unknown capability name — caller falls back
+	}
+
+	/**
+	 * Store the last few exchanges so the AI can resolve pronouns/context.
+	 * Called by the controller after every processed message.
+	 */
+	public function rememberExchange($message, $response){
+		$history = $this->session->userdata('assist_history') ?: [];
+		$botText = isset($response['text']) ? trim(strip_tags($response['text'])) : '';
+		$history[] = ['user' => mb_substr($message, 0, 200), 'bot' => mb_substr($botText, 0, 200)];
+		if(count($history) > 6) $history = array_slice($history, -6);
+		$this->session->set_userdata('assist_history', $history);
+	}
+
 	// =================== INTENT DETECTION ===================
 
 	private function _detectIntent($message){
@@ -1802,12 +2551,24 @@ class Assist_model extends CI_Model {
 			}
 		}
 
-		// Keyword fallback for fast matching
+		// Raw material / ingredient creation: "create raw material flour", "add ingredient sugar"
+		if(preg_match('/(?:create|add|new|register|make)\s+(?:a\s+|an\s+|some\s+)?(?:raw\s+materials?|ingredients?|consumables?|materials?)\s+(?:called\s+|named\s+)?(.+)/i', $msg, $m)){
+			$entities['name'] = $this->_cleanEntity($m[1]);
+			return ['intent' => 'CREATE_RAW_MATERIAL', 'entities' => $entities];
+		}
+		if(preg_match('/(?:raw\s+materials?|ingredients?|consumables?)\s*$/i', $msg)){
+			return ['intent' => 'CREATE_RAW_MATERIAL', 'entities' => $entities];
+		}
+
+		// Keyword fallback for fast matching. Word-boundary match so short
+		// keywords ('hi','owe','bill') don't fire inside words like 'his',
+		// 'towel', 'billion'. Trailing 's' allowed for plurals ('items').
 		$scores = [];
 		foreach($this->intents as $intent => $keywords){
 			$score = 0;
 			foreach($keywords as $kw){
-				if(strpos($msg, $kw) !== false) $score += strlen($kw);
+				$plural = strlen($kw) >= 3 ? 's?' : '';
+				if(preg_match('/\b'.preg_quote($kw, '/').$plural.'\b/i', $msg)) $score += strlen($kw);
 			}
 			if($score > 0) $scores[$intent] = $score;
 		}
@@ -1937,14 +2698,14 @@ class Assist_model extends CI_Model {
 		$this->db->or_like('item_code', $name, 'both');
 		$items = $this->db->get('db_items')->result();
 
-		if(empty($items)) return $this->_response('text', 'No product found matching "'.ucwords($name).'".');
+		if(empty($items)) return $this->_response('text', 'No '.strtolower($this->_term('item','item')).' found matching "'.ucwords($name).'".');
 		if(count($items) === 1) return $this->_productStockDetail($this->_getItemWithBarcode($items[0]->id));
 
 		$options = [];
 		foreach($items as $item){
 			$options[] = ['label' => ($item->item_name ?? 'Unknown').' ('.($item->item_code ?? 'N/A').')', 'value' => 'product_'.$item->id];
 		}
-		return $this->_response('choice', 'Multiple products found:', ['options' => $options, 'context' => 'product_search']);
+		return $this->_response('choice', 'Multiple '.$this->_pluralize(strtolower($this->_term('item','item'))).' found:', ['options' => $options, 'context' => 'product_search']);
 	}
 
 	private function _quickStockSummary(){
@@ -2332,10 +3093,11 @@ class Assist_model extends CI_Model {
 				]
 			],
 			'inventory'   => [
-				'text'  => 'Would you like to check stock levels or create a new item?',
+				'text'  => 'Would you like to check stock levels or create a new '.$this->_term('item','item').'?',
 				'tasks' => [
 					['label' => 'Check Stock',    'action' => 'check_stock',    'icon' => 'fa-cubes',              'min_role' => 'all'],
-					['label' => 'Create Item',    'action' => 'create_item',    'icon' => 'fa-plus-circle',        'min_role' => 'business_owner']
+					['label' => 'New '.$this->_term('item','Item'),    'action' => 'create_item',    'icon' => 'fa-plus-circle',        'min_role' => 'business_owner'],
+					['label' => 'Add '.$this->_rawMaterialLabel(), 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner', 'features' => ['recipe_tracking','production_workflow']]
 				]
 			],
 			'customers'   => [
@@ -2385,9 +3147,9 @@ class Assist_model extends CI_Model {
 		$filtered = [];
 		foreach($map[$cat]['tasks'] as $task){
 			$taskLevel = $this->assist_knowledge_model->roleHierarchy[$task['min_role']] ?? 0;
-			if($levelVal >= $taskLevel){
-				$filtered[] = ['label' => $task['label'], 'action' => $task['action'], 'icon' => $task['icon']];
-			}
+			if($levelVal < $taskLevel) continue;
+			if(!empty($task['features']) && !$this->_featAny($task['features'])) continue;
+			$filtered[] = ['label' => $task['label'], 'action' => $task['action'], 'icon' => $task['icon']];
 		}
 
 		return [

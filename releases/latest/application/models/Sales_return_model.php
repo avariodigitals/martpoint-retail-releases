@@ -239,12 +239,14 @@ class Sales_return_model extends CI_Model {
 		    				'system_ip' 				=> $SYSTEM_IP,
 		    				'system_name' 				=> $SYSTEM_NAME,
 		    				'status' 					=> 1,
-		    				'sold_serial_number'=> $sold_serial_number,
-		    				'sold_imei_number'  => $sold_imei_number,
-		    			'barcode_id'        => $barcode_id,
 		    			);
-		    $sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  
-		    $sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();	
+		    if($this->db->field_exists('sold_serial_number', 'db_salesreturn')){
+		    	$sales_entry['sold_serial_number'] = $sold_serial_number;
+		    	$sales_entry['sold_imei_number'] = $sold_imei_number;
+		    	$sales_entry['barcode_id'] = $barcode_id;
+		    }
+		    $sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		    $sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->insert('db_salesreturn', array_merge($sales_entry,$sales_entry_init));
 
 			$return_id = $this->db->insert_id();
@@ -446,12 +448,14 @@ class Sales_return_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'status' 			=> 1,
-    				'sold_serial_number'=> $sold_serial_number,
-    				'sold_imei_number'  => $sold_imei_number,
     				'account_id' 		=> (empty($account_id)) ? null : $account_id,
     				'customer_id' 		=> $customer_id,
 				);
-			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+			if($this->db->field_exists('sold_serial_number', 'db_salespaymentsreturn')){
+				$salespayments_entry['sold_serial_number'] = $sold_serial_number;
+				$salespayments_entry['sold_imei_number'] = $sold_imei_number;
+			}
+			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 			$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
 			//echo $account_id;exit;
 			//Set the payment to specified account
@@ -1285,12 +1289,14 @@ class Sales_return_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'status' 			=> 1,
-    				'sold_serial_number'=> $sold_serial_number,
-    				'sold_imei_number'  => $sold_imei_number,
     				'account_id' 		=> (empty($account_id)) ? null : $account_id,
     				'customer_id' 		=> $customer_id,
 				);
-			
+			if($this->db->field_exists('sold_serial_number', 'db_salespaymentsreturn')){
+				$salespayments_entry['sold_serial_number'] = $sold_serial_number ?? '';
+				$salespayments_entry['sold_imei_number'] = $sold_imei_number ?? '';
+			}
+
 			$salespayments_entry['store_id']=$this->db->select("store_id")->where('id',$return_id)->get('db_salesreturn')->row()->store_id;
 			$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
 			

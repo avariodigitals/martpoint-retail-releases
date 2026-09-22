@@ -18,6 +18,12 @@ class Site_model extends CI_Model {
             $data['site_name']=$query->site_name;
             $data['logo']=$query->logo;
             $data['sales_target']=$query->sales_target ?? 0;
+            // MartPoint Assist AI settings (columns added by 4.0.9.35 migration)
+            $data['assist_ai_enabled']  = isset($query->assist_ai_enabled) ? (int)$query->assist_ai_enabled : 0;
+            $data['assist_ai_provider'] = $query->assist_ai_provider ?? 'groq';
+            $data['assist_ai_endpoint'] = $query->assist_ai_endpoint ?? '';
+            $data['assist_ai_model']    = $query->assist_ai_model ?? '';
+            $data['assist_ai_key_set']  = !empty($query->assist_ai_key);
 			return $data;
 		}
 	}
@@ -64,6 +70,18 @@ class Site_model extends CI_Model {
         $info['sales_target'] = $sales_target;
         if(!empty($logo_name)){
             $info['logo'] = '/uploads/site/'.$logo_name;
+        }
+        // MartPoint Assist AI settings (columns added by 4.0.9.35 migration)
+        if($this->db->field_exists('assist_ai_enabled', 'db_sitesettings')){
+            $info['assist_ai_enabled']  = $this->input->post('assist_ai_enabled', TRUE) ? 1 : 0;
+            $info['assist_ai_provider'] = trim((string)$this->input->post('assist_ai_provider', TRUE)) ?: 'groq';
+            $info['assist_ai_endpoint'] = trim((string)$this->input->post('assist_ai_endpoint', TRUE));
+            $info['assist_ai_model']    = trim((string)$this->input->post('assist_ai_model', TRUE));
+            // API key: only overwritten when a new one is typed (field stays blank in the form)
+            $ai_key = trim((string)$this->input->post('assist_ai_key', TRUE));
+            if($ai_key !== ''){
+                $info['assist_ai_key'] = $ai_key;
+            }
         }
         $query1 = $this->db->where('id', $q_id)->update('db_sitesettings', $info);
       
