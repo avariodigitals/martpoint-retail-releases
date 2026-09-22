@@ -69,7 +69,10 @@ class Updater {
 
     public function fetchManifest(): ?array {
         $channel = $this->getUpdateChannelUrl();
-        $manifestUrl = rtrim($channel, '/') . '/release-manifest.json';
+        // Cache-bust: a stale cached manifest paired with fresh files (or vice
+        // versa) produces hash mismatches that have nothing to do with the
+        // release itself — GitHub's raw CDN caches each URL independently.
+        $manifestUrl = rtrim($channel, '/') . '/release-manifest.json?t=' . time();
 
         $json = $this->httpGet($manifestUrl, 60);
         if ($json === null) {
@@ -716,7 +719,7 @@ class Updater {
             ];
         }
 
-        $sqlUrl = rtrim($channel, '/') . '/migrations/' . $migrationFile;
+        $sqlUrl = rtrim($channel, '/') . '/migrations/' . $migrationFile . '?t=' . time();
         $sql = $this->httpGet($sqlUrl, 60);
         if ($sql === null) {
             throw new Exception("Failed to fetch migration: {$migrationFile}");
@@ -1009,9 +1012,13 @@ class Updater {
 
     // Re-fetch a single file from the update channel into the temp dir.
     // Used by verify to repair stale/truncated downloads from earlier runs.
+    // The cache-busting query forces raw.githubusercontent.com (and any CDN
+    // in front of the channel) off its cached copy — without it the repair
+    // re-download returns the same stale bytes that just failed the hash check.
     protected function redownloadFile(string $relPath, string $tempPath): bool {
         $channel = $this->getUpdateChannelUrl();
-        $data = $this->httpGet(rtrim($channel, '/') . '/' . $relPath, 30);
+        $url = rtrim($channel, '/') . '/' . $relPath . '?rb=' . time() . mt_rand(1000, 9999);
+        $data = $this->httpGet($url, 30);
         if ($data === null) {
             return false;
         }

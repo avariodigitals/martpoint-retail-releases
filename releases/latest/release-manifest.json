@@ -3025,8 +3025,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "f67537734a49f181ac5bcea8804c6910f04f4eabbe63d27748dc288a78a5ac2c",
-            "size": 41789
+            "hash": "674a123f841e18c56d7dfb32258e088436cb6d6aa08e8c53246392e7ec01f252",
+            "size": 42349
         },
         {
             "path": "application/libraries/Assist_brain.php",
@@ -27037,6 +27037,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "555760b1f88aed742b0ccdbeded200ee47aa83bd0aa835306f2fcbe398ec6be3",
+    "signature": "41d7743c589316246357843672a19b071bee65fffbc9ff984a47ca04f826ac8f",
     "changelog": "Auto-generated release 4.0.9.35"
 }
