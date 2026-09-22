@@ -1032,10 +1032,42 @@ class Storefront_model extends CI_Model {
 		return $this->db->insert('db_storefront_homepage_sections', $data);
 	}
 
-	public function resetHomepageSections($storeId){
+	/**
+	 * Save a section's custom title/subtitle (themes read these via config_json).
+	 */
+	public function saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->where('store_id', $storeId)->delete('db_storefront_homepage_sections');
-		$defaults = [
+		$row = $this->db->where('store_id', $storeId)->where('section_key', $sectionKey)->get('db_storefront_homepage_sections')->row();
+		if(!$row) return false;
+
+		$cfg = [];
+		if(!empty($row->config_json)){
+			$cfg = json_decode($row->config_json, true);
+			if(!is_array($cfg)) $cfg = [];
+		}
+		if($title !== '') $cfg['title'] = $title; else unset($cfg['title']);
+		if($subtitle !== '') $cfg['subtitle'] = $subtitle; else unset($cfg['subtitle']);
+
+		$data = ['config_json' => json_encode($cfg)];
+		if($title !== ''){
+			$data['section_label'] = $title;
+		} else {
+			// Cleared title: restore the default label for this key (incl. duplicated keys)
+			$baseKey = preg_replace('/_\d+$/', '', $sectionKey);
+			foreach($this->homepageSectionDefaults() as $d){
+				if($d[0] === $baseKey){
+					$label = $d[1];
+					if(preg_match('/_(\d+)$/', $sectionKey, $m)) $label .= ' (' . $m[1] . ')';
+					$data['section_label'] = $label;
+					break;
+				}
+			}
+		}
+		return $this->db->where('id', $row->id)->update('db_storefront_homepage_sections', $data);
+	}
+
+	private function homepageSectionDefaults(){
+		return [
 			['hero_banner','Hero Banner',1,1],
 			['trust_badges','Trust Badges',1,2],
 			['promo_banner','Promotional Banner',1,3],
@@ -1054,6 +1086,12 @@ class Storefront_model extends CI_Model {
 			['newsletter','Newsletter CTA',0,16],
 			['store_hours','Store Hours',0,17]
 		];
+	}
+
+	public function resetHomepageSections($storeId){
+		$storeId = $storeId ?: get_current_store_id();
+		$this->db->where('store_id', $storeId)->delete('db_storefront_homepage_sections');
+		$defaults = $this->homepageSectionDefaults();
 		foreach($defaults as $d){
 			$this->db->insert('db_storefront_homepage_sections', [
 				'store_id' => $storeId,

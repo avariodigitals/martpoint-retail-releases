@@ -13,6 +13,26 @@ $pfWaNum  = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
 $tk       = $PF['theme_key'];
 $announce = trim($settings->announcement_bar ?? '');
 $centered = $PF['header_style'] === 'center';
+
+/* Appearance-resolved tokens (skin defaults when the admin never customised) */
+$pfBtnAcc   = !empty($PF['btn_bg']) ? $PF['btn_bg'] : $PF['accent'];
+$pfBtnAccIn = !empty($PF['btn_bg']) ? $PF['btn_ink'] : $PF['accent_ink'];
+$pfBtnAdd   = !empty($PF['btn_bg']) ? $PF['btn_bg'] : $PF['ink'];
+$pfBtnAddIn = !empty($PF['btn_bg']) ? $PF['btn_ink'] : $PF['bg'];
+$pfFootBg   = !empty($PF['footer_bg']) ? $PF['footer_bg'] : $PF['soft'];
+$pfFootTxt  = !empty($PF['footer_text']) ? $PF['footer_text'] : $PF['muted'];
+$pfFootHd   = !empty($PF['footer_head']) ? $PF['footer_head'] : $PF['ink'];
+$pfFootBrd  = !empty($PF['footer_bg']) ? 'rgba(255,255,255,0.14)' : $PF['border'];
+$pfFootSoc  = !empty($PF['footer_bg']) ? 'rgba(255,255,255,0.08)' : $PF['surface'];
+
+/* Announcement marquee items (Appearance → Announcement Marquee) */
+$pfMarquee = [];
+if(!empty($settings->marquee_items)){
+    foreach(preg_split('/\r\n|\r|\n/', $settings->marquee_items) as $mi){
+        $mi = trim($mi);
+        if($mi !== '') $pfMarquee[] = $mi;
+    }
+}
 ?>
 <link rel="stylesheet" href="<?= $PF['fonts_url']; ?>">
 <style>
@@ -36,12 +56,13 @@ body.theme-<?= $tk; ?> {
 }
 
 /* Shared chrome restyle (light) */
-.theme-<?= $tk; ?> .mp-footer { background: <?= $PF['soft']; ?>; color: <?= $PF['muted']; ?>; }
-.theme-<?= $tk; ?> .mp-footer-brand, .theme-<?= $tk; ?> .mp-footer-heading { color: <?= $PF['ink']; ?>; font-family: <?= $PF['font_display']; ?>; }
-.theme-<?= $tk; ?> .mp-footer-links a { color: <?= $PF['muted']; ?>; }
+.theme-<?= $tk; ?> .mp-footer { background: <?= $pfFootBg; ?>; color: <?= $pfFootTxt; ?>; }
+.theme-<?= $tk; ?> .mp-footer-brand, .theme-<?= $tk; ?> .mp-footer-heading { color: <?= $pfFootHd; ?>; font-family: <?= $PF['font_display']; ?>; }
+.theme-<?= $tk; ?> .mp-footer-links a { color: <?= $pfFootTxt; ?>; }
 .theme-<?= $tk; ?> .mp-footer-links a:hover { color: <?= $PF['accent']; ?>; }
-.theme-<?= $tk; ?> .mp-footer-bottom { border-top-color: <?= $PF['border']; ?>; color: <?= $PF['muted']; ?>; }
-.theme-<?= $tk; ?> .mp-footer-social a { background: <?= $PF['surface']; ?>; color: <?= $PF['ink']; ?>; border:1px solid <?= $PF['border']; ?>; }
+.theme-<?= $tk; ?> .mp-footer-bottom { border-top-color: <?= $pfFootBrd; ?>; color: <?= $pfFootTxt; ?>; }
+.theme-<?= $tk; ?> .mp-footer-social a { background: <?= $pfFootSoc; ?>; color: <?= $pfFootHd; ?>; border:1px solid <?= $pfFootBrd; ?>; }
+.theme-<?= $tk; ?> .mp-footer-desc, .theme-<?= $tk; ?> .mp-footer-contact-item, .theme-<?= $tk; ?> .mp-footer-contact-item span { color: <?= $pfFootTxt; ?>; }
 .theme-<?= $tk; ?> .mp-footer-social a:hover { background: <?= $PF['accent']; ?>; color: <?= $PF['accent_ink']; ?>; border-color: <?= $PF['accent']; ?>; transform:translateY(-2px); }
 .theme-<?= $tk; ?> .mp-mobile-nav { background:#fff; border-top-color: <?= $PF['border']; ?>; }
 .theme-<?= $tk; ?> .mp-mobile-nav-item { color: <?= $PF['muted']; ?>; }
@@ -49,10 +70,10 @@ body.theme-<?= $tk; ?> {
 .theme-<?= $tk; ?> .mp-sticky-cart { background:#fff; border-top-color: <?= $PF['border']; ?>; box-shadow:0 -4px 20px rgba(0,0,0,.06); }
 .theme-<?= $tk; ?> .mp-sticky-cart-items { color: <?= $PF['muted']; ?>; }
 .theme-<?= $tk; ?> .mp-sticky-cart-total { color: <?= $PF['ink']; ?>; }
-.theme-<?= $tk; ?> .mp-sticky-cart-btn { background: <?= $PF['accent']; ?>; color: <?= $PF['accent_ink']; ?>; border-radius: <?= $PF['btn_radius']; ?>; }
+.theme-<?= $tk; ?> .mp-sticky-cart-btn { background: <?= $pfBtnAcc; ?>; color: <?= $pfBtnAccIn; ?>; border-radius: <?= $PF['btn_radius']; ?>; }
 .theme-<?= $tk; ?> .mp-modal { background:#fff; color: <?= $PF['ink']; ?>; border:1px solid <?= $PF['border']; ?>; border-radius: <?= $PF['radius']; ?>; }
 .theme-<?= $tk; ?> .mp-modal-title { color: <?= $PF['ink']; ?>; font-family: <?= $PF['font_display']; ?>; }
-.theme-<?= $tk; ?> .mp-modal-add { background: <?= $PF['accent']; ?>; color: <?= $PF['accent_ink']; ?>; border-radius: <?= $PF['btn_radius']; ?>; }
+.theme-<?= $tk; ?> .mp-modal-add { background: <?= $pfBtnAcc; ?>; color: <?= $pfBtnAccIn; ?>; border-radius: <?= $PF['btn_radius']; ?>; }
 .theme-<?= $tk; ?> .mp-toast { background: <?= $PF['ink']; ?>; color:#fff; }
 .theme-<?= $tk; ?> .mp-backtop { background:#fff; color: <?= $PF['ink']; ?>; border-color: <?= $PF['border']; ?>; }
 
@@ -68,7 +89,7 @@ body.theme-<?= $tk; ?> {
 /* ---------- Buttons ---------- */
 .pf-btn { display:inline-flex; align-items:center; justify-content:center; gap:9px; min-height:50px; padding:14px 28px; border-radius: <?= $PF['btn_radius']; ?>; font-family: <?= $PF['font_body']; ?>; font-size:13px; font-weight:600; letter-spacing:.02em; border:none; cursor:pointer; text-decoration:none; transition:opacity .2s, transform .15s, box-shadow .2s; }
 .pf-btn:active { transform:scale(.97); }
-.pf-btn-accent { background: <?= $PF['accent']; ?>; color: <?= $PF['accent_ink']; ?>; box-shadow:0 4px 14px <?= $PF['accent_soft']; ?>; }
+.pf-btn-accent { background: <?= $pfBtnAcc; ?>; color: <?= $pfBtnAccIn; ?>; box-shadow:0 4px 14px <?= $PF['accent_soft']; ?>; }
 .pf-btn-accent:hover { opacity:.92; }
 .pf-btn-ink { background: <?= $PF['ink']; ?>; color: <?= $PF['bg']; ?>; }
 .pf-btn-ghost { background:transparent; color: <?= $PF['ink']; ?>; border:1.5px solid <?= $PF['border']; ?>; }
@@ -81,10 +102,16 @@ body.theme-<?= $tk; ?> {
 @media(min-width:640px){ .pf-btn-row .pf-btn { flex:0 1 auto; } }
 
 /* ---------- Header ---------- */
-<?php if($announce):
+<?php if($announce || $pfMarquee):
 $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcement_bar_color : $PF['ink'];
 ?>
-.pfh-announce { background: <?= $announceBg; ?>; color: <?= $PF['bg']; ?>; text-align:center; padding:9px 16px; font-family: <?= $PF['font_kicker']; ?>; font-size:10px; letter-spacing:.14em; text-transform:uppercase; }
+.pfh-announce { background: <?= $announceBg; ?>; color: <?= pf_contrast($announceBg); ?>; text-align:center; padding:9px 16px; font-family: <?= $PF['font_kicker']; ?>; font-size:10px; letter-spacing:.14em; text-transform:uppercase; }
+.pfh-marquee { padding:0; overflow:hidden; }
+.pfh-marquee-track { display:inline-flex; align-items:center; white-space:nowrap; padding:9px 0; animation:pfmq 26s linear infinite; will-change:transform; }
+.pfh-marquee:hover .pfh-marquee-track { animation-play-state:paused; }
+.pfh-marquee-track span { display:inline-flex; align-items:center; padding:0 18px; }
+.pfh-marquee-track span::after { content:''; width:4px; height:4px; border-radius:50%; background:currentColor; opacity:.45; margin-left:36px; }
+@keyframes pfmq { to { transform:translateX(-50%); } }
 <?php endif; ?>
 .pfh { position:sticky; top:0; z-index:200; background: <?= $PF['bg']; ?>EB; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid <?= $PF['border']; ?>; }
 .pfh-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:58px; }
@@ -132,24 +159,29 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
 .pf-hero-title { font-family: <?= $PF['font_display']; ?>; font-size:clamp(32px,8.6vw,60px); line-height:1.08; font-weight:600; margin:14px 0 16px; letter-spacing:-.015em; <?= $PF['display_italic'] ? 'font-style:italic;' : ''; ?> <?= $PF['display_case'] === 'uppercase' ? 'text-transform:uppercase; letter-spacing:-.02em; font-weight:800;' : ''; ?> }
 .pf-hero-lead { font-size:15px; line-height:1.7; color: <?= $PF['muted']; ?>; max-width:520px; margin:0 0 26px; }
 
-.pf-hero-full { position:relative; background: <?= $PF['soft']; ?>; padding:64px 0; overflow:hidden; }
-.pf-hero-full.has-media { min-height:420px; display:flex; align-items:center; }
+.pf-hero-full { position:relative; background: <?= $PF['soft']; ?>; overflow:hidden; }
+.pf-hero-slide { position:relative; padding:64px 0; transition:opacity .55s ease; }
+.pf-hero-slide.has-media { min-height:420px; display:flex; align-items:center; }
+.pf-hero-slide:not(.active) { position:absolute; inset:0; opacity:0; pointer-events:none; }
 .pf-hero-full-bg { position:absolute; inset:0; }
 .pf-hero-full-bg img { width:100%; height:100%; object-fit:cover; display:block; }
-.pf-hero-full .pf-wrap { position:relative; z-index:2; width:100%; }
-.pf-hero-full .pf-hero-body { max-width:640px; }
+.pf-hero-slide .pf-wrap { position:relative; z-index:2; width:100%; }
+.pf-hero-slide .pf-hero-body { max-width:640px; }
+.pf-hero-dots { position:absolute; left:0; right:0; bottom:18px; z-index:5; display:flex; justify-content:center; gap:8px; }
+.pf-hero-dot { width:9px; height:9px; border-radius:50%; border:none; padding:0; background: <?= $PF['ink']; ?>; opacity:.25; cursor:pointer; transition:all .2s; }
+.pf-hero-dot.active { opacity:1; transform:scale(1.2); }
 <?php if($PF['hero_align'] === 'center'): ?>
-.pf-hero-full { text-align:center; }
-.pf-hero-full .pf-hero-body { margin:0 auto; }
-.pf-hero-full .pf-hero-lead { margin-left:auto; margin-right:auto; }
-.pf-hero-full .pf-btn-row { justify-content:center; }
+.pf-hero-slide { text-align:center; }
+.pf-hero-slide .pf-hero-body { margin:0 auto; }
+.pf-hero-slide .pf-hero-lead { margin-left:auto; margin-right:auto; }
+.pf-hero-slide .pf-btn-row { justify-content:center; }
 .pf-hero-full-bg::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at center, <?= $PF['bg']; ?>F2 0%, <?= $PF['bg']; ?>C4 60%, <?= $PF['bg']; ?>6E 100%); }
 <?php else: ?>
 .pf-hero-full-bg::after { content:''; position:absolute; inset:0; background:linear-gradient(100deg, <?= $PF['soft']; ?>F5 0%, <?= $PF['soft']; ?>C4 48%, <?= $PF['soft']; ?>50 100%); }
 <?php endif; ?>
 @media(min-width:960px){
-  .pf-hero-full { padding:88px 0; }
-  .pf-hero-full.has-media { min-height:560px; }
+  .pf-hero-slide { padding:88px 0; }
+  .pf-hero-slide.has-media { min-height:560px; }
 }
 
 /* ---------- Product rail (horizontal scroll w/ arrows) ---------- */
@@ -223,7 +255,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
 .pf-card-price { font-family: <?= $PF['font_body']; ?>; font-size:16px; font-weight:700; color: <?= $PF['ink']; ?>; letter-spacing:-.01em; }
 .pf-card-price .old { font-size:12px; color: <?= $PF['muted']; ?>; text-decoration:line-through; margin-left:7px; font-weight:400; }
 .pf-card-actions { display:flex; gap:8px; }
-.pf-btn-add { flex:1; min-height:44px; border-radius: <?= $PF['btn_radius']; ?>; background: <?= $PF['ink']; ?>; color: <?= $PF['bg']; ?>; border:none; font-family: <?= $PF['font_body']; ?>; font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s, transform .15s; }
+.pf-btn-add { flex:1; min-height:44px; border-radius: <?= $PF['btn_radius']; ?>; background: <?= $pfBtnAdd; ?>; color: <?= $pfBtnAddIn; ?>; border:none; font-family: <?= $PF['font_body']; ?>; font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s, transform .15s; }
 .pf-btn-add:hover { opacity:.85; }
 .pf-btn-add:active { transform:scale(.97); }
 .pf-btn-add:disabled { opacity:.3; cursor:not-allowed; }
@@ -292,7 +324,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
 .pf-faq.open .pf-faq-a { max-height:320px; }
 .pf-faq-a p { padding:0 18px 16px; font-size:14px; color: <?= $PF['muted']; ?>; line-height:1.7; margin:0; }
 .pf-contact-grid { display:grid; grid-template-columns:1fr; gap:12px; }
-@media(min-width:768px){ .pf-contact-grid { grid-template-columns:repeat(3,1fr); gap:16px; } }
+@media(min-width:768px){ .pf-contact-grid { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; } }
 .pf-contact { text-align:center; padding:24px; border:1px solid <?= $PF['border']; ?>; border-radius: <?= $PF['radius']; ?>; background: <?= $PF['card']; ?>; }
 .pf-contact-ic { width:44px; height:44px; margin:0 auto 12px; border-radius:50%; background: <?= $PF['accent_soft']; ?>; display:flex; align-items:center; justify-content:center; color: <?= $PF['kicker_color']; ?>; }
 .pf-contact-ic svg { width:20px; height:20px; }
@@ -308,7 +340,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
 .pf-news-text { opacity:.7; max-width:420px; margin:0 auto 22px; font-size:14px; }
 .pf-news-form { display:flex; flex-direction:column; gap:10px; max-width:440px; margin:0 auto; }
 .pf-news-form input { min-height:50px; padding:14px 18px; border:none; border-radius: <?= $PF['btn_radius']; ?>; font-size:15px; outline:none; font-family: <?= $PF['font_body']; ?>; box-sizing:border-box; }
-.pf-news-form button { min-height:50px; border:none; border-radius: <?= $PF['btn_radius']; ?>; background: <?= $PF['accent']; ?>; color: <?= $PF['accent_ink']; ?>; font-family: <?= $PF['font_body']; ?>; font-weight:600; font-size:13px; cursor:pointer; }
+.pf-news-form button { min-height:50px; border:none; border-radius: <?= $PF['btn_radius']; ?>; background: <?= $pfBtnAcc; ?>; color: <?= $pfBtnAccIn; ?>; font-family: <?= $PF['font_body']; ?>; font-weight:600; font-size:13px; cursor:pointer; }
 @media(min-width:640px){ .pf-news-form { flex-direction:row; } .pf-news-form input { flex:1; } }
 
 /* ---------- Breadcrumbs ---------- */
@@ -414,9 +446,18 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
 .pf-card, .pf-fam, .pf-promo, .pf-cta, .pf-news, .pf-value, .pf-contact, .pf-testi, .pf-faq, .pf-journal, .pf-story { border-radius:2px; }
 .pf-card-media, .pf-pd-media { border-radius:0; }
 <?php endif; ?>
+
+/* ---------- Appearance: header text colour ---------- */
+<?php if(!empty($PF['header_ink'])): ?>
+.theme-<?= $tk; ?> .pfh-logo-name, .theme-<?= $tk; ?> .pfh-ic, .theme-<?= $tk; ?> .pfh-nav-link, .theme-<?= $tk; ?> .pfh-drawer-link, .theme-<?= $tk; ?> .pfh-drawer-title, .theme-<?= $tk; ?> .pfh-count { color: <?= $PF['header_ink']; ?> !important; }
+<?php endif; ?>
 </style>
 
-<?php if($announce): ?>
+<?php if($pfMarquee): ?>
+<div class="pfh-announce pfh-marquee"><div class="pfh-marquee-track">
+  <?php for($i = 0; $i < 2; $i++): foreach($pfMarquee as $mi): ?><span><?= htmlspecialchars($mi); ?></span><?php endforeach; endfor; ?>
+</div></div>
+<?php elseif($announce): ?>
 <div class="pfh-announce"><?= htmlspecialchars($announce); ?></div>
 <?php endif; ?>
 
@@ -448,7 +489,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
       </a>
       <?php if($pfWaNum): ?>
       <a href="https://wa.me/<?= $pfWaNum; ?>" target="_blank" class="pfh-ic" aria-label="WhatsApp">
-        <svg class="fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
+        <svg class="fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
       </a>
       <?php endif; ?>
       <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="pfh-ic" aria-label="Cart">
@@ -483,7 +524,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
   <?php endif; ?>
   <?php if($pfWaNum): ?>
   <a href="https://wa.me/<?= $pfWaNum; ?>" target="_blank" class="pfh-drawer-wa" onclick="pfMenu(false)">
-    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
     Chat on WhatsApp
   </a>
   <?php endif; ?>
@@ -513,7 +554,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
         <div><label>Note (optional)</label><textarea id="pfwa-note" placeholder="Gift wrap, size, occasion..."></textarea></div>
       </div>
       <div class="pfwa-actions">
-        <button class="pfwa-send" onclick="pfWaSend()"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> Send via WhatsApp</button>
+        <button class="pfwa-send" onclick="pfWaSend()"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg> Send via WhatsApp</button>
         <button class="pfwa-cancel" onclick="pfWaClose()">Cancel</button>
       </div>
     </div>

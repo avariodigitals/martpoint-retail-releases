@@ -21,6 +21,10 @@
 .os-toggle.on{background:var(--mp-success)!important}
 .os-toggle::after{content:''!important;position:absolute!important;top:2px!important;left:2px!important;width:20px!important;height:20px!important;border-radius:50%!important;background:#fff!important;transition:transform .15s ease!important;box-shadow:0 1px 3px rgba(0,0,0,.2)!important}
 .os-toggle.on::after{transform:translateX(18px)!important}
+.os-section-edit-btn{font-size:12px!important;color:var(--mp-muted)!important;cursor:pointer!important;background:none!important;border:1px solid var(--mp-border)!important;padding:6px 10px!important;border-radius:8px!important;transition:all .15s ease!important}
+.os-section-edit-btn:hover{color:var(--mp-primary)!important;border-color:var(--mp-primary)!important}
+.os-sec-edit{padding:4px 18px 16px 44px!important;background:var(--mp-bg)!important;border:1px solid var(--mp-border)!important;border-top:none!important;border-radius:0 0 12px 12px!important;margin:-10px 0 10px!important}
+.os-sec-edit .mp-form-group{margin-bottom:10px!important}
 .os-hb-guide{font-size:13px!important;color:var(--mp-ink)!important}
 .os-hb-guide-item{padding:12px 0!important;border-bottom:1px solid var(--mp-border)!important}
 .os-hb-guide-item:last-child{border-bottom:none!important}
@@ -45,16 +49,28 @@
       $duplicable = ['hero_banner','promo_banner','featured_products','featured_services','featured_categories','testimonials','brands','instagram_gallery'];
       foreach($homepage_sections as $s):
         $isDup = in_array($s->section_key, $duplicable) || preg_match('/^('.implode('|',$duplicable).')_\d+$/', $s->section_key);
+        $sCfg = !empty($s->config_json) ? json_decode($s->config_json, true) : [];
+        if(!is_array($sCfg)) $sCfg = [];
+        $sTitle = $sCfg['title'] ?? $s->section_label;
+        $sSub   = $sCfg['subtitle'] ?? '';
       ?>
-      <div class="section-row os-section-row <?= $s->is_enabled ? '' : 'disabled'; ?>" data-key="<?= htmlspecialchars($s->section_key); ?>" data-order="<?= (int)$s->display_order; ?>">
-        <span class="os-section-handle" title="Drag to reorder">&#9776;</span>
-        <span class="os-section-label"><?= htmlspecialchars($s->section_label); ?></span>
-        <?php if($isDup): ?><span class="os-section-badge duplicable">Duplicate</span><?php endif; ?>
-        <div class="os-section-actions">
-          <?php if($isDup): ?>
-          <button type="button" class="os-section-duplicate" onclick="duplicateSection(this)" title="Duplicate this section"><i class="fa fa-clone"></i> Copy</button>
-          <?php endif; ?>
-          <button type="button" class="os-toggle section-toggle <?= $s->is_enabled ? 'on' : ''; ?>" onclick="this.classList.toggle('on')" title="Toggle visibility"></button>
+      <div class="section-wrap">
+        <div class="section-row os-section-row <?= $s->is_enabled ? '' : 'disabled'; ?>" data-key="<?= htmlspecialchars($s->section_key); ?>" data-order="<?= (int)$s->display_order; ?>">
+          <span class="os-section-handle" title="Drag to reorder">&#9776;</span>
+          <span class="os-section-label"><?= htmlspecialchars($s->section_label); ?></span>
+          <?php if($isDup): ?><span class="os-section-badge duplicable">Duplicate</span><?php endif; ?>
+          <div class="os-section-actions">
+            <button type="button" class="os-section-edit-btn" onclick="toggleSectionEdit(this)" title="Edit heading"><i class="fa fa-pencil"></i></button>
+            <?php if($isDup): ?>
+            <button type="button" class="os-section-duplicate" onclick="duplicateSection(this)" title="Duplicate this section"><i class="fa fa-clone"></i> Copy</button>
+            <?php endif; ?>
+            <button type="button" class="os-toggle section-toggle <?= $s->is_enabled ? 'on' : ''; ?>" onclick="this.classList.toggle('on')" title="Toggle visibility"></button>
+          </div>
+        </div>
+        <div class="os-sec-edit" style="display:none;">
+          <div class="mp-form-group"><label>Section Heading</label><input type="text" class="mp-form-control os-sec-title" value="<?= htmlspecialchars($sTitle); ?>" placeholder="e.g. Featured Products"></div>
+          <div class="mp-form-group"><label>Sub-heading <span style="font-weight:400;color:var(--mp-muted);">(optional)</span></label><input type="text" class="mp-form-control os-sec-sub" value="<?= htmlspecialchars($sSub); ?>" placeholder="Short line under the heading"></div>
+          <button type="button" class="mp-btn-primary" style="padding:8px 18px;font-size:13px;" onclick="saveSectionMeta(this)"><i class="fa fa-check"></i> Apply</button>
         </div>
       </div>
       <?php endforeach; ?>
@@ -120,6 +136,35 @@ function saveSections(){
   }
   fetch('<?= base_url('online_store/save_homepage_sections'); ?>', {method:'POST', body:fd})
   .then(r=>r.json()).then(res=>{ if(res.status==='success') toastr.success(res.message); else toastr.error(res.message || 'Failed to save'); });
+}
+
+function toggleSectionEdit(btn){
+  const panel = btn.closest('.section-wrap').querySelector('.os-sec-edit');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveSectionMeta(btn){
+  const wrap = btn.closest('.section-wrap');
+  const key = wrap.querySelector('.section-row').dataset.key;
+  const title = wrap.querySelector('.os-sec-title').value.trim();
+  const subtitle = wrap.querySelector('.os-sec-sub').value.trim();
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+  fd.append('section_key', key);
+  fd.append('title', title);
+  fd.append('subtitle', subtitle);
+  fetch('<?= base_url('online_store/save_homepage_section_meta'); ?>', {method:'POST', body:fd})
+  .then(r=>r.json()).then(res=>{
+    btn.disabled = false;
+    if(res.status==='success'){
+      toastr.success(res.message);
+      if(title) wrap.querySelector('.os-section-label').textContent = title;
+      wrap.querySelector('.os-sec-edit').style.display = 'none';
+    } else {
+      toastr.error(res.message || 'Failed to save');
+    }
+  }).catch(()=>{ btn.disabled = false; toastr.error('Error saving section'); });
 }
 
 function duplicateSection(btn){

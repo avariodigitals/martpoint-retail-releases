@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.35",
-    "previous_version": "4.0.9.34",
+    "version": "4.0.9.36",
+    "previous_version": "4.0.9.35",
     "release_date": "2026-09-22",
     "files": [
         {
@@ -2390,8 +2390,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "62e596e81b846865b8c50bb0893a3e51fe10ea1524c5b28335e336666f7d4102",
-            "size": 15101
+            "hash": "653c9a7e47c1c5a838b530680d5dc3a8cf2b92f268efc6f22bea72e352350dea",
+            "size": 15704
         },
         {
             "path": "application/libraries/index.html",
@@ -7020,8 +7020,8 @@
         },
         {
             "path": "application/models/Storefront_model.php",
-            "hash": "4f811e91e066492efc62abd4c93d9356cf95d774eb471461c579582fe79bd122",
-            "size": 72515
+            "hash": "844b31d2af18a863a5abecc7025bb177162ea3cc25d9ef5bf9cda3b4c1f79717",
+            "size": 73874
         },
         {
             "path": "application/models/Roles_model.php",
@@ -7425,8 +7425,8 @@
         },
         {
             "path": "application/controllers/Online_store.php",
-            "hash": "232e59f816921da8a49a12833978dca81dce681f422a4a283ef0a643ee8188bb",
-            "size": 84466
+            "hash": "fb997c55a16ae2b97c8497c1d98010d9fa075ac6bacf4aa034118688d25d5dc6",
+            "size": 85288
         },
         {
             "path": "application/controllers/Cash_transactions.php",
@@ -9845,8 +9845,8 @@
         },
         {
             "path": "application/views/online_store/homepage_builder.php",
-            "hash": "f4cf044a74cab24830a8af39b73184360f01c717dfe4fa21bc26a79196f09598",
-            "size": 12330
+            "hash": "d5e925b7c856c0e180e0d300f92dd137412df4a46d58c633c281786197a883fa",
+            "size": 15387
         },
         {
             "path": "application/views/online_store/testimonials.php",
@@ -10540,18 +10540,18 @@
         },
         {
             "path": "application/views/themes/parfum_core/product_detail.php",
-            "hash": "756ff5acccfdcaa7c6104409062e63218e0acb56b2838787f0c5018ab2ded63c",
-            "size": 7495
+            "hash": "91d8e7e20b9c6bcc62a86ac2de3472e529e21f17c209281e848dd795bfdfe947",
+            "size": 7960
         },
         {
             "path": "application/views/themes/parfum_core/store.php",
-            "hash": "6f9b1b0e8d652e6ccd6033fab65383feddc2e29fbb3342e2c3aed0a1428a9252",
-            "size": 22870
+            "hash": "5ff63a8c9d604e143213545f8099d5dadd06622bef8f450bfbec00f04a811d6d",
+            "size": 27109
         },
         {
             "path": "application/views/themes/parfum_core/header.php",
-            "hash": "7c3c86089d19db78bd2e00021fdc08a5337ab7bc566931def5d0b72ab67d3821",
-            "size": 48546
+            "hash": "4afd3e1e7ea2156067abcf4330aeb7ff17b758415dd7309e592ab1def7983419",
+            "size": 52808
         },
         {
             "path": "application/views/themes/parfum_core/products.php",
@@ -10560,8 +10560,8 @@
         },
         {
             "path": "application/views/themes/parfum_core/_skin.php",
-            "hash": "a7a4c5a4b2933a0ea12abb63343af931d8649e287291918546c5bb24e6762915",
-            "size": 9712
+            "hash": "9246484c7e895d7f1e62531482c394432b8f0c6125aea82d3860f953260f91c7",
+            "size": 13821
         },
         {
             "path": "application/views/themes/grocery_plus/product_detail.php",
@@ -11655,7 +11655,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "00c330abde756453567651b2069becd28ac0aa1d2783fc3ebbfee60f83e77725",
+            "hash": "24c52962b5d90b9a6c51ce67a2faa21a4b41bd1beebf4cd143e2395f0dbb0bcf",
             "size": 95175
         },
         {
@@ -27037,6 +27037,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "f4de7bc04c60d6ac1ae899b18b5161239a3776a82435d68ea3b7648962e499f0",
-    "changelog": "Auto-generated release 4.0.9.35"
+    "signature": "9f021b5feff7832925e4e10c9d6b7f4e2022c89cb39ec019913d24c5d69a9d4d",
+    "changelog": "Auto-generated release 4.0.9.36"
 }

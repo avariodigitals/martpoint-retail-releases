@@ -222,6 +222,17 @@ class Theme_engine {
             ->order_by('display_order', 'asc')
             ->get('db_storefront_homepage_sections')
             ->result();
+        // Fresh installs / stores that never opened the builder: seed defaults
+        // so the homepage is never blank.
+        if(empty($rows) && $storeId && !$this->CI->db->where('store_id', $storeId)->count_all_results('db_storefront_homepage_sections')){
+            $this->CI->storefront_model->resetHomepageSections($storeId);
+            $rows = $this->CI->db
+                ->where('store_id', $storeId)
+                ->where('is_enabled', 1)
+                ->order_by('display_order', 'asc')
+                ->get('db_storefront_homepage_sections')
+                ->result();
+        }
         $sections = [];
         foreach($rows as $r){
             $sections[$r->section_key] = $r;

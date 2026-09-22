@@ -17,14 +17,20 @@ if(!empty($homepage_sections)){
     uasort($orderedSections, function($a, $b){ return ($a->display_order ?? 0) <=> ($b->display_order ?? 0); });
 }
 
-$hero    = !empty($hero_banners) ? $hero_banners[0] : null;
-$heroImg = '';
-if($hero && !empty($hero->desktop_image) && file_exists($hero->desktop_image))      $heroImg = mp_minified_image_url($hero->desktop_image, 1600);
-elseif($hero && !empty($hero->mobile_image) && file_exists($hero->mobile_image))    $heroImg = mp_minified_image_url($hero->mobile_image, 900);
-
-$heroKicker = htmlspecialchars($hero->banner_subtitle ?? $settings->store_subheadline ?? '');
-$heroTitle  = htmlspecialchars($hero->banner_title ?? ($settings->store_headline ?: ($store->store_name ?? '')));
-$heroLead   = htmlspecialchars($settings->store_description ?? '');
+$heroSlides = [];
+foreach((array)($hero_banners ?? []) as $hb){
+    $img = '';
+    if(!empty($hb->desktop_image) && file_exists($hb->desktop_image))     $img = mp_minified_image_url($hb->desktop_image, 1600);
+    elseif(!empty($hb->mobile_image) && file_exists($hb->mobile_image))   $img = mp_minified_image_url($hb->mobile_image, 900);
+    $heroSlides[] = [
+        'img'    => $img,
+        'kicker' => $hb->banner_subtitle ?? '',
+        'title'  => $hb->banner_title ?? '',
+        'btn_t'  => trim($hb->button_text ?? ''),
+        'btn_u'  => trim($hb->button_url ?? ''),
+    ];
+}
+if(empty($heroSlides)) $heroSlides = [['img' => '', 'kicker' => '', 'title' => '', 'btn_t' => '', 'btn_u' => '']];
 $waHello    = rawurlencode('Hello ' . ($store->store_name ?? '') . ', I would like some fragrance advice.');
 
 /* trust badges (rendered in their own section) */
@@ -68,23 +74,49 @@ foreach($orderedSections as $sectionKey => $section):
 
     case 'hero_banner':
 ?>
-<div class="pf-hero pf-hero-full <?= $heroImg ? 'has-media' : ''; ?>">
-  <?php if($heroImg): ?>
-  <div class="pf-hero-full-bg"><img src="<?= $heroImg; ?>" alt="<?= $heroTitle; ?>"></div>
-  <?php endif; ?>
-  <div class="pf-wrap">
-    <div class="pf-hero-body">
-      <?php if($heroKicker): ?><p class="pf-kicker"><?= $heroKicker; ?></p><?php endif; ?>
-      <h1 class="pf-hero-title"><?= $heroTitle; ?></h1>
-      <?php if($heroLead): ?><p class="pf-hero-lead"><?= $heroLead; ?></p><?php endif; ?>
-      <div class="pf-btn-row">
-        <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pf-btn pf-btn-accent">Shop Fragrances</a>
-        <?php if($waNum): ?>
-        <a href="https://wa.me/<?= $waNum; ?>?text=<?= $waHello; ?>" target="_blank" class="pf-btn pf-btn-ghost"<?= $heroImg ? ' style="background:' . $PF['surface'] . ';"' : ''; ?>>WhatsApp Us</a>
-        <?php endif; ?>
+<div class="pf-hero pf-hero-full" id="pf-hero">
+  <?php foreach($heroSlides as $hi => $hero):
+    $heroKicker = htmlspecialchars($hero['kicker'] !== '' ? $hero['kicker'] : ($settings->store_subheadline ?? ''));
+    $heroTitle  = htmlspecialchars($hero['title'] !== '' ? $hero['title'] : ($settings->store_headline ?: ($store->store_name ?? '')));
+    $heroBtnT   = $hero['btn_t'] !== '' ? $hero['btn_t'] : 'Shop Fragrances';
+    $heroBtnU   = $hero['btn_u'] !== '' ? $hero['btn_u'] : base_url('store/' . $slug . '/products');
+  ?>
+  <div class="pf-hero-slide <?= $hi === 0 ? 'active' : ''; ?> <?= $hero['img'] ? 'has-media' : ''; ?>">
+    <?php if($hero['img']): ?>
+    <div class="pf-hero-full-bg"><img src="<?= $hero['img']; ?>" alt="<?= $heroTitle; ?>" <?= $hi === 0 ? 'loading="eager"' : 'loading="lazy"'; ?>></div>
+    <?php endif; ?>
+    <div class="pf-wrap">
+      <div class="pf-hero-body">
+        <?php if($heroKicker): ?><p class="pf-kicker"><?= $heroKicker; ?></p><?php endif; ?>
+        <h1 class="pf-hero-title"><?= $heroTitle; ?></h1>
+        <?php if(!empty($settings->store_description)): ?><p class="pf-hero-lead"><?= htmlspecialchars($settings->store_description); ?></p><?php endif; ?>
+        <div class="pf-btn-row">
+          <a href="<?= htmlspecialchars($heroBtnU); ?>" class="pf-btn pf-btn-accent"><?= htmlspecialchars($heroBtnT); ?></a>
+          <?php if($waNum): ?>
+          <a href="https://wa.me/<?= $waNum; ?>?text=<?= $waHello; ?>" target="_blank" class="pf-btn pf-btn-ghost"<?= $hero['img'] ? ' style="background:' . $PF['surface'] . ';"' : ''; ?>>WhatsApp Us</a>
+          <?php endif; ?>
+        </div>
       </div>
     </div>
   </div>
+  <?php endforeach; ?>
+  <?php if(count($heroSlides) > 1): ?>
+  <div class="pf-hero-dots">
+    <?php foreach($heroSlides as $hi => $hs): ?>
+    <button class="pf-hero-dot <?= $hi === 0 ? 'active' : ''; ?>" onclick="pfHeroGo(<?= $hi; ?>)" aria-label="Slide <?= $hi + 1; ?>"></button>
+    <?php endforeach; ?>
+  </div>
+  <script>
+  (function(){
+    var cur = 0, slides = document.querySelectorAll('#pf-hero .pf-hero-slide'), dots = document.querySelectorAll('#pf-hero .pf-hero-dot');
+    function go(i){ cur = i; slides.forEach(function(s, k){ s.classList.toggle('active', k === i); }); dots.forEach(function(d, k){ d.classList.toggle('active', k === i); }); }
+    window.pfHeroGo = go;
+    var timer = setInterval(function(){ go((cur + 1) % slides.length); }, 6000);
+    var hero = document.getElementById('pf-hero');
+    hero.addEventListener('pointerdown', function(){ clearInterval(timer); timer = setInterval(function(){ go((cur + 1) % slides.length); }, 8000); });
+  })();
+  </script>
+  <?php endif; ?>
 </div>
 <?php
         break;
@@ -110,10 +142,12 @@ foreach($orderedSections as $sectionKey => $section):
 
     case 'promo_banner':
         if(!empty($promo_banners)):
-        $promo = $promo_banners[0];
+        foreach($promo_banners as $promo):
         $promoImg = (!empty($promo->desktop_image) && file_exists($promo->desktop_image)) ? mp_minified_image_url($promo->desktop_image, 1200) : '';
         $promoSub = $promo->banner_subtitle ?? '';
         $promoTxt = $promo->banner_text ?? $promo->banner_description ?? '';
+        $promoBtnT = trim($promo->button_text ?? '') ?: 'Shop Now';
+        $promoBtnU = trim($promo->button_url ?? '') ?: base_url('store/' . $slug . '/products');
 ?>
 <div class="pf-sec">
   <div class="pf-wrap">
@@ -126,13 +160,14 @@ foreach($orderedSections as $sectionKey => $section):
         <h3 class="pf-story-title"><?= htmlspecialchars($promo->banner_title ?? ''); ?></h3>
         <?php if($promoTxt): ?><p class="pf-story-lead"><?= htmlspecialchars($promoTxt); ?></p><?php endif; ?>
         <div class="pf-btn-row">
-          <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pf-btn pf-btn-accent">Shop Now</a>
+          <a href="<?= htmlspecialchars($promoBtnU); ?>" class="pf-btn pf-btn-accent"><?= htmlspecialchars($promoBtnT); ?></a>
         </div>
       </div>
     </div>
   </div>
 </div>
 <?php
+        endforeach;
         endif;
         break;
 
@@ -234,7 +269,7 @@ foreach($orderedSections as $sectionKey => $section):
               <button class="pf-btn-add" onclick="addToCart(<?= $s->id; ?>,'service','<?= htmlspecialchars(addslashes($sName)); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',1,999)">Book</button>
               <?php if($waNum): ?>
               <button class="pf-btn-wa" onclick="pfWaOrder(<?= $s->id; ?>,'<?= htmlspecialchars(addslashes($sName)); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>')" aria-label="Enquire on WhatsApp">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
               </button>
               <?php endif; ?>
             </div>
@@ -422,7 +457,7 @@ foreach($orderedSections as $sectionKey => $section):
         break;
 
     case 'contact_section':
-        $hasContact = !empty($settings->store_phone) || !empty($settings->store_email) || $waNum;
+        $hasContact = !empty($settings->store_phone) || !empty($settings->store_email) || !empty($settings->store_address) || $waNum;
         if($hasContact):
 ?>
 <div class="pf-sec pf-band">
@@ -448,9 +483,22 @@ foreach($orderedSections as $sectionKey => $section):
         <div class="pf-contact-v"><?= htmlspecialchars($settings->store_email); ?></div>
       </div>
       <?php endif; ?>
+      <?php if(!empty($settings->store_address)): ?>
+      <div class="pf-contact">
+        <div class="pf-contact-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+        <div class="pf-contact-l">Visit Us</div>
+        <div class="pf-contact-v">
+          <?php if(!empty($settings->footer_address_url)): ?>
+          <a href="<?= htmlspecialchars($settings->footer_address_url); ?>" target="_blank" style="color:inherit;"><?= nl2br(htmlspecialchars($settings->store_address)); ?></a>
+          <?php else: ?>
+          <?= nl2br(htmlspecialchars($settings->store_address)); ?>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
       <?php if($waNum): ?>
       <div class="pf-contact">
-        <div class="pf-contact-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg></div>
+        <div class="pf-contact-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg></div>
         <div class="pf-contact-l">WhatsApp</div>
         <div class="pf-contact-v"><?= htmlspecialchars($settings->whatsapp_number); ?></div>
       </div>
@@ -473,7 +521,7 @@ foreach($orderedSections as $sectionKey => $section):
       <div class="pf-cta-title"><?= htmlspecialchars($ctaTitle); ?></div>
       <?php if($ctaSub): ?><p class="pf-cta-text"><?= htmlspecialchars($ctaSub); ?></p><?php endif; ?>
       <div class="pf-btn-row" style="justify-content:center;">
-        <a href="https://wa.me/<?= $waNum; ?>?text=<?= $waHello; ?>" target="_blank" class="pf-btn pf-btn-wa-full"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>Chat on WhatsApp</a>
+        <a href="https://wa.me/<?= $waNum; ?>?text=<?= $waHello; ?>" target="_blank" class="pf-btn pf-btn-wa-full"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>Chat on WhatsApp</a>
         <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pf-btn pf-btn-ghost">Shop Fragrances</a>
       </div>
     </div>

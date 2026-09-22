@@ -1136,6 +1136,26 @@ class Online_store extends MY_Controller {
 		echo json_encode(['status' => 'success', 'message' => 'Homepage layout saved']);
 	}
 
+	public function save_homepage_section_meta(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		$sectionKey = preg_replace('/[^a-z0-9_]/i', '', (string)$this->input->post('section_key'));
+		$title    = trim((string)$this->input->post('title'));
+		$subtitle = trim((string)$this->input->post('subtitle'));
+		if(!$sectionKey){
+			echo json_encode(['status' => 'error', 'message' => 'No section key provided']);
+			return;
+		}
+		if($this->storefront_model->saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle)){
+			echo json_encode(['status' => 'success', 'message' => 'Section updated', 'title' => $title]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Section not found']);
+		}
+	}
+
 	public function duplicate_homepage_section(){
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
