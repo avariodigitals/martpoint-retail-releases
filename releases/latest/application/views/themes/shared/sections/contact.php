@@ -3,7 +3,7 @@ $lead_capture = function_exists('mp_feature_enabled_for_store') && mp_feature_en
 if(!empty($settings->store_phone) || !empty($settings->store_email) || !empty($settings->store_address) || !empty($settings->whatsapp_number) || $lead_capture):
 ?>
 <div class="mp-section">
-  <div class="mp-section-title">Get In Touch</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'Get In Touch')); ?></div>
   <div class="mp-contact-grid">
     <?php if(!empty($settings->store_phone)): ?>
     <a href="tel:<?= preg_replace('/[^0-9+]/', '', $settings->store_phone); ?>" class="mp-contact-card">

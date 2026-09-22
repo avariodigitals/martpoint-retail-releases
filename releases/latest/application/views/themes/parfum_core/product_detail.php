@@ -6,7 +6,7 @@ include APPPATH . 'views/themes/parfum_core/_skin.php';
 
 $slug  = $settings->store_slug ?? '';
 $cur   = $store_currency ?? null;
-$waNum = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
+$waNum = ($settings->allow_whatsapp ?? 1) ? preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '') : '';
 
 $img     = ($product->item_image && file_exists($product->item_image)) ? mp_minified_image_url($product->item_image, 900) : '';
 $hasDisc = $product->original_price > $product->effective_price;

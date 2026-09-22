@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.36';
+    return '4.0.9.37';
   }
   function required_php_version(){
     return 7.4;
@@ -2450,6 +2450,29 @@
       'phone'   => $phone,
       'message' => $msg
     );
+  }
+
+  function sf_sec_title($section, $fallback = ''){
+    if(is_object($section) && !empty($section->config_json)){
+      $cfg = json_decode($section->config_json, true);
+      if(!empty($cfg['title'])) return $cfg['title'];
+    }
+    if(is_object($section) && !empty($section->section_label)){
+      $label = $section->section_label;
+      if(preg_match('/_\d+$/', (string)($section->section_key ?? ''))){
+        $label = preg_replace('/\s*\(\d+\)$/', '', $label);
+      }
+      return $label;
+    }
+    return $fallback;
+  }
+
+  function sf_sec_sub($section, $fallback = ''){
+    if(is_object($section) && !empty($section->config_json)){
+      $cfg = json_decode($section->config_json, true);
+      if(!empty($cfg['subtitle'])) return $cfg['subtitle'];
+    }
+    return $fallback;
   }
 
   function sf_currency($amount=0, $store_currency=null){

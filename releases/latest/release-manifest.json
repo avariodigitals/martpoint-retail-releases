@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.36",
-    "previous_version": "4.0.9.35",
+    "version": "4.0.9.37",
+    "previous_version": "4.0.9.36",
     "release_date": "2026-09-22",
     "files": [
         {
@@ -7020,8 +7020,8 @@
         },
         {
             "path": "application/models/Storefront_model.php",
-            "hash": "844b31d2af18a863a5abecc7025bb177162ea3cc25d9ef5bf9cda3b4c1f79717",
-            "size": 73874
+            "hash": "45cd019f140c0f189548a283fad3cdbf1f91eb724f5bf94700fc68003328c1d8",
+            "size": 74502
         },
         {
             "path": "application/models/Roles_model.php",
@@ -7355,8 +7355,8 @@
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "1dfd6647da337c800db2f50c804a857b7187876eb19b09095ca3479aa5cfa8cd",
-            "size": 85143
+            "hash": "42ee76cf66ff295a70cba8554e6e1474801337853f80c76502f5817118f7c2a9",
+            "size": 85588
         },
         {
             "path": "application/controllers/Automobile.php",
@@ -7425,8 +7425,8 @@
         },
         {
             "path": "application/controllers/Online_store.php",
-            "hash": "fb997c55a16ae2b97c8497c1d98010d9fa075ac6bacf4aa034118688d25d5dc6",
-            "size": 85288
+            "hash": "4e159704f8fe9bb113c0c77f62a238a23ac4ec2aa3ee2dbbcc95bd7f0d606dc0",
+            "size": 85972
         },
         {
             "path": "application/controllers/Cash_transactions.php",
@@ -9490,8 +9490,8 @@
         },
         {
             "path": "application/views/mobile/online_store/homepage_builder.php",
-            "hash": "9bdf3edd02fee8d80bbf30f84431fb5fb7485ad1111fc671acb868b46f518a32",
-            "size": 9619
+            "hash": "85549b09bcc2e9dd66b579b2afc89a2a15cd8c52a20d0dc707e590eb2faf8460",
+            "size": 13599
         },
         {
             "path": "application/views/mobile/online_store/testimonials.php",
@@ -9845,8 +9845,8 @@
         },
         {
             "path": "application/views/online_store/homepage_builder.php",
-            "hash": "d5e925b7c856c0e180e0d300f92dd137412df4a46d58c633c281786197a883fa",
-            "size": 15387
+            "hash": "8b41a60bd44c9b76ae50601b243db12712c9395c7f1b79533dd06f9ad8a9913b",
+            "size": 16462
         },
         {
             "path": "application/views/online_store/testimonials.php",
@@ -10540,28 +10540,28 @@
         },
         {
             "path": "application/views/themes/parfum_core/product_detail.php",
-            "hash": "91d8e7e20b9c6bcc62a86ac2de3472e529e21f17c209281e848dd795bfdfe947",
-            "size": 7960
+            "hash": "8b33ae1626f0b441167b7918af37a4701fcb72fda97152fa4d420d67b0864de3",
+            "size": 8000
         },
         {
             "path": "application/views/themes/parfum_core/store.php",
-            "hash": "5ff63a8c9d604e143213545f8099d5dadd06622bef8f450bfbec00f04a811d6d",
-            "size": 27109
+            "hash": "e6c19a7a613c63eb72e54fc07cf32f0d987d9424521c0145d4bbfa7d0adba8a7",
+            "size": 27504
         },
         {
             "path": "application/views/themes/parfum_core/header.php",
-            "hash": "4afd3e1e7ea2156067abcf4330aeb7ff17b758415dd7309e592ab1def7983419",
-            "size": 52808
+            "hash": "1477a43c98b71b0082f5480dafb5b522c2b93e8350062e16b40ae2fb352d8fe3",
+            "size": 53185
         },
         {
             "path": "application/views/themes/parfum_core/products.php",
-            "hash": "0184c89b8634133be0598cdd6e59dc071b80014ad5ba38019fbb2dd131a8251c",
-            "size": 3782
+            "hash": "9566153936ff3cc8afa15c7c06ceb8477349d8bf4d6d6c04190d7f83ac365ccc",
+            "size": 3929
         },
         {
             "path": "application/views/themes/parfum_core/_skin.php",
-            "hash": "9246484c7e895d7f1e62531482c394432b8f0c6125aea82d3860f953260f91c7",
-            "size": 13821
+            "hash": "0f7aaa7a80048f88836928f361dcc143a41fa274e5b699d5db7d5f6b86572d0e",
+            "size": 14277
         },
         {
             "path": "application/views/themes/grocery_plus/product_detail.php",
@@ -10715,23 +10715,23 @@
         },
         {
             "path": "application/views/themes/shared/sections/whatsapp_cta.php",
-            "hash": "b3a2e3ccec8c99e026cca95b618223071e95266e2a6b42f612e178e90ed69ca2",
-            "size": 477
+            "hash": "f36ef0525b60d3e0140f0bdcd3444d022a246306464dcd4851c5384514a126a7",
+            "size": 618
         },
         {
             "path": "application/views/themes/shared/sections/faqs.php",
-            "hash": "eba0221a69acfdb65c7584a07f97ec5f29b78afd04d74e26ae67513cf3331629",
-            "size": 1789
+            "hash": "652fe1c05616b9ccc08a6b5d0886677490a9d061bbe5110df35bbe0a64758bdb",
+            "size": 1841
         },
         {
             "path": "application/views/themes/shared/sections/featured_products.php",
-            "hash": "5205faffc3d2a54a5afb47e5049d06b0d71268344e955a3ed74ba8e4a8d10504",
-            "size": 6186
+            "hash": "4dea0a0bbd1d3a157cb70dba3dc6058a1959c2b6012cb13e180c54fe27963b97",
+            "size": 6274
         },
         {
             "path": "application/views/themes/shared/sections/brands.php",
-            "hash": "765ad5f530d8d6b2ebf265fdaf159ca8787dc5a04c674ee7aa075c9db9f663b0",
-            "size": 1203
+            "hash": "2410d649e8a77c95af3cc521221b81fd651b03fd182d7b7f73cc32772812e026",
+            "size": 1255
         },
         {
             "path": "application/views/themes/shared/sections/hero.php",
@@ -10745,58 +10745,58 @@
         },
         {
             "path": "application/views/themes/shared/sections/newsletter.php",
-            "hash": "7efef6b3645af7a5f81656f3edce896b965abeb11ebcd2993359a060874d6a62",
-            "size": 490
+            "hash": "f4c8ad3554313fe27cb36493b1d055e87fa7fc27c58dbc37b5342b85beb1bb2e",
+            "size": 536
         },
         {
             "path": "application/views/themes/shared/sections/instagram.php",
-            "hash": "30e1c466340ebc74d3d346b81f5f0661622f770ac74c3947440e6fed0e0d1216",
-            "size": 1436
+            "hash": "63b3ac46758460606cfbf72508f542e6539b1107fb22788c77e7b8fde1031100",
+            "size": 1488
         },
         {
             "path": "application/views/themes/shared/sections/new_arrivals.php",
-            "hash": "e3cb9906083c556a8ca2f54cc8b90a51fba0532c637d91d3d3755f7710f8ab89",
-            "size": 6227
+            "hash": "9357a29740157a69cb582175e5d6aa5d153f5e72ae519818be0448a0358e34c9",
+            "size": 6315
         },
         {
             "path": "application/views/themes/shared/sections/featured_categories.php",
-            "hash": "f43bf792e7733f4665e0b1b6cd47de3c0e7bd32866127d634765e143514f168b",
-            "size": 915
+            "hash": "ad06fd4c2dbdd58e53c4ea6eae219f825e2a9cfb0ba49e8db37802681bcad30d",
+            "size": 967
         },
         {
             "path": "application/views/themes/shared/sections/contact.php",
-            "hash": "386dffa3f015ae74c3587485aa339584977d243a58d8bb8476c3cb396f3190e0",
-            "size": 6110
+            "hash": "14f2c3b8c7e56078639ae235d04f9dd828985380e3eeedcfb4798c45f7bcae4e",
+            "size": 6162
         },
         {
             "path": "application/views/themes/shared/sections/featured_services.php",
-            "hash": "624a2a239df411a4b43a5cd9f6eb49dd8815d1028df4641edec959ecadd3a31a",
-            "size": 2266
+            "hash": "b7c1e4fc950c5fa81e906a2d70f8e8bf95ce71dda48bc4adaffc4227d1c51f4c",
+            "size": 2318
         },
         {
             "path": "application/views/themes/shared/sections/best_sellers.php",
-            "hash": "797b582563700fade3ece4d6ab36e55c044b72e01a9ffe65534ec8882079b7b2",
-            "size": 6241
+            "hash": "37ee95aaefa98e290f3b1bd67342987d064cebcdb67869b50d4cb34059ee5ef1",
+            "size": 6329
         },
         {
             "path": "application/views/themes/shared/sections/promo.php",
-            "hash": "8c67a4db492bb8f9572b65af67d23421d4d4f2dbe9996cb9caad05eddbfbb04e",
-            "size": 1026
+            "hash": "d91e8e73d43f33a1133a81dbe3cfd149576d716fcc95d4c4d0c869b94dd28e3e",
+            "size": 1078
         },
         {
             "path": "application/views/themes/shared/sections/testimonials.php",
-            "hash": "abf289c891e449491f9203bcd4a35b43554957e162448f7e0f8cfaee1174eede",
-            "size": 1640
+            "hash": "d8e87fabb899007ecc0af8d78c9e6a2e0986007e356f992c6ea182c87e93d071",
+            "size": 1692
         },
         {
             "path": "application/views/themes/shared/sections/store_info.php",
-            "hash": "55e3795a22dfdf4f037828337db050c51fcbaebda72073149aad54f2692ce911",
-            "size": 349
+            "hash": "f32b65395daed4712bc87e6bcaebec9d6c0ac0f5bfd06bcc5796d82da476f70e",
+            "size": 401
         },
         {
             "path": "application/views/themes/shared/sections/store_hours.php",
-            "hash": "e93d8e7be20a66e5167099f16fed332e2f5b0d844ff07c0bede8fd786860449e",
-            "size": 330
+            "hash": "81bded4a8d44a2bdccf7a6ca825e27af8467df4d91ea36a1bc195e3dec03f785",
+            "size": 382
         },
         {
             "path": "application/views/themes/shared/sections/vehicle_featured.php",
@@ -10810,8 +10810,8 @@
         },
         {
             "path": "application/views/themes/shared/store.php",
-            "hash": "61116fc73182ffd9438379d375db05d6ab06fc12c8232729a643b04f52b6590e",
-            "size": 1764
+            "hash": "cc5038594f69e757ec44b5b4f3f72990fcd475856eac447abec755945a7af76d",
+            "size": 1816
         },
         {
             "path": "application/views/themes/shared/vehicles.php",
@@ -10850,8 +10850,8 @@
         },
         {
             "path": "application/views/themes/shared/footer.php",
-            "hash": "7d5654a48ccdf201d57d51bfebfa76117d5e2bcd2d95563ca8247ed10f72a58e",
-            "size": 15639
+            "hash": "7f85fb5a2ee54b38c837ea2050c5ffedd02c59c14ae1881427cfbb9022db436b",
+            "size": 15678
         },
         {
             "path": "application/views/themes/shared/products.php",
@@ -11655,8 +11655,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "24c52962b5d90b9a6c51ce67a2faa21a4b41bd1beebf4cd143e2395f0dbb0bcf",
-            "size": 95175
+            "hash": "be804b63391b398bfc11795b6d80d4eae1337bda83400dfc5e0f89c096bca5dc",
+            "size": 95960
         },
         {
             "path": "application/helpers/advance_helper.php",
@@ -26987,6 +26987,11 @@
             "path": "favicon.ico",
             "hash": "f880fa39b4a1374e9f44a133f0cfdf9fe18b070158271917e37204f6cc5c63c2",
             "size": 21882
+        },
+        {
+            "path": "application/views/themes/shared/branches.php",
+            "hash": "dbdb7ce23f0a504352d7189fe17bc392b4e5b6a6bc8be73979c4077b2c6885e4",
+            "size": 4078
         }
     ],
     "migrations": [
@@ -27037,6 +27042,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "9f021b5feff7832925e4e10c9d6b7f4e2022c89cb39ec019913d24c5d69a9d4d",
-    "changelog": "Auto-generated release 4.0.9.36"
+    "signature": "a83187e2baeebd7ed74c6bb2be415ea899e0a2f9c710ff0a0ffc8b44ee558759",
+    "changelog": "Auto-generated release 4.0.9.37"
 }

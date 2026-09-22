@@ -200,19 +200,25 @@ if (!function_exists('pf_sec_title')) {
             $cfg = json_decode($section->config_json, true);
             if(!empty($cfg['title'])) return $cfg['title'];
         }
-        if(!empty($section->section_label)) return $section->section_label;
+        if(!empty($section->section_label)){
+            $label = $section->section_label;
+            if(preg_match('/_\d+$/', (string)($section->section_key ?? ''))){
+                $label = preg_replace('/\s*\(\d+\)$/', '', $label);
+            }
+            return $label;
+        }
         return $fallback;
     }
 }
 
 /* Optional section subtitle from backend config_json. */
 if (!function_exists('pf_sec_sub')) {
-    function pf_sec_sub($section){
+    function pf_sec_sub($section, $fallback = ''){
         if(!empty($section->config_json)){
             $cfg = json_decode($section->config_json, true);
             if(!empty($cfg['subtitle'])) return $cfg['subtitle'];
         }
-        return '';
+        return $fallback;
     }
 }
 
@@ -228,11 +234,13 @@ if (!function_exists('pf_card')) {
         $name      = htmlspecialchars(addslashes($p->item_name));
         $stock     = (int)($p->stock ?? 0);
         $soldOut   = $stock <= 0 && empty($settings->allow_backorder);
-        $hasWa     = !empty($settings->whatsapp_number);
+        $hasWa     = !empty($settings->whatsapp_number) && ($settings->allow_whatsapp ?? 1);
+        $isNew     = !empty($p->is_new_arrival);
         ?>
         <div class="pf-card">
           <a href="<?= $url; ?>" class="pf-card-media" aria-label="<?= htmlspecialchars($p->item_name); ?>">
-            <?php if($hasDisc && $pct > 0): ?><span class="pf-badge pf-badge-sale">−<?= $pct; ?>%</span><?php endif; ?>
+            <?php if($hasDisc && $pct > 0): ?><span class="pf-badge pf-badge-sale" <?= $isNew ? 'style="top:38px;"' : ''; ?>>−<?= $pct; ?>%</span><?php endif; ?>
+            <?php if($isNew): ?><span class="pf-badge pf-badge-new">New</span><?php endif; ?>
             <?php if($soldOut): ?><span class="pf-badge pf-badge-out">Sold out</span><?php endif; ?>
             <?php if($img): ?>
             <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">

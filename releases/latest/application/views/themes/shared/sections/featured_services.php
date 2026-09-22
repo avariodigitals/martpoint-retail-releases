@@ -2,7 +2,7 @@
 <?php if(!empty($fserv)): ?>
 <div class="mp-section">
   <div class="mp-section-title">
-    Our Services
+    <?= htmlspecialchars(sf_sec_title($section, 'Our Services')); ?>
     <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/services'); ?>">View all services &rarr;</a>
   </div>
   <div class="mp-service-grid">

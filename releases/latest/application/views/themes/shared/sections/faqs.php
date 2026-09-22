@@ -1,7 +1,7 @@
 <?php $faqList = $faqs ?? []; ?>
 <?php if(!empty($faqList)): ?>
 <div class="mp-section">
-  <div class="mp-section-title">Frequently Asked Questions</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'Frequently Asked Questions')); ?></div>
   <div style="max-width:800px; margin:0 auto;">
     <?php foreach($faqList as $idx => $f): ?>
     <div style="border-bottom:1px solid var(--mp-border);">

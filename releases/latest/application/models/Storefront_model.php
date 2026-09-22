@@ -359,7 +359,7 @@ class Storefront_model extends CI_Model {
 
 	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -386,7 +386,7 @@ class Storefront_model extends CI_Model {
 
 	public function getFeaturedProducts($storeId = null, $limit = 8){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -650,6 +650,7 @@ class Storefront_model extends CI_Model {
 			'pending_orders' => 0,
 			'paid_orders' => 0
 		];
+		if(empty($storeId)) return $stats;
 
 		$q = $this->db->query("SELECT 
 			COUNT(*) as total_orders,
@@ -670,6 +671,7 @@ class Storefront_model extends CI_Model {
 
 	public function getTopOnlineProducts($storeId = null, $limit = 10){
 		$storeId = $storeId ?: get_current_store_id();
+		if(empty($storeId)) return [];
 		return $this->db->query("SELECT 
 			i.item_name, i.item_image, SUM(oi.qty) as total_qty, SUM(oi.total_price) as total_revenue
 			FROM db_online_order_items oi
@@ -716,6 +718,7 @@ class Storefront_model extends CI_Model {
 
 	public function getProductSoldCounts($storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
+		if(empty($storeId)) return [];
 		$rows = $this->db->query("SELECT oi.item_id, oi.item_type, SUM(oi.qty) AS sold
 			FROM db_online_order_items oi
 			INNER JOIN db_online_orders o ON o.id = oi.order_id
@@ -1104,6 +1107,13 @@ class Storefront_model extends CI_Model {
 		return true;
 	}
 
+	public function deleteHomepageSection($storeId, $sectionKey){
+		$storeId = $storeId ?: get_current_store_id();
+		// Only duplicated copies (_N suffix) may be deleted; base sections are toggle-only
+		if(!preg_match('/_\d+$/', (string)$sectionKey)) return false;
+		return $this->db->where('store_id', $storeId)->where('section_key', $sectionKey)->delete('db_storefront_homepage_sections');
+	}
+
 	public function duplicateHomepageSection($storeId, $sectionKey){
 		$storeId = $storeId ?: get_current_store_id();
 		$original = $this->db->where('store_id', $storeId)->where('section_key', $sectionKey)->get('db_storefront_homepage_sections')->row();
@@ -1184,7 +1194,7 @@ class Storefront_model extends CI_Model {
 		$storeId = (int)($storeId ?: get_current_store_id());
 		$limit = (int)$limit;
 		$expiryClause = $this->_expiredWhere('i', $storeId);
-		return $this->db->query("SELECT i.id, i.item_name, i.item_image, i.sales_price, i.online_price, i.discount_type, i.discount, i.stock, i.description, i.product_type, SUM(oi.qty) as sold_count
+		return $this->db->query("SELECT i.id, i.item_name, i.item_image, i.sales_price, i.online_price, i.discount_type, i.discount, i.stock, i.description, i.product_type, i.is_new_arrival, i.is_featured, SUM(oi.qty) as sold_count
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
@@ -1199,7 +1209,7 @@ class Storefront_model extends CI_Model {
 		// Prefer manually flagged "New Arrival" products (is_new_arrival=1).
 		// Fall back to most recently added published products if none are flagged.
 		$buildQuery = function($storeId, $limit, $flaggedOnly) {
-			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, b.category_name');
+			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 			$this->db->where('a.store_id', $storeId);

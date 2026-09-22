@@ -49,6 +49,7 @@
       $duplicable = ['hero_banner','promo_banner','featured_products','featured_services','featured_categories','testimonials','brands','instagram_gallery'];
       foreach($homepage_sections as $s):
         $isDup = in_array($s->section_key, $duplicable) || preg_match('/^('.implode('|',$duplicable).')_\d+$/', $s->section_key);
+        $isCopy = (bool)preg_match('/_\d+$/', $s->section_key);
         $sCfg = !empty($s->config_json) ? json_decode($s->config_json, true) : [];
         if(!is_array($sCfg)) $sCfg = [];
         $sTitle = $sCfg['title'] ?? $s->section_label;
@@ -63,6 +64,9 @@
             <button type="button" class="os-section-edit-btn" onclick="toggleSectionEdit(this)" title="Edit heading"><i class="fa fa-pencil"></i></button>
             <?php if($isDup): ?>
             <button type="button" class="os-section-duplicate" onclick="duplicateSection(this)" title="Duplicate this section"><i class="fa fa-clone"></i> Copy</button>
+            <?php endif; ?>
+            <?php if($isCopy): ?>
+            <button type="button" class="os-section-duplicate" onclick="deleteSection(this)" title="Remove this copy" style="color:#DC2626;"><i class="fa fa-trash-o"></i></button>
             <?php endif; ?>
             <button type="button" class="os-toggle section-toggle <?= $s->is_enabled ? 'on' : ''; ?>" onclick="this.classList.toggle('on')" title="Toggle visibility"></button>
           </div>
@@ -179,6 +183,21 @@ function duplicateSection(btn){
     if(res.status==='success'){ toastr.success(res.message); location.reload(); }
     else { toastr.error(res.message || 'Failed to duplicate'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-clone"></i> Copy'; }
   }).catch(()=>{ toastr.error('Error duplicating section'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-clone"></i> Copy'; });
+}
+
+function deleteSection(btn){
+  const row = btn.closest('.section-row');
+  const key = row.dataset.key;
+  if(!confirm('Remove this section copy? This cannot be undone.')) return;
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+  fd.append('section_key', key);
+  fetch('<?= base_url('online_store/delete_homepage_section'); ?>', {method:'POST', body:fd})
+  .then(r=>r.json()).then(res=>{
+    if(res.status==='success'){ toastr.success(res.message); row.closest('.section-wrap').remove(); }
+    else { toastr.error(res.message || 'Failed to remove'); btn.disabled = false; }
+  }).catch(()=>{ toastr.error('Error removing section'); btn.disabled = false; });
 }
 </script>
 <script>$(".online_store-homepage_builder-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

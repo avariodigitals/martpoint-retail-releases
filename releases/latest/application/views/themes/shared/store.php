@@ -1,7 +1,8 @@
 <?php
 foreach($homepage_sections as $key => $section){
   if(!$section->is_enabled) continue;
-  switch($key){
+  $baseKey = preg_replace('/_\d+$/', '', $key);
+  switch($baseKey){
     case 'hero_banner': include(APPPATH.'views/themes/shared/sections/hero.php'); break;
     case 'trust_badges': include(APPPATH.'views/themes/shared/sections/trust_badges.php'); break;
     case 'promo_banner': include(APPPATH.'views/themes/shared/sections/promo.php'); break;

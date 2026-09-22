@@ -1,7 +1,7 @@
 <?php $promos = $promo_banners ?? []; ?>
 <?php if(!empty($promos)): ?>
 <div class="mp-section mp-promo-section">
-  <div class="mp-section-title">Special Offers</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'Special Offers')); ?></div>
   <div class="mp-promo-grid">
     <?php foreach($promos as $p): ?>
     <a href="<?= htmlspecialchars($p->button_url ?: base_url('store/' . ($settings->store_slug ?? '') . '/products')); ?>" class="mp-promo-card">

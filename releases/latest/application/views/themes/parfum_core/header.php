@@ -9,7 +9,7 @@ include APPPATH . 'views/themes/parfum_core/_skin.php';
 
 $slug     = $settings->store_slug ?? '';
 $logo     = $logo_url ?? null;
-$pfWaNum  = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
+$pfWaNum  = ($settings->allow_whatsapp ?? 1) ? preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '') : '';
 $tk       = $PF['theme_key'];
 $announce = trim($settings->announcement_bar ?? '');
 $centered = $PF['header_style'] === 'center';
@@ -130,7 +130,8 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
   .pfh-bar { min-height:72px; <?= $centered ? 'flex-direction:column; justify-content:center; gap:12px; padding:14px 0 0; position:relative;' : ''; ?> }
   <?php if($centered): ?>
   .pfh-bar .pfh-logo { order:2; }
-  .pfh-bar .pfh-actions { order:3; position:absolute; right:24px; top:16px; }
+  .pfh-bar .pfh-actions { order:3; position:absolute; left:24px; right:24px; top:16px; justify-content:flex-end; }
+  .pfh-bar .pfh-actions > .pfh-ic:first-child { margin-right:auto; }
   .pfh-logo-name { font-size:27px; }
   .pfh-logo img { max-height:48px; max-width:210px; }
   .pfh-nav { display:flex; align-items:center; justify-content:center; gap:32px; width:100%; padding:12px 0 14px; order:4; }
@@ -240,6 +241,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
 .pf-card:hover { transform:translateY(-4px); box-shadow:0 4px 12px rgba(0,0,0,.07), 0 20px 44px rgba(0,0,0,.10); }
 .pf-badge { position:absolute; top:10px; z-index:2; font-family: <?= $PF['font_kicker']; ?>; font-size:10px; font-weight:700; letter-spacing:.06em; padding:5px 10px; border-radius:999px; }
 .pf-badge-sale { left:10px; background: <?= $PF['accent']; ?>; color: <?= $PF['accent_ink']; ?>; }
+.pf-badge-new { left:10px; background: <?= $PF['ink']; ?>; color: <?= $PF['bg']; ?>; }
 .pf-badge-out { right:10px; background:#EF4444; color:#fff; }
 .pf-card-media { display:block; position:relative; aspect-ratio:4/5; overflow:hidden; background: <?= $PF['soft']; ?>; }
 .pf-card-media img { width:100%; height:100%; object-fit:cover; transition:transform .5s ease; }
@@ -475,7 +477,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
     </a>
     <nav class="pfh-nav">
       <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pfh-nav-link">Shop</a>
-      <?php if(!empty($categories)): foreach(array_slice($categories, 0, 3) as $cat): ?>
+      <?php if(($settings->show_categories ?? 1) && !empty($categories)): foreach(array_slice($categories, 0, 3) as $cat): ?>
       <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="pfh-nav-link"><?= htmlspecialchars($cat->category_name); ?></a>
       <?php endforeach; endif; ?>
       <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="pfh-nav-link">About</a>
@@ -484,9 +486,11 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
       <?php endif; ?>
     </nav>
     <div class="pfh-actions">
+      <?php if($settings->show_search ?? 1): ?>
       <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pfh-ic" aria-label="Search">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </a>
+      <?php endif; ?>
       <?php if($pfWaNum): ?>
       <a href="https://wa.me/<?= $pfWaNum; ?>" target="_blank" class="pfh-ic" aria-label="WhatsApp">
         <svg class="fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
@@ -512,7 +516,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
   <?php if($settings->allow_services ?? false): ?>
   <a href="<?= base_url('store/' . $slug . '/services'); ?>" class="pfh-drawer-link" onclick="pfMenu(false)">Services</a>
   <?php endif; ?>
-  <?php if(!empty($categories)): ?>
+  <?php if(($settings->show_categories ?? 1) && !empty($categories)): ?>
   <div class="pfh-drawer-sec-title">Fragrance Families</div>
   <?php foreach(array_slice($categories, 0, 8) as $cat): ?>
   <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="pfh-drawer-link" onclick="pfMenu(false)"><?= htmlspecialchars($cat->category_name); ?></a>

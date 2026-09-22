@@ -1,7 +1,7 @@
 <?php $brandList = $brands ?? []; ?>
 <?php if(!empty($brandList)): ?>
 <div class="mp-section">
-  <div class="mp-section-title">Our Brands</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'Our Brands')); ?></div>
   <div style="display:flex; flex-wrap:wrap; gap:24px; justify-content:center; align-items:center;">
     <?php foreach($brandList as $b): ?>
     <?php if($b->brand_url): ?>

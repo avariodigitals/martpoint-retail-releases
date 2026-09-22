@@ -1181,6 +1181,24 @@ class Online_store extends MY_Controller {
 		}
 	}
 
+	public function delete_homepage_section(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		$sectionKey = preg_replace('/[^a-z0-9_]/i', '', (string)$this->input->post('section_key'));
+		if(!$sectionKey){
+			echo json_encode(['status' => 'error', 'message' => 'No section key provided']);
+			return;
+		}
+		if($this->storefront_model->deleteHomepageSection($storeId, $sectionKey)){
+			echo json_encode(['status' => 'success', 'message' => 'Section removed']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Only duplicated sections can be removed']);
+		}
+	}
+
 	// ============== ANALYTICS ==============
 
 	public function analytics(){

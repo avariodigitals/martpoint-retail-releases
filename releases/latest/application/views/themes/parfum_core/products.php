@@ -6,7 +6,7 @@ include APPPATH . 'views/themes/parfum_core/_skin.php';
 
 $slug  = $settings->store_slug ?? '';
 $cur   = $store_currency ?? null;
-$waNum = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
+$waNum = ($settings->allow_whatsapp ?? 1) ? preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '') : '';
 ?>
 
 <div class="pf-wrap">
@@ -22,11 +22,13 @@ $waNum = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
     <div class="pf-count"><?= (int)($total ?? 0); ?> fragrances</div>
 
     <div class="pf-filters">
+      <?php if($settings->show_search ?? 1): ?>
       <div class="pf-search">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" placeholder="Search fragrances, notes, houses..." value="<?= htmlspecialchars($search ?? ''); ?>" onkeydown="if(event.key==='Enter'){const u=new URL(location.href);u.searchParams.set('search',this.value);u.searchParams.delete('page');location.href=u.href;}">
       </div>
-      <?php if(!empty($categories)): ?>
+      <?php endif; ?>
+      <?php if(($settings->show_categories ?? 1) && !empty($categories)): ?>
       <div class="pf-chips">
         <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pf-chip <?= empty($category_id) ? 'active' : ''; ?>">All</a>
         <?php foreach($categories as $cat): ?>

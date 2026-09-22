@@ -1,7 +1,7 @@
 <?php $tlist = $testimonials ?? []; ?>
 <?php if(!empty($tlist)): ?>
 <div class="mp-section">
-  <div class="mp-section-title">What Our Customers Say</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'What Our Customers Say')); ?></div>
   <div class="mp-grid" style="grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));">
     <?php foreach($tlist as $t): ?>
     <div style="background:var(--mp-white); border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); padding:24px; display:flex; flex-direction:column; gap:12px;">

@@ -1,7 +1,7 @@
 <?php $igList = $instagram_posts ?? []; ?>
 <?php if(!empty($igList)): ?>
 <div class="mp-section">
-  <div class="mp-section-title">Follow Us on Instagram</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'Follow Us on Instagram')); ?></div>
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
     <?php foreach($igList as $p): ?>
     <?php if($p->link_url): ?>

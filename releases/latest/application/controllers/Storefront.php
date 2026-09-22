@@ -1786,13 +1786,22 @@ class Storefront extends CI_Controller {
 		}
 
 		$settings = $this->storefront_model->getStoreBySlug($slug);
+		$viaStoreId = false;
 		if(!$settings){
 			$storeId = (int)$this->input->get('store_id');
 			if($storeId){
 				$settings = $this->storefront_model->getSettings($storeId);
+				$viaStoreId = !empty($settings);
 			}
 		}
-		if(!$settings){
+		// A slug was supplied but didn't resolve to that store —
+		// getStoreBySlug() falls back to generic/current-store defaults which
+		// would render the wrong shop (or fatal on an empty store_id).
+		if($slug !== '' && !$viaStoreId && (!$settings || strcasecmp((string)($settings->store_slug ?? ''), $slug) !== 0)){
+			show_404();
+			return;
+		}
+		if(!$settings && ($slug === '' || $slug === null)){
 			// Last resort: try first active storefront
 			$settings = $this->db->where('store_status', 'active')->order_by('id', 'asc')->get('db_storefront_settings')->row();
 		}

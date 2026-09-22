@@ -1,7 +1,7 @@
 <?php $cats = $categories ?? []; ?>
 <?php if(!empty($cats)): ?>
 <div class="mp-section">
-  <div class="mp-section-title">Shop by Category</div>
+  <div class="mp-section-title"><?= htmlspecialchars(sf_sec_title($section, 'Shop by Category')); ?></div>
   <div class="mp-cat-circles">
     <?php foreach(array_slice($cats, 0, 10) as $cat):
       $initial = strtoupper(substr($cat->category_name, 0, 1));

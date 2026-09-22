@@ -9,7 +9,7 @@ include APPPATH . 'views/themes/parfum_core/_skin.php';
 
 $slug  = $settings->store_slug ?? '';
 $cur   = $store_currency ?? null;
-$waNum = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
+$waNum = ($settings->allow_whatsapp ?? 1) ? preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '') : '';
 
 $orderedSections = [];
 if(!empty($homepage_sections)){
@@ -43,6 +43,12 @@ $pf_fresh = function($items) use (&$pf_seen){
     $out = [];
     foreach($items as $p){ if(isset($pf_seen[$p->id])) continue; $pf_seen[$p->id] = 1; $out[] = $p; }
     return $out;
+};
+/* Curated rails (admin-flagged items) render in full — mark ids seen so
+   computed rails (best sellers, related) don't repeat them. */
+$pf_mark = function($items) use (&$pf_seen){
+    foreach($items as $p){ $pf_seen[$p->id] = 1; }
+    return $items;
 };
 
 $pf_rail_i = 0;
@@ -208,7 +214,7 @@ foreach($orderedSections as $sectionKey => $section):
         break;
 
     case 'featured_products':
-        $rail = !empty($featured_products) ? $pf_fresh(array_slice($featured_products, 0, 8)) : [];
+        $rail = !empty($featured_products) ? $pf_mark(array_slice($featured_products, 0, 8)) : [];
         if(!empty($rail)):
 ?>
 <div class="pf-sec">
@@ -286,7 +292,7 @@ foreach($orderedSections as $sectionKey => $section):
 
     case 'best_sellers':
         $rail = !empty($best_sellers) ? $pf_fresh(array_slice($best_sellers, 0, 8)) : [];
-        if(count($rail) >= 2):
+        if(!empty($rail)):
 ?>
 <div class="pf-sec">
   <div class="pf-wrap">
@@ -307,8 +313,8 @@ foreach($orderedSections as $sectionKey => $section):
         break;
 
     case 'new_arrivals':
-        $rail = !empty($new_arrivals) ? $pf_fresh(array_slice($new_arrivals, 0, 8)) : [];
-        if(count($rail) >= 2):
+        $rail = !empty($new_arrivals) ? $pf_mark(array_slice($new_arrivals, 0, 8)) : [];
+        if(!empty($rail)):
 ?>
 <div class="pf-sec pf-band">
   <div class="pf-wrap">
@@ -511,7 +517,7 @@ foreach($orderedSections as $sectionKey => $section):
         break;
 
     case 'whatsapp_cta':
-        if($waNum):
+        if($waNum && ($settings->show_whatsapp_cta ?? 1)):
         $ctaTitle = pf_sec_title($section, 'Talk to Us');
         $ctaSub   = pf_sec_sub($section);
 ?>
@@ -537,8 +543,8 @@ foreach($orderedSections as $sectionKey => $section):
   <div class="pf-wrap">
     <div class="pf-news">
       <div class="pf-kicker" style="color:<?= $PF['accent']; ?>;margin-bottom:10px;">Newsletter</div>
-      <div class="pf-news-title"><?= htmlspecialchars(pf_sec_title($section, 'Stay in the Loop')); ?></div>
-      <?php if($s = pf_sec_sub($section)): ?><p class="pf-news-text"><?= htmlspecialchars($s); ?></p><?php endif; ?>
+      <div class="pf-news-title"><?= htmlspecialchars(pf_sec_title($section, $settings->newsletter_title ?: 'Stay in the Loop')); ?></div>
+      <?php if($s = pf_sec_sub($section, $settings->newsletter_subtitle ?? '')): ?><p class="pf-news-text"><?= htmlspecialchars($s); ?></p><?php endif; ?>
       <form class="pf-news-form" onsubmit="return mpNewsletterSubmit(event)">
         <input type="email" name="email" placeholder="Your email address" required>
         <button type="submit">Subscribe</button>
