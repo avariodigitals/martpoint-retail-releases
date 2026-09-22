@@ -546,8 +546,17 @@ class Updater {
         }
 
         $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
-        $offset = $state['batch'] ?? 0;
+
+        // Files that mismatched on earlier passes wait here for the channel's
+        // CDN cache to expire (raw.githubusercontent.com caches each URL for
+        // ~5 minutes and ignores query strings, so an instant retry serves the
+        // same stale bytes — the failure must be deferred, not fatal).
+        $pendingMap = $state['hash_pending'] ?? [];
+        $queue = !empty($pendingMap) ? array_keys($pendingMap) : $allFiles;
         $total = count($allFiles);
+        $queueTotal = count($queue);
+
+        $offset = !empty($pendingMap) ? 0 : ($state['batch'] ?? 0);
 
         // For step 4, we start from the beginning (we just finished step 3 at $total)
         if ($offset === $total && $state['step'] === 3) {
@@ -555,7 +564,7 @@ class Updater {
             $state['batch'] = 0;
         }
 
-        if ($offset >= $total) {
+        if ($offset >= $queueTotal && empty($pendingMap)) {
             return [
                 'status' => 'ok',
                 'message' => 'All hashes verified.',
@@ -567,7 +576,7 @@ class Updater {
             ];
         }
 
-        $batch = array_slice($allFiles, $offset, $this->batchSize);
+        $batch = array_slice($queue, $offset, $this->batchSize);
         foreach ($batch as $relPath) {
             $this->resetTimer();
             $tempPath = $this->tempDir . '/' . $relPath;
@@ -577,15 +586,21 @@ class Updater {
                 && (!$expected || hash_file('sha256', $tempPath) === $expected);
 
             // Self-heal: a stale or truncated temp file from an earlier failed
-            // run must not doom every retry — re-fetch once before failing.
-            if (!$ok && $this->redownloadFile($relPath, $tempPath)) {
-                $ok = file_exists($tempPath)
-                    && (!$expected || hash_file('sha256', $tempPath) === $expected);
+            // run must not doom every retry — re-fetch before deciding. A few
+            // short-spaced attempts inside this request cover fast-expiring
+            // caches; longer staleness defers to the next poll via hash_pending.
+            for ($attempt = 0; !$ok && $attempt < 3; $attempt++) {
+                if ($attempt > 0) sleep(2);
+                if ($this->redownloadFile($relPath, $tempPath)) {
+                    $ok = file_exists($tempPath)
+                        && (!$expected || hash_file('sha256', $tempPath) === $expected);
+                }
             }
 
             if (!$ok) {
                 if ($this->isNonCritical($relPath)) {
                     @unlink($tempPath);
+                    unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath]);
                     $state['files_skipped'][] = $relPath;
                     $this->writeState($state);
                     continue;
@@ -593,24 +608,42 @@ class Updater {
                 if (!file_exists($tempPath)) {
                     throw new Exception("Missing downloaded file: {$relPath}");
                 }
-                throw new Exception("Hash mismatch for: {$relPath}");
+                $retries = ($state['hash_retry'][$relPath] ?? 0) + 1;
+                $state['hash_retry'][$relPath] = $retries;
+                if ($retries > 60) {
+                    unset($state['hash_pending'][$relPath]);
+                    throw new Exception("Hash mismatch for: {$relPath} — the update channel is still serving a cached copy. Wait a few minutes and press Resume; the update continues from this checkpoint.");
+                }
+                $state['hash_pending'][$relPath] = true;
+                continue;
             }
+            unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath]);
         }
 
-        $batchEnd = min($offset + count($batch), $total);
-        $state['batch'] = $batchEnd;
+        $stillPending = !empty($state['hash_pending']);
+        // Advance the main-pass offset only while draining the full list —
+        // pending-mode passes must not move it or the unverified tail of
+        // $allFiles would be skipped once the pending files finally match.
+        $batchEnd = $total;
+        if (empty($pendingMap)) {
+            $batchEnd = min($offset + count($batch), $total);
+            $state['batch'] = $batchEnd;
+        }
         $this->writeState($state);
 
-        $message = "Verified {$batchEnd} / {$total} files";
+        $verifiedCount = $total - count($state['hash_pending'] ?? []);
+        $message = $stillPending
+            ? "Verified {$verifiedCount} / {$total} files — waiting for the update channel cache to refresh (this clears itself; keep this page open)"
+            : "Verified {$batchEnd} / {$total} files";
         $this->logJob(4, 'Verify File Integrity', $message);
 
         return [
             'status' => 'ok',
             'message' => $message,
             'step_label' => 'Verify File Integrity',
-            'done' => ($batchEnd >= $total),
+            'done' => false,
             'step' => 4,
-            'progress' => $batchEnd,
+            'progress' => $verifiedCount,
             'total' => $total,
         ];
     }
