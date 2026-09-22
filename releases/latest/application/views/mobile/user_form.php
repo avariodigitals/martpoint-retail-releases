@@ -248,13 +248,17 @@
             showToast('Saved successfully', 'success');
             setTimeout(function(){ window.location.href = '<?= base_url('mobile/users'); ?>'; }, 800);
           } else {
-            showToast(res, '');
+            // Server returned an error page or unexpected text — keep it human
+            var msg = (res && res.indexOf('<') === -1 && res.trim().length < 300)
+              ? res.trim()
+              : 'The user could not be saved. Please check the details and try again.';
+            showToast(msg, '');
             btn.disabled = false;
             btn.innerHTML = '<i class="fa fa-save"></i> Save';
           }
         })
         .catch(function(err){
-          showToast('Network error: ' + err, '');
+          showToast('Could not reach the server. Check your connection and try again.', '');
           btn.disabled = false;
           btn.innerHTML = '<i class="fa fa-save"></i> Save';
         });

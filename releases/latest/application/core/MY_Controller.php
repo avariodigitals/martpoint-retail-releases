@@ -128,18 +128,53 @@ class MY_Controller extends CI_Controller{
             $store_rec = get_store_details();
             //STORE ACTIVE OR NOT
             if(!$store_rec->status){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(403);
+                echo json_encode(array('status'=>'error','message'=>'This store is temporarily inactive. Please contact your administrator.'));
+                exit;
+              }
               $this->session->set_flashdata('failed', 'Your Store Temporarily Inactive!');
               redirect('logout');exit;
             }
             //USER ACTIVE OR NOT
             if(!get_user_details()->status){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(403);
+                echo json_encode(array('status'=>'error','message'=>'Your account is temporarily inactive. Please contact your administrator.'));
+                exit;
+              }
               $this->session->set_flashdata('failed', 'Your account is temporarily inactive!');
               redirect('logout');exit;
             }
       }
+      /**
+       * True when the current request expects a JSON response (fetch/AJAX API
+       * call) rather than a rendered page. Used to answer session expiry and
+       * subscription blocks with JSON instead of a login-page redirect, which
+       * browsers surface to users as a confusing "JSON parse" error.
+       */
+      protected function wants_json_response(){
+            $ctype  = $_SERVER['CONTENT_TYPE'] ?? '';
+            $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+            return $this->input->is_ajax_request()
+              || $this->input->post('is_ajax')
+              || strpos($ctype, 'application/json') !== false
+              || strpos($accept, 'application/json') !== false;
+      }
+
       public function load_global($validate_subs='VALIDATE'){
             //Check login or redirect to logout
-            if($this->session->userdata('logged_in')!=1){ redirect(base_url().'logout','refresh');    }
+            if($this->session->userdata('logged_in')!=1){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(401);
+                echo json_encode(array('status'=>'error','code'=>'session_expired','message'=>'Your session has expired. Please log in again.'));
+                exit;
+              }
+              redirect(base_url().'logout','refresh');
+            }
 
             $this->verify_store_and_user_status();
 
@@ -191,11 +226,23 @@ class MY_Controller extends CI_Controller{
               $this->load->model('subscription_license_model','sub_lic');
               $sub = $this->sub_lic->get_status();
               if($sub['status'] === 'SUSPENDED'){
+                if($this->wants_json_response()){
+                  header('Content-Type: application/json');
+                  set_status_header(403);
+                  echo json_encode(array('status'=>'error','message'=>'Your subscription is suspended. Please contact your administrator.'));
+                  exit;
+                }
                 $this->session->set_flashdata('failed', 'Subscription is SUSPENDED. Contact admin for support.');
                 redirect('dashboard','refresh');
                 exit;
               }
               if($sub['status'] === 'EXPIRED'){
+                if($this->wants_json_response()){
+                  header('Content-Type: application/json');
+                  set_status_header(403);
+                  echo json_encode(array('status'=>'error','message'=>'Your subscription has expired. Please renew to continue.'));
+                  exit;
+                }
                 $this->session->set_flashdata('failed', 'Subscription has EXPIRED. Please renew to continue.');
                 redirect('dashboard','refresh');
                 exit;
@@ -296,8 +343,8 @@ class MY_Controller extends CI_Controller{
         }
         public function show_access_denied_page($message = '')
         {
-          // AJAX requests get JSON, not a redirect
-          if($this->input->is_ajax_request() || $this->input->post('is_ajax')){
+          // AJAX/JSON requests get JSON, not a redirect or HTML page
+          if($this->wants_json_response()){
             header('Content-Type: application/json');
             echo json_encode(array('status'=>'error','message'=> $message ?: 'You don\'t have permission to access this feature.'));
             exit;

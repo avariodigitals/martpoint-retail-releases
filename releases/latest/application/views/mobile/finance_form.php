@@ -411,7 +411,7 @@
           showAlert('Saved successfully', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/finance/' + type; }, 600);
         } else {
-          showAlert(txt.replace(/<[^>]*>/g, '') || 'Save failed', 'danger');
+          showAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Save failed', 'danger');
         }
       } catch(err){
         showAlert('Network error. Please try again.', 'danger');

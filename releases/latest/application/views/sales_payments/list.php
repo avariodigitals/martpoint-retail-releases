@@ -57,19 +57,10 @@ $cheque_amount = $CI->db->where('store_id', $store_id)->where('payment_type', ch
 
 <div class="mp-filter-bar">
   <div class="mp-filter-item">
-    <label for="payment_type_search"><?= $this->lang->line('payment_type'); ?></label>
+    <label for="payment_type_search">Payment Mode</label>
     <select class="form-control select2" id="payment_type_search" name="payment_type_search" style="width:100%;">
-      <?php
-      $q1=$this->db->query("select * from db_paymenttypes where status=1 and store_id=".get_current_store_id());
-      if($q1->num_rows()>0){
-        echo "<option value=''>-Select-</option>";
-        foreach($q1->result() as $res1){
-          echo "<option value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
-        }
-      } else {
-        echo "<option>None</option>";
-      }
-      ?>
+      <option value=''>-All-</option>
+      <?= get_payment_modes_select_list(get_current_store_id()); ?>
     </select>
     <span id="payment_type_search_msg" style="display:none" class="text-danger"></span>
   </div>

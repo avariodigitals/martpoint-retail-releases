@@ -448,12 +448,24 @@ class Sales_return_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'status' 			=> 1,
-    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
-    				'customer_id' 		=> $customer_id,
 				);
+			// Columns added after the original schema — guard so older
+			// databases save the return without a fatal DB error.
+			if($this->db->field_exists('account_id', 'db_salespaymentsreturn')){
+				$salespayments_entry['account_id'] = (empty($account_id)) ? null : $account_id;
+			}
+			if($this->db->field_exists('customer_id', 'db_salespaymentsreturn')){
+				$salespayments_entry['customer_id'] = $customer_id;
+			}
 			if($this->db->field_exists('sold_serial_number', 'db_salespaymentsreturn')){
 				$salespayments_entry['sold_serial_number'] = $sold_serial_number;
 				$salespayments_entry['sold_imei_number'] = $sold_imei_number;
+			}
+			// payment_type carries the payment-mode CODE (same as sales) —
+			// resolve it to payment_mode_id so reports group by mode.
+			if($this->db->field_exists('payment_mode_id', 'db_salespaymentsreturn') && $this->db->table_exists('db_payment_modes')){
+				$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
+				$salespayments_entry['payment_mode_id'] = $pm_row ? $pm_row->id : null;
 			}
 			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 			$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
@@ -1201,19 +1213,9 @@ class Sales_return_model extends CI_Model {
 		               </div>
 		                <div class="col-md-6">
 		                  <div class="">
-		                    <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
+		                    <label for="payment_type">Payment Mode</label>
 		                    <select class="form-control" id='payment_type' name="payment_type">
-		                      <?php
-		                        $q1=$this->db->query("select * from db_paymenttypes where status=1 and store_id=".get_current_store_id());
-		                         if($q1->num_rows()>0){
-		                             foreach($q1->result() as $res1){
-		                             echo "<option value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
-		                           }
-		                         }
-		                         else{
-		                            echo "No Records Found";
-		                         }
-		                        ?>
+		                      <?= get_payment_modes_select_list(get_current_store_id(), get_default_payment_mode_code()); ?>
 		                    </select>
 		                    <span id="payment_type_msg" style="display:none" class="text-danger"></span>
 		                  </div>
@@ -1289,15 +1291,24 @@ class Sales_return_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'status' 			=> 1,
-    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
-    				'customer_id' 		=> $customer_id,
 				);
+			if($this->db->field_exists('account_id', 'db_salespaymentsreturn')){
+				$salespayments_entry['account_id'] = (empty($account_id)) ? null : $account_id;
+			}
+			if($this->db->field_exists('customer_id', 'db_salespaymentsreturn')){
+				$salespayments_entry['customer_id'] = $customer_id;
+			}
 			if($this->db->field_exists('sold_serial_number', 'db_salespaymentsreturn')){
 				$salespayments_entry['sold_serial_number'] = $sold_serial_number ?? '';
 				$salespayments_entry['sold_imei_number'] = $sold_imei_number ?? '';
 			}
 
-			$salespayments_entry['store_id']=$this->db->select("store_id")->where('id',$return_id)->get('db_salesreturn')->row()->store_id;
+			$payment_store_id = $this->db->select("store_id")->where('id',$return_id)->get('db_salesreturn')->row()->store_id;
+			if($this->db->field_exists('payment_mode_id', 'db_salespaymentsreturn') && $this->db->table_exists('db_payment_modes')){
+				$pm_row = $this->db->select('id')->where('store_id', $payment_store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
+				$salespayments_entry['payment_mode_id'] = $pm_row ? $pm_row->id : null;
+			}
+			$salespayments_entry['store_id']=$payment_store_id;
 			$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
 			
 			//Set the payment to specified account

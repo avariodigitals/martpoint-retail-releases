@@ -203,4 +203,4 @@ $sales_due_total = $sal_total - $paid_amount;
   }
 </script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/sales-return.js"></script>
-<script>$(".sales-return-list-active-li").addClass("active");</script>
+<script>$(".sales-return-list-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

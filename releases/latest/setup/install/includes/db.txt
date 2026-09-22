@@ -1895,6 +1895,7 @@ CREATE TABLE `db_salespaymentsreturn` (
   `status` int(1) DEFAULT NULL,
   `account_id` int(5) DEFAULT NULL,
   `customer_id` int(5) DEFAULT NULL,
+  `payment_mode_id` int(5) DEFAULT NULL,
   `short_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1996,7 +1997,7 @@ CREATE TABLE `db_sitesettings` (
 --
 
 INSERT INTO `db_sitesettings` (`id`, `version`, `site_name`, `logo`, `machine_id`, `domain`, `unique_code`, `update_channel_url`, `sales_target`) VALUES
-(1, '4.0.9.37', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
+(1, '4.0.9.38', 'MartPoint Retail', '/uploads/site/logo.png', '1', 'pointofsale.ozonepos.com', '4kcd2s8v9axrpm6gy1foh7tlqij5nw', 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest/', 50000);
 
 -- --------------------------------------------------------
 

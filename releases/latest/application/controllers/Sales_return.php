@@ -43,7 +43,9 @@ class Sales_return extends MY_Controller {
 		$data['page_title']=$this->lang->line('sales_return');
 		$data['oper']='create_new_return';
 		$data['subtitle']=$this->lang->line('create_new_return');;
-		$this->load->view('sales-return', $data);
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/sales-return.js?v=2','js/ajaxselect/customer_select_ajax.js'];
+		$data['content'] = $this->load->view('mp_sales_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
   public function add($id){
@@ -75,7 +77,9 @@ class Sales_return extends MY_Controller {
 	    $data['page_title']=$this->lang->line('sales_return');
 	    $data['oper']='return_against_sales';
 	    $data['subtitle']=$this->lang->line('return_against_sales');;
-	    $this->load->view('sales-return', $data);
+	    $data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/sales-return.js?v=2','js/ajaxselect/customer_select_ajax.js'];
+	    $data['content'] = $this->load->view('mp_sales_return', $data, TRUE);
+	    $this->load->view('mp_layout', $data);
 	  }
 
 	public function sales_save_and_update(){
@@ -105,7 +109,9 @@ class Sales_return extends MY_Controller {
 		$data['oper']='edit_existing_return';
 		$data['subtitle']=$this->lang->line('edit_return_sales_entry');;
 		$data['page_title']=$this->lang->line('sales_return');
-		$this->load->view('sales-return', $data);
+		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/sales-return.js?v=2','js/ajaxselect/customer_select_ajax.js'];
+		$data['content'] = $this->load->view('mp_sales_return', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	
 
@@ -266,7 +272,8 @@ class Sales_return extends MY_Controller {
 		$data=$this->data;
 		$data=array_merge($data,array('return_id'=>$id));
 		$data['page_title']=$this->lang->line('sales_return_invoice');
-		$this->load->view('sal-return-invoice',$data);
+		$data['content'] = $this->load->view('mp_sal_return_invoice',$data, TRUE);
+		$this->load->view('mp_layout',$data);
 	}
 	
 	//Print sales invoice 

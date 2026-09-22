@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.37",
-    "previous_version": "4.0.9.36",
+    "version": "4.0.9.38",
+    "previous_version": "4.0.9.37",
     "release_date": "2026-09-22",
     "files": [
         {
@@ -165,8 +165,8 @@
         },
         {
             "path": "application/core/MY_Controller.php",
-            "hash": "5060407b26ec37b5f0b641506b6c6d2af1c45f1f32a22b8084e50a94bf6211a3",
-            "size": 17568
+            "hash": "de41c2ca325e214934e5fb3c5197d6fceb34789fb556cd2e5294983ed1e69032",
+            "size": 19984
         },
         {
             "path": "application/cache/index.html",
@@ -6605,8 +6605,8 @@
         },
         {
             "path": "application/models/Sales_return_model.php",
-            "hash": "9b141351489833daca6244ee9cbb4b7c78133e5c7e8e008bff9f87d36a57f3b3",
-            "size": 61353
+            "hash": "ab4e276224c915eb0acbd9a159f45ee393173f1849463fb99b0f372aa44f6903",
+            "size": 62193
         },
         {
             "path": "application/models/Money_deposit_model.php",
@@ -6695,8 +6695,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "93375864ad4f9b42d898539a23833b09674f021f433197bda98b771473f1e669",
-            "size": 4254
+            "hash": "f80e5f1390fccb890dc659620fe15db0feb8e1263008aa790f254617d385b501",
+            "size": 4311
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -7445,8 +7445,8 @@
         },
         {
             "path": "application/controllers/Sales_return.php",
-            "hash": "b8801bea39aa0aa9f150444e806da7483c36b73119e4ad5d5050df91e1ddb22c",
-            "size": 11775
+            "hash": "3cb22dbf66b786aeb20c8710ba2c2a146f388146bd90abb1722946b9fcf0c1f9",
+            "size": 12467
         },
         {
             "path": "application/controllers/Loyalty.php",
@@ -7535,8 +7535,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "a0453ce18b5e24162cdd4ecab3e28704a57e5aaf0b52b8ccad1b75d3f5cca757",
-            "size": 256689
+            "hash": "54dcc67d5e4db72a5d3df1230d176c17750276eb2874f86e2352833a5e5d69cb",
+            "size": 257604
         },
         {
             "path": "application/controllers/Store_credit.php",
@@ -7890,8 +7890,8 @@
         },
         {
             "path": "application/views/sal-return-invoice.php",
-            "hash": "98ed6a80eadb530d8426e3fd4479044fbdfdf192ca763bf112ad6ec3b6efef04",
-            "size": 23673
+            "hash": "4d91f235952d20eb3d4e61f6b251c722cbb8efc468b972f4da9713e07d2a26bf",
+            "size": 23693
         },
         {
             "path": "application/views/manual-subscription.php",
@@ -8330,8 +8330,8 @@
         },
         {
             "path": "application/views/sales_payments/list.php",
-            "hash": "49ddd72df9102fdd49af47f57361baf0edd74725ce02cc493c2ea90c4a461877",
-            "size": 7736
+            "hash": "9e016fd9c241cf391dbfbe97a4dc44671a72cc1747cec18961c85df584393a10",
+            "size": 7395
         },
         {
             "path": "application/views/print-purchase-invoice-2.php",
@@ -8975,8 +8975,8 @@
         },
         {
             "path": "application/views/sales-return-list.php",
-            "hash": "4cb2a63476f65869ec1d53b36b9f68ca7f2d41a46ea02dd9c350b78e71a067cb",
-            "size": 9073
+            "hash": "f9a53b12f5da0515e3908aa859ab37eb5a3508789b4b7523ce530e76e2660b07",
+            "size": 9115
         },
         {
             "path": "application/views/tills/list.php",
@@ -9140,8 +9140,8 @@
         },
         {
             "path": "application/views/mobile/sale.php",
-            "hash": "2cff5041e28e6c9cea1dcdca6ac0a360be5dc0f1da9d6c83bafa6e1fb893318d",
-            "size": 71611
+            "hash": "1d50b266b58d18e5d031dea9ad1d37087564ac59c1d22be5e3a59880e2ebe4b7",
+            "size": 72165
         },
         {
             "path": "application/views/mobile/login.php",
@@ -9165,8 +9165,8 @@
         },
         {
             "path": "application/views/mobile/sales_return_form.php",
-            "hash": "b392b8aef4eaaaa4e14502c37101a7385a1dc279f1fe3fd9d713587bdaa52685",
-            "size": 30169
+            "hash": "7a5947736fcf0aa7912ea1ddf0f9ed79f0a21e918276ec1f2a25f5d1bf3cf061",
+            "size": 30496
         },
         {
             "path": "application/views/mobile/discount_coupon/view.php",
@@ -9180,8 +9180,8 @@
         },
         {
             "path": "application/views/mobile/mp_alert.php",
-            "hash": "5be05d959696de6f73d5fe7ef700f21694c16b8912edde51dbc6f690334f96a4",
-            "size": 10573
+            "hash": "1e2b7e79c565f77a4b3f460213b2631af868878267e64a370509b9d8a6ea4c7c",
+            "size": 12010
         },
         {
             "path": "application/views/mobile/attributes.php",
@@ -9205,13 +9205,13 @@
         },
         {
             "path": "application/views/mobile/finance_form.php",
-            "hash": "d86fbcfae7c80d5651250373e275aedb47001d0dcd842c014bcd3318ea198374",
-            "size": 21592
+            "hash": "06e98400f3a7ca7867a8ac2ea2788725f57aab071a29c9c6e92ea9bc1c9b5435",
+            "size": 21608
         },
         {
             "path": "application/views/mobile/sales_invoice.php",
-            "hash": "dba1ee205c20ce50e932fc68e531f0bb663babb447017da11489005d39fa0923",
-            "size": 19769
+            "hash": "cfffa0b74d72d7f1acf116327f69715f4745c4c811febfae519a87468656a6ee",
+            "size": 19789
         },
         {
             "path": "application/views/mobile/purchase.php",
@@ -9270,13 +9270,13 @@
         },
         {
             "path": "application/views/mobile/sales_return_invoice.php",
-            "hash": "bb1114f73387567cc3ea6e8568a5d343819f572dca03e874ccd6cba2442bf149",
-            "size": 17266
+            "hash": "907a063cb07d88418eec3a153908c6fbea7e4880a04c243e7772c5e52be7d04c",
+            "size": 17286
         },
         {
             "path": "application/views/mobile/user_form.php",
-            "hash": "7fe6b996022c119316e8c92e708c43aeb698c8d2c189e1f4f4fceb7fe4a07dcb",
-            "size": 14144
+            "hash": "63f00cce715db6686248793422fcbbe5c28abb6258fdb84d69d663d015c73c97",
+            "size": 14466
         },
         {
             "path": "application/views/mobile/report_viewer.php",
@@ -9345,8 +9345,8 @@
         },
         {
             "path": "application/views/mobile/quotation_form.php",
-            "hash": "4cc6b9c8ecb218c424e2e3d2ef15eef468d52155f664fb8e8ff42b9b6dd65fd9",
-            "size": 20881
+            "hash": "51e8fe78da6a586a9c4331d748f1fd1a58cc1b30450816d753b03aaa8197860f",
+            "size": 20890
         },
         {
             "path": "application/views/mobile/sales_returns.php",
@@ -9545,8 +9545,8 @@
         },
         {
             "path": "application/views/mobile/purchase_payment.php",
-            "hash": "8864e2d7225e1c0d4df2c967fd941ef1b194337781bde09563f2a73c372f1a06",
-            "size": 11929
+            "hash": "8228c86c4dab7ec66d0196a194412d2d76cc7f8218221de0fb468693a7b6d14d",
+            "size": 11938
         },
         {
             "path": "application/views/mobile/kitchen.php",
@@ -9555,8 +9555,8 @@
         },
         {
             "path": "application/views/mobile/supplier_payment.php",
-            "hash": "f3cfbad2447102d052f7b839a390a23d2967c7c6d735cb13255d4c344ccbb274",
-            "size": 12504
+            "hash": "6d3e3f5b3f7b2304a21e094b4d9a6ba4821c14acf51f064e3f11cda957b1aa20",
+            "size": 12513
         },
         {
             "path": "application/views/mobile/automobile_sell.php",
@@ -9650,8 +9650,8 @@
         },
         {
             "path": "application/views/mobile/purchase_form.php",
-            "hash": "f5590c3424de6845f23a98cb1bd54980571670b9115aa66079eb7cf277339731",
-            "size": 29655
+            "hash": "cf715ff340cbca3f6d4e448cf8746f31cb791030eadc9cce1df67e76366c6bc3",
+            "size": 29664
         },
         {
             "path": "application/views/mobile/automobile_form.php",
@@ -10230,8 +10230,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "d9566b50efc0ad40120f767a1fcf13162807699f9a06d9f554c13754fc97e160",
-            "size": 68936
+            "hash": "3cd8310fecd6a000e545a8af06475aa1d08c3bf1c8a505be0ccbf66f9a8b9065",
+            "size": 68988
         },
         {
             "path": "application/views/smtp.php",
@@ -11655,8 +11655,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "be804b63391b398bfc11795b6d80d4eae1337bda83400dfc5e0f89c096bca5dc",
-            "size": 95960
+            "hash": "bcd7decbf8bedbc2469542bec2230666a9c24354921473a7c9701a861b4b8c12",
+            "size": 97130
         },
         {
             "path": "application/helpers/advance_helper.php",
@@ -25900,8 +25900,8 @@
         },
         {
             "path": "theme/js/sales-return.js",
-            "hash": "5609847319a25df5958605e981b80fe0001825062fd30de138746c8272d9106b",
-            "size": 19974
+            "hash": "753bf204a4cff176a3756f35934957746fcce98e23f787f6defbda274611eb60",
+            "size": 20062
         },
         {
             "path": "theme/js/roles.js",
@@ -25945,8 +25945,8 @@
         },
         {
             "path": "theme/js/modals/modal_item.js",
-            "hash": "7a5f2e2ff0c65ad3fa4316ea20c1262c3be9b11593c84058ec43161c4e4990a7",
-            "size": 7791
+            "hash": "6b1e590d5d7da8fcb779bf5a584a31ce17386581005c9433d7f2a8d0f316049d",
+            "size": 7543
         },
         {
             "path": "theme/js/units.js",
@@ -26992,6 +26992,26 @@
             "path": "application/views/themes/shared/branches.php",
             "hash": "dbdb7ce23f0a504352d7189fe17bc392b4e5b6a6bc8be73979c4077b2c6885e4",
             "size": 4078
+        },
+        {
+            "path": "application/views/mp_sal_return_invoice.php",
+            "hash": "74bd51bac02a41d5005a297733a724b0e84c169d5b0ee03534aec9865d5b71e0",
+            "size": 22449
+        },
+        {
+            "path": "application/views/mp_sales_return.php",
+            "hash": "7f54aaf8dd4bf74fdcd14b67b75a8a535d9ac96d1345d8299bf61aaaf839ef45",
+            "size": 38623
+        },
+        {
+            "path": "updates/migrations/4.0.9.38_payment_account_columns.sql",
+            "hash": "4411ff46e70026b68d3f2947e9f5eb66a71b96ac5bbd35a0c2b075a4885ee226",
+            "size": 12357
+        },
+        {
+            "path": "docs/product-design/MartPoint-Brochure VR.pdf",
+            "hash": "b7417d8c258654ec20c9e6b52afde0d532e68cfef85be9f8a2bf3626679e00b3",
+            "size": 644665
         }
     ],
     "migrations": [

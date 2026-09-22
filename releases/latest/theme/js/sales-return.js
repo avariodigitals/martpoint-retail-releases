@@ -9,6 +9,7 @@ function shift_cursor(kevent,target){
 }
 
 
+$(document).ready(function(){
 $('#save,#update,#create').on("click",function (e) {
 	var base_url=$("#base_url").val();
 
@@ -120,7 +121,7 @@ $('#save,#update,#create').on("click",function (e) {
 			   }
 			   });
 		//}
-  
+
 });
 
 $("#item_search").bind("paste", function(e){
@@ -226,6 +227,8 @@ $("#item_search").autocomplete({
         },   
         //loader end
 });
+
+});//document ready
 
 function check_same_item(item_id){
 
@@ -622,6 +625,7 @@ function get_coupon_details(){
 }
 
 
+$(document).ready(function(){
 $("#coupon_code, #customer_id").on("change",function() {
   get_coupon_details();
 });
@@ -631,4 +635,5 @@ $('#coupon_code').keypress(function (e) {
  if(key == 13){
     get_coupon_details();  
   }
+});
 });  

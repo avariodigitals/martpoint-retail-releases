@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.37';
+    return '4.0.9.38';
   }
   function required_php_version(){
     return 7.4;
@@ -703,6 +703,12 @@
     if(empty($store_id)){ $store_id = get_current_store_id(); }
     $CI->load->model('payment_modes_model');
     $modes = $CI->payment_modes_model->get_enabled_modes($store_id);
+    // A store created before payment modes existed may have none seeded —
+    // seed the defaults so the dropdown is never empty.
+    if(empty($modes) && $CI->db->table_exists('db_payment_modes')){
+      $CI->payment_modes_model->seed_defaults($store_id);
+      $modes = $CI->payment_modes_model->get_enabled_modes($store_id);
+    }
     $html = '';
     foreach($modes as $mode){
       $selected = ($selected_code == $mode->code) ? 'selected' : '';
@@ -724,6 +730,25 @@
     if(empty($store_id)){ $store_id = get_current_store_id(); }
     $CI->load->model('payment_modes_model');
     return $CI->payment_modes_model->get_mode_by_code($code, $store_id);
+  }
+
+  /**
+   * Display label for a stored payment_type value. Returns the Payment Mode
+   * name when the value matches a configured mode code (case-insensitive),
+   * otherwise returns the stored text unchanged so legacy values like
+   * 'CASH' or 'Bank Transfer' still read sensibly.
+   */
+  function payment_mode_label($stored, $store_id = null){
+    $stored = trim((string)$stored);
+    if($stored === ''){ return '—'; }
+    $CI =& get_instance();
+    if(empty($store_id)){ $store_id = get_current_store_id(); }
+    if(!$CI->db->table_exists('db_payment_modes')){ return $stored; }
+    $mode = $CI->db->select('name')
+                   ->where('store_id', $store_id)
+                   ->where('LOWER(code)', strtolower($stored))
+                   ->get('db_payment_modes')->row();
+    return $mode ? $mode->name : $stored;
   }
 
   function get_warehouse_name($id){
