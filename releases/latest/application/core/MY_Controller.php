@@ -330,12 +330,20 @@ class MY_Controller extends CI_Controller{
         
         public function permission_check($value=''){
           if(!$this->permissions($value)){
+             log_message('error', 'permission denied: '.$value.' for user '.$this->session->userdata('inv_userid').' role '.$this->session->userdata('role_id').' on '.$this->uri->uri_string());
              $this->show_access_denied_page();
           }
           return true;
         }
         public function permission_check_with_msg($value=''){
           if(!$this->permissions($value)){
+             log_message('error', 'permission denied: '.$value.' for user '.$this->session->userdata('inv_userid').' role '.$this->session->userdata('role_id').' on '.$this->uri->uri_string());
+             if($this->wants_json_response()){
+               header('Content-Type: application/json');
+               set_status_header(403);
+               echo json_encode(array('status'=>'error','message'=>'You do not have permission to do this. Please ask an admin to check your role.'));
+               exit;
+             }
              echo "You don't have permission for this operation.";
             exit();
           }
@@ -346,6 +354,7 @@ class MY_Controller extends CI_Controller{
           // AJAX/JSON requests get JSON, not a redirect or HTML page
           if($this->wants_json_response()){
             header('Content-Type: application/json');
+            set_status_header(403);
             echo json_encode(array('status'=>'error','message'=> $message ?: 'You don\'t have permission to access this feature.'));
             exit;
           }
@@ -429,6 +438,7 @@ class MY_Controller extends CI_Controller{
         
         public function belong_to($table,$rec_id){
           if(!is_it_belong_to_store($table,$rec_id)){
+            log_message('error', 'belong_to denied: '.$table.'#'.$rec_id.' for user '.$this->session->userdata('inv_userid').' store '.get_current_store_id().' on '.$this->uri->uri_string());
             $this->show_access_denied_page('This record does not belong to your store or you do not have permission to access it.');
           }
         }

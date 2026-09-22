@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.38",
-    "previous_version": "4.0.9.37",
+    "version": "4.0.9.39",
+    "previous_version": "4.0.9.38",
     "release_date": "2026-09-22",
     "files": [
         {
@@ -165,8 +165,8 @@
         },
         {
             "path": "application/core/MY_Controller.php",
-            "hash": "de41c2ca325e214934e5fb3c5197d6fceb34789fb556cd2e5294983ed1e69032",
-            "size": 19984
+            "hash": "b08ef6db0d50d0edf24edd253d201cbe86114e1dd27ef9e264019387fa34f8d2",
+            "size": 20940
         },
         {
             "path": "application/cache/index.html",
@@ -9180,8 +9180,8 @@
         },
         {
             "path": "application/views/mobile/mp_alert.php",
-            "hash": "1e2b7e79c565f77a4b3f460213b2631af868878267e64a370509b9d8a6ea4c7c",
-            "size": 12010
+            "hash": "3ecfd6670db56ff25c17a0a720e4eb4045cf6988ea877265741002c69e9d9e4f",
+            "size": 12356
         },
         {
             "path": "application/views/mobile/attributes.php",
@@ -11655,7 +11655,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "bcd7decbf8bedbc2469542bec2230666a9c24354921473a7c9701a861b4b8c12",
+            "hash": "d702015157dfc81320a4fb812856feccb083d931188e11eb06368c4423a8bca9",
             "size": 97130
         },
         {
@@ -27012,6 +27012,11 @@
             "path": "docs/product-design/MartPoint-Brochure VR.pdf",
             "hash": "b7417d8c258654ec20c9e6b52afde0d532e68cfef85be9f8a2bf3626679e00b3",
             "size": 644665
+        },
+        {
+            "path": "application/core/MY_Security.php",
+            "hash": "3515577f7aa419e9a0f195271531234118ec47c7998be2262c4ab93d6e763ed6",
+            "size": 1277
         }
     ],
     "migrations": [

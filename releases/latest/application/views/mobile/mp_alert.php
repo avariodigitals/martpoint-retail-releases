@@ -141,8 +141,12 @@
         if(res && typeof res === 'object') return res;
         // Non-JSON response — translate into something a human understands
         var msg;
-        if(r.status === 403){
-          msg = 'You do not have permission to do this. Please ask an admin to check your role.';
+        if(r.status === 403 && /action you have requested is not allowed/i.test(body)){
+          msg = 'Your security check has expired. Please reload the page and try again.';
+        } else if(r.status === 403){
+          msg = 'The server blocked this request. Please reload the page and try again; if it keeps failing, contact your administrator.';
+        } else if(r.status === 404){
+          msg = 'That action was not found. Please reload the app and try again.';
         } else if(r.status === 401 || /name=["']?(user|email|pass|login)/i.test(body) && /<form/i.test(body)){
           msg = 'Your session has expired. Please sign in again.';
         } else if(r.status >= 500){
