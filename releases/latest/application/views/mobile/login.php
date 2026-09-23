@@ -464,6 +464,9 @@
         <h2>Welcome back</h2>
         <p class="lead">Sign in to your store account</p>
 
+        <?php if($this->input->get('reason') === 'idle'): ?>
+          <div class="alert alert-danger">You were logged out because your session was inactive. Please sign in again.</div>
+        <?php endif; ?>
         <?php if($this->session->flashdata('failed')): ?>
           <div class="alert alert-danger"><?= $this->session->flashdata('failed'); ?></div>
         <?php endif; ?>

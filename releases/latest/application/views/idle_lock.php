@@ -339,7 +339,7 @@ if((int)$__il_cfg['idle_enabled'] === 1):
 				hideSnooze();
 				idleStart = Date.now();
 				resetIdle();
-			} else if(res && res.expired){
+			} else if(res && (res.expired || res.code === 'session_expired')){
 				doLogout();
 			} else {
 				setErr((res && res.message) || 'Incorrect password or PIN.');
@@ -375,6 +375,8 @@ if((int)$__il_cfg['idle_enabled'] === 1):
 
 	document.getElementById('mpIdleStay').addEventListener('click', function(){
 		hideWarning(); idleStart = Date.now(); resetIdle();
+		// Touch the server so the server-side idle check sees the activity too
+		fetch(CFG.pingUrl, {credentials:'same-origin'}).catch(function(){});
 	});
 	document.getElementById('mpIdleCancel').addEventListener('click', doLogout);
 	document.getElementById('mpUnlockBtn').addEventListener('click', submitUnlock);

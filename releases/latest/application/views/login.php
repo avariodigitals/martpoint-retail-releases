@@ -795,6 +795,9 @@
           <p>Sign in to your MartPoint Retail account</p>
         </div>
 
+        <?php if($this->input->get('reason') === 'idle'){ ?>
+        <div class="mp-login-alert danger">You were logged out because your session was inactive. Please sign in again.</div>
+        <?php } ?>
         <?php if($this->session->flashdata('failed')){ ?>
         <div class="mp-login-alert danger"><?php echo $this->session->flashdata('failed'); ?></div>
         <?php } ?>

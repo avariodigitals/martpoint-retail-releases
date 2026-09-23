@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.40",
-    "previous_version": "4.0.9.39",
+    "version": "4.0.9.41",
+    "previous_version": "4.0.9.40",
     "release_date": "2026-09-23",
     "files": [
         {
@@ -165,7 +165,7 @@
         },
         {
             "path": "application/core/MY_Controller.php",
-            "hash": "b08ef6db0d50d0edf24edd253d201cbe86114e1dd27ef9e264019387fa34f8d2",
+            "hash": "e9a4de3cf03d23d9f4c841b4fe8a903d64af98f46def5b6281251cdff1ac1661",
             "size": 20940
         },
         {
@@ -7960,7 +7960,7 @@
         },
         {
             "path": "application/views/login.php",
-            "hash": "d30303c68d64a405ded52d1aa09cfc7136f76f7186eeb64f355a07e2146cc518",
+            "hash": "1f135dec28ebbce92d2f657a1358e3e736eddd3f3bbfc99805046cf4585df436",
             "size": 30970
         },
         {
@@ -8385,7 +8385,7 @@
         },
         {
             "path": "application/views/idle_lock.php",
-            "hash": "728fa7e70b71397a78c1cf6c62eb5c0284ce9708fbbda82c66dc346467d88872",
+            "hash": "f68443215c69bd8ef847ea036e735dc79a1b7b774913952706e332246bea55a5",
             "size": 22772
         },
         {
@@ -9145,7 +9145,7 @@
         },
         {
             "path": "application/views/mobile/login.php",
-            "hash": "a13e590d371bf505542b48b34beeeed4d6bf99fac385471b65a57dafc3ad8d8e",
+            "hash": "4e13deaa4400d306dab4336580820c988442ab98bdcb3654197f3735d8021ef7",
             "size": 20784
         },
         {
@@ -11655,7 +11655,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "7c1ec4256b994141d3af5f5c3ba7792efdb6a313e78f0b9cdf7627ebbd3f58e0",
+            "hash": "1562065f66c800a949503f0ab7b560fce63a4224e1e3f704796281e5350d9479",
             "size": 97130
         },
         {
@@ -27017,6 +27017,10 @@
             "path": "application/core/MY_Security.php",
             "hash": "59a49fc6fee32fe7dfb806b2d87af3763402199034033ab383d0c90b607a3773",
             "size": 4110
+        },
+        {
+            "path": "setup/install/includes/db.txt",
+            "hash": "0a4ebf74cef9dd8c47de91384efd77fa27d0b254ea859a41cbe7fca45cb2a437"
         }
     ],
     "migrations": [

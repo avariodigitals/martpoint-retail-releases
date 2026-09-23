@@ -176,6 +176,8 @@ class MY_Controller extends CI_Controller{
               redirect(base_url().'logout','refresh');
             }
 
+            $this->enforce_idle_timeout();
+
             $this->verify_store_and_user_status();
 
             // Subscription enforcement
@@ -189,6 +191,57 @@ class MY_Controller extends CI_Controller{
             // Re-seed any missing default permissions once per session so role
             // fixes take effect immediately without forcing every user to log out.
             $this->reseed_role_permissions();
+      }
+
+      /**
+       * Server-side inactivity enforcement. The idle warning/snooze overlay
+       * (idle_lock.php) is client-side JS — it only runs while a page is
+       * open, so a closed browser or a killed mobile tab would keep the
+       * session alive for the full sess_expiration window. This applies the
+       * same store settings server-side: any request arriving after the
+       * idle window ends the session for real.
+       *
+       * The Session_lock controller is exempt: a snoozed screen is a
+       * deliberate pause protected by PIN/password on resume, and its ping
+       * is what keeps that paused session warm.
+       */
+      private function enforce_idle_timeout(){
+            if($this->input->is_cli_request()){
+                return;
+            }
+            $now = time();
+            if(strtolower($this->router->fetch_class()) === 'session_lock'){
+                // Exempt from the expiry check, but still stamp activity so a
+                // resumed session does not look instantly stale.
+                $this->session->set_userdata('mp_last_activity', $now);
+                return;
+            }
+            $last = (int)$this->session->userdata('mp_last_activity');
+
+            $store_id = function_exists('get_current_store_id') ? (int)get_current_store_id() : 0;
+            $enabled  = 0;
+            $window   = 0;
+            if($store_id && $this->db->table_exists('db_store_settings')){
+                $enabled = (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_enabled', 0);
+                $timeout = max(1, (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_timeout_minutes', 15));
+                $grace   = max(0, (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_warning_seconds', 60));
+                $window  = ($timeout * 60) + $grace;
+            }
+
+            if($enabled && $last && ($now - $last) > $window){
+                log_message('error', 'idle timeout: user '.$this->session->userdata('inv_userid').' store '.$store_id.' idle '.($now - $last).'s exceeded '.$window.'s on '.$this->uri->uri_string());
+                $this->session->sess_destroy();
+                if($this->wants_json_response()){
+                    header('Content-Type: application/json');
+                    set_status_header(401);
+                    echo json_encode(array('status'=>'error','code'=>'session_expired','message'=>'You were logged out because the session was idle. Please log in again.'));
+                    exit;
+                }
+                redirect(base_url().'login?reason=idle','refresh');
+                exit;
+            }
+
+            $this->session->set_userdata('mp_last_activity', $now);
       }
 
       private function reseed_role_permissions(){
