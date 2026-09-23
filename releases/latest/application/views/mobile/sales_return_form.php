@@ -542,6 +542,7 @@
 
       var headers = { 'Content-Type': 'application/json' };
       headers[csrf_name] = csrf_hash;
+      headers['X-CSRF-Token'] = csrf_hash; // hyphenated form survives proxies that drop underscored headers
 
       var saveReq = (typeof mpFetchJson === 'function')
         ? mpFetchJson(base_url + 'mobile/save_return', { method: 'POST', headers: headers, body: JSON.stringify(payload) })

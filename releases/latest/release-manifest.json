@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.39",
-    "previous_version": "4.0.9.38",
-    "release_date": "2026-09-22",
+    "version": "4.0.9.40",
+    "previous_version": "4.0.9.39",
+    "release_date": "2026-09-23",
     "files": [
         {
             "path": "application/migrations/007_add_service_packages.php",
@@ -9140,8 +9140,8 @@
         },
         {
             "path": "application/views/mobile/sale.php",
-            "hash": "1d50b266b58d18e5d031dea9ad1d37087564ac59c1d22be5e3a59880e2ebe4b7",
-            "size": 72165
+            "hash": "56d0077f9ed0bfa6c034e47657b5c70069683b76a916aae5ebd5b77be263ca7d",
+            "size": 72274
         },
         {
             "path": "application/views/mobile/login.php",
@@ -9165,8 +9165,8 @@
         },
         {
             "path": "application/views/mobile/sales_return_form.php",
-            "hash": "7a5947736fcf0aa7912ea1ddf0f9ed79f0a21e918276ec1f2a25f5d1bf3cf061",
-            "size": 30496
+            "hash": "33a72bf32dfb053d226a9014920b0ade5e525753b52eafe540a95a55f5be5fde",
+            "size": 30605
         },
         {
             "path": "application/views/mobile/discount_coupon/view.php",
@@ -11655,7 +11655,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "d702015157dfc81320a4fb812856feccb083d931188e11eb06368c4423a8bca9",
+            "hash": "7c1ec4256b994141d3af5f5c3ba7792efdb6a313e78f0b9cdf7627ebbd3f58e0",
             "size": 97130
         },
         {
@@ -27015,8 +27015,8 @@
         },
         {
             "path": "application/core/MY_Security.php",
-            "hash": "3515577f7aa419e9a0f195271531234118ec47c7998be2262c4ab93d6e763ed6",
-            "size": 1277
+            "hash": "59a49fc6fee32fe7dfb806b2d87af3763402199034033ab383d0c90b607a3773",
+            "size": 4110
         }
     ],
     "migrations": [

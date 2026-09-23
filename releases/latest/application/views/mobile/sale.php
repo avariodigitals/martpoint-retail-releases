@@ -1277,6 +1277,7 @@
 
       var headers = {};
       headers[csrf_name] = csrf_hash;
+      headers['X-CSRF-Token'] = csrf_hash; // hyphenated form survives proxies that drop underscored headers
       
       $.ajax({
         url: base_url + (action === 'hold' ? 'mobile/hold' : 'mobile/save'),
