@@ -80,7 +80,7 @@
     @media (min-width: 1024px) { .screen { padding: 24px 48px 120px; } }
   </style>
 </head>
-<body>
+<body data-no-ptr>
   <?php
     $is_edit = ($mode === 'edit');
     $has_sale = !empty($sale);

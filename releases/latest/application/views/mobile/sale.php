@@ -194,7 +194,7 @@
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
   </style>
 </head>
-<body>
+<body data-no-ptr>
   <div id="app">
     <section class="screen">
       <div class="topbar">

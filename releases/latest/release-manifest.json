@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.41",
-    "previous_version": "4.0.9.40",
+    "version": "4.0.9.42",
+    "previous_version": "4.0.9.41",
     "release_date": "2026-09-23",
     "files": [
         {
@@ -9140,7 +9140,7 @@
         },
         {
             "path": "application/views/mobile/sale.php",
-            "hash": "56d0077f9ed0bfa6c034e47657b5c70069683b76a916aae5ebd5b77be263ca7d",
+            "hash": "7c446da9a266aa0f99ba0aba9f91ce15191e62d539f3bcdadb67530099bdcdb5",
             "size": 72274
         },
         {
@@ -9165,7 +9165,7 @@
         },
         {
             "path": "application/views/mobile/sales_return_form.php",
-            "hash": "33a72bf32dfb053d226a9014920b0ade5e525753b52eafe540a95a55f5be5fde",
+            "hash": "a948f50954def26638b893d703d90bce13cdfa0b828c5cb32276159147c02b0e",
             "size": 30605
         },
         {
@@ -9250,7 +9250,7 @@
         },
         {
             "path": "application/views/mobile/bottom_nav.php",
-            "hash": "3672559b3974b328a6b55392560844fb1315cca8f619c3fddae3613c6bd5214a",
+            "hash": "0fc5f44368a82d90e4440ca39793a77c1b14c4e8a23196be4774ea66ece332ce",
             "size": 11319
         },
         {
@@ -11655,7 +11655,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "1562065f66c800a949503f0ab7b560fce63a4224e1e3f704796281e5350d9479",
+            "hash": "3cd350b91ce27c02671c1ac05f31a3c9edeb95dda4b03841a2f90bfdfeba4cf4",
             "size": 97130
         },
         {
@@ -27020,7 +27020,7 @@
         },
         {
             "path": "setup/install/includes/db.txt",
-            "hash": "0a4ebf74cef9dd8c47de91384efd77fa27d0b254ea859a41cbe7fca45cb2a437"
+            "hash": "19f66451a2e1f067178c98e7e62c07bc54e99789bf67dbd79c9843015bf5884d"
         }
     ],
     "migrations": [
