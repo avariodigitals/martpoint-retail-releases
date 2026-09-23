@@ -194,7 +194,7 @@
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
   </style>
 </head>
-<body>
+<body data-no-ptr>
   <div id="app">
     <section class="screen">
       <div class="topbar">
@@ -1277,6 +1277,7 @@
 
       var headers = {};
       headers[csrf_name] = csrf_hash;
+      headers['X-CSRF-Token'] = csrf_hash; // hyphenated form survives proxies that drop underscored headers
       
       $.ajax({
         url: base_url + (action === 'hold' ? 'mobile/hold' : 'mobile/save'),
@@ -1304,7 +1305,17 @@
           }
         },
         error: function(xhr){
-          showToast('Save error: ' + xhr.responseText, 'error');
+          var msg = 'Could not save the sale. Please try again.';
+          if(xhr.status === 403){
+            msg = 'You do not have permission to save sales. Please ask an admin to check your role.';
+          } else if(xhr.status === 0){
+            msg = 'No connection. Check your internet and try again.';
+          } else if(xhr.responseJSON && xhr.responseJSON.message){
+            msg = xhr.responseJSON.message;
+          } else if(xhr.responseText && xhr.responseText.indexOf('<') === -1 && xhr.responseText.length < 300){
+            msg = xhr.responseText;
+          }
+          showToast(msg, 'error');
           $(btn).prop('disabled', false).text(original);
           $('#payment_confirm, #payment_cancel').prop('disabled', false);
         }

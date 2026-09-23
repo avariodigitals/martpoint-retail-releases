@@ -840,7 +840,7 @@ class Mobile extends MY_Controller {
 				->get()->result();
 		}
 
-		$data['payment_types'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('payment_type', 'asc')->get('db_paymenttypes')->result();
+		// Payment mode options are rendered via get_payment_modes_select_list() in the view
 		$data['accounts'] = get_accounts_select_list(get_store_details()->default_account_id);
 
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
@@ -893,7 +893,7 @@ class Mobile extends MY_Controller {
 				->get()->result();
 		}
 
-		$data['payment_types'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('payment_type', 'asc')->get('db_paymenttypes')->result();
+		// Payment mode options are rendered via get_payment_modes_select_list() in the view
 		$data['accounts'] = get_accounts_select_list(get_store_details()->default_account_id);
 
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
@@ -1036,6 +1036,16 @@ class Mobile extends MY_Controller {
 		$_POST['payment_type'] = $input['payment_type'] ?? '';
 		$_POST['payment_note'] = $input['payment_note'] ?? '';
 		$_POST['account_id'] = $input['account_id'] ?? '';
+		// The refund must go to an account owned by this store — a stale or
+		// tampered account_id must not post into another store's ledger.
+		if(!empty($_POST['account_id'])){
+			$own = $this->db->where('id', (int)$_POST['account_id'])->where('store_id', $store_id)->get('ac_accounts')->num_rows();
+			if(!$own){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'Please choose a valid payment account for this store.']);
+				exit;
+			}
+		}
 
 		// Sales_return_model reads item fields from $_REQUEST (e.g. $_REQUEST['tr_item_id_1']).
 		// $_REQUEST is a snapshot taken at request start and is NOT updated when $_POST is
@@ -1064,7 +1074,16 @@ class Mobile extends MY_Controller {
 			$rid = isset($parts[1]) ? (int)$parts[1] : 0;
 			echo json_encode(['status' => 'success', 'return_id' => $rid, 'redirect' => base_url('mobile/sales_return_invoice/'.$rid)]);
 		} else {
-			echo json_encode(['status' => 'error', 'message' => trim(strip_tags($result)) ?: 'Return could not be saved.']);
+			$clean = trim(strip_tags($result));
+			// Never surface technical diagnostics (SQL errors, exceptions, "failed")
+			// to the cashier — log them and show a plain-English message instead.
+			if($clean === '' || $clean === 'failed' || stripos($clean, 'EXCEPTION:') === 0
+				|| stripos($clean, 'Error Number:') !== false || stripos($clean, 'Unknown column') !== false
+				|| stripos($clean, 'Fatal error') !== false || stripos($clean, 'Line Number:') !== false){
+				log_message('error', 'Mobile save_return() failed: ' . $clean);
+				$clean = 'The refund could not be saved. Please check the payment details and try again.';
+			}
+			echo json_encode(['status' => 'error', 'message' => $clean]);
 		}
 		exit;
 	}

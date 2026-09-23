@@ -186,7 +186,7 @@
           mpAlert('Payment saved', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/purchase_view/' + form.querySelector('[name="purchase_id"]').value; }, 600);
         } else {
-          mpAlert(txt.replace(/<[^>]*>/g, '').trim() || 'Payment failed', 'danger');
+          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Payment failed', 'danger');
           btn.disabled = false;
         }
       } catch(err){

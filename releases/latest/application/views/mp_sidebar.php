@@ -91,7 +91,7 @@ $mp_icons = [
         <?php if($CI->permissions('sales_view')): ?><a href="<?= base_url('sales'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales History</a><?php endif; ?>
         <?php if($CI->permissions('sales_payment_view')): ?><a href="<?= base_url('sales_payments/'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Payments</a><?php endif; ?>
         <?php if($CI->permissions('installment_plans') && mp_feature_enabled('payplan')): ?><a href="<?= base_url('installments'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Installments</a><?php endif; ?>
-        <?php if($CI->permissions('sales_return_view')): ?><a href="<?= base_url('sales_return'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Returns</a><?php endif; ?>
+        <?php if($CI->permissions('sales_return_view')): ?><a href="<?= base_url('sales_return'); ?>" class="mp-nav-item sales-returns-active-li sales-return-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Returns</a><?php endif; ?>
         <?php if($CI->permissions('quotation_add')): ?><a href="<?= base_url('quotation/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Quotation</a><?php endif; ?>
         <?php if($CI->permissions('quotation_view')): ?><a href="<?= base_url('quotation'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Quotation History</a><?php endif; ?>
         <?php if(mp_feature_enabled('manual_shipping') && $CI->permissions('sales_view')): ?><a href="<?= base_url('shipping_fees'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><i class="fa fa-truck"></i></span> Shipping Fees</a><?php endif; ?>
@@ -424,8 +424,11 @@ $mp_icons = [
           <a href="<?= base_url('currency/view'); ?>" class="mp-nav-item currency-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Currency List</a>
           <a href="<?= base_url('users/dbbackup'); ?>" class="mp-nav-item dbbackup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Database Backup</a>
           <a href="<?= base_url('system_updates'); ?>" class="mp-nav-item system-updates-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> System Update</a>
+          <?php if (function_exists('mp_is_central') && mp_is_central()): ?>
           <a href="<?= base_url('manifest'); ?>" class="mp-nav-item manifest-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Manifest Generator</a>
           <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
+          <a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a>
+          <?php endif; ?>
           <a href="<?= base_url('permission_audit'); ?>" class="mp-nav-item permission-audit-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Permission Audit</a>
           <a href="<?= base_url('country'); ?>" class="mp-nav-item country-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Countries</a>
           <a href="<?= base_url('state'); ?>" class="mp-nav-item state-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> States</a>

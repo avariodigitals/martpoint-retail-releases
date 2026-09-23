@@ -70,3 +70,41 @@ $(function(){
   }
 });
 </script>
+<?php if (function_exists('special_access') && special_access()): ?>
+<script>
+// Central auto-update: silent check on admin page loads. Server-side throttled
+// (~6h); when a release is pending and auto-update is enabled, this drives the
+// chunked run_step pipeline in the background so customers never update by hand.
+(function(){
+  if (sessionStorage.getItem('mpAutoUpdateDone')) return;
+  if (/system_updates/i.test(window.location.pathname)) return; // the panel drives itself
+  sessionStorage.setItem('mpAutoUpdateDone', '1');
+
+  function driveStep(){
+    $.post('<?= base_url('system_updates/run_step'); ?>', {}, function(res){
+      if (res.status === 'error' || res.failed) {
+        if (window.toastr) toastr.warning('Auto-update paused: ' + (res.message || 'open System Update to resume'), 'MartPoint', {timeOut: 0});
+        return;
+      }
+      if (res.done && (res.step || 0) >= 8) {
+        if (window.toastr) toastr.success('MartPoint updated — reload the page to use the latest version.', 'Update complete', {timeOut: 0});
+        return;
+      }
+      setTimeout(driveStep, 400);
+    }, 'json').fail(function(){ setTimeout(driveStep, 5000); });
+  }
+
+  $.post('<?= base_url('system_updates/auto_tick'); ?>', {}, function(res){
+    if (!res || !res.status) return;
+    if (res.status === 'update') {
+      if (window.toastr) toastr.info('Updating MartPoint ' + res.from + ' → ' + res.to + ' — please keep this tab open.', 'System update', {timeOut: 0, extendedTimeOut: 0});
+      driveStep();
+    } else if (res.status === 'blocked') {
+      if (window.toastr) toastr.warning(res.message || 'Update blocked by subscription status.', 'MartPoint');
+    } else if (res.status === 'available') {
+      if (window.toastr) toastr.info('Version ' + res.remote_version + ' is available — open System Update to apply it.', 'MartPoint');
+    }
+  }, 'json');
+})();
+</script>
+<?php endif; ?>

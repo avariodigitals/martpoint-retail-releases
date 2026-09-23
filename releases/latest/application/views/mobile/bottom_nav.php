@@ -120,11 +120,38 @@
   /* Hide the fixed footer while the virtual keyboard is open so it never
      covers the field being typed into */
   .mp-kb-open .mp-mobile-footer { display: none !important; }
+  /* Pull-to-refresh indicator — drops from under the topbar while pulling */
+  #mpPullRefresh {
+    position: fixed;
+    top: calc(60px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    margin-left: -17px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(15,23,42,.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mp-primary, #0057FF);
+    font-size: 15px;
+    z-index: 500;
+    transform: translateY(-70px);
+    opacity: 0;
+    transition: transform .12s ease, opacity .12s ease, background .15s ease, color .15s ease;
+    pointer-events: none;
+  }
+  #mpPullRefresh.ready { background: var(--mp-primary, #0057FF); color: #fff; }
+  #mpPullRefresh.loading { transform: translateY(0) !important; opacity: 1 !important; }
+  #mpPullRefresh.loading i { animation: mpPtrSpin .7s linear infinite; }
+  @keyframes mpPtrSpin { to { transform: rotate(360deg); } }
   @media (min-width: 1024px) {
     .mp-mobile-footer { display: none !important; }
     .screen { padding-bottom: 24px !important; }
   }
 </style>
+<div id="mpPullRefresh" aria-hidden="true"><i class="fa fa-refresh"></i></div>
 <div class="mp-mobile-footer">
   <nav class="mp-mobile-bottom-nav">
   <?php if($can_home): ?>
@@ -273,5 +300,48 @@
         }
       }, 200);
     });
+
+    // Pull-to-refresh: a deliberate downward drag at the very top of the page
+    // reloads it (native PTR is disabled app-wide via overscroll-behavior).
+    // Screens holding unsaved transactional state opt out with
+    // window.MP_NO_PULL_REFRESH = true or <body data-no-ptr>.
+    (function(){
+      if(window.MP_NO_PULL_REFRESH || (document.body && document.body.hasAttribute('data-no-ptr'))) return;
+      var ind = document.getElementById('mpPullRefresh');
+      if(!ind || !('ontouchstart' in window)) return;
+      var THRESHOLD = 64, MAXPULL = 130;
+      var armed = false, startY = 0, shown = 0, refreshing = false;
+      var icon = ind.querySelector('i');
+      function top(){ return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0; }
+      function hide(){ ind.classList.remove('ready'); ind.style.transform = ''; ind.style.opacity = ''; if(icon) icon.style.transform = ''; }
+      document.addEventListener('touchstart', function(e){
+        if(refreshing || e.touches.length !== 1){ armed = false; return; }
+        armed = top() <= 0;
+        startY = e.touches[0].clientY;
+        shown = 0;
+      }, {passive: true});
+      document.addEventListener('touchmove', function(e){
+        if(!armed || refreshing) return;
+        var dy = e.touches[0].clientY - startY;
+        if(dy <= 4 || top() > 0){ shown = 0; hide(); return; }
+        shown = Math.min(dy * 0.5, MAXPULL);
+        ind.style.transform = 'translateY(' + (shown - 70) + 'px)';
+        ind.style.opacity = Math.min(1, shown / THRESHOLD);
+        ind.classList.toggle('ready', shown >= THRESHOLD);
+        if(icon) icon.style.transform = 'rotate(' + Math.min(dy, 360) + 'deg)';
+      }, {passive: true});
+      document.addEventListener('touchend', function(){
+        if(!armed || refreshing) return;
+        armed = false;
+        if(shown >= THRESHOLD){
+          refreshing = true;
+          ind.classList.remove('ready');
+          ind.classList.add('loading');
+          setTimeout(function(){ window.location.reload(); }, 220);
+        } else {
+          hide();
+        }
+      }, {passive: true});
+    })();
   })();
 </script>

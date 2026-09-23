@@ -221,7 +221,7 @@
         ?>
           <div class="payment-card">
             <div class="payment-head"><span><?= show_date($res3p->payment_date); ?></span><span><?= store_number_format($res3p->payment); ?></span></div>
-            <div class="payment-meta"><?= htmlspecialchars($res3p->payment_type); ?> &middot; <?= htmlspecialchars(get_account_name($res3p->account_id)); ?><?php if(!empty($res3p->payment_note)): ?> &middot; <?= htmlspecialchars($res3p->payment_note); ?><?php endif; ?></div>
+            <div class="payment-meta"><?= htmlspecialchars(payment_mode_label($res3p->payment_type)); ?> &middot; <?= htmlspecialchars(get_account_name($res3p->account_id)); ?><?php if(!empty($res3p->payment_note)): ?> &middot; <?= htmlspecialchars($res3p->payment_note); ?><?php endif; ?></div>
           </div>
         <?php endforeach; ?>
           <div class="total-row grand" style="border-top:1px solid var(--mp-border); margin-top:8px; padding-top:12px;"><span>Total Refunded</span><span><?= store_number_format($total_paid); ?></span></div>

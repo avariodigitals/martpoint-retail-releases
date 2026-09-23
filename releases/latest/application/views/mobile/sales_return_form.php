@@ -80,7 +80,7 @@
     @media (min-width: 1024px) { .screen { padding: 24px 48px 120px; } }
   </style>
 </head>
-<body>
+<body data-no-ptr>
   <?php
     $is_edit = ($mode === 'edit');
     $has_sale = !empty($sale);
@@ -201,11 +201,9 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="payment_type">Payment Type</label>
+            <label for="payment_type">Payment Mode</label>
             <select class="mp-select" id="payment_type">
-              <?php foreach($payment_types as $pt): ?>
-                <option value="<?= htmlspecialchars($pt->payment_type); ?>"><?= htmlspecialchars($pt->payment_type); ?></option>
-              <?php endforeach; ?>
+              <?= get_payment_modes_select_list(get_current_store_id(), get_default_payment_mode_code()); ?>
             </select>
           </div>
           <div class="form-group">
@@ -382,6 +380,7 @@
         custTimer = setTimeout(function(){
           fetch(base_url + 'mobile/customer_search?q=' + encodeURIComponent(q))
             .then(function(r){ return r.json(); })
+            .catch(function(){ return []; })
             .then(function(rows){
               var box = document.getElementById('customer_results');
               box.innerHTML = '';
@@ -423,6 +422,7 @@
         itemTimer = setTimeout(function(){
           fetch(base_url + 'mobile/item_search?q=' + encodeURIComponent(q))
             .then(function(r){ return r.json(); })
+            .catch(function(){ return []; })
             .then(function(rows){
               var box = document.getElementById('item_results');
               box.innerHTML = '';
@@ -508,7 +508,7 @@
       var refund = parseFloat(document.getElementById('refund_amount').value) || 0;
       var t = getTotals();
       if(refund > t.grand + 0.01){ toast('Refund cannot exceed the return total', 'error'); return; }
-      if(refund > 0 && !document.getElementById('payment_type').value){ toast('Choose a payment type for the refund', 'warning'); return; }
+      if(refund > 0 && !document.getElementById('payment_type').value){ toast('Choose a payment mode for the refund', 'warning'); return; }
 
       var btn = this;
       btn.disabled = true;
@@ -542,21 +542,25 @@
 
       var headers = { 'Content-Type': 'application/json' };
       headers[csrf_name] = csrf_hash;
+      headers['X-CSRF-Token'] = csrf_hash; // hyphenated form survives proxies that drop underscored headers
 
-      fetch(base_url + 'mobile/save_return', { method: 'POST', headers: headers, body: JSON.stringify(payload) })
-        .then(function(r){ return r.json(); })
+      var saveReq = (typeof mpFetchJson === 'function')
+        ? mpFetchJson(base_url + 'mobile/save_return', { method: 'POST', headers: headers, body: JSON.stringify(payload) })
+        : fetch(base_url + 'mobile/save_return', { method: 'POST', headers: headers, body: JSON.stringify(payload) }).then(function(r){ return r.json(); });
+      saveReq
         .then(function(res){
           if(res.status === 'success'){
             toast('Return saved', 'success');
             window.location.href = res.redirect;
           } else {
-            toast(res.message || 'Failed to save return', 'error');
+            toast(res.message || 'The return could not be saved. Please check the details and try again.', 'error');
             btn.disabled = false;
             btn.textContent = original;
           }
         })
         .catch(function(err){
-          toast('Save error: ' + err, 'error');
+          var msg = (err && err.message) ? err.message : 'Could not reach the server. Check your connection and try again.';
+          toast(msg, 'error');
           btn.disabled = false;
           btn.textContent = original;
         });

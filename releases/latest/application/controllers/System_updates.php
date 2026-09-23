@@ -202,6 +202,92 @@ class System_updates extends MY_Controller {
     }
 
     /**
+     * AJAX: Lazy auto-update tick — called by the layout on admin page loads.
+     * Throttled server-side (~6h); resumes a mid-flight update immediately.
+     * Returns a small instruction set; the JS drives run_step itself.
+     */
+    public function auto_tick() {
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+
+        if (!$this->updater->shouldAutoCheck()) {
+            echo json_encode(['status' => 'idle']);
+            return;
+        }
+        $this->updater->touchAutoCheck();
+
+        // checkForUpdate() also applies manifest-delivered settings
+        // (fleet_url/fleet_key) — run it before the heartbeat so the first
+        // contact already knows where to phone home.
+        $check = $this->updater->checkForUpdate();
+        $this->updater->sendHeartbeat();
+        // Pick up commands queued on central (e.g. "update now") — remote
+        // control without anyone logging into this install.
+        $this->updater->pollFleetCommands();
+
+        if (!empty($check['error'])) {
+            echo json_encode(['status' => 'idle', 'reason' => $check['error']]);
+            return;
+        }
+
+        $resuming = ($this->updater->getPersistedState()['step'] ?? 0) > 0;
+
+        if (empty($check['available']) && !$resuming) {
+            echo json_encode(['status' => 'none', 'installed_version' => $check['installed_version'] ?? null]);
+            return;
+        }
+        if (!$resuming && !empty($check['blocked'])) {
+            echo json_encode([
+                'status' => 'blocked',
+                'message' => $check['block_reason'],
+                'remote_version' => $check['remote_version'],
+            ]);
+            return;
+        }
+        if (!$this->updater->autoUpdateEnabled()) {
+            echo json_encode([
+                'status' => 'available',
+                'remote_version' => $check['remote_version'],
+                'installed_version' => $check['installed_version'],
+            ]);
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'update',
+            'from' => $check['installed_version'],
+            'to' => $check['remote_version'],
+        ]);
+    }
+
+    /**
+     * AJAX: Enable/disable unattended updates
+     */
+    public function toggle_auto() {
+        $enabled = (int) $this->input->post('enabled') === 1 ? 1 : 0;
+        if ($this->db->field_exists('auto_update_enabled', 'db_sitesettings')) {
+            $this->db->where('id', 1)->update('db_sitesettings', [
+                'auto_update_enabled' => $enabled,
+            ]);
+        }
+        echo json_encode(['status' => 'ok', 'enabled' => $enabled]);
+    }
+
+    /**
+     * AJAX: Current auto-update setting (for the panel toggle)
+     */
+    public function get_auto() {
+        echo json_encode([
+            'status' => 'ok',
+            'enabled' => $this->updater->autoUpdateEnabled() ? 1 : 0,
+            'fleet_url' => $this->db->field_exists('fleet_url', 'db_sitesettings')
+                ? (string) ($this->db->select('fleet_url')->where('id', 1)->get('db_sitesettings')->row()->fleet_url ?? '')
+                : '',
+        ]);
+    }
+
+    /**
      * AJAX: Get current update channel URL
      */
     public function get_channel() {

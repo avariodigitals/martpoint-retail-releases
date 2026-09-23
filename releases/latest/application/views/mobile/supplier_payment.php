@@ -194,7 +194,7 @@
           mpAlert('Payment saved', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/supplier_profile/' + form.querySelector('[name="supplier_id"]').value; }, 600);
         } else {
-          mpAlert(txt.replace(/<[^>]*>/g, '').trim() || 'Save failed', 'danger');
+          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Save failed', 'danger');
           btn.disabled = false;
         }
       } catch(err){

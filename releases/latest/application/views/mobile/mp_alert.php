@@ -127,6 +127,40 @@
   window.mpSuccess = function(msg){ mpAlert(msg, 'success'); };
   window.mpError = function(msg){ mpAlert(msg, 'danger'); };
 
+  /* fetch() for JSON endpoints — always resolves to parsed JSON or throws a
+     plain-English Error. Never leaks SyntaxError/technical details. */
+  window.mpFetchJson = function(url, options){
+    options = options || {};
+    options.headers = options.headers || {};
+    options.headers['X-Requested-With'] = 'XMLHttpRequest';
+    if(!('Accept' in options.headers)) options.headers['Accept'] = 'application/json';
+    return fetch(url, options).then(function(r){
+      return r.text().then(function(body){
+        var res = null;
+        try { res = JSON.parse(body); } catch(e){ res = null; }
+        if(res && typeof res === 'object') return res;
+        // Non-JSON response — translate into something a human understands
+        var msg;
+        if(r.status === 403 && /action you have requested is not allowed/i.test(body)){
+          msg = 'Your security check has expired. Please reload the page and try again.';
+        } else if(r.status === 403){
+          msg = 'The server blocked this request. Please reload the page and try again; if it keeps failing, contact your administrator.';
+        } else if(r.status === 404){
+          msg = 'That action was not found. Please reload the app and try again.';
+        } else if(r.status === 401 || /name=["']?(user|email|pass|login)/i.test(body) && /<form/i.test(body)){
+          msg = 'Your session has expired. Please sign in again.';
+        } else if(r.status >= 500){
+          msg = 'The server hit a problem and could not finish. Please try again.';
+        } else if(r.redirected){
+          msg = 'Your session has expired. Please sign in again.';
+        } else {
+          msg = 'The server returned an unexpected response. Please try again.';
+        }
+        throw new Error(msg);
+      });
+    });
+  };
+
   var decimals = <?= (int)decimals(); ?>;
   window.mpFormatNumber = function(num, showComma){
     showComma = showComma !== false;

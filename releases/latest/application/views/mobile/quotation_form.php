@@ -368,7 +368,7 @@
           mpAlert('Quotation saved', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/quotation_view/' + (parts[1] || ''); }, 600);
         } else {
-          mpAlert(txt.replace(/<[^>]*>/g, '').trim() || 'Save failed', 'danger');
+          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Save failed', 'danger');
         }
       } catch(err){
         mpAlert('Network error. Please try again.', 'danger');

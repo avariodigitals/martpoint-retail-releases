@@ -128,18 +128,55 @@ class MY_Controller extends CI_Controller{
             $store_rec = get_store_details();
             //STORE ACTIVE OR NOT
             if(!$store_rec->status){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(403);
+                echo json_encode(array('status'=>'error','message'=>'This store is temporarily inactive. Please contact your administrator.'));
+                exit;
+              }
               $this->session->set_flashdata('failed', 'Your Store Temporarily Inactive!');
               redirect('logout');exit;
             }
             //USER ACTIVE OR NOT
             if(!get_user_details()->status){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(403);
+                echo json_encode(array('status'=>'error','message'=>'Your account is temporarily inactive. Please contact your administrator.'));
+                exit;
+              }
               $this->session->set_flashdata('failed', 'Your account is temporarily inactive!');
               redirect('logout');exit;
             }
       }
+      /**
+       * True when the current request expects a JSON response (fetch/AJAX API
+       * call) rather than a rendered page. Used to answer session expiry and
+       * subscription blocks with JSON instead of a login-page redirect, which
+       * browsers surface to users as a confusing "JSON parse" error.
+       */
+      protected function wants_json_response(){
+            $ctype  = $_SERVER['CONTENT_TYPE'] ?? '';
+            $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+            return $this->input->is_ajax_request()
+              || $this->input->post('is_ajax')
+              || strpos($ctype, 'application/json') !== false
+              || strpos($accept, 'application/json') !== false;
+      }
+
       public function load_global($validate_subs='VALIDATE'){
             //Check login or redirect to logout
-            if($this->session->userdata('logged_in')!=1){ redirect(base_url().'logout','refresh');    }
+            if($this->session->userdata('logged_in')!=1){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(401);
+                echo json_encode(array('status'=>'error','code'=>'session_expired','message'=>'Your session has expired. Please log in again.'));
+                exit;
+              }
+              redirect(base_url().'logout','refresh');
+            }
+
+            $this->enforce_idle_timeout();
 
             $this->verify_store_and_user_status();
 
@@ -154,6 +191,57 @@ class MY_Controller extends CI_Controller{
             // Re-seed any missing default permissions once per session so role
             // fixes take effect immediately without forcing every user to log out.
             $this->reseed_role_permissions();
+      }
+
+      /**
+       * Server-side inactivity enforcement. The idle warning/snooze overlay
+       * (idle_lock.php) is client-side JS — it only runs while a page is
+       * open, so a closed browser or a killed mobile tab would keep the
+       * session alive for the full sess_expiration window. This applies the
+       * same store settings server-side: any request arriving after the
+       * idle window ends the session for real.
+       *
+       * The Session_lock controller is exempt: a snoozed screen is a
+       * deliberate pause protected by PIN/password on resume, and its ping
+       * is what keeps that paused session warm.
+       */
+      private function enforce_idle_timeout(){
+            if($this->input->is_cli_request()){
+                return;
+            }
+            $now = time();
+            if(strtolower($this->router->fetch_class()) === 'session_lock'){
+                // Exempt from the expiry check, but still stamp activity so a
+                // resumed session does not look instantly stale.
+                $this->session->set_userdata('mp_last_activity', $now);
+                return;
+            }
+            $last = (int)$this->session->userdata('mp_last_activity');
+
+            $store_id = function_exists('get_current_store_id') ? (int)get_current_store_id() : 0;
+            $enabled  = 0;
+            $window   = 0;
+            if($store_id && $this->db->table_exists('db_store_settings')){
+                $enabled = (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_enabled', 0);
+                $timeout = max(1, (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_timeout_minutes', 15));
+                $grace   = max(0, (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_warning_seconds', 60));
+                $window  = ($timeout * 60) + $grace;
+            }
+
+            if($enabled && $last && ($now - $last) > $window){
+                log_message('error', 'idle timeout: user '.$this->session->userdata('inv_userid').' store '.$store_id.' idle '.($now - $last).'s exceeded '.$window.'s on '.$this->uri->uri_string());
+                $this->session->sess_destroy();
+                if($this->wants_json_response()){
+                    header('Content-Type: application/json');
+                    set_status_header(401);
+                    echo json_encode(array('status'=>'error','code'=>'session_expired','message'=>'You were logged out because the session was idle. Please log in again.'));
+                    exit;
+                }
+                redirect(base_url().'login?reason=idle','refresh');
+                exit;
+            }
+
+            $this->session->set_userdata('mp_last_activity', $now);
       }
 
       private function reseed_role_permissions(){
@@ -191,11 +279,23 @@ class MY_Controller extends CI_Controller{
               $this->load->model('subscription_license_model','sub_lic');
               $sub = $this->sub_lic->get_status();
               if($sub['status'] === 'SUSPENDED'){
+                if($this->wants_json_response()){
+                  header('Content-Type: application/json');
+                  set_status_header(403);
+                  echo json_encode(array('status'=>'error','message'=>'Your subscription is suspended. Please contact your administrator.'));
+                  exit;
+                }
                 $this->session->set_flashdata('failed', 'Subscription is SUSPENDED. Contact admin for support.');
                 redirect('dashboard','refresh');
                 exit;
               }
               if($sub['status'] === 'EXPIRED'){
+                if($this->wants_json_response()){
+                  header('Content-Type: application/json');
+                  set_status_header(403);
+                  echo json_encode(array('status'=>'error','message'=>'Your subscription has expired. Please renew to continue.'));
+                  exit;
+                }
                 $this->session->set_flashdata('failed', 'Subscription has EXPIRED. Please renew to continue.');
                 redirect('dashboard','refresh');
                 exit;
@@ -283,12 +383,20 @@ class MY_Controller extends CI_Controller{
         
         public function permission_check($value=''){
           if(!$this->permissions($value)){
+             log_message('error', 'permission denied: '.$value.' for user '.$this->session->userdata('inv_userid').' role '.$this->session->userdata('role_id').' on '.$this->uri->uri_string());
              $this->show_access_denied_page();
           }
           return true;
         }
         public function permission_check_with_msg($value=''){
           if(!$this->permissions($value)){
+             log_message('error', 'permission denied: '.$value.' for user '.$this->session->userdata('inv_userid').' role '.$this->session->userdata('role_id').' on '.$this->uri->uri_string());
+             if($this->wants_json_response()){
+               header('Content-Type: application/json');
+               set_status_header(403);
+               echo json_encode(array('status'=>'error','message'=>'You do not have permission to do this. Please ask an admin to check your role.'));
+               exit;
+             }
              echo "You don't have permission for this operation.";
             exit();
           }
@@ -296,9 +404,10 @@ class MY_Controller extends CI_Controller{
         }
         public function show_access_denied_page($message = '')
         {
-          // AJAX requests get JSON, not a redirect
-          if($this->input->is_ajax_request() || $this->input->post('is_ajax')){
+          // AJAX/JSON requests get JSON, not a redirect or HTML page
+          if($this->wants_json_response()){
             header('Content-Type: application/json');
+            set_status_header(403);
             echo json_encode(array('status'=>'error','message'=> $message ?: 'You don\'t have permission to access this feature.'));
             exit;
           }
@@ -382,6 +491,7 @@ class MY_Controller extends CI_Controller{
         
         public function belong_to($table,$rec_id){
           if(!is_it_belong_to_store($table,$rec_id)){
+            log_message('error', 'belong_to denied: '.$table.'#'.$rec_id.' for user '.$this->session->userdata('inv_userid').' store '.get_current_store_id().' on '.$this->uri->uri_string());
             $this->show_access_denied_page('This record does not belong to your store or you do not have permission to access it.');
           }
         }

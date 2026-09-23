@@ -364,6 +364,44 @@ class Cron extends CI_Controller {
 		}
 	}
 
+	/**
+	 * Unattended system update — pulls the pending release from the update
+	 * channel and applies it. Runs within a wall-clock budget and resumes on
+	 * the next invocation, so a daily cron is enough.
+	 *
+	 * Example: curl -s "https://yoursite.com/cron/auto_update?key=YOUR_SECRET_KEY"
+	 * Or CLI:  php index.php cron auto_update YOUR_SECRET_KEY
+	 */
+	public function auto_update($cliKey = ''){
+		$secret = $this->config->item('cron_secret_key');
+		if(empty($secret)){ $secret = 'martpoint_cron_2024'; }
+
+		$requestKey = $this->input->get('key') ?: $cliKey;
+		$isCli = (php_sapi_name() === 'cli');
+
+		if(!$isCli && $requestKey !== $secret){
+			http_response_code(403);
+			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
+			return;
+		}
+
+		@set_time_limit(120);
+		$this->load->library('Updater');
+		$result = $this->updater->runAutoUpdate(90);
+		// Heartbeat after the run — checkForUpdate() inside it applies
+		// manifest-delivered fleet_url/fleet_key first.
+		$this->updater->sendHeartbeat();
+		// Pick up commands queued on central (e.g. "update now").
+		$result['commands'] = $this->updater->pollFleetCommands();
+
+		if($isCli){
+			echo "Auto-update: [{$result['status']}] {$result['message']}\n";
+		} else {
+			header('Content-Type: application/json');
+			echo json_encode($result);
+		}
+	}
+
 	protected function _currency($amount){
 		return store_number_format($amount);
 	}

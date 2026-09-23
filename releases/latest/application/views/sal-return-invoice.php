@@ -381,7 +381,7 @@
                                   echo "<tr class='text-center text-bold' id='payment_row_".$res3->id."'>";
                                   echo "<td>".$i++."</td>";
                                   echo "<td>".show_date($res3->payment_date)."</td>";
-                                  echo "<td>".$res3->payment_type."</td>";
+                                  echo "<td>".payment_mode_label($res3->payment_type)."</td>";
                                   echo "<td>".get_account_name($res3->account_id)."</td>";
                                   echo "<td>".$res3->payment_note."</td>";
                                   echo "<td class='text-right'>".store_number_format($res3->payment)."</td>";

@@ -46,6 +46,7 @@ class Updater {
         $this->CI->load->library('BackupManager');
         $this->backupManager = $this->CI->backupmanager;
         $this->CI->load->helper('file');
+        $this->CI->config->load('updater', false, true);
 
         $this->tempDir = FCPATH . 'updates/temp';
         if (!is_dir($this->tempDir)) {
@@ -110,17 +111,425 @@ class Updater {
             ];
         }
 
+        if (!$this->verifyManifestSignature($manifest)) {
+            return [
+                'available' => false,
+                'error' => 'Release manifest signature verification failed. The update channel may be compromised or misconfigured — update refused.',
+                'installed_version' => $installed,
+                'remote_version' => null,
+            ];
+        }
+
+        // Manifest is trusted at this point — let it (re)point installs at the
+        // central fleet registry so heartbeat endpoints can move without a
+        // per-customer settings change.
+        $this->applyManifestSettings($manifest);
+
         $remote = $manifest['version'] ?? '0.0';
         $available = version_compare($remote, $installed, '>');
 
+        $blockReason = null;
+        if ($available) {
+            $blockReason = $this->phpVersionAllowed($manifest);
+            if ($blockReason === null && !$this->licenseAllowsUpdate()) {
+                $blockReason = 'Subscription expired or suspended — renew the subscription to receive updates.';
+            }
+        }
+
         return [
             'available' => $available,
+            'blocked' => $blockReason !== null,
+            'block_reason' => $blockReason,
+            'auto_update' => $this->autoUpdateEnabled(),
             'installed_version' => $installed,
             'remote_version' => $remote,
             'release_date' => $manifest['release_date'] ?? null,
             'changelog' => $manifest['changelog'] ?? 'No changelog provided.',
             'manifest' => $manifest,
         ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Auto-update orchestration (cron / lazy login check)               */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Run the whole update pipeline server-side within a wall-clock budget.
+     * Safe to call repeatedly — the persisted state resumes mid-update, so a
+     * daily cron or the login-time lazy check can each do a slice of work.
+     */
+    public function runAutoUpdate(int $budgetSeconds = 45): array {
+        if (!$this->autoUpdateEnabled()) {
+            return ['status' => 'skipped', 'message' => 'Auto-update is disabled.'];
+        }
+
+        $check = $this->checkForUpdate();
+        if (!empty($check['error'])) {
+            return ['status' => 'error', 'message' => $check['error']];
+        }
+        $state = $this->readState();
+        $resuming = !empty($state) && empty($state['done']) && empty($state['failed']);
+
+        if (empty($check['available']) && !$resuming) {
+            return ['status' => 'ok', 'done' => true, 'message' => 'No update available.'];
+        }
+        if (!$resuming && !empty($check['blocked'])) {
+            return ['status' => 'blocked', 'message' => $check['block_reason']];
+        }
+
+        $manifest = $check['manifest'] ?? ($state['manifest'] ?? []);
+        if (empty($manifest)) {
+            return ['status' => 'error', 'message' => 'No manifest available to run update.'];
+        }
+        $preview = $this->previewChanges($manifest);
+
+        $deadline = microtime(true) + $budgetSeconds;
+        $last = null;
+        for ($i = 0; $i < 2000; $i++) {
+            $state = $this->readState();
+            $step = (!empty($state['step'])) ? (int) $state['step'] : 1;
+            $last = $this->runStep($step, $manifest, $preview);
+
+            if (($last['status'] ?? '') === 'error' || !empty($last['failed'])) {
+                return ['status' => 'error', 'message' => $last['message'] ?? 'Update failed.', 'step' => $step];
+            }
+            if (!empty($last['done']) && (int) ($last['step'] ?? $step) >= 8) {
+                $this->sendHeartbeat();
+                return ['status' => 'ok', 'done' => true, 'message' => 'Updated to ' . ($check['remote_version'] ?? ($state['to_version'] ?? 'latest')) . '.'];
+            }
+            if (microtime(true) >= $deadline) {
+                return [
+                    'status' => 'ok',
+                    'done' => false,
+                    'message' => 'Update in progress — will resume on the next run.',
+                    'step' => (int) ($last['step'] ?? $step),
+                    'step_label' => $last['step_label'] ?? '',
+                ];
+            }
+            usleep(100000);
+        }
+        return ['status' => 'ok', 'done' => false, 'message' => 'Update still in progress.'];
+    }
+
+    /**
+     * Whether unattended updates are allowed on this install.
+     * Defaults to enabled; missing column (pre-migration install) is treated
+     * as enabled so an update delivering this code is never self-blocking.
+     */
+    public function autoUpdateEnabled(): bool {
+        try {
+            if (!$this->CI->db->field_exists('auto_update_enabled', 'db_sitesettings')) {
+                return true;
+            }
+            $row = $this->CI->db->select('auto_update_enabled')
+                ->from('db_sitesettings')->where('id', 1)->get()->row();
+            return !$row || (int) $row->auto_update_enabled === 1;
+        } catch (Exception $e) {
+            return true;
+        }
+    }
+
+    /**
+     * Throttle for the login-time lazy check (default: every 6 hours).
+     * Returns true immediately when an update is mid-flight so it resumes.
+     */
+    public function shouldAutoCheck(int $intervalSeconds = 21600): bool {
+        $state = $this->readState();
+        if (!empty($state) && empty($state['done']) && empty($state['failed'])) {
+            return true;
+        }
+        $stamp = $this->tempDir . '/auto-check.stamp';
+        if (!file_exists($stamp)) {
+            return true;
+        }
+        return (time() - (int) @file_get_contents($stamp)) >= $intervalSeconds;
+    }
+
+    public function touchAutoCheck(): void {
+        if (!is_dir($this->tempDir)) {
+            @mkdir($this->tempDir, 0755, true);
+        }
+        @file_put_contents($this->tempDir . '/auto-check.stamp', (string) time());
+    }
+
+    /**
+     * Report this install to the central fleet registry. Fire-and-forget —
+     * failures are logged but never affect the caller.
+     */
+    public function sendHeartbeat(): void {
+        try {
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            if (empty($fleetUrl)) {
+                return;
+            }
+            $payload = [
+                'key'         => $this->getSitesetting('fleet_key'),
+                'install_url' => base_url(),
+                'install_key' => $this->installKey(),
+                'version'     => $this->getInstalledVersion(),
+                'php_version' => PHP_VERSION,
+                'license_code' => $this->getLicenseCode(),
+            ];
+            $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
+        } catch (Exception $e) {
+            log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Per-install secret — generated once and kept in db_sitesettings. Sent
+     * with the heartbeat so central can authenticate command polling; it is
+     * never exposed in the UI or the (public) release manifest.
+     */
+    protected function installKey(): string {
+        $key = $this->getSitesetting('install_key');
+        if ($key !== '') {
+            return $key;
+        }
+        try {
+            if (!$this->CI->db->field_exists('install_key', 'db_sitesettings')) {
+                return '';
+            }
+            $key = 'ik_' . bin2hex(random_bytes(20));
+            $this->CI->db->where('id', 1)->update('db_sitesettings', ['install_key' => $key]);
+            return $key;
+        } catch (Exception $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Ask central for pending commands for this install, execute them, and
+     * post the results back. Lets the vendor trigger actions (e.g. update now)
+     * from the Fleet panel without logging into this install.
+     */
+    public function pollFleetCommands(): array {
+        try {
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            $installKey = $this->installKey();
+            if (empty($fleetUrl) || empty($installKey)) {
+                return [];
+            }
+            $base = rtrim($fleetUrl, '/');
+            $resp = $this->httpPost($base . '/fleet/commands', [
+                'install_url' => base_url(),
+                'install_key' => $installKey,
+            ], 8);
+            if ($resp === null) {
+                return [];
+            }
+            $data = json_decode($resp, true);
+            $results = [];
+            foreach (($data['commands'] ?? []) as $cmd) {
+                $id = (int) ($cmd['id'] ?? 0);
+                $command = (string) ($cmd['command'] ?? '');
+                $result = $this->executeFleetCommand($command, (string) ($cmd['payload'] ?? ''));
+                $this->httpPost($base . '/fleet/command_result', [
+                    'install_url' => base_url(),
+                    'install_key' => $installKey,
+                    'command_id'  => $id,
+                    'status'      => $result['ok'] ? 'done' : 'failed',
+                    'result'      => substr((string) $result['message'], 0, 2000),
+                ], 8);
+                $results[] = ['command' => $command] + $result;
+            }
+            return $results;
+        } catch (Exception $e) {
+            log_message('error', 'Updater pollFleetCommands failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    protected function executeFleetCommand(string $command, string $payload = ''): array {
+        switch ($command) {
+            case 'update_now':
+                $r = $this->runAutoUpdate(90);
+                return [
+                    'ok' => in_array($r['status'] ?? '', ['ok', 'skipped'], true),
+                    'message' => ($r['status'] ?? '?') . ': ' . ($r['message'] ?? ''),
+                ];
+            case 'report_status':
+                return ['ok' => true, 'message' => 'v' . $this->getInstalledVersion() . ' / PHP ' . PHP_VERSION];
+            case 'set_license':
+                return $this->applyPushedLicense($payload);
+            default:
+                return ['ok' => false, 'message' => 'Unknown command: ' . $command];
+        }
+    }
+
+    /**
+     * Apply a license/subscription pushed from central. Keys are whitelisted
+     * and column-checked so a stale central can never SQL-error the install.
+     */
+    protected function applyPushedLicense(string $payload): array {
+        $lic = json_decode($payload, true);
+        if (!is_array($lic) || empty($lic['subscription_end_date'])) {
+            return ['ok' => false, 'message' => 'Invalid license payload.'];
+        }
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return ['ok' => false, 'message' => 'License table missing on this install.'];
+            }
+            $allowed = [
+                'license_code', 'plan_name', 'subscription_start_date', 'subscription_end_date',
+                'subscription_status', 'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                'invoice_limit', 'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                'storefront_limit', 'custom_domain_limit', 'whatsapp_number', 'renewal_amount',
+                'client_name', 'last_renewal_date', 'suspension_reason',
+            ];
+            $data = ['store_id' => $this->resolveStoreId(), 'subscription_status' => 'ACTIVE'];
+            foreach ($allowed as $k) {
+                if (isset($lic[$k]) && $this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    $data[$k] = $lic[$k];
+                }
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+            $ok = $this->CI->mp_lic_cmd->save($data);
+            return [
+                'ok' => (bool) $ok,
+                'message' => $ok
+                    ? 'License applied: ' . ($data['plan_name'] ?? '') . ' until ' . $data['subscription_end_date']
+                    : 'License save failed.',
+            ];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'License apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Gates                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Returns null when the host PHP satisfies the manifest's declared bounds,
+     * otherwise a human-readable refusal reason.
+     */
+    protected function phpVersionAllowed(array $manifest): ?string {
+        $min = $manifest['requires_php_min'] ?? null;
+        $max = $manifest['requires_php_max'] ?? null;
+        if ($min && version_compare(PHP_VERSION, $min, '<')) {
+            return "This release requires PHP {$min}+; this server runs " . PHP_VERSION . '. Change the PHP handler first.';
+        }
+        if ($max && version_compare(PHP_VERSION, $max, '>')) {
+            return "This release requires PHP up to {$max}; this server runs " . PHP_VERSION . ' (e.g. PHP 8 breaks the CI3 core — set the handler to 7.4).';
+        }
+        return null;
+    }
+
+    /**
+     * License gate for updates. Expired/suspended subscriptions stop receiving
+     * code; NOT_ACTIVATED and missing tables stay allowed so fresh or very old
+     * installs can always reach the version that introduced licensing.
+     */
+    protected function licenseAllowsUpdate(): bool {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return true;
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_upd');
+            $status = $this->CI->mp_lic_upd->get_status($this->resolveStoreId());
+            $s = strtoupper($status['status'] ?? '');
+            return !in_array($s, ['EXPIRED', 'SUSPENDED'], true);
+        } catch (Exception $e) {
+            return true;
+        }
+    }
+
+    // Session store in web context; the primary store when run from cron/CLI
+    // where no session exists.
+    protected function resolveStoreId(): int {
+        $storeId = (int) get_current_store_id();
+        if ($storeId > 0) {
+            return $storeId;
+        }
+        try {
+            $row = $this->CI->db->select_min('id')->get('db_store')->row();
+            return (int) ($row->id ?? 0);
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+
+    protected function getLicenseCode(): string {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return '';
+            }
+            $rec = $this->CI->db->select('license_code')
+                ->where('store_id', $this->resolveStoreId())
+                ->get('db_subscription_license')->row();
+            return $rec ? (string) ($rec->license_code ?? '') : '';
+        } catch (Exception $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Verify the manifest's ed25519 signature against the public key in
+     * config/updater.php. When no public key is configured the check passes —
+     * signing is opt-in hardening; once configured it is strictly enforced.
+     */
+    protected function verifyManifestSignature(array $manifest): bool {
+        $pubkey = (string) $this->CI->config->item('update_pubkey');
+        if ($pubkey === '') {
+            return true;
+        }
+        $sig = $manifest['signature'] ?? null;
+        if (empty($sig) || !function_exists('sodium_crypto_sign_verify_detached')) {
+            return false;
+        }
+        try {
+            return sodium_crypto_sign_verify_detached(
+                sodium_hex2bin($sig),
+                $this->manifestPayload($manifest),
+                sodium_hex2bin($pubkey)
+            );
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Canonical payload that gets signed: the manifest without its signature.
+     * Key order is stable because the generator writes the same structure.
+     */
+    protected function manifestPayload(array $manifest): string {
+        unset($manifest['signature']);
+        return json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Let the (verified) manifest point installs at the fleet registry —
+     * fleet_url/fleet_key ship inside the manifest so a channel move or a
+     * first-time rollout reaches every install without manual settings edits.
+     */
+    protected function applyManifestSettings(array $manifest): void {
+        try {
+            $updates = [];
+            if (!empty($manifest['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
+                $updates['fleet_url'] = $manifest['fleet_url'];
+            }
+            if (!empty($manifest['fleet_key']) && $this->CI->db->field_exists('fleet_key', 'db_sitesettings')) {
+                $updates['fleet_key'] = $manifest['fleet_key'];
+            }
+            if (!empty($updates)) {
+                $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Updater applyManifestSettings failed: ' . $e->getMessage());
+        }
+    }
+
+    protected function getSitesetting(string $col): string {
+        try {
+            if (!$this->CI->db->field_exists($col, 'db_sitesettings')) {
+                return '';
+            }
+            $row = $this->CI->db->select($col)->from('db_sitesettings')->where('id', 1)->get()->row();
+            return $row ? (string) ($row->{$col} ?? '') : '';
+        } catch (Exception $e) {
+            return '';
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -171,7 +580,7 @@ class Updater {
 
     public function startJob(string $fromVersion, string $toVersion): int {
         $this->CI->db->insert('db_system_updates', [
-            'store_id' => get_current_store_id(),
+            'store_id' => $this->resolveStoreId(),
             'from_version' => $fromVersion,
             'to_version' => $toVersion,
             'status' => 'running',
@@ -992,6 +1401,26 @@ class Updater {
         log_message('error', "Updater httpGet failed for {$url}: {$detail}");
         $this->lastManifestError = "Could not download {$url} — {$detail}";
         return null;
+    }
+
+    // Minimal POST helper for the fleet heartbeat — no retry loop, telemetry
+    // must never hold up the request that triggered it.
+    protected function httpPost(string $url, array $payload, int $timeout = 8): ?string {
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'timeout' => $timeout,
+                'user_agent' => 'MartPointUpdater/1.0',
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'content' => http_build_query($payload),
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+        $data = @file_get_contents($url, false, $ctx);
+        return $data === false ? null : $data;
     }
 
     protected function getUpdateChannelUrl(): string {

@@ -105,6 +105,15 @@
         <button id="btnSaveChannel" class="btn btn-default" type="button">Save</button>
       </div>
       <hr style="margin: 16px 0">
+      <h5><i class="fa fa-bolt"></i> Automatic Updates</h5>
+      <div class="checkbox" style="margin-top:0">
+        <label style="font-size:12px">
+          <input type="checkbox" id="autoUpdateToggle"> Update automatically when a release is published
+        </label>
+      </div>
+      <p class="text-muted" style="font-size:11px">Runs in the background on admin login or via the <code>cron/auto_update</code> endpoint. Updates never apply while the subscription is expired.</p>
+      <p class="text-muted" style="font-size:11px">Fleet registry: <code id="fleetUrl">—</code></p>
+      <hr style="margin: 16px 0">
       <h5><i class="fa fa-shield"></i> Protected Files</h5>
       <ul class="text-muted" style="font-size:12px; padding-left:18px">
         <li>application/config/database.php</li>
@@ -175,11 +184,13 @@
       log('Contacting update channel...');
       $.post('<?= base_url('system_updates/check'); ?>', function(res) {
         if (res.available) {
-          setStatus('success', 'Update available: ' + res.installed_version + ' → ' + res.remote_version);
+          setStatus(res.blocked ? 'warning' : 'success',
+            'Update available: ' + res.installed_version + ' → ' + res.remote_version +
+            (res.blocked ? ' — ' + res.block_reason : ''));
           document.getElementById('currentVersion').textContent = res.installed_version;
           document.getElementById('remoteVersion').textContent = res.remote_version;
           manifestData = res.manifest;
-          log('Update found: ' + res.remote_version + ' (' + (res.release_date || 'unknown date') + ')');
+          log('Update found: ' + res.remote_version + ' (' + (res.release_date || 'unknown date') + ')' + (res.blocked ? ' [blocked: ' + res.block_reason + ']' : ''));
           showActions('checked');
         } else if (res.error) {
           setStatus('danger', res.error);
@@ -416,6 +427,22 @@
       }, 'json').fail(function() { /* silent */ });
     }
 
+    function loadAuto() {
+      $.post('<?= base_url('system_updates/get_auto'); ?>', function(res) {
+        if (res.status === 'ok') {
+          document.getElementById('autoUpdateToggle').checked = (res.enabled === 1);
+          if (res.fleet_url) document.getElementById('fleetUrl').textContent = res.fleet_url;
+        }
+      }, 'json').fail(function() { /* silent */ });
+    }
+
+    $('#autoUpdateToggle').on('change', function() {
+      var enabled = this.checked ? 1 : 0;
+      $.post('<?= base_url('system_updates/toggle_auto'); ?>', { enabled: enabled }, function(res) {
+        toastr.success(enabled ? 'Automatic updates enabled' : 'Automatic updates disabled');
+      }, 'json').fail(function() { toastr.error('Failed to save'); });
+    });
+
     function loadRecentJobs() {
       // Just show last 3 from the same progress endpoint
       $.post('<?= base_url('system_updates/progress'); ?>', function(res) {
@@ -443,6 +470,7 @@
 
     // Init
     loadChannel();
+    loadAuto();
     loadRecentJobs();
     checkUpdates();
   })();

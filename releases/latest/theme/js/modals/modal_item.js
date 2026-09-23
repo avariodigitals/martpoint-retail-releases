@@ -1,3 +1,4 @@
+$(function(){
 /* items modal start*/
 $(".add_item").click(function(e){
 	var base_url=$("#base_url").val().trim();
@@ -266,3 +267,4 @@ $(".add_service").click(function(e){
 function calc_pur_price(){
 	
 }
+});
