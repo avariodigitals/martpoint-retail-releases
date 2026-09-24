@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.47",
+    "version": "4.0.9.48",
     "previous_version": "4.0.9.42",
     "release_date": "2026-09-24",
     "requires_php_min": "7.4.0",
@@ -2929,8 +2929,8 @@
         },
         {
             "path": "application/views/mp_layout.php",
-            "hash": "3659d9fe9842da9f07ce892e718fc2533752a648ba88b9d4e94a6930fb49c542",
-            "size": 5954
+            "hash": "f0674af7da7c543cd6454f825e70428f0219ff5d20713af2304552b7f072878e",
+            "size": 6063
         },
         {
             "path": "application/views/idle_lock.php",
@@ -5009,8 +5009,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "b7b332543089e6a215bae2fb26ded29a8f0d090c28656a3c5b496827b7f6dfae",
-            "size": 14842
+            "hash": "40d41d941ead6d2dbe680d575975a82f412d6490bf6c53a871a7cac22a27c680",
+            "size": 15727
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -8219,8 +8219,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "74a05839d2c42f0ad192fcf79dbf7325a8e6f4a8f576c2cceb18acdaf67e2ae3",
-            "size": 87873
+            "hash": "afe95750be7d387d9d745f74725cf2436f809804ee1634c50405bd5ee556b3e3",
+            "size": 88487
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -9664,7 +9664,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "b0042a3d19d86233babb186045caa76af9f59ae268668eb62cf6a04fde1af3e1",
+            "hash": "a1e4e1d2c9a918110a8cd569fda4fabe0b9775c405cc12ee19b1970719c4d752",
             "size": 97643
         },
         {
@@ -15920,5 +15920,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.47"
+    "changelog": "Release 4.0.9.48"
 }

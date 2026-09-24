@@ -74,15 +74,17 @@ $(function(){
   }
 });
 </script>
-<?php if (function_exists('special_access') && special_access()): ?>
+<?php if ($this->session->userdata('inv_userid')): ?>
 <script>
-// Central auto-update: silent check on admin page loads. Server-side throttled
-// (~6h); when a release is pending and auto-update is enabled, this drives the
-// chunked run_step pipeline in the background so customers never update by hand.
+// Central auto-update + fleet check-in: silent tick on ANY staff page load —
+// a cashier logging in phones home just as well as an admin. Server-side
+// throttled (~6h); the browser gate re-arms every 20min so a stalled run
+// retries instead of going quiet for the whole session.
 (function(){
-  if (sessionStorage.getItem('mpAutoUpdateDone')) return;
+  var last = parseInt(sessionStorage.getItem('mpAutoUpdateAt') || '0', 10);
+  if (Date.now() - last < 20 * 60 * 1000) return;
   if (/system_updates/i.test(window.location.pathname)) return; // the panel drives itself
-  sessionStorage.setItem('mpAutoUpdateDone', '1');
+  sessionStorage.setItem('mpAutoUpdateAt', String(Date.now()));
 
   function post(url, data, ok, fail){
     data = data || {};

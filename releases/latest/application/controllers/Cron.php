@@ -372,6 +372,29 @@ class Cron extends CI_Controller {
 	 * Example: curl -s "https://yoursite.com/cron/auto_update?key=YOUR_SECRET_KEY"
 	 * Or CLI:  php index.php cron auto_update YOUR_SECRET_KEY
 	 */
+	/**
+	 * Lightweight fleet wake-up — heartbeat + pending command execution ONLY.
+	 * Unlike auto_update this never touches the update pipeline, so Central's
+	 * ping executes queued commands (license, OTP, suspend, settings, backup)
+	 * in seconds even when the release channel is slow.
+	 */
+	public function fleet_ping(){
+		$secret = $this->config->item('cron_secret_key');
+		if(empty($secret)){ $secret = 'martpoint_cron_2024'; }
+		if($this->input->get('key') !== $secret){
+			http_response_code(403);
+			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
+			return;
+		}
+		@set_time_limit(60);
+		@ignore_user_abort(true);
+		$this->load->library('Updater');
+		$this->updater->sendHeartbeat();
+		$commands = $this->updater->pollFleetCommands();
+		header('Content-Type: application/json');
+		echo json_encode(['status'=>'ok','commands'=>$commands]);
+	}
+
 	public function auto_update($cliKey = ''){
 		$secret = $this->config->item('cron_secret_key');
 		if(empty($secret)){ $secret = 'martpoint_cron_2024'; }

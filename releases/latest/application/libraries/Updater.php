@@ -738,16 +738,27 @@ class Updater {
             $storeId = $this->resolveStoreId();
             $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
 
-            // Same gate as the local Subscription page: activation requires a
-            // valid 'activate' OTP that was generated on THIS install and
-            // emailed to the vendor mailbox (request_license_otp command).
+            // OTP gate — two accepted forms:
+            //  a) otp_proof — HMAC(otp|domain, fleet_key) from Central's own
+            //     OTP generator (Central emails it to the vendor address).
+            //  b) a local 'activate' OTP row in db_license_otps (the flow the
+            //     install's Subscription page uses).
             $otp = strtoupper(trim((string) ($lic['otp_code'] ?? '')));
-            if ($otp === '') {
-                return ['ok' => false, 'message' => 'OTP required. Queue request_license_otp first — the code is emailed to the authorized address.'];
-            }
-            $otpCheck = $this->CI->mp_lic_cmd->validate_otp($storeId, $otp, 'activate');
-            if ($otpCheck !== true) {
-                return ['ok' => false, 'message' => 'OTP rejected: ' . $otpCheck];
+            $proof = (string) ($lic['otp_proof'] ?? '');
+            $ownDomain = (string) parse_url(base_url(), PHP_URL_HOST);
+            if ($proof !== '') {
+                $expected = hash_hmac('sha256', $otp . '|' . $ownDomain, $this->getSitesetting('fleet_key'));
+                if ($otp === '' || !hash_equals($expected, $proof)) {
+                    return ['ok' => false, 'message' => 'OTP rejected: invalid vendor proof.'];
+                }
+            } else {
+                if ($otp === '') {
+                    return ['ok' => false, 'message' => 'OTP required. Use Request OTP in Central — it is emailed to the authorized address.'];
+                }
+                $otpCheck = $this->CI->mp_lic_cmd->validate_otp($storeId, $otp, 'activate');
+                if ($otpCheck !== true) {
+                    return ['ok' => false, 'message' => 'OTP rejected: ' . $otpCheck];
+                }
             }
 
             // Prefer the signed key's own decoded data — same source of truth
