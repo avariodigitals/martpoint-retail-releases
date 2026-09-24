@@ -467,11 +467,41 @@ class Updater {
      */
     protected function licenseUsageSummary(): ?array {
         try {
-            if (!function_exists('mp_get_license_usage_summary')) {
-                return null;
+            if (function_exists('mp_get_license_usage_summary')) {
+                $s = mp_get_license_usage_summary($this->resolveStoreId());
+                if (is_array($s)) {
+                    return $s;
+                }
             }
-            $s = mp_get_license_usage_summary($this->resolveStoreId());
-            return is_array($s) ? $s : null;
+            // Fallback — installs whose custom_helper.php predates the summary
+            // helper would otherwise report nothing and show "unknown" in the
+            // fleet. Read the license record directly; quotas stay empty.
+            if ($this->CI->db->table_exists('db_subscription_license')) {
+                $rec = $this->CI->db->where('store_id', $this->resolveStoreId())
+                    ->get('db_subscription_license')->row();
+                if ($rec) {
+                    $status = (string) ($rec->subscription_status ?? 'NOT_ACTIVATED');
+                    $daysLeft = null;
+                    if (!empty($rec->subscription_end_date)) {
+                        $daysLeft = (int) floor((strtotime($rec->subscription_end_date) - time()) / 86400);
+                        if ($status === 'ACTIVE' && $daysLeft < 0) {
+                            $status = 'EXPIRED';
+                        } elseif ($status === 'ACTIVE' && $daysLeft <= 30) {
+                            $status = 'EXPIRING_SOON';
+                        }
+                    }
+                    return [
+                        'status' => $status,
+                        'days_left' => max(0, (int) $daysLeft),
+                        'end_date' => $rec->subscription_end_date ?? null,
+                        'plan_name' => (string) ($rec->plan_name ?? ''),
+                        'license_code' => $rec->license_code ?? null,
+                        'has_license' => !empty($rec->license_code),
+                        'quotas' => [],
+                    ];
+                }
+            }
+            return null;
         } catch (Exception $e) {
             return null;
         }

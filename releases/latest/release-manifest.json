@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.44",
-    "previous_version": "3.0",
+    "version": "4.0.9.45",
+    "previous_version": "4.0.9.44",
     "release_date": "2026-09-24",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
@@ -8214,8 +8214,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "6cb674556eb3d9aa3baee3b5ccf9082a3509b6396776e9b5b2e59f69c8ca2a2d",
-            "size": 73105
+            "hash": "112b2746e0551d362953bc49c839936998989fc5b6d89f77c4985679c7f0f45b",
+            "size": 74738
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -9659,7 +9659,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "3b04a2049aab305fb0a2e5f791bede5bde0fd28316f27cfe8c15c6df8cd86712",
+            "hash": "5f4758d408886264c3e568c54a6472d77dd854ab34fecff4b4c28a32c155ce2b",
             "size": 97130
         },
         {
@@ -15914,5 +15914,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.44"
+    "changelog": "Release 4.0.9.45"
 }
