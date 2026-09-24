@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.46",
-    "previous_version": "4.0.9.45",
+    "version": "4.0.9.47",
+    "previous_version": "4.0.9.42",
     "release_date": "2026-09-24",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
@@ -2929,8 +2929,8 @@
         },
         {
             "path": "application/views/mp_layout.php",
-            "hash": "0443360acccddab47067b0e8ca188f28f341c15577ca7cdf1f44619d4775c880",
-            "size": 5474
+            "hash": "3659d9fe9842da9f07ce892e718fc2533752a648ba88b9d4e94a6930fb49c542",
+            "size": 5954
         },
         {
             "path": "application/views/idle_lock.php",
@@ -3134,8 +3134,8 @@
         },
         {
             "path": "application/views/central_dashboard.php",
-            "hash": "879ab6b8213dfe816d7ea89acd1049a9bd7f9587a2e939e972be985646f3c001",
-            "size": 11508
+            "hash": "94512e477fefa6b2cdb65e3c1be3f031dc26d4d0576affa4dfe40c9a19a9fe0c",
+            "size": 11654
         },
         {
             "path": "application/views/report-ingredient-usage.php",
@@ -4794,8 +4794,8 @@
         },
         {
             "path": "application/controllers/System_updates.php",
-            "hash": "190a9aa249e71d1b977b507d4befb7d369ee3826d0b55b08195a3c5f2ad234d0",
-            "size": 10560
+            "hash": "b451601bf4c06aa4b2cacf115a3532db98224ce9ae0d46035eae7447f2a862b7",
+            "size": 11047
         },
         {
             "path": "application/controllers/Units.php",
@@ -5009,8 +5009,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "9ec895461c58feca1284668c69888f63b6bbb82ad22b904f01aa72008fc17cca",
-            "size": 14690
+            "hash": "b7b332543089e6a215bae2fb26ded29a8f0d090c28656a3c5b496827b7f6dfae",
+            "size": 14842
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -9664,7 +9664,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "9499ad75c5e51563bb7b147d60b6350e6dccb5945d7b728a093cb05b1ed87d01",
+            "hash": "b0042a3d19d86233babb186045caa76af9f59ae268668eb62cf6a04fde1af3e1",
             "size": 97643
         },
         {
@@ -15920,5 +15920,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.46"
+    "changelog": "Release 4.0.9.47"
 }

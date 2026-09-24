@@ -21,6 +21,10 @@ if(!empty($extra_js_files) && is_array($extra_js_files)){
     echo '<script src="' . $theme_link . $js . '"></script>';
   }
 }
+// CSRF globals for every page script — emitted before $content so any inline
+// JS (fleet commands, settings pushes, update drivers) can attach the token.
+echo '<script>window.csrfName=' . json_encode($this->security->get_csrf_token_name())
+   . ';window.csrfHash=' . json_encode($this->security->get_csrf_hash()) . ';</script>';
 echo $content;
 $this->load->view('mp_footer');
 ?>
@@ -80,8 +84,14 @@ $(function(){
   if (/system_updates/i.test(window.location.pathname)) return; // the panel drives itself
   sessionStorage.setItem('mpAutoUpdateDone', '1');
 
+  function post(url, data, ok, fail){
+    data = data || {};
+    data[window.csrfName] = window.csrfHash;
+    return $.post(url, data, ok, 'json').fail(fail);
+  }
+
   function driveStep(){
-    $.post('<?= base_url('system_updates/run_step'); ?>', {}, function(res){
+    post('<?= base_url('system_updates/run_step'); ?>', {}, function(res){
       if (res.status === 'error' || res.failed) {
         if (window.toastr) toastr.warning('Auto-update paused: ' + (res.message || 'open System Update to resume'), 'MartPoint', {timeOut: 0});
         return;
@@ -91,10 +101,10 @@ $(function(){
         return;
       }
       setTimeout(driveStep, 400);
-    }, 'json').fail(function(){ setTimeout(driveStep, 5000); });
+    }, function(){ setTimeout(driveStep, 5000); });
   }
 
-  $.post('<?= base_url('system_updates/auto_tick'); ?>', {}, function(res){
+  post('<?= base_url('system_updates/auto_tick'); ?>', {}, function(res){
     if (!res || !res.status) return;
     if (res.status === 'update') {
       if (window.toastr) toastr.info('Updating MartPoint ' + res.from + ' → ' + res.to + ' — please keep this tab open.', 'System update', {timeOut: 0, extendedTimeOut: 0});

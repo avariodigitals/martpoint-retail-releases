@@ -390,12 +390,15 @@ class Cron extends CI_Controller {
 		// keep running even if the caller disconnects early.
 		@ignore_user_abort(true);
 		$this->load->library('Updater');
-		$result = $this->updater->runAutoUpdate(90);
-		// Heartbeat after the run — checkForUpdate() inside it applies
-		// manifest-delivered fleet_url/fleet_key first.
+		// Heartbeat + command poll FIRST — this request is usually Central's
+		// wake ping; queued commands (update_now, set_license, OTP…) must run
+		// even if the update pipeline below stalls on a slow channel fetch.
 		$this->updater->sendHeartbeat();
-		// Pick up commands queued on central (e.g. "update now").
-		$result['commands'] = $this->updater->pollFleetCommands();
+		$commands = $this->updater->pollFleetCommands();
+		$result = $this->updater->runAutoUpdate(90);
+		// Report the post-update state back immediately.
+		$this->updater->sendHeartbeat();
+		$result['commands'] = $commands;
 
 		if($isCli){
 			echo "Auto-update: [{$result['status']}] {$result['message']}\n";

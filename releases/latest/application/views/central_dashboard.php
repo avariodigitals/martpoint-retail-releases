@@ -26,7 +26,8 @@ function centralSelfUpdate(){
   btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Updating…';
   msg.textContent = 'Applying update — keep this tab open.';
   (function step(){
-    $.post('<?= base_url('system_updates/run_step'); ?>', {}, function(res){
+    var d = {}; if (window.csrfName) d[window.csrfName] = window.csrfHash;
+    $.post('<?= base_url('system_updates/run_step'); ?>', d, function(res){
       if (res.status === 'error' || res.failed) {
         msg.innerHTML = '<span class="text-danger">Paused: ' + $('<i>').text(res.message || 'open System Update to resume').html() + '</span>';
         btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Retry Update';
@@ -81,7 +82,8 @@ function centralSelfUpdate(){
 </p>
 <script>
 function toggleSlimMenu(on){
-  $.post('<?= base_url('fleet/toggle_menu'); ?>', { enabled: on ? 1 : 0 }, function(){
+  var d = { enabled: on ? 1 : 0 }; if (window.csrfName) d[window.csrfName] = window.csrfHash;
+  $.post('<?= base_url('fleet/toggle_menu'); ?>', d, function(){
     location.reload();
   }, 'json').fail(function(){ toastr.error('Could not save'); });
 }

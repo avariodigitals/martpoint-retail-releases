@@ -70,18 +70,29 @@ class System_updates extends MY_Controller {
             session_write_close();
         }
 
-        $manifest = $this->updater->fetchManifest();
-        if (!$manifest) {
-            echo json_encode(['status' => 'error', 'message' => 'Cannot fetch manifest.']);
-            return;
+        // Resume fast-path: a stored state already carries the manifest and
+        // the work lists — refetching GitHub + rehashing the tree on every
+        // chunk call is what stalls updates on shared hosting.
+        $state = $this->updater->getPersistedState();
+        if (!empty($state['manifest'])) {
+            $manifest = $state['manifest'];
+            $preview = [
+                'files_to_update' => $state['files_to_update'] ?? [],
+                'files_to_add'    => $state['files_to_add'] ?? [],
+                'migrations'      => $state['migrations'] ?? [],
+            ];
+        } else {
+            $manifest = $this->updater->fetchManifest();
+            if (!$manifest) {
+                echo json_encode(['status' => 'error', 'message' => 'Cannot fetch manifest.']);
+                return;
+            }
+            $preview = $this->updater->previewChanges($manifest);
         }
-
-        $preview = $this->updater->previewChanges($manifest);
 
         // We no longer require a posted step. The Updater's persisted state
         // knows the current step and resume point. Accept it if sent, otherwise
         // the Updater will use its internal state.
-        $state = $this->updater->getPersistedState();
         $step = ($state['step'] ?? 0) > 0 ? ($state['step'] ?? 1) : 1;
         $postedStep = (int) $this->input->post('step');
         if ($postedStep >= 1 && $postedStep <= 8) {
@@ -217,14 +228,12 @@ class System_updates extends MY_Controller {
         }
         $this->updater->touchAutoCheck();
 
-        // checkForUpdate() also applies manifest-delivered settings
-        // (fleet_url/fleet_key) — run it before the heartbeat so the first
-        // contact already knows where to phone home.
-        $check = $this->updater->checkForUpdate();
+        // Heartbeat + command poll FIRST: checkForUpdate() can spend up to 60s
+        // fetching the manifest from the channel — if it hangs or errors, the
+        // install must still check in and pick up queued commands.
         $this->updater->sendHeartbeat();
-        // Pick up commands queued on central (e.g. "update now") — remote
-        // control without anyone logging into this install.
         $this->updater->pollFleetCommands();
+        $check = $this->updater->checkForUpdate();
 
         if (!empty($check['error'])) {
             echo json_encode(['status' => 'idle', 'reason' => $check['error']]);
