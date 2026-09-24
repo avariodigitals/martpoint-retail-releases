@@ -619,9 +619,9 @@ class Default_data_model extends CI_Model {
             'services_add','services_edit','services_delete','services_view',
             'import_services',
             'quotation_add','quotation_edit','quotation_delete','quotation_view',
-            // Messaging
+            // Messaging (sending + store-facing templates only — no API keys)
             'send_sms','sms_template_view','sms_template_edit',
-            'send_email','email_template_view','email_template_edit',
+            'send_email',
             // Coupons
             'discountCouponAdd','discountCouponEdit','discountCouponDelete','discountCouponView',
             'customerCouponAdd','customerCouponEdit','customerCouponDelete','customerCouponView',
@@ -646,12 +646,12 @@ class Default_data_model extends CI_Model {
             'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
             'show_all_users_expenses','show_all_users_quotations',
             'show_purchase_price',
-            // Settings
-            'subscription','sms_settings','sms_api_view','sms_api_edit',
-            'smtp_settings','paystack_settings','monnify_settings','monnify_transfers','expiry_settings',
+            // Settings — store-affecting only. Technical settings stay with
+            // the vendor/admin: subscription (license), email provider
+            // (smtp_settings), SMS API keys, payment gateways, NIN and
+            // system_settings are deliberately NOT granted to partners.
+            'expiry_settings',
             'approval_settings_edit','approval_logs_view','can_approve',
-            'nin_settings','nin_usage','nin_logs','nin_verify',
-            'system_settings',
             'online_store_view','online_store_edit','online_store_orders',
             'attendance_edit','attendance_view'
         );

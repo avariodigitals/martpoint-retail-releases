@@ -40,6 +40,11 @@ class Install_seed extends CI_Controller {
         // Create any extra staff accounts captured during installation
         $this->_create_pending_users($stores);
 
+        // Provisioned installs: apply the per-install admin password Central
+        // generated (seeded admin creds are identical on every install), then
+        // remove the provision file so creds never linger in the docroot.
+        $this->_apply_provision_file();
+
         // Mark installation as complete so the public entry point never
         // accidentally redirects back into the installer.
         $lock_file = APPPATH . 'config/installed.lock';
@@ -223,6 +228,54 @@ class Install_seed extends CI_Controller {
                     'id' => $max_wh, 'user_id' => $next_user_id, 'warehouse_id' => $hq_id,
                 ]);
             }
+        }
+    }
+
+    /**
+     * Central-provisioned installs drop mp_provision.php in the docroot with
+     * DB creds (already consumed by the installer) and a unique admin_pass.
+     * Apply it to the seeded admin accounts (master + storeadm) so every
+     * install gets its own credentials — the partner never learns them.
+     * The file is always deleted afterwards.
+     */
+    private function _apply_provision_file() {
+        $path = FCPATH . 'mp_provision.php';
+        if (!is_file($path)) {
+            return;
+        }
+        try {
+            $prov = @include $path;
+            @unlink($path);
+            if (!is_array($prov)) {
+                return;
+            }
+            $pass = trim((string) ($prov['admin_pass'] ?? ''));
+            if ($pass !== '') {
+                $hash = password_hash($pass, PASSWORD_BCRYPT);
+                // Cover both seeded admin rows — match username OR the fixed
+                // seed ids so neither account keeps the shared default.
+                $this->db->group_start()
+                    ->where_in('username', ['master', 'storeadm'])
+                    ->or_where_in('id', [1, 2])
+                    ->group_end()
+                    ->update('db_users', ['password' => $hash]);
+            }
+            $cronKey = trim((string) ($prov['cron_key'] ?? ''));
+            if ($cronKey !== '' && preg_match('/^[A-Za-z0-9_\-]{6,64}$/', $cronKey)) {
+                $cfg = FCPATH . 'application/config/config.php';
+                if (is_writable($cfg)) {
+                    $code = (string) file_get_contents($cfg);
+                    $line = "\$config['cron_secret_key'] = '" . $cronKey . "';";
+                    if (strpos($code, 'cron_secret_key') !== false) {
+                        $code = preg_replace("/\\\$config\['cron_secret_key'\]\s*=\s*'[^']*';/", $line, $code, 1);
+                    } else {
+                        $code = rtrim($code) . "\n\n" . $line . "\n";
+                    }
+                    file_put_contents($cfg, $code);
+                }
+            }
+        } catch (Exception $e) {
+            @unlink($path);
         }
     }
 }

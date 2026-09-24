@@ -269,7 +269,15 @@ class Updater {
                 'version'     => $this->getInstalledVersion(),
                 'php_version' => PHP_VERSION,
                 'license_code' => $this->getLicenseCode(),
+                'cron_key'    => $this->cronKey(),
             ];
+            $summary = $this->licenseUsageSummary();
+            if ($summary) {
+                $payload['license_status'] = $summary['status'] ?? '';
+                $payload['plan_name']      = $summary['plan_name'] ?? '';
+                $payload['days_left']      = (string) ($summary['days_left'] ?? '');
+                $payload['usage_json']     = json_encode($summary['quotas'] ?? []);
+            }
             $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
         } catch (Exception $e) {
             log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
@@ -352,14 +360,171 @@ class Updater {
                 return ['ok' => true, 'message' => 'v' . $this->getInstalledVersion() . ' / PHP ' . PHP_VERSION];
             case 'set_license':
                 return $this->applyPushedLicense($payload);
+            case 'suspend':
+                return $this->setSubscriptionSuspended(true, $payload);
+            case 'resume':
+                return $this->setSubscriptionSuspended(false);
+            case 'set_email':
+                return $this->applyEmailSettings($payload);
+            case 'set_cron_key':
+                return $this->applyCronKey($payload);
             default:
                 return ['ok' => false, 'message' => 'Unknown command: ' . $command];
         }
     }
 
     /**
-     * Apply a license/subscription pushed from central. Keys are whitelisted
-     * and column-checked so a stale central can never SQL-error the install.
+     * Effective cron secret — same fallback the Cron controller uses, so the
+     * value reported to central always matches what the endpoint expects.
+     */
+    protected function cronKey(): string {
+        $k = (string) $this->CI->config->item('cron_secret_key');
+        return $k !== '' ? $k : 'martpoint_cron_2024';
+    }
+
+    /**
+     * Apply email/provider settings pushed from central. Writes whichever
+     * whitelisted columns exist in db_email_settings (and mirrors legacy
+     * smtp_* columns in db_store_notification_settings when present).
+     */
+    protected function applyEmailSettings(string $payload): array {
+        $fields = json_decode($payload, true);
+        if (!is_array($fields) || empty($fields)) {
+            return ['ok' => false, 'message' => 'Invalid email payload.'];
+        }
+        $allowed = [
+            'email_provider', 'email_from_name', 'email_from_email', 'email_reply_to',
+            'smtp_crypto', 'resend_api_key', 'resend_from_email', 'resend_from_name',
+            'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_status',
+        ];
+        $storeId = $this->resolveStoreId();
+        $written = 0;
+        try {
+            foreach (['db_email_settings', 'db_store_notification_settings'] as $table) {
+                if (!$this->CI->db->table_exists($table)) {
+                    continue;
+                }
+                $data = [];
+                foreach ($allowed as $k) {
+                    if (isset($fields[$k]) && $fields[$k] !== '' && $this->CI->db->field_exists($k, $table)) {
+                        $data[$k] = $fields[$k];
+                    }
+                }
+                if (empty($data)) {
+                    continue;
+                }
+                $exists = $this->CI->db->where('store_id', $storeId)->get($table)->row();
+                if ($exists) {
+                    $this->CI->db->where('store_id', $storeId)->update($table, $data);
+                } else {
+                    $data['store_id'] = $storeId;
+                    $this->CI->db->insert($table, $data);
+                }
+                $written++;
+            }
+            return [
+                'ok' => $written > 0,
+                'message' => $written > 0
+                    ? 'Email settings applied (' . ($fields['email_provider'] ?? 'resend') . ').'
+                    : 'No matching email columns on this install.',
+            ];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'Email apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Set this install's cron_secret_key in config.php — central generates a
+     * unique key per install so it can schedule the cPanel cron lines.
+     */
+    protected function applyCronKey(string $payload): array {
+        $key = trim($payload);
+        if (!preg_match('/^[A-Za-z0-9_\-]{6,64}$/', $key)) {
+            return ['ok' => false, 'message' => 'Invalid cron key format.'];
+        }
+        $path = FCPATH . 'application/config/config.php';
+        try {
+            if (!is_writable($path)) {
+                return ['ok' => false, 'message' => 'config.php not writable — set permissions and retry.'];
+            }
+            $code = (string) file_get_contents($path);
+            $line = "\$config['cron_secret_key'] = '" . $key . "';";
+            if (strpos($code, "cron_secret_key") !== false) {
+                $code = preg_replace("/\\\$config\['cron_secret_key'\]\s*=\s*'[^']*';/", $line, $code, 1);
+            } else {
+                $code = rtrim($code) . "\n\n" . $line . "\n";
+            }
+            $ok = file_put_contents($path, $code) !== false;
+            return ['ok' => $ok, 'message' => $ok ? 'Cron key set.' : 'Could not write config.php.'];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'Cron key error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * License status + quota usage for the fleet heartbeat. Returns null when
+     * the helper or license tables aren't present on this install.
+     */
+    protected function licenseUsageSummary(): ?array {
+        try {
+            if (!function_exists('mp_get_license_usage_summary')) {
+                return null;
+            }
+            $s = mp_get_license_usage_summary($this->resolveStoreId());
+            return is_array($s) ? $s : null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Suspend/resume this install's subscription from a central fleet command.
+     * SUSPENDED is enforced by MY_Controller::enforce_subscription() — every
+     * page except dashboard/subscription/login is blocked.
+     */
+    protected function setSubscriptionSuspended(bool $suspend, string $payload = ''): array {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return ['ok' => false, 'message' => 'License table missing on this install.'];
+            }
+            $data = [
+                'store_id'            => $this->resolveStoreId(),
+                'subscription_status' => $suspend ? 'SUSPENDED' : 'ACTIVE',
+            ];
+            if ($this->CI->db->field_exists('suspension_reason', 'db_subscription_license')) {
+                $reason = trim($payload);
+                $data['suspension_reason'] = $suspend
+                    ? ($reason !== '' ? substr($reason, 0, 255) : 'Suspended by vendor.')
+                    : null;
+            }
+            if ($suspend) {
+                // get_status() returns NOT_ACTIVATED when no end date exists —
+                // stamp one so the SUSPENDED flag actually gates the install.
+                $this->CI->load->model('subscription_license_model', 'mp_lic_susp');
+                $rec = $this->CI->mp_lic_susp->get_by_store($data['store_id']);
+                if (!$rec || empty($rec->subscription_end_date)) {
+                    $data['subscription_end_date'] = date('Y-m-d');
+                }
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+            $ok = $this->CI->mp_lic_cmd->save($data);
+            return [
+                'ok' => (bool) $ok,
+                'message' => $ok
+                    ? ($suspend ? 'Subscription suspended.' : 'Subscription resumed.')
+                    : 'Status save failed.',
+            ];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'Suspend error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Apply a license/subscription pushed from central. Replicates the local
+     * Subscription_license::activate flow — decode the MP- key (authoritative
+     * quotas), domain-check it, archive the replaced license to history, then
+     * activate(). Columns are still field_exists-filtered so older installs
+     * can't SQL-error.
      */
     protected function applyPushedLicense(string $payload): array {
         $lic = json_decode($payload, true);
@@ -370,26 +535,87 @@ class Updater {
             if (!$this->CI->db->table_exists('db_subscription_license')) {
                 return ['ok' => false, 'message' => 'License table missing on this install.'];
             }
-            $allowed = [
-                'license_code', 'plan_name', 'subscription_start_date', 'subscription_end_date',
-                'subscription_status', 'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
-                'invoice_limit', 'online_product_limit', 'service_limit', 'media_storage_limit_mb',
-                'storefront_limit', 'custom_domain_limit', 'whatsapp_number', 'renewal_amount',
-                'client_name', 'last_renewal_date', 'suspension_reason',
-            ];
-            $data = ['store_id' => $this->resolveStoreId(), 'subscription_status' => 'ACTIVE'];
-            foreach ($allowed as $k) {
-                if (isset($lic[$k]) && $this->CI->db->field_exists($k, 'db_subscription_license')) {
-                    $data[$k] = $lic[$k];
+            if (!function_exists('decode_license_key')) {
+                $this->CI->load->helper('custom');
+            }
+            $storeId = $this->resolveStoreId();
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+
+            // Prefer the signed key's own decoded data — same source of truth
+            // a store admin gets when pasting the key locally.
+            $decoded = (!empty($lic['license_code']) && function_exists('decode_license_key'))
+                ? decode_license_key($lic['license_code'])
+                : false;
+            if ($decoded !== false && !empty($decoded['domain'])) {
+                $own = (string) parse_url(base_url(), PHP_URL_HOST);
+                if ($decoded['domain'] !== $own) {
+                    return ['ok' => false, 'message' => 'License key is locked to ' . $decoded['domain'] . ' — this install is ' . $own . '.'];
                 }
             }
-            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
-            $ok = $this->CI->mp_lic_cmd->save($data);
+
+            $saveData = ['store_id' => $storeId];
+            if ($decoded !== false) {
+                foreach ([
+                    'plan_name', 'subscription_start_date', 'subscription_end_date',
+                    'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                    'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                    'storefront_limit', 'custom_domain_limit', 'whatsapp_number',
+                    'renewal_amount', 'client_name',
+                ] as $k) {
+                    $saveData[$k] = $decoded[$k];
+                }
+                $saveData['license_code'] = $lic['license_code'];
+            } else {
+                // Legacy payload without a usable key — honour posted fields.
+                foreach ([
+                    'license_code', 'plan_name', 'subscription_start_date', 'subscription_end_date',
+                    'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                    'invoice_limit', 'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                    'storefront_limit', 'custom_domain_limit', 'whatsapp_number', 'renewal_amount',
+                    'client_name',
+                ] as $k) {
+                    if (isset($lic[$k])) {
+                        $saveData[$k] = $lic[$k];
+                    }
+                }
+            }
+            $saveData['domain'] = (string) parse_url(base_url(), PHP_URL_HOST);
+            $saveData['last_renewal_date'] = date('Y-m-d');
+            $saveData['suspension_reason'] = null;
+            foreach ($saveData as $k => $v) {
+                if ($k !== 'store_id' && !$this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    unset($saveData[$k]);
+                }
+            }
+
+            // Archive the license being replaced — mirrors activate()/extend().
+            $existing = $this->CI->mp_lic_cmd->get_by_store($storeId);
+            if ($existing && !empty($existing->license_code)) {
+                $this->CI->mp_lic_cmd->add_history(
+                    $storeId, $existing->license_code,
+                    $existing->plan_name ?? '', $existing->domain ?? '', 'active'
+                );
+            }
+
+            // Reset reminder flags like the renew flow does.
+            $reset = [
+                'reminder_90_sent' => 0, 'reminder_60_sent' => 0,
+                'reminder_30_last_sent' => null, 'reminder_10_last_sent' => null,
+                'expiry_notice_sent' => 0, 'expired_followup_count' => 0,
+                'expired_followup_last_sent' => null,
+            ];
+            foreach ($reset as $k => $v) {
+                if ($this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    $this->CI->db->where('store_id', $storeId)->update('db_subscription_license', [$k => $v]);
+                }
+            }
+
+            $ok = $this->CI->mp_lic_cmd->activate($storeId, $saveData);
             return [
                 'ok' => (bool) $ok,
                 'message' => $ok
-                    ? 'License applied: ' . ($data['plan_name'] ?? '') . ' until ' . $data['subscription_end_date']
-                    : 'License save failed.',
+                    ? 'License activated: ' . ($saveData['plan_name'] ?? '') . ' until ' . $saveData['subscription_end_date']
+                    : 'License activation failed.',
             ];
         } catch (Exception $e) {
             return ['ok' => false, 'message' => 'License apply error: ' . $e->getMessage()];

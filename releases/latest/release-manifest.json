@@ -1,10 +1,10 @@
 {
-    "version": "4.0.9.43",
+    "version": "4.0.9.44",
     "previous_version": "3.0",
     "release_date": "2026-09-24",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
-    "fleet_url": "https://central.martpoint.com.ng/",
+    "fleet_url": "https://central.martpoint.com.ng",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
     "files": [
         {
@@ -2884,8 +2884,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "9234cd081b0650b69ee625d1fceb47077ac92c3f557328f2378bd808afc8444e",
-            "size": 69250
+            "hash": "4298dfa935a756699954a061ef30875dcd6f6bd0b0232211be6fec5a5e57ed23",
+            "size": 69681
         },
         {
             "path": "application/views/report-stock.php",
@@ -4684,8 +4684,8 @@
         },
         {
             "path": "application/models/Default_data_model.php",
-            "hash": "da8c82462eaa534812868b95a8154d2106266216b2890506b04a1e1564c52401",
-            "size": 79882
+            "hash": "3ff3843bc5f2c922fdf25f7275da8f8dd2f98e7e4215ac74b69154ae2fecfc1b",
+            "size": 79923
         },
         {
             "path": "application/models/Reports_model.php",
@@ -4879,8 +4879,8 @@
         },
         {
             "path": "application/controllers/Install_seed.php",
-            "hash": "da688e984261a8e05a60db45158652c6bc6ff285b3e9e9014c115737ee46ff39",
-            "size": 9962
+            "hash": "afdacb6001cd3ce35cc554084fa7219e9b495cfd8f110f98a929e3942a100132",
+            "size": 12356
         },
         {
             "path": "application/controllers/Customer_coupon.php",
@@ -5004,8 +5004,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "de9828c4cab2a97151eea08dee9f08a037569d5a55cf5d6f2a54d26e6f74d445",
-            "size": 14534
+            "hash": "9ec895461c58feca1284668c69888f63b6bbb82ad22b904f01aa72008fc17cca",
+            "size": 14690
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -8214,8 +8214,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "52b3cfb14abf39ae64e419618f8f895514619779b54c947129ce92766f75dfed",
-            "size": 62624
+            "hash": "6cb674556eb3d9aa3baee3b5ccf9082a3509b6396776e9b5b2e59f69c8ca2a2d",
+            "size": 73105
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -9659,7 +9659,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "3cd350b91ce27c02671c1ac05f31a3c9edeb95dda4b03841a2f90bfdfeba4cf4",
+            "hash": "3b04a2049aab305fb0a2e5f791bede5bde0fd28316f27cfe8c15c6df8cd86712",
             "size": 97130
         },
         {
@@ -15914,5 +15914,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.43"
+    "changelog": "Release 4.0.9.44"
 }

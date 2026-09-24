@@ -424,11 +424,6 @@ $mp_icons = [
           <a href="<?= base_url('currency/view'); ?>" class="mp-nav-item currency-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Currency List</a>
           <a href="<?= base_url('users/dbbackup'); ?>" class="mp-nav-item dbbackup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Database Backup</a>
           <a href="<?= base_url('system_updates'); ?>" class="mp-nav-item system-updates-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> System Update</a>
-          <?php if (function_exists('mp_is_central') && mp_is_central()): ?>
-          <a href="<?= base_url('manifest'); ?>" class="mp-nav-item manifest-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Manifest Generator</a>
-          <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
-          <a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a>
-          <?php endif; ?>
           <a href="<?= base_url('permission_audit'); ?>" class="mp-nav-item permission-audit-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Permission Audit</a>
           <a href="<?= base_url('country'); ?>" class="mp-nav-item country-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Countries</a>
           <a href="<?= base_url('state'); ?>" class="mp-nav-item state-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> States</a>
@@ -441,6 +436,18 @@ $mp_icons = [
         <a href="<?= base_url('users/password_reset'); ?>" class="mp-nav-item change-password-active-li"><i class="fa fa-lock mp-nav-icon"></i> Change Password</a>
       </div>
     </div></div>
+
+    <!-- Central — vendor tooling, only renders on the central install -->
+    <?php if (function_exists('mp_is_central') && mp_is_central()): ?>
+    <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0057FF;"><i class="fa fa-globe"></i></span> Central <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a>
+        <a href="<?= base_url('manifest'); ?>" class="mp-nav-item manifest-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Manifest Generator</a>
+        <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
+      </div>
+    </div></div>
+    <?php endif; ?>
 
     <div class="mp-nav-spacer"></div>
     <div class="mp-nav-store-card">

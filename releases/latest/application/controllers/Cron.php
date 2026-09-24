@@ -386,6 +386,9 @@ class Cron extends CI_Controller {
 		}
 
 		@set_time_limit(120);
+		// Central pings this URL to wake the install for queued commands —
+		// keep running even if the caller disconnects early.
+		@ignore_user_abort(true);
 		$this->load->library('Updater');
 		$result = $this->updater->runAutoUpdate(90);
 		// Heartbeat after the run — checkForUpdate() inside it applies
