@@ -22,6 +22,12 @@ class Dashboard extends MY_Controller {
 		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
 			redirect(base_url('pos'));
 		}
+		// The vendor's central domain gets a SaaS fleet-analytics dashboard —
+		// the retail dashboard is meaningless there (no sales data lives here).
+		if(function_exists('mp_is_central') && mp_is_central()){
+			$this->centralConsole();
+			return;
+		}
 		// Creator / Digital Store businesses land on the Creator Workspace (use ?classic=1 for the retail dashboard)
 		if(function_exists('mp_get_store_profile') && $this->input->get('classic') === NULL){
 			$bp = mp_get_store_profile();
@@ -115,7 +121,121 @@ class Dashboard extends MY_Controller {
 			$data['content'] = $this->load->view('dashboard',$data, TRUE);
 			$this->load->view('mp_layout', $data);
 		}
-		
+
+	}
+
+	/**
+	 * Central-only landing page — SaaS analytics over the fleet registry.
+	 * Everything derives from db_fleet_installs rows written by install
+	 * heartbeats: freshness (last_seen), versions, license state, region
+	 * (store_state/country reported by the client), and usage quotas.
+	 */
+	private function centralConsole(){
+		$data = $this->data;
+		$data['page_title'] = 'Central Dashboard';
+
+		$empty = [
+			'total' => 0, 'active_24h' => 0, 'active_7d' => 0, 'stale' => 0, 'never' => 0,
+			'licensed' => 0, 'expiring' => 0, 'expired' => 0, 'suspended' => 0, 'unlicensed' => 0,
+			'by_version' => [], 'by_plan' => [], 'by_region' => [], 'growth' => [],
+			'usage' => [], 'recent' => [], 'outdated' => 0,
+		];
+
+		if (!$this->db->table_exists('db_fleet_installs')) {
+			$data['stats'] = $empty;
+			$data['content'] = $this->load->view('central_dashboard', $data, TRUE);
+			$this->load->view('mp_layout', $data);
+			return;
+		}
+
+		$installs = $this->db->order_by('last_seen', 'desc')->get('db_fleet_installs')->result();
+		$now = time();
+		$s = $empty;
+		$latest = '';
+		foreach ($installs as $r) {
+			if ($latest === '' && !empty($r->version)) { $latest = $r->version; }
+			if (!empty($r->version) && version_compare($r->version, $latest, '>')) { $latest = $r->version; }
+		}
+
+		foreach ($installs as $r) {
+			$s['total']++;
+			$seen = !empty($r->last_seen) ? strtotime($r->last_seen) : 0;
+			if ($seen <= 0) {
+				$s['never']++;
+			} elseif ($seen >= $now - 86400) {
+				$s['active_24h']++;
+			} elseif ($seen >= $now - 7 * 86400) {
+				$s['active_7d']++;
+			} else {
+				$s['stale']++;
+			}
+
+			$st = strtoupper((string) ($r->license_status ?? ''));
+			if ($st === 'ACTIVE') { $s['licensed']++; }
+			elseif ($st === 'EXPIRING_SOON') { $s['licensed']++; $s['expiring']++; }
+			elseif ($st === 'EXPIRED') { $s['expired']++; }
+			elseif ($st === 'SUSPENDED') { $s['suspended']++; }
+			else { $s['unlicensed']++; }
+
+			$v = trim((string) ($r->version ?? '')) ?: 'unknown';
+			$s['by_version'][$v] = ($s['by_version'][$v] ?? 0) + 1;
+			if ($latest !== '' && $v !== 'unknown' && version_compare($v, $latest, '<')) { $s['outdated']++; }
+
+			$p = trim((string) ($r->plan_name ?? '')) ?: 'No plan';
+			$s['by_plan'][$p] = ($s['by_plan'][$p] ?? 0) + 1;
+
+			$region = trim((string) ($r->store_state ?? '')) ?: (trim((string) ($r->store_country ?? '')) ?: 'Unreported');
+			$s['by_region'][$region] = ($s['by_region'][$region] ?? 0) + 1;
+
+			if (!empty($r->created_at)) {
+				$mk = date('Y-m', strtotime($r->created_at));
+				$s['growth'][$mk] = ($s['growth'][$mk] ?? 0) + 1;
+			}
+
+			// Aggregate live usage from heartbeat quotas ({key, used, limit}).
+			foreach ((array) json_decode((string) ($r->usage_json ?? ''), true) as $q) {
+				$k = (string) ($q['key'] ?? '');
+				if ($k === '') { continue; }
+				if (!isset($s['usage'][$k])) {
+					$s['usage'][$k] = ['label' => (string) ($q['label'] ?? $k), 'used' => 0, 'limit' => 0, 'unit' => (string) ($q['unit'] ?? '')];
+				}
+				$s['usage'][$k]['used']  += (int) ($q['used'] ?? 0);
+				$s['usage'][$k]['limit'] += (int) ($q['limit'] ?? 0);
+			}
+
+			if (count($s['recent']) < 10) {
+				$s['recent'][] = $r;
+			}
+		}
+		ksort($s['growth']);
+		arsort($s['by_region']);
+		arsort($s['by_version']);
+		arsort($s['by_plan']);
+		$s['latest_version'] = $latest;
+
+		$data['stats'] = $s;
+
+		// Central's own freshness vs the published release channel — the
+		// banner on the dashboard drives the same chunked update installs run.
+		$data['central_version'] = function_exists('app_version') ? app_version() : '';
+		$data['central_slim_menu'] = 1;
+		if ($this->db->field_exists('central_slim_menu', 'db_sitesettings')) {
+			$slim = $this->db->select('central_slim_menu')->where('id', 1)->get('db_sitesettings')->row();
+			$data['central_slim_menu'] = $slim ? (int) $slim->central_slim_menu : 1;
+		}
+		$data['channel_version'] = null;
+		try {
+			$this->load->library('Updater');
+			$chk = $this->updater->checkForUpdate();
+			$data['channel_version'] = $chk['remote_version'] ?? null;
+			$data['central_update_available'] = !empty($chk['available']);
+			$data['central_update_blocked'] = $chk['block_reason'] ?? null;
+		} catch (Exception $e) {
+			$data['central_update_available'] = false;
+		}
+
+		$data['content'] = $this->load->view('central_dashboard', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function get_storewise_details($from='All'){
 

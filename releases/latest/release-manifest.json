@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.45",
-    "previous_version": "4.0.9.44",
+    "version": "4.0.9.46",
+    "previous_version": "4.0.9.45",
     "release_date": "2026-09-24",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
@@ -2884,8 +2884,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "4298dfa935a756699954a061ef30875dcd6f6bd0b0232211be6fec5a5e57ed23",
-            "size": 69681
+            "hash": "a67d4d40e27660d27c7247e5e7c3b1824c1e07a18a7d6c8731eb917320bb4d26",
+            "size": 70648
         },
         {
             "path": "application/views/report-stock.php",
@@ -3131,6 +3131,11 @@
             "path": "application/views/variants/variants.php",
             "hash": "e88f99f7f8ba0c40c14468f9303a5fccf63cc0e970763c6f365e5ef450e1a440",
             "size": 8775
+        },
+        {
+            "path": "application/views/central_dashboard.php",
+            "hash": "879ab6b8213dfe816d7ea89acd1049a9bd7f9587a2e939e972be985646f3c001",
+            "size": 11508
         },
         {
             "path": "application/views/report-ingredient-usage.php",
@@ -4904,8 +4909,8 @@
         },
         {
             "path": "application/controllers/Dashboard.php",
-            "hash": "9637b78110b57a563b3e560b70a0fa8863d21f4348691d87f89eddf485d163c5",
-            "size": 18471
+            "hash": "1fde9e348fa6479daee6ecc4ba1680345cf685b0e77abed6d5cd6f54409bc3ba",
+            "size": 23188
         },
         {
             "path": "application/controllers/Promotions.php",
@@ -8214,8 +8219,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "112b2746e0551d362953bc49c839936998989fc5b6d89f77c4985679c7f0f45b",
-            "size": 74738
+            "hash": "74a05839d2c42f0ad192fcf79dbf7325a8e6f4a8f576c2cceb18acdaf67e2ae3",
+            "size": 87873
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -9659,8 +9664,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "5f4758d408886264c3e568c54a6472d77dd854ab34fecff4b4c28a32c155ce2b",
-            "size": 97130
+            "hash": "9499ad75c5e51563bb7b147d60b6350e6dccb5945d7b728a093cb05b1ed87d01",
+            "size": 97643
         },
         {
             "path": "application/helpers/sms_template_helper.php",
@@ -15898,6 +15903,7 @@
         "4.0.9.38_payment_account_columns.sql",
         "4.0.9.3_sku_limit.sql",
         "4.0.9.43_central_update_fleet.sql",
+        "4.0.9.46_audit_trail_toggle.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
         "4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql",
@@ -15914,5 +15920,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.45"
+    "changelog": "Release 4.0.9.46"
 }

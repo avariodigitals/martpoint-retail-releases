@@ -258,6 +258,10 @@ class Updater {
      */
     public function sendHeartbeat(): void {
         try {
+            // Central is the registry, not a member — never register itself.
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return;
+            }
             $fleetUrl = $this->getSitesetting('fleet_url');
             if (empty($fleetUrl)) {
                 return;
@@ -271,6 +275,11 @@ class Updater {
                 'license_code' => $this->getLicenseCode(),
                 'cron_key'    => $this->cronKey(),
             ];
+            $meta = $this->storeMeta();
+            $payload['store_name']    = $meta['store_name'];
+            $payload['store_city']    = $meta['city'];
+            $payload['store_state']   = $meta['state'];
+            $payload['store_country'] = $meta['country'];
             $summary = $this->licenseUsageSummary();
             if ($summary) {
                 $payload['license_status'] = $summary['status'] ?? '';
@@ -282,6 +291,33 @@ class Updater {
         } catch (Exception $e) {
             log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Store identity + location for the fleet registry — read straight from
+     * db_store. city/state/country power Central's installs-by-region stats.
+     */
+    protected function storeMeta(): array {
+        $meta = ['store_name' => '', 'city' => '', 'state' => '', 'country' => ''];
+        try {
+            if ($this->CI->db->table_exists('db_store')) {
+                $cols = array_intersect(
+                    ['store_name', 'city', 'state', 'country'],
+                    $this->CI->db->list_fields('db_store')
+                );
+                if ($cols) {
+                    $s = $this->CI->db->select(implode(',', $cols))
+                        ->where('id', $this->resolveStoreId())->get('db_store')->row();
+                    if ($s) {
+                        foreach ($cols as $c) {
+                            $meta[$c] = substr((string) ($s->{$c} ?? ''), 0, 150);
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+        }
+        return $meta;
     }
 
     /**
@@ -313,6 +349,9 @@ class Updater {
      */
     public function pollFleetCommands(): array {
         try {
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return [];
+            }
             $fleetUrl = $this->getSitesetting('fleet_url');
             $installKey = $this->installKey();
             if (empty($fleetUrl) || empty($installKey)) {
@@ -360,6 +399,8 @@ class Updater {
                 return ['ok' => true, 'message' => 'v' . $this->getInstalledVersion() . ' / PHP ' . PHP_VERSION];
             case 'set_license':
                 return $this->applyPushedLicense($payload);
+            case 'request_license_otp':
+                return $this->pushLicenseOtp();
             case 'suspend':
                 return $this->setSubscriptionSuspended(true, $payload);
             case 'resume':
@@ -368,6 +409,10 @@ class Updater {
                 return $this->applyEmailSettings($payload);
             case 'set_cron_key':
                 return $this->applyCronKey($payload);
+            case 'set_settings':
+                return $this->applyPushedSettings($payload);
+            case 'run_backup':
+                return $this->runDatabaseBackup();
             default:
                 return ['ok' => false, 'message' => 'Unknown command: ' . $command];
         }
@@ -462,6 +507,122 @@ class Updater {
     }
 
     /**
+     * Push a group of operational settings from Central — payload:
+     * {"scope":"assist|paystack|monnify|nin|debt_reminder|audit","fields":{...}}
+     * Each scope maps to a whitelisted table + column set; anything else is
+     * rejected. Store-keyed tables upsert on this install's store row.
+     */
+    protected function applyPushedSettings(string $payload): array {
+        $in = json_decode($payload, true);
+        $scope = is_array($in) ? (string) ($in['scope'] ?? '') : '';
+        $fields = is_array($in) && is_array($in['fields'] ?? null) ? $in['fields'] : [];
+        if ($fields === []) {
+            return ['ok' => false, 'message' => 'No settings fields in payload.'];
+        }
+        $storeId = $this->resolveStoreId();
+        try {
+            switch ($scope) {
+                case 'assist':
+                    return $this->writeSettingFields('db_sitesettings', ['id' => 1], [
+                        'assist_ai_enabled', 'assist_ai_provider', 'assist_ai_endpoint',
+                        'assist_ai_model', 'assist_ai_key',
+                    ], $fields, 'Assist AI');
+
+                case 'paystack':
+                    return $this->writeSettingFields('db_paystack_settings', ['store_id' => $storeId], [
+                        'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
+                    ], $fields, 'Paystack', true);
+
+                case 'monnify':
+                    return $this->writeSettingFields('db_monnify_settings', ['store_id' => $storeId], [
+                        'enabled', 'api_key', 'secret_key', 'contract_code',
+                        'wallet_account_number', 'disbursements_enabled', 'test_mode',
+                    ], $fields, 'Monnify', true);
+
+                case 'nin':
+                    return $this->writeSettingFields('db_store', ['id' => $storeId], [
+                        'nin_api_enabled', 'nin_api_url', 'nin_api_key', 'nin_api_provider',
+                        'nin_provider', 'bvn_provider',
+                        'interswitch_client_id', 'interswitch_client_secret',
+                    ], $fields, 'NIN verification');
+
+                case 'debt_reminder':
+                    return $this->writeSettingFields('db_debt_reminder_settings',
+                        ['store_id' => $storeId, 'customer_id' => 0], [
+                        'enabled', 'frequency', 'max_reminders', 'send_email', 'send_sms',
+                    ], $fields, 'Debt reminders', true);
+
+                case 'audit':
+                    // Column self-heals so this works even before the audit
+                    // toggle migration reaches this install.
+                    if (!$this->CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) {
+                        $this->CI->db->query("ALTER TABLE `db_sitesettings` ADD COLUMN `audit_trail_enabled` TINYINT(1) NOT NULL DEFAULT 1");
+                    }
+                    return $this->writeSettingFields('db_sitesettings', ['id' => 1],
+                        ['audit_trail_enabled'], $fields, 'Audit trail');
+            }
+            return ['ok' => false, 'message' => 'Unknown settings scope: ' . $scope];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'Settings error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Filter the pushed fields to a whitelist of existing columns and write
+     * them — update when the row exists, insert (with the where values) when
+     * the table is keyed per-store and has none yet.
+     */
+    protected function writeSettingFields(string $table, array $where, array $allowed, array $fields, string $label, bool $upsert = false): array {
+        if (!$this->CI->db->table_exists($table)) {
+            return ['ok' => false, 'message' => $label . ' table missing on this install.'];
+        }
+        $data = [];
+        foreach ($allowed as $col) {
+            if (array_key_exists($col, $fields) && $this->CI->db->field_exists($col, $table)) {
+                $v = $fields[$col];
+                $data[$col] = is_scalar($v) ? substr((string) $v, 0, 2000) : (string) json_encode($v);
+            }
+        }
+        if ($data === []) {
+            return ['ok' => false, 'message' => 'No writable ' . $label . ' fields — the install may need an update for these settings.'];
+        }
+        $exists = $this->CI->db->where($where)->get($table)->num_rows() > 0;
+        if ($exists) {
+            $this->CI->db->where($where)->update($table, $data);
+        } elseif ($upsert) {
+            $this->CI->db->insert($table, $where + $data);
+        } else {
+            return ['ok' => false, 'message' => $label . ' row not found.'];
+        }
+        if (function_exists('mp_audit_log')) {
+            // Column names only — never log pushed values (keys/secrets).
+            mp_audit_log('fleet', 'settings_push', null,
+                'Central pushed ' . $label . ' settings: ' . implode(', ', array_keys($data)));
+        }
+        return ['ok' => true, 'message' => $label . ' settings updated (' . count($data) . ' fields).'];
+    }
+
+    /**
+     * Run a full database backup on this install via the existing
+     * BackupManager — lands in dbbackup/ like the update-time backups.
+     */
+    protected function runDatabaseBackup(): array {
+        try {
+            $this->CI->load->library('BackupManager');
+            $path = $this->CI->backupmanager->backupDatabase();
+            if (!$path || !is_file($path)) {
+                return ['ok' => false, 'message' => 'Backup produced no file.'];
+            }
+            return [
+                'ok' => true,
+                'message' => basename($path) . ' (' . round(filesize($path) / 1048576, 1) . ' MB)',
+            ];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'Backup error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * License status + quota usage for the fleet heartbeat. Returns null when
      * the helper or license tables aren't present on this install.
      */
@@ -479,6 +640,12 @@ class Updater {
             if ($this->CI->db->table_exists('db_subscription_license')) {
                 $rec = $this->CI->db->where('store_id', $this->resolveStoreId())
                     ->get('db_subscription_license')->row();
+                if (!$rec) {
+                    // License may sit on another store_id on this install —
+                    // report the most recent row rather than nothing.
+                    $rec = $this->CI->db->order_by('id', 'desc')->limit(1)
+                        ->get('db_subscription_license')->row();
+                }
                 if ($rec) {
                     $status = (string) ($rec->subscription_status ?? 'NOT_ACTIVATED');
                     $daysLeft = null;
@@ -571,6 +738,18 @@ class Updater {
             $storeId = $this->resolveStoreId();
             $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
 
+            // Same gate as the local Subscription page: activation requires a
+            // valid 'activate' OTP that was generated on THIS install and
+            // emailed to the vendor mailbox (request_license_otp command).
+            $otp = strtoupper(trim((string) ($lic['otp_code'] ?? '')));
+            if ($otp === '') {
+                return ['ok' => false, 'message' => 'OTP required. Queue request_license_otp first — the code is emailed to the authorized address.'];
+            }
+            $otpCheck = $this->CI->mp_lic_cmd->validate_otp($storeId, $otp, 'activate');
+            if ($otpCheck !== true) {
+                return ['ok' => false, 'message' => 'OTP rejected: ' . $otpCheck];
+            }
+
             // Prefer the signed key's own decoded data — same source of truth
             // a store admin gets when pasting the key locally.
             $decoded = (!empty($lic['license_code']) && function_exists('decode_license_key'))
@@ -652,6 +831,75 @@ class Updater {
         }
     }
 
+    /**
+     * Generate a license-activation OTP on this install and email it to the
+     * authorized vendor address — mirrors Subscription_license::request_otp
+     * + _send_otp_email, but triggered by a Central fleet command instead of
+     * a logged-in session. The returned OTP is what a set_license payload
+     * must carry to activate.
+     */
+    protected function pushLicenseOtp(): array {
+        try {
+            if (!$this->CI->db->table_exists('db_license_otps')) {
+                return ['ok' => false, 'message' => 'OTP table missing on this install — run the database update.'];
+            }
+            $storeId = $this->resolveStoreId();
+
+            // Same 60-second rate limit as the local request_otp endpoint.
+            $recent = $this->CI->db->where('store_id', $storeId)
+                ->where('otp_type', 'activate')
+                ->where('created_at >', date('Y-m-d H:i:s', strtotime('-60 seconds')))
+                ->get('db_license_otps')->row();
+            if ($recent) {
+                return ['ok' => false, 'message' => 'An OTP was already sent less than 60 seconds ago — check the authorized email.'];
+            }
+
+            $this->CI->load->model('subscription_license_model', 'mp_lic_otp');
+            $otp = $this->CI->mp_lic_otp->generate_otp($storeId, 'activate');
+
+            // Same recipient + audit body as _send_otp_email().
+            $storeName = '';
+            if ($this->CI->db->table_exists('db_store')) {
+                $s = $this->CI->db->where('id', $storeId)->get('db_store')->row();
+                $storeName = (string) ($s->store_name ?? '');
+            }
+            $domain = (string) parse_url(base_url(), PHP_URL_HOST);
+            $subject = "MartPoint License OTP: Activate - {$storeName}";
+            $html = "<h3>MartPoint Retail License OTP</h3>
+<p><strong>Business:</strong> " . htmlspecialchars($storeName) . "</p>
+<p><strong>Domain:</strong> {$domain}</p>
+<p><strong>Action:</strong> Activate</p>
+<p><strong>OTP:</strong> <span style='font-size:24px; font-weight:bold; color:#2563EB;'>{$otp}</span></p>
+<p><em>This OTP expires in 10 minutes and can only be used once.</em></p>
+<hr>
+<p><strong>Request Details (Audit)</strong></p>
+<ul>
+  <li><strong>User:</strong> MartPoint Central (fleet command)</li>
+  <li><strong>IP Address:</strong> " . htmlspecialchars($_SERVER['REMOTE_ADDR'] ?? 'cron') . "</li>
+  <li><strong>Time:</strong> " . date('Y-m-d H:i:s') . "</li>
+</ul>
+<hr>
+<p style='color:#94A3B8; font-size:12px;'>MartPoint Retail License Security</p>";
+            $text = "MartPoint Retail License OTP\nBusiness: {$storeName}\nDomain: {$domain}\nAction: Activate\nOTP: {$otp}\nExpires in 10 minutes, single use.\nRequested by: MartPoint Central (fleet command)\nTime: " . date('Y-m-d H:i:s');
+
+            $this->CI->load->model('email_service');
+            $result = $this->CI->email_service->sendRaw('rapheal@avariodigitals.com', $subject, $html, $text, [
+                'template_key' => 'license_otp',
+                'from_name' => 'MartPoint Retail',
+                'send_copy_to_owner' => false,
+            ]);
+            // Always surface the OTP in the command result — Central is a
+            // vendor-only panel, it can display/forward it even when this
+            // install's email isn't configured.
+            if (!empty($result['success'])) {
+                return ['ok' => true, 'message' => "OTP {$otp} — emailed to the authorized address."];
+            }
+            return ['ok' => true, 'message' => "OTP {$otp} — install email failed, Central will forward it."];
+        } catch (Exception $e) {
+            return ['ok' => false, 'message' => 'OTP error: ' . $e->getMessage()];
+        }
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Gates                                                             */
     /* ------------------------------------------------------------------ */
@@ -679,6 +927,10 @@ class Updater {
      */
     protected function licenseAllowsUpdate(): bool {
         try {
+            // The vendor's own console must always take updates — it ships them.
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return true;
+            }
             if (!$this->CI->db->table_exists('db_subscription_license')) {
                 return true;
             }
@@ -714,6 +966,13 @@ class Updater {
             $rec = $this->CI->db->select('license_code')
                 ->where('store_id', $this->resolveStoreId())
                 ->get('db_subscription_license')->row();
+            if (!$rec) {
+                // Single-store installs may carry the license on a different
+                // store_id — fall back to the most recent license row.
+                $rec = $this->CI->db->select('license_code')
+                    ->order_by('id', 'desc')->limit(1)
+                    ->get('db_subscription_license')->row();
+            }
             return $rec ? (string) ($rec->license_code ?? '') : '';
         } catch (Exception $e) {
             return '';

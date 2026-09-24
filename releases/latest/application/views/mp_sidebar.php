@@ -1,5 +1,19 @@
 <?php
 $CI =& get_instance();
+// On the vendor's central domain the sidebar collapses to Dashboard +
+// Central tooling only — the retail menus are never rendered there.
+// mp_is_central() is domain-pinned, so this can never fire on a client
+// install; db_sitesettings.central_slim_menu lets the vendor switch it
+// off (default on — a missing column means slim).
+$is_central = function_exists('mp_is_central') && mp_is_central();
+if ($is_central) {
+  try {
+    if ($CI->db->field_exists('central_slim_menu', 'db_sitesettings')) {
+      $row = $CI->db->select('central_slim_menu')->where('id', 1)->get('db_sitesettings')->row();
+      $is_central = !$row || (int) $row->central_slim_menu === 1;
+    }
+  } catch (Exception $e) { /* keep slim on error */ }
+}
 $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
 $is_car = $industry === 'car_dealership';
 $is_creator = $industry === 'creator';
@@ -36,6 +50,7 @@ $mp_icons = [
       <?php endif; ?>
     </div>
 
+    <?php if(!$is_central): ?>
     <?php if($is_creator): ?>
     <!-- ===== CREATOR WORKSPACE MENUS ===== -->
     <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
@@ -437,14 +452,17 @@ $mp_icons = [
       </div>
     </div></div>
 
+    <?php endif; /* end !$is_central business menus */ ?>
+
     <!-- Central — vendor tooling, only renders on the central install -->
-    <?php if (function_exists('mp_is_central') && mp_is_central()): ?>
+    <?php if ($is_central): ?>
     <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0057FF;"><i class="fa fa-globe"></i></span> Central <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a>
         <a href="<?= base_url('manifest'); ?>" class="mp-nav-item manifest-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Manifest Generator</a>
         <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
+        <a href="<?= base_url('users/password_reset'); ?>" class="mp-nav-item change-password-active-li"><span class="mp-nav-icon"><i class="fa fa-lock"></i></span> Change Password</a>
       </div>
     </div></div>
     <?php endif; ?>

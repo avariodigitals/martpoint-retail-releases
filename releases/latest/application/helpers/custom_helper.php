@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.45';
+    return '4.0.9.46';
   }
   function required_php_version(){
     return 7.4;
@@ -2587,6 +2587,18 @@
     try {
       $CI =& get_instance();
       if (!isset($CI->db) || !$CI->db->table_exists('db_audit_trail')) {
+        return false;
+      }
+      // Central can disable auditing per-install (set_settings → audit).
+      static $auditEnabled = null;
+      if ($auditEnabled === null) {
+        $auditEnabled = true;
+        if ($CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) {
+          $flag = $CI->db->select('audit_trail_enabled')->where('id', 1)->get('db_sitesettings')->row();
+          $auditEnabled = !$flag || (int) $flag->audit_trail_enabled !== 0;
+        }
+      }
+      if (!$auditEnabled) {
         return false;
       }
       $store_id = function_exists('get_current_store_id') ? get_current_store_id() : 1;
