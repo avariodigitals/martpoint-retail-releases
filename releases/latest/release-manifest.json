@@ -1,7 +1,7 @@
 {
     "version": "4.0.9.48",
     "previous_version": "4.0.9.42",
-    "release_date": "2026-09-24",
+    "release_date": "2026-09-25",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
     "fleet_url": "https://central.martpoint.com.ng",
