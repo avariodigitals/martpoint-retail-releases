@@ -1,6 +1,6 @@
 {
     "version": "4.0.9.49",
-    "previous_version": "4.0.9.42",
+    "previous_version": "4.0.9.40",
     "release_date": "2026-09-25",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
@@ -15904,6 +15904,7 @@
         "4.0.9.3_sku_limit.sql",
         "4.0.9.43_central_update_fleet.sql",
         "4.0.9.46_audit_trail_toggle.sql",
+        "4.0.9.50_nigerian_cities.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
         "4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql",
