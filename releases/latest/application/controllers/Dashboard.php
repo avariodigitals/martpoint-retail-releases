@@ -151,11 +151,22 @@ class Dashboard extends MY_Controller {
 		$installs = $this->db->order_by('last_seen', 'desc')->get('db_fleet_installs')->result();
 		$now = time();
 		$s = $empty;
+		// The "latest release" baseline is the manifest Central itself published
+		// (release_build/release-manifest.json) — a local file read, not a live
+		// GitHub fetch, so this page never waits on the network. Falls back to
+		// the highest install-reported version when no manifest exists yet.
 		$latest = '';
+		$data['channel_version'] = null;
+		$manifestFile = FCPATH . 'release_build/release-manifest.json';
+		if (is_file($manifestFile)) {
+			$m = json_decode((string) @file_get_contents($manifestFile), true);
+			$data['channel_version'] = $m['version'] ?? null;
+		}
 		foreach ($installs as $r) {
 			if ($latest === '' && !empty($r->version)) { $latest = $r->version; }
 			if (!empty($r->version) && version_compare($r->version, $latest, '>')) { $latest = $r->version; }
 		}
+		if (!empty($data['channel_version'])) { $latest = $data['channel_version']; }
 
 		foreach ($installs as $r) {
 			$s['total']++;
@@ -223,16 +234,12 @@ class Dashboard extends MY_Controller {
 			$slim = $this->db->select('central_slim_menu')->where('id', 1)->get('db_sitesettings')->row();
 			$data['central_slim_menu'] = $slim ? (int) $slim->central_slim_menu : 1;
 		}
-		$data['channel_version'] = null;
-		try {
-			$this->load->library('Updater');
-			$chk = $this->updater->checkForUpdate();
-			$data['channel_version'] = $chk['remote_version'] ?? null;
-			$data['central_update_available'] = !empty($chk['available']);
-			$data['central_update_blocked'] = $chk['block_reason'] ?? null;
-		} catch (Exception $e) {
-			$data['central_update_available'] = false;
-		}
+		// Central vs the published channel — a plain version compare against the
+		// manifest read above; no network call, no license gate on Central.
+		$data['central_update_available'] = !empty($data['channel_version'])
+			&& !empty($data['central_version'])
+			&& version_compare($data['channel_version'], $data['central_version'], '>');
+		$data['central_update_blocked'] = null;
 
 		$data['content'] = $this->load->view('central_dashboard', $data, TRUE);
 		$this->load->view('mp_layout', $data);

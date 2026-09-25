@@ -147,7 +147,7 @@ function toggleSlimMenu(on){
     <?php foreach ($s['usage'] as $u): ?>
       <div class="cd-kpi"><div class="k"><?= htmlspecialchars($u['label']) ?></div>
         <div class="v" style="font-size:22px"><?= number_format($u['used']) ?><?= $u['unit'] ? ' ' . htmlspecialchars($u['unit']) : '' ?></div>
-        <div class="sub">of <?= number_format($u['limit']) ?> licensed fleet-wide</div>
+        <div class="sub">of <?= number_format($u['limit']) ?><?= $u['unit'] ? ' ' . htmlspecialchars($u['unit']) : '' ?> licensed fleet-wide</div>
       </div>
     <?php endforeach; ?>
   </div></div>

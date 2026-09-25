@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.48",
-    "previous_version": "4.0.9.45",
+    "version": "4.0.9.49",
+    "previous_version": "4.0.9.48",
     "release_date": "2026-09-25",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
@@ -3134,8 +3134,8 @@
         },
         {
             "path": "application/views/central_dashboard.php",
-            "hash": "94512e477fefa6b2cdb65e3c1be3f031dc26d4d0576affa4dfe40c9a19a9fe0c",
-            "size": 11654
+            "hash": "17cdade0959f0b46b5fa4f2eb819978fc58de4d9ae176383ed290cd842728a67",
+            "size": 11713
         },
         {
             "path": "application/views/report-ingredient-usage.php",
@@ -4794,8 +4794,8 @@
         },
         {
             "path": "application/controllers/System_updates.php",
-            "hash": "b451601bf4c06aa4b2cacf115a3532db98224ce9ae0d46035eae7447f2a862b7",
-            "size": 11047
+            "hash": "f627a467a1688cb233c2fba15fe9095dd939a06699a9170f4533544521956675",
+            "size": 13394
         },
         {
             "path": "application/controllers/Units.php",
@@ -4909,8 +4909,8 @@
         },
         {
             "path": "application/controllers/Dashboard.php",
-            "hash": "1fde9e348fa6479daee6ecc4ba1680345cf685b0e77abed6d5cd6f54409bc3ba",
-            "size": 23188
+            "hash": "7ff295e9fd12db0a05dd48a5d06030d4775bf29dc356c3653940a48af17fe7a2",
+            "size": 23820
         },
         {
             "path": "application/controllers/Promotions.php",
@@ -5009,8 +5009,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "40d41d941ead6d2dbe680d575975a82f412d6490bf6c53a871a7cac22a27c680",
-            "size": 15727
+            "hash": "2a84d52bb22aea10eced95dc88202ab50f558a6c30c65eb1c381361a1c9ad1af",
+            "size": 16413
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -8219,8 +8219,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "afe95750be7d387d9d745f74725cf2436f809804ee1634c50405bd5ee556b3e3",
-            "size": 88487
+            "hash": "c4b2fc1a131903f142ae933364b301f989419952fe59d90935b220f6d09d1fd2",
+            "size": 88867
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -9659,12 +9659,12 @@
         },
         {
             "path": "application/core/MY_Controller.php",
-            "hash": "e9a4de3cf03d23d9f4c841b4fe8a903d64af98f46def5b6281251cdff1ac1661",
-            "size": 23736
+            "hash": "4f489a9b1b87001802ec8f7d52547a3918de378a4828fb6392de8176303fd662",
+            "size": 24078
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "a1e4e1d2c9a918110a8cd569fda4fabe0b9775c405cc12ee19b1970719c4d752",
+            "hash": "10067c75ec9aa89874dd8161f018c6d4c0c876f62279853cb4f70de3a447a1e2",
             "size": 97643
         },
         {
@@ -15920,5 +15920,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.48"
+    "changelog": "Release 4.0.9.49"
 }

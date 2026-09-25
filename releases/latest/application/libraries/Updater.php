@@ -233,23 +233,23 @@ class Updater {
      * Throttle for the login-time lazy check (default: every 6 hours).
      * Returns true immediately when an update is mid-flight so it resumes.
      */
-    public function shouldAutoCheck(int $intervalSeconds = 21600): bool {
+    public function shouldAutoCheck(int $intervalSeconds = 21600, string $stampName = 'auto-check.stamp'): bool {
         $state = $this->readState();
         if (!empty($state) && empty($state['done']) && empty($state['failed'])) {
             return true;
         }
-        $stamp = $this->tempDir . '/auto-check.stamp';
+        $stamp = $this->tempDir . '/' . $stampName;
         if (!file_exists($stamp)) {
             return true;
         }
         return (time() - (int) @file_get_contents($stamp)) >= $intervalSeconds;
     }
 
-    public function touchAutoCheck(): void {
+    public function touchAutoCheck(string $stampName = 'auto-check.stamp'): void {
         if (!is_dir($this->tempDir)) {
             @mkdir($this->tempDir, 0755, true);
         }
-        @file_put_contents($this->tempDir . '/auto-check.stamp', (string) time());
+        @file_put_contents($this->tempDir . '/' . $stampName, (string) time());
     }
 
     /**
@@ -354,11 +354,14 @@ class Updater {
             }
             $fleetUrl = $this->getSitesetting('fleet_url');
             $installKey = $this->installKey();
-            if (empty($fleetUrl) || empty($installKey)) {
+            // fleet_key alone is sufficient auth — installs missing the
+            // install_key column/value must still be able to poll.
+            if (empty($fleetUrl) || $this->getSitesetting('fleet_key') === '') {
                 return [];
             }
             $base = rtrim($fleetUrl, '/');
             $resp = $this->httpPost($base . '/fleet/commands', [
+                'key'         => $this->getSitesetting('fleet_key'),
                 'install_url' => base_url(),
                 'install_key' => $installKey,
             ], 8);
@@ -372,6 +375,7 @@ class Updater {
                 $command = (string) ($cmd['command'] ?? '');
                 $result = $this->executeFleetCommand($command, (string) ($cmd['payload'] ?? ''));
                 $this->httpPost($base . '/fleet/command_result', [
+                    'key'         => $this->getSitesetting('fleet_key'),
                     'install_url' => base_url(),
                     'install_key' => $installKey,
                     'command_id'  => $id,

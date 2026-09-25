@@ -9,10 +9,17 @@ class System_updates extends MY_Controller {
 
     public function __construct() {
         parent::__construct();
-        $this->load_global();
-        if (!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1) {
-            echo json_encode(['status' => 'error', 'message' => 'Access denied']);
-            exit;
+        // auto_tick is the install's self-service check-in AND Central's
+        // keyless wake ping (?force=1&commands_only=1) — it must run without
+        // a session. It only heartbeats, polls authed fleet commands, and
+        // runs the signed update pipeline; nothing sensitive is exposed.
+        // Every other method stays admin-only.
+        if (strtolower($this->router->fetch_method()) !== 'auto_tick') {
+            $this->load_global();
+            if (!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1) {
+                echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+                exit;
+            }
         }
         $this->load->library('Updater');
     }
@@ -222,17 +229,60 @@ class System_updates extends MY_Controller {
             session_write_close();
         }
 
-        if (!$this->updater->shouldAutoCheck()) {
+        // Lightweight check-in on a short leash (~15min), independent of the
+        // 6h update gate: ANY login heartbeats and picks up queued fleet
+        // commands, so Central's pushes never wait for the update throttle.
+        // ?force=1&commands_only=1 is Central's keyless wake ping — heartbeat +
+        // command poll with no update work; ?force=1 alone bypasses the 6h
+        // update gate too (floored at 60s so it can't be hammered).
+        $force = $this->input->get('force') === '1';
+        $commandsOnly = $this->input->get('commands_only') === '1';
+        $checkedIn = false;
+        if ($force || $this->updater->shouldAutoCheck(900, 'hb-check.stamp')) {
+            $this->updater->touchAutoCheck('hb-check.stamp');
+            $this->updater->sendHeartbeat();
+            $this->updater->pollFleetCommands();
+            $checkedIn = true;
+            if ($commandsOnly) {
+                echo json_encode(['status' => 'ok']);
+                return;
+            }
+        }
+
+        $updateDue = $this->updater->shouldAutoCheck();
+        if (!$updateDue && $force) {
+            // Bypass the 6h gate, but floor forced full checks at 60s.
+            $updateDue = $this->updater->shouldAutoCheck(60, 'force-check.stamp');
+            if ($updateDue) {
+                $this->updater->touchAutoCheck('force-check.stamp');
+            }
+        }
+        if (!$updateDue) {
             echo json_encode(['status' => 'idle']);
             return;
         }
         $this->updater->touchAutoCheck();
 
+        // Forced calls (Central's wake ping) run the whole pipeline server-side —
+        // no login and no JS driver needed to finish an update.
+        if ($force) {
+            if (!$checkedIn) {
+                $this->updater->sendHeartbeat();
+                $this->updater->pollFleetCommands();
+            }
+            $result = $this->updater->runAutoUpdate(90);
+            $this->updater->sendHeartbeat();
+            echo json_encode($result);
+            return;
+        }
+
         // Heartbeat + command poll FIRST: checkForUpdate() can spend up to 60s
         // fetching the manifest from the channel — if it hangs or errors, the
         // install must still check in and pick up queued commands.
-        $this->updater->sendHeartbeat();
-        $this->updater->pollFleetCommands();
+        if (!$checkedIn) {
+            $this->updater->sendHeartbeat();
+            $this->updater->pollFleetCommands();
+        }
         $check = $this->updater->checkForUpdate();
 
         if (!empty($check['error'])) {

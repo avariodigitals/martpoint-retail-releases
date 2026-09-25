@@ -379,9 +379,7 @@ class Cron extends CI_Controller {
 	 * in seconds even when the release channel is slow.
 	 */
 	public function fleet_ping(){
-		$secret = $this->config->item('cron_secret_key');
-		if(empty($secret)){ $secret = 'martpoint_cron_2024'; }
-		if($this->input->get('key') !== $secret){
+		if(!$this->cronKeyValid($this->input->get('key'))){
 			http_response_code(403);
 			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
 			return;
@@ -396,13 +394,10 @@ class Cron extends CI_Controller {
 	}
 
 	public function auto_update($cliKey = ''){
-		$secret = $this->config->item('cron_secret_key');
-		if(empty($secret)){ $secret = 'martpoint_cron_2024'; }
-
 		$requestKey = $this->input->get('key') ?: $cliKey;
 		$isCli = (php_sapi_name() === 'cli');
 
-		if(!$isCli && $requestKey !== $secret){
+		if(!$isCli && !$this->cronKeyValid($requestKey)){
 			http_response_code(403);
 			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
 			return;
@@ -429,6 +424,29 @@ class Cron extends CI_Controller {
 			header('Content-Type: application/json');
 			echo json_encode($result);
 		}
+	}
+
+	/**
+	 * Accepts the configured cron secret, the legacy shared fallback, or a
+	 * wake token derived from this install's install_key — Central can always
+	 * compute it (the heartbeat reports install_key), so pings no longer
+	 * depend on the install's cron_secret_key being known.
+	 */
+	protected function cronKeyValid($key){
+		$secret = $this->config->item('cron_secret_key');
+		if(empty($secret)){ $secret = 'martpoint_cron_2024'; }
+		if(hash_equals($secret, (string)$key)){ return true; }
+		try {
+			$this->load->database();
+			if($this->db->field_exists('install_key','db_sitesettings')){
+				$ik = $this->db->select('install_key')->where('id',1)->get('db_sitesettings')->row();
+				if($ik && $ik->install_key !== ''
+					&& hash_equals(hash_hmac('sha256','mp_wake',$ik->install_key), (string)$key)){
+					return true;
+				}
+			}
+		} catch (Exception $e) {}
+		return false;
 	}
 
 	protected function _currency($amount){

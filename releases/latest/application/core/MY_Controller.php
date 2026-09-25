@@ -271,8 +271,12 @@ class MY_Controller extends CI_Controller{
       public function enforce_subscription(){
             $ctrl = strtolower($this->router->fetch_class());
             $method = strtolower($this->router->fetch_method());
-            // Allow access to subscription management and login/logout pages
-            if($ctrl === 'subscription_license' || $ctrl === 'login' || $ctrl === 'logout' || $ctrl === 'updates' || $ctrl === 'dashboard'){
+            // Allow access to subscription management and login/logout pages.
+            // cron / system_updates / fleet MUST stay reachable on suspended
+            // installs — they are the channels that deliver the vendor's
+            // resume command; gating them makes suspension irreversible.
+            if($ctrl === 'subscription_license' || $ctrl === 'login' || $ctrl === 'logout' || $ctrl === 'updates' || $ctrl === 'dashboard'
+              || $ctrl === 'cron' || $ctrl === 'system_updates' || $ctrl === 'fleet' || $ctrl === 'manifest'){
               return;
             }
             if(!special_access() && $this->db->table_exists('db_subscription_license')){
