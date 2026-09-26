@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.51",
+    "version": "4.0.9.52",
     "previous_version": "4.0.9.50",
     "release_date": "2026-09-26",
     "requires_php_min": "7.4.0",
@@ -9664,7 +9664,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "9e52f29c8a623b954ffae2ca5c5581c4b05338012053196944ad41f34c48828e",
+            "hash": "fb38d589ff7af1a94e91f2ab8bba63105fd1a183ee869f283faa043769f5da9f",
             "size": 97643
         },
         {
@@ -15906,6 +15906,7 @@
         "4.0.9.46_audit_trail_toggle.sql",
         "4.0.9.50_nigerian_cities.sql",
         "4.0.9.51_fleet_payload_mediumtext.sql",
+        "4.0.9.51_users_delete_permission.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
         "4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql",
@@ -15922,5 +15923,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.51"
+    "changelog": "Release 4.0.9.52"
 }
