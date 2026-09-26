@@ -146,7 +146,7 @@
 							$out .= '<a href="'.base_url('users/edit/'.$row->id).'" class="mp-edit" title="Edit"><i class="fa fa-pencil"></i></a>';
 						}
 						if($CI->permissions('users_delete') && $row->id != 1){
-							$out .= '<button type="button" class="mp-delete" title="Delete" onclick="delete_user('.$row->id.')"><i class="fa fa-trash"></i></button>';
+							$out .= '<button type="button" class="mp-delete" title="Delete" onclick="delete_users('.$row->id.')"><i class="fa fa-trash"></i></button>';
 						}
 						$out .= '</div>';
 						return $out;
