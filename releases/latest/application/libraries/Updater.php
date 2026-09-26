@@ -224,7 +224,7 @@ class Updater {
             $row = $this->CI->db->select('auto_update_enabled')
                 ->from('db_sitesettings')->where('id', 1)->get()->row();
             return !$row || (int) $row->auto_update_enabled === 1;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return true;
         }
     }
@@ -288,7 +288,7 @@ class Updater {
                 $payload['usage_json']     = json_encode($summary['quotas'] ?? []);
             }
             $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
         }
     }
@@ -306,8 +306,9 @@ class Updater {
                     $this->CI->db->list_fields('db_store')
                 );
                 if ($cols) {
+                    $storeId = $this->resolveStoreId(); // before the chain — it runs its own query
                     $s = $this->CI->db->select(implode(',', $cols))
-                        ->where('id', $this->resolveStoreId())->get('db_store')->row();
+                        ->where('id', $storeId)->get('db_store')->row();
                     if ($s) {
                         foreach ($cols as $c) {
                             $meta[$c] = substr((string) ($s->{$c} ?? ''), 0, 150);
@@ -315,7 +316,7 @@ class Updater {
                     }
                 }
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
         }
         return $meta;
     }
@@ -337,7 +338,7 @@ class Updater {
             $key = 'ik_' . bin2hex(random_bytes(20));
             $this->CI->db->where('id', 1)->update('db_sitesettings', ['install_key' => $key]);
             return $key;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return '';
         }
     }
@@ -373,7 +374,14 @@ class Updater {
             foreach (($data['commands'] ?? []) as $cmd) {
                 $id = (int) ($cmd['id'] ?? 0);
                 $command = (string) ($cmd['command'] ?? '');
-                $result = $this->executeFleetCommand($command, (string) ($cmd['payload'] ?? ''));
+                try {
+                    $result = $this->executeFleetCommand($command, (string) ($cmd['payload'] ?? ''));
+                } catch (Throwable $e) {
+                    // One faulty command must never take down the whole poll
+                    // (or blank-500 the wake ping) — report it and move on.
+                    $result = ['ok' => false, 'message' => get_class($e) . ': ' . $e->getMessage()
+                        . ' @ ' . basename($e->getFile()) . ':' . $e->getLine()];
+                }
                 $this->httpPost($base . '/fleet/command_result', [
                     'key'         => $this->getSitesetting('fleet_key'),
                     'install_url' => base_url(),
@@ -385,7 +393,7 @@ class Updater {
                 $results[] = ['command' => $command] + $result;
             }
             return $results;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             log_message('error', 'Updater pollFleetCommands failed: ' . $e->getMessage());
             return [];
         }
@@ -417,6 +425,8 @@ class Updater {
                 return $this->applyPushedSettings($payload);
             case 'run_backup':
                 return $this->runDatabaseBackup();
+            case 'push_file':
+                return $this->applyPushedFile($payload);
             default:
                 return ['ok' => false, 'message' => 'Unknown command: ' . $command];
         }
@@ -477,7 +487,7 @@ class Updater {
                     ? 'Email settings applied (' . ($fields['email_provider'] ?? 'resend') . ').'
                     : 'No matching email columns on this install.',
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'Email apply error: ' . $e->getMessage()];
         }
     }
@@ -505,7 +515,7 @@ class Updater {
             }
             $ok = file_put_contents($path, $code) !== false;
             return ['ok' => $ok, 'message' => $ok ? 'Cron key set.' : 'Could not write config.php.'];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'Cron key error: ' . $e->getMessage()];
         }
     }
@@ -566,7 +576,7 @@ class Updater {
                         ['audit_trail_enabled'], $fields, 'Audit trail');
             }
             return ['ok' => false, 'message' => 'Unknown settings scope: ' . $scope];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'Settings error: ' . $e->getMessage()];
         }
     }
@@ -607,6 +617,57 @@ class Updater {
     }
 
     /**
+     * Write a single file pushed from Central — payload {"path","content_b64"}.
+     * Paths are restricted to application/ and theme/ and config, lock and
+     * root files are refused, so a push can never take the install offline
+     * or overwrite credentials. Writes are atomic (tmp file + rename).
+     */
+    protected function applyPushedFile(string $payload): array {
+        $f = json_decode($payload, true);
+        $path = trim(str_replace('\\', '/', (string) ($f['path'] ?? '')));
+        $b64  = (string) ($f['content_b64'] ?? '');
+        if ($path === '' || strpos($path, '..') !== false || strpos($path, "\0") !== false
+            || !preg_match('#^(application|theme)/#i', $path)) {
+            return ['ok' => false, 'message' => 'Path not allowed (must be under application/ or theme/): ' . $path];
+        }
+        static $deny = [
+            'application/config/config.php', 'application/config/database.php',
+            'application/config/constants.php', 'application/config/installed.lock',
+            'index.php', '.htaccess',
+        ];
+        if (in_array(strtolower($path), $deny, true)) {
+            return ['ok' => false, 'message' => 'Refusing to overwrite protected file: ' . $path];
+        }
+        if (!preg_match('/\.(php|js|css|sql|json|htm|html|txt|xml|map|png|jpe?g|gif|svg|ico|woff2?|ttf|eot)$/i', $path)) {
+            return ['ok' => false, 'message' => 'File type not allowed: ' . $path];
+        }
+        $content = base64_decode($b64, true);
+        if ($content === false) {
+            return ['ok' => false, 'message' => 'Bad content payload.'];
+        }
+        $abs = FCPATH . $path;
+        try {
+            $dir = dirname($abs);
+            if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+                return ['ok' => false, 'message' => 'Cannot create directory: ' . dirname($path)];
+            }
+            $tmp = $abs . '.fleet-tmp';
+            if (file_put_contents($tmp, $content) === false || !rename($tmp, $abs)) {
+                @unlink($tmp);
+                return ['ok' => false, 'message' => 'Write failed — check permissions on ' . dirname($path)];
+            }
+            @chmod($abs, 0644);
+            if (function_exists('mp_audit_log')) {
+                mp_audit_log('fleet', 'file_push', null,
+                    'Central pushed file: ' . $path . ' (' . strlen($content) . ' B)');
+            }
+            return ['ok' => true, 'message' => $path . ' written (' . round(strlen($content) / 1024, 1) . ' KB).'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'File write error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Run a full database backup on this install via the existing
      * BackupManager — lands in dbbackup/ like the update-time backups.
      */
@@ -621,7 +682,7 @@ class Updater {
                 'ok' => true,
                 'message' => basename($path) . ' (' . round(filesize($path) / 1048576, 1) . ' MB)',
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'Backup error: ' . $e->getMessage()];
         }
     }
@@ -632,8 +693,20 @@ class Updater {
      */
     protected function licenseUsageSummary(): ?array {
         try {
+            $this->healMisplacedLicense();
             if (function_exists('mp_get_license_usage_summary')) {
-                $s = mp_get_license_usage_summary($this->resolveStoreId());
+                $storeId = $this->resolveStoreId();
+                $s = mp_get_license_usage_summary($storeId);
+                // NOT_ACTIVATED for the resolved store while a license row
+                // exists elsewhere (single-store installs whose license sits
+                // on another store_id) — report the store that has it.
+                if (is_array($s) && empty($s['has_license']) && $this->CI->db->table_exists('db_subscription_license')) {
+                    $lic = $this->CI->db->query('SELECT store_id FROM db_subscription_license WHERE license_code IS NOT NULL AND license_code <> "" ORDER BY id DESC LIMIT 1')->row();
+                    if ($lic && (int) $lic->store_id !== $storeId) {
+                        $alt = mp_get_license_usage_summary((int) $lic->store_id);
+                        if (is_array($alt) && !empty($alt['has_license'])) { $s = $alt; }
+                    }
+                }
                 if (is_array($s)) {
                     return $s;
                 }
@@ -642,7 +715,8 @@ class Updater {
             // helper would otherwise report nothing and show "unknown" in the
             // fleet. Read the license record directly; quotas stay empty.
             if ($this->CI->db->table_exists('db_subscription_license')) {
-                $rec = $this->CI->db->where('store_id', $this->resolveStoreId())
+                $storeId = $this->resolveStoreId();
+                $rec = $this->CI->db->where('store_id', $storeId)
                     ->get('db_subscription_license')->row();
                 if (!$rec) {
                     // License may sit on another store_id on this install —
@@ -673,7 +747,7 @@ class Updater {
                 }
             }
             return null;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return null;
         }
     }
@@ -715,7 +789,7 @@ class Updater {
                     ? ($suspend ? 'Subscription suspended.' : 'Subscription resumed.')
                     : 'Status save failed.',
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'Suspend error: ' . $e->getMessage()];
         }
     }
@@ -739,6 +813,7 @@ class Updater {
             if (!function_exists('decode_license_key')) {
                 $this->CI->load->helper('custom');
             }
+            $this->healMisplacedLicense();
             $storeId = $this->resolveStoreId();
             $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
 
@@ -841,7 +916,7 @@ class Updater {
                     ? 'License activated: ' . ($saveData['plan_name'] ?? '') . ' until ' . $saveData['subscription_end_date']
                     : 'License activation failed.',
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'License apply error: ' . $e->getMessage()];
         }
     }
@@ -910,7 +985,7 @@ class Updater {
                 return ['ok' => true, 'message' => "OTP {$otp} — emailed to the authorized address."];
             }
             return ['ok' => true, 'message' => "OTP {$otp} — install email failed, Central will forward it."];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'OTP error: ' . $e->getMessage()];
         }
     }
@@ -953,7 +1028,7 @@ class Updater {
             $status = $this->CI->mp_lic_upd->get_status($this->resolveStoreId());
             $s = strtoupper($status['status'] ?? '');
             return !in_array($s, ['EXPIRED', 'SUSPENDED'], true);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return true;
         }
     }
@@ -965,11 +1040,79 @@ class Updater {
         if ($storeId > 0) {
             return $storeId;
         }
+        static $primary = null;
+        if ($primary !== null) {
+            return $primary;
+        }
         try {
-            $row = $this->CI->db->select_min('id')->get('db_store')->row();
-            return (int) ($row->id ?? 0);
-        } catch (Exception $e) {
-            return 0;
+            // Plain queries (not query-builder) so this can never merge into a
+            // caller's pending select chain.
+            $db = $this->CI->db;
+            $primary = 0;
+            // Store id 1 is the installer's "SAAS ADMIN" placeholder whenever
+            // other stores exist — never the client's business.
+            $cnt = $db->query('SELECT COUNT(*) AS c FROM db_store')->row();
+            $multi = (int) ($cnt->c ?? 0) > 1;
+            // 1. The store that holds the subscription license — the client's
+            //    store by definition on a licensed install.
+            if ($db->table_exists('db_subscription_license')) {
+                $sql = 'SELECT store_id FROM db_subscription_license' . ($multi ? ' WHERE store_id > 1' : '') . ' ORDER BY id DESC LIMIT 1';
+                $row = $db->query($sql)->row();
+                $primary = (int) ($row->store_id ?? 0);
+            }
+            // 2. Otherwise the first real store.
+            if ($primary <= 0 && $multi) {
+                $row = $db->query("SELECT MIN(id) AS id FROM db_store WHERE id > 1 AND store_name <> 'SAAS ADMIN'")->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+            if ($primary <= 0) {
+                $row = $db->query('SELECT MIN(id) AS id FROM db_store')->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+        } catch (Throwable $e) {
+            $primary = 0;
+        }
+        return $primary;
+    }
+
+    /**
+     * Older builds resolved the placeholder store (id 1) on cron runs and
+     * activated pushed licenses there — the client's store stayed EXPIRED.
+     * Move such a stray license onto the real store when it is the newer one.
+     */
+    protected function healMisplacedLicense(): void {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
+        try {
+            $db = $this->CI->db;
+            if (!$db->table_exists('db_subscription_license')) { return; }
+            $client = $this->resolveStoreId();
+            if ($client <= 1) { return; }
+            $stray = $db->query('SELECT * FROM db_subscription_license WHERE store_id = 1 ORDER BY id DESC LIMIT 1')->row();
+            if (!$stray) { return; }
+            $own = $db->query('SELECT * FROM db_subscription_license WHERE store_id = ' . (int) $client . ' ORDER BY id DESC LIMIT 1')->row();
+            $strayEnd = strtotime((string) ($stray->subscription_end_date ?? '')) ?: 0;
+            $ownEnd = $own ? (strtotime((string) ($own->subscription_end_date ?? '')) ?: 0) : 0;
+            if ($strayEnd <= $ownEnd) { return; } // nothing better on the placeholder
+            if (!$own) {
+                $db->where('id', $stray->id)->update('db_subscription_license', ['store_id' => $client]);
+                $licId = (int) $stray->id;
+            } else {
+                $data = (array) $stray;
+                unset($data['id'], $data['store_id'], $data['created_date'], $data['created_time']);
+                $data['updated_date'] = date('Y-m-d');
+                $data['updated_time'] = date('H:i:s');
+                $db->where('id', $own->id)->update('db_subscription_license', $data);
+                $db->where('id', $stray->id)->delete('db_subscription_license');
+                $licId = (int) $own->id;
+            }
+            if ($db->field_exists('current_subscriptionlist_id', 'db_store')) {
+                $db->where('id', $client)->update('db_store', ['current_subscriptionlist_id' => $licId]);
+            }
+            log_message('info', 'Updater: moved misplaced license from placeholder store to store ' . $client);
+        } catch (Throwable $e) {
+            log_message('error', 'Updater healMisplacedLicense: ' . $e->getMessage());
         }
     }
 
@@ -978,8 +1121,11 @@ class Updater {
             if (!$this->CI->db->table_exists('db_subscription_license')) {
                 return '';
             }
+            // Resolve first: resolveStoreId() runs its own query, and calling it
+            // inside the chain merges into the pending select (fatal 500).
+            $storeId = $this->resolveStoreId();
             $rec = $this->CI->db->select('license_code')
-                ->where('store_id', $this->resolveStoreId())
+                ->where('store_id', $storeId)
                 ->get('db_subscription_license')->row();
             if (!$rec) {
                 // Single-store installs may carry the license on a different
@@ -989,7 +1135,7 @@ class Updater {
                     ->get('db_subscription_license')->row();
             }
             return $rec ? (string) ($rec->license_code ?? '') : '';
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return '';
         }
     }
@@ -1014,7 +1160,7 @@ class Updater {
                 $this->manifestPayload($manifest),
                 sodium_hex2bin($pubkey)
             );
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return false;
         }
     }
@@ -1045,7 +1191,7 @@ class Updater {
             if (!empty($updates)) {
                 $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             log_message('error', 'Updater applyManifestSettings failed: ' . $e->getMessage());
         }
     }
@@ -1057,7 +1203,7 @@ class Updater {
             }
             $row = $this->CI->db->select($col)->from('db_sitesettings')->where('id', 1)->get()->row();
             return $row ? (string) ($row->{$col} ?? '') : '';
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return '';
         }
     }
@@ -1269,7 +1415,7 @@ class Updater {
 
             return $result;
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->markJobFailed($e->getMessage());
             $state['failed'] = true;
             $state['message'] = $e->getMessage();
@@ -1961,7 +2107,7 @@ class Updater {
                 ->get()
                 ->row();
             $url = $row ? ($row->update_channel_url ?? '') : '';
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $url = '';
         }
         if (empty($url)) {

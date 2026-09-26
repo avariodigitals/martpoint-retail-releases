@@ -538,6 +538,54 @@ class Roles_model extends CI_Model {
 
                     'audit_trail_view',
 
+                    // Store management
+                    'store_add',
+                    'store_delete',
+                    'store_view',
+
+                    // Attributes (product attributes module)
+                    'attributes_add',
+                    'attributes_edit',
+                    'attributes_delete',
+                    'attributes_view',
+
+                    // Cash & shifts
+                    'cash_delete',
+                    'tills_add',
+                    'tills_edit',
+                    'tills_delete',
+                    'tills_view',
+                    'cashier_shifts_manage',
+                    'z_report',
+
+                    // Medical notes
+                    'medical_notes_add',
+                    'medical_notes_delete',
+                    'medical_notes_view',
+
+                    // Promotions
+                    'promotions_manage',
+
+                    // Template management
+                    'sms_template_add',
+                    'sms_template_delete',
+                    'email_template_add',
+                    'email_template_delete',
+
+                    // Subscription admin
+                    'subscription_delete',
+
+                    // System
+                    'database_backup',
+
+                    // Reports
+                    'cash_flow_report',
+                    'inventory_aging_report',
+                    'receivables_aging_report',
+                    'reorder_suggestion_report',
+                    'sell_through_report',
+                    'variant_attribute_report',
+
 													)));
 		
 		if(count($result) == 0){

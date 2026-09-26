@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.49",
-    "previous_version": "3.0",
-    "release_date": "2026-09-25",
+    "version": "4.0.9.50",
+    "previous_version": "4.0.9.49",
+    "release_date": "2026-09-26",
     "requires_php_min": "7.4.0",
     "requires_php_max": "7.4.99",
     "fleet_url": "https://central.martpoint.com.ng",
@@ -3739,8 +3739,8 @@
         },
         {
             "path": "application/views/admin/desktop/roles_form.php",
-            "hash": "f7eb3bec5cea5243989aef73f2c606e99dc3ac6a994aff6ae91418d71bb72385",
-            "size": 20412
+            "hash": "efdf7face6aa5b9416bdea5385860c4c277af46db43f136374dc6bd7b600e1bc",
+            "size": 21816
         },
         {
             "path": "application/views/admin/desktop/crud_list.php",
@@ -4549,8 +4549,8 @@
         },
         {
             "path": "application/models/Login_model.php",
-            "hash": "613b9ffdb71d8ff7cf60da8c1ad6eda15f37df8bf4cde7ece2336c2f01920d48",
-            "size": 8720
+            "hash": "7673d344a654b59f8a062222ad92e5a7f97d083b161780e2eb3e1aec133f6081",
+            "size": 9041
         },
         {
             "path": "application/models/Expense_category_model.php",
@@ -4659,8 +4659,8 @@
         },
         {
             "path": "application/models/Roles_model.php",
-            "hash": "82dc09385ce92e5e7efb4f74264c2ecae87998aa4535df4e0d82eeaedafc9abf",
-            "size": 21413
+            "hash": "47df0be53aef4a790e86af15e73f5ef14b7824bca50dd8f337ce399643e1007f",
+            "size": 22981
         },
         {
             "path": "application/models/Business_profile_model.php",
@@ -5009,8 +5009,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "2a84d52bb22aea10eced95dc88202ab50f558a6c30c65eb1c381361a1c9ad1af",
-            "size": 16413
+            "hash": "2808f7ebabc0ca8485db925fa316aa0f549a5b34eb12de19d609e109df9bf323",
+            "size": 17138
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -8219,8 +8219,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "c4b2fc1a131903f142ae933364b301f989419952fe59d90935b220f6d09d1fd2",
-            "size": 88867
+            "hash": "e419acc825aaecd470ac3b086cffcf0a9fa9c10689c8734362eff61e30c125d3",
+            "size": 96971
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -9664,7 +9664,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "10067c75ec9aa89874dd8161f018c6d4c0c876f62279853cb4f70de3a447a1e2",
+            "hash": "1f9181fa4630ef9153fa726d6bc9ca5754c49dfd2d09b8b1f84360915bfc6d1b",
             "size": 97643
         },
         {
@@ -15864,8 +15864,8 @@
         },
         {
             "path": "index.php",
-            "hash": "059d3adfa4d7294a2d997b137053d2c05b2419b971b4f4d11a6318fad45fcac8",
-            "size": 10795
+            "hash": "99590b2a475e406d29bfc8b90f722a583edc907664a56c8161093bb5c496a731",
+            "size": 14973
         }
     ],
     "migrations": [
@@ -15905,6 +15905,7 @@
         "4.0.9.43_central_update_fleet.sql",
         "4.0.9.46_audit_trail_toggle.sql",
         "4.0.9.50_nigerian_cities.sql",
+        "4.0.9.51_fleet_payload_mediumtext.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
         "4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql",
@@ -15921,5 +15922,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.49"
+    "changelog": "Release 4.0.9.50"
 }

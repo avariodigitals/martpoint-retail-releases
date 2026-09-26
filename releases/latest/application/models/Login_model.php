@@ -66,8 +66,12 @@ class Login_model extends CI_Model
 				$this->session->set_flashdata('failed', 'Your account is temporarily inactive!');
 				redirect('login');exit;
 			}
-			//SUBSCRIPTION EXPIRED OR SUSPENDED
-			if($this->db->table_exists('db_subscription_license')){
+			//SUBSCRIPTION EXPIRED OR SUSPENDED — staff are locked out, but the
+			//store's super admin must still get in (enforce_subscription exempts
+			//special_access too): their session is what manages the suspension,
+			//renews the license, and fires the fleet check-in that can deliver
+			//the vendor's resume command.
+			if($this->db->table_exists('db_subscription_license') && (int)$query->row()->role_id !== 1){
 				$this->load->model('subscription_license_model','license');
 				$sub = $this->license->get_status($query->row()->store_id);
 				if($sub['status'] === 'EXPIRED' || $sub['status'] === 'SUSPENDED'){

@@ -386,11 +386,18 @@ class Cron extends CI_Controller {
 		}
 		@set_time_limit(60);
 		@ignore_user_abort(true);
-		$this->load->library('Updater');
-		$this->updater->sendHeartbeat();
-		$commands = $this->updater->pollFleetCommands();
 		header('Content-Type: application/json');
-		echo json_encode(['status'=>'ok','commands'=>$commands]);
+		try {
+			$this->load->library('Updater');
+			$this->updater->sendHeartbeat();
+			$commands = $this->updater->pollFleetCommands();
+			if(!empty($commands)){ $this->updater->sendHeartbeat(); } // report post-command state (license, suspension…)
+			echo json_encode(['status'=>'ok','commands'=>$commands]);
+		} catch (Throwable $e) {
+			// Never blank-500 a wake ping — report the fault so Central shows it.
+			log_message('error', 'fleet_ping failed: ' . $e->getMessage());
+			echo json_encode(['status'=>'error','message'=>get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine()]);
+		}
 	}
 
 	public function auto_update($cliKey = ''){
@@ -407,15 +414,21 @@ class Cron extends CI_Controller {
 		// Central pings this URL to wake the install for queued commands —
 		// keep running even if the caller disconnects early.
 		@ignore_user_abort(true);
-		$this->load->library('Updater');
-		// Heartbeat + command poll FIRST — this request is usually Central's
-		// wake ping; queued commands (update_now, set_license, OTP…) must run
-		// even if the update pipeline below stalls on a slow channel fetch.
-		$this->updater->sendHeartbeat();
-		$commands = $this->updater->pollFleetCommands();
-		$result = $this->updater->runAutoUpdate(90);
-		// Report the post-update state back immediately.
-		$this->updater->sendHeartbeat();
+		$commands = [];
+		try {
+			$this->load->library('Updater');
+			// Heartbeat + command poll FIRST — this request is usually Central's
+			// wake ping; queued commands (update_now, set_license, OTP…) must run
+			// even if the update pipeline below stalls on a slow channel fetch.
+			$this->updater->sendHeartbeat();
+			$commands = $this->updater->pollFleetCommands();
+			$result = $this->updater->runAutoUpdate(90);
+			// Report the post-update state back immediately.
+			$this->updater->sendHeartbeat();
+		} catch (Throwable $e) {
+			log_message('error', 'auto_update failed: ' . $e->getMessage());
+			$result = ['status'=>'error','message'=>get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine()];
+		}
 		$result['commands'] = $commands;
 
 		if($isCli){

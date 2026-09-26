@@ -100,7 +100,7 @@
           ['payment_modes_add','Add'], ['payment_modes_edit','Edit'], ['payment_modes_delete','Delete'], ['payment_modes_view','View'],
         ]],
         ['Store Settings', 'store', [
-          ['store_edit','Edit'],
+          ['store_add','Add'], ['store_edit','Edit'], ['store_delete','Delete'], ['store_view','View'],
         ]],
         ['Business Setup', 'business_setup', [
           ['business_setup','Can configure'],
@@ -122,6 +122,9 @@
         ]],
         ['Variants', 'variant', [
           ['variant_add','Add'], ['variant_edit','Edit'], ['variant_delete','Delete'], ['variant_view','View'],
+        ]],
+        ['Attributes', 'attributes', [
+          ['attributes_add','Add'], ['attributes_edit','Edit'], ['attributes_delete','Delete'], ['attributes_view','View'],
         ]],
         ['Suppliers', 'suppliers', [
           ['suppliers_add','Add'], ['suppliers_edit','Edit'], ['suppliers_delete','Delete'], ['suppliers_view','View'], ['import_suppliers','Import'],
@@ -175,6 +178,12 @@
         ['Treatment Notes', 'treatment_notes', [
           ['treatment_notes_add','Add'], ['treatment_notes_edit','Edit'], ['treatment_notes_delete','Delete'], ['treatment_notes_view','View'],
         ]],
+        ['Medical Notes', 'medical_notes', [
+          ['medical_notes_add','Add'], ['medical_notes_delete','Delete'], ['medical_notes_view','View'],
+        ]],
+        ['Promotions', 'promotions', [
+          ['promotions_manage','Manage'],
+        ]],
         ['Custom Orders', 'custom_orders', [
           ['custom_orders_add','Add'], ['custom_orders_edit','Edit'], ['custom_orders_delete','Delete'], ['custom_orders_view','View'],
         ]],
@@ -194,7 +203,13 @@
           ['money_deposit_add','Add'], ['money_deposit_edit','Edit'], ['money_deposit_delete','Delete'], ['money_deposit_view','View'],
         ]],
         ['Cash Transactions', 'cash_transactions', [
-          ['cash_transactions','View'],
+          ['cash_transactions','View'], ['cash_delete','Delete'],
+        ]],
+        ['Tills', 'tills', [
+          ['tills_add','Add'], ['tills_edit','Edit'], ['tills_delete','Delete'], ['tills_view','View'],
+        ]],
+        ['Cashier Shifts', 'cashier_shifts', [
+          ['cashier_shifts_manage','Manage'], ['z_report','Z Report'],
         ]],
         ['Discount Coupons', 'discount_coupon', [
           ['discountCouponAdd','Add'], ['discountCouponEdit','Edit'], ['discountCouponDelete','Delete'], ['discountCouponView','View'],
@@ -230,10 +245,10 @@
           ['approval_settings_edit','Settings'], ['approval_logs_view','Logs'], ['can_approve','Can Approve'],
         ]],
         ['SMS', 'sms', [
-          ['send_sms','Send'], ['sms_template_edit','Template Edit'], ['sms_template_view','Template View'], ['sms_api_view','API View'], ['sms_api_edit','API Edit'], ['sms_settings','Settings'],
+          ['send_sms','Send'], ['sms_template_add','Template Add'], ['sms_template_edit','Template Edit'], ['sms_template_delete','Template Delete'], ['sms_template_view','Template View'], ['sms_api_view','API View'], ['sms_api_edit','API Edit'], ['sms_settings','Settings'],
         ]],
         ['Email', 'email', [
-          ['send_email','Send'], ['email_template_edit','Template Edit'], ['email_template_view','Template View'], ['smtp_settings','SMTP Settings'],
+          ['send_email','Send'], ['email_template_add','Template Add'], ['email_template_edit','Template Edit'], ['email_template_delete','Template Delete'], ['email_template_view','Template View'], ['smtp_settings','SMTP Settings'],
         ]],
         ['Dashboard', 'dashboard', [
           ['dashboard_view','View'], ['dashboard_info_box_1','Box 1'], ['dashboard_info_box_2','Box 2'],
@@ -254,6 +269,9 @@
           ['gstr_1_report','FSTR-1'], ['gstr_2_report','FSTR-2'],
           ['customer_orders_report','Customer Orders'], ['load_sheet_report','Load Sheet'],
           ['delivery_sheet_report','Delivery Sheet'], ['sales_return_payments','Sales Return Payments'],
+          ['cash_flow_report','Cash Flow'], ['inventory_aging_report','Inventory Aging'],
+          ['receivables_aging_report','Receivables Aging'], ['reorder_suggestion_report','Reorder Suggestions'],
+          ['sell_through_report','Sell Through'], ['variant_attribute_report','Variant/Attribute'],
           ['show_purchase_price','Show Purchase Price'],
         ]],
         ['Cross-User Visibility', 'cross_user', [
@@ -265,7 +283,10 @@
           ['debt_reminder_view','View'], ['debt_reminder_edit','Edit'],
         ]],
         ['Subscription', 'subscription', [
-          ['subscription','View'],
+          ['subscription','View'], ['subscription_delete','Delete'],
+        ]],
+        ['Database Backup', 'database_backup', [
+          ['database_backup','Backup'],
         ]],
         ['Expiry Settings', 'expiry_settings', [
           ['expiry_settings','Settings'],

@@ -30,7 +30,33 @@ $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
 $is_install_seed = (strpos($request_uri, 'install_seed') !== false);
 
 if (PHP_SAPI !== 'cli' && !$is_install_seed && !file_exists($lock_file)) {
-    $needs_install = true;
+    // Self-heal: package re-uploads can drop installed.lock. If database.php
+    // holds real credentials AND the MartPoint schema exists, this is an
+    // installed system — recreate the lock instead of sending to setup.
+    if (file_exists($db_config_path)) {
+        $dbc = file_get_contents($db_config_path);
+        if (strpos($dbc, '%HOSTNAME%') === false && strpos($dbc, '%DATABASE%') === false) {
+            $db = null;
+            include $db_config_path;
+            $d = is_array($db ?? null) ? ($db['default'] ?? null) : null;
+            if (is_array($d) && !empty($d['database'])) {
+                $link = @mysqli_connect(
+                    (string) ($d['hostname'] ?? ''),
+                    (string) ($d['username'] ?? ''),
+                    (string) ($d['password'] ?? ''),
+                    (string) $d['database']
+                );
+                if ($link) {
+                    $t = @mysqli_query($link, "SHOW TABLES LIKE 'db_sitesettings'");
+                    if ($t && mysqli_num_rows($t) > 0) {
+                        @file_put_contents($lock_file, 'restored ' . date('c'));
+                    }
+                    mysqli_close($link);
+                }
+            }
+        }
+    }
+    $needs_install = !file_exists($lock_file);
 }
 
 if (!$needs_install && file_exists($db_config_path)) {
@@ -325,6 +351,58 @@ switch (ENVIRONMENT)
 	}
 
 	define('VIEWPATH', $view_folder.DIRECTORY_SEPARATOR);
+
+/*############################CUSTOM STOREFRONT DOMAIN DISPATCH#########################*/
+// If the request host matches a "connected" custom storefront domain, rewrite the
+// request URI to /store/{slug}/... so every storefront route works on that domain.
+// Fails open: any error leaves the request untouched and normal routing applies.
+try {
+	$mp_host = strtolower(trim((string)(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '')));
+	$mp_host = rtrim(preg_replace('/:\d+$/', '', $mp_host), '.');
+	if (PHP_SAPI !== 'cli' && $mp_host !== '' && is_file(APPPATH.'config/database.php')) {
+		$mp_dbconf = NULL;
+		require APPPATH.'config/database.php';
+		$mp_dbc = (isset($active_group) && isset($db[$active_group])) ? $db[$active_group] : NULL;
+		if ($mp_dbc && (isset($mp_dbc['dbdriver']) ? $mp_dbc['dbdriver'] : 'mysqli') === 'mysqli' && !empty($mp_dbc['database'])) {
+			$mp_conn = @new mysqli($mp_dbc['hostname'], $mp_dbc['username'], $mp_dbc['password'], $mp_dbc['database']);
+			if ($mp_conn && !$mp_conn->connect_errno) {
+				$mp_alt = (strpos($mp_host, 'www.') === 0) ? substr($mp_host, 4) : 'www.'.$mp_host;
+				$mp_slug = NULL;
+				$mp_stmt = $mp_conn->prepare("SELECT s.store_slug FROM db_storefront_domains d INNER JOIN db_storefront_settings s ON s.store_id = d.store_id WHERE d.domain_value IN (?, ?) AND d.connection_status = 'connected' LIMIT 1");
+				if ($mp_stmt) {
+					$mp_stmt->bind_param('ss', $mp_host, $mp_alt);
+					$mp_stmt->execute();
+					$mp_stmt->bind_result($mp_slug);
+					$mp_stmt->fetch();
+					$mp_stmt->close();
+				}
+				$mp_conn->close();
+				if ($mp_slug) {
+					$mp_uri = (string)(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/');
+					$mp_qs = '';
+					$mp_qpos = strpos($mp_uri, '?');
+					if ($mp_qpos !== FALSE) { $mp_qs = substr($mp_uri, $mp_qpos); $mp_uri = substr($mp_uri, 0, $mp_qpos); }
+					$mp_base = str_replace('\\', '/', dirname((string)$_SERVER['SCRIPT_NAME']));
+					if ($mp_base === '/' || $mp_base === '.') { $mp_base = ''; }
+					if ($mp_base !== '' && strpos($mp_uri, $mp_base.'/') === 0) { $mp_uri = substr($mp_uri, strlen($mp_base)); }
+					elseif ($mp_base !== '' && $mp_uri === $mp_base) { $mp_uri = '/'; }
+					$mp_path = '/'.ltrim($mp_uri, '/');
+
+					// Paths that must keep their existing routes on a custom domain
+					$mp_skip = array('store/', 'storefront/', 'image/', 'qr/', 'sitemap.xml', 'robots.txt', 'favicon', 'uploads/', 'assets/', 'themes/', 'setup/', 'install', 'index.php', 'api/', 'cron');
+					$mp_lower = strtolower($mp_path);
+					$mp_rewrite = TRUE;
+					foreach ($mp_skip as $mp_p) {
+						if (strpos($mp_lower, '/'.$mp_p) === 0) { $mp_rewrite = FALSE; break; }
+					}
+					if ($mp_rewrite) {
+						$_SERVER['REQUEST_URI'] = $mp_base.'/store/'.$mp_slug.($mp_path === '/' ? '' : $mp_path).$mp_qs;
+					}
+				}
+			}
+		}
+	}
+} catch (Throwable $mp_e) { /* custom-domain dispatch failed — continue with normal routing */ }
 
 /*
  * --------------------------------------------------------------------
