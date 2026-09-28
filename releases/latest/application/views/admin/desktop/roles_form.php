@@ -190,6 +190,10 @@
         ['Production Batches', 'production_batches', [
           ['production_batches_add','Add'], ['production_batches_edit','Edit'], ['production_batches_delete','Delete'], ['production_batches_view','View'],
         ]],
+        ['Nylon Production', 'nylon', [
+          ['nylon_view','View'], ['nylon_jobs_add','Add Jobs'], ['nylon_jobs_edit','Edit Jobs'], ['nylon_jobs_delete','Delete Jobs'],
+          ['nylon_report','Report Output'], ['nylon_approve','Approve / QC'], ['nylon_artwork','Artwork'], ['nylon_costing','Costing'], ['nylon_settings','Settings'],
+        ]],
         ['Recipes', 'recipes', [
           ['recipes_add','Add'], ['recipes_edit','Edit'], ['recipes_delete','Delete'], ['recipes_view','View'],
         ]],

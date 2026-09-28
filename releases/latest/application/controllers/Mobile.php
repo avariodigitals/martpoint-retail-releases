@@ -3726,6 +3726,7 @@ class Mobile extends MY_Controller {
 		$operations = [
 			['title' => 'Custom Orders', 'desc' => 'Orders, quotes & deposits', 'icon' => 'fa-pencil-square-o', 'url' => 'operations/custom_orders', 'perm' => 'custom_orders_view', 'feature' => 'custom_orders', 'color' => 'primary'],
 			['title' => 'Production', 'desc' => 'Batches & production schedule', 'icon' => 'fa-industry', 'url' => 'operations/production', 'perm' => 'production_batches_view', 'feature' => 'production_workflow', 'color' => 'orange'],
+			['title' => 'Nylon Factory', 'desc' => 'Extrusion, printing & bag jobs', 'icon' => 'fa-industry', 'url' => 'mobile/nylon', 'perm' => 'nylon_view', 'feature' => ['nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'], 'color' => 'teal'],
 			['title' => 'Recipes', 'desc' => 'Kitchen & bakery recipes', 'icon' => 'fa-cutlery', 'url' => 'operations/recipes', 'perm' => 'recipes_view', 'feature' => 'recipe_tracking', 'color' => 'teal'],
 			['title' => 'Memberships', 'desc' => 'Plans & customer members', 'icon' => 'fa-id-card', 'url' => 'operations/memberships', 'perm' => 'memberships_view', 'feature' => 'memberships', 'color' => 'purple'],
 			['title' => 'Kitchen', 'desc' => 'Order status & kitchen display', 'icon' => 'fa-utensils', 'url' => 'mobile/kitchen', 'perm' => 'store_view', 'feature' => 'kitchen_workflow', 'color' => 'orange'],
@@ -3912,6 +3913,1134 @@ class Mobile extends MY_Controller {
 		$ok = $this->tables->update_status($id, $store_id, $status);
 		header('Content-Type: application/json');
 		echo json_encode(['success' => $ok]);
+	}
+
+	/* ===================== OPERATIONS: MOBILE MODULES ===================== */
+
+	private function _mobile_render($data)
+	{
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/'.$data['_view'], $data);
+	}
+
+	/* ---------- CUSTOM ORDERS ---------- */
+
+	public function custom_orders($status = '')
+	{
+		$this->permission_check('custom_orders_view');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = mp_label('custom_order').'s';
+		$data['co_label'] = mp_label('custom_order');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('custom_orders_add');
+		$data['can_edit'] = $this->permissions('custom_orders_edit');
+
+		$data['counts'] = [];
+		foreach (['new','quoted','deposit_paid','in_production','ready','delivered','cancelled'] as $s) {
+			$data['counts'][$s] = $this->custom_orders->count_by_status($store_id, $s);
+		}
+		$data['statuses'] = ['new','quoted','deposit_paid','in_production','ready','delivered','cancelled'];
+		$active = in_array($status, $data['statuses']) ? $status : 'new';
+		$data['active_status'] = $active;
+
+		$this->db->select('a.*, c.customer_name, c.mobile, b.item_name as template_item_name');
+		$this->db->from('db_custom_orders a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->join('db_items b', 'b.id = a.item_id', 'left');
+		$this->db->where('a.store_id', $store_id)->where('a.status', $active);
+		$this->db->order_by('a.due_date IS NULL', 'asc', FALSE)->order_by('a.due_date', 'asc')->order_by('a.id', 'desc');
+		$data['orders'] = $this->db->limit(100)->get()->result();
+
+		$data['_view'] = 'op_custom_orders';
+		$this->_mobile_render($data);
+	}
+
+	public function custom_order($id = 0)
+	{
+		$this->permission_check('custom_orders_view');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$order = $this->custom_orders->get((int)$id);
+		if(!$order){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $order->order_code;
+		$data['co_label'] = mp_label('custom_order');
+		$data['order'] = $order;
+		$data['history'] = $this->custom_orders->get_history((int)$id);
+		$data['workflow'] = Custom_orders_model::get_workflow($order->workflow_template_key ?: 'standard');
+		$data['can_edit'] = $this->permissions('custom_orders_edit');
+		$data['can_delete'] = $this->permissions('custom_orders_delete');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$data['_view'] = 'op_custom_order';
+		$this->_mobile_render($data);
+	}
+
+	public function custom_order_form($id = 0)
+	{
+		$this->permission_check('custom_orders_add');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['co_label'] = mp_label('custom_order');
+		$data['edit_order'] = null;
+		if($id){
+			$data['edit_order'] = $this->custom_orders->get((int)$id);
+			if(!$data['edit_order']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit '.$data['co_label'] : 'New '.$data['co_label'];
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['items'] = $this->db->select('id, item_name, sales_price, custom_order_fields_json')
+			->where('store_id', $store_id)->where('status', 1)->where('accept_custom_order', 1)
+			->order_by('item_name', 'asc')->get('db_items')->result();
+		$data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['item_fields'] = [];
+		foreach($data['items'] as $it){
+			$f = json_decode($it->custom_order_fields_json ?: '[]', true);
+			$data['item_fields'][$it->id] = is_array($f) ? $f : [];
+		}
+		$data['statuses'] = Custom_orders_model::get_workflow($data['edit_order'] ? ($data['edit_order']->workflow_template_key ?: 'standard') : 'standard');
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+
+		$data['_view'] = 'op_custom_order_form';
+		$this->_mobile_render($data);
+	}
+
+	public function custom_order_save()
+	{
+		$this->permission_check('custom_orders_add');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|numeric');
+		$this->form_validation->set_rules('item_id', 'Item', 'trim|required|numeric');
+		$this->form_validation->set_rules('order_date', 'Order Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$customer = $this->db->where('id', $this->input->post('customer_id', TRUE))->get('db_customers')->row();
+		$item = $this->db->where('id', $this->input->post('item_id', TRUE))->get('db_items')->row();
+		$staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
+
+		$specs = [];
+		$spec_labels = $this->input->post('spec_label', TRUE) ?: [];
+		$spec_values = $this->input->post('spec_value', TRUE) ?: [];
+		for($i = 0; $i < count($spec_labels); $i++){
+			if(!empty($spec_labels[$i])){ $specs[$spec_labels[$i]] = $spec_values[$i] ?? ''; }
+		}
+
+		$quoted = floatval($this->input->post('quoted_price', TRUE) ?: 0);
+		$deposit = floatval($this->input->post('deposit_amount', TRUE) ?: 0);
+		$deposit_paid = floatval($this->input->post('deposit_paid', TRUE) ?: 0);
+		$total = floatval($this->input->post('total_amount', TRUE) ?: 0);
+
+		$order_data = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'item_id' => (int)$this->input->post('item_id', TRUE),
+			'item_name' => $item ? $item->item_name : '',
+			'specifications_json' => !empty($specs) ? json_encode($specs) : null,
+			'quoted_price' => $quoted,
+			'deposit_amount' => $deposit,
+			'deposit_paid' => $deposit_paid,
+			'total_amount' => $total,
+			'balance_due' => $total - $deposit_paid,
+			'status' => $this->input->post('status', TRUE) ?: 'new',
+			'workflow_template_key' => $item ? ($item->workflow_template_key ?: 'standard') : 'standard',
+			'notes' => $this->input->post('notes', TRUE),
+			'staff_id' => (int)($this->input->post('staff_id', TRUE) ?: 0),
+			'staff_name' => $staff ? trim($staff->first_name.' '.$staff->last_name) : '',
+			'order_date' => $this->input->post('order_date', TRUE),
+			'due_date' => $this->input->post('due_date', TRUE) ?: null,
+		];
+
+		$id = $this->input->post('id', TRUE) ?: null;
+		$saved_id = $this->custom_orders->save($order_data, $id);
+		echo json_encode(['success' => true, 'id' => $saved_id, 'message' => $id ? 'Order updated.' : 'Order saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function custom_order_status()
+	{
+		$this->permission_check('custom_orders_edit');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$id = $this->input->post('id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(!$id || !$status){
+			echo json_encode(['success' => false, 'message' => 'Missing data']);
+			return;
+		}
+		$this->custom_orders->save(['status' => $status], $id);
+		echo json_encode(['success' => true, 'message' => 'Status updated to '.Custom_orders_model::status_label($status), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function custom_order_delete()
+	{
+		$this->permission_check('custom_orders_delete');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->custom_orders->delete($id);
+		echo json_encode(['success' => true, 'message' => 'Order deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- TREATMENT NOTES ---------- */
+
+	public function treatment_notes()
+	{
+		$this->permission_check('treatment_notes_view');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Treatment Notes';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('treatment_notes_add');
+		$data['can_delete'] = $this->permissions('treatment_notes_delete');
+		$data['this_month_count'] = $this->notes->count_this_month($store_id);
+		$data['total_count'] = $this->notes->count_all();
+		$q = trim((string)$this->input->get('q', TRUE));
+		$data['search'] = $q;
+		$this->db->select('a.*, c.customer_name, c.mobile');
+		$this->db->from('db_treatment_notes a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		if($q !== ''){
+			$this->db->group_start()->like('c.customer_name', $q)->or_like('a.service_type', $q)->or_like('a.notes', $q)->group_end();
+		}
+		$this->db->order_by('a.treatment_date', 'desc')->order_by('a.id', 'desc');
+		$data['notes'] = $this->db->limit(100)->get()->result();
+
+		$data['_view'] = 'op_treatment_notes';
+		$this->_mobile_render($data);
+	}
+
+	public function treatment_note($id = 0)
+	{
+		$this->permission_check('treatment_notes_add');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['edit_note'] = null;
+		if($id){
+			$data['edit_note'] = $this->notes->get((int)$id);
+			if(!$data['edit_note']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit Treatment Note' : 'New Treatment Note';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['services'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('service_name', 'asc')->get('db_services')->result();
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+
+		$data['_view'] = 'op_treatment_note_form';
+		$this->_mobile_render($data);
+	}
+
+	public function consumable_items()
+	{
+		$this->permission_check('treatment_notes_view');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$term = $this->input->get('term', TRUE);
+		$this->db->select('id, item_name, stock, consumable_unit');
+		$this->db->from('db_items');
+		$this->db->where('store_id', $store_id)->where('status', 1)->where('not_for_sale', 1);
+		if($term){ $this->db->like('item_name', $term); }
+		echo json_encode($this->db->limit(30)->get()->result());
+	}
+
+	public function treatment_note_save()
+	{
+		$this->permission_check('treatment_notes_add');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|numeric');
+		$this->form_validation->set_rules('service_type', 'Service Type', 'trim|required');
+		$this->form_validation->set_rules('treatment_date', 'Treatment Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
+		$note_data = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'service_type' => $this->input->post('service_type', TRUE),
+			'notes' => $this->input->post('notes', TRUE),
+			'treatment_date' => $this->input->post('treatment_date', TRUE),
+			'staff_id' => (int)($this->input->post('staff_id', TRUE) ?: 0),
+			'staff_name' => $staff ? trim($staff->first_name.' '.$staff->last_name) : '',
+			'products_used' => $this->input->post('products_used', TRUE),
+			'recommendations' => $this->input->post('recommendations', TRUE),
+		];
+
+		$consumables = [];
+		$item_ids = $this->input->post('consumable_item_id', TRUE) ?: [];
+		$item_qtys = $this->input->post('consumable_qty', TRUE) ?: [];
+		for($i = 0; $i < count($item_ids); $i++){
+			$iid = (int)($item_ids[$i] ?? 0);
+			$qty = floatval($item_qtys[$i] ?? 0);
+			if($iid > 0 && $qty > 0){ $consumables[] = ['item_id' => $iid, 'qty' => $qty]; }
+		}
+
+		$id = $this->input->post('id', TRUE) ?: null;
+		$saved_id = $this->notes->save($note_data, $id, $consumables);
+		echo json_encode(['success' => true, 'id' => $saved_id, 'message' => $id ? 'Note updated.' : 'Note saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function treatment_note_delete()
+	{
+		$this->permission_check('treatment_notes_delete');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->notes->delete($id);
+		echo json_encode(['success' => true, 'message' => 'Note deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- MEDICAL NOTES ---------- */
+
+	public function medical_notes()
+	{
+		$this->permission_check('medical_notes_view');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Medical Notes';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('medical_notes_add');
+		$data['can_delete'] = $this->permissions('medical_notes_delete');
+		$data['this_month_count'] = $this->med_notes->count_this_month($store_id);
+		$data['refill_reminders'] = $this->med_notes->get_refill_reminders($store_id, 7);
+		$q = trim((string)$this->input->get('q', TRUE));
+		$data['search'] = $q;
+		$this->db->select('a.*, c.customer_name, c.mobile');
+		$this->db->from('db_medical_notes a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		if($q !== ''){
+			$this->db->group_start()->like('c.customer_name', $q)->or_like('a.diagnosis', $q)->or_like('a.prescribing_doctor', $q)->group_end();
+		}
+		$this->db->order_by('a.note_date', 'desc')->order_by('a.id', 'desc');
+		$data['notes'] = $this->db->limit(100)->get()->result();
+
+		$data['_view'] = 'op_medical_notes';
+		$this->_mobile_render($data);
+	}
+
+	public function medical_note($id = 0)
+	{
+		$this->permission_check('medical_notes_add');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['edit_note'] = null;
+		if($id){
+			$data['edit_note'] = $this->med_notes->get((int)$id);
+			if(!$data['edit_note']){ show_404(); return; }
+			foreach($data['edit_note']->items as $it){
+				$nm = $this->db->select('item_name')->where('id', $it->item_id)->get('db_items')->row();
+				$it->item_name = $nm ? $nm->item_name : '';
+			}
+		}
+		$data['page_title'] = $id ? 'Edit Medical Note' : 'New Medical Note';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+
+		$data['_view'] = 'op_medical_note_form';
+		$this->_mobile_render($data);
+	}
+
+	public function medical_items()
+	{
+		$this->permission_check('medical_notes_view');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$term = $this->input->get('term', TRUE);
+		$this->db->select('id, item_name, item_code, stock');
+		$this->db->from('db_items');
+		$this->db->where('store_id', $store_id)->where('status', 1)->where('delete_bit', 0);
+		if($term){ $this->db->group_start()->like('item_name', $term)->or_like('item_code', $term)->group_end(); }
+		$results = $this->db->limit(20)->get()->result();
+		$json = [];
+		foreach($results as $r){ $json[] = ['id' => $r->id, 'text' => $r->item_name.' ('.($r->item_code ?: 'N/A').')', 'stock' => $r->stock]; }
+		echo json_encode($json);
+	}
+
+	public function medical_note_save()
+	{
+		$this->permission_check('medical_notes_add');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Patient', 'trim|required|numeric');
+		$this->form_validation->set_rules('note_date', 'Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$id = (int)$this->input->post('id', TRUE);
+		$staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
+		$data_row = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'note_date' => $this->input->post('note_date', TRUE),
+			'prescribing_doctor' => $this->input->post('prescribing_doctor', TRUE) ?: null,
+			'doctor_contact' => $this->input->post('doctor_contact', TRUE) ?: null,
+			'diagnosis' => $this->input->post('diagnosis', TRUE) ?: null,
+			'prescription_ref' => $this->input->post('prescription_ref', TRUE) ?: null,
+			'allergies_flagged' => $this->input->post('allergies_flagged', TRUE) ?: null,
+			'dosage_instructions' => $this->input->post('dosage_instructions', TRUE) ?: null,
+			'counselling_notes' => $this->input->post('counselling_notes', TRUE) ?: null,
+			'next_refill_date' => $this->input->post('next_refill_date', TRUE) ?: null,
+			'refills_remaining' => (int)$this->input->post('refills_remaining', TRUE) ?: 0,
+			'staff_id' => (int)$this->input->post('staff_id', TRUE) ?: null,
+			'staff_name' => $staff ? trim($staff->first_name.' '.$staff->last_name) : null,
+			'status' => 'active',
+		];
+
+		if(!empty($_FILES['prescription_file']['name'])){
+			$upload_path = FCPATH.'uploads/prescriptions/';
+			if(!is_dir($upload_path)){ mkdir($upload_path, 0775, true); }
+			$config['upload_path'] = $upload_path;
+			$config['allowed_types'] = 'jpg|jpeg|png|gif|pdf|webp';
+			$config['max_size'] = 5120;
+			$config['encrypt_name'] = TRUE;
+			$this->load->library('upload', $config);
+			if($this->upload->do_upload('prescription_file')){
+				$up = $this->upload->data();
+				$data_row['prescription_file'] = 'uploads/prescriptions/'.$up['file_name'];
+			}
+		}
+
+		if(!$id){
+			$data_row['created_date'] = date('Y-m-d');
+			$data_row['created_time'] = date('H:i:s');
+			$data_row['created_by'] = $this->session->userdata('username') ?? 'system';
+		}
+
+		$item_ids = $this->input->post('item_id', TRUE) ?: [];
+		$item_qtys = $this->input->post('item_qty', TRUE) ?: [];
+		$item_dosages = $this->input->post('item_dosage', TRUE) ?: [];
+		$item_durations = $this->input->post('item_duration', TRUE) ?: [];
+		$item_instructions = $this->input->post('item_instructions', TRUE) ?: [];
+		$items = [];
+		for($i = 0; $i < count($item_ids); $i++){
+			if(!empty($item_ids[$i])){
+				$items[] = [
+					'item_id' => $item_ids[$i],
+					'qty' => $item_qtys[$i] ?? 1,
+					'dosage' => $item_dosages[$i] ?? null,
+					'duration' => $item_durations[$i] ?? null,
+					'instructions' => $item_instructions[$i] ?? null,
+				];
+			}
+		}
+
+		try {
+			$note_id = $this->med_notes->save($data_row, $id ?: null, $items);
+			echo json_encode(['success' => true, 'id' => $note_id, 'message' => $id ? 'Medical note updated.' : 'Medical note saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+		}
+	}
+
+	public function medical_note_delete()
+	{
+		$this->permission_check('medical_notes_delete');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->med_notes->delete($id);
+		echo json_encode(['success' => true, 'message' => 'Medical note deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- STAFF ASSIGNMENT & COMMISSION ---------- */
+
+	public function staff_assignment()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('staff_assignment')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Staff Assignment';
+		$data['staff_label'] = mp_label('staff');
+		$data['service_label'] = mp_label('service');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['services'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('service_name', 'asc')->get('db_services')->result();
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('first_name', 'asc')->get('db_users')->result();
+		$assignments = [];
+		foreach($this->db->where('store_id', $store_id)->where('status', 1)->get('db_service_staff')->result() as $a){
+			$assignments[$a->service_id][$a->staff_id] = true;
+		}
+		$data['assignments'] = $assignments;
+
+		$data['_view'] = 'op_staff_assignment';
+		$this->_mobile_render($data);
+	}
+
+	public function staff_assignment_save()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('staff_assignment')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$action = $this->input->post('action', TRUE);
+		$service_id = (int)$this->input->post('service_id', TRUE);
+		$staff_id = (int)$this->input->post('staff_id', TRUE);
+
+		if($action === 'assign' && $service_id && $staff_id){
+			$exists = $this->db->where('store_id', $store_id)->where('service_id', $service_id)->where('staff_id', $staff_id)->get('db_service_staff')->row();
+			if($exists){
+				$this->db->where('id', $exists->id)->update('db_service_staff', ['status' => 1]);
+			} else {
+				$this->db->insert('db_service_staff', ['store_id' => $store_id, 'service_id' => $service_id, 'staff_id' => $staff_id, 'status' => 1]);
+			}
+			echo json_encode(['success' => true, 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		if($action === 'unassign' && $service_id && $staff_id){
+			$this->db->where('store_id', $store_id)->where('service_id', $service_id)->where('staff_id', $staff_id)->delete('db_service_staff');
+			echo json_encode(['success' => true, 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		echo json_encode(['success' => false, 'message' => 'Invalid request']);
+	}
+
+	public function staff_commission()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('staff_commission')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Staff Commission';
+		$data['staff_label'] = mp_label('staff');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$staff_id = $this->input->get('staff_id', TRUE) ?: '';
+		$from_date = $this->input->get('from_date', TRUE) ?: date('Y-m-01');
+		$to_date = $this->input->get('to_date', TRUE) ?: date('Y-m-d');
+
+		$this->db->select('si.staff_id, u.username as staff_name, si.sales_id, s.sales_code, s.sales_date, si.item_id, i.item_name, si.sales_qty, si.price_per_unit, si.commission_amount, si.total_cost');
+		$this->db->from('db_salesitems si');
+		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
+		$this->db->join('db_items i', 'i.id = si.item_id', 'left');
+		$this->db->join('db_users u', 'u.id = si.staff_id', 'left');
+		$this->db->where('si.store_id', $store_id);
+		$this->db->where('si.staff_id IS NOT NULL', null, false);
+		$this->db->where('si.commission_amount >', 0);
+		$this->db->where("(s.sales_date >= '$from_date' AND s.sales_date <= '$to_date')", null, false);
+		if(!empty($staff_id)){ $this->db->where('si.staff_id', $staff_id); }
+		$this->db->order_by('s.sales_date', 'desc');
+		$data['commissions'] = $this->db->get()->result();
+
+		$this->db->select('si.staff_id, u.username as staff_name, SUM(si.commission_amount) as total_commission, COUNT(DISTINCT si.sales_id) as invoice_count, SUM(si.sales_qty) as total_qty');
+		$this->db->from('db_salesitems si');
+		$this->db->join('db_users u', 'u.id = si.staff_id', 'left');
+		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
+		$this->db->where('si.store_id', $store_id);
+		$this->db->where('si.staff_id IS NOT NULL', null, false);
+		$this->db->where('si.commission_amount >', 0);
+		$this->db->where("(s.sales_date >= '$from_date' AND s.sales_date <= '$to_date')", null, false);
+		if(!empty($staff_id)){ $this->db->where('si.staff_id', $staff_id); }
+		$this->db->group_by('si.staff_id');
+		$data['summary'] = $this->db->get()->result();
+
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['selected_staff_id'] = $staff_id;
+		$data['from_date'] = $from_date;
+		$data['to_date'] = $to_date;
+		$data['grand_total'] = 0;
+		foreach($data['summary'] as $s){ $data['grand_total'] += (float)$s->total_commission; }
+
+		$data['_view'] = 'op_staff_commission';
+		$this->_mobile_render($data);
+	}
+
+	/* ---------- MEMBERSHIPS ---------- */
+
+	public function memberships()
+	{
+		$this->permission_check('memberships_view');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = mp_label('membership').'s';
+		$data['m_label'] = mp_label('membership');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('memberships_add');
+		$data['can_delete'] = $this->permissions('memberships_delete');
+		$this->membership->update_expired_memberships();
+		$data['memberships'] = $this->membership->get_store_memberships();
+		$data['active_count'] = $this->membership->count_active_memberships($store_id);
+		$data['expiring_count'] = $this->membership->count_expiring_soon(7);
+
+		$data['_view'] = 'op_memberships';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_plans()
+	{
+		$this->permission_check('memberships_view');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = mp_label('membership').' Plans';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('memberships_add');
+		$data['can_edit'] = $this->permissions('memberships_edit');
+		$data['plans'] = $this->db->where('store_id', $store_id)->order_by('status', 'desc')->order_by('plan_name', 'asc')->get('db_membership_plans')->result();
+
+		$data['_view'] = 'op_membership_plans';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_plan($id = 0)
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$data = $this->data;
+		$data['edit_plan'] = null;
+		if($id){
+			$data['edit_plan'] = $this->membership->get_plan((int)$id);
+			if(!$data['edit_plan']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit Plan' : 'New Plan';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['_view'] = 'op_membership_plan_form';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_plan_save()
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('plan_name', 'Plan Name', 'trim|required');
+		$this->form_validation->set_rules('price', 'Price', 'trim|required|numeric');
+		$this->form_validation->set_rules('billing_cycle', 'Billing Cycle', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$plan_data = [
+			'store_id' => $store_id,
+			'plan_name' => $this->input->post('plan_name', TRUE),
+			'plan_code' => $this->input->post('plan_code', TRUE),
+			'description' => $this->input->post('description', TRUE),
+			'price' => (float)$this->input->post('price', TRUE),
+			'billing_cycle' => $this->input->post('billing_cycle', TRUE),
+			'discount_percent' => (float)($this->input->post('discount_percent', TRUE) ?: 0),
+			'free_services_per_period' => (int)($this->input->post('free_services_per_period', TRUE) ?: 0),
+			'priority_booking' => (int)($this->input->post('priority_booking', TRUE) ?: 0),
+			'status' => 1
+		];
+		$id = $this->input->post('id', TRUE) ?: null;
+		$saved_id = $this->membership->save_plan($plan_data, $id);
+		echo json_encode(['success' => true, 'id' => $saved_id, 'message' => $id ? 'Plan updated.' : 'Plan created.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function membership_plan_toggle()
+	{
+		$this->permission_check('memberships_edit');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$id = $this->input->post('id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(!$id){ echo json_encode(['success' => false]); return; }
+		$this->membership->toggle_plan_status($id, $status);
+		echo json_encode(['success' => true, 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function membership_assign($customer_id = 0)
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Assign '.mp_label('membership');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customer_id'] = $customer_id;
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['plans'] = $this->membership->get_active_plans($store_id);
+		$data['edit_membership'] = null;
+		$membership_id = $this->input->get('renew');
+		if($membership_id){ $data['edit_membership'] = $this->membership->get_customer_membership($membership_id); }
+
+		$data['_view'] = 'op_membership_assign';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_save()
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|numeric');
+		$this->form_validation->set_rules('plan_id', 'Plan', 'trim|required|numeric');
+		$this->form_validation->set_rules('start_date', 'Start Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+		$plan = $this->membership->get_plan($this->input->post('plan_id', TRUE));
+		if(!$plan){ echo json_encode(['success' => false, 'message' => 'Invalid plan selected.']); return; }
+
+		$start_date = $this->input->post('start_date', TRUE);
+		switch($plan->billing_cycle){
+			case 'quarterly': $end_date = date('Y-m-d', strtotime($start_date.' +3 months -1 day')); break;
+			case 'annual':    $end_date = date('Y-m-d', strtotime($start_date.' +1 year -1 day')); break;
+			default:          $end_date = date('Y-m-d', strtotime($start_date.' +1 month -1 day'));
+		}
+		$membership_data = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'plan_id' => (int)$this->input->post('plan_id', TRUE),
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'next_billing_date' => $end_date,
+			'auto_renew' => (int)($this->input->post('auto_renew', TRUE) ?: 0),
+			'status' => 'active',
+			'payment_status' => 'paid',
+			'amount_paid' => (float)($this->input->post('amount_paid', TRUE) ?: $plan->price),
+			'payment_method' => $this->input->post('payment_method', TRUE) ?: 'cash',
+			'notes' => $this->input->post('notes', TRUE)
+		];
+		$membership_id = $this->input->post('membership_id', TRUE) ?: null;
+		if($membership_id){
+			$this->membership->renew_membership($membership_id, $membership_data);
+		} else {
+			$membership_id = $this->membership->assign_membership($membership_data);
+		}
+		echo json_encode(['success' => true, 'membership_id' => $membership_id, 'message' => 'Membership saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function membership_cancel()
+	{
+		$this->permission_check('memberships_delete');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->membership->cancel_membership($id);
+		echo json_encode(['success' => true, 'message' => 'Membership cancelled.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- DELIVERY SCHEDULING ---------- */
+
+	public function deliveries($status = '')
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Deliveries';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$valid = ['planned','ready','out_for_delivery','completed','cancelled'];
+		$active = in_array($status, $valid) ? $status : '';
+		$data['active_status'] = $active;
+
+		$data['counts'] = [];
+		foreach($valid as $s){ $data['counts'][$s] = $this->db->where('store_id', $store_id)->where('status', $s)->count_all_results('db_delivery_schedules'); }
+
+		$this->db->where('store_id', $store_id);
+		if($active){ $this->db->where('status', $active); }
+		$this->db->order_by('schedule_date', 'desc')->order_by('id', 'desc');
+		$schedules = $this->db->limit(100)->get('db_delivery_schedules')->result();
+		foreach($schedules as $sc){
+			$sc->items_count = $this->db->where('schedule_id', $sc->id)->count_all_results('db_delivery_schedule_items');
+			$sc->delivered_count = $this->db->where('schedule_id', $sc->id)->where('delivery_status', 'delivered')->count_all_results('db_delivery_schedule_items');
+		}
+		$data['schedules'] = $schedules;
+
+		$data['_view'] = 'op_deliveries';
+		$this->_mobile_render($data);
+	}
+
+	public function delivery_form($id = 0)
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['schedule'] = null;
+		$data['schedule_items'] = [];
+		if($id){
+			$data['schedule'] = $this->delivery_model->get_details((int)$id);
+			if(empty($data['schedule'])){ show_404(); return; }
+			$data['schedule_items'] = $this->delivery_model->get_schedule_items((int)$id);
+		}
+		$data['page_title'] = $id ? 'Edit Delivery Schedule' : 'New Delivery Schedule';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['drivers'] = $this->delivery_model->get_drivers($store_id);
+		$data['pending_sales'] = $this->delivery_model->get_pending_sales($store_id);
+
+		$data['_view'] = 'op_delivery_form';
+		$this->_mobile_render($data);
+	}
+
+	public function delivery_save()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$store_id = get_current_store_id();
+		$q_id = (int)$this->input->post('q_id', TRUE);
+
+		if($q_id){
+			// Update header only — save_and_update() would wipe existing stops
+			$driver_id = $this->input->post('driver_id', TRUE);
+			$driver_name = '';
+			if(!empty($driver_id)){
+				$drv = $this->db->where('id', $driver_id)->get('db_delivery_drivers')->row();
+				$driver_name = $drv ? $drv->name : '';
+			}
+			$this->db->where('id', $q_id)->where('store_id', $store_id)->update('db_delivery_schedules', [
+				'route_name'    => $this->input->post('route_name', TRUE),
+				'schedule_date' => system_fromatted_date($this->input->post('schedule_date', TRUE)),
+				'driver_id'     => $driver_id ?: null,
+				'driver_name'   => $driver_name,
+				'vehicle'       => $this->input->post('vehicle', TRUE),
+				'notes'         => $this->input->post('notes', TRUE),
+			]);
+
+			// Append any newly ticked sales
+			$sales_ids = $this->input->post('sales_id');
+			$sequences = $this->input->post('delivery_sequence');
+			if(!empty($sales_ids)){
+				$max_seq = (int)$this->db->select_max('delivery_sequence')->where('schedule_id', $q_id)->get('db_delivery_schedule_items')->row()->delivery_sequence;
+				foreach($sales_ids as $i => $sales_id){
+					if(empty($sales_id)) continue;
+					$exists = $this->db->where('schedule_id', $q_id)->where('sales_id', $sales_id)->count_all_results('db_delivery_schedule_items');
+					if($exists) continue;
+					$sale = $this->db->select('s.sales_code, s.customer_id, c.customer_name, c.mobile, s.shippingaddress_id')
+						->from('db_sales s')->join('db_customers c', 'c.id = s.customer_id', 'left')
+						->where('s.id', $sales_id)->get()->row();
+					$address = '';
+					if(!empty($sale->shippingaddress_id)){
+						$addr = $this->db->where('id', $sale->shippingaddress_id)->get('db_shippingaddress')->row();
+						$address = $addr ? trim($addr->address.', '.($addr->city ?? '').', '.($addr->state_id ?? '')) : '';
+					}
+					$max_seq++;
+					$this->db->insert('db_delivery_schedule_items', [
+						'schedule_id' => $q_id, 'sales_id' => $sales_id,
+						'sales_code' => $sale ? $sale->sales_code : '',
+						'customer_id' => $sale ? $sale->customer_id : null,
+						'customer_name' => $sale ? $sale->customer_name : '',
+						'address' => $address, 'phone' => $sale ? $sale->mobile : '',
+						'delivery_sequence' => $max_seq, 'delivery_status' => 'pending',
+					]);
+				}
+			}
+			echo json_encode(['success' => true, 'message' => 'Schedule updated.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$result = $this->delivery_model->save_and_update();
+		echo json_encode(['success' => ($result === 'success'), 'message' => $result === 'success' ? 'Schedule saved.' : 'Save failed.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function delivery_view($id)
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$data = $this->data;
+		$data['schedule'] = $this->delivery_model->get_details((int)$id);
+		if(empty($data['schedule'])){ show_404(); return; }
+		$data['schedule_items'] = $this->delivery_model->get_schedule_items((int)$id);
+		$data['page_title'] = 'Route — '.($data['schedule']['route_name'] ?: $data['schedule']['schedule_code']);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$data['_view'] = 'op_delivery_view';
+		$this->_mobile_render($data);
+	}
+
+	public function delivery_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$id = $this->input->post('id');
+		$status = $this->input->post('status');
+		$result = $this->delivery_model->update_status($id, $status);
+		echo json_encode(['success' => ($result === 'success' || $result === true), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function delivery_item_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$item_id = $this->input->post('item_id');
+		$status = $this->input->post('status');
+		$notes = $this->input->post('notes', TRUE);
+		$result = $this->delivery_model->mark_item_status($item_id, $status, $notes);
+		echo json_encode(['success' => ($result === 'success' || $result === true), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function delivery_delete()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$id = $this->input->post('id');
+		$result = $this->delivery_model->delete_schedules($id);
+		echo json_encode(['success' => ($result === 'success'), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- WARRANTY LOOKUP ---------- */
+
+	public function warranty_lookup()
+	{
+		if(!mp_feature_enabled('serial_number_tracking') && !mp_feature_enabled('imei_tracking') && !mp_feature_enabled('warranty_tracking')){
+			$this->show_access_denied_page('Warranty lookup requires Serial Number, IMEI, or Warranty tracking to be enabled for your store.');
+			return;
+		}
+		$this->permission_check('store_view');
+		$data = $this->data;
+		$data['page_title'] = 'Warranty Lookup';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$search = $this->input->get('search', TRUE);
+		$data['search'] = $search;
+		$data['results'] = [];
+		if(!empty($search)){
+			$store_id = get_current_store_id();
+			$like_term = $this->db->escape_like_str(trim($search)).'%';
+
+			$base_sold = "SELECT si.*, s.sales_date, s.customer_id, s.sales_code, i.item_name, i.warranty_months, c.customer_name, c.mobile
+				FROM db_salesitems si
+				LEFT JOIN db_sales s ON s.id = si.sales_id
+				LEFT JOIN db_items i ON i.id = si.item_id
+				LEFT JOIN db_customers c ON c.id = s.customer_id
+				WHERE s.store_id = ? AND s.sales_status = 'Final' AND %s";
+			$sold_conditions = ["si.sold_serial_number LIKE ?","si.sold_imei_number LIKE ?","s.sales_code LIKE ?","c.customer_name LIKE ?","c.mobile LIKE ?","i.item_name LIKE ?"];
+			$sold_parts = []; $sold_bind = [];
+			foreach($sold_conditions as $cond){
+				$sold_parts[] = sprintf($base_sold, $cond);
+				$sold_bind[] = $store_id; $sold_bind[] = $like_term;
+			}
+			$sold_results = $this->db->query(implode(" UNION ALL ", $sold_parts)." ORDER BY sales_date DESC LIMIT 100", $sold_bind)->result();
+
+			$base_unsold = "SELECT b.id as barcode_id, b.item_id, b.serial_number as sold_serial_number, b.imei_number as sold_imei_number, b.warranty_months, b.created_date as sales_date, i.item_name, 'In Stock' as sales_code, NULL as customer_id, NULL as customer_name, NULL as mobile, 0 as sales_id
+				FROM db_item_barcodes b
+				LEFT JOIN db_items i ON i.id = b.item_id
+				WHERE i.store_id = ? AND b.status = 1 AND %s";
+			$unsold_conditions = ["b.serial_number LIKE ?","b.imei_number LIKE ?","i.item_name LIKE ?"];
+			$unsold_parts = []; $unsold_bind = [];
+			foreach($unsold_conditions as $cond){
+				$unsold_parts[] = sprintf($base_unsold, $cond);
+				$unsold_bind[] = $store_id; $unsold_bind[] = $like_term;
+			}
+			$unsold_results = $this->db->query(implode(" UNION ALL ", $unsold_parts)." ORDER BY sales_date DESC LIMIT 100", $unsold_bind)->result();
+			$data['results'] = array_merge($sold_results, $unsold_results);
+		}
+
+		$data['_view'] = 'op_warranty';
+		$this->_mobile_render($data);
+	}
+
+	/* ---------- LAUNDRY ---------- */
+
+	public function laundry()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('laundry_workflow')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$this->load->model('laundry_model','laundry');
+		$this->laundry->sync_new_orders($store_id);
+
+		if($this->input->get('ajax')){
+			header('Content-Type: application/json');
+			echo json_encode(['status_counts' => $this->laundry->count_by_status($store_id)]);
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title'] = 'Laundry';
+		$profile = mp_get_store_profile();
+		$lw_config = [];
+		if(!empty($profile['industry_settings_json'])){
+			$json = json_decode($profile['industry_settings_json'], true);
+			if(!empty($json['laundry_workflow'])){ $lw_config = $json['laundry_workflow']; }
+		}
+		$data['lw_stages'] = [
+			'has_washing' => $lw_config['has_washing'] ?? true,
+			'has_ironing' => $lw_config['has_ironing'] ?? true,
+		];
+		$active_status = $this->input->get('status') ?: 'dropped_off';
+		if(!in_array($active_status, ['dropped_off','washing','ironing','ready'])){ $active_status = 'dropped_off'; }
+		$data['active_status'] = $active_status;
+		$data['status_counts'] = $this->laundry->count_by_status($store_id);
+		$data['orders'] = $this->laundry->get_orders($store_id, $active_status, 50);
+		$data['collected'] = $this->laundry->get_collected_orders($store_id, 10);
+
+		$data['_view'] = 'laundry';
+		$this->_mobile_render($data);
+	}
+
+	public function laundry_update_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('laundry_workflow')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$id = (int)$this->input->post('laundry_order_id', TRUE);
+		$action = $this->input->post('action', TRUE);
+		if(!$id || empty($action)){
+			echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+			return;
+		}
+		$this->load->model('laundry_model','laundry');
+		$ok = $this->laundry->update_status($id, $store_id, $action);
+		header('Content-Type: application/json');
+		echo json_encode(['success' => $ok, 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- PRODUCTION ---------- */
+
+	public function production()
+	{
+		$this->permission_check('production_batches_view');
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->load->model('production_batches_model','pb');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Production';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$date_from = $this->input->get('from') ?: date('Y-m-d');
+		$date_to = $this->input->get('to') ?: date('Y-m-d', strtotime('+6 days'));
+		$data['date_from'] = $date_from;
+		$data['date_to'] = $date_to;
+		$data['prev_from'] = date('Y-m-d', strtotime($date_from.' -7 days'));
+		$data['prev_to'] = date('Y-m-d', strtotime($date_to.' -7 days'));
+		$data['next_from'] = date('Y-m-d', strtotime($date_from.' +7 days'));
+		$data['next_to'] = date('Y-m-d', strtotime($date_to.' +7 days'));
+		$data['batches'] = $this->pb->get_schedule($store_id, $date_from, $date_to);
+		$data['pending_items'] = $this->pb->get_pending_items($store_id);
+		$data['statuses'] = Production_batches_model::get_statuses(mp_get_store_profile()['industry_type'] ?? null, null);
+		$data['can_edit'] = $this->permissions('production_batches_edit');
+
+		$data['_view'] = 'op_production';
+		$this->_mobile_render($data);
+	}
+
+	public function production_status()
+	{
+		$this->permission_check('production_batches_view');
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->load->model('production_batches_model','pb');
+
+		$id = $this->input->post('id', TRUE);
+		$new_status = $this->input->post('status', TRUE);
+		$current_status = $this->input->post('current_status', TRUE);
+		if(!$id || !$new_status || !$current_status){
+			echo json_encode(['success' => false, 'message' => 'Missing data']);
+			return;
+		}
+		$batch = $this->pb->get($id);
+		$status_order = array_flip(Production_batches_model::get_statuses(null, $batch ? $batch->batch_type : null));
+		if(($status_order[$new_status] ?? -1) < ($status_order[$current_status] ?? -1) && !$this->permissions('production_batches_edit')){
+			echo json_encode(['success' => false, 'message' => 'Moving status backward requires manager approval.']);
+			return;
+		}
+		if($new_status === 'completed'){
+			if($batch && $batch->status === 'completed'){
+				echo json_encode(['success' => false, 'message' => 'This batch is already completed and its stock was already posted.']);
+				return;
+			}
+			$shortages = $this->pb->validate_stock_for_batch($id);
+			if(!empty($shortages)){
+				$msg = 'Cannot complete — not enough stock: ';
+				foreach($shortages as $s){ $msg .= $s['item_name'].' (need '.$s['needed'].', have '.$s['available'].') '; }
+				echo json_encode(['success' => false, 'message' => $msg]);
+				return;
+			}
+			if(!$this->pb->complete_batch($id)){
+				echo json_encode(['success' => false, 'message' => 'Stock update failed. Please check the error log or contact support.']);
+				return;
+			}
+		}
+		$this->pb->save(['status' => $new_status], $id);
+		echo json_encode(['success' => true, 'message' => 'Status updated to '.Production_batches_model::status_label($new_status), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- RECIPES ---------- */
+
+	public function recipes()
+	{
+		$this->permission_check('recipes_view');
+		if(!mp_feature_enabled('recipe_tracking')){ $this->show_access_denied_page(); return; }
+		$this->load->model('recipe_model','recipe');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Recipes';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$q = trim((string)$this->input->get('q', TRUE));
+		$data['search'] = $q;
+		$this->db->from('db_recipes')->where('store_id', $store_id);
+		if($q !== ''){ $this->db->group_start()->like('name', $q)->or_like('recipe_code', $q)->or_like('category', $q)->group_end(); }
+		$this->db->order_by('name', 'asc');
+		$data['recipes'] = $this->db->limit(100)->get()->result();
+		foreach($data['recipes'] as $r){ $r->cost_per_unit = $this->recipe->calculate_cost_per_unit($r->id); }
+
+		$data['_view'] = 'op_recipes';
+		$this->_mobile_render($data);
+	}
+
+	public function recipe($id = 0)
+	{
+		$this->permission_check('recipes_view');
+		if(!mp_feature_enabled('recipe_tracking')){ $this->show_access_denied_page(); return; }
+		$this->load->model('recipe_model','recipe');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['recipe'] = $this->recipe->get((int)$id);
+		if(!$data['recipe']){ show_404(); return; }
+		$data['page_title'] = $data['recipe']->name;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['ingredients'] = $this->recipe->get_ingredients((int)$id);
+		$data['total_cost'] = $this->recipe->calculate_cost((int)$id);
+		$data['cost_per_unit'] = $this->recipe->calculate_cost_per_unit((int)$id);
+		$data['runs'] = $this->recipe->get_production_runs((int)$id, 10);
+
+		$data['_view'] = 'op_recipe';
+		$this->_mobile_render($data);
 	}
 
 	public function business_profile()
@@ -5915,6 +7044,254 @@ class Mobile extends MY_Controller {
 		$data['vehicle'] = $vehicle;
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$this->load->view('mobile/automobile_receipt', $data);
+	}
+
+	/* ===================== NYLON / POLYTHENE PRODUCTION =====================
+	 * Mobile screens for the nylon_polythene business profile. All mutations
+	 * POST to the existing nylon/* JSON endpoints in the Nylon controller —
+	 * these routes only render views so the factory floor works on phones
+	 * and tablet-portrait devices.
+	 */
+
+	private function _nylon_gate($perm = 'nylon_view')
+	{
+		if(!mp_feature_enabled('nylon_workflow') && !mp_feature_enabled('nylon_extrusion')
+			&& !mp_feature_enabled('nylon_conversion') && !mp_feature_enabled('nylon_roll_trading')){
+			$this->show_access_denied_page();
+			return false;
+		}
+		$this->permission_check($perm);
+		$this->load->model('nylon_model', 'nylon');
+		return true;
+	}
+
+	public function nylon()
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Nylon Factory';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['mode_label'] = $this->nylon->mode_label();
+		$data['stats'] = $this->nylon->dashboard_stats($store_id);
+		$data['open_jobs'] = $this->nylon->open_jobs($store_id);
+		$data['materials'] = $this->nylon->material_stock($store_id);
+		$data['balances'] = $this->nylon->outstanding_balances($store_id);
+		$data['can_report'] = $this->permissions('nylon_report');
+		$data['can_orders'] = $this->permissions('custom_orders_view');
+		$data['can_jobs'] = $this->permissions('nylon_jobs_add');
+		$this->_mobile_render($data + ['_view' => 'nylon']);
+	}
+
+	public function nylon_jobs($status = '')
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$store_id = get_current_store_id();
+		$statuses = Nylon_model::job_statuses();
+		$active = in_array($status, $statuses) ? $status : 'in_progress';
+		$data = $this->data;
+		$data['page_title'] = 'Production Jobs';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['statuses'] = $statuses;
+		$data['active_status'] = $active;
+		$data['jobs'] = $this->nylon->get_jobs($store_id, $active);
+		foreach($data['jobs'] as $j){
+			$j->produced_qty = (float)$this->db->select('COALESCE(SUM(l.good_qty),0) q', false)
+				->from('db_nylon_job_logs l')
+				->join('db_nylon_job_stages s','s.id = l.stage_id')
+				->where('l.job_id', $j->id)->where('s.stage_key', 'qc')->where('l.status !=', 'reversed')
+				->get()->row()->q;
+		}
+		$data['counts'] = [];
+		foreach($statuses as $s){ $data['counts'][$s] = count($this->nylon->get_jobs($store_id, $s)); }
+		$data['can_add'] = $this->permissions('nylon_jobs_add');
+		$this->_mobile_render($data + ['_view' => 'nylon_jobs']);
+	}
+
+	public function nylon_job($id = 0)
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$job = $this->nylon->get_job((int)$id);
+		if(!$job || $job->store_id != get_current_store_id()){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $job->job_code;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['job'] = $job;
+		$data['stages'] = $this->nylon->get_stages($job->id);
+		$data['logs'] = $this->nylon->get_logs($job->id);
+		$data['stage_defs'] = Nylon_model::stage_defs();
+		$data['order'] = $job->custom_order_id ? $this->nylon->get_order($job->custom_order_id) : null;
+		$data['can_report'] = $this->permissions('nylon_report');
+		$data['can_approve'] = $this->permissions('nylon_approve');
+		$data['can_costing'] = $this->permissions('nylon_costing');
+		$data['report'] = $this->permissions('nylon_costing') ? $this->nylon->job_report($job->id) : null;
+		$this->_mobile_render($data + ['_view' => 'nylon_job']);
+	}
+
+	public function nylon_report($job_id = 0, $stage_id = 0)
+	{
+		if(!$this->_nylon_gate('nylon_report')){ return; }
+		$job = $this->nylon->get_job((int)$job_id);
+		if(!$job || $job->store_id != get_current_store_id()){ show_404(); return; }
+		$stage = null;
+		foreach($this->nylon->get_stages($job->id) as $s){ if($s->id == $stage_id) $stage = $s; }
+		if(!$stage){ show_404(); return; }
+
+		$defs = Nylon_model::stage_defs();
+		$machine_type = isset($defs[$stage->stage_key]) ? $defs[$stage->stage_key]['machine_type'] : null;
+		$machines = $this->nylon->get_machines();
+		if($machine_type){
+			$machines = array_values(array_filter($machines, function($m) use ($machine_type){ return $m->machine_type === $machine_type; }));
+		}
+
+		$data = $this->data;
+		$data['page_title'] = Nylon_model::stage_label($stage->stage_key);
+		$data['job'] = $job;
+		$data['stage'] = $stage;
+		$data['stage_label'] = Nylon_model::stage_label($stage->stage_key);
+		$data['machines'] = $machines;
+		$data['scrap_items'] = $this->nylon->get_spec_items(null, get_current_store_id());
+		$data['input_name'] = '';
+		$data['output_name'] = '';
+		if(!empty($stage->input_item_id)){
+			$in = $this->db->select('item_name')->where('id',$stage->input_item_id)->get('db_items')->row();
+			$data['input_name'] = $in ? $in->item_name : '';
+		}
+		if(!empty($stage->output_item_id)){
+			$out = $this->db->select('item_name')->where('id',$stage->output_item_id)->get('db_items')->row();
+			$data['output_name'] = $out ? $out->item_name : '';
+		}
+		$data['shifts'] = ['Morning','Afternoon','Night'];
+		$this->_mobile_render($data + ['_view' => 'nylon_report']);
+	}
+
+	public function nylon_orders($status = '')
+	{
+		if(!$this->_nylon_gate('custom_orders_view')){ return; }
+		$this->load->model('custom_orders_model', 'custom_orders');
+		$store_id = get_current_store_id();
+		$statuses = Custom_orders_model::get_workflow('nylon');
+		$active = in_array($status, $statuses) ? $status : 'in_production';
+		$data = $this->data;
+		$data['page_title'] = 'Job Orders';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['statuses'] = $statuses;
+		$data['active_status'] = $active;
+		$data['orders'] = $this->nylon->get_orders($store_id, $active);
+		foreach($data['orders'] as $o){ $o->artwork_approved = $this->nylon->artwork_ready($o->id); }
+		$data['counts'] = [];
+		foreach($statuses as $s){ $data['counts'][$s] = count($this->nylon->get_orders($store_id, $s)); }
+		$data['can_add'] = $this->permissions('custom_orders_add');
+		$this->_mobile_render($data + ['_view' => 'nylon_orders']);
+	}
+
+	public function nylon_order($id = 0)
+	{
+		if(!$this->_nylon_gate('custom_orders_view')){ return; }
+		$this->load->model('custom_orders_model', 'custom_orders');
+		$order = $this->nylon->get_order((int)$id);
+		if(!$order || $order->store_id != get_current_store_id()){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $order->order_code;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['order'] = $order;
+		$data['spec'] = $this->nylon->get_spec($order->item_id, $order->store_id);
+		$data['jobs'] = $this->db->where('custom_order_id',$order->id)->order_by('id','desc')->get('db_nylon_jobs')->result();
+		$data['history'] = $this->custom_orders->get_history($order->id);
+		$data['workflow'] = Custom_orders_model::get_workflow('nylon');
+		$data['can_edit'] = $this->permissions('custom_orders_edit');
+		$data['can_artwork'] = $this->permissions('nylon_artwork');
+		$data['can_approve'] = $this->permissions('nylon_approve');
+		$data['can_jobs'] = $this->permissions('nylon_jobs_add');
+		$this->_mobile_render($data + ['_view' => 'nylon_order']);
+	}
+
+	public function nylon_order_form($id = 0)
+	{
+		if(!$this->_nylon_gate('custom_orders_add')){ return; }
+		$this->load->model('custom_orders_model', 'custom_orders');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['edit_order'] = null;
+		if($id){
+			$this->permission_check('custom_orders_edit');
+			$data['edit_order'] = $this->nylon->get_order((int)$id);
+			if(!$data['edit_order']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit Job Order' : 'New Job Order';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id',$store_id)->where('status',1)->order_by('customer_name','asc')->get('db_customers')->result();
+		$data['products'] = array_merge(
+			$this->nylon->get_spec_items('finished_good', $store_id),
+			$this->nylon->get_spec_items('film_roll', $store_id)
+		);
+		$data['item_specs'] = [];
+		foreach($data['products'] as $p){
+			$spec = $this->nylon->get_spec($p->id, $store_id);
+			$spec_rows = [];
+			if($spec){
+				foreach(['material'=>'Material','bag_type'=>'Bag Type','width'=>'Width','length'=>'Length','thickness'=>'Thickness','colour'=>'Colour','design_ref'=>'Design Ref'] as $k => $lbl){
+					if(!empty($spec->{$k})) $spec_rows[$lbl] = $spec->{$k};
+				}
+				if(!empty($spec->print_type) && $spec->print_type !== 'none') $spec_rows['Print'] = $spec->print_type;
+			}
+			$data['item_specs'][$p->id] = $spec_rows;
+		}
+		$data['units'] = $this->nylon->get_units($store_id);
+		$data['workflow'] = Custom_orders_model::get_workflow('nylon');
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+		$this->_mobile_render($data + ['_view' => 'nylon_order_form']);
+	}
+
+	public function nylon_job_form($order_id = 0)
+	{
+		if(!$this->_nylon_gate('nylon_jobs_add')){ return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'New Production Job';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['order_id'] = (int)$order_id;
+		$data['open_orders'] = $this->db->select('o.id, o.order_code, o.item_id, o.order_qty, o.due_date, c.customer_name, i.item_name')
+			->from('db_custom_orders o')
+			->join('db_customers c','c.id=o.customer_id','left')
+			->join('db_items i','i.id=o.item_id','left')
+			->where('o.store_id',$store_id)->where('o.workflow_template_key','nylon')
+			->where_in('o.status',['new','quoted','awaiting_artwork','approved','deposit_paid','in_production'])
+			->order_by('o.due_date','asc')->get()->result();
+		$data['products'] = array_merge(
+			$this->nylon->get_spec_items('finished_good', $store_id),
+			$this->nylon->get_spec_items('film_roll', $store_id)
+		);
+		$data['materials'] = $this->nylon->get_spec_items('raw_material', $store_id);
+		$data['rolls'] = $this->nylon->get_spec_items('film_roll', $store_id);
+		$data['units'] = $this->nylon->get_units($store_id);
+		$data['warehouses'] = $this->db->where('store_id',$store_id)->where('status',1)->get('db_warehouse')->result();
+		$data['mode'] = $this->nylon->mode_flags();
+		$this->_mobile_render($data + ['_view' => 'nylon_job_form']);
+	}
+
+	public function nylon_machines()
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$data = $this->data;
+		$data['page_title'] = 'Machines';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['machines'] = $this->nylon->get_machines();
+		$data['types'] = Nylon_model::machine_types();
+		$data['can_edit'] = $this->permissions('nylon_settings');
+		$this->_mobile_render($data + ['_view' => 'nylon_machines']);
+	}
+
+	public function nylon_products()
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Materials & Products';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['spec_items'] = $this->nylon->get_spec_items(null, $store_id);
+		$data['classes'] = Nylon_model::item_classes();
+		$this->_mobile_render($data + ['_view' => 'nylon_products']);
 	}
 
 }

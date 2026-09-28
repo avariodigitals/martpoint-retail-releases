@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — <?= htmlspecialchars($page_title); ?></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
+  <style>
+    :root { --mp-primary: #0057FF; --mp-primary-dark: #0044CC; --mp-bg: #F1F5F9; --mp-surface: #FFFFFF; --mp-text: #0F172A; --mp-muted: #64748B; --mp-border: #E2E8F0; --mp-success: #10B981; --mp-danger: #EF4444; --mp-warning: #F59E0B; --mp-ink: #1E293B; --safe-bottom: env(safe-area-inset-bottom, 0px); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    #app { max-width: 430px; margin: 0 auto; background: var(--mp-surface); min-height: 100vh; position: relative; }
+    .screen { padding: 12px 12px 130px; }
+    .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-top: 8px; }
+    .topbar .back { color: var(--mp-primary); font-size: 20px; text-decoration: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--mp-bg); }
+    .topbar .topbar-titles { flex: 1; min-width: 0; }
+    .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+    .topbar h1 { font-size: 20px; font-weight: 700; margin: 0; }
+    .card { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 14px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .card.inactive { opacity: 0.65; }
+    .card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .nm { font-size: 15px; font-weight: 700; }
+    .code { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .badge.active { background: #D1FAE5; color: #047857; }
+    .badge.inactive { background: #FEE2E2; color: #B91C1C; }
+    .price { font-size: 18px; font-weight: 700; color: var(--mp-primary); margin-top: 8px; }
+    .price small { font-size: 12px; font-weight: 500; color: var(--mp-muted); }
+    .perks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .perk { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; background: var(--mp-bg); font-size: 11px; font-weight: 600; color: var(--mp-ink); }
+    .desc { font-size: 13px; color: var(--mp-muted); margin-top: 8px; line-height: 1.5; }
+    .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+    .mini-btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--mp-border); background: var(--mp-bg); font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; color: var(--mp-ink); display: inline-flex; align-items: center; gap: 5px; }
+    .mini-btn.warn { color: #B45309; border-color: #FDE68A; }
+    .mini-btn.success { color: var(--mp-success); border-color: #A7F3D0; }
+    .fab { position: fixed; right: 18px; bottom: calc(92px + var(--safe-bottom)); width: 54px; height: 54px; border-radius: 50%; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; text-decoration: none; box-shadow: 0 6px 16px rgba(0,87,255,0.35); z-index: 50; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--mp-muted); font-size: 14px; }
+    .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; color: var(--mp-border); }
+    @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 130px; } .fab { right: 32px; } }
+    @media (min-width: 1024px) { .screen { padding: 24px 48px 150px; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <section class="screen">
+      <div class="topbar">
+        <a href="<?= base_url('mobile/memberships'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
+        <div class="topbar-titles">
+          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <h1><?= htmlspecialchars($page_title); ?></h1>
+        </div>
+      </div>
+
+      <?php if(!empty($plans)): ?>
+        <?php foreach($plans as $p): ?>
+        <div class="card <?= !$p->status ? 'inactive' : ''; ?>">
+          <div class="top">
+            <div>
+              <div class="nm"><?= htmlspecialchars($p->plan_name); ?></div>
+              <div class="code"><?= htmlspecialchars($p->plan_code ?: '-'); ?></div>
+            </div>
+            <span class="badge <?= $p->status ? 'active' : 'inactive'; ?>"><?= $p->status ? 'Active' : 'Inactive'; ?></span>
+          </div>
+          <div class="price"><?= $this->currency($p->price); ?> <small>/ <?= htmlspecialchars($p->billing_cycle); ?></small></div>
+          <div class="perks">
+            <?php if((float)$p->discount_percent > 0): ?><span class="perk"><i class="fa fa-tag"></i> <?= $p->discount_percent; ?>% off</span><?php endif; ?>
+            <?php if((int)$p->free_services_per_period > 0): ?><span class="perk"><i class="fa fa-gift"></i> <?= (int)$p->free_services_per_period; ?> free/period</span><?php endif; ?>
+            <?php if((int)$p->priority_booking): ?><span class="perk"><i class="fa fa-star"></i> Priority booking</span><?php endif; ?>
+          </div>
+          <?php if(!empty($p->description)): ?><div class="desc"><?= nl2br(htmlspecialchars($p->description)); ?></div><?php endif; ?>
+          <div class="foot">
+            <?php if($can_edit): ?>
+            <button class="mini-btn <?= $p->status ? 'warn' : 'success'; ?>" onclick="togglePlan(<?= (int)$p->id; ?>, <?= $p->status ? 0 : 1; ?>)"><i class="fa <?= $p->status ? 'fa-ban' : 'fa-check'; ?>"></i> <?= $p->status ? 'Deactivate' : 'Activate'; ?></button>
+            <?php endif; ?>
+            <?php if($can_add): ?><a class="mini-btn" href="<?= base_url('mobile/membership_plan/'.$p->id); ?>"><i class="fa fa-pencil"></i> Edit</a><?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <div class="empty-state">
+          <i class="fa fa-id-card-o"></i>
+          <div>No plans yet. Create one to start assigning memberships.</div>
+        </div>
+      <?php endif; ?>
+    </section>
+
+    <?php if($can_add): ?>
+    <a href="<?= base_url('mobile/membership_plan'); ?>" class="fab" title="New Plan"><i class="fa fa-plus"></i></a>
+    <?php endif; ?>
+
+    <?php $this->load->view('mobile/bottom_nav', ['active' => 'more']); ?>
+  </div>
+
+  <?php $this->load->view('mobile/mp_alert'); ?>
+  <?php $this->load->view('mobile/chat'); ?>
+
+  <script>
+    var base_url = '<?= base_url(); ?>';
+    var csrf_token = '<?= $this->security->get_csrf_token_name(); ?>';
+    var csrf_hash = '<?= $this->security->get_csrf_hash(); ?>';
+
+    function togglePlan(id, status){
+      var fd = new FormData();
+      fd.append('id', id); fd.append('status', status); fd.append(csrf_token, csrf_hash);
+      fetch(base_url + 'mobile/membership_plan_toggle', { method: 'POST', body: fd })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
+          if(d && d.success){ window.location.reload(); }
+          else { alert('Update failed.'); }
+        });
+    }
+  </script>
+</body>
+</html>

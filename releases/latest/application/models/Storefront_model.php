@@ -863,6 +863,7 @@ class Storefront_model extends CI_Model {
 			'beautyspa' => 'beauty',
 			'salonbarbershop' => 'beauty',
 			'makeupartist' => 'beauty',
+			'makeupstudio' => 'beauty',
 			'fashion' => 'fashion',
 			'apparel' => 'fashion',
 			'electronics' => 'electronics',
@@ -936,6 +937,10 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'maison_blanche', 'theme_name' => 'Maison Blanche', 'industry' => 'perfumery', 'description' => 'Ivory Parisian maison theme — cream canvas, black ink and old-gold hairlines for a refined French fragrance boutique.', 'default_primary_color' => '#A98954', 'default_secondary_color' => '#1C1917', 'default_font_family' => 'Playfair Display', 'sort_order' => 33],
 			['theme_key' => 'oud_royale', 'theme_name' => 'Oud Royale', 'industry' => 'perfumery', 'description' => 'Arabian opulence theme — espresso darkness, royal gold and arched gallery for oud, attar and musk houses.', 'default_primary_color' => '#D4A24E', 'default_secondary_color' => '#150E07', 'default_font_family' => 'Marcellus', 'sort_order' => 34],
 			['theme_key' => 'atelier_essence', 'theme_name' => 'Atelier Essence', 'industry' => 'perfumery', 'description' => 'Niche-lab minimalism — bone white, mono ink and stark grid for artisan perfumeries and custom formulation labs.', 'default_primary_color' => '#161513', 'default_secondary_color' => '#9C4A2F', 'default_font_family' => 'Inter', 'sort_order' => 35],
+			// Beauty / makeup studio presets (3 world-class designs)
+			['theme_key' => 'glam_atelier', 'theme_name' => 'Glam Atelier', 'industry' => 'beauty', 'description' => 'Editorial makeup-studio flagship — porcelain canvas, espresso ink, rose-gold hairlines and Cormorant serif for a premium artist brand.', 'default_primary_color' => '#B76E79', 'default_secondary_color' => '#241B18', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 36],
+			['theme_key' => 'velvet_glow', 'theme_name' => 'Velvet Glow', 'industry' => 'beauty', 'description' => 'Warm velvet beauty theme — deep berry, blush silk and plush glowing cards for salons and cosmetics boutiques.', 'default_primary_color' => '#8E3B5E', 'default_secondary_color' => '#E9B8C4', 'default_font_family' => 'Playfair Display', 'sort_order' => 37],
+			['theme_key' => 'studio_blanc', 'theme_name' => 'Studio Blanc', 'industry' => 'beauty', 'description' => 'Clean ivory minimalism — crisp black ink, terracotta accents and airy product grids for modern beauty retail.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#C98A6B', 'default_font_family' => 'Jost', 'sort_order' => 38],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
@@ -970,6 +975,9 @@ class Storefront_model extends CI_Model {
 			'maison_blanche' => 'perfumery',
 			'oud_royale' => 'perfumery',
 			'atelier_essence' => 'perfumery',
+			'glam_atelier' => 'beauty',
+			'velvet_glow' => 'beauty',
+			'studio_blanc' => 'beauty',
 		];
 		foreach($canonical as $key => $industry){
 			$this->db->where('theme_key', $key)->update('db_storefront_themes', ['industry' => $industry]);

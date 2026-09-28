@@ -723,7 +723,7 @@
         <!-- 11. OPERATIONS (includes Staff + Table Management) -->
         <?php if(true){ ?>
         <?php
-          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','perfumery_workflow'];
+          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','perfumery_workflow','nylon_workflow'];
           $has_ops = false;
           foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
           $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -770,6 +770,9 @@
             <?php } ?>
             <?php if(mp_feature_enabled('perfumery_workflow')) { ?>
             <li class="perfume-active-li"><a href="<?= $base_url; ?>perfume"><i class="fa fa-flask"></i> Perfume Lab</a></li>
+            <?php } ?>
+            <?php if(mp_feature_enabled('nylon_workflow')) { ?>
+            <li class="nylon-active-li"><a href="<?= $base_url; ?>nylon"><i class="fa fa-industry"></i> <?= htmlspecialchars(mp_label('production','Nylon Production')); ?></a></li>
             <?php } ?>
             <?php if(mp_feature_enabled('delivery_scheduling')) { ?>
             <li class="delivery-scheduling-active-li"><a href="<?= $base_url; ?>operations/delivery_scheduling"><i class="fa fa-truck"></i> Delivery Scheduling</a></li>

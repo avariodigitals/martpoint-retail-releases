@@ -470,6 +470,7 @@ class MY_Controller extends CI_Controller{
             'accounts'             => 'fa-calculator',
             'warehouse'            => 'fa-building',
             'multi_unit_inventory' => 'fa-cubes',
+            'nylon_workflow'       => 'fa-industry',
           ];
           $icon = isset($icons[$flag]) ? $icons[$flag] : 'fa-lock';
 

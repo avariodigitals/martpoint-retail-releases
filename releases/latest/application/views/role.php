@@ -758,6 +758,46 @@
                                               </label></div>
                                           </td>
                                         </tr>
+                                        <!-- NYLON PRODUCTION -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Nylon Production</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="nylon"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[nylon]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_view' name="permission[nylon_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_jobs_add' name="permission[nylon_jobs_add]"> Add Jobs
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_jobs_edit' name="permission[nylon_jobs_edit]"> <?= $this->lang->line('edit'); ?> Jobs
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_jobs_delete' name="permission[nylon_jobs_delete]"> <?= $this->lang->line('delete'); ?> Jobs
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_report' name="permission[nylon_report]"> Report Output
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_approve' name="permission[nylon_approve]"> Approve / QC
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_artwork' name="permission[nylon_artwork]"> Artwork
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_costing' name="permission[nylon_costing]"> Costing
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="nylon_all" id='nylon_settings' name="permission[nylon_settings]"> <?= $this->lang->line('settings'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
                                         <!-- RECIPES -->
                                         <tr>
                                           <td><?= $i++;?></td>

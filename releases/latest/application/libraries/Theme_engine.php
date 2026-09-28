@@ -205,7 +205,10 @@ class Theme_engine {
             'Roboto' => 'Roboto:wght@300;400;500;700',
             'Poppins' => 'Poppins:wght@300;400;500;600;700',
             'Lora' => 'Lora:wght@400;500;600;700',
-            'Open Sans' => 'Open+Sans:wght@300;400;500;600;700'
+            'Open Sans' => 'Open+Sans:wght@300;400;500;600;700',
+            'Cormorant Garamond' => 'Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600',
+            'Marcellus' => 'Marcellus',
+            'Jost' => 'Jost:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400'
         ];
         $query = $fonts[$font] ?? $fonts['Inter'];
         return 'https://fonts.googleapis.com/css2?family=' . $query . '&display=swap';

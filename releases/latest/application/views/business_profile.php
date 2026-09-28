@@ -231,6 +231,9 @@
                     'Workflows & Operations' => [
                       'automobile_workflow','kitchen_workflow','table_management','laundry_workflow','treatment_notes','medical_notes','staff_assignment','staff_commission','delivery_scheduling','production_workflow','recipe_tracking'
                     ],
+                    'Nylon & Polythene' => [
+                      'nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'
+                    ],
                     'Management' => [
                       'payplan','customer_notes','manager_approvals','cashier_shifts'
                     ],
@@ -505,13 +508,12 @@
             $status.removeClass('on').addClass('off').text('OFF');
           }
         });
-        // Hide group titles that have no visible children
+        // Hide group titles (and their content) that have no visible children
         $('.bp-flag-group-title').each(function() {
-          var groupName = $(this).data('group');
-          var $nextRow = $(this).next('.row');
-          var visibleChildren = $nextRow.find('.bp-flag-col:visible').length;
+          var $content = $(this).next('.bp-flag-group-content');
+          var visibleChildren = $content.find('.bp-flag-col:visible').length;
           $(this).toggle(visibleChildren > 0);
-          $nextRow.toggle(visibleChildren > 0);
+          $content.toggle(visibleChildren > 0);
         });
       }
 

@@ -1821,6 +1821,11 @@
 
       document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value.trim().toLowerCase();
+        // Searching should look across the whole catalogue, not just the category that happens to be active
+        if (searchQuery && selectedCategory !== 'All') {
+          selectedCategory = 'All';
+          renderCategories();
+        }
         renderProducts();
       });
       document.getElementById('searchInput').addEventListener('keydown', (e) => {
@@ -1833,18 +1838,26 @@
 
     function getCategories() {
       const map = {};
-      products.forEach(p => { map[p.category] = (map[p.category] || 0) + 1; });
+      products.forEach(p => { const c = p.category || 'Uncategorized'; map[c] = (map[c] || 0) + 1; });
       return [{ name: 'All', count: products.length }, ...Object.entries(map).map(([name, count]) => ({ name, count }))];
     }
 
     function renderCategories() {
       const list = document.getElementById('categoryList');
-      list.innerHTML = getCategories().map(c => `
-        <li class="${c.name === selectedCategory ? 'active' : ''}" onclick="setCategory('${c.name}')">
-          <span>${c.name}</span>
+      list.innerHTML = getCategories().map((c, i) => `
+        <li class="${c.name === selectedCategory ? 'active' : ''}" data-cat-index="${i}">
+          <span>${escapeHtml(c.name)}</span>
           <span class="count">${c.count}</span>
         </li>
       `).join('');
+      const cats = getCategories();
+      list.querySelectorAll('li').forEach(li => {
+        li.addEventListener('click', () => setCategory(cats[parseInt(li.dataset.catIndex, 10)].name));
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
 
     function renderInsights() {
@@ -1905,18 +1918,22 @@
       showToast('Price type changed', 'Switched to ' + type + ' prices', 'success');
     }
 
-    function renderProducts() {
-      const grid = document.getElementById('productGrid');
-      const filtered = products.filter(p => {
-        const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
-        const q = searchQuery;
+    function getFilteredProducts() {
+      const q = searchQuery;
+      return products.filter(p => {
+        const matchesCategory = selectedCategory === 'All' || (p.category || 'Uncategorized') === selectedCategory;
         const matchesSearch = !q ||
-          p.name.toLowerCase().includes(q) ||
+          (p.name && p.name.toLowerCase().includes(q)) ||
           (p.sku && p.sku.toLowerCase().includes(q)) ||
           (p.item_code && p.item_code.toLowerCase().includes(q)) ||
           (p.selling_units || []).some(u => u.barcode && u.barcode.toLowerCase().includes(q));
         return matchesCategory && matchesSearch;
       });
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('productGrid');
+      const filtered = getFilteredProducts();
 
       grid.classList.toggle('list-mode', productView === 'list');
 
@@ -2037,13 +2054,19 @@
       q = (q || '').trim();
       if (!q) return;
       const qLower = q.toLowerCase();
-      const product = products.find(p => {
+      let product = products.find(p => {
         if (p.sku && p.sku.toLowerCase() === qLower) return true;
         if (p.item_code && p.item_code.toLowerCase() === qLower) return true;
         return (p.selling_units || []).some(u => u.barcode && u.barcode.toLowerCase() === qLower);
       });
+      // No exact barcode/SKU hit: if the typed search narrowed the grid to one product, add that one
       if (!product) {
-        showToast('Item not found', q, 'warning');
+        const visible = getFilteredProducts().filter(p => !p.outOfStock);
+        if (visible.length === 1) product = visible[0];
+      }
+      if (!product) {
+        const count = getFilteredProducts().length;
+        showToast(count > 1 ? 'Refine your search' : 'Item not found', count > 1 ? count + ' products match "' + q + '" — pick one from the grid' : q, 'warning');
         return;
       }
       if (stopSellingExpired && product.expired) {

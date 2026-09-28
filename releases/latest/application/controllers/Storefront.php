@@ -546,8 +546,8 @@ class Storefront extends CI_Controller {
 			];
 		}
 
-		// Beauty / salon / spa
-		if(in_array($industry, ['beauty', 'salon', 'spa', 'wellness'])){
+		// Beauty / salon / spa / makeup
+		if(in_array($industry, ['beauty', 'beauty_cosmetics', 'beauty_spa', 'salon', 'salon_barbershop', 'spa', 'wellness', 'makeup_artist', 'makeup_studio'])){
 			return [
 				'pending' => ['label' => 'Booking received', 'desc' => 'We have received your booking.'],
 				'paid' => ['label' => 'Payment confirmed', 'desc' => 'Payment has been received.'],

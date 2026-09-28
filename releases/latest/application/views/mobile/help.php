@@ -83,6 +83,15 @@
           <div class="arrow"><i class="fa fa-external-link"></i></div>
         </a>
 
+        <a href="<?= base_url('docs/product-design/customer-guide/nylon-polythene-customer-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-industry"></i></div>
+          <div class="text">
+            <div class="title">Nylon &amp; Polythene Use Case</div>
+            <div class="desc">A day at a film &amp; bag factory — orders to dispatch</div>
+          </div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+
         <div class="folder-card locked">
           <div class="icon"><i class="fa fa-cogs"></i></div>
           <div class="text">

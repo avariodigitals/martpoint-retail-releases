@@ -91,6 +91,14 @@ class Default_data_model extends CI_Model {
             'Inventory Officer' => array(
                 'description' => 'Stock & Inventory Staff. Manage items, purchases, stock transfers and adjustments. No POS/Sales, no FSTR reports.',
                 'permissions' => $this->get_inventory_officer_permissions()
+            ),
+            'Production Supervisor' => array(
+                'description' => 'Factory Supervisor. Approves stage output, QC, corrections and job completion.',
+                'permissions' => $this->get_production_supervisor_permissions()
+            ),
+            'Production Operator' => array(
+                'description' => 'Machine Operator. Reports output, rejects, scrap and waste per shift.',
+                'permissions' => $this->get_production_operator_permissions()
             )
         );
 
@@ -316,6 +324,10 @@ class Default_data_model extends CI_Model {
             'subscription','sms_settings','sms_api_view','sms_api_edit',
             // Online Store (Business Owner can manage online store)
             'online_store_view','online_store_edit',
+            // Custom Orders & Nylon Production (full)
+            'custom_orders_add','custom_orders_edit','custom_orders_delete','custom_orders_view',
+            'nylon_view','nylon_jobs_add','nylon_jobs_edit','nylon_jobs_delete',
+            'nylon_report','nylon_approve','nylon_artwork','nylon_costing','nylon_settings',
             // Leads / CRM
             'leads_view','leads_add','leads_edit','leads_delete',
         );
@@ -412,6 +424,10 @@ class Default_data_model extends CI_Model {
             'show_purchase_price',
             // Online Store (Manager can view and fulfill orders, but not edit store settings)
             'online_store_orders',
+            // Custom Orders & Nylon Production (Manager is the day-to-day supervisor)
+            'custom_orders_add','custom_orders_edit','custom_orders_view',
+            'nylon_view','nylon_jobs_add','nylon_jobs_edit',
+            'nylon_report','nylon_approve','nylon_artwork','nylon_costing','nylon_settings',
             // Leads / CRM (Manager can work the pipeline but not delete)
             'leads_view','leads_add','leads_edit',
         );
@@ -506,7 +522,9 @@ class Default_data_model extends CI_Model {
             'show_all_users_sales_invoices','show_all_users_sales_return_invoices',
             'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
             'show_all_users_expenses','show_all_users_quotations',
-            'show_purchase_price'
+            'show_purchase_price',
+            // Nylon production — finance sees job costing & order balances
+            'custom_orders_view','nylon_view','nylon_costing'
         );
     }
 
@@ -554,7 +572,44 @@ class Default_data_model extends CI_Model {
             // Fashion Intelligence reports
             'variant_attribute_report','reorder_suggestion_report',
             // Advanced
+            'show_purchase_price',
+            // Nylon production — stock officer reports stage output
+            'custom_orders_view','nylon_view','nylon_report'
+        );
+    }
+
+    /**
+     * Production Supervisor: runs the nylon factory floor. Approves stage
+     * reports, QC, job completion, corrections/reversals and costing.
+     */
+    private function get_production_supervisor_permissions() {
+        return array(
+            'dashboard_view',
+            // Items & stock (view + adjustments for corrections)
+            'items_view','items_category_view','brand_view','units_view',
+            'stock_adjustment_add','stock_adjustment_view',
+            'warehouse_view',
+            // Customers / orders (view)
+            'customers_view','custom_orders_view',
+            // Nylon module — full operational access incl. approvals
+            'nylon_view','nylon_jobs_add','nylon_jobs_edit','nylon_jobs_delete',
+            'nylon_report','nylon_approve','nylon_artwork','nylon_costing','nylon_settings',
+            // Reports
+            'stock_report','customer_orders_report',
             'show_purchase_price'
+        );
+    }
+
+    /**
+     * Production Operator: reports output, rejects, scrap and waste per shift.
+     * Cannot approve, reverse, cost or configure.
+     */
+    private function get_production_operator_permissions() {
+        return array(
+            'dashboard_view',
+            'items_view','units_view','warehouse_view',
+            'custom_orders_view',
+            'nylon_view','nylon_report'
         );
     }
 
@@ -674,6 +729,8 @@ class Default_data_model extends CI_Model {
             'Cashier'        => $this->get_cashier_permissions(),
             'Accountant'     => $this->get_accountant_permissions(),
             'Inventory Officer' => $this->get_inventory_officer_permissions(),
+            'Production Supervisor' => $this->get_production_supervisor_permissions(),
+            'Production Operator'   => $this->get_production_operator_permissions(),
             'Admin'          => $this->get_business_owner_permissions(),
         );
 
@@ -810,6 +867,7 @@ class Default_data_model extends CI_Model {
             'beauty_spa'           => 'beauty_services',
             'salon_barbershop'     => 'beauty_services',
             'makeup_artist'        => 'beauty_services',
+            'makeup_studio'        => 'makeup_studio',
             'laundry'              => 'laundry',
             'bakery_cake_studio'   => 'bakery',
             'bookshop'             => 'bookshop',
@@ -834,6 +892,7 @@ class Default_data_model extends CI_Model {
             'printing'             => 'printing',
             'tailoring'            => 'tailoring',
             'manufacturer'         => 'manufacturing',
+            'nylon_polythene'      => 'nylon',
             'service_business'     => 'services',
             'online_store'         => 'digital',
             'creator'              => 'digital',
@@ -1016,6 +1075,34 @@ class Default_data_model extends CI_Model {
                     'Manicure & Pedicure'=> array('price' => 8000, 'duration' => '1 hr',    'appointment' => 1),
                     'Massage Therapy'   => array('price' => 25000, 'duration' => '1 hr',    'appointment' => 1),
                     'Makeup Session'    => array('price' => 30000, 'duration' => '1.5 hrs', 'appointment' => 1),
+                ),
+            ),
+            'makeup_studio' => array(
+                'units' => array(
+                    'Session' => array('SESS', null, 1, 1),
+                    'Piece'   => array('PCS',  null, 1, 0),
+                    'Set'     => array('SET',  null, 1, 0),
+                    'Palette' => array('PLT',  null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Makeup & Cosmetics' => 'Foundations, lipsticks, palettes and colour cosmetics',
+                    'Skincare & Prep'    => 'Primers, moisturisers and skin-prep products',
+                    'Tools & Brushes'    => 'Brushes, sponges, mirrors and applicators',
+                    'Lashes & Brows'     => 'Lashes, brow products and accessories',
+                    'Studio Supplies'    => 'Consumables and supplies used for studio services',
+                ),
+                'brands' => array('Zaron', 'House of Tara', 'Nuban Beauty', 'Maybelline', 'MAC'),
+                'services' => array(
+                    'Bridal Makeup (Full)'   => array('price' => 80000, 'duration' => '3 hrs',   'appointment' => 1, 'description' => 'Complete bridal look with lashes, touch-up kit and veil setting'),
+                    'Bridal Trial Session'   => array('price' => 25000, 'duration' => '1.5 hrs', 'appointment' => 1, 'description' => 'Pre-wedding trial to perfect the bridal look'),
+                    'Occasion Glam'          => array('price' => 30000, 'duration' => '1.5 hrs', 'appointment' => 1, 'description' => 'Full glam for events, parties and celebrations'),
+                    'Photoshoot / Editorial' => array('price' => 45000, 'duration' => '2 hrs',   'appointment' => 1, 'description' => 'Camera-ready makeup for shoots and editorial work'),
+                    'Everyday Soft Glam'     => array('price' => 18000, 'duration' => '1 hr',    'appointment' => 1, 'description' => 'Natural, polished daytime look'),
+                    'Brow Shaping & Tinting' => array('price' => 8000,  'duration' => '30 min',  'appointment' => 1, 'description' => 'Brow sculpting, tinting and grooming'),
+                    'Lash Extensions'        => array('price' => 15000, 'duration' => '1.5 hrs', 'appointment' => 1, 'description' => 'Classic or volume lash extension application'),
+                    'Gele & Headwrap Styling'=> array('price' => 10000, 'duration' => '45 min',  'appointment' => 1, 'description' => 'Traditional gele tying and headwrap styling'),
+                    'Makeup Class (1-on-1)'  => array('price' => 50000, 'duration' => '3 hrs',   'appointment' => 1, 'description' => 'Private makeup artistry lesson with a studio artist'),
+                    'Studio Consultation'    => array('price' => 0,     'duration' => '20 min',  'appointment' => 1, 'description' => 'Free consultation to plan your look'),
                 ),
             ),
             'laundry' => array(
@@ -1342,6 +1429,25 @@ class Default_data_model extends CI_Model {
                 ),
                 'recipe_categories' => array(
                     'Product Formulas',
+                ),
+            ),
+            'nylon' => array(
+                'units' => array(
+                    'Kilogram' => array('KG', null, 1, 1),
+                    'Roll'     => array('ROLL', null, 1, 0),
+                    'Piece'    => array('PCS', null, 1, 0),
+                    'Bundle'   => array('BNDL', null, 1, 0),
+                    'Carton'   => array('CTN', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Raw Resin & Additives' => 'HDPE/LDPE resin, masterbatch and additives',
+                    'Film Rolls (WIP)'      => 'Extruded or purchased film rolls awaiting conversion or sale',
+                    'Finished Bags & Film'  => 'Converted bags, sheets and film ready for sale',
+                    'Reusable Scrap'        => 'Trim and offcut recovered for reprocessing',
+                    'Packaging & Consumables'=> 'Ink, cores, cartons and strapping',
+                ),
+                'recipe_categories' => array(
+                    'Film Specifications',
                 ),
             ),
             'services' => array(
