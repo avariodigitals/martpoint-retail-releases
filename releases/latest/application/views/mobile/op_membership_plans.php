@@ -107,13 +107,13 @@
     function togglePlan(id, status){
       var fd = new FormData();
       fd.append('id', id); fd.append('status', status); fd.append(csrf_token, csrf_hash);
-      fetch(base_url + 'mobile/membership_plan_toggle', { method: 'POST', body: fd })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(base_url + 'mobile/membership_plan_toggle', { method: 'POST', body: fd })
         .then(function(d){
           if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
           if(d && d.success){ window.location.reload(); }
-          else { alert('Update failed.'); }
-        });
+          else { mpError(d && d.message ? d.message : 'The plan could not be updated. Please try again.'); }
+        })
+        .catch(function(err){ mpError(mpErrorText(err)); });
     }
   </script>
 </body>

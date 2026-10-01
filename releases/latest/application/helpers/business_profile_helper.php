@@ -51,6 +51,7 @@ if (!function_exists('mp_get_business_types')) {
             'boutique'              => 'Boutique',
             'shoe_store'            => 'Shoe Store',
             'perfume_shop'          => 'Perfume Shop',
+            'skincare'              => 'Skincare & Organic Cosmetics',
             'jewellery_store'       => 'Jewellery Store',
             'computer_store'        => 'Computer Store',
             'gadget_store'          => 'Gadget Store',
@@ -66,6 +67,7 @@ if (!function_exists('mp_get_business_types')) {
             'tailoring'             => 'Tailoring',
             'manufacturer'          => 'Manufacturer',
             'nylon_polythene'       => 'Nylon & Polythene Manufacturing',
+            'scientific_equipment'  => 'Scientific Equipment & Laboratory Supplies',
             'multi_branch_retail'   => 'Multi-Branch Retail',
             'online_store'          => 'Online Store',
             'creator'               => 'Creator / Digital Store',
@@ -140,6 +142,10 @@ if (!function_exists('mp_get_feature_flags')) {
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
             'pos_retail_button'         => 'POS Retail Price Button',
             'pos_wholesale_button'      => 'POS Wholesale Price Button',
+            'customer_contacts'         => 'Customer Contacts (Multiple Contacts per Organisation)',
+            'customer_sites'            => 'Customer Sites (Multiple Delivery / Service Sites)',
+            'equipment_register'        => 'Customer Equipment Register',
+            'service_jobs'              => 'Service Jobs (Install / Calibrate / Maintain)',
         ];
     }
 }
@@ -248,6 +254,12 @@ if (!function_exists('mp_get_business_presets')) {
                 'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','gift_cards','store_credit','serial_number_tracking','imei_tracking','warranty_tracking','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
                 'labels'=>['item'=>'Product','serial'=>'Serial Number','imei'=>'IMEI'],
+            ],
+            'scientific_equipment' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','customer_notes','serial_number_tracking','warranty_tracking','batch_tracking','expiry_tracking','mfg_tracking','multi_unit_inventory','multi_unit_selling','delivery_scheduling','manager_approvals','price_catalogue','payplan','store_credit','custom_orders','manual_shipping','public_catalogue','pos_retail_button','pos_wholesale_button','leads','customer_contacts','customer_sites','equipment_register','service_jobs'],
+                'theme_key'=>'tech_hub','dashboard_template'=>'electronics','workflow_template'=>'electronics_standard',
+                'labels'=>['item'=>'Product','customer'=>'Client','purchase'=>'Purchase Order','quote'=>'Quotation','batch'=>'Batch/Lot','serial'=>'Serial Number','warehouse'=>'Warehouse','service_order'=>'Job'],
             ],
             'fashion' => [
                 'business_model'=>'product_based',
@@ -452,6 +464,12 @@ if (!function_exists('mp_get_business_presets')) {
                 'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','loyalty','gift_cards','store_credit','bundles','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','perfumery_workflow','manager_approvals','price_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'noir_parfum','dashboard_template'=>'perfume_shop','workflow_template'=>'perfumery_standard',
                 'labels'=>['item'=>'Fragrance','product'=>'Fragrance','service'=>'Blending Service','service_order'=>'Bespoke Order','customer'=>'Client','staff'=>'Perfumer','category'=>'Fragrance Family','brand'=>'House','batch'=>'Batch Code','recipe'=>'Formula','production'=>'Blend Batch','custom_order'=>'Bespoke Blend','expiry'=>'Best Before','mfg'=>'Blended On','warehouse'=>'Branch'],
+            ],
+            'skincare' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','appointments','service_workflow','custom_orders','packages','bundles','loyalty','gift_cards','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','staff_assignment','staff_commission','treatment_notes','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'verdant','dashboard_template'=>'skincare','workflow_template'=>'skincare_standard',
+                'labels'=>['item'=>'Product','product'=>'Product','service'=>'Treatment','service_order'=>'Booking','customer'=>'Client','staff'=>'Therapist','category'=>'Range','brand'=>'Brand','batch'=>'Batch','expiry'=>'Best Before','mfg'=>'Made On','recipe'=>'Formula','production'=>'Batch Run','custom_order'=>'Custom Formulation','appointment'=>'Consultation','package'=>'Skincare Set','warehouse'=>'Branch'],
             ],
             'jewellery_store' => [
                 'business_model'=>'product_based',
@@ -853,24 +871,24 @@ if (!function_exists('mp_get_dashboard_widgets')) {
             'stock_alert'=>['title'=>'Low Stock Alert','icon'=>'fa-bell','industries'=>'*','features'=>[]],
             'top_selling_items'=>['title'=>'Top Selling Items','icon'=>'fa-trophy','industries'=>'*','features'=>[]],
             'recent_transactions'=>['title'=>'Recent Transactions','icon'=>'fa-list','industries'=>'*','features'=>[]],
-            'near_expiry'=>['title'=>'Near Expiry','icon'=>'fa-calendar-times-o','industries'=>['pharmacy','supermarket','mini_mart','distributor','wholesaler','bakery_cake_studio','perfume_shop','beauty_cosmetics','makeup_studio'],'features'=>['expiry_tracking']],
-            'expired_items'=>['title'=>'Expired Items','icon'=>'fa-ban','industries'=>['pharmacy','supermarket','mini_mart','distributor','wholesaler','bakery_cake_studio','perfume_shop','beauty_cosmetics','makeup_studio'],'features'=>['expiry_tracking']],
+            'near_expiry'=>['title'=>'Near Expiry','icon'=>'fa-calendar-times-o','industries'=>['pharmacy','supermarket','mini_mart','distributor','wholesaler','bakery_cake_studio','perfume_shop','beauty_cosmetics','makeup_studio','skincare'],'features'=>['expiry_tracking']],
+            'expired_items'=>['title'=>'Expired Items','icon'=>'fa-ban','industries'=>['pharmacy','supermarket','mini_mart','distributor','wholesaler','bakery_cake_studio','perfume_shop','beauty_cosmetics','makeup_studio','skincare'],'features'=>['expiry_tracking']],
             'low_stock_medicines'=>['title'=>'Low Stock Medicines','icon'=>'fa-medkit','industries'=>['pharmacy'],'features'=>[]],
             'pending_laundry'=>['title'=>'Pending Laundry','icon'=>'fa-refresh','industries'=>['laundry'],'features'=>['laundry_workflow']],
             'ready_for_pickup'=>['title'=>'Ready for Pickup','icon'=>'fa-check-circle','industries'=>['laundry'],'features'=>['laundry_workflow']],
             'overdue_pickups'=>['title'=>'Overdue Pickups','icon'=>'fa-clock-o','industries'=>['laundry'],'features'=>['laundry_workflow']],
-            'upcoming_events'=>['title'=>'Upcoming Events','icon'=>'fa-calendar','industries'=>['bakery_cake_studio','makeup_artist','makeup_studio','furniture','perfume_shop'],'features'=>['custom_orders']],
-            'production_queue'=>['title'=>'Production Queue','icon'=>'fa-industry','industries'=>['bakery_cake_studio','restaurant','perfume_shop'],'features'=>['production_workflow']],
-            'deposit_balance'=>['title'=>'Deposit Balance','icon'=>'fa-money','industries'=>['bakery_cake_studio','furniture','makeup_artist','makeup_studio','perfume_shop'],'features'=>['custom_orders']],
-            'pending_appointments'=>['title'=>'Pending Appointments','icon'=>'fa-calendar-check-o','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','service_business'],'features'=>['appointments']],
-            'today_bookings'=>['title'=>"Today's Bookings & Tables",'icon'=>'fa-calendar','industries'=>['restaurant','beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio'],'features'=>['appointments','table_management']],
+            'upcoming_events'=>['title'=>'Upcoming Events','icon'=>'fa-calendar','industries'=>['bakery_cake_studio','makeup_artist','makeup_studio','furniture','perfume_shop','skincare'],'features'=>['custom_orders']],
+            'production_queue'=>['title'=>'Production Queue','icon'=>'fa-industry','industries'=>['bakery_cake_studio','restaurant','perfume_shop','skincare'],'features'=>['production_workflow']],
+            'deposit_balance'=>['title'=>'Deposit Balance','icon'=>'fa-money','industries'=>['bakery_cake_studio','furniture','makeup_artist','makeup_studio','perfume_shop','skincare'],'features'=>['custom_orders']],
+            'pending_appointments'=>['title'=>'Pending Appointments','icon'=>'fa-calendar-check-o','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','service_business','skincare'],'features'=>['appointments']],
+            'today_bookings'=>['title'=>"Today's Bookings & Tables",'icon'=>'fa-calendar','industries'=>['restaurant','beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','skincare'],'features'=>['appointments','table_management']],
             'kitchen_status'=>['title'=>'Kitchen Status','icon'=>'fa-fire','industries'=>['restaurant'],'features'=>['kitchen_workflow']],
             'open_tables'=>['title'=>'Open Tables','icon'=>'fa-table','industries'=>['restaurant'],'features'=>['table_management']],
             'staff_schedule'=>['title'=>'Staff Schedule','icon'=>'fa-users','industries'=>'*','features'=>['staff_assignment']],
             'commission_due'=>['title'=>'Commission Due','icon'=>'fa-percent','industries'=>'*','features'=>['staff_commission']],
             'pending_approvals'=>['title'=>'Pending Approvals','icon'=>'fa-check-square-o','industries'=>'*','features'=>['manager_approvals']],
-            'treatment_history'=>['title'=>'Treatment History','icon'=>'fa-heartbeat','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio'],'features'=>['treatment_notes']],
-            'recipe_costing'=>['title'=>'Recipe Costing','icon'=>'fa-cutlery','industries'=>['restaurant','bakery_cake_studio','perfume_shop'],'features'=>['recipe_tracking']],
+            'treatment_history'=>['title'=>'Treatment History','icon'=>'fa-heartbeat','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','skincare'],'features'=>['treatment_notes']],
+            'recipe_costing'=>['title'=>'Recipe Costing','icon'=>'fa-cutlery','industries'=>['restaurant','bakery_cake_studio','perfume_shop','skincare'],'features'=>['recipe_tracking']],
             'online_orders'=>['title'=>'Online Orders','icon'=>'fa-globe','industries'=>'*','features'=>['online_store']],
             'qr_orders'=>['title'=>'QR Orders','icon'=>'fa-qrcode','industries'=>'*','features'=>['qr_ordering']],
             'nylon_open_jobs'=>['title'=>'Open Production Jobs','icon'=>'fa-industry','industries'=>['nylon_polythene'],'features'=>['nylon_workflow']],
@@ -919,6 +937,7 @@ if (!function_exists('mp_get_workflow_templates')) {
             'furniture_standard'  => 'Furniture Standard',
             'service_standard'    => 'Service Business Standard',
             'perfumery_standard'  => 'Perfumery Standard',
+            'skincare_standard'   => 'Skincare / Formulation Standard',
         ];
         foreach (mp_get_business_types() as $key => $label) {
             $standard = $key . '_standard';
@@ -956,6 +975,7 @@ if (!function_exists('mp_get_dashboard_templates')) {
             'service_business'    => 'Service Business',
             'frozen_foods'        => 'Frozen Foods',
             'perfume_shop'        => 'Perfume Shop',
+            'skincare'            => 'Skincare & Organic Cosmetics',
         ];
         foreach (mp_get_business_types() as $key => $label) {
             if (!isset($templates[$key])) {

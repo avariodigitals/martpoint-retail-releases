@@ -156,8 +156,7 @@
         fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
         fd.append('id', id);
         fd.append('status', status);
-        fetch('<?= base_url('users/status_update'); ?>', {method: 'POST', body: fd})
-          .then(r => r.text())
+        mpFetchText('<?= base_url('users/status_update'); ?>', {method: 'POST', body: fd})
           .then(function(res){
             if(res.trim() === 'success'){
               var badge = document.getElementById('badge-' + id);
@@ -172,9 +171,10 @@
                 if(btnText) { btnText.textContent = 'Activate'; btnText.parentElement.setAttribute('onclick', 'toggleStatus(' + id + ', 1)'); }
               }
             } else {
-              mpAlert(res, 'danger');
+              mpAlert((res && res.indexOf('<') === -1 && res.trim().length < 300) ? res.trim() : 'The user status could not be updated. Please try again.', 'danger');
             }
-          });
+          })
+          .catch(function(err){ mpAlert(mpErrorText(err), 'danger'); });
       });
     }
 
@@ -183,15 +183,15 @@
         var fd = new FormData();
         fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
         fd.append('q_id', id);
-        fetch('<?= base_url('users/delete_user'); ?>', {method: 'POST', body: fd})
-          .then(r => r.text())
+        mpFetchText('<?= base_url('users/delete_user'); ?>', {method: 'POST', body: fd})
           .then(function(res){
             if(res.trim() === 'success'){
               location.reload();
             } else {
-              mpAlert(res, 'danger');
+              mpAlert((res && res.indexOf('<') === -1 && res.trim().length < 300) ? res.trim() : 'The user could not be deleted. Please try again.', 'danger');
             }
-          });
+          })
+          .catch(function(err){ mpAlert(mpErrorText(err), 'danger'); });
       }, null, {danger: true});
     }
   </script>

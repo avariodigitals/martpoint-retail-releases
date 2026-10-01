@@ -97,11 +97,11 @@
       btn.disabled = true;
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/delete_banner/'); ?>' + id, {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/delete_banner/'); ?>' + id, {method:'POST', body:fd})
+      .then(res=>{
         if(res.status === 'success'){ location.reload(); }
-        else { alert(res.message || 'Failed to delete'); btn.disabled = false; }
-      }).catch(()=>{ alert('Error deleting'); btn.disabled = false; });
+        else { alert(res.message || 'The banner could not be deleted. Please try again.'); btn.disabled = false; }
+      }).catch(err=>{ alert(mpErrorText(err, 'The banner could not be deleted. Please try again.')); btn.disabled = false; });
     }
   </script>
 </body>

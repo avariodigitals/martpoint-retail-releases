@@ -155,15 +155,19 @@ class Purchase_model extends CI_Model {
 		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
 		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
 		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
-		$purchase_note = $this->input->post('purchase_note', TRUE);
+		$purchase_note = mp_post_text('purchase_note');
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$purchase_id = $this->input->post('purchase_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
 		$amount = $this->input->post('amount', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
-		$payment_note = $this->input->post('payment_note', TRUE);
+		$payment_note = mp_post_text('payment_note');
 		$account_id = $this->input->post('account_id', TRUE);
+		// Customer-order traceability: which quotation/invoice this PO fulfils
+		$po_link_cols  = $this->db->field_exists('quotation_id','db_purchase');
+		$linked_quote  = (int)$this->input->post('quotation_id', TRUE);
+		$linked_sale   = (int)$this->input->post('linked_sales_id', TRUE);
 
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
@@ -214,8 +218,12 @@ class Purchase_model extends CI_Model {
 		    				'system_name' 				=> $SYSTEM_NAME,
 		    				'status' 					=> 1,
 		    			);
-		    $purchase_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
-		    $purchase_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();  	
+		    if($po_link_cols){
+		    	$purchase_entry['quotation_id'] = $linked_quote ?: null;
+		    	$purchase_entry['sales_id']     = $linked_sale ?: null;
+		    }
+		    $purchase_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		    $purchase_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->insert('db_purchase', $purchase_entry);
 			$purchase_id = $this->db->insert_id();
 		}
@@ -240,14 +248,31 @@ class Purchase_model extends CI_Model {
 		    				'grand_total' 				=> $tot_total_amt,
 		    				'purchase_note' 			=> $purchase_note,
 		    			);
-			$purchase_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  
-			$purchase_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();  		
+			if($po_link_cols){
+				$purchase_entry['quotation_id'] = $linked_quote ?: null;
+				$purchase_entry['sales_id']     = $linked_sale ?: null;
+			}
+			$purchase_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			$purchase_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->where('id',$purchase_id)->update('db_purchase', $purchase_entry);
 
 			##############################################START
 			//FIND THE PREVIOUSE ITEM LIST ID'S
 			$prev_item_ids = $this->db->select("item_id")->from("db_purchaseitems")->where("purchase_id",$purchase_id)->get()->result_array();
 			##############################################END
+
+			// Receiving idempotency: this PO's barcode/serial/batch rows are
+			// re-created below from the fresh form data. Remove the PO's UNSOLD
+			// registry rows first so qtys are not re-added on every save (the
+			// old item_id+barcode+batch_lot merge inflated quantities and a
+			// serial re-save collided with uk_serial_number). Sold units
+			// (status=0 / warranty=2) are kept — they are re-linked to the new
+			// purchaseitems row by serial match below.
+			if($this->db->field_exists('purchase_id','db_item_barcodes')){
+				$this->db->where('purchase_id',$purchase_id)
+						 ->where('status',1)
+						 ->delete('db_item_barcodes');
+			}
 
 			$q11=$this->db->query("delete from db_purchaseitems where purchase_id='$purchase_id'");
 			if(!$q11){
@@ -292,7 +317,7 @@ class Purchase_model extends CI_Model {
 				$discount_type 		=$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
 				$discount_input 	=$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
 				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
-				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$description		=mp_clean_text($_REQUEST['description_'.$i] ?? '');
 				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
 				$barcode			=$this->xss_html_filter(trim($_REQUEST['barcode_'.$i] ?? ''));
 				$serial_number		=$this->xss_html_filter(trim($_REQUEST['serial_number_'.$i] ?? ''));
@@ -364,7 +389,8 @@ class Purchase_model extends CI_Model {
 				if(!$q2){
 					return "failed";
 				}
-				
+				$purchaseitems_id = $this->db->insert_id();
+
 				// Only update stock and create barcode records if stock is being received
 				if($purchase_status == 'Received' || $purchase_status == 'Partially Received'){
 					//UPDATE itemS QUANTITY IN itemS TABLE
@@ -375,14 +401,41 @@ class Purchase_model extends CI_Model {
 					}
 
 					// Create or update barcode/batch record in db_item_barcodes
-					if((!empty($barcode) || !empty($serial_number) || !empty($imei_number)) && $received_qty > 0){
-						$existing_bc = $this->db->where('item_id',$item_id)
-											->where('barcode',$barcode)
-											->where('batch_lot',$batch_lot)
-											->get('db_item_barcodes')->row();
-						// Empty barcode with serial/IMEI means a distinct unit; do not merge with an empty-barcode batch
-						if(empty($barcode) && $existing_bc){ $existing_bc = null; }
-						if($existing_bc){
+					if((!empty($barcode) || !empty($serial_number) || !empty($imei_number) || !empty($batch_lot)) && $received_qty > 0){
+						$bc_link_fields = array();
+						if($this->db->field_exists('purchase_id','db_item_barcodes')){
+							$bc_link_fields['purchase_id'] = $purchase_id;
+							$bc_link_fields['purchaseitems_id'] = $purchaseitems_id;
+						}
+						$existing_bc = null;
+						$bc_handled = false;
+						if(!empty($serial_number) || !empty($imei_number)){
+							// Serialised/IMEI unit: singleton row keyed by the unit identifier.
+							// This PO's unsold rows were deleted above — a surviving row
+							// means the unit was sold meanwhile; re-link, never re-qty.
+							$this->db->where('item_id',$item_id);
+							if(!empty($serial_number)) $this->db->where('serial_number',$serial_number);
+							if(!empty($imei_number))   $this->db->where('imei_number',$imei_number);
+							$sold_unit = $this->db->get('db_item_barcodes')->row();
+							if($sold_unit){
+								$this->db->where('id',$sold_unit->id)->update('db_item_barcodes',
+									array_merge($bc_link_fields, array(
+										'purchase_price' => store_number_format($base_price_per_unit,0),
+									)));
+								$bc_handled = true;
+							}
+						} else {
+							// Plain barcode/batch stock: merge by item+barcode+lot
+							$existing_bc = $this->db->where('item_id',$item_id)
+												->where('barcode',$barcode)
+												->where('batch_lot',$batch_lot)
+												->get('db_item_barcodes')->row();
+							// Empty barcode with serial/IMEI means a distinct unit; do not merge with an empty-barcode batch
+							if(empty($barcode) && $existing_bc){ $existing_bc = null; }
+						}
+						if($bc_handled){
+							// serialised unit already reconciled above
+						} else if($existing_bc){
 							// Add to existing batch quantity (in base units for consistency with stock)
 							$new_qty = $existing_bc->qty + $base_unit_qty;
 							$this->db->where('id',$existing_bc->id)->update('db_item_barcodes', array(
@@ -390,13 +443,11 @@ class Purchase_model extends CI_Model {
 								'purchase_price' => store_number_format($base_price_per_unit,0),
 								'expire_date' => !empty($expire_date) ? $expire_date : $existing_bc->expire_date,
 								'mfg_date' => !empty($mfg_date) ? $mfg_date : $existing_bc->mfg_date,
-								'serial_number' => !empty($serial_number) ? $serial_number : $existing_bc->serial_number,
-								'imei_number' => !empty($imei_number) ? $imei_number : $existing_bc->imei_number,
 							));
 						} else {
 							// Get item sales_price and mrp for the barcode record
 							$item_details = $this->db->select('sales_price,mrp')->where('id',$item_id)->get('db_items')->row();
-							$this->db->insert('db_item_barcodes', array(
+							$this->db->insert('db_item_barcodes', array_merge($bc_link_fields, array(
 								'item_id' => $item_id,
 								'barcode' => $barcode,
 								'batch_lot' => $batch_lot,
@@ -412,7 +463,7 @@ class Purchase_model extends CI_Model {
 								'status' => 1,
 								'created_date' => date('Y-m-d'),
 								'created_time' => date('H:i:s'),
-							));
+							)));
 						}
 					}
 
@@ -702,6 +753,11 @@ class Purchase_model extends CI_Model {
 		//ACCOUNT RESET END
 
 		#----------------------------------
+		// Drop this PO's unsold serial/batch registry rows before its items vanish
+		// (sold units are preserved — they belong to a sale)
+		if($this->db->field_exists('purchase_id','db_item_barcodes')){
+			$this->db->where("purchase_id in ($ids)")->where('status',1)->delete("db_item_barcodes");
+		}
 		$this->db->where("purchase_id in ($ids)");
 		$q7=$this->db->delete("db_purchaseitems");
 		if(!$q7){
@@ -1263,7 +1319,7 @@ class Purchase_model extends CI_Model {
 		$amount = $this->input->post('amount', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = $this->input->post('payment_note', TRUE);
+		$payment_note = mp_post_text('payment_note');
 		$purchase_id = $this->input->post('purchase_id', TRUE);
 		$supplier_id = $this->input->post('supplier_id', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
@@ -1518,8 +1574,10 @@ class Purchase_model extends CI_Model {
 		                  <th>Item</th>
 		                  <th style="width:12%">Ordered Qty</th>
 		                  <th style="width:15%">Received Qty</th>
-		                  <th style="width:15%">Batch/Lot</th>
-		                  <th style="width:15%">Barcode</th>
+		                  <th style="width:12%">Batch/Lot</th>
+		                  <th style="width:10%">Barcode</th>
+		                  <th style="width:12%">Serial No</th>
+		                  <th style="width:12%">IMEI</th>
 		                  <th style="width:12%">Expiry</th>
 		                  <th style="width:12%">MFG Date</th>
 		                </tr>
@@ -1543,6 +1601,12 @@ class Purchase_model extends CI_Model {
 		                  </td>
 		                  <td>
 		                    <input type="text" name="cs_barcode[]" class="form-control text-center" value="<?= $res2->barcode; ?>" placeholder="Barcode">
+		                  </td>
+		                  <td>
+		                    <input type="text" name="cs_serial_number[]" class="form-control text-center" value="<?= $res2->sold_serial_number; ?>" placeholder="Serial">
+		                  </td>
+		                  <td>
+		                    <input type="text" name="cs_imei[]" class="form-control text-center" value="<?= $res2->sold_imei_number; ?>" placeholder="IMEI">
 		                  </td>
 		                  <td>
 		                    <input type="text" name="cs_expire_date[]" class="form-control text-center datepicker" value="<?= is_valid_date($res2->expire_date) ? show_date($res2->expire_date) : ''; ?>" placeholder="dd-mm-yyyy" readonly>
@@ -1600,8 +1664,11 @@ class Purchase_model extends CI_Model {
 		$received_qtys = $this->input->post('cs_received_qty', TRUE);
 		$batch_lots = $this->input->post('cs_batch_lot', TRUE);
 		$barcodes = $this->input->post('cs_barcode', TRUE);
+		$serial_numbers = $this->input->post('cs_serial_number', TRUE);
+		$imei_numbers = $this->input->post('cs_imei', TRUE);
 		$expire_dates = $this->input->post('cs_expire_date', TRUE);
 		$mfg_dates = $this->input->post('cs_mfg_date', TRUE);
+		$has_bc_po_col = $this->db->field_exists('purchase_id','db_item_barcodes');
 
 		$this->db->trans_begin();
 
@@ -1611,6 +1678,26 @@ class Purchase_model extends CI_Model {
 
 		// Update items if status is Partially Received or Received
 		if($new_status == 'Partially Received' || $new_status == 'Received'){
+
+			// Serialised lines must be received through the full purchase form so
+			// every physical unit carries its serial — refuse to mark them via
+			// the quick modal unless serials are supplied.
+			foreach((array)$item_row_ids as $chk_i => $chk_row){
+				$chk = $this->db->select('pi.item_id, i.track_serial, i.track_imei, i.item_name')
+					->from('db_purchaseitems pi')->join('db_items i','i.id=pi.item_id','left')
+					->where('pi.id',$chk_row)->get()->row();
+				if($chk && ($chk->track_serial || $chk->track_imei) && empty($serial_numbers[$chk_i]) && empty($imei_numbers[$chk_i])){
+					$this->db->trans_rollback();
+					return $chk->item_name." is serial-tracked — open the purchase and enter the serial/IMEI before receiving.";
+				}
+			}
+
+			// Receiving idempotency: drop this PO's previously-registered UNSOLD
+			// barcode rows; they are recreated below from the submitted values.
+			if($has_bc_po_col){
+				$this->db->where('purchase_id',$purchase_id)->where('status',1)->delete('db_item_barcodes');
+			}
+
 			for($i=0; $i<count($item_row_ids); $i++){
 				$row_id = $item_row_ids[$i];
 				$item_result = $this->db->query("select item_id from db_purchaseitems where id=$row_id");
@@ -1639,15 +1726,19 @@ class Purchase_model extends CI_Model {
 				$mfg_date_val = (!empty($mfg_dates[$i])) ? system_fromatted_date($mfg_dates[$i]) : null;
 				$batch_lot_val = (!empty($batch_lots[$i])) ? $batch_lots[$i] : null;
 				$barcode_val = (!empty($barcodes[$i])) ? $barcodes[$i] : null;
+				$serial_val = (!empty($serial_numbers[$i])) ? trim($serial_numbers[$i]) : null;
+				$imei_val   = (!empty($imei_numbers[$i])) ? trim($imei_numbers[$i]) : null;
 
 				$q2 = $this->db->query("update db_purchaseitems set
 									purchase_status='$new_status',
 									received_qty=$rcv_qty,
 									base_unit_qty=$base_unit_qty,
-									batch_lot=".($batch_lot_val ? "'$batch_lot_val'" : "null").",
-									barcode=".($barcode_val ? "'$barcode_val'" : "null").",
+									batch_lot=".($batch_lot_val ? "'".$this->db->escape_str($batch_lot_val)."'" : "null").",
+									barcode=".($barcode_val ? "'".$this->db->escape_str($barcode_val)."'" : "null").",
 									expire_date=".($exp_date ? "'$exp_date'" : "null").",
-									mfg_date=".($mfg_date_val ? "'$mfg_date_val'" : "null")."
+									mfg_date=".($mfg_date_val ? "'$mfg_date_val'" : "null").",
+									sold_serial_number=".($serial_val ? "'".$this->db->escape_str($serial_val)."'" : "null").",
+									sold_imei_number=".($imei_val ? "'".$this->db->escape_str($imei_val)."'" : "null")."
 									where id=$row_id");
 				if(!$q2){ $this->db->trans_rollback(); return "failed"; }
 
@@ -1656,25 +1747,42 @@ class Purchase_model extends CI_Model {
 				$q3 = $this->pos_model->update_items_quantity($item_id);
 				if(!$q3){ $this->db->trans_rollback(); return "failed"; }
 
-				// Create/update barcode record
-				if(!empty($barcode_val) && !empty($rcv_qty) && $rcv_qty > 0){
-					$this->db->where('item_id',$item_id)
+				// Create/update barcode record (serial/IMEI units + barcode/batch stock)
+				if($rcv_qty > 0 && (!empty($barcode_val) || !empty($serial_val) || !empty($imei_val) || !empty($batch_lot_val))){
+					$cs_link = $has_bc_po_col ? array('purchase_id' => $purchase_id, 'purchaseitems_id' => $row_id) : array();
+					$cs_done = false;
+					if(!empty($serial_val) || !empty($imei_val)){
+						// Singleton per physical unit — re-link if the row already exists
+						$this->db->where('item_id',$item_id);
+						if(!empty($serial_val)) $this->db->where('serial_number',$serial_val);
+						if(!empty($imei_val))   $this->db->where('imei_number',$imei_val);
+						$u = $this->db->get('db_item_barcodes')->row();
+						if($u){
+							$this->db->where('id',$u->id)->update('db_item_barcodes', $cs_link + array('qty' => $base_unit_qty));
+							$cs_done = true;
+						}
+					} else {
+						$barcode_exists = $this->db->where('item_id',$item_id)
 							 ->where('barcode',$barcode_val)
 							 ->where('batch_lot',$batch_lot_val)
-							 ;
-					$barcode_exists = $this->db->get('db_item_barcodes')->row();
-					if(!empty($barcode_exists)){
-						$new_barcode_qty = $barcode_exists->qty + $base_unit_qty;
-						$this->db->where('id',$barcode_exists->id)->update('db_item_barcodes', array(
-							'qty' => $new_barcode_qty,
-							'expire_date' => $exp_date,
-							'mfg_date' => $mfg_date_val
-						));
-					} else {
-						$this->db->insert('db_item_barcodes', array(
+							 ->get('db_item_barcodes')->row();
+						if(!empty($barcode_exists)){
+							$new_barcode_qty = $barcode_exists->qty + $base_unit_qty;
+							$this->db->where('id',$barcode_exists->id)->update('db_item_barcodes', array(
+								'qty' => $new_barcode_qty,
+								'expire_date' => $exp_date,
+								'mfg_date' => $mfg_date_val
+							));
+							$cs_done = true;
+						}
+					}
+					if(!$cs_done){
+						$this->db->insert('db_item_barcodes', $cs_link + array(
 							'item_id' => $item_id,
 							'barcode' => $barcode_val,
 							'batch_lot' => $batch_lot_val,
+							'serial_number' => $serial_val,
+							'imei_number' => $imei_val,
 							'qty' => $base_unit_qty,
 							'expire_date' => $exp_date,
 							'mfg_date' => $mfg_date_val,
@@ -1682,11 +1790,21 @@ class Purchase_model extends CI_Model {
 						));
 					}
 				}
+
+				// Keep warehouse-level stock in step with the receipt
+				if(function_exists('update_warehouse_items')){
+					update_warehouse_items(array(array('item_id' => $item_id)));
+				}
 			}
 		} else {
 			// For Draft/Ordered: just update purchase_status on items, clear received_qty
 			$q4 = $this->db->query("update db_purchaseitems set purchase_status='$new_status', received_qty=null where purchase_id=$purchase_id");
 			if(!$q4){ $this->db->trans_rollback(); return "failed"; }
+			// Roll back this PO's unsold barcode registry rows (sold units stay —
+			// they are referenced by a sale and cannot be un-received here)
+			if($has_bc_po_col){
+				$this->db->where('purchase_id',$purchase_id)->where('status',1)->delete('db_item_barcodes');
+			}
 			// Re-calc stock since we may have removed received quantities
 			$item_query = $this->db->query("select item_id from db_purchaseitems where purchase_id=$purchase_id");
 			if(!$item_query || $item_query->num_rows() == 0){

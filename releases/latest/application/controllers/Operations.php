@@ -2402,4 +2402,154 @@ class Operations extends MY_Controller {
         $this->_check_feature('courses');
         redirect('courses');
     }
+
+    /* ===================== EQUIPMENT REGISTER (scientific equipment) ===================== */
+    public function equipment_register() {
+        $this->_check_feature('equipment_register');
+        $this->permission_check('equipment_view');
+        $this->load->model('equipment_model', 'equipment');
+        $data['equipment'] = $this->equipment->get_equipment_list(array(
+            'search' => $this->input->get('search', TRUE),
+            'customer_id' => $this->input->get('customer_id', TRUE),
+            'warranty_expiring_days' => $this->input->get('warranty_days', TRUE),
+            'calibration_due' => $this->input->get('calibration_due', TRUE),
+        ));
+        $data['search'] = $this->input->get('search', TRUE);
+        $data['calibration_due'] = (int)$this->input->get('calibration_due', TRUE);
+        $data['warranty_days'] = (int)$this->input->get('warranty_days', TRUE);
+        $this->_render('Equipment Register', 'operations/equipment_register', $data);
+    }
+
+    public function equipment_view($id = 0) {
+        $this->_check_feature('equipment_register');
+        $this->permission_check('equipment_view');
+        $this->load->model('equipment_model', 'equipment');
+        $data['eq'] = $this->equipment->get_equipment((int)$id);
+        if(!$data['eq']){ show_404(); return; }
+        $data['jobs'] = $this->equipment->get_job_list(array('equipment_id' => (int)$id));
+        $data['sites'] = $this->db->where('customer_id', $data['eq']->customer_id)->get('db_shippingaddress')->result();
+        $data['engineers'] = $this->equipment->get_engineers();
+        $this->_render('Equipment — ' . $data['eq']->serial_number, 'operations/equipment_view', $data);
+    }
+
+    public function equipment_save() {
+        $this->_check_feature('equipment_register');
+        $this->permission_check('equipment_edit');
+        $this->load->model('equipment_model', 'equipment');
+        echo $this->equipment->save_equipment();
+    }
+
+    public function equipment_schedule_calibration($equipment_id = 0) {
+        $this->_check_feature('equipment_register');
+        $this->permission_check('service_jobs_add');
+        $this->load->model('equipment_model', 'equipment');
+        echo $this->equipment->schedule_calibration((int)$equipment_id);
+    }
+
+    /* ===================== SERVICE JOBS ===================== */
+    public function service_jobs() {
+        $this->_check_feature('service_jobs');
+        $this->permission_check('service_jobs_view');
+        $this->load->model('equipment_model', 'equipment');
+        $status = $this->input->get('status', TRUE);
+        $data['jobs'] = $this->equipment->get_job_list(array(
+            'status' => $status,
+            'open_only' => ($status === 'open_list'),
+        ));
+        $data['status'] = $status;
+        $this->_render('Service Jobs', 'operations/service_jobs', $data);
+    }
+
+    public function service_job_form($id = 0) {
+        $this->_check_feature('service_jobs');
+        $this->permission_check($id ? 'service_jobs_edit' : 'service_jobs_add');
+        $this->load->model('equipment_model', 'equipment');
+        $store_id = get_current_store_id();
+        $data['job'] = $id ? $this->equipment->get_job((int)$id) : null;
+        $data['job_types'] = $this->equipment->job_types();
+        $data['job_statuses'] = $this->equipment->job_statuses();
+        $data['engineers'] = $this->equipment->get_engineers();
+        $data['customers'] = $this->db->select('id, customer_name')->where('store_id', $store_id)->where('status', 1)->order_by('customer_name')->get('db_customers')->result();
+        // Prefill from equipment when arriving from the register
+        $equipment_id = (int)$this->input->get('equipment_id', TRUE);
+        $data['prefill_equipment'] = $equipment_id ? $this->equipment->get_equipment($equipment_id) : null;
+        $data['prefill_customer_id'] = $data['prefill_equipment']
+            ? (int)$data['prefill_equipment']->customer_id
+            : (int)$this->input->get('customer_id', TRUE);
+        $this->_render($id ? 'Edit Service Job' : 'New Service Job', 'operations/service_job_form', $data);
+    }
+
+    public function service_job_save() {
+        $this->_check_feature('service_jobs');
+        $this->permission_check(((int)$this->input->post('job_id') > 0) ? 'service_jobs_edit' : 'service_jobs_add');
+        $this->load->model('equipment_model', 'equipment');
+        echo $this->equipment->save_job();
+    }
+
+    public function service_job_view($id = 0) {
+        $this->_check_feature('service_jobs');
+        $this->permission_check('service_jobs_view');
+        $this->load->model('equipment_model', 'equipment');
+        $data['job'] = $this->equipment->get_job((int)$id);
+        if(!$data['job']){ show_404(); return; }
+        $data['visits'] = $this->equipment->get_job_visits((int)$id);
+        $data['parts'] = $this->equipment->get_job_parts((int)$id);
+        $data['engineers'] = $this->equipment->get_engineers();
+        $data['job_statuses'] = $this->equipment->job_statuses();
+        $this->_render('Service Job — ' . $data['job']->job_code, 'operations/service_job_view', $data);
+    }
+
+    public function service_job_visit_save() {
+        $this->_check_feature('service_jobs');
+        $this->permission_check('service_jobs_edit');
+        $this->load->model('equipment_model', 'equipment');
+        echo $this->equipment->save_visit();
+    }
+
+    public function service_job_part_save() {
+        $this->_check_feature('service_jobs');
+        $this->permission_check('service_jobs_edit');
+        $this->load->model('equipment_model', 'equipment');
+        echo $this->equipment->save_part();
+    }
+
+    public function service_job_status() {
+        $this->_check_feature('service_jobs');
+        $this->permission_check('service_jobs_edit');
+        $this->load->model('equipment_model', 'equipment');
+        echo $this->equipment->update_job_status();
+    }
+
+    /* AJAX helpers for the job form */
+    public function ajax_customer_equipment() {
+        $this->_check_feature('service_jobs');
+        $this->load->model('equipment_model', 'equipment');
+        $customer_id = (int)$this->input->post_get('customer_id', TRUE);
+        echo json_encode($this->equipment->get_equipment_list(array('customer_id' => $customer_id)));
+    }
+
+    public function ajax_customer_sites() {
+        $this->_check_feature('service_jobs');
+        $customer_id = (int)$this->input->post_get('customer_id', TRUE);
+        if(!$customer_id){ echo json_encode(array()); return; }
+        $this->load->model('equipment_model', 'equipment');
+        $sites = $this->db->where('customer_id', $customer_id)->get('db_shippingaddress')->result();
+        $out = array();
+        foreach($sites as $s){
+            $out[] = array('id' => $s->id, 'label' => trim(($s->site_name ? $s->site_name.' — ' : '').$s->address.($s->city ? ', '.$s->city : '')));
+        }
+        echo json_encode($out);
+    }
+
+    public function ajax_item_search() {
+        $this->_check_feature('service_jobs');
+        $term = $this->input->get('term', TRUE);
+        $rows = $this->db->select('id, item_name, sales_price, stock, track_serial')
+            ->from('db_items')->where('store_id', get_current_store_id())->where('status', 1)
+            ->group_start()->like('item_name', $term)->or_like('item_code', $term)->group_end()
+            ->limit(20)->get()->result();
+        $out = array();
+        foreach($rows as $r){ $out[] = array('id' => $r->id, 'label' => $r->item_name.' (stock '.$r->stock.')', 'value' => $r->item_name, 'price' => $r->sales_price); }
+        echo json_encode($out);
+    }
 }

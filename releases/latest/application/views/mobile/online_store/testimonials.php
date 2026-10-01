@@ -160,18 +160,18 @@
       btn.disabled = true; btn.innerHTML = '<i class="fa fa-refresh fa-spin"></i> Importing...';
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/fetch_gmb_reviews'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/fetch_gmb_reviews'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Import Reviews';
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Import failed', true); }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Import Reviews'; });
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The reviews could not be imported. Please try again.', true); }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Import Reviews'; });
     }
     function saveTestimonial(){
       const fd = new FormData(document.getElementById('testiForm'));
-      fetch('<?= base_url('online_store/save_testimonial'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed to save', true); }
-      }).catch(()=>showToast('Network error', true));
+      mpFetchJson('<?= base_url('online_store/save_testimonial'); ?>', {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The testimonial could not be saved. Please check the details and try again.', true); }
+      }).catch(err=>showToast(mpErrorText(err), true));
     }
     function editTestimonial(id, name, text, rating, order, enabled){
       document.getElementById('testimonial_id').value = id;
@@ -188,10 +188,10 @@
       btn.disabled = true;
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/delete_testimonial/'); ?>'+id, {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+      mpFetchJson('<?= base_url('online_store/delete_testimonial/'); ?>'+id, {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The testimonial could not be deleted. Please try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
   </script>
 </body>

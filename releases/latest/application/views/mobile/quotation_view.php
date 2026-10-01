@@ -135,17 +135,16 @@
         var formData = new FormData();
         formData.append('q_id', id);
         formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-        fetch('<?= base_url('mobile/delete_quotation'); ?>', { method: 'POST', body: formData })
-        .then(function(res){ return res.json(); })
+        mpFetchJson('<?= base_url('mobile/delete_quotation'); ?>', { method: 'POST', body: formData })
         .then(function(data){
           if(data.status === 'success'){
             mpSuccess(data.message);
             setTimeout(function(){ window.location.href = '<?= base_url('mobile/quotations'); ?>'; }, 600);
           } else {
-            mpError(data.message || 'Delete failed.');
+            mpError(data.message || 'The quotation could not be deleted. Please try again.');
           }
         })
-        .catch(function(){ mpError('Network error.'); });
+        .catch(function(err){ mpError(mpErrorText(err)); });
       }, null, {danger: true});
     }
   </script>

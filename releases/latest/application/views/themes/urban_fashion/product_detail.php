@@ -101,7 +101,9 @@ $hasDiscount = $product->original_price > $product->effective_price;
         </div>
         <p class="ue-pd-desc"><?= nl2br(htmlspecialchars($product->description ?? '')); ?></p>
 
-        <div class="ue-pd-qty">
+                <?php $this->load->view('themes/shared/variant_picker'); ?>
+
+<div class="ue-pd-qty">
           <button onclick="adjustDetailQty(-1)">-</button>
           <span id="detail-qty">1</span>
           <button onclick="adjustDetailQty(1)">+</button>
@@ -114,31 +116,6 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <button class="ue-btn ue-btn-wa" onclick="sendDetailWhatsApp()">Order Via WhatsApp</button>
           <?php endif; ?>
         </div>
-
-        <?php if(!empty($product_variants)): ?>
-        <div class="ue-pd-variants">
-          <div class="ue-section-label" style="margin-bottom:14px;">Available Variants</div>
-          <div class="ue-product-grid">
-            <?php foreach($product_variants as $v):
-              $vImg = ($v->item_image && file_exists($v->item_image)) ? mp_minified_image_url($v->item_image, 400) : '';
-            ?>
-            <a href="<?= base_url('store/' . $slug . '/product/' . $v->id); ?>" class="ue-product-card">
-              <div class="ue-product-media">
-                <?php if($vImg): ?>
-                <img src="<?= $vImg; ?>" alt="<?= htmlspecialchars($v->item_name); ?>" loading="lazy" decoding="async">
-                <?php else: ?>
-                <div class="ue-product-placeholder"><span><?= htmlspecialchars(substr($v->item_name, 0, 1)); ?></span></div>
-                <?php endif; ?>
-              </div>
-              <div class="ue-product-body">
-                <div class="ue-product-name"><?= htmlspecialchars($v->item_name); ?></div>
-                <div class="ue-product-price"><?= sf_currency($v->effective_price, $cur); ?></div>
-              </div>
-            </a>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="ue-pd-related">

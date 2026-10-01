@@ -481,6 +481,26 @@ class Customers extends MY_Controller {
 			$data['service_history'] = array();
 		}
 
+		// Institutional contacts & delivery/service sites
+		$data['contacts'] = ($this->db->table_exists('db_customer_contacts') && mp_feature_enabled('customer_contacts'))
+			? $this->db->where('customer_id',$id)->where('status',1)->order_by('is_primary','DESC')->order_by('id')->get('db_customer_contacts')->result()
+			: array();
+		$data['sites'] = mp_feature_enabled('customer_sites')
+			? $this->db->where('customer_id',$id)->where('status',1)->order_by('id')->get('db_shippingaddress')->result()
+			: array();
+
+		// Equipment register + service jobs for this customer
+		$data['equipment'] = array();
+		$data['service_jobs'] = array();
+		if($this->db->table_exists('db_customer_equipment') && mp_feature_enabled('equipment_register')){
+			$this->load->model('equipment_model','equipment');
+			$data['equipment'] = $this->equipment->get_equipment_list(array('customer_id'=>$id));
+		}
+		if($this->db->table_exists('db_service_jobs') && mp_feature_enabled('service_jobs')){
+			$this->load->model('equipment_model','equipment');
+			$data['service_jobs'] = $this->equipment->get_job_list(array('customer_id'=>$id));
+		}
+
 		$data['page_title'] = 'Customer Profile';
 		$data['content']=$this->load->view('customers/desktop/profile',$data,TRUE);
 		$this->load->view('mp_layout',$data);
@@ -612,5 +632,159 @@ class Customers extends MY_Controller {
 						->get('db_customers')
 						->row_array();
 		echo json_encode($row ?: array());
+	}
+
+	/* JSON list of a customer's delivery/service sites (db_shippingaddress rows).
+	   Used by quotation, sales and delivery site selectors. */
+	public function get_customer_sites(){
+		$customer_id = $this->input->post_get('customer_id', TRUE);
+		if(empty($customer_id)){ echo json_encode(array()); return; }
+		$customer = $this->db->select('shippingaddress_id')->where('id',$customer_id)->get('db_customers')->row();
+		$q = $this->db->where('customer_id',$customer_id)->where('status',1)
+			->get('db_shippingaddress');
+		$out = array();
+		$has_site_name_col = $this->db->field_exists('site_name','db_shippingaddress');
+		foreach($q->result() as $r){
+			$label_parts = array_filter(array(
+				$has_site_name_col ? $r->site_name : null,
+				$r->city,
+				$r->address,
+			));
+			$out[] = array(
+				'id'         => $r->id,
+				'site_name'  => $has_site_name_col ? $r->site_name : null,
+				'label'      => !empty($label_parts) ? implode(' — ', $label_parts) : 'Site #'.$r->id,
+				'is_primary' => (!empty($customer) && (int)$customer->shippingaddress_id === (int)$r->id) ? 1 : ($has_site_name_col ? (int)$r->is_primary : 0),
+				'address'    => $r->address,
+				'city'       => $r->city,
+				'postcode'   => $r->postcode,
+				'country_id' => $r->country_id,
+				'state_id'   => $r->state_id,
+				'location_link' => $r->location_link ?? null,
+			);
+		}
+		echo json_encode($out);
+	}
+
+	/* Institutional customer contacts (db_customer_contacts) */
+	public function get_customer_contacts(){
+		$this->permission_check('customers_view');
+		$customer_id = (int)$this->input->post_get('customer_id', TRUE);
+		if(!$customer_id || !$this->db->table_exists('db_customer_contacts')){ echo json_encode(array()); return; }
+		echo json_encode($this->db->where('customer_id',$customer_id)->where('status',1)->order_by('is_primary','DESC')->order_by('id')->get('db_customer_contacts')->result());
+	}
+
+	public function save_contact(){
+		$this->permission_check('customers_edit');
+		if(!$this->db->table_exists('db_customer_contacts')){ echo "Contacts are not available on this install."; return; }
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$contact_id  = (int)$this->input->post('contact_id', TRUE);
+		$name = mp_clean_text($this->input->post('contact_name'));
+		if($customer_id <= 0 || empty($name)){ echo "Customer and contact name are required."; return; }
+		$this->belong_to('db_customers', $customer_id);
+		$data = array(
+			'contact_name' => $name,
+			'role_title'   => mp_clean_text($this->input->post('role_title')),
+			'email'        => mp_clean_text($this->input->post('email')),
+			'phone'        => mp_clean_text($this->input->post('phone')),
+			'is_primary'   => (int)$this->input->post('is_primary') ? 1 : 0,
+			'notes'        => mp_clean_text($this->input->post('notes')),
+		);
+		if($data['is_primary']){
+			$this->db->where('customer_id',$customer_id)->update('db_customer_contacts', array('is_primary'=>0));
+		}
+		if($contact_id > 0){
+			$this->db->where('id',$contact_id)->where('customer_id',$customer_id)->update('db_customer_contacts', $data);
+			echo 'success'; return;
+		}
+		$data += array(
+			'store_id' => get_current_store_id(),
+			'customer_id' => $customer_id,
+			'status' => 1,
+			'created_by' => $this->session->userdata('inv_userid'),
+			'created_date' => date('Y-m-d'),
+			'created_time' => date('H:i:s'),
+		);
+		echo $this->db->insert('db_customer_contacts', $data) ? 'success' : 'failed';
+	}
+
+	public function delete_contact(){
+		$this->permission_check('customers_edit');
+		if(!$this->db->table_exists('db_customer_contacts')){ echo "failed"; return; }
+		$id = (int)$this->input->post('contact_id', TRUE);
+		echo $this->db->where('id',$id)->where('store_id',get_current_store_id())->update('db_customer_contacts', array('status'=>0)) ? 'success' : 'failed';
+	}
+
+	/* Institutional customer sites — multiple db_shippingaddress rows per customer */
+	public function save_site(){
+		$this->permission_check('customers_edit');
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$site_id     = (int)$this->input->post('site_id', TRUE);
+		if($customer_id <= 0){ echo "Customer is required."; return; }
+		$this->belong_to('db_customers', $customer_id);
+		$address = mp_clean_text($this->input->post('address'));
+		if(empty($address)){ echo "Site address is required."; return; }
+		$data = array(
+			'address'    => $address,
+			'city'       => mp_clean_text($this->input->post('city')),
+			'postcode'   => mp_clean_text($this->input->post('postcode')),
+			'country_id' => ((int)$this->input->post('country_id')) ?: null,
+			'state_id'   => ((int)$this->input->post('state_id')) ?: null,
+		);
+		if($this->db->field_exists('site_name','db_shippingaddress')){
+			$data['site_name'] = mp_clean_text($this->input->post('site_name'));
+		}
+		if($this->db->field_exists('location_link','db_shippingaddress')){
+			$data['location_link'] = mp_clean_text($this->input->post('location_link'));
+		}
+		$is_primary = (int)$this->input->post('is_primary') ? 1 : 0;
+		if($site_id > 0){
+			$this->db->where('id',$site_id)->where('customer_id',$customer_id)->update('db_shippingaddress', $data);
+			if($is_primary){ $this->_set_primary_site($customer_id, $site_id); }
+			echo 'success'; return;
+		}
+		$data += array(
+			'store_id' => get_current_store_id(),
+			'customer_id' => $customer_id,
+			'status' => 1,
+		);
+		if(!$this->db->insert('db_shippingaddress', $data)){ echo 'failed'; return; }
+		$new_id = $this->db->insert_id();
+		// First site or explicitly primary → link on the customer
+		$existing = $this->db->where('customer_id',$customer_id)->where('status',1)->count_all_results('db_shippingaddress');
+		if($is_primary || $existing === 1){ $this->_set_primary_site($customer_id, $new_id); }
+		echo 'success';
+	}
+
+	public function delete_site(){
+		$this->permission_check('customers_edit');
+		$id = (int)$this->input->post('site_id', TRUE);
+		$site = $this->db->where('id',$id)->where('store_id',get_current_store_id())->get('db_shippingaddress')->row();
+		if(!$site){ echo 'failed'; return; }
+		$this->db->where('id',$id)->update('db_shippingaddress', array('status'=>0));
+		// If this was the customer's primary pointer, move it to another live site
+		$cust = $this->db->select('shippingaddress_id')->where('id',$site->customer_id)->get('db_customers')->row();
+		if($cust && (int)$cust->shippingaddress_id === (int)$id){
+			$next = $this->db->where('customer_id',$site->customer_id)->where('status',1)->order_by('id')->get('db_shippingaddress')->row();
+			$this->_set_primary_site($site->customer_id, $next ? $next->id : null);
+		}
+		echo 'success';
+	}
+
+	public function set_primary_site(){
+		$this->permission_check('customers_edit');
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$site_id     = (int)$this->input->post('site_id', TRUE);
+		$this->belong_to('db_customers', $customer_id);
+		$this->_set_primary_site($customer_id, $site_id);
+		echo 'success';
+	}
+
+	private function _set_primary_site($customer_id, $site_id){
+		if($this->db->field_exists('is_primary','db_shippingaddress')){
+			$this->db->where('customer_id',$customer_id)->update('db_shippingaddress', array('is_primary'=>0));
+			if($site_id){ $this->db->where('id',$site_id)->update('db_shippingaddress', array('is_primary'=>1)); }
+		}
+		$this->db->where('id',$customer_id)->update('db_customers', array('shippingaddress_id'=>$site_id));
 	}
 }

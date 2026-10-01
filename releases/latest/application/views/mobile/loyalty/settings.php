@@ -284,17 +284,16 @@
       const btn = form.querySelector('.save-btn');
       if(btn) btn.disabled = true;
       const formData = new FormData(form);
-      fetch(form.action, {method: 'POST', body: formData})
-        .then(r => r.text())
+      mpFetchText(form.action, {method: 'POST', body: formData})
         .then(d => {
           if(btn) btn.disabled = false;
           if(d.trim().indexOf('success') === 0 || d.trim() === 'success'){
             mpSuccess(successMsg);
           } else {
-            mpError(d || 'Save failed.');
+            mpError(d || 'The settings could not be saved. Please check the details and try again.');
           }
         })
-        .catch(() => { if(btn) btn.disabled = false; mpError('Save failed.'); });
+        .catch(err => { if(btn) btn.disabled = false; mpError(mpErrorText(err, 'The settings could not be saved. Please try again.')); });
       return false;
     }
 
@@ -302,8 +301,7 @@
       const form = document.getElementById(formId);
       mpConfirm(msg, function(){
         const formData = new FormData(form);
-        fetch(form.action, {method: 'POST', body: formData})
-          .then(r => r.text())
+        mpFetchText(form.action, {method: 'POST', body: formData})
           .then(d => {
             const res = d.trim();
             if(res === 'success' || res.indexOf('success') === 0){
@@ -311,10 +309,10 @@
               const row = form.closest('.tier-card');
               if(row) row.remove();
             } else {
-              mpError(res || 'Delete failed.');
+              mpError(res || 'The tier could not be deleted. Please try again.');
             }
           })
-          .catch(() => mpError('Delete failed.'));
+          .catch(err => mpError(mpErrorText(err, 'The tier could not be deleted. Please try again.')));
       }, null, {title: 'Delete?', okText: 'Delete', danger: true});
     }
 

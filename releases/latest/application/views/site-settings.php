@@ -130,6 +130,52 @@
             </div>
          </div>
       </div>
+      <?php if(function_exists('mp_is_central') && mp_is_central()): ?>
+      <hr style="border-top:1px solid #eee;margin:20px 0;">
+      <div class="row">
+         <div class="col-md-12">
+            <h4 style="margin:0 0 14px;"><i class="fa fa-exclamation-circle"></i> Service Status — Incident Banner</h4>
+            <p class="text-muted" style="margin-bottom:14px;">While active, a status strip shows at the top of every admin screen — desktop and mobile — linking to your status page in a new tab. This controls the incident notice on <strong>this install only</strong> — the fleet-wide banner is driven by the status API on martpoint.com.ng.</p>
+            <div class="row">
+               <div class="col-md-5">
+                  <div class="form-group">
+                     <label for="incident_active" class="col-sm-4 control-label">Show banner</label>
+                     <div class="col-sm-8" style="padding-top:7px;">
+                        <input type="checkbox" id="incident_active" name="incident_active" value="1" <?= !empty($incident['active']) ? 'checked' : ''; ?>>
+                        <span class="text-muted"><small>Display the incident notice</small></span>
+                     </div>
+                  </div>
+                  <div class="form-group">
+                     <label for="incident_severity" class="col-sm-4 control-label">Severity</label>
+                     <div class="col-sm-8">
+                        <select class="form-control" id="incident_severity" name="incident_severity">
+                           <option value="investigating" <?= ($incident['severity'] ?? '')=='investigating' ? 'selected' : ''; ?>>Investigating</option>
+                           <option value="identified"    <?= ($incident['severity'] ?? '')=='identified'    ? 'selected' : ''; ?>>Identified</option>
+                           <option value="monitoring"    <?= ($incident['severity'] ?? '')=='monitoring'    ? 'selected' : ''; ?>>Monitoring</option>
+                           <option value="maintenance"   <?= ($incident['severity'] ?? '')=='maintenance'   ? 'selected' : ''; ?>>Scheduled maintenance</option>
+                        </select>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-md-5">
+                  <div class="form-group">
+                     <label for="incident_message" class="col-sm-4 control-label">Message</label>
+                     <div class="col-sm-8">
+                        <input type="text" class="form-control" id="incident_message" name="incident_message" maxlength="255" value="<?php print htmlspecialchars($incident['message'] ?? ''); ?>" placeholder="We are investigating a technical issue.">
+                     </div>
+                  </div>
+                  <div class="form-group">
+                     <label for="incident_url" class="col-sm-4 control-label">Status page URL</label>
+                     <div class="col-sm-8">
+                        <input type="url" class="form-control" id="incident_url" name="incident_url" maxlength="255" value="<?php print htmlspecialchars($incident['url'] ?? 'https://www.martpoint.com.ng/status'); ?>" placeholder="https://www.martpoint.com.ng/status">
+                        <span class="text-muted"><small>Opens in a new tab.<?php if(!empty($incident['active']) && !empty($incident['started_at'])): ?> Showing since <?= htmlspecialchars($incident['started_at']); ?>.<?php endif; ?></small></span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+      <?php endif; // mp_is_central — incident control is central-only ?>
       <div>
          <div class="col-sm-8 col-sm-offset-2 text-center">
             <center>

@@ -389,14 +389,14 @@
       var fd = new FormData();
       fd.append(tokenName, token);
       fd.append('country', selectedText);
-      fetch('<?= base_url('site/get_states_by_country'); ?>', {method:'POST', body:fd})
-      .then(function(r){ return r.json(); })
+      mpFetchJson('<?= base_url('site/get_states_by_country'); ?>', {method:'POST', body:fd})
       .then(function(data){
         var html = '<option value="">Select State</option>';
         data.forEach(function(s){ html += '<option value="'+s.id+'">'+s.state+'</option>'; });
         setSelectOptions(stateSel, html, '');
         if(citySel) setSelectOptions(citySel, '<option value="">Select City</option>', '');
-      });
+      })
+      .catch(function(err){ showToast(mpErrorText(err, 'The state list could not be loaded. Please try again.'), true); });
     }
     function loadCities(stateSel, citySel){
       var stateId = stateSel.value;
@@ -404,13 +404,13 @@
       var fd = new FormData();
       fd.append(tokenName, token);
       fd.append('state_id', stateId);
-      fetch('<?= base_url('site/get_cities_by_state'); ?>', {method:'POST', body:fd})
-      .then(function(r){ return r.json(); })
+      mpFetchJson('<?= base_url('site/get_cities_by_state'); ?>', {method:'POST', body:fd})
       .then(function(data){
         var html = '<option value="">Select City</option>';
         data.forEach(function(c){ html += '<option value="'+c.city+'">'+c.city+'</option>'; });
         setSelectOptions(citySel, html, '');
-      });
+      })
+      .catch(function(err){ showToast(mpErrorText(err, 'The city list could not be loaded. Please try again.'), true); });
     }
     function wireCascade(countryId, stateId, cityId){
       var c = document.getElementById(countryId);

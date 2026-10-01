@@ -77,6 +77,7 @@ class Delivery_model extends CI_Model {
     public function save_and_update() {
         $command = $this->input->post_get('command', TRUE);
         $q_id = $this->input->post('q_id', TRUE);
+        $command = $this->input->post('command', TRUE) ?: ($q_id ? 'update' : 'save');
         $route_name = $this->input->post('route_name', TRUE);
         $schedule_date = $this->input->post('schedule_date', TRUE);
         $driver_id = $this->input->post('driver_id', TRUE);
@@ -154,7 +155,14 @@ class Delivery_model extends CI_Model {
                     $address = '';
                     if (!empty($sale->shippingaddress_id)) {
                         $addr = $this->db->where('id', $sale->shippingaddress_id)->get('db_shippingaddress')->row();
-                        $address = $addr ? trim($addr->address . ', ' . ($addr->city ?? '') . ', ' . ($addr->state_id ?? '')) : '';
+                        if($addr){
+                            $addr_parts = array_filter(array(
+                                trim($addr->address ?? ''),
+                                trim($addr->city ?? ''),
+                                ((int)($addr->state_id ?? 0) > 0) ? $addr->state_id : null,
+                            ));
+                            $address = implode(', ', $addr_parts);
+                        }
                     }
 
                     $this->db->insert('db_delivery_schedule_items', array(

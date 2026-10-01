@@ -470,5 +470,74 @@ class Reports extends MY_Controller {
 		$this->load->view('mobile/cash_in_hand', $data);
 	}
 
+	/* ============ Scientific Equipment & Lab Supplies reports ============ */
+
+	private function _scientific_report_map(){
+		return array(
+			'quotations' => array(
+				'title' => 'Outstanding Quotations',
+				'perm'  => 'quotation_report',
+				'sub'   => 'Quotations issued but not yet converted to a sale',
+				'filters' => array('customer','date_range'),
+				'columns' => array('Quote','Rev','Date','Valid Until','Customer','Total','Age (days)','Prepared By','Status'),
+			),
+			'procurement' => array(
+				'title' => 'Orders Awaiting Procurement',
+				'perm'  => 'procurement_report',
+				'sub'   => 'Converted orders with no purchase order, and POs not yet fully received',
+				'filters' => array('date_range'),
+				'columns' => array('Type','Reference','Date','Customer / Supplier','Value','Linked Order','Status'),
+			),
+			'warranty' => array(
+				'title' => 'Warranty Coverage & Expiries',
+				'perm'  => 'warranty_report',
+				'sub'   => 'Installed-equipment warranty windows',
+				'filters' => array('customer','days','search'),
+				'columns' => array('Serial','Equipment','Customer','Site','Warranty Start','Warranty End','Coverage','Status'),
+			),
+			'equipment' => array(
+				'title' => 'Equipment Register',
+				'perm'  => 'equipment_report',
+				'sub'   => 'Serialised units registered against customers',
+				'filters' => array('customer','date_range','search'),
+				'columns' => array('Serial','Equipment','Customer','Site','Invoice','Sold','Installed','Warranty End','Next Calibration','Status'),
+			),
+			'service_jobs' => array(
+				'title' => 'Service Jobs',
+				'perm'  => 'service_jobs_report',
+				'sub'   => 'Installation, calibration, maintenance and repair jobs',
+				'filters' => array('customer','status','date_range','search'),
+				'columns' => array('Job','Type','Title','Customer','Equipment','Engineer','Scheduled','Labour','Parts','Status'),
+			),
+			'calibration' => array(
+				'title' => 'Calibration Due',
+				'perm'  => 'calibration_report',
+				'sub'   => 'Registered equipment due or overdue for calibration',
+				'filters' => array('customer','days','search'),
+				'columns' => array('Serial','Equipment','Customer','Site','Interval (mo)','Last Calibration','Next Calibration','Due In','Status'),
+			),
+		);
+	}
+
+	public function scientific($report = 'quotations'){
+		$map = $this->_scientific_report_map();
+		if(!isset($map[$report])){ show_404(); return; }
+		$this->permission_check($map[$report]['perm']);
+		$data = $this->data;
+		$data['page_title']  = $map[$report]['title'];
+		$data['report']      = $report;
+		$data['report_meta'] = $map[$report];
+		$data['engineers']   = array();
+		if($report === 'service_jobs'){
+			$data['engineers'] = $this->db->select('id,username')->where('store_id', get_current_store_id())->where('status',1)->order_by('username')->get('db_users')->result();
+		}
+		$data['content'] = $this->load->view('reports/desktop/scientific', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function show_scientific_report(){
+		echo $this->reports->show_scientific_report();
+	}
+
 }
 

@@ -83,11 +83,10 @@
       btn.textContent = 'Saving...';
 
       var formData = new FormData(form);
-      fetch('<?= base_url('mobile/save_category'); ?>', {
+      mpFetchJson('<?= base_url('mobile/save_category'); ?>', {
         method: 'POST',
         body: formData
       })
-      .then(function(res){ return res.json(); })
       .then(function(data){
         btn.disabled = false;
         btn.textContent = 'Save Category';
@@ -95,13 +94,13 @@
           showToast(data.message, 'success');
           setTimeout(function(){ window.location.href = data.redirect || '<?= base_url('mobile/more'); ?>'; }, 800);
         } else {
-          showToast(data.message || 'Save failed.', 'error');
+          showToast(data.message || 'Could not save this category. Please check the details and try again.', 'error');
         }
       })
-      .catch(function(){
+      .catch(function(err){
         btn.disabled = false;
         btn.textContent = 'Save Category';
-        showToast('Network or server error. Try again.', 'error');
+        showToast(mpErrorText(err), 'error');
       });
     });
 
@@ -113,6 +112,7 @@
       setTimeout(function(){ toast.classList.remove('active'); }, 3000);
     }
   </script>
+  <?php $this->load->view('mobile/mp_alert'); ?>
   <?php $this->load->view('mobile/chat'); ?>
 </body>
 </html>

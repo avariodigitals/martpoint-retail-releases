@@ -148,10 +148,9 @@
       var fd = new FormData();
       for(var k in fields){ fd.append(k, fields[k]); }
       fd.append(csrf_token, csrf_hash);
-      fetch(base_url + url, { method: 'POST', body: fd })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(base_url + url, { method: 'POST', body: fd })
         .then(function(d){ if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; } cb(d); })
-        .catch(function(){ cb({success:false}); });
+        .catch(function(err){ cb({success:false, message: mpErrorText(err)}); });
     }
 
     document.querySelectorAll('.st-btn').forEach(function(btn){
@@ -161,7 +160,7 @@
         var b = this; b.disabled = true;
         post('mobile/delivery_status', { id: schedule_id, status: st }, function(d){
           if(d && d.success){ window.location.reload(); }
-          else { alert('Update failed.'); b.disabled = false; }
+          else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
         });
       });
     });
@@ -175,7 +174,7 @@
         var b = this; b.disabled = true;
         post('mobile/delivery_item_status', { item_id: itemId, status: st, notes: notes }, function(d){
           if(d && d.success){ window.location.reload(); }
-          else { alert('Update failed.'); b.disabled = false; }
+          else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
         });
       });
     });
@@ -184,7 +183,7 @@
       if(!confirm('Delete this delivery schedule?')){ return; }
       post('mobile/delivery_delete', { id: schedule_id }, function(d){
         if(d && d.success){ window.location.href = base_url + 'mobile/deliveries'; }
-        else { alert('Delete failed.'); }
+        else { mpError(d && d.message ? d.message : 'The delivery schedule could not be deleted. Please try again.'); }
       });
     });
   </script>

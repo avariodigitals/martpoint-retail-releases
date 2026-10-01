@@ -78,6 +78,7 @@ $heroMuted = $isHeroDark ? 'rgba(255,255,255,.9)' : $c['muted'];
           $price = $p->effective_price ?? $p->sales_price; $old = $p->original_price ?? $p->sales_price; $disc = $old > $price;
           $pt = $p->product_type ?? 'physical'; $badge = ['digital'=>'Download','course'=>'Course','membership'=>'Membership','service'=>'Service','physical'=>'Product'][$pt] ?? 'Product';
           $soldLabel = $pt === 'course' ? 'students' : ($pt === 'membership' ? 'members' : 'sold');
+          $isVar = !empty($p->variant_count);
         ?>
         <a href="<?= base_url('store/' . $slug . '/product/' . $p->id); ?>" class="crf-card">
           <div class="crf-card-img">
@@ -97,7 +98,7 @@ $heroMuted = $isHeroDark ? 'rgba(255,255,255,.9)' : $c['muted'];
             </div>
             <div class="crf-card-footer">
               <div><span class="crf-card-price"><?= sf_currency($price, $store_currency ?? null); ?></span><?php if($disc): ?><span class="crf-card-old"><?= sf_currency($old, $store_currency ?? null); ?></span><?php endif; ?></div>
-              <button class="crf-card-btn" onclick="event.preventDefault();event.stopPropagation();addToCart(<?= $p->id; ?>,'<?= $pt; ?>','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)">+</button>
+              <button class="crf-card-btn" onclick="<?= $isVar ? '' : "event.preventDefault();event.stopPropagation();addToCart(" . $p->id . ",'" . $pt . "','" . htmlspecialchars(addslashes($p->item_name)) . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" <?= $isVar ? 'aria-label="Choose option"' : ''; ?>><?= $isVar ? '&rarr;' : '+'; ?></button>
             </div>
           </div>
         </a>

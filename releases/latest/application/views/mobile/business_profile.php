@@ -333,10 +333,9 @@
       const form = document.getElementById('bpForm');
       const formData = new FormData(form);
 
-      fetch(form.action, {method: 'POST', body: formData})
-        .then(r => r.json())
+      mpFetchJson(form.action, {method: 'POST', body: formData})
         .then(d => {
-          showToast(d.message, d.status !== 'success');
+          showToast(d.message || 'Done', d.status !== 'success');
           btn.disabled = false;
           if(d.status === 'success'){
             // refresh csrf token if returned
@@ -346,7 +345,7 @@
             }
           }
         })
-        .catch(() => { showToast('Save failed. Please try again.', true); btn.disabled = false; });
+        .catch(err => { showToast(mpErrorText(err, 'Your profile could not be saved. Please check the details and try again.'), true); btn.disabled = false; });
       return false;
     }
   </script>

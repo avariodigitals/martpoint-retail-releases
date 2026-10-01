@@ -149,14 +149,13 @@
         var fd = new FormData();
         fd.append('id', id); fd.append('status', st); fd.append('current_status', cur);
         fd.append(csrf_token, csrf_hash);
-        fetch(base_url + 'mobile/production_status', { method: 'POST', body: fd })
-          .then(function(r){ return r.json(); })
+        mpFetchJson(base_url + 'mobile/production_status', { method: 'POST', body: fd })
           .then(function(d){
             if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
             if(d && d.success){ window.location.reload(); }
-            else { alert(d && d.message ? d.message : 'Update failed.'); b.disabled = false; }
+            else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
           })
-          .catch(function(){ alert('Network error.'); b.disabled = false; });
+          .catch(function(err){ mpError(mpErrorText(err)); b.disabled = false; });
       });
     });
   </script>

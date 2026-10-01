@@ -58,11 +58,17 @@ class Business_profile extends MY_Controller {
         }
 
         // Validate the storefront theme against the allowed set for the industry.
-        // Prefer the preset's theme and fall back to the first allowed theme.
+        // Order of precedence: the submitted key when valid, then the store's
+        // existing saved key (so an unrelated profile save can't silently
+        // revert a theme the merchant chose in Appearance — Theme_engine
+        // whitelists stored selections even when they fall outside the new
+        // industry group), then the preset default / first allowed theme.
         $this->load->model('storefront_model');
         $allowed = $this->storefront_model->getThemesByIndustryForStore($industry_type, false);
         if (empty($storefront_theme_key) || !isset($allowed[$storefront_theme_key])) {
-            $storefront_theme_key = (isset($allowed[$preset['theme_key'] ?? '']) ? $preset['theme_key'] : (array_keys($allowed)[0] ?? 'general_retail'));
+            $existingProfile = mp_get_store_profile($store_id);
+            $existingKey = $existingProfile['theme_key'] ?? null;
+            $storefront_theme_key = $existingKey ?: (isset($allowed[$preset['theme_key'] ?? '']) ? $preset['theme_key'] : (array_keys($allowed)[0] ?? 'general_retail'));
         }
 
         // Feature flags JSON — use submitted values if the form sent any, otherwise the preset
@@ -130,6 +136,12 @@ class Business_profile extends MY_Controller {
         if ($result) {
             $this->load->model('Default_data_model', 'default_data');
             $this->default_data->seed_industry_defaults($store_id, $industry_type);
+
+            // Backfill module permissions on existing stores that just enabled
+            // the equipment/service features (additive only — never removes).
+            if (!empty($clean['equipment_register']) || !empty($clean['service_jobs'])) {
+                $this->default_data->seed_module_permissions($store_id);
+            }
         }
 
         // Sync storefront_theme_key to db_storefront_settings.theme_id so the theme takes effect immediately.

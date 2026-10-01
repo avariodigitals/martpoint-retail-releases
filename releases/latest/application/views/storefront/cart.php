@@ -85,10 +85,12 @@
   let cart = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
   let selectedPayment = 'pay_on_delivery';
   let selectedShippingMethod = '';
+  let selectedCityIdx = -1;
   let hasServiceAppointment = false;
   let hasServiceNote = false;
   const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
   const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
+  const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
 
   function formatMoney(amount){
     return CURRENCY + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -135,8 +137,25 @@
       html += '<i class="fa fa-info-circle" style="margin-right:6px;"></i>' + SHIPPING_NOTICE.replace(/</g,'&lt;') + '</div>';
     }
 
+    // City-based delivery fee selector (replaces flat methods when enabled)
+    if(CITY_SHIPPING.length > 0){
+      html += '<label class="sf-label" style="margin-top:8px;">Delivery City *</label>';
+      html += '<select class="sf-input" id="ship-city" onchange="selectCity()">';
+      html += '<option value="">Select your city...</option>';
+      let czGroups = {};
+      CITY_SHIPPING.forEach((z, idx) => { const st = (z.state || '').trim() || 'Other'; (czGroups[st] = czGroups[st] || []).push(idx); });
+      Object.keys(czGroups).sort().forEach(st => {
+        html += '<optgroup label="' + String(st).replace(/</g,'&lt;') + '">';
+        czGroups[st].forEach(idx => {
+          const z = CITY_SHIPPING[idx];
+          html += '<option value="' + idx + '">' + String(z.city + (parseFloat(z.fee) > 0 ? ' — ' + formatMoney(z.fee) : ' — Free')).replace(/</g,'&lt;') + '</option>';
+        });
+        html += '</optgroup>';
+      });
+      html += '</select>';
+    }
     // Shipping method selector
-    if(SHIPPING_METHODS.length > 0){
+    else if(SHIPPING_METHODS.length > 0){
       html += '<label class="sf-label" style="margin-top:8px;">Shipping Method</label>';
       html += '<div class="sf-pay-options">';
       SHIPPING_METHODS.forEach((m, idx) => {
@@ -224,7 +243,8 @@
     document.getElementById('summary-subtotal').textContent = formatMoney(subtotal);
 
     // Set default shipping method (first one)
-    selectedShippingMethod = document.querySelector('input[name="shipmethod"]:checked')?.value || (SHIPPING_METHODS.length > 0 ? SHIPPING_METHODS[0].name : '');
+    selectedShippingMethod = document.querySelector('input[name="shipmethod"]:checked')?.value || ((CITY_SHIPPING.length === 0 && SHIPPING_METHODS.length > 0) ? SHIPPING_METHODS[0].name : '');
+    selectedCityIdx = -1;
     updateShippingSummary(subtotal);
 
     // Set default payment
@@ -232,16 +252,32 @@
   }
 
   function getShippingFee(){
+    if(CITY_SHIPPING.length > 0){
+      const z = CITY_SHIPPING[selectedCityIdx];
+      return z ? (parseFloat(z.fee) || 0) : 0;
+    }
     if(!selectedShippingMethod) return 0;
     const sm = SHIPPING_METHODS.find(m => m.name === selectedShippingMethod);
     return sm ? (parseFloat(sm.fee) || 0) : 0;
+  }
+
+  function selectCity(){
+    const sel = document.getElementById('ship-city');
+    selectedCityIdx = sel && sel.value !== '' ? parseInt(sel.value) : -1;
+    selectedShippingMethod = '';
+    if(selectedCityIdx >= 0){
+      const z = CITY_SHIPPING[selectedCityIdx];
+      selectedShippingMethod = 'Delivery - ' + z.city + ((z.state || '').trim() ? ', ' + z.state.trim() : '');
+    }
+    const subtotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+    updateShippingSummary(subtotal);
   }
 
   function updateShippingSummary(subtotal){
     const fee = getShippingFee();
     const row = document.getElementById('summary-shipping-row');
     if(row){
-      if(fee > 0 || selectedShippingMethod){
+      if(fee > 0 || selectedShippingMethod || selectedCityIdx >= 0){
         row.style.display = 'flex';
         document.getElementById('summary-shipping').textContent = fee > 0 ? formatMoney(fee) : 'Free';
       } else {
@@ -288,6 +324,7 @@
 
     if(!name || !phone){ showToast('Please enter name and phone'); return; }
     if(cart.length === 0){ showToast('Cart is empty'); return; }
+    if(CITY_SHIPPING.length > 0 && selectedCityIdx < 0){ showToast('Please select your delivery city'); return; }
 
     const btn = document.getElementById('checkout-btn');
     btn.disabled = true;
@@ -310,6 +347,8 @@
       msg += '\nSubtotal: ' + formatMoney(total);
       if(selectedShippingMethod){
         msg += '\nShipping: ' + selectedShippingMethod + (shipFee > 0 ? ' (' + formatMoney(shipFee) + ')' : ' (Free)');
+      } else if(CITY_SHIPPING.length > 0 && selectedCityIdx >= 0){
+        msg += '\nDelivery City: ' + CITY_SHIPPING[selectedCityIdx].city + (shipFee > 0 ? ' (' + formatMoney(shipFee) + ')' : ' (Free)');
       }
       msg += '\nTotal: ' + formatMoney(total + shipFee);
       msg += '\n\nName: ' + name;
@@ -342,6 +381,10 @@
     data.append('customer_address', address);
     data.append('payment_method', paymentMethod);
     data.append('shipping_method', selectedShippingMethod || '');
+    if(CITY_SHIPPING.length > 0 && selectedCityIdx >= 0){
+      const z = CITY_SHIPPING[selectedCityIdx];
+      data.append('shipping_city', (z.city || '') + '|' + (z.state || '').trim());
+    }
     data.append('service_date', serviceDate);
     data.append('service_time', serviceTime);
     data.append('service_note', serviceNote);

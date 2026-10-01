@@ -113,8 +113,7 @@
         fd.append('staff_id', staff);
         fd.append(csrf_token, csrf_hash);
 
-        fetch(base_url + 'mobile/staff_assignment_save', { method: 'POST', body: fd })
-          .then(function(r){ return r.json(); })
+        mpFetchJson(base_url + 'mobile/staff_assignment_save', { method: 'POST', body: fd })
           .then(function(d){
             el.classList.remove('busy');
             if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
@@ -127,10 +126,10 @@
               var n = parseInt(cnt.textContent) + (nowOn ? 1 : -1);
               cnt.textContent = Math.max(n, 0) + ' assigned';
             } else {
-              showToast(d && d.message ? d.message : 'Update failed.');
+              showToast(d && d.message ? d.message : 'The assignment could not be updated. Please try again.');
             }
           })
-          .catch(function(){ el.classList.remove('busy'); showToast('Network error.'); });
+          .catch(function(err){ el.classList.remove('busy'); showToast(mpErrorText(err)); });
       });
     });
   </script>

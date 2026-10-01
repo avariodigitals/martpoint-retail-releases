@@ -97,6 +97,18 @@
         <div class="title">Nylon &amp; Polythene Use Case</div>
       </div>
     </a>
+    <a href="<?= base_url('docs/product-design/customer-guide/skincare-customer-guide.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa fa-leaf"></i></div>
+      <div class="text">
+        <div class="title">Skincare Use Case</div>
+      </div>
+    </a>
+    <a href="<?= base_url('docs/product-design/customer-guide/electronics-customer-guide.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa fa-laptop"></i></div>
+      <div class="text">
+        <div class="title">Electronics Use Case</div>
+      </div>
+    </a>
   </div>
 
   <a href="<?= base_url('dashboard/support'); ?>" class="mp-support-cta"><i class="fa fa-life-ring"></i> Go to Support</a>

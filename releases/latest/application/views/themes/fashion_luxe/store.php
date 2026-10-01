@@ -111,7 +111,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   .fl-product-stock { font-family:'Lora',serif; font-size:11px; color:#B23A3A; font-weight:600; margin-top:8px; text-transform:uppercase; letter-spacing:0.06em; }
 
   /* Category cards — stylish elegant */
-  .fl-cat-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:16px; }
+  .fl-cat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:16px; }
   @media(max-width:1023px){ .fl-cat-grid { grid-template-columns:repeat(4,1fr); } }
   @media(max-width:767px){ .fl-cat-grid { grid-template-columns:repeat(3,1fr); gap:12px; } }
   .fl-cat-card { position:relative; border-radius:4px; overflow:hidden; aspect-ratio:3/2; text-decoration:none; color:inherit; display:block; transition:transform .25s, box-shadow .25s; }
@@ -268,7 +268,7 @@ foreach($orderedSections as $sectionKey => $section):
     <p class="fl-hero-lead"><?= htmlspecialchars($settings->store_subheadline ?: 'Curated pieces for the discerning wardrobe. Fine fabrics, timeless silhouettes, and statement essentials.'); ?></p>
     <div class="fl-hero-actions">
       <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="fl-btn fl-btn-gold">Shop the Collection</a>
-      <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="fl-btn fl-btn-ghost">View Lookbook</a>
+      <a href="#fl-categories" class="fl-btn fl-btn-ghost">View Lookbook</a>
     </div>
   </div>
 </div>
@@ -346,11 +346,9 @@ foreach($orderedSections as $sectionKey => $section):
       if(!empty($categories) && count($categories) > 1):
 ?>
 <!-- CATEGORIES -->
-<div class="fl-section" style="background:var(--fl-ivory);">
+<div class="fl-section" style="background:var(--fl-ivory);scroll-margin-top:80px;" id="fl-categories">
   <div class="fl-container">
-    <div class="fl-section-head">
-      <div>
-        <div class="fl-section-label">Browse</div>
+    <div class="fl-section-head"><div><div class="fl-section-label">Browse</div>
         <h2 class="fl-section-title">Shop by Category</h2>
       </div>
     </div>
@@ -410,7 +408,14 @@ foreach($orderedSections as $sectionKey => $section):
         $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
         $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
-      <div class="fl-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
+      <?php
+        $jsNm = htmlspecialchars(addslashes($p->item_name));
+        $jsDs = htmlspecialchars(addslashes($p->description ?? ''));
+        $pUrl = base_url('store/' . $slug . '/product/' . $p->id);
+        $isVar = !empty($p->variant_count);
+        $goDetail = "location.href='{$pUrl}'";
+      ?>
+<div class="fl-product-card" onclick="<?= $isVar ? $goDetail : "openProductModal(" . $p->id . ", '" . $jsNm . "', " . $price . ", '" . $p->item_image . "', '" . $jsDs . "', " . $p->stock . ", " . ($hasDiscount ? $oldPrice : 0) . ")"; ?>">
         <?php if($hasDiscount && $discountPct > 0): ?>
         <span class="fl-product-badge">-<?= $discountPct; ?>%</span>
         <?php endif; ?>
@@ -430,8 +435,8 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="fl-product-footer">
             <div class="fl-product-price"><?= sf_currency($price, $cur); ?><?php if($hasDiscount): ?><span class="old"><?= sf_currency($oldPrice, $cur); ?></span><?php endif; ?></div>
             <div class="fl-card-actions">
-              <button class="fl-add-btn" onclick="event.stopPropagation();addToCart(<?= $p->id; ?>,'product','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
-              <button class="fl-wa-btn" onclick="event.stopPropagation();openWhatsAppOrderModal(<?= $p->id; ?>,'<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',<?= $p->stock; ?>)" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
+              <button class="fl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "addToCart(" . $p->id . ",'product','" . $jsNm . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
+              <button class="fl-wa-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "openWhatsAppOrderModal(" . $p->id . ",'" . $jsNm . "'," . $price . ",'" . $p->item_image . "'," . $p->stock . ")"; ?>" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
             </div>
           </div>
           <?php if($p->stock <= 0 && !($settings->allow_backorder ?? false)): ?>
@@ -480,8 +485,8 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="fl-product-footer">
             <div class="fl-product-price"><?= sf_currency($sPrice, $cur); ?></div>
             <div class="fl-card-actions">
-              <button class="fl-add-btn" onclick="event.stopPropagation();addToCart(<?= $s->id; ?>,'service','<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',1,999)" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
-              <button class="fl-wa-btn" onclick="event.stopPropagation();openWhatsAppOrderModal(<?= $s->id; ?>,'<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',999)" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
+              <button class="fl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();addToCart(<?= $s->id; ?>,'service','<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',1,999)" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
+              <button class="fl-wa-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();openWhatsAppOrderModal(<?= $s->id; ?>,'<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',999)" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
             </div>
           </div>
         </div>
@@ -515,7 +520,14 @@ foreach($orderedSections as $sectionKey => $section):
         $price = $p->effective_price ?? $p->sales_price;
         $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
-      <div class="fl-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, 0)">
+      <?php
+        $jsNm = htmlspecialchars(addslashes($p->item_name));
+        $jsDs = htmlspecialchars(addslashes($p->description ?? ''));
+        $pUrl = base_url('store/' . $slug . '/product/' . $p->id);
+        $isVar = !empty($p->variant_count);
+        $goDetail = "location.href='{$pUrl}'";
+      ?>
+<div class="fl-product-card" onclick="<?= $isVar ? $goDetail : "openProductModal(" . $p->id . ", '" . $jsNm . "', " . $price . ", '" . $p->item_image . "', '" . $jsDs . "', " . $p->stock . ", 0)"; ?>">
         <div class="fl-product-media">
           <?php if($img): ?>
           <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
@@ -528,8 +540,8 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="fl-product-footer">
             <div class="fl-product-price"><?= sf_currency($price, $cur); ?></div>
             <div class="fl-card-actions">
-              <button class="fl-add-btn" onclick="event.stopPropagation();addToCart(<?= $p->id; ?>,'product','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
-              <button class="fl-wa-btn" onclick="event.stopPropagation();openWhatsAppOrderModal(<?= $p->id; ?>,'<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',<?= $p->stock; ?>)" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
+              <button class="fl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "addToCart(" . $p->id . ",'product','" . $jsNm . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
+              <button class="fl-wa-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "openWhatsAppOrderModal(" . $p->id . ",'" . $jsNm . "'," . $price . ",'" . $p->item_image . "'," . $p->stock . ")"; ?>" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
             </div>
           </div>
         </div>
@@ -563,7 +575,14 @@ foreach($orderedSections as $sectionKey => $section):
         $price = $p->effective_price ?? $p->sales_price;
         $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
-      <div class="fl-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, 0)">
+      <?php
+        $jsNm = htmlspecialchars(addslashes($p->item_name));
+        $jsDs = htmlspecialchars(addslashes($p->description ?? ''));
+        $pUrl = base_url('store/' . $slug . '/product/' . $p->id);
+        $isVar = !empty($p->variant_count);
+        $goDetail = "location.href='{$pUrl}'";
+      ?>
+<div class="fl-product-card" onclick="<?= $isVar ? $goDetail : "openProductModal(" . $p->id . ", '" . $jsNm . "', " . $price . ", '" . $p->item_image . "', '" . $jsDs . "', " . $p->stock . ", 0)"; ?>">
         <div class="fl-product-media">
           <?php if($img): ?>
           <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
@@ -576,8 +595,8 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="fl-product-footer">
             <div class="fl-product-price"><?= sf_currency($price, $cur); ?></div>
             <div class="fl-card-actions">
-              <button class="fl-add-btn" onclick="event.stopPropagation();addToCart(<?= $p->id; ?>,'product','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
-              <button class="fl-wa-btn" onclick="event.stopPropagation();openWhatsAppOrderModal(<?= $p->id; ?>,'<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',<?= $p->stock; ?>)" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
+              <button class="fl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "addToCart(" . $p->id . ",'product','" . $jsNm . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" aria-label="Add to cart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
+              <button class="fl-wa-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "openWhatsAppOrderModal(" . $p->id . ",'" . $jsNm . "'," . $price . ",'" . $p->item_image . "'," . $p->stock . ")"; ?>" aria-label="Order via WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg> WhatsApp</button>
             </div>
           </div>
         </div>

@@ -914,7 +914,7 @@ class Mobile extends MY_Controller {
 			$csrf_cookie = $this->input->cookie('csrf_cookie_name');
 			if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
 				ob_end_clean();
-				echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed']);
+				echo json_encode(['status' => 'error', 'message' => 'Your security check has expired. Please reload the page and try again.']);
 				exit;
 			}
 		}
@@ -1941,7 +1941,7 @@ class Mobile extends MY_Controller {
 		$csrf_cookie = $this->input->cookie('csrf_cookie_name');
 		if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
 			ob_end_clean();
-			echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed']);
+			echo json_encode(['status' => 'error', 'message' => 'Your security check has expired. Please reload the page and try again.']);
 			exit;
 		}
 
@@ -2089,7 +2089,7 @@ class Mobile extends MY_Controller {
 			$this->db->trans_rollback();
 			log_message('error', 'Mobile hold() db_hold insert failed: ' . ($err['message'] ?? 'unknown'));
 			ob_end_clean();
-			echo json_encode(['status' => 'error', 'message' => 'Failed to create hold: ' . ($err['message'] ?? 'unknown')]);
+			echo json_encode(['status' => 'error', 'message' => 'The sale could not be held. Please try again.']);
 			exit;
 		}
 
@@ -2102,7 +2102,7 @@ class Mobile extends MY_Controller {
 				$this->db->trans_rollback();
 				log_message('error', 'Mobile hold() db_holditems insert failed: ' . ($err['message'] ?? 'unknown'));
 				ob_end_clean();
-				echo json_encode(['status' => 'error', 'message' => 'Failed to save hold items: ' . ($err['message'] ?? 'unknown')]);
+				echo json_encode(['status' => 'error', 'message' => 'The sale could not be held. Please try again.']);
 				exit;
 			}
 			$this->pos_model->update_items_quantity($it['item_id']);
@@ -2183,7 +2183,7 @@ class Mobile extends MY_Controller {
 			$csrf_cookie = $this->input->cookie('csrf_cookie_name');
 			if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
 				ob_end_clean();
-				echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed']);
+				echo json_encode(['status' => 'error', 'message' => 'Your security check has expired. Please reload the page and try again.']);
 				exit;
 			}
 		}
@@ -2520,7 +2520,12 @@ class Mobile extends MY_Controller {
 			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'sales_code' => $invoice_code, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]); exit;
 		} else {
 			ob_end_clean();
-			echo json_encode(['status' => 'error', 'message' => (string) $result]); exit;
+			$clean = is_string($result) ? trim(strip_tags($result)) : '';
+			if($clean === '' || stripos($clean, 'EXCEPTION:') === 0){
+				log_message('error', 'Mobile save() raw failure: ' . (string) $result);
+				$clean = 'The sale could not be saved. Please check the items and payment details, then try again.';
+			}
+			echo json_encode(['status' => 'error', 'message' => $clean]); exit;
 		}
 	}
 
@@ -2918,7 +2923,7 @@ class Mobile extends MY_Controller {
 			}
 		} catch(Throwable $e){
 			log_message('error', 'mobile save_product error: '.$e->getMessage());
-			echo json_encode(['status' => 'error', 'message' => 'Save failed: '.$e->getMessage()]);
+			echo json_encode(['status' => 'error', 'message' => 'The product could not be saved. Please check the details and try again.']);
 		}
 	}
 
@@ -3635,6 +3640,11 @@ class Mobile extends MY_Controller {
 		'Help' => [
 			['title' => 'Help Center', 'desc' => 'Guides & resources', 'icon' => 'fa-question-circle', 'url' => 'mobile/help', 'perm' => '', 'color' => 'blue'],
 			['title' => 'Support', 'desc' => 'Contact support channels', 'icon' => 'fa-life-ring', 'url' => 'mobile/support', 'perm' => '', 'color' => 'primary'],
+			// Central-only: client installs have no local incident control —
+			// their banner is driven solely by the martpoint.com.ng status feed.
+			...(function_exists('mp_is_central') && mp_is_central() ? [
+				['title' => 'Service Status', 'desc' => 'Incident banner & status page', 'icon' => 'fa-exclamation-circle', 'url' => 'mobile/site_status', 'perm' => '', 'color' => 'orange', 'admin_only' => true],
+			] : []),
 		],
 		];
 
@@ -3655,6 +3665,7 @@ class Mobile extends MY_Controller {
 					foreach((array)$item['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
 					if(!$feature_ok) continue;
 				}
+				if(!empty($item['admin_only']) && !special_access()) continue;
 			if(empty($item['perm']) || $this->permissions($item['perm'])){
 					$visible[] = $item;
 				}
@@ -3684,6 +3695,22 @@ class Mobile extends MY_Controller {
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 		$this->load->view('mobile/support', $data);
+	}
+
+	public function site_status()
+	{
+		if(!special_access() || !function_exists('mp_is_central') || !mp_is_central()){
+			redirect(base_url('mobile/more'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Service Status';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['incident'] = function_exists('mp_get_incident') ? mp_get_incident() : null;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/site_status', $data);
 	}
 
 	public function help()
@@ -4364,7 +4391,8 @@ class Mobile extends MY_Controller {
 			$note_id = $this->med_notes->save($data_row, $id ?: null, $items);
 			echo json_encode(['success' => true, 'id' => $note_id, 'message' => $id ? 'Medical note updated.' : 'Medical note saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 		} catch (Exception $e) {
-			echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+			log_message('error', 'Mobile save_medical_note() failed: ' . $e->getMessage());
+			echo json_encode(['success' => false, 'message' => 'The medical note could not be saved. Please check the details and try again.']);
 		}
 	}
 
@@ -4754,7 +4782,14 @@ class Mobile extends MY_Controller {
 					$address = '';
 					if(!empty($sale->shippingaddress_id)){
 						$addr = $this->db->where('id', $sale->shippingaddress_id)->get('db_shippingaddress')->row();
-						$address = $addr ? trim($addr->address.', '.($addr->city ?? '').', '.($addr->state_id ?? '')) : '';
+						if($addr){
+							$addr_parts = array_filter(array(
+								trim($addr->address ?? ''),
+								trim($addr->city ?? ''),
+								((int)($addr->state_id ?? 0) > 0) ? $addr->state_id : null,
+							));
+							$address = implode(', ', $addr_parts);
+						}
 					}
 					$max_seq++;
 					$this->db->insert('db_delivery_schedule_items', [

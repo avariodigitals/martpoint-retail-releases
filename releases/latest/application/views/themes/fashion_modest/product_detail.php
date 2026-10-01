@@ -56,6 +56,12 @@ $hasDiscount = $product->original_price > $product->effective_price;
 
   .ms-pd-variants { margin-top:40px; }
   .ms-pd-related { margin-top:48px; }
+
+  /* Variant picker — themed to Modest Studio */
+  .ms-pd-meta .sf-variant-picker-label { font-family:'Lora',serif; color:var(--ms-warm); }
+  .ms-pd-meta .sf-variant-chip { font-family:'Lora',serif; border-radius:8px; border-color:var(--ms-soft); }
+  .ms-pd-meta .sf-variant-chip:hover:not(:disabled) { border-color:var(--ms-warm); }
+  .ms-pd-meta .sf-variant-chip.active { border-color:var(--ms-warm); background:rgba(194,149,106,.09); }
   .ms-section-label { font-family:'Lora',serif; font-size:12px; letter-spacing:0.06em; color:var(--ms-warm); font-weight:600; margin-bottom:6px; }
   .ms-section-title { font-family:'Lora',serif; font-size:28px; margin:0 0 24px; font-weight:600; color:var(--ms-ink); }
 
@@ -87,7 +93,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
     <div class="ms-pd-layout">
       <div class="ms-pd-gallery">
         <?php if($img): ?>
-        <img src="<?= $img; ?>" alt="<?= htmlspecialchars($product->item_name); ?>" loading="lazy" decoding="async">
+        <img id="detail-img" src="<?= $img; ?>" alt="<?= htmlspecialchars($product->item_name); ?>" loading="lazy" decoding="async">
         <?php else: ?>
         <div class="ms-pd-gallery-placeholder"><?= htmlspecialchars(substr($product->item_name, 0, 1)); ?></div>
         <?php endif; ?>
@@ -96,7 +102,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
         <div class="ms-pd-kicker"><?= htmlspecialchars($product->category_name ?? 'Collection'); ?></div>
         <h1 class="ms-pd-name"><?= htmlspecialchars($product->item_name); ?></h1>
         <div class="ms-pd-price">
-          <?= sf_currency($product->effective_price, $cur); ?>
+          <span id="detail-price" style="display:inline;"><?= sf_currency($product->effective_price, $cur); ?></span>
           <?php if($hasDiscount): ?>
           <span class="old"><?= sf_currency($product->original_price, $cur); ?></span>
           <?php endif; ?>
@@ -105,6 +111,8 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <?= (int)$product->stock > 0 ? 'In stock &middot; Crafted with care' : 'Out of stock'; ?>
         </div>
         <p class="ms-pd-desc"><?= nl2br(htmlspecialchars($product->description ?? '')); ?></p>
+
+        <?php $this->load->view('themes/shared/variant_picker', ['sf_picker_mode' => 'select']); ?>
 
         <div class="ms-pd-qty">
           <button onclick="adjustDetailQty(-1)">-</button>
@@ -119,31 +127,6 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <button class="ms-btn ms-btn-wa" onclick="sendDetailWhatsApp()">Order via WhatsApp</button>
           <?php endif; ?>
         </div>
-
-        <?php if(!empty($product_variants)): ?>
-        <div class="ms-pd-variants">
-          <div class="ms-section-label" style="margin-bottom:14px;">Available Variants</div>
-          <div class="ms-product-grid" style="grid-template-columns:repeat(2,1fr);gap:14px;">
-            <?php foreach($product_variants as $v):
-              $vImg = ($v->item_image && file_exists($v->item_image)) ? mp_minified_image_url($v->item_image, 400) : '';
-            ?>
-            <a href="<?= base_url('store/' . $slug . '/product/' . $v->id); ?>" class="ms-product-card">
-              <div class="ms-product-media">
-                <?php if($vImg): ?>
-                <img src="<?= $vImg; ?>" alt="<?= htmlspecialchars($v->item_name); ?>" loading="lazy" decoding="async">
-                <?php else: ?>
-                <div class="ms-product-placeholder"><span><?= htmlspecialchars(substr($v->item_name, 0, 1)); ?></span></div>
-                <?php endif; ?>
-              </div>
-              <div class="ms-product-body">
-                <div class="ms-product-name"><?= htmlspecialchars($v->item_name); ?></div>
-                <div class="ms-product-price"><?= sf_currency($v->effective_price, $cur); ?></div>
-              </div>
-            </a>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="ms-pd-related">
@@ -183,8 +166,21 @@ $hasDiscount = $product->original_price > $product->effective_price;
     image: '<?= $product->item_image; ?>',
     stock: <?= (int)$product->stock; ?>
   };
+  const needsVariant = <?= (($product->item_group ?? '') === 'Variants') ? 'true' : 'false'; ?>;
+  document.addEventListener('sf:variant-picked', function(e){
+    const v = e.detail; if(!v) return;
+    detailProduct.id = v.id; detailProduct.name = v.name;
+    detailProduct.price = v.price; detailProduct.image = v.image; detailProduct.stock = v.stock;
+    const img = document.getElementById('detail-img');
+    if(img && v.image) img.src = '<?= base_url(); ?>' + v.image;
+    const price = document.getElementById('detail-price');
+    if(price) price.textContent = formatMoney(v.price);
+  });
   function adjustDetailQty(d){ detailQty = Math.max(1, detailQty + d); document.getElementById('detail-qty').textContent = detailQty; }
-  function addDetailToCart(){ addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock); }
+  function addDetailToCart(){
+    if(needsVariant && !window.sfPickedVariant){ showToast('Please choose an option'); return; }
+    addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock);
+  }
   function sendDetailWhatsApp(){
     let msg = 'Hello, I am interested in: ' + detailProduct.name + ' — ' + formatMoney(detailProduct.price);
     const wnum = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';

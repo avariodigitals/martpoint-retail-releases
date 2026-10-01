@@ -139,8 +139,8 @@
       fd.append('title', block.querySelector('.sec-title').value.trim());
       fd.append('subtitle', block.querySelector('.sec-sub').value.trim());
       btn.disabled = true;
-      fetch('<?= base_url('online_store/save_homepage_section_meta'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/save_homepage_section_meta'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         btn.disabled = false;
         if(res.status === 'success'){
           showToast(res.message);
@@ -148,9 +148,9 @@
           if(t) block.querySelector('.section-name').textContent = t;
           block.querySelector('.section-edit').style.display = 'none';
         } else {
-          showToast(res.message || 'Failed to save', true);
+          showToast(res.message || 'Could not save this section. Please try again.', true);
         }
-      }).catch(()=>{ btn.disabled = false; showToast('Error saving section', true); });
+      }).catch(err=>{ btn.disabled = false; showToast(mpErrorText(err), true); });
     }
     function saveSections(){
       const rows = document.querySelectorAll('#sections-container .section-row');
@@ -161,21 +161,21 @@
         fd.append('sections['+key+'][enabled]', row.querySelector('.section-toggle').checked ? 1 : 0);
         fd.append('sections['+key+'][order]', idx + 1);
       });
-      fetch('<?= base_url('online_store/save_homepage_sections'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/save_homepage_sections'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         showToast(res.message || 'Saved', res.status !== 'success');
-      }).catch(()=>showToast('Save failed', true));
+      }).catch(err=>showToast(mpErrorText(err), true));
     }
     function duplicateSection(btn){
       btn.disabled = true; btn.innerHTML = '<i class="fa fa-refresh fa-spin"></i>';
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       fd.append('section_key', btn.closest('.section-row').dataset.key);
-      fetch('<?= base_url('online_store/duplicate_homepage_section'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/duplicate_homepage_section'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         if(res.status === 'success'){ showToast(res.message); location.reload(); }
-        else { showToast(res.message || 'Failed', true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-clone"></i>'; }
-      }).catch(()=>{ showToast('Error', true); btn.disabled = false; });
+        else { showToast(res.message || 'The section could not be duplicated. Please try again.', true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-clone"></i>'; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-clone"></i>'; });
     }
     function deleteSection(btn){
       const block = btn.closest('.section-block');
@@ -185,11 +185,11 @@
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       fd.append('section_key', key);
-      fetch('<?= base_url('online_store/delete_homepage_section'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/delete_homepage_section'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         if(res.status === 'success'){ showToast(res.message); block.remove(); }
-        else { showToast(res.message || 'Failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Error', true); btn.disabled = false; });
+        else { showToast(res.message || 'The section could not be removed. Please try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
   </script>
 </body>

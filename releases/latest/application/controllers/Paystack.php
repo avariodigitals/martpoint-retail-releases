@@ -4,7 +4,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Paystack extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
-		$this->load_global();
+		// The webhook endpoint receives signed POSTs from Paystack — there is
+		// no merchant session, so it must skip the dashboard auth gate.
+		// Authenticity is enforced by verify_webhook_signature() inside.
+		if(strtolower($this->router->fetch_method()) !== 'webhook'){
+			$this->load_global();
+		}
 		$this->load->model('paystack_model','paystack');
 	}
 
@@ -129,7 +134,26 @@ class Paystack extends MY_Controller {
 			return;
 		}
 
-		$settings = $this->paystack->get_settings();
+		$event = json_decode($input, true);
+		if(!$event || !isset($event['event']) || empty($event['data']['reference'])){
+			http_response_code(400);
+			echo 'Invalid payload';
+			return;
+		}
+		$reference = $event['data']['reference'];
+
+		// Resolve the owning store from the payment target — webhooks carry no
+		// session, so get_current_store_id() would pick the wrong keys.
+		$this->load->model('storefront_model');
+		$order = $this->storefront_model->getOrderByPaymentReference($reference);
+
+		if($order){
+			// Online-store order: verify signature with THAT store's keys.
+			$settings = $this->paystack->get_settings($order->store_id);
+		} else {
+			// POS / sales payment: single-store legacy lookup.
+			$settings = $this->paystack->get_settings();
+		}
 		if(!$settings || empty($settings->secret_key)){
 			http_response_code(500);
 			echo 'Paystack not configured';
@@ -146,30 +170,44 @@ class Paystack extends MY_Controller {
 			}
 		}
 
-		$event = json_decode($input, true);
-		if(!$event || !isset($event['event'])){
-			http_response_code(400);
-			echo 'Invalid payload';
-			return;
-		}
-
 		// Handle charge.success event
 		if($event['event'] == 'charge.success'){
 			$data = $event['data'];
-			$reference = $data['reference'];
 			$amount = $data['amount'] / 100;
 			$channel = $data['channel'];
 			$paid_at = $data['paid_at'];
 			$status = $data['status']; // success
 
-			// Update paystack payment record
-			$this->paystack->update_payment_status($reference, $status, array(
-				'channel' => $channel,
-				'paid_at' => $paid_at
-			));
+			if($order){
+				// Server-side verify then atomically claim the paid transition;
+				// a replayed/racing webhook cannot fulfil twice.
+				$verify = $this->paystack->verify_transaction($reference, $order->store_id);
+				$ok = $verify['status'] && $verify['payment_status'] === 'success'
+					&& $verify['reference'] === $order->order_code
+					&& abs((float)$verify['amount'] - (float)$order->grand_total) < 0.01;
+				if($ok){
+					$claimed = $this->storefront_model->claimPaidOrder($order->id, [
+						'paystack_reference' => $reference,
+						'paystack_amount' => $verify['amount'],
+						'order_status' => 'paid'
+					]);
+					if($claimed){
+						$this->storefront_model->adjustStock($order->id);
+					}
+					// Idempotent, self-healing: runs for the claim winner and
+					// retries on later webhooks if fulfilment died mid-flight.
+					$this->storefront_model->fulfilPaidOrder($order->id);
+				}
+			} else {
+				// Update paystack payment record
+				$this->paystack->update_payment_status($reference, $status, array(
+					'channel' => $channel,
+					'paid_at' => $paid_at
+				));
 
-			// Confirm the sales payment if linked
-			$this->paystack->confirm_sales_payment($reference);
+				// Confirm the sales payment if linked
+				$this->paystack->confirm_sales_payment($reference);
+			}
 		}
 
 		http_response_code(200);

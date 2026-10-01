@@ -516,8 +516,9 @@
             mailtoFallback(email);
           }
         },
-        error: function(){
+        error: function(xhr){
           if(btn) { btn.innerHTML = '<i class="fa fa-envelope"></i> Email'; btn.disabled = false; }
+          mpAlert(mpAjaxError(xhr, 'The email could not be sent directly. Opening your mail app instead.'), 'warning');
           mailtoFallback(email);
         }
       });

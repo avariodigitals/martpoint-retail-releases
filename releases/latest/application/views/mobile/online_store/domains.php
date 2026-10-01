@@ -145,21 +145,21 @@
     }
     function saveDomain(){
       const fd = new FormData(document.getElementById('domain-form'));
-      fetch('<?= base_url('online_store/save_domain'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed to save', true); }
-      }).catch(()=>showToast('Network error', true));
+      mpFetchJson('<?= base_url('online_store/save_domain'); ?>', {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Could not save this domain. Please check the details and try again.', true); }
+      }).catch(err=>showToast(mpErrorText(err), true));
     }
     function verifyDomain(id, btn){
       btn.disabled = true;
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       fd.append('domain_id', id);
-      fetch('<?= base_url('online_store/verify_domain'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/verify_domain'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         if(res.status === 'success'){ showToast(res.message); location.reload(); }
-        else { showToast(res.message || 'Verification failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+        else { showToast(res.message || 'The domain could not be verified yet. Please check the DNS records and try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
     function sendInstructions(id){
       const email = prompt('Send DNS setup instructions to (email):');
@@ -170,27 +170,27 @@
       fd.append('domain_id', id);
       fd.append('email', email);
       fd.append('name', name);
-      fetch('<?= base_url('online_store/send_domain_instructions'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{ showToast(res.message || 'Done', res.status !== 'success'); })
-      .catch(()=>showToast('Network error', true));
+      mpFetchJson('<?= base_url('online_store/send_domain_instructions'); ?>', {method:'POST', body:fd})
+      .then(res=>{ showToast(res.message || 'Done', res.status !== 'success'); })
+      .catch(err=>showToast(mpErrorText(err), true));
     }
     function updateStatus(id, status){
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       fd.append('domain_id', id);
       fd.append('connection_status', status);
-      fetch('<?= base_url('online_store/update_domain_status'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed', true); }
-      }).catch(()=>showToast('Network error', true));
+      mpFetchJson('<?= base_url('online_store/update_domain_status'); ?>', {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The status could not be updated. Please try again.', true); }
+      }).catch(err=>showToast(mpErrorText(err), true));
     }
     function deleteDomain(id, btn){
       if(!confirm('Delete this domain?')) return;
       btn.disabled = true;
-      fetch('<?= base_url('online_store/delete_domain'); ?>/'+id, {method:'POST'})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+      mpFetchJson('<?= base_url('online_store/delete_domain'); ?>/'+id, {method:'POST'})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The domain could not be deleted. Please try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
   </script>
 </body>

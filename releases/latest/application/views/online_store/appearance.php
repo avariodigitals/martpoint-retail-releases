@@ -59,6 +59,10 @@
           <div class="os-color-row"><input type="color" class="os-color-input" id="secondary_color" name="secondary_color" value="<?= htmlspecialchars($settings->secondary_color ?? '#10B981'); ?>"></div>
         </div>
         <div class="mp-form-group">
+          <label>Page Background</label>
+          <div class="os-color-row"><input type="color" class="os-color-input" id="background_color" name="background_color" value="<?= htmlspecialchars(preg_match('/^#[0-9a-fA-F]{6}$/', trim($settings->background_color ?? '')) ? $settings->background_color : '#FFFFFF'); ?>" title="White = theme default"></div>
+        </div>
+        <div class="mp-form-group">
           <label>Footer Background</label>
           <div class="os-color-row"><input type="color" class="os-color-input" id="footer_bg_color" name="footer_bg_color" value="<?= htmlspecialchars($settings->footer_bg_color ?? '#0F172A'); ?>"></div>
         </div>
@@ -78,6 +82,7 @@
           <label for="font_family">Font Family</label>
           <select class="mp-form-control" id="font_family" name="font_family">
             <option value="Inter" <?= ($settings->font_family ?? '') == 'Inter' ? 'selected' : ''; ?>>Inter (Modern)</option>
+            <option value="Instrument Serif" <?= ($settings->font_family ?? '') == 'Instrument Serif' ? 'selected' : ''; ?>>Instrument Serif (Editorial)</option>
             <option value="Playfair Display" <?= ($settings->font_family ?? '') == 'Playfair Display' ? 'selected' : ''; ?>>Playfair Display (Elegant)</option>
             <option value="Montserrat" <?= ($settings->font_family ?? '') == 'Montserrat' ? 'selected' : ''; ?>>Montserrat (Bold)</option>
             <option value="Roboto" <?= ($settings->font_family ?? '') == 'Roboto' ? 'selected' : ''; ?>>Roboto (Clean)</option>

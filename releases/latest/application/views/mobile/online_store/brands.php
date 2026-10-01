@@ -141,10 +141,10 @@
     }
     function saveBrand(){
       const fd = new FormData(document.getElementById('brandForm'));
-      fetch('<?= base_url('online_store/save_brand'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed to save', true); }
-      }).catch(()=>showToast('Network error', true));
+      mpFetchJson('<?= base_url('online_store/save_brand'); ?>', {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The brand could not be saved. Please check the details and try again.', true); }
+      }).catch(err=>showToast(mpErrorText(err), true));
     }
     function editBrand(id, name, url, order, enabled){
       document.getElementById('brand_id').value = id;
@@ -160,10 +160,10 @@
       btn.disabled = true;
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/delete_brand/'); ?>'+id, {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+      mpFetchJson('<?= base_url('online_store/delete_brand/'); ?>'+id, {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The brand could not be deleted. Please try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
   </script>
 </body>

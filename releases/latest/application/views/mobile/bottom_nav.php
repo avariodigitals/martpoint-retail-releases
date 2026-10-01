@@ -152,6 +152,7 @@
   }
 </style>
 <div id="mpPullRefresh" aria-hidden="true"><i class="fa fa-refresh"></i></div>
+<?php $this->load->view('comman/incident_banner', ['context' => 'mobile']); ?>
 <div class="mp-mobile-footer">
   <nav class="mp-mobile-bottom-nav">
   <?php if($can_home): ?>

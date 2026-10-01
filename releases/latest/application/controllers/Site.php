@@ -20,6 +20,46 @@ class Site extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 
+	/**
+	 * AJAX — save just the incident banner state (Service Status section).
+	 * Used by the mobile status screen; the desktop Site Settings form still
+	 * posts everything through update_site().
+	 */
+	public function save_incident(){
+		header('Content-Type: application/json');
+		if(demo_app()){
+			echo json_encode(['status' => 'error', 'message' => 'Restricted in Demo']);return;
+		}
+		if(!special_access()){
+			set_status_header(403);
+			echo json_encode(['status' => 'error', 'message' => 'Restricted Area!']);return;
+		}
+		// Client installs must not write incident state — the banner only
+		// reflects real incidents from the martpoint.com.ng status API.
+		if(!function_exists('mp_is_central') || !mp_is_central()){
+			set_status_header(403);
+			echo json_encode(['status' => 'error', 'message' => 'Incidents are managed centrally on martpoint.com.ng.']);return;
+		}
+		if(!function_exists('mp_set_incident')){
+			echo json_encode(['status' => 'error', 'message' => 'Status feature unavailable — run the latest migration.']);return;
+		}
+		$prev = mp_get_incident();
+		$ok = mp_set_incident([
+			'active'     => $this->input->post('incident_active', TRUE) ? 1 : 0,
+			'severity'   => (string)$this->input->post('incident_severity', TRUE),
+			'message'    => (string)$this->input->post('incident_message', TRUE),
+			'url'        => (string)$this->input->post('incident_url', TRUE),
+			'started_at' => !empty($prev['active']) ? $prev['started_at'] : null,
+		], 'local');
+		if($ok && function_exists('mp_audit_log')){
+			mp_audit_log('settings', 'update', 'site',
+				$this->input->post('incident_active') ? 'Activated incident banner' : 'Cleared incident banner');
+		}
+		echo json_encode($ok
+			? ['status' => 'ok', 'message' => 'Status saved.']
+			: ['status' => 'error', 'message' => 'Could not save.']);
+	}
+
 	public function update_site(){
 		if(demo_app()){
 				echo "Restricted in Demo";exit();

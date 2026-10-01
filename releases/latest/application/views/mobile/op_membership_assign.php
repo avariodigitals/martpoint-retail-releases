@@ -187,8 +187,7 @@
       e.preventDefault();
       var btn = document.getElementById('saveBtn'); btn.disabled = true;
       var form = document.getElementById('assignForm');
-      fetch(form.action, { method: 'POST', body: new FormData(form) })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(form.action, { method: 'POST', body: new FormData(form) })
         .then(function(d){
           if(d && d.csrf_hash){
             var ci = form.querySelector('input[name="<?= $this->security->get_csrf_token_name(); ?>"]');
@@ -198,11 +197,11 @@
             showToast(d.message || 'Saved.');
             setTimeout(function(){ window.location.href = base_url + 'mobile/memberships'; }, 600);
           } else {
-            showToast(d && d.message ? d.message : 'Save failed.');
+            showToast(d && d.message ? d.message : 'Could not save this membership. Please check the details and try again.');
             btn.disabled = false;
           }
         })
-        .catch(function(){ showToast('Network error. Try again.'); btn.disabled = false; });
+        .catch(function(err){ showToast(mpErrorText(err)); btn.disabled = false; });
       return false;
     }
   </script>

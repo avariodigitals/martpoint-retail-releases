@@ -5,6 +5,14 @@ class Paystack_model extends CI_Model {
 
 	var $table = 'db_paystack_settings';
 
+	// Gateway base URL — overridable for sandbox/mocked testing via
+	// MP_PAYSTACK_API env var. Production traffic always uses the default.
+	private function api_base()
+	{
+		$base = getenv('MP_PAYSTACK_API');
+		return $base ? rtrim($base, '/') : 'https://api.paystack.co';
+	}
+
 	public function get_settings($store_id = null)
 	{
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
@@ -66,7 +74,7 @@ class Paystack_model extends CI_Model {
 		);
 
 		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, 'https://api.paystack.co/transaction/initialize');
+		curl_setopt($ch, CURLOPT_URL, $this->api_base() . '/transaction/initialize');
 		curl_setopt($ch, CURLOPT_POST, 1);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post_data));
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -113,15 +121,15 @@ class Paystack_model extends CI_Model {
 		}
 	}
 
-	public function verify_transaction($reference)
+	public function verify_transaction($reference, $store_id = null)
 	{
-		$secret_key = $this->get_secret_key();
+		$secret_key = $this->get_secret_key($store_id);
 		if(empty($secret_key)) {
 			return array('status' => false, 'message' => 'Paystack not configured');
 		}
 
 		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, 'https://api.paystack.co/transaction/verify/' . $reference);
+		curl_setopt($ch, CURLOPT_URL, $this->api_base() . '/transaction/verify/' . $reference);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 			'Authorization: Bearer ' . $secret_key,

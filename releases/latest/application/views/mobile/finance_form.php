@@ -405,16 +405,15 @@
       else { showAlert('Invalid type', 'danger'); return; }
 
       try {
-        var res = await fetch(base_url + endpoint, {method: 'POST', body: fd});
-        var txt = await res.text();
+        var txt = await mpFetchText(base_url + endpoint, {method: 'POST', body: fd});
         if(txt.trim() == 'success'){
           showAlert('Saved successfully', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/finance/' + type; }, 600);
         } else {
-          showAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Save failed', 'danger');
+          showAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'The record could not be saved. Please check the details and try again.', 'danger');
         }
       } catch(err){
-        showAlert('Network error. Please try again.', 'danger');
+        showAlert(mpErrorText(err), 'danger');
       }
     });
   </script>

@@ -329,6 +329,7 @@
     .mp-card-badge.new { background:var(--mp-secondary); color:#fff; }
     .mp-card-badge.bestseller { background:#F59E0B; color:#fff; }
     .mp-card-badge.discount { background:var(--mp-danger); color:#fff; }
+
     .mp-card-wishlist { position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%; background:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--mp-gray); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.1); z-index:2; transition:all .2s; }
     .mp-card-wishlist:hover { color:var(--mp-danger); transform:scale(1.1); }
     .mp-card-body { padding:14px; }

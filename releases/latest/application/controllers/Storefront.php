@@ -39,7 +39,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$canonical = base_url('store/' . $settings->store_slug);
@@ -67,7 +67,7 @@ class Storefront extends CI_Controller {
 			'featured_services' => $settings->allow_services ? $this->storefront_model->getOnlineServices($storeId, null, '', 8) : [],
 			'best_sellers' => $this->storefront_model->getBestSellers($storeId, 8),
 			'new_arrivals' => $this->storefront_model->getNewArrivals($storeId, 10),
-			'paystack_enabled' => $this->paystack->is_enabled(),
+			'paystack_enabled' => $this->paystack->is_enabled($storeId),
 			'paystack_public_key' => '',
 			'active_banners' => $this->theme_engine->activeBanners(),
 			'hero_banners' => $this->theme_engine->activeBanners(5, 'hero'),
@@ -95,7 +95,7 @@ class Storefront extends CI_Controller {
 
 		// Get Paystack public key if enabled
 		if($data['paystack_enabled']){
-			$ps = $this->paystack->get_settings();
+			$ps = $this->paystack->get_settings($storeId);
 			if($ps){
 				$data['paystack_public_key'] = $ps->public_key ?? '';
 				$data['paystack_test_mode'] = $ps->test_mode ?? 1;
@@ -113,7 +113,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$categoryId = (int)$this->input->get('category');
@@ -174,7 +174,7 @@ class Storefront extends CI_Controller {
 		}
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$search = trim($this->input->get('search'));
@@ -225,7 +225,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$product = $this->storefront_model->getOnlineProduct($productId, $storeId);
@@ -241,11 +241,20 @@ class Storefront extends CI_Controller {
 		$productImage = $product->item_image && file_exists($product->item_image) ? base_url($product->item_image) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'));
 
 		$product_variants = [];
+		// Variant parents show their children; a child page shows its siblings
+		// (with itself marked) so every variant page has a working selector.
+		$variantParentId = null;
 		if ($product->item_group == 'Variants') {
-			$variants = $this->storefront_model->getProductVariants($productId, $storeId);
+			$variantParentId = $product->id;
+		} elseif (!empty($product->parent_id)) {
+			$variantParentId = (int)$product->parent_id;
+		}
+		if ($variantParentId) {
+			$variants = $this->storefront_model->getProductVariants($variantParentId, $storeId);
 			foreach ($variants as $v) {
 				$v->effective_price = $this->storefront_model->getProductEffectivePrice($v);
 				$v->original_price = $v->sales_price;
+				$v->is_current = ((int)$v->id === (int)$product->id);
 				$product_variants[] = $v;
 			}
 		}
@@ -303,7 +312,7 @@ class Storefront extends CI_Controller {
 		}
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$service = $this->storefront_model->getOnlineService($serviceId, $storeId);
@@ -359,7 +368,7 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$categoryId = (int)$this->input->get('category');
@@ -432,14 +441,14 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
-			'paystack_enabled' => $this->paystack->is_enabled(),
+			'paystack_enabled' => $this->paystack->is_enabled($storeId),
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
@@ -453,7 +462,7 @@ class Storefront extends CI_Controller {
 			'csrf_hash' => $this->security->get_csrf_hash(),
 		];
 		if($data['paystack_enabled']){
-			$ps = $this->paystack->get_settings();
+			$ps = $this->paystack->get_settings($storeId);
 			if($ps){
 				$data['paystack_public_key'] = $ps->public_key ?? '';
 				$data['paystack_test_mode'] = $ps->test_mode ?? 1;
@@ -470,7 +479,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$data = [
@@ -589,7 +598,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$order = null;
@@ -867,6 +876,11 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
+		// Housekeeping: release stock reserved by abandoned online payments
+		// (paystack orders still unpaid/pending past the TTL). WhatsApp and
+		// pay-on-delivery reservations are merchant-managed and never expire.
+		try { $this->storefront_model->releaseExpiredReservations($storeId); } catch(Exception $e) {}
+
 		$cart = json_decode($this->input->post('cart'), true);
 		if(empty($cart) || !is_array($cart)){
 			echo json_encode(['status' => false, 'message' => 'Cart is empty', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -918,6 +932,12 @@ class Storefront extends CI_Controller {
 			if($type == 'product'){
 				$product = $this->storefront_model->getOnlineProduct($id, $storeId);
 				if(!$product) continue;
+				// Variant parents are catalogue shells — only a specific
+				// child variant can be ordered.
+				if(($product->item_group ?? '') === 'Variants'){
+					echo json_encode(['status' => false, 'message' => 'Please choose an option for ' . $product->item_name, 'csrf_hash' => $this->security->get_csrf_hash()]);
+					return;
+				}
 				$product_type = $product->product_type ?? 'physical';
 				$hasProducts = true;
 				if($product_type === 'physical'){
@@ -980,19 +1000,48 @@ class Storefront extends CI_Controller {
 
 		// Digital-only orders never need shipping
 		if($hasOnlyDigital){
-			$shippingFee = 0;
 			$shippingMethod = null;
 			$customerAddress = null;
 		}
 
-		// Resolve shipping method fee from store settings
+		// City-based delivery fees (per-store flag). When enabled with a
+		// configured city list it replaces the flat shipping methods: the
+		// customer picks their city at checkout and the fee is re-resolved
+		// server-side so it can't be tampered with.
 		$shippingFee = 0;
-		$shippingMethods = json_decode($settings->shipping_methods_json ?? '', true);
-		if(is_array($shippingMethods) && $shippingMethod){
-			foreach($shippingMethods as $sm){
-				if(($sm['name'] ?? '') === $shippingMethod && ($sm['enabled'] ?? 0)){
-					$shippingFee = (float)($sm['fee'] ?? 0);
+		$deliveryQuotePending = 0;
+		$cityZones = json_decode($settings->city_shipping_json ?? '', true);
+		$cityShippingOn = !$hasOnlyDigital && !$tableNumber && !empty($settings->city_shipping_enabled) && is_array($cityZones) && count($cityZones) > 0;
+
+		if($cityShippingOn){
+			$selectedCity = trim((string)$this->input->post('shipping_city'));
+			$zoneMatch = null;
+			foreach($cityZones as $z){
+				$zoneKey = trim($z['city'] ?? '') . '|' . trim($z['state'] ?? '');
+				if($zoneKey !== '|' && strcasecmp($zoneKey, $selectedCity) === 0){
+					$zoneMatch = $z;
 					break;
+				}
+			}
+			if(!$zoneMatch){
+				echo json_encode(['status' => false, 'message' => 'Please select your delivery city', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$shippingFee = (float)($zoneMatch['fee'] ?? 0);
+			$zoneLabel = trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : ''));
+			$shippingMethod = mb_substr('Delivery - ' . $zoneLabel, 0, 100);
+		} else {
+			// Resolve shipping method fee from store settings
+			$shippingMethods = json_decode($settings->shipping_methods_json ?? '', true);
+			if(is_array($shippingMethods) && $shippingMethod){
+				foreach($shippingMethods as $sm){
+					if(($sm['name'] ?? '') === $shippingMethod && ($sm['enabled'] ?? 0)){
+						// "Fee on quote" methods carry no charged amount — the
+						// merchant sets the delivery fee when confirming.
+						$shippingFee = !empty($sm['quote']) ? 0 : (float)($sm['fee'] ?? 0);
+						if(!empty($sm['quote'])) $deliveryQuotePending = 1;
+						break;
+					}
 				}
 			}
 		}
@@ -1008,6 +1057,7 @@ class Storefront extends CI_Controller {
 			'payment_method' => $paymentMethod,
 			'shipping_method' => $shippingMethod ?: null,
 			'delivery_fee' => $shippingFee,
+			'delivery_quote_pending' => $deliveryQuotePending,
 			'subtotal' => $subtotal,
 			'grand_total' => $grandTotal,
 			'table_number' => $tableNumber ?: null,
@@ -1018,18 +1068,25 @@ class Storefront extends CI_Controller {
 			'user_agent' => $this->input->user_agent()
 		];
 
-		// Set initial status based on payment method
+		// Set initial status based on payment method. WhatsApp is an order
+		// CHANNEL — the payment arrangement stays unpaid until the merchant
+		// confirms how the customer will pay (it is never assumed to be COD).
 		if($paymentMethod == 'paystack'){
 			$orderData['order_status'] = 'pending';
 			$orderData['payment_status'] = 'unpaid';
+			$orderData['source_channel'] = 'web';
 		} else if($paymentMethod == 'whatsapp'){
 			$orderData['order_status'] = 'pending';
 			$orderData['payment_status'] = 'unpaid';
 			$orderData['whatsapp_sent'] = 1;
+			$orderData['source_channel'] = 'whatsapp';
 		} else {
+			$orderData['source_channel'] = 'web';
 			$orderData['order_status'] = 'pending';
 			$orderData['payment_status'] = 'unpaid';
 		}
+
+		$this->db->trans_start();
 
 		$orderId = $this->storefront_model->createOrder($orderData);
 
@@ -1044,6 +1101,17 @@ class Storefront extends CI_Controller {
 			$this->storefront_model->addOrderItem($item);
 		}
 
+		// Reserve stock for physical items atomically so concurrent orders
+		// cannot oversell the same units. The reservation is held until the
+		// order is paid/confirmed (commit) or cancelled/failed (release).
+		if(!$this->storefront_model->reserveOrderItems($orderId, $itemsToInsert, !empty($settings->allow_backorder))){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => false, 'message' => 'An item in your cart just sold out. Please review your cart and try again.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$this->db->trans_complete();
+
 		$order = $this->storefront_model->getOrder($orderId);
 
 		// Send email notifications (store owner + customer if email provided)
@@ -1052,7 +1120,7 @@ class Storefront extends CI_Controller {
 
 		// If Paystack, return payment initialization data
 		if($paymentMethod == 'paystack' && $settings->allow_paystack){
-			$ps = $this->paystack->get_settings();
+			$ps = $this->paystack->get_settings($storeId);
 			if($ps && $ps->public_key){
 				echo json_encode([
 					'status' => true,
@@ -1063,6 +1131,7 @@ class Storefront extends CI_Controller {
 					'public_key' => $ps->public_key,
 					'email' => $customerEmail ?: 'customer@' . ($settings->store_slug ?: 'store') . '.com',
 					'reference' => $order->order_code,
+					'currency' => $this->_storeCurrencyCode($storeId) ?: 'NGN',
 					'csrf_hash' => $this->security->get_csrf_hash(),
 				]);
 				return;
@@ -1089,7 +1158,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$order = $this->storefront_model->getOrderByCode($orderCode, $storeId);
@@ -1159,15 +1228,15 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
-		$limit = (int)($product->download_limit ?? 3);
-		if($limit > 0 && (int)($orderItem->download_count) >= $limit){
-			show_error('Download limit reached.', 403);
-			return;
-		}
-
 		$product = $this->db->where('id', $orderItem->item_id)->where('store_id', $storeId)->get('db_items')->row();
 		if(!$product || empty($product->digital_file)){
 			show_error('File not found.', 404);
+			return;
+		}
+
+		$limit = (int)($product->download_limit ?? 3);
+		if($limit > 0 && (int)($orderItem->download_count) >= $limit){
+			show_error('Download limit reached.', 403);
 			return;
 		}
 
@@ -1190,7 +1259,62 @@ class Storefront extends CI_Controller {
 	}
 
 	/**
-	 * Paystack callback for online orders
+	 * Verify a Paystack reference against a specific online order and, on
+	 * success, atomically claim the unpaid->paid transition and fulfil it.
+	 * Returns the gateway verify payload on success, false otherwise.
+	 * Side effects (digital delivery, emails) only run for the request that
+	 * wins the atomic claim — replays are safe.
+	 */
+	private function _verifyAndFulfilPaystackOrder($order, $reference){
+		$this->load->model('paystack_model', 'paystack');
+		$verify = $this->paystack->verify_transaction($reference, $order->store_id);
+
+		// Full verification contract: gateway success + reference belongs to
+		// this order + amount matches the order total + currency matches the
+		// store currency (when a code can be derived).
+		$verified = false;
+		if($verify['status'] && $verify['payment_status'] === 'success'
+			&& $verify['reference'] === $order->order_code
+			&& abs((float)$verify['amount'] - (float)$order->grand_total) < 0.01){
+
+			$verified = true;
+			$storeCur = $this->_storeCurrencyCode($order->store_id);
+			if($storeCur && strtoupper($verify['currency']) !== $storeCur){
+				$verified = false;
+				log_message('error', "Paystack currency mismatch on order {$order->id}: gateway {$verify['currency']} vs store {$storeCur}");
+			}
+		} else if(!empty($verify['status'])){
+			log_message('error', "Paystack verify failed checks on order {$order->id}: status=" . ($verify['payment_status'] ?? '?') . " ref=" . ($verify['reference'] ?? '?') . " amount=" . ($verify['amount'] ?? '?') . " expected={$order->grand_total}");
+		}
+
+		if(!$verified){
+			return false;
+		}
+
+		// Atomically claim the transition; only the winning request fulfils.
+		$claimed = $this->storefront_model->claimPaidOrder($order->id, [
+			'paystack_reference' => $reference,
+			'paystack_amount' => $verify['amount'],
+			'order_status' => 'paid'
+		]);
+		if($claimed){
+			// Commit the stock reservation (reserved -> committed; no second
+			// decrement — units already moved at order time).
+			$this->storefront_model->adjustStock($order->id);
+			$items = $this->storefront_model->getOrderItems($order->id);
+			$settings = $this->storefront_model->getSettings($order->store_id);
+			$store = get_store_details($order->store_id);
+			$this->_send_digital_delivery_email($order, $items, $store, $settings);
+		}
+		// Fulfilment is separate from the claim and idempotent: it runs for
+		// the winner now, and self-heals here on any later verify/callback
+		// if the winning request died mid-fulfilment (fulfilled_at gates it).
+		$this->storefront_model->fulfilPaidOrder($order->id);
+		return $verify;
+	}
+
+	/**
+	 * Paystack callback for online orders (browser redirect / manual check).
 	 */
 	public function paystack_callback(){
 		$reference = $this->input->get('reference') ?: $this->input->post('reference');
@@ -1199,40 +1323,98 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
-		$this->load->model('paystack_model', 'paystack');
-		$verify = $this->paystack->verify_transaction($reference);
+		// Resolve the order first — the order owns the store, never the session.
+		$order = $this->storefront_model->getOrderByPaymentReference($reference);
+		if(!$order){
+			show_error('Order not found for this payment reference', 404);
+			return;
+		}
 
-		if($verify['status'] && $verify['payment_status'] == 'success'){
-			$order = $this->storefront_model->getOrderByReference($reference);
-			if($order){
-				$this->storefront_model->updatePaymentStatus($order->id, 'paid', [
-					'paystack_reference' => $reference,
-					'paystack_amount' => $verify['amount'] / 100,
-					'order_status' => 'paid'
-				]);
-				// Decrement stock now that payment is confirmed
-				$this->storefront_model->adjustStock($order->id);
-				// Deliver any digital products
-				$this->storefront_model->deliverDigitalOrder($order->id);
-				// Deliver courses and memberships
-				$this->storefront_model->deliverCourseAndMembership($order->id);
-				// Auto-complete if the order has no physical products
-				$this->storefront_model->completeIfNoPhysicalProducts($order->id);
-				// Send digital download email to customer
-				$items = $this->storefront_model->getOrderItems($order->id);
-				$settings = $this->storefront_model->getSettings($order->store_id);
-				$store = get_store_details($order->store_id);
-				$this->_send_digital_delivery_email($order, $items, $store, $settings);
-			}
+		if($this->_verifyAndFulfilPaystackOrder($order, $reference)){
 			$data = ['success' => true, 'message' => 'Payment successful!', 'reference' => $reference];
 		} else {
-			$order = $this->storefront_model->getOrderByReference($reference);
-			if($order){
+			// Failed verification releases the stock reservation (once).
+			if($order->payment_status === 'unpaid'){
 				$this->storefront_model->updatePaymentStatus($order->id, 'failed');
+				$this->storefront_model->restoreStock($order->id);
 			}
 			$data = ['success' => false, 'message' => 'Payment was not successful. Please try again.', 'reference' => $reference];
 		}
 		$this->load->view('storefront/paystack_callback', $data);
+	}
+
+	/**
+	 * JSON payment verification for the storefront Paystack popup.
+	 * The inline popup callback runs in the browser, so the client asks the
+	 * server to verify the reference against the order before showing success.
+	 */
+	public function verify_payment(){
+		$reference = $this->input->get('reference') ?: $this->input->post('reference');
+		if(!$reference){
+			echo json_encode(['status' => false, 'message' => 'No reference provided']);
+			return;
+		}
+		$order = $this->storefront_model->getOrderByPaymentReference($reference);
+		if(!$order){
+			echo json_encode(['status' => false, 'message' => 'Order not found']);
+			return;
+		}
+
+		// Already paid (webhook or earlier verify won the claim). If the
+		// winning request died mid-fulfilment, re-run it — it is idempotent.
+		if($order->payment_status === 'paid'){
+			if(empty($order->fulfilled_at)){
+				$this->storefront_model->fulfilPaidOrder($order->id);
+			}
+			echo json_encode([
+				'status' => true,
+				'order_code' => $order->order_code,
+				'redirect_url' => $this->_orderReceivedUrl($order),
+			]);
+			return;
+		}
+
+		if($this->_verifyAndFulfilPaystackOrder($order, $reference)){
+			echo json_encode([
+				'status' => true,
+				'order_code' => $order->order_code,
+				'redirect_url' => $this->_orderReceivedUrl($order),
+			]);
+			return;
+		}
+
+		echo json_encode(['status' => false, 'message' => 'Payment could not be verified. If you were charged, contact the store.']);
+	}
+
+	private function _orderReceivedUrl($order){
+		$settings = $this->storefront_model->getSettings($order->store_id);
+		return base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code);
+	}
+
+	/**
+	 * Derive the ISO currency code for a store (e.g. "Nigerian Naira (NGN)").
+	 * Returns null when it cannot be determined — callers fall back to NGN.
+	 */
+	private function _storeCurrencyCode($storeId){
+		$row = $this->db->query(
+			"SELECT c.currency_code, c.currency_name, c.currency FROM db_currency c JOIN db_store s ON s.currency_id = c.id WHERE s.id = ? LIMIT 1",
+			[$storeId]
+		)->row();
+		if(!$row){
+			return null;
+		}
+		// Prefer the ISO code column; then a "(XXX)" suffix in the name;
+		// then the symbol field when it already holds an ISO code.
+		if(!empty($row->currency_code) && preg_match('/^[A-Za-z]{3}$/', trim($row->currency_code))){
+			return strtoupper(trim($row->currency_code));
+		}
+		if(preg_match('/\(([A-Za-z]{3})\)/', $row->currency_name ?? '', $m)){
+			return strtoupper($m[1]);
+		}
+		if(preg_match('/^[A-Za-z]{3}$/', trim($row->currency ?? ''))){
+			return strtoupper(trim($row->currency));
+		}
+		return null;
 	}
 
 	/**
@@ -1363,7 +1545,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$prefillPhone = $this->input->get('phone');
@@ -1525,7 +1707,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$token = $this->input->cookie('customer_token', TRUE);
@@ -1617,7 +1799,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$token = $this->input->cookie('customer_token', TRUE);
@@ -1667,7 +1849,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$token = $this->input->cookie('customer_token', TRUE);
@@ -1718,7 +1900,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$token = $this->input->cookie('customer_token', TRUE);
@@ -1773,6 +1955,20 @@ class Storefront extends CI_Controller {
 	}
 
 	// ============== HELPERS ==============
+
+	/**
+	 * Theme preview is private: it only renders for the merchant who owns
+	 * this store (dashboard session with the same store_id), never for
+	 * anonymous visitors. Anonymous traffic always sees the published theme.
+	 */
+	private function _previewThemeForVisitor($settings){
+		if(empty($settings->preview_mode) || empty($settings->preview_theme_id)){
+			return null;
+		}
+		return ((int)get_current_store_id() === (int)$settings->store_id)
+			? $settings->preview_theme_id
+			: null;
+	}
 
 	private function _getSettingsOr404($slug){
 		// 1. Try custom domain lookup first
@@ -1946,7 +2142,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$aboutContent = !empty($settings->footer_about_us) ? $settings->footer_about_us : $settings->store_description;
@@ -2070,7 +2266,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$this->load->model('Automobile_model', 'automobile_m');
@@ -2101,7 +2297,7 @@ class Storefront extends CI_Controller {
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
-		$previewTheme = ($settings->preview_mode && $settings->preview_theme_id) ? $settings->preview_theme_id : null;
+		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
 
 		$this->load->model('Automobile_model', 'automobile_m');

@@ -216,17 +216,17 @@
         var formData = new FormData();
         formData.append('q_id', id);
         formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-        fetch('<?= base_url('purchase/delete_purchase'); ?>', { method: 'POST', body: formData })
-        .then(function(res){ return res.text(); })
+        mpFetchText('<?= base_url('purchase/delete_purchase'); ?>', { method: 'POST', body: formData })
         .then(function(text){
           if(text.trim() === 'success'){
             mpSuccess('Purchase deleted.');
             setTimeout(function(){ window.location.reload(); }, 600);
           } else {
-            mpError(text.replace(/<[^>]*>/g, '').trim() || 'Delete failed.');
+            var clean = text.replace(/<[^>]*>/g, '').trim();
+            mpError((clean && clean.length < 300) ? clean : 'The purchase could not be deleted. Please try again.');
           }
         })
-        .catch(function(){ mpError('Network error.'); });
+        .catch(function(err){ mpError(mpErrorText(err)); });
       }, null, {danger: true});
     }
   </script>

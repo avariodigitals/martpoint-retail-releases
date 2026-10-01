@@ -106,7 +106,7 @@ $waNumber = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
   @media(max-width:767px){ .bl-product-footer { flex-direction:column; align-items:stretch; gap:8px; } .bl-add-btn { width:100%; height:auto; box-sizing:border-box; } }
 
   /* Category cards — stylish elegant */
-  .bl-cat-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:16px; }
+  .bl-cat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:16px; }
   @media(max-width:1023px){ .bl-cat-grid { grid-template-columns:repeat(4,1fr); } }
   @media(max-width:767px){ .bl-cat-grid { grid-template-columns:repeat(3,1fr); gap:12px; } }
   .bl-cat-card { position:relative; border-radius:4px; overflow:hidden; aspect-ratio:3/2; text-decoration:none; color:inherit; display:block; transition:transform .25s, box-shadow .25s; }
@@ -263,7 +263,7 @@ foreach($orderedSections as $sectionKey => $section):
     <p class="bl-hero-lead"><?= htmlspecialchars($settings->store_subheadline ?: 'Curated pieces for the discerning wardrobe. Fine fabrics, timeless silhouettes, and statement essentials.'); ?></p>
     <div class="bl-hero-actions">
       <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="bl-btn bl-btn-gold">Shop the Collection</a>
-      <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="bl-btn bl-btn-ghost">View Lookbook</a>
+      <a href="#bl-categories" class="bl-btn bl-btn-ghost">View Lookbook</a>
     </div>
   </div>
 </div>
@@ -341,11 +341,9 @@ foreach($orderedSections as $sectionKey => $section):
       if(!empty($categories) && count($categories) > 1):
 ?>
 <!-- CATEGORIES -->
-<div class="bl-section" style="background:var(--bl-cream);">
+<div class="bl-section" style="background:var(--bl-cream);scroll-margin-top:80px;" id="bl-categories">
   <div class="bl-container">
-    <div class="bl-section-head">
-      <div>
-        <div class="bl-section-label">Browse</div>
+    <div class="bl-section-head"><div><div class="bl-section-label">Browse</div>
         <h2 class="bl-section-title">Shop by Category</h2>
       </div>
     </div>
@@ -405,7 +403,14 @@ foreach($orderedSections as $sectionKey => $section):
         $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
         $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
-      <div class="bl-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, <?= $hasDiscount ? $oldPrice : 0; ?>)">
+      <?php
+        $jsNm = htmlspecialchars(addslashes($p->item_name));
+        $jsDs = htmlspecialchars(addslashes($p->description ?? ''));
+        $pUrl = base_url('store/' . $slug . '/product/' . $p->id);
+        $isVar = !empty($p->variant_count);
+        $goDetail = "location.href='{$pUrl}'";
+      ?>
+<div class="bl-product-card" onclick="<?= $isVar ? $goDetail : "openProductModal(" . $p->id . ", '" . $jsNm . "', " . $price . ", '" . $p->item_image . "', '" . $jsDs . "', " . $p->stock . ", " . ($hasDiscount ? $oldPrice : 0) . ")"; ?>">
         <?php if($hasDiscount && $discountPct > 0): ?>
         <span class="bl-product-badge">-<?= $discountPct; ?>%</span>
         <?php endif; ?>
@@ -424,7 +429,7 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="bl-product-name"><?= htmlspecialchars($p->item_name); ?></div>
           <div class="bl-product-footer">
             <div class="bl-product-price"><?= sf_currency($price, $cur); ?><?php if($hasDiscount): ?><span class="old"><?= sf_currency($oldPrice, $cur); ?></span><?php endif; ?></div>
-            <button class="bl-add-btn" onclick="event.stopPropagation();addToCart(<?= $p->id; ?>,'product','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button class="bl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "addToCart(" . $p->id . ",'product','" . $jsNm . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
           </div>
           <?php if($p->stock <= 0 && !($settings->allow_backorder ?? false)): ?>
           <div class="bl-product-stock">Out of Stock</div>
@@ -471,7 +476,7 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="bl-product-name"><?= htmlspecialchars($s->item_name ?? $s->service_name ?? ''); ?></div>
           <div class="bl-product-footer">
             <div class="bl-product-price"><?= sf_currency($sPrice, $cur); ?></div>
-            <button class="bl-add-btn" onclick="event.stopPropagation();addToCart(<?= $s->id; ?>,'service','<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',1,999)" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button class="bl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();addToCart(<?= $s->id; ?>,'service','<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>',<?= $sPrice; ?>,'<?= $s->item_image ?? $s->service_image ?? ''; ?>',1,999)" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
           </div>
         </div>
       </div>
@@ -504,7 +509,14 @@ foreach($orderedSections as $sectionKey => $section):
         $price = $p->effective_price ?? $p->sales_price;
         $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
-      <div class="bl-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, 0)">
+      <?php
+        $jsNm = htmlspecialchars(addslashes($p->item_name));
+        $jsDs = htmlspecialchars(addslashes($p->description ?? ''));
+        $pUrl = base_url('store/' . $slug . '/product/' . $p->id);
+        $isVar = !empty($p->variant_count);
+        $goDetail = "location.href='{$pUrl}'";
+      ?>
+<div class="bl-product-card" onclick="<?= $isVar ? $goDetail : "openProductModal(" . $p->id . ", '" . $jsNm . "', " . $price . ", '" . $p->item_image . "', '" . $jsDs . "', " . $p->stock . ", 0)"; ?>">
         <div class="bl-product-media">
           <?php if($img): ?>
           <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
@@ -516,7 +528,7 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="bl-product-name"><?= htmlspecialchars($p->item_name); ?></div>
           <div class="bl-product-footer">
             <div class="bl-product-price"><?= sf_currency($price, $cur); ?></div>
-            <button class="bl-add-btn" onclick="event.stopPropagation();addToCart(<?= $p->id; ?>,'product','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button class="bl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "addToCart(" . $p->id . ",'product','" . $jsNm . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
           </div>
         </div>
       </div>
@@ -549,7 +561,14 @@ foreach($orderedSections as $sectionKey => $section):
         $price = $p->effective_price ?? $p->sales_price;
         $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 600) : '';
       ?>
-      <div class="bl-product-card" onclick="openProductModal(<?= $p->id; ?>, '<?= htmlspecialchars(addslashes($p->item_name)); ?>', <?= $price; ?>, '<?= $p->item_image; ?>', '<?= htmlspecialchars(addslashes($p->description ?? '')); ?>', <?= $p->stock; ?>, 0)">
+      <?php
+        $jsNm = htmlspecialchars(addslashes($p->item_name));
+        $jsDs = htmlspecialchars(addslashes($p->description ?? ''));
+        $pUrl = base_url('store/' . $slug . '/product/' . $p->id);
+        $isVar = !empty($p->variant_count);
+        $goDetail = "location.href='{$pUrl}'";
+      ?>
+<div class="bl-product-card" onclick="<?= $isVar ? $goDetail : "openProductModal(" . $p->id . ", '" . $jsNm . "', " . $price . ", '" . $p->item_image . "', '" . $jsDs . "', " . $p->stock . ", 0)"; ?>">
         <div class="bl-product-media">
           <?php if($img): ?>
           <img src="<?= $img; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
@@ -561,7 +580,7 @@ foreach($orderedSections as $sectionKey => $section):
           <div class="bl-product-name"><?= htmlspecialchars($p->item_name); ?></div>
           <div class="bl-product-footer">
             <div class="bl-product-price"><?= sf_currency($price, $cur); ?></div>
-            <button class="bl-add-btn" onclick="event.stopPropagation();addToCart(<?= $p->id; ?>,'product','<?= htmlspecialchars(addslashes($p->item_name)); ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $p->stock; ?>)" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button class="bl-add-btn"<?= ($p->stock <= 0 && empty($settings->allow_backorder) && empty($isVar)) ? ' disabled style="opacity:.45;cursor:not-allowed;pointer-events:none;"' : ''; ?> onclick="event.stopPropagation();<?= $isVar ? $goDetail : "addToCart(" . $p->id . ",'product','" . $jsNm . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>" aria-label="Add to cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
           </div>
         </div>
       </div>

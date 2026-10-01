@@ -202,8 +202,8 @@
       clearTimeout(timer);
       if(term.length < 2){ results.classList.remove('open'); return; }
       timer = setTimeout(function(){
-        fetch(base_url + 'mobile/medical_items?term=' + encodeURIComponent(term))
-          .then(function(r){ return r.json(); })
+        mpFetchJson(base_url + 'mobile/medical_items?term=' + encodeURIComponent(term))
+          .catch(function(){ return []; })
           .then(function(list){
             results.innerHTML = '';
             if(!list || !list.length){ results.classList.remove('open'); return; }
@@ -244,8 +244,7 @@
       e.preventDefault();
       var btn = document.getElementById('saveBtn'); btn.disabled = true;
       var form = document.getElementById('mnForm');
-      fetch(form.action, { method: 'POST', body: new FormData(form) })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(form.action, { method: 'POST', body: new FormData(form) })
         .then(function(d){
           if(d && d.csrf_hash){
             var ci = form.querySelector('input[name="<?= $this->security->get_csrf_token_name(); ?>"]');
@@ -255,11 +254,11 @@
             showToast(d.message || 'Saved.');
             setTimeout(function(){ window.location.href = base_url + 'mobile/medical_notes'; }, 600);
           } else {
-            showToast(d && d.message ? d.message : 'Save failed.');
+            showToast(d && d.message ? d.message : 'Could not save this note. Please check the details and try again.');
             btn.disabled = false;
           }
         })
-        .catch(function(){ showToast('Network error. Try again.'); btn.disabled = false; });
+        .catch(function(err){ showToast(mpErrorText(err)); btn.disabled = false; });
       return false;
     }
   </script>

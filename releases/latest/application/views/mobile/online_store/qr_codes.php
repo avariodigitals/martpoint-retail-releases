@@ -164,23 +164,23 @@
       fd.append('table_number', tableNumber);
       fd.append('qr_name', document.getElementById('qr_name').value);
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/generate_qr'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/generate_qr'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         btn.disabled = false; btn.innerHTML = '<i class="fa fa-qrcode"></i> Generate QR';
         if(res.status === 'success'){ showToast(res.message); setTimeout(()=>location.reload(), 800); }
-        else { showToast(res.message || 'Failed', true); }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-qrcode"></i> Generate QR'; });
+        else { showToast(res.message || 'The QR code could not be generated. Please check the details and try again.', true); }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-qrcode"></i> Generate QR'; });
     }
     function deleteQr(id, btn){
       if(!confirm('Delete this QR code?')) return;
       btn.disabled = true;
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/delete_qr/'); ?>'+id, {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/delete_qr/'); ?>'+id, {method:'POST', body:fd})
+      .then(res=>{
         if(res.status === 'success'){ showToast(res.message); setTimeout(()=>location.reload(), 800); }
-        else { showToast(res.message || 'Failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+        else { showToast(res.message || 'The QR code could not be deleted. Please try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
   </script>
 </body>

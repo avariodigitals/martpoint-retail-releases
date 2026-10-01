@@ -107,13 +107,13 @@
       if(!confirm('Delete this treatment note? Used product stock will be restored.')){ return; }
       var fd = new FormData();
       fd.append('id', id); fd.append(csrf_token, csrf_hash);
-      fetch(base_url + 'mobile/treatment_note_delete', { method: 'POST', body: fd })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(base_url + 'mobile/treatment_note_delete', { method: 'POST', body: fd })
         .then(function(d){
           if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
           if(d && d.success){ window.location.reload(); }
-          else { alert(d && d.message ? d.message : 'Delete failed.'); }
-        });
+          else { mpError(d && d.message ? d.message : 'The note could not be deleted. Please try again.'); }
+        })
+        .catch(function(err){ mpError(mpErrorText(err)); });
     }
   </script>
 </body>

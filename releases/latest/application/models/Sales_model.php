@@ -191,7 +191,7 @@ class Sales_model extends CI_Model {
 		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
 		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
 		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
-		$sales_note = $this->input->post('sales_note', TRUE);
+		$sales_note = mp_post_text('sales_note');
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$sales_id = $this->input->post('sales_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
@@ -200,15 +200,18 @@ class Sales_model extends CI_Model {
 		$init_code = $this->input->post('init_code', TRUE);
 		$coupon_code = $this->input->post('coupon_code', TRUE);
 		$coupon_discount_amt = parse_amount($this->input->post_get('coupon_discount_amt', TRUE));
-		$invoice_terms = $this->input->post('invoice_terms', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
 		$quotation_id = $this->input->post('quotation_id', TRUE);
+		$has_shipaddr_col = $this->db->field_exists('shippingaddress_id','db_sales');
+		$shippingaddress_id = $has_shipaddr_col ? (int)$this->input->post('shippingaddress_id', TRUE) : 0;
+		if($shippingaddress_id<=0){ $shippingaddress_id = null; }
 		$amount = parse_amount($this->input->post('amount', TRUE));
 		$payment_type = $this->input->post('payment_type', TRUE);
 		// Only apply default payment mode if not explicitly provided (for split payments, it will be empty)
 		if(empty($payment_type)){
 			$payment_type = null; // Keep it null for split payments, don't apply default
 		}
-		$payment_note = $this->input->post('payment_note', TRUE);
+		$payment_note = mp_post_text('payment_note');
 		$account_id = $this->input->post('account_id', TRUE);
 		$cheque_number = $this->input->post('cheque_number', TRUE);
 		$cheque_period = $this->input->post('cheque_period', TRUE);
@@ -377,6 +380,9 @@ class Sales_model extends CI_Model {
 		    if(isset($quotation_id)){
 				$sales_entry['quotation_id'] = $quotation_id;
 			}
+			if($has_shipaddr_col){
+				$sales_entry['shippingaddress_id'] = $shippingaddress_id;
+			}
 			if($shipping_cols){
 				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
@@ -431,6 +437,9 @@ class Sales_model extends CI_Model {
 		    				'sales_note' 			=> $sales_note,
 		    			);
 			//print_r($sales_entry);exit;
+			if($has_shipaddr_col){
+				$sales_entry['shippingaddress_id'] = $shippingaddress_id;
+			}
 			if($shipping_cols){
 				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
@@ -444,6 +453,11 @@ class Sales_model extends CI_Model {
 			//FIND THE PREVIOUSE ITEM LIST ID'S
 			$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
 			##############################################END
+
+			// Release serialised/tracked units bound to the previous version of this
+			// sale before the item rows are replaced (otherwise they stay sold).
+			mp_release_sale_barcodes($sales_id);
+			mp_unregister_equipment_for_sale($sales_id);
 
 			$q11=$this->db->query("delete from db_salesitems where sales_id='$sales_id'");
 			if(!$q11){
@@ -485,8 +499,11 @@ class Sales_model extends CI_Model {
 				$total_cost			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9']));
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
 				$unit_tax			=$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));
-				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$description		=mp_clean_text($_REQUEST['description_'.$i] ?? '');
 				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
+				$sold_serial_number =$this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number   =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id         =intval($_REQUEST['barcode_id_'.$i] ?? 0);
 				$price_type			=$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'wholesale'));
 				$unit_id			=$this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
 				$unit_name			=$this->xss_html_filter(trim($_REQUEST['unit_name_'.$i] ?? ''));
@@ -528,8 +545,46 @@ class Sales_model extends CI_Model {
 				$item_details = get_item_details($item_id);
 				$item_name = $item_details->item_name;
 				$service_bit = $item_details->service_bit;
-				// Use the item's cost (purchase_price with tax) preferentially, falling back to base price before tax
-				$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
+				$track_serial = $item_details->track_serial ?? 0;
+				$track_imei   = $item_details->track_imei ?? 0;
+
+				// Resolve the serial/IMEI strings from the selected unit row
+				if($barcode_id > 0){
+					$barcode_rec = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
+					if($barcode_rec){
+						if(!empty($barcode_rec->serial_number)) $sold_serial_number = $barcode_rec->serial_number;
+						if(!empty($barcode_rec->imei_number))  $sold_imei_number  = $barcode_rec->imei_number;
+						if(!empty($barcode_rec->batch_lot))     $batch_lot         = $barcode_rec->batch_lot;
+					}
+				}
+
+				// Serialised equipment MUST carry an exact unit — this is what feeds
+				// warranty, equipment register and delivery traceability.
+				if($track_serial && empty($sold_serial_number)){
+					$this->db->trans_rollback();
+					return "Serial number is required for {$item_name}. Pick the exact unit before saving the invoice.";
+				}
+				if($track_imei && empty($sold_imei_number)){
+					$this->db->trans_rollback();
+					return "IMEI number is required for {$item_name}.";
+				}
+				// One physical unit = one invoice line
+				if(($track_serial || $track_imei) && $sales_qty > 1){
+					$this->db->trans_rollback();
+					return "{$item_name} is serial-tracked: add each unit on its own line (qty 1) so each serial can be assigned.";
+				}
+				// Unit must still be available (status 1 = in stock)
+				if($barcode_id > 0){
+					$bc_row = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
+					if(!$bc_row || (int)$bc_row->status !== 1){
+						$this->db->trans_rollback();
+						return "The selected unit of {$item_name} is not available (already sold or reserved).";
+					}
+					$purchase_price = !empty($bc_row->purchase_price) ? $bc_row->purchase_price : ((!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price);
+				} else {
+					// Use the item's cost (purchase_price with tax) preferentially, falling back to base price before tax
+					$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
+				}
 				$base_unit_qty = $sales_qty * $conversion_factor;
 				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
 				if($current_stock_of_item<$base_unit_qty && $service_bit==0){
@@ -556,10 +611,13 @@ class Sales_model extends CI_Model {
 	    			'price_type' 		=> $price_type,
 		    				'status'	 		=> 1,
 		    				'seller_points'		=> get_seller_points($item_id) * $sales_qty,
+		    				'sold_serial_number'=> $sold_serial_number,
+		    				'sold_imei_number'  => $sold_imei_number,
+		    				'barcode_id'        => $barcode_id,
 
 		    			);
-				
-				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+
+				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 				$q2 = $this->db->insert('db_salesitems', $salesitems_entry);
 				if(!$q2){
 					$err = $this->db->error();
@@ -578,6 +636,21 @@ class Sales_model extends CI_Model {
 					));
 				}
 				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
+
+				// Mark the physical unit as sold so it cannot be re-sold
+				if($barcode_id > 0){
+					$this->db->where('id', $barcode_id)->update('db_item_barcodes', ['status' => 0]);
+				} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+					$this->db->where('item_id', $item_id);
+					if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+					if(!empty($sold_imei_number))  $this->db->where('imei_number', $sold_imei_number);
+					$this->db->limit(1)->update('db_item_barcodes', ['status' => 0]);
+				}
+
+				// Register serialised equipment on the customer (equipment register)
+				if($track_serial || !empty($sold_serial_number)){
+					mp_register_equipment_from_sale($sales_id, $sale_items_id, $customer_id);
+				}
 
 				// If this is a package, create customer package record
 				if ($item_details->package_bit == 1) {
@@ -999,6 +1072,13 @@ class Sales_model extends CI_Model {
 			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 
+		// Release serialised units + remove equipment-register rows before the
+		// invoice lines disappear (prevents orphaned 'sold' serials)
+		foreach (explode(',', $ids) as $_sid) {
+			mp_release_sale_barcodes((int)$_sid);
+			mp_unregister_equipment_for_sale((int)$_sid);
+		}
+
 		// Delete the invoice line items
 		$this->db->where("sales_id in ($ids)")
 				 ->delete("db_salesitems");
@@ -1376,6 +1456,31 @@ class Sales_model extends CI_Model {
 		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
 		$item_amount = ($item_sales_price * $item_sales_qty) + $item_tax_amt;
 		$promo_name = isset($info['promo_name']) ? $info['promo_name'] : '';
+
+		// Serialised / batch-tracked unit pickers (equipment & lab consumables).
+		$row_item = (!empty($item_id)) ? $this->db->select('track_serial,track_imei')->where('id',$item_id)->get('db_items')->row() : null;
+		$row_track_serial = (int)($row_item->track_serial ?? 0);
+		$row_track_imei   = (int)($row_item->track_imei ?? 0);
+		$sel_barcode_id   = isset($info['barcode_id']) ? (int)$info['barcode_id'] : 0;
+		$sel_serial       = isset($info['sold_serial_number']) ? $info['sold_serial_number'] : '';
+		$sel_imei         = isset($info['sold_imei_number']) ? $info['sold_imei_number'] : '';
+		$avail_units = array();
+		if(($row_track_serial || $row_track_imei) && !empty($item_id)){
+			$this->db->where('item_id',$item_id)->where('status',1);
+			$this->db->group_start()->where('serial_number IS NOT NULL')->where("serial_number != ''")->group_end();
+			$avail_units = $this->db->get('db_item_barcodes')->result();
+			// On update, the unit already bound to this line was released — allow it to be re-picked
+			if($sel_barcode_id > 0){
+				$bound = $this->db->where('id',$sel_barcode_id)->get('db_item_barcodes')->row();
+				if($bound && !in_array($bound->id, array_column($avail_units,'id'))){ $avail_units[] = $bound; }
+			}
+		}
+		$avail_batches = array();
+		if(empty($info['batch_lot']) && !empty($item_id)){
+			$avail_batches = $this->db->where('item_id',$item_id)->where('status',1)
+				->where('batch_lot IS NOT NULL')->where("batch_lot != ''")->where('qty >',0)
+				->order_by('expire_date','ASC')->get('db_item_barcodes')->result();
+		}
 		?>
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
                <!-- Item Name -->
@@ -1386,6 +1491,31 @@ class Sales_model extends CI_Model {
                         <span class="si-promo"><?= htmlspecialchars($promo_name); ?></span>
                      <?php endif; ?>
                      <span class="si-meta">In stock: <span id="tr_available_qty_<?=$rowcount;?>_13_disp"><?= $item_available_qty; ?></span></span>
+                     <?php if($row_track_serial || $row_track_imei): ?>
+                        <select id="barcode_id_<?=$rowcount;?>" name="barcode_id_<?=$rowcount;?>" class="cell-input serial-pick" data-row="<?=$rowcount;?>" style="margin-top:4px;font-size:11px;width:100%;">
+                           <option value="">— Select <?= $row_track_serial ? 'serial' : 'IMEI'; ?> unit * —</option>
+                           <?php foreach($avail_units as $u):
+                              $ulabel = $row_track_serial ? $u->serial_number : $u->imei_number;
+                              if(!empty($u->batch_lot)) $ulabel .= ' (batch '.$u->batch_lot.')';
+                           ?>
+                              <option value="<?=$u->id;?>" data-serial="<?=htmlspecialchars($u->serial_number ?? '');?>" data-imei="<?=htmlspecialchars($u->imei_number ?? '');?>" <?=($sel_barcode_id==$u->id)?'selected':'';?>><?=htmlspecialchars($ulabel);?></option>
+                           <?php endforeach; ?>
+                        </select>
+                        <input type="hidden" id="sold_serial_number_<?=$rowcount;?>" name="sold_serial_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_serial);?>">
+                        <input type="hidden" id="sold_imei_number_<?=$rowcount;?>" name="sold_imei_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_imei);?>">
+                     <?php endif; ?>
+                     <?php if(!empty($avail_batches)): ?>
+                        <select id="batch_pick_<?=$rowcount;?>" name="batch_lot_<?=$rowcount;?>" class="cell-input batch-pick" style="margin-top:4px;font-size:11px;width:100%;">
+                           <option value="">— Select batch/lot —</option>
+                           <?php foreach($avail_batches as $b):
+                              $blabel = $b->batch_lot.' (avail '.format_qty($b->qty).(!empty($b->expire_date) ? ', exp '.show_date($b->expire_date) : '').')';
+                           ?>
+                              <option value="<?=htmlspecialchars($b->batch_lot);?>"><?=htmlspecialchars($blabel);?></option>
+                           <?php endforeach; ?>
+                        </select>
+                     <?php else: ?>
+                        <input type="hidden" id="batch_lot_<?=$rowcount;?>" name="batch_lot_<?=$rowcount;?>" value="<?=isset($info['batch_lot']) ? $info['batch_lot'] : '';?>">
+                     <?php endif; ?>
                   </div>
                </td>
 
@@ -1430,7 +1560,6 @@ class Sales_model extends CI_Model {
                <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
                <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=$description;?>">
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
-               <input type="hidden" id="batch_lot_<?=$rowcount;?>" name="batch_lot_<?=$rowcount;?>" value="<?=isset($info['batch_lot']) ? $info['batch_lot'] : '';?>">
                <input type="hidden" id="barcode_<?=$rowcount;?>" name="barcode_<?=$rowcount;?>" value="<?=isset($info['barcode']) ? $info['barcode'] : '';?>">
                <input type="hidden" id="price_type_<?=$rowcount;?>" name="price_type_<?=$rowcount;?>" value="<?=isset($info['price_type']) ? $info['price_type'] : 'wholesale';?>">
 
@@ -1695,7 +1824,7 @@ class Sales_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = $this->input->post('payment_note', TRUE);
+		$payment_note = mp_post_text('payment_note');
 		$sales_id = $this->input->post('sales_id', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);

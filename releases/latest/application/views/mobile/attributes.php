@@ -138,21 +138,20 @@
         var formData = new FormData();
         formData.append('q_id', id);
         formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-        fetch('<?= base_url('mobile/delete_attribute'); ?>', {
+        mpFetchText('<?= base_url('mobile/delete_attribute'); ?>', {
           method: 'POST',
           body: formData
         })
-        .then(function(res){ return res.text(); })
         .then(function(text){
           if(text.indexOf('success') !== -1){
             showToast('Attribute deleted.', 'success');
             setTimeout(function(){ window.location.reload(); }, 600);
           } else {
-            showToast(text || 'Delete failed.', 'error');
+            showToast((text && text.indexOf('<') === -1 && text.trim().length < 300) ? text.trim() : 'The attribute could not be deleted. Please try again.', 'error');
           }
         })
-        .catch(function(){
-          showToast('Network error.', 'error');
+        .catch(function(err){
+          showToast(mpErrorText(err), 'error');
         });
       }, null, {danger: true});
     }

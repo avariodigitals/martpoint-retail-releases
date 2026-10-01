@@ -187,6 +187,12 @@
         ['Custom Orders', 'custom_orders', [
           ['custom_orders_add','Add'], ['custom_orders_edit','Edit'], ['custom_orders_delete','Delete'], ['custom_orders_view','View'],
         ]],
+        ['Equipment Register', 'equipment', [
+          ['equipment_add','Add'], ['equipment_edit','Edit'], ['equipment_view','View'],
+        ]],
+        ['Service Jobs', 'service_jobs', [
+          ['service_jobs_add','Add'], ['service_jobs_edit','Edit'], ['service_jobs_view','View'],
+        ]],
         ['Production Batches', 'production_batches', [
           ['production_batches_add','Add'], ['production_batches_edit','Edit'], ['production_batches_delete','Delete'], ['production_batches_view','View'],
         ]],
@@ -276,6 +282,9 @@
           ['cash_flow_report','Cash Flow'], ['inventory_aging_report','Inventory Aging'],
           ['receivables_aging_report','Receivables Aging'], ['reorder_suggestion_report','Reorder Suggestions'],
           ['sell_through_report','Sell Through'], ['variant_attribute_report','Variant/Attribute'],
+          ['quotation_report','Outstanding Quotations'], ['procurement_report','Awaiting Procurement'],
+          ['warranty_report','Warranty'], ['equipment_report','Equipment Register'],
+          ['service_jobs_report','Service Jobs'], ['calibration_report','Calibration Due'],
           ['show_purchase_price','Show Purchase Price'],
         ]],
         ['Cross-User Visibility', 'cross_user', [

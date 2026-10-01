@@ -104,7 +104,9 @@ $hasDiscount = $product->original_price > $product->effective_price;
         </div>
         <p class="fm-pd-desc"><?= nl2br(htmlspecialchars($product->description ?? '')); ?></p>
 
-        <div class="fm-pd-qty">
+                <?php $this->load->view('themes/shared/variant_picker'); ?>
+
+<div class="fm-pd-qty">
           <button onclick="adjustDetailQty(-1)">-</button>
           <span id="detail-qty">1</span>
           <button onclick="adjustDetailQty(1)">+</button>
@@ -117,31 +119,6 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <button class="fm-btn fm-btn-wa" onclick="sendDetailWhatsApp()">Order via WhatsApp</button>
           <?php endif; ?>
         </div>
-
-        <?php if(!empty($product_variants)): ?>
-        <div class="fm-pd-variants">
-          <div class="fm-section-label" style="margin-bottom:14px;">Available Variants</div>
-          <div class="fm-product-grid" style="grid-template-columns:repeat(2,1fr);gap:14px;">
-            <?php foreach($product_variants as $v):
-              $vImg = ($v->item_image && file_exists($v->item_image)) ? mp_minified_image_url($v->item_image, 400) : '';
-            ?>
-            <a href="<?= base_url('store/' . $slug . '/product/' . $v->id); ?>" class="fm-product-card">
-              <div class="fm-product-media">
-                <?php if($vImg): ?>
-                <img src="<?= $vImg; ?>" alt="<?= htmlspecialchars($v->item_name); ?>" loading="lazy" decoding="async">
-                <?php else: ?>
-                <div class="fm-product-placeholder"><span><?= htmlspecialchars(substr($v->item_name, 0, 1)); ?></span></div>
-                <?php endif; ?>
-              </div>
-              <div class="fm-product-body">
-                <div class="fm-product-name"><?= htmlspecialchars($v->item_name); ?></div>
-                <div class="fm-product-price"><?= sf_currency($v->effective_price, $cur); ?></div>
-              </div>
-            </a>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="fm-pd-related">

@@ -24,6 +24,8 @@ class Site_model extends CI_Model {
             $data['assist_ai_endpoint'] = $query->assist_ai_endpoint ?? '';
             $data['assist_ai_model']    = $query->assist_ai_model ?? '';
             $data['assist_ai_key_set']  = !empty($query->assist_ai_key);
+            // Service status / incident banner (columns added by 4.0.9.59 migration)
+            $data['incident'] = function_exists('mp_get_incident') ? mp_get_incident() : null;
 			return $data;
 		}
 	}
@@ -82,6 +84,21 @@ class Site_model extends CI_Model {
             if($ai_key !== ''){
                 $info['assist_ai_key'] = $ai_key;
             }
+        }
+        // Service status / incident banner (columns added by 4.0.9.59 migration).
+        // Central-only: on client installs the banner is feed-driven and local
+        // POSTs must not be able to write incident state.
+        if(function_exists('mp_is_central') && mp_is_central()
+            && $this->db->field_exists('incident_active', 'db_sitesettings') && function_exists('mp_set_incident')){
+            $prev = mp_get_incident();
+            mp_set_incident([
+                'active'   => $this->input->post('incident_active', TRUE) ? 1 : 0,
+                'severity' => (string)$this->input->post('incident_severity', TRUE),
+                'message'  => (string)$this->input->post('incident_message', TRUE),
+                'url'      => (string)$this->input->post('incident_url', TRUE),
+                // Keep the original start time across edits while still active.
+                'started_at' => !empty($prev['active']) ? $prev['started_at'] : null,
+            ], 'local');
         }
         $query1 = $this->db->where('id', $q_id)->update('db_sitesettings', $info);
       

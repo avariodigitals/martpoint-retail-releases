@@ -84,16 +84,15 @@
       if(!confirm('Remove this subscriber?')) return;
       var fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/delete_subscriber/'); ?>' + id, { method: 'POST', body: fd })
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/delete_subscriber/'); ?>' + id, { method: 'POST', body: fd })
         .then(d => {
           if(d && d.status === 'success'){
             document.querySelector('[data-id="' + id + '"]').remove();
           } else {
-            alert(d && d.message ? d.message : 'Delete failed');
+            alert(d && d.message ? d.message : 'The subscriber could not be removed. Please try again.');
           }
         })
-        .catch(() => alert('Delete failed. Please try again.'));
+        .catch(err => alert(mpErrorText(err, 'The subscriber could not be removed. Please try again.')));
     }
   </script>
 </body>

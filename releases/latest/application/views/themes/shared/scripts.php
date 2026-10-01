@@ -33,13 +33,21 @@
   }
 
   function addToCart(id, type, name, price, image, qty, stock){
-    if(type === 'product' && stock !== undefined && stock <= 0 && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
+    // Variant parents are catalogue shells — never orderable directly.
+    if(window.SF_PARENT_IDS && window.SF_PARENT_IDS[id] && !(window.sfPickedVariant && window.sfPickedVariant.id === id)){
+      showToast('Please choose an option first');
+      const pk = document.querySelector('.sf-variant-picker');
+      if(pk) pk.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    const isPhysical = (type === 'product' || type === 'physical');
+    if(isPhysical && stock !== undefined && stock <= 0 && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
       showToast('Out of stock'); return;
     }
     const key = type + '_' + id;
     const existing = cart.find(i => i.key === key);
     if(existing){
-      if(type === 'product' && stock !== undefined && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
+      if(isPhysical && stock !== undefined && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
         if(existing.qty + qty > stock){ showToast('Not enough stock'); return; }
       }
       existing.qty += qty;
@@ -75,6 +83,29 @@
     addToCart(modalProduct.id, 'product', modalProduct.name, modalProduct.price, modalProduct.image, modalQty, modalProduct.stock);
     closeModal();
   }
+
+  // Shared variant-picker contract: sfPickVariant records the chosen child
+  // item and notifies the page (sf:variant-picked) so detail templates can
+  // swap price/image/stock and point add-to-cart at the selected variant.
+  window.sfPickedVariant = null;
+  function sfPickVariant(el){
+    if(!el || el.disabled) return;
+    el.closest('.sf-variant-chips').querySelectorAll('.sf-variant-chip').forEach(function(c){ c.classList.remove('active'); });
+    el.classList.add('active');
+    window.sfPickedVariant = {
+      id: parseInt(el.dataset.id, 10),
+      name: el.dataset.name,
+      price: parseFloat(el.dataset.price),
+      image: el.dataset.image,
+      stock: parseInt(el.dataset.stock, 10)
+    };
+    document.dispatchEvent(new CustomEvent('sf:variant-picked', {detail: window.sfPickedVariant}));
+  }
+  // Preselect a chip already marked active (e.g. current variant page).
+  (function(){
+    const pre = document.querySelector('.sf-variant-chip.active');
+    if(pre) sfPickVariant(pre);
+  })();
 
   function doSearch(){
     const q = document.getElementById('search-input')?.value.trim();

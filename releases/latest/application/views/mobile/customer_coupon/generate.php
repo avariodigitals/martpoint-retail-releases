@@ -195,8 +195,9 @@
       function searchCustomers(term){
         $.getJSON(base_url + 'mobile/customer_search', { q: term }, function(data){
           renderCustomerResults(data);
-        }).fail(function(){
-          $('#customer_results').empty().append('<div class="customer-result"><div class="name">Search failed</div></div>').addClass('open');
+        }).fail(function(xhr){
+          var msg = (typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Could not search right now. Please try again.') : 'Could not search right now. Please try again.';
+          $('#customer_results').empty().append($('<div class="customer-result"><div class="name"></div></div>').find('.name').text(msg).end()).addClass('open');
         });
       }
 
@@ -300,9 +301,9 @@
               mpAlert(result, 'danger');
             }
           },
-          error: function(){
+          error: function(xhr){
             $btn.attr('disabled', false);
-            mpError('Failed to save. Please try again.');
+            mpError(mpAjaxError(xhr, 'The coupon could not be saved. Please check the details and try again.'));
           }
         });
       });

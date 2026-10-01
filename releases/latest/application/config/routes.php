@@ -82,6 +82,7 @@ $route['store/(:any)/download/(:any)'] = 'storefront/download/$1/$2';
 $route['qr/(:num)'] = 'storefront/qr/$1';
 $route['storefront/place_order'] = 'storefront/place_order';
 $route['storefront/paystack_callback'] = 'storefront/paystack_callback';
+$route['storefront/verify_payment'] = 'storefront/verify_payment';
 $route['sitemap.xml'] = 'storefront/sitemap';
 $route['robots.txt'] = 'storefront/robots';
 $route['store/(:any)/about'] = 'storefront/about/$1';

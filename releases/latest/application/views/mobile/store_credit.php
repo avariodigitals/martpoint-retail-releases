@@ -253,25 +253,21 @@
         btn.textContent = 'Saving...';
         var fd = new FormData(form);
         fd.append(tokenName, token);
-        fetch('<?= base_url('store_credit/save'); ?>', { method: 'POST', body: fd })
-        .then(function(r){ return r.text(); })
+        mpFetchText('<?= base_url('store_credit/save'); ?>', { method: 'POST', body: fd })
         .then(function(res){
           btn.disabled = false;
           btn.textContent = 'Issue Credit';
           if(res === 'success'){
-            if(typeof mpSuccess !== 'undefined') mpSuccess('Store credit issued.');
-            else alert('Store credit issued.');
+            mpSuccess('Store credit issued.');
             setTimeout(function(){ window.location.reload(); }, 700);
           } else {
-            if(typeof mpError !== 'undefined') mpError(res);
-            else alert(res);
+            mpError((res && res.indexOf('<') === -1 && res.trim().length < 300) ? res.trim() : 'The store credit could not be issued. Please check the details and try again.');
           }
         })
-        .catch(function(){
+        .catch(function(err){
           btn.disabled = false;
           btn.textContent = 'Issue Credit';
-          if(typeof mpError !== 'undefined') mpError('Network error. Please try again.');
-          else alert('Network error. Please try again.');
+          mpError(mpErrorText(err));
         });
       });
     }
@@ -285,22 +281,18 @@
         var fd = new FormData();
         fd.append('id', id);
         fd.append(tokenName, token);
-        fetch('<?= base_url('store_credit/cancel_credit'); ?>', { method: 'POST', body: fd })
-        .then(function(r){ return r.text(); })
+        mpFetchText('<?= base_url('store_credit/cancel_credit'); ?>', { method: 'POST', body: fd })
         .then(function(res){
           if(res === 'success'){
-            if(typeof mpSuccess !== 'undefined') mpSuccess('Credit cancelled.');
-            else alert('Credit cancelled.');
+            mpSuccess('Credit cancelled.');
             setTimeout(function(){ window.location.reload(); }, 500);
           } else {
-            if(typeof mpError !== 'undefined') mpError(res);
-            else alert(res);
+            mpError((res && res.indexOf('<') === -1 && res.trim().length < 300) ? res.trim() : 'The credit could not be cancelled. Please try again.');
             self.disabled = false;
           }
         })
-        .catch(function(){
-          if(typeof mpError !== 'undefined') mpError('Network error.');
-          else alert('Network error.');
+        .catch(function(err){
+          mpError(mpErrorText(err));
           self.disabled = false;
         });
       });

@@ -60,9 +60,20 @@
       $other_charges_tax_id=$q2->row()->other_charges_tax_id;
       $purchase_note=$q2->row()->purchase_note;
       $store_id=$q2->row()->store_id;
+      $linked_quotation_id = (int)($q2->row()->quotation_id ?? 0);
+      $linked_sales_id     = (int)($q2->row()->sales_id ?? 0);
 
       $items_count = $this->db->query("select count(*) as items_count from db_purchaseitems where purchase_id=$purchase_id")->row()->items_count;
     }
+    $linked_quotation_id = $linked_quotation_id ?? 0;
+    $linked_sales_id     = $linked_sales_id ?? 0;
+    // Recent documents for the order-link selectors
+    $link_quotes = $this->db->select('q.id, q.quotation_code, c.customer_name')
+        ->from('db_quotation q')->join('db_customers c','c.id=q.customer_id','left')
+        ->where('q.store_id', get_current_store_id())->order_by('q.id','DESC')->limit(200)->get()->result();
+    $link_sales = $this->db->select('s.id, s.sales_code, c.customer_name')
+        ->from('db_sales s')->join('db_customers c','c.id=s.customer_id','left')
+        ->where('s.store_id', get_current_store_id())->order_by('s.id','DESC')->limit(200)->get()->result();
     
     ?>
 
@@ -208,6 +219,25 @@
                                           echo "<input type='hidden' name='warehouse_id' id='warehouse_id' value='".$wh_id."'>";
                                           echo "<p class='form-control-static' style='margin:0;padding:8px 0;font-size:13px;color:#2d3748;'>".$wh_name."</p>";
                                        } ?>
+                                    </div>
+
+                                    <!-- Box 6: Linked customer order (PO → quote/invoice traceability) -->
+                                    <div class="smart-box">
+                                       <div class="box-accent"></div>
+                                       <i class="fa fa-link box-icon"></i>
+                                       <label>Fulfils Customer Order <span class="text-muted">(optional)</span></label>
+                                       <select class="form-control" id="quotation_id" name="quotation_id">
+                                          <option value="">— Quotation —</option>
+                                          <?php foreach($link_quotes as $lq){ ?>
+                                          <option value="<?=$lq->id;?>" <?=($linked_quotation_id==$lq->id)?'selected':'';?>><?=$lq->quotation_code.' — '.$lq->customer_name;?></option>
+                                          <?php } ?>
+                                       </select>
+                                       <select class="form-control" id="linked_sales_id" name="linked_sales_id" style="margin-top:6px;">
+                                          <option value="">— Invoice —</option>
+                                          <?php foreach($link_sales as $ls){ ?>
+                                          <option value="<?=$ls->id;?>" <?=($linked_sales_id==$ls->id)?'selected':'';?>><?=$ls->sales_code.' — '.$ls->customer_name;?></option>
+                                          <?php } ?>
+                                       </select>
                                     </div>
                                  </div>
                               </div>

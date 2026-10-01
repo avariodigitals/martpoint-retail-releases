@@ -98,24 +98,23 @@
       document.getElementById('form-error').textContent = '';
 
       var fd = new FormData(this);
-      fetch('<?= base_url('online_store/save_faq'); ?>', {
+      mpFetchJson('<?= base_url('online_store/save_faq'); ?>', {
         method: 'POST',
         body: fd
       })
-      .then(r => r.json())
       .then(d => {
         if(d && d.status === 'success'){
           window.location.href = '<?= base_url('mobile/online_store/faqs'); ?>';
         } else {
           btn.disabled = false;
           btn.textContent = 'Save FAQ';
-          document.getElementById('form-error').textContent = d && d.message ? d.message : 'Save failed';
+          document.getElementById('form-error').textContent = d && d.message ? d.message : 'The FAQ could not be saved. Please check the details and try again.';
         }
       })
       .catch(err => {
         btn.disabled = false;
         btn.textContent = 'Save FAQ';
-        document.getElementById('form-error').textContent = 'Save failed. Please try again.';
+        document.getElementById('form-error').textContent = mpErrorText(err, 'The FAQ could not be saved. Please check the details and try again.');
       });
     });
   </script>

@@ -104,6 +104,7 @@ class Storefront_model extends CI_Model {
 					'theme_id' => "INT NULL DEFAULT NULL",
 					'primary_color' => "VARCHAR(20) NULL DEFAULT '#3B82F6'",
 					'secondary_color' => "VARCHAR(20) NULL DEFAULT '#10B981'",
+					'background_color' => "VARCHAR(20) NULL DEFAULT ''",
 					'font_family' => "VARCHAR(100) NULL DEFAULT 'Inter'",
 					'button_style' => "VARCHAR(50) NULL DEFAULT 'rounded'",
 					'store_headline' => "VARCHAR(255) NULL DEFAULT NULL",
@@ -144,7 +145,9 @@ class Storefront_model extends CI_Model {
 					'instagram_username' => "VARCHAR(100) NULL DEFAULT NULL",
 					'google_places_api_key' => "VARCHAR(255) NULL DEFAULT NULL",
 					'gmb_place_id' => "VARCHAR(100) NULL DEFAULT NULL",
-					'sendchamp_json' => "TEXT NULL DEFAULT NULL"
+					'sendchamp_json' => "TEXT NULL DEFAULT NULL",
+					'city_shipping_enabled' => "TINYINT(1) NULL DEFAULT 0",
+					'city_shipping_json' => "TEXT NULL DEFAULT NULL"
 				];
 				foreach($need as $col => $def){
 					if(!in_array($col, $have)){
@@ -173,6 +176,21 @@ class Storefront_model extends CI_Model {
 				}
 				if(!$this->db->field_exists('stock_adjusted', 'db_online_orders')){
 					$this->db->query("ALTER TABLE db_online_orders ADD stock_adjusted TINYINT(1) NOT NULL DEFAULT 0");
+				}
+				if(!$this->db->field_exists('stock_state', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD stock_state ENUM('none','reserved','committed','released') NOT NULL DEFAULT 'none' AFTER stock_adjusted");
+				}
+				if(!$this->db->field_exists('stock_reserved_at', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD stock_reserved_at DATETIME NULL DEFAULT NULL AFTER stock_state");
+				}
+				if(!$this->db->field_exists('delivery_quote_pending', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD delivery_quote_pending TINYINT(1) NOT NULL DEFAULT 0 AFTER delivery_fee");
+				}
+				if(!$this->db->field_exists('shipping_method', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD shipping_method VARCHAR(100) NULL DEFAULT NULL");
+				}
+				if(!$this->db->field_exists('fulfilled_at', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD fulfilled_at DATETIME NULL DEFAULT NULL");
 				}
 			}
 		} catch (Exception $e) {
@@ -205,6 +223,8 @@ class Storefront_model extends CI_Model {
 				'allow_pay_on_delivery' => 1,
 			'shipping_notice' => '',
 			'shipping_methods_json' => '',
+				'city_shipping_enabled' => 0,
+				'city_shipping_json' => '',
 				'allow_services' => 1,
 				'allow_backorder' => 0,
 				'show_search' => 1,
@@ -243,6 +263,7 @@ class Storefront_model extends CI_Model {
 			'meta_description' => '',
 			'footer_bg_color' => '#0F172A',
 			'header_text_color' => '',
+			'background_color' => '',
 			'button_color' => '#3B82F6',
 			'footer_style' => 'standard',
 			'footer_about_us' => '',
@@ -269,7 +290,7 @@ class Storefront_model extends CI_Model {
 	public function saveSettings($storeId, $data){
 		$storeId = $storeId ?: get_current_store_id();
 		// Drop keys for columns that may not exist yet on un-migrated installs
-		foreach(['marquee_items'] as $col){
+		foreach(['marquee_items', 'city_shipping_enabled', 'city_shipping_json', 'background_color'] as $col){
 			if(isset($data[$col]) && !$this->db->field_exists($col, 'db_storefront_settings')) unset($data[$col]);
 		}
 		$exists = $this->db->where('store_id', $storeId)->get('db_storefront_settings')->num_rows() > 0;
@@ -328,6 +349,7 @@ class Storefront_model extends CI_Model {
 						'meta_description' => '',
 						'footer_bg_color' => '#0F172A',
 						'header_text_color' => '',
+						'background_color' => '',
 						'button_color' => '#3B82F6',
 						'footer_style' => 'standard',
 						'footer_about_us' => '',
@@ -357,9 +379,74 @@ class Storefront_model extends CI_Model {
 
 	// ============== PRODUCTS ==============
 
+	/**
+	 * Storefront listings show sellable top-level items only: standalone
+	 * products AND variant parents. Variant children (parent_id set /
+	 * child_bit=1) are reachable through their parent's variant selector,
+	 * never as separate cards.
+	 */
+	private function _listedItemsWhere($alias = 'a'){
+		return "({$alias}.item_group IS NULL OR {$alias}.item_group IN ('Single','Variants'))"
+			. " AND ({$alias}.parent_id IS NULL OR {$alias}.parent_id = 0)"
+			. " AND ({$alias}.child_bit IS NULL OR {$alias}.child_bit = 0)";
+	}
+
+	/**
+	 * Children written by older flows can carry status=NULL; storefront
+	 * reads treat NULL as active ONLY for child rows (never for top-level
+	 * items, where NULL is ambiguous legacy data).
+	 */
+	private function _childStatusWhere($alias = 'a'){
+		return "({$alias}.status = 1 OR ({$alias}.status IS NULL AND {$alias}.parent_id IS NOT NULL AND {$alias}.parent_id > 0))";
+	}
+
+	/**
+	 * Give variant parents displayable values derived from their children:
+	 * price = lowest child effective price, image = first child image when
+	 * the parent has none, stock = sum of child stock. Mutates the rows.
+	 */
+	private function _decorateVariantParents($rows){
+		$parentIds = [];
+		foreach($rows as $r){
+			if(($r->item_group ?? '') === 'Variants'){ $parentIds[] = (int)$r->id; }
+		}
+		if(empty($parentIds)) return $rows;
+		$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, online_price, discount_type, discount, stock')
+			->from('db_items')
+			->where_in('parent_id', $parentIds)
+			->where('publish_online', 1)
+			->where('(status = 1 OR status IS NULL)', null, false)
+			->where("(not_for_sale IS NULL OR not_for_sale = 0)", null, false)
+			->order_by('id', 'asc')
+			->get()->result();
+		$byParent = [];
+		foreach($children as $c){ $byParent[$c->parent_id][] = $c; }
+		foreach($rows as $r){
+			if(($r->item_group ?? '') !== 'Variants') continue;
+			$kids = $byParent[$r->id] ?? [];
+			$minPrice = null; $stockSum = 0; $img = null;
+			foreach($kids as $c){
+				$eff = $this->getProductEffectivePrice($c);
+				if($minPrice === null || $eff < $minPrice){ $minPrice = $eff; }
+				$stockSum += (int)$c->stock;
+				if(!$img && !empty($c->item_image) && file_exists($c->item_image)){ $img = $c->item_image; }
+			}
+			$r->variant_count = count($kids);
+			$r->stock = $stockSum;
+			if($minPrice !== null){
+				$r->sales_price = $minPrice;
+				$r->online_price = null;
+				$r->discount_type = null;
+				$r->discount = null;
+			}
+			if(empty($r->item_image) && $img){ $r->item_image = $img; }
+		}
+		return $rows;
+	}
+
 	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -367,7 +454,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
 		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
-		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+		$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		if($categoryId){
 			$this->db->where('a.category_id', $categoryId);
@@ -381,12 +468,12 @@ class Storefront_model extends CI_Model {
 		}
 		$this->db->order_by('a.id', 'desc');
 		$this->db->limit($limit, $offset);
-		return $this->db->get()->result();
+		return $this->_decorateVariantParents($this->db->get()->result());
 	}
 
 	public function getFeaturedProducts($storeId = null, $limit = 8){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, b.category_name');
+		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -395,11 +482,11 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
 		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
-		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+		$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'desc');
 		$this->db->limit($limit);
-		return $this->db->get()->result();
+		return $this->_decorateVariantParents($this->db->get()->result());
 	}
 
 	public function getOnlineProduct($productId, $storeId = null){
@@ -410,11 +497,14 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.id', $productId);
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.publish_online', 1);
-		$this->db->where('a.status', 1);
+		$this->db->where($this->_childStatusWhere('a'), NULL, FALSE);
 		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
-		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+		// No listing predicate here: variant parents must be viewable and
+		// variant children must stay purchasable (order flow resolves by id).
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
-		return $this->db->get()->row();
+		$product = $this->db->get()->row();
+		if($product){ $this->_decorateVariantParents([$product]); }
+		return $product;
 	}
 
 	public function getProductVariants($productId, $storeId = null){
@@ -425,7 +515,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.parent_id', $productId);
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.publish_online', 1);
-		$this->db->where('a.status', 1);
+		$this->db->where('(a.status = 1 OR a.status IS NULL)', null, false);
 		$this->db->where('a.service_bit', 0);
 		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
@@ -442,7 +532,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
 		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
-		$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+		$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		if($categoryId){
 			$this->db->where('a.category_id', $categoryId);
@@ -517,7 +607,7 @@ class Storefront_model extends CI_Model {
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.id, a.category_name, a.category_image');
 		$this->db->from('db_category a');
-		$this->db->join('db_items b', "b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.not_for_sale IS NULL OR b.not_for_sale = 0) AND (b.item_group IS NULL OR b.item_group='Single')", 'inner');
+		$this->db->join('db_items b', "b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.not_for_sale IS NULL OR b.not_for_sale = 0) AND " . $this->_listedItemsWhere('b'), 'inner');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.status', 1);
 		$this->db->where($this->_expiredWhere('b', $storeId), NULL, FALSE);
@@ -557,6 +647,33 @@ class Storefront_model extends CI_Model {
 		return $this->db->where('paystack_reference', $ref)->get('db_online_orders')->row();
 	}
 
+	/**
+	 * Find an order by either its Paystack reference or its order code.
+	 * Paystack references for storefront orders are the order_code, set on the
+	 * payment row at init time, so the callback must match both columns.
+	 */
+	public function getOrderByPaymentReference($ref){
+		return $this->db->group_start()
+			->where('paystack_reference', $ref)
+			->or_where('order_code', $ref)
+			->group_end()
+			->get('db_online_orders')->row();
+	}
+
+	/**
+	 * Atomically claim the unpaid -> paid transition for an order.
+	 * Returns true only for the request that actually performed the
+	 * transition, so duplicate/concurrent callbacks cannot re-fulfil.
+	 */
+	public function claimPaidOrder($orderId, $data = []){
+		$data['payment_status'] = 'paid';
+		$data['updated_at'] = date('Y-m-d H:i:s');
+		$this->db->where('id', $orderId)
+			->where_not_in('payment_status', ['paid', 'refunded'])
+			->update('db_online_orders', $data);
+		return $this->db->affected_rows() === 1;
+	}
+
 	public function getOrderByCode($orderCode, $storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
 		return $this->db->where('order_code', $orderCode)->where('store_id', $storeId)->get('db_online_orders')->row();
@@ -583,8 +700,27 @@ class Storefront_model extends CI_Model {
 	 */
 	public function adjustStock($orderId){
 		$order = $this->getOrder($orderId);
-		if(!$order || $order->stock_adjusted){
-			return false; // already adjusted or not found
+		if(!$order){
+			return false;
+		}
+		// Explicit lifecycle: commit moves 'reserved' (already decremented at
+		// order time) or 'none' (legacy order without a reservation) to
+		// 'committed'. Only the 'none' path needs to decrement stock.
+		$wasReserved = isset($order->stock_state) && $order->stock_state === 'reserved';
+		if(isset($order->stock_state)){
+			$this->db->where('id', $orderId)
+				->where_in('stock_state', ['reserved', 'none'])
+				->update('db_online_orders', ['stock_state' => 'committed', 'stock_adjusted' => 1]);
+		} else {
+			$this->db->where('id', $orderId)
+				->where('stock_adjusted', 0)
+				->update('db_online_orders', ['stock_adjusted' => 1]);
+		}
+		if($this->db->affected_rows() !== 1){
+			return false; // already committed/released — no double mutation
+		}
+		if($wasReserved){
+			return true; // stock already moved at reservation time
 		}
 		$items = $this->getOrderItems($orderId);
 		foreach($items as $item){
@@ -595,18 +731,78 @@ class Storefront_model extends CI_Model {
 			$this->db->where('id', $item->item_id);
 			$this->db->update('db_items');
 		}
-		$this->db->where('id', $orderId)->update('db_online_orders', ['stock_adjusted' => 1]);
 		return true;
 	}
 
 	/**
-	 * Restore stock for all product items in an order.
-	 * Only runs if stock was previously adjusted (stock_adjusted = 1).
+	 * Reserve stock for the items being placed on an order.
+	 * Runs inside the caller's transaction. Each physical item is decremented
+	 * atomically with a stock>=qty guard so two simultaneous orders cannot
+	 * oversell the same unit. The reservation is recorded as
+	 * stock_state='reserved' + stock_reserved_at so abandoned online
+	 * payments can be expired later. Returns false when any item is short.
+	 */
+	public function reserveOrderItems($orderId, $items, $allowBackorder = false){
+		$reserved = [];
+		foreach($items as $item){
+			if(($item['item_type'] ?? '') !== 'product') continue;
+			$qty = (int)$item['qty'];
+			if($qty <= 0) continue;
+			$this->db->set('stock', 'stock - ' . $qty, false);
+			$this->db->where('id', (int)$item['item_id']);
+			if(!$allowBackorder){
+				$this->db->where('stock >=', $qty);
+			}
+			$this->db->update('db_items');
+			if(!$allowBackorder && $this->db->affected_rows() !== 1){
+				// Roll back the units already reserved by this call.
+				foreach($reserved as $r){
+					$this->db->set('stock', 'stock + ' . $r['qty'], false);
+					$this->db->where('id', $r['item_id']);
+					$this->db->update('db_items');
+				}
+				return false;
+			}
+			$reserved[] = ['item_id' => (int)$item['item_id'], 'qty' => $qty];
+		}
+		if(!empty($reserved)){
+			$this->db->where('id', $orderId)->update('db_online_orders', [
+				'stock_adjusted' => 1,
+				'stock_state' => 'reserved',
+				'stock_reserved_at' => date('Y-m-d H:i:s'),
+			]);
+		}
+		return true;
+	}
+
+	/**
+	 * Release stock held by an order. Legal from 'reserved' (cancel/expiry of
+	 * an unpaid order) and 'committed' (cancel/refund of a paid order — the
+	 * units go back on the shelf). The state transition is claimed atomically
+	 * so duplicate callbacks or status updates release exactly once.
 	 */
 	public function restoreStock($orderId){
 		$order = $this->getOrder($orderId);
-		if(!$order || !$order->stock_adjusted){
-			return false; // nothing to restore
+		if(!$order){
+			return false;
+		}
+		if(isset($order->stock_state)){
+			$this->db->where('id', $orderId)
+				->where_in('stock_state', ['reserved', 'committed'])
+				->update('db_online_orders', ['stock_state' => 'released', 'stock_adjusted' => 0]);
+			if($this->db->affected_rows() !== 1){
+				return false;
+			}
+			if(!in_array($order->stock_state, ['reserved', 'committed'], true)){
+				return true; // nothing held — e.g. 'none' orders
+			}
+		} else {
+			$this->db->where('id', $orderId)
+				->where('stock_adjusted', 1)
+				->update('db_online_orders', ['stock_adjusted' => 0]);
+			if($this->db->affected_rows() !== 1){
+				return false;
+			}
 		}
 		$items = $this->getOrderItems($orderId);
 		foreach($items as $item){
@@ -617,8 +813,48 @@ class Storefront_model extends CI_Model {
 			$this->db->where('id', $item->item_id);
 			$this->db->update('db_items');
 		}
-		$this->db->where('id', $orderId)->update('db_online_orders', ['stock_adjusted' => 0]);
 		return true;
+	}
+
+	/**
+	 * Expire abandoned reservations so stock cannot be held indefinitely.
+	 * Two tiers:
+	 *  - paystack (online payment): released after $paystackTtlHours — an
+	 *    abandoned checkout is almost certainly dead within a day.
+	 *  - whatsapp / pay_on_delivery: released after $offlineTtlHours, but
+	 *    only while the order is still 'pending'. Once a merchant confirms
+	 *    (order_status moves off pending) the reservation is merchant-
+	 *    managed and only releases via explicit cancel/refund.
+	 * Returns the number of orders released.
+	 */
+	public function releaseExpiredReservations($storeId, $paystackTtlHours = 24, $offlineTtlHours = 72){
+		$released = 0;
+		foreach([['paystack', $paystackTtlHours], ['offline', $offlineTtlHours]] as $tier){
+			list($mode, $ttlHours) = $tier;
+			$cutoff = date('Y-m-d H:i:s', time() - ($ttlHours * 3600));
+			$q = $this->db->where('store_id', $storeId)
+				->where('stock_state', 'reserved')
+				->where('payment_status', 'unpaid')
+				->where('order_status', 'pending')
+				->where('stock_reserved_at <', $cutoff);
+			if($mode === 'paystack'){
+				$q->where('payment_method', 'paystack');
+			} else {
+				$q->where_in('payment_method', ['whatsapp', 'pay_on_delivery']);
+			}
+			$stale = $q->get('db_online_orders')->result();
+			foreach($stale as $o){
+				if(!$this->restoreStock($o->id)){
+					continue; // already released/committed elsewhere
+				}
+				$released++;
+				$this->db->where('id', $o->id)->update('db_online_orders', [
+					'payment_status' => 'failed',
+					'order_status' => 'cancelled',
+				]);
+			}
+		}
+		return $released;
 	}
 
 	public function getOrders($storeId = null, $status = null, $limit = 50, $offset = 0){
@@ -884,6 +1120,11 @@ class Storefront_model extends CI_Model {
 			'perfume' => 'perfumery',
 			'perfumeshop' => 'perfumery',
 			'fragrance' => 'perfumery',
+			'skincare' => 'skincare',
+			'skincarecosmetics' => 'skincare',
+			'skincareorganics' => 'skincare',
+			'organicskincare' => 'skincare',
+			'organiccosmetics' => 'skincare',
 		];
 		return $map[$industry] ?? $industry;
 	}
@@ -941,6 +1182,11 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'glam_atelier', 'theme_name' => 'Glam Atelier', 'industry' => 'beauty', 'description' => 'Editorial makeup-studio flagship — porcelain canvas, espresso ink, rose-gold hairlines and Cormorant serif for a premium artist brand.', 'default_primary_color' => '#B76E79', 'default_secondary_color' => '#241B18', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 36],
 			['theme_key' => 'velvet_glow', 'theme_name' => 'Velvet Glow', 'industry' => 'beauty', 'description' => 'Warm velvet beauty theme — deep berry, blush silk and plush glowing cards for salons and cosmetics boutiques.', 'default_primary_color' => '#8E3B5E', 'default_secondary_color' => '#E9B8C4', 'default_font_family' => 'Playfair Display', 'sort_order' => 37],
 			['theme_key' => 'studio_blanc', 'theme_name' => 'Studio Blanc', 'industry' => 'beauty', 'description' => 'Clean ivory minimalism — crisp black ink, terracotta accents and airy product grids for modern beauty retail.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#C98A6B', 'default_font_family' => 'Jost', 'sort_order' => 38],
+			// Skincare / organic cosmetics presets (3 world-class designs)
+			['theme_key' => 'botanica', 'theme_name' => 'Botanica', 'industry' => 'skincare', 'description' => 'Editorial botanical flagship — warm cream canvas, forest ink, sage accents and arched product imagery for organic, made-from-scratch skincare brands.', 'default_primary_color' => '#4A7C59', 'default_secondary_color' => '#22302A', 'default_font_family' => 'Fraunces', 'sort_order' => 39],
+			['theme_key' => 'derma_pure', 'theme_name' => 'Derma Pure', 'industry' => 'skincare', 'description' => 'Clinical minimal lab theme — crisp white, ink and derma-teal with mono labels for science-led skincare and formulation brands.', 'default_primary_color' => '#2F6B5E', 'default_secondary_color' => '#0F172A', 'default_font_family' => 'Inter', 'sort_order' => 40],
+			['theme_key' => 'terra_glow', 'theme_name' => 'Terra Glow', 'industry' => 'skincare', 'description' => 'Warm earth-luxe theme — sand canvas, clay ink and terracotta accents with plush rounded cards for shea, butter and glow-focused brands.', 'default_primary_color' => '#B5643C', 'default_secondary_color' => '#31221A', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 41],
+			['theme_key' => 'verdant', 'theme_name' => 'Verdant', 'industry' => 'skincare', 'description' => 'Calm editorial flagship — cream canvas, deep forest bands, sage accents and serif typography with concern-led shopping, journal and routine sets, all driven by the Online Store backend.', 'default_primary_color' => '#4F7A5C', 'default_secondary_color' => '#1F3A2E', 'default_font_family' => 'Instrument Serif', 'sort_order' => 42],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
@@ -978,6 +1224,10 @@ class Storefront_model extends CI_Model {
 			'glam_atelier' => 'beauty',
 			'velvet_glow' => 'beauty',
 			'studio_blanc' => 'beauty',
+			'botanica' => 'skincare',
+			'derma_pure' => 'skincare',
+			'terra_glow' => 'skincare',
+			'verdant' => 'skincare',
 		];
 		foreach($canonical as $key => $industry){
 			$this->db->where('theme_key', $key)->update('db_storefront_themes', ['industry' => $industry]);
@@ -1201,15 +1451,19 @@ class Storefront_model extends CI_Model {
 	public function getBestSellers($storeId = null, $limit = 8){
 		$storeId = (int)($storeId ?: get_current_store_id());
 		$limit = (int)$limit;
-		$expiryClause = $this->_expiredWhere('i', $storeId);
-		return $this->db->query("SELECT i.id, i.item_name, i.item_image, i.sales_price, i.online_price, i.discount_type, i.discount, i.stock, i.description, i.product_type, i.is_new_arrival, i.is_featured, SUM(oi.qty) as sold_count
+		$expiryClause = $this->_expiredWhere('i2', $storeId);
+		// Orders store the purchased child item; roll children up to their
+		// variant parent so best sellers rank real products, not SKU rows.
+		$rows = $this->db->query("SELECT i2.id, i2.item_name, i2.item_image, i2.sales_price, i2.online_price, i2.discount_type, i2.discount, i2.stock, i2.description, i2.product_type, i2.is_new_arrival, i2.is_featured, i2.item_group, i2.parent_id, i2.child_bit, SUM(oi.qty) as sold_count
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
-			WHERE o.store_id=? AND oi.item_type IN ('product','digital','course','membership') AND o.status=1 AND i.publish_online=1 AND (i.not_for_sale IS NULL OR i.not_for_sale = 0) AND (i.item_group IS NULL OR i.item_group='Single') AND $expiryClause
-			GROUP BY oi.item_id
+			JOIN db_items i2 ON i2.id = COALESCE(NULLIF(i.parent_id,0), i.id)
+			WHERE o.store_id=? AND oi.item_type IN ('product','digital','course','membership') AND o.status=1 AND i2.publish_online=1 AND (i2.not_for_sale IS NULL OR i2.not_for_sale = 0) AND (i2.item_group IS NULL OR i2.item_group IN ('Single','Variants')) AND (i2.parent_id IS NULL OR i2.parent_id = 0) AND (i2.child_bit IS NULL OR i2.child_bit = 0) AND $expiryClause
+			GROUP BY i2.id
 			ORDER BY sold_count DESC
 			LIMIT ?", [$storeId, $limit])->result();
+		return $this->_decorateVariantParents($rows);
 	}
 
 	public function getNewArrivals($storeId = null, $limit = 8){
@@ -1217,7 +1471,7 @@ class Storefront_model extends CI_Model {
 		// Prefer manually flagged "New Arrival" products (is_new_arrival=1).
 		// Fall back to most recently added published products if none are flagged.
 		$buildQuery = function($storeId, $limit, $flaggedOnly) {
-			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, b.category_name');
+			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.item_group, a.parent_id, a.child_bit, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 			$this->db->where('a.store_id', $storeId);
@@ -1225,14 +1479,14 @@ class Storefront_model extends CI_Model {
 			$this->db->where('a.status', 1);
 			$this->db->where('a.service_bit', 0);
 			$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
-			$this->db->where("(a.item_group IS NULL OR a.item_group='Single')", null, false);
+			$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 			if($flaggedOnly){
 				$this->db->where('a.is_new_arrival', 1);
 			}
 			$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 			$this->db->order_by('a.id', 'desc');
 			$this->db->limit($limit);
-			return $this->db->get()->result();
+			return $this->_decorateVariantParents($this->db->get()->result());
 		};
 		// Try flagged items first
 		$results = $buildQuery($storeId, $limit, true);
@@ -1568,6 +1822,34 @@ class Storefront_model extends CI_Model {
 			if($item->item_type === 'product') return false;
 		}
 		$this->db->where('id', $orderId)->update('db_online_orders', ['order_status' => 'completed']);
+		return true;
+	}
+
+	/**
+	 * Run paid-order fulfilment (digital delivery, course/membership
+	 * enrolment, auto-complete) and stamp fulfilled_at on success.
+	 * Each step is idempotent, so this is safe to re-run: if the request
+	 * that claimed the unpaid->paid transition died mid-fulfilment, any
+	 * later callback/verify/admin action calls this again until it sticks.
+	 * Returns true once fulfilled, false while any step still fails.
+	 */
+	public function fulfilPaidOrder($orderId){
+		$order = $this->getOrder($orderId);
+		if(!$order || $order->payment_status !== 'paid'){
+			return false;
+		}
+		if(!empty($order->fulfilled_at)){
+			return true;
+		}
+		try {
+			$this->deliverDigitalOrder($orderId);
+			$this->deliverCourseAndMembership($orderId);
+			$this->completeIfNoPhysicalProducts($orderId);
+		} catch (Exception $e) {
+			log_message('error', "fulfilPaidOrder failed for order {$orderId}: " . $e->getMessage());
+			return false;
+		}
+		$this->db->where('id', $orderId)->update('db_online_orders', ['fulfilled_at' => date('Y-m-d H:i:s')]);
 		return true;
 	}
 }

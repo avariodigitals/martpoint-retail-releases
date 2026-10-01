@@ -652,7 +652,9 @@
         } else {
           showToast('Loyalty settings not available', 'error');
         }
-      }, 'json');
+      }, 'json').fail(function(xhr){
+        showToast(typeof mpAjaxError === 'function' ? mpAjaxError(xhr, 'Could not load loyalty settings. Please try again.') : 'Could not load loyalty settings. Please try again.', 'error');
+      });
     });
 
     $(document).on('click', '#store_credit_apply', function(){
@@ -677,9 +679,11 @@
           setRedeemDiscount(parseFloat($('#redeem_discount').val()||0) + amount);
           showToast('Gift card applied: ' + formatMoney(amount) + ' off', 'success');
         } else {
-          showToast('Invalid card or insufficient balance', 'error');
+          showToast(card.message || 'Invalid card or insufficient balance', 'error');
         }
-      }, 'json');
+      }, 'json').fail(function(xhr){
+        showToast(typeof mpAjaxError === 'function' ? mpAjaxError(xhr, 'Could not check the gift card. Please try again.') : 'Could not check the gift card. Please try again.', 'error');
+      });
     });
 
     function getActivePriceType(){
@@ -904,7 +908,9 @@
       $.get(base_url + 'mobile/item_search', { q: q, price_type: getActivePriceType(), _: new Date().getTime() }, function(data){
         if(typeof data === 'string') data = JSON.parse(data);
         showResults(data || []);
-      }, 'json');
+      }, 'json').fail(function(xhr){
+        showToast(typeof mpAjaxError === 'function' ? mpAjaxError(xhr, 'Could not search right now. Please try again.') : 'Could not search right now. Please try again.', 'error');
+      });
     }
 
     function addByBarcode(q){
@@ -926,6 +932,8 @@
         } else {
           showToast('Item not found: ' + q, 'warning');
         }
+      }).fail(function(xhr){
+        showToast(typeof mpAjaxError === 'function' ? mpAjaxError(xhr, 'Could not search right now. Please try again.') : 'Could not search right now. Please try again.', 'error');
       });
     }
 
@@ -998,9 +1006,10 @@
                   '</div>';
         });
         $('#catalog_items').html(html);
-      }).fail(function(){
+      }).fail(function(xhr){
+        var msg = (typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Could not load products. Tap a filter to retry.') : 'Could not load products. Tap a filter to retry.';
         $('#catalog_count').text('Failed to load products');
-        $('#catalog_items').html('<span class="empty-cart" style="padding:12px;">Could not load products. Tap a filter to retry.</span>');
+        $('#catalog_items').empty().append($('<span class="empty-cart" style="padding:12px;"></span>').text(msg));
       });
     }
 
@@ -1027,6 +1036,8 @@
         } else {
           $('#payment_loyalty').hide();
         }
+      }).fail(function(xhr){
+        showToast(typeof mpAjaxError === 'function' ? mpAjaxError(xhr, 'Could not load this customer’s balance details. The sale can continue, but due and loyalty info may be missing.') : 'Could not load this customer’s balance details. The sale can continue, but due and loyalty info may be missing.', 'warning');
       });
     }
 
@@ -1299,21 +1310,17 @@
               window.location.href = res.redirect;
             }
           } else {
-            showToast(res.message || 'Failed to save', 'error');
+            showToast(res.message || 'The sale could not be saved. Please check the details and try again.', 'error');
             $(btn).prop('disabled', false).text(original);
             $('#payment_confirm, #payment_cancel').prop('disabled', false);
           }
         },
         error: function(xhr){
-          var msg = 'Could not save the sale. Please try again.';
-          if(xhr.status === 403){
+          var msg = (typeof mpAjaxError === 'function')
+            ? mpAjaxError(xhr, 'Could not save the sale. Please check the details and try again.')
+            : 'Could not save the sale. Please check the details and try again.';
+          if(xhr.status === 403 && xhr.responseText && !/action you have requested is not allowed/i.test(xhr.responseText) && !(xhr.responseJSON && xhr.responseJSON.message)){
             msg = 'You do not have permission to save sales. Please ask an admin to check your role.';
-          } else if(xhr.status === 0){
-            msg = 'No connection. Check your internet and try again.';
-          } else if(xhr.responseJSON && xhr.responseJSON.message){
-            msg = xhr.responseJSON.message;
-          } else if(xhr.responseText && xhr.responseText.indexOf('<') === -1 && xhr.responseText.length < 300){
-            msg = xhr.responseText;
           }
           showToast(msg, 'error');
           $(btn).prop('disabled', false).text(original);
@@ -1429,8 +1436,8 @@
             } else {
               showToast('Hold not found or empty', 'error');
             }
-          }, 'json').fail(function(){
-            showToast('Could not load hold', 'error');
+          }, 'json').fail(function(xhr){
+            showToast(typeof mpAjaxError === 'function' ? mpAjaxError(xhr, 'Could not load the held sale. Please try again.') : 'Could not load the held sale. Please try again.', 'error');
           });
         }
       }
@@ -1445,6 +1452,7 @@
   </div>
 
   <?php $this->load->view('mobile/bottom_nav', ['active' => ($active ?? 'sale')]); ?>
+  <?php $this->load->view('mobile/mp_alert'); ?>
   <?php $this->load->view('mobile/chat'); ?>
 </body>
 </html>

@@ -216,65 +216,61 @@
       fd.append('product_id', id);
       fd.append('online_price', price);
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      fetch('<?= base_url('online_store/update_online_price'); ?>', {method:'POST', body:fd})
-        .then(r => r.json())
-        .then(d => showToast(d.message, d.status !== 'success'))
-        .catch(() => showToast('Price update failed', true));
+      mpFetchJson('<?= base_url('online_store/update_online_price'); ?>', {method:'POST', body:fd})
+        .then(d => showToast(d.message || 'Done', d.status !== 'success'))
+        .catch(err => showToast(mpErrorText(err), true));
     }
     function toggleOnline(id, btn){
       btn.disabled = true;
       const fd = new FormData();
       fd.append('product_id', id);
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      fetch('<?= base_url('online_store/toggle_product_online'); ?>', {method:'POST', body:fd})
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/toggle_product_online'); ?>', {method:'POST', body:fd})
         .then(d => {
           if(d.status === 'success'){
             btn.textContent = d.publish_online ? 'Online' : 'Offline';
             btn.className = d.publish_online ? 'online' : 'offline';
             showToast(d.publish_online ? 'Product is now online' : 'Product removed from online store');
           } else {
-            showToast(d.message, true);
+            showToast(d.message || 'The product status could not be changed. Please try again.', true);
           }
           btn.disabled = false;
         })
-        .catch(() => { showToast('Toggle failed', true); btn.disabled = false; });
+        .catch(err => { showToast(mpErrorText(err), true); btn.disabled = false; });
     }
     function toggleNewArrival(id, btn){
       btn.disabled = true;
       const fd = new FormData();
       fd.append('product_id', id);
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      fetch('<?= base_url('online_store/toggle_new_arrival'); ?>', {method:'POST', body:fd})
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/toggle_new_arrival'); ?>', {method:'POST', body:fd})
         .then(d => {
           if(d.status === 'success'){
             btn.classList.toggle('active', d.is_new_arrival == 1);
             showToast(d.is_new_arrival ? 'Marked as New Arrival' : 'Removed from New Arrivals');
           } else {
-            showToast(d.message, true);
+            showToast(d.message || 'Could not update this product. Please try again.', true);
           }
           btn.disabled = false;
         })
-        .catch(() => { showToast('Toggle failed', true); btn.disabled = false; });
+        .catch(err => { showToast(mpErrorText(err), true); btn.disabled = false; });
     }
     function toggleFeatured(id, btn){
       btn.disabled = true;
       const fd = new FormData();
       fd.append('product_id', id);
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      fetch('<?= base_url('online_store/toggle_featured'); ?>', {method:'POST', body:fd})
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/toggle_featured'); ?>', {method:'POST', body:fd})
         .then(d => {
           if(d.status === 'success'){
             btn.classList.toggle('active', d.is_featured == 1);
             showToast(d.is_featured ? 'Marked as Featured' : 'Removed from Featured');
           } else {
-            showToast(d.message, true);
+            showToast(d.message || 'Could not update this product. Please try again.', true);
           }
           btn.disabled = false;
         })
-        .catch(() => { showToast('Toggle failed', true); btn.disabled = false; });
+        .catch(err => { showToast(mpErrorText(err), true); btn.disabled = false; });
     }
     function syncAllOnline(){
       if(!confirm('This will publish ALL eligible offline products to your online store (respecting your plan quota). Continue?')) return;
@@ -284,8 +280,7 @@
       var fd = new FormData();
       fd.append('category_id', <?= (int)($category_id ?? 0); ?>);
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      fetch('<?= base_url('online_store/sync_all_online'); ?>', {method:'POST', body:fd})
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/sync_all_online'); ?>', {method:'POST', body:fd})
         .then(d => {
           btn.disabled = false;
           btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
@@ -293,13 +288,13 @@
             showToast(d.message, false);
             setTimeout(() => window.location.reload(), 2000);
           } else {
-            showToast(d.message, true);
+            showToast(d.message || 'The sync could not be completed. Please try again.', true);
           }
         })
-        .catch(() => {
+        .catch(err => {
           btn.disabled = false;
           btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
-          showToast('Sync failed', true);
+          showToast(mpErrorText(err), true);
         });
     }
 
@@ -343,18 +338,17 @@
       ids.forEach(function(id){ fd.append('product_ids[]', id); });
       fd.append('action', action);
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      fetch('<?= base_url('online_store/batch_update'); ?>', {method:'POST', body:fd})
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/batch_update'); ?>', {method:'POST', body:fd})
         .then(d => {
           if(d.status === 'success'){
             showToast(d.message, false);
             clearSelection();
             setTimeout(() => window.location.reload(), 2000);
           } else {
-            showToast(d.message, true);
+            showToast(d.message || 'The update could not be applied. Please try again.', true);
           }
         })
-        .catch(() => showToast('Batch update failed', true));
+        .catch(err => showToast(mpErrorText(err), true));
     }
     // Select all
     document.addEventListener('DOMContentLoaded', function(){

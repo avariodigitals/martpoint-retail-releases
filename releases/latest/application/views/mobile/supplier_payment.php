@@ -188,17 +188,16 @@
       var btn = this;
       btn.disabled = true;
       try {
-        var res = await fetch(base_url + 'suppliers/save_payment', {method: 'POST', body: new FormData(form)});
-        var txt = await res.text();
+        var txt = await mpFetchText(base_url + 'suppliers/save_payment', {method: 'POST', body: new FormData(form)});
         if(txt.trim() === 'success'){
           mpAlert('Payment saved', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/supplier_profile/' + form.querySelector('[name="supplier_id"]').value; }, 600);
         } else {
-          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Save failed', 'danger');
+          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'The payment could not be saved. Please check the details and try again.', 'danger');
           btn.disabled = false;
         }
       } catch(err){
-        mpAlert('Network error. Please try again.', 'danger');
+        mpAlert(mpErrorText(err), 'danger');
         btn.disabled = false;
       }
     });

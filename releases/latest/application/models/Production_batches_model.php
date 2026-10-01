@@ -45,6 +45,14 @@ class Production_batches_model extends CI_Model {
             }
             return ['planned','sourcing','blending','macerating','filtering','bottling','ready','completed','cancelled'];
         }
+        if ($industry_type === 'skincare') {
+            // A Filling Run skips the formulation stages entirely — it only
+            // fills jars/tubes, so planned → filling → ready → completed.
+            if ($batch_type === 'filling') {
+                return ['planned','filling','ready','completed','cancelled'];
+            }
+            return ['planned','sourcing','mixing','cooling','filling','ready','completed','cancelled'];
+        }
         return ['planned','prepping','in_production','cooling','decorating','ready','completed','cancelled'];
     }
 
@@ -68,7 +76,8 @@ class Production_batches_model extends CI_Model {
             'completed' => 'Completed', 'cancelled' => 'Cancelled',
             'sourcing' => 'Sourcing Materials', 'blending' => 'Blending',
             'macerating' => 'Macerating', 'filtering' => 'Filtering',
-            'bottling' => 'Bottling',
+            'bottling' => 'Bottling', 'mixing' => 'Mixing',
+            'filling' => 'Filling',
         ];
         return $labels[$status] ?? ucfirst(str_replace('_',' ',$status));
     }
@@ -81,7 +90,8 @@ class Production_batches_model extends CI_Model {
             'completed' => 'success', 'cancelled' => 'danger',
             'sourcing' => 'info', 'blending' => 'primary',
             'macerating' => 'warning', 'filtering' => 'warning',
-            'bottling' => 'primary',
+            'bottling' => 'primary', 'mixing' => 'primary',
+            'filling' => 'warning',
         ];
         return $map[$status] ?? 'default';
     }

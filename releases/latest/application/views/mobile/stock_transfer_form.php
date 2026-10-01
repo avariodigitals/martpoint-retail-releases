@@ -228,8 +228,7 @@
         return;
       }
       searchTimeout = setTimeout(function(){
-        fetch('<?= base_url('stock_transfer/search_item'); ?>?q=' + encodeURIComponent(term))
-        .then(function(res){ return res.json(); })
+        mpFetchJson('<?= base_url('stock_transfer/search_item'); ?>?q=' + encodeURIComponent(term))
         .then(function(data){
           searchResults.innerHTML = '';
           if(!data || data.length === 0){
@@ -252,7 +251,7 @@
           searchResults.classList.add('open');
         })
         .catch(function(){
-          searchResults.innerHTML = '<div class="search-empty">Search failed.</div>';
+          searchResults.innerHTML = '<div class="search-empty">Could not search. Check your connection and try again.</div>';
           searchResults.classList.add('open');
         });
       }, 300);
@@ -287,11 +286,10 @@
       formData.append('warehouse_id', warehouseFrom);
       formData.append(csrfName, csrfHash);
 
-      fetch('<?= base_url('mobile/find_item_for_transfer'); ?>', {
+      mpFetchJson('<?= base_url('mobile/find_item_for_transfer'); ?>', {
         method: 'POST',
         body: formData
       })
-      .then(function(res){ return res.json(); })
       .then(function(data){
         if(!data || data.id <= 0 || data.available_qty <= 0){
           showToast('Product has no available stock in the selected branch.', 'error');
@@ -323,8 +321,8 @@
         totalRow.style.display = 'flex';
         updateTotal();
       })
-      .catch(function(){
-        showToast('Could not load product details.', 'error');
+      .catch(function(err){
+        showToast(mpErrorText(err, 'Could not load product details. Please try again.'), 'error');
       });
     }
 
@@ -386,11 +384,10 @@
       btn.textContent = 'Saving...';
 
       var formData = new FormData(this);
-      fetch('<?= base_url('mobile/save_stock_transfer'); ?>', {
+      mpFetchJson('<?= base_url('mobile/save_stock_transfer'); ?>', {
         method: 'POST',
         body: formData
       })
-      .then(function(res){ return res.json(); })
       .then(function(data){
         btn.disabled = false;
         btn.textContent = 'Save Transfer';
@@ -398,16 +395,17 @@
           showToast(data.message, 'success');
           setTimeout(function(){ window.location.href = data.redirect || '<?= base_url('mobile/stock_transfers'); ?>'; }, 800);
         } else {
-          showToast(data.message || 'Save failed.', 'error');
+          showToast(data.message || 'Could not save this transfer. Please check the details and try again.', 'error');
         }
       })
-      .catch(function(){
+      .catch(function(err){
         btn.disabled = false;
         btn.textContent = 'Save Transfer';
-        showToast('Network or server error. Try again.', 'error');
+        showToast(mpErrorText(err), 'error');
       });
     });
   </script>
+  <?php $this->load->view('mobile/mp_alert'); ?>
   <?php $this->load->view('mobile/chat'); ?>
 </body>
 </html>

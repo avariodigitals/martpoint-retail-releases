@@ -3999,5 +3999,251 @@ class Reports_model extends CI_Model {
 		exit;
 	}
 
+	/* ============ Scientific Equipment & Lab Supplies reports ============ */
+
+	public function show_scientific_report(){
+		$report = $this->input->post('report', TRUE);
+		switch($report){
+			case 'quotations':   return $this->_rpt_outstanding_quotations();
+			case 'procurement':  return $this->_rpt_procurement();
+			case 'warranty':     return $this->_rpt_warranty();
+			case 'equipment':    return $this->_rpt_equipment();
+			case 'service_jobs': return $this->_rpt_service_jobs();
+			case 'calibration':  return $this->_rpt_calibration();
+		}
+		echo "<tr><td colspan='10' class='text-center'>Unknown report.</td></tr>";
+	}
+
+	private function _rpt_base_equipment_query(){
+		$store_id = $this->input->post('store_id', TRUE) ?: get_current_store_id();
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$search = trim((string)$this->input->post('search', TRUE));
+		$this->db->select("e.*, c.customer_name, i.item_name, COALESCE(NULLIF(sa.site_name,''), sa.address) AS site_name, s.sales_code, s.id AS sale_id", FALSE)
+			->from('db_customer_equipment e')
+			->join('db_customers c', 'c.id = e.customer_id', 'left')
+			->join('db_items i', 'i.id = e.item_id', 'left')
+			->join('db_shippingaddress sa', 'sa.id = e.site_id', 'left')
+			->join('db_sales s', 's.id = e.sales_id', 'left')
+			->where('e.store_id', $store_id);
+		if($customer_id > 0){ $this->db->where('e.customer_id', $customer_id); }
+		if($search !== ''){
+			$t = $this->db->escape_like_str($search);
+			$this->db->group_start()
+				->like('e.serial_number', $t)->or_like('i.item_name', $t)
+				->or_like('e.model', $t)->or_like('c.customer_name', $t)
+			->group_end();
+		}
+		return $this->db;
+	}
+
+	private function _rpt_outstanding_quotations(){
+		$store_id = $this->input->post('store_id', TRUE) ?: get_current_store_id();
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$from = trim((string)$this->input->post('from_date', TRUE));
+		$to   = trim((string)$this->input->post('to_date', TRUE));
+		$this->db->select('q.*, c.customer_name')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.store_id', $store_id)
+			->where("q.status", 1)
+			->group_start()->where('q.sales_status IS NULL', null, FALSE)->or_where("q.sales_status !=", 'Converted')->group_end();
+		if($customer_id > 0){ $this->db->where('q.customer_id', $customer_id); }
+		if($from){ $this->db->where('q.quotation_date >=', system_fromatted_date($from)); }
+		if($to){   $this->db->where('q.quotation_date <=', system_fromatted_date($to)); }
+		$rows = $this->db->order_by('q.quotation_date','DESC')->get()->result();
+		$i = 0;
+		foreach($rows as $r){
+			$expired = (!empty($r->expire_date) && $r->expire_date < date('Y-m-d'));
+			$status = $expired ? 'Expired' : ($r->sales_status ?: 'Open');
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><a href='".base_url('quotation/invoice/'.$r->id)."'>".$r->quotation_code."</a></td>";
+			echo "<td>".($r->revision_no !== null ? 'R'.(int)$r->revision_no : '—')."</td>";
+			echo "<td>".show_date($r->quotation_date)."</td>";
+			echo "<td>".(!empty($r->expire_date) ? show_date($r->expire_date) : '—')."</td>";
+			echo "<td>".html_escape($r->customer_name)."</td>";
+			echo "<td class='text-right'>".store_number_format($r->grand_total)."</td>";
+			echo "<td class='text-center'>".date_difference($r->quotation_date, date('Y-m-d'))."</td>";
+			echo "<td>".html_escape($r->created_by)."</td>";
+			echo "<td>".($expired ? "<span class='label label-danger'>Expired</span>" : "<span class='label label-warning'>".html_escape($status)."</span>")."</td>";
+			echo "</tr>";
+		}
+		if($i === 0){ echo "<tr><td colspan='10' class='text-center text-success'>No outstanding quotations.</td></tr>"; }
+	}
+
+	private function _rpt_procurement(){
+		$store_id = $this->input->post('store_id', TRUE) ?: get_current_store_id();
+		$from = trim((string)$this->input->post('from_date', TRUE));
+		$to   = trim((string)$this->input->post('to_date', TRUE));
+		$i = 0;
+
+		// (a) Converted quotes with no linked purchase order
+		$this->db->select('q.*, c.customer_name')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.store_id', $store_id)
+			->where('q.sales_status', 'Converted')
+			->where("NOT EXISTS (SELECT 1 FROM db_purchase p WHERE p.quotation_id = q.id)", null, FALSE);
+		if($from){ $this->db->where('q.quotation_date >=', system_fromatted_date($from)); }
+		if($to){   $this->db->where('q.quotation_date <=', system_fromatted_date($to)); }
+		foreach($this->db->order_by('q.quotation_date','DESC')->get()->result() as $r){
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><span class='label label-warning'>Order — no PO</span></td>";
+			echo "<td><a href='".base_url('quotation/invoice/'.$r->id)."'>".$r->quotation_code."</a></td>";
+			echo "<td>".show_date($r->quotation_date)."</td>";
+			echo "<td>".html_escape($r->customer_name)."</td>";
+			echo "<td class='text-right'>".store_number_format($r->grand_total)."</td>";
+			echo "<td>—</td>";
+			echo "<td><span class='label label-danger'>Awaiting procurement</span></td>";
+			echo "</tr>";
+		}
+
+		// (b) POs not fully received
+		$this->db->select('p.*, s.supplier_name, q.quotation_code, q.id AS qid, sl.sales_code, sl.id AS sid,
+			(SELECT COALESCE(SUM(pi.purchase_qty),0) FROM db_purchaseitems pi WHERE pi.purchase_id = p.id) AS ordered_qty,
+			(SELECT COALESCE(SUM(pi.received_qty),0) FROM db_purchaseitems pi WHERE pi.purchase_id = p.id) AS received_qty', FALSE)
+			->from('db_purchase p')
+			->join('db_suppliers s', 's.id = p.supplier_id', 'left')
+			->join('db_quotation q', 'q.id = p.quotation_id', 'left')
+			->join('db_sales sl', 'sl.id = p.sales_id', 'left')
+			->where('p.store_id', $store_id)
+			->where('p.status', 1)
+			->where_in('p.purchase_status', array('Ordered','Partially Received','Draft'));
+		if($from){ $this->db->where('p.purchase_date >=', system_fromatted_date($from)); }
+		if($to){   $this->db->where('p.purchase_date <=', system_fromatted_date($to)); }
+		foreach($this->db->order_by('p.purchase_date','DESC')->get()->result() as $r){
+			$linked = trim(($r->quotation_code ? 'QT '.$r->quotation_code : '').($r->sales_code ? ' '.$r->sales_code : ''));
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><span class='label label-info'>Purchase Order</span></td>";
+			echo "<td><a href='".base_url('purchase/invoice/'.$r->id)."'>".$r->purchase_code."</a></td>";
+			echo "<td>".show_date($r->purchase_date)."</td>";
+			echo "<td>".html_escape($r->supplier_name)."</td>";
+			echo "<td class='text-right'>".store_number_format($r->grand_total)."</td>";
+			echo "<td>".($linked !== '' ? html_escape($linked) : '—')."</td>";
+			echo "<td>".html_escape($r->purchase_status)." — ".format_qty($r->received_qty)."/".format_qty($r->ordered_qty)." received</td>";
+			echo "</tr>";
+		}
+		if($i === 0){ echo "<tr><td colspan='8' class='text-center text-success'>Nothing awaiting procurement.</td></tr>"; }
+	}
+
+	private function _rpt_warranty(){
+		$days = (int)$this->input->post('days', TRUE);
+		$this->_rpt_base_equipment_query()->where('e.warranty_end IS NOT NULL', null, FALSE);
+		if($days > 0){
+			$this->db->where('e.warranty_end <=', date('Y-m-d', strtotime("+$days days")));
+		}
+		$rows = $this->db->order_by('e.warranty_end','ASC')->get()->result();
+		$i = 0;
+		foreach($rows as $r){
+			$expired = $r->warranty_end < date('Y-m-d');
+			$expiring = !$expired && $r->warranty_end <= date('Y-m-d', strtotime('+90 days'));
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><code>".html_escape($r->serial_number)."</code></td>";
+			echo "<td>".html_escape($r->item_name ?: $r->model)."</td>";
+			echo "<td>".html_escape($r->customer_name)."</td>";
+			echo "<td>".html_escape($r->site_name ?: '—')."</td>";
+			echo "<td>".(!empty($r->warranty_start) ? show_date($r->warranty_start) : '—')."</td>";
+			echo "<td>".show_date($r->warranty_end)."</td>";
+			echo "<td>".($r->coverage_type ?: 'standard')."</td>";
+			echo "<td>".($expired ? "<span class='label label-danger'>Expired</span>" : ($expiring ? "<span class='label label-warning'>Expiring</span>" : "<span class='label label-success'>Active</span>"))."</td>";
+			echo "</tr>";
+		}
+		if($i === 0){ echo "<tr><td colspan='9' class='text-center text-info'>No equipment with warranty data.</td></tr>"; }
+	}
+
+	private function _rpt_equipment(){
+		$from = trim((string)$this->input->post('from_date', TRUE));
+		$to   = trim((string)$this->input->post('to_date', TRUE));
+		$this->_rpt_base_equipment_query();
+		if($from){ $this->db->where('e.sale_date >=', system_fromatted_date($from)); }
+		if($to){   $this->db->where('e.sale_date <=', system_fromatted_date($to)); }
+		$rows = $this->db->order_by('e.id','DESC')->get()->result();
+		$i = 0;
+		foreach($rows as $r){
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><code>".html_escape($r->serial_number)."</code></td>";
+			echo "<td>".html_escape($r->item_name ?: $r->model)."</td>";
+			echo "<td>".html_escape($r->customer_name)."</td>";
+			echo "<td>".html_escape($r->site_name ?: '—')."</td>";
+			echo "<td>".($r->sales_code ? "<a href='".base_url('sales/invoice/'.$r->sale_id)."'>".$r->sales_code."</a>" : '—')."</td>";
+			echo "<td>".(!empty($r->sale_date) ? show_date($r->sale_date) : '—')."</td>";
+			echo "<td>".(is_valid_date($r->install_date) ? show_date($r->install_date) : '—')."</td>";
+			echo "<td>".(!empty($r->warranty_end) ? show_date($r->warranty_end) : '—')."</td>";
+			echo "<td>".(!empty($r->next_calibration_date) ? show_date($r->next_calibration_date) : '—')."</td>";
+			echo "<td>".ucwords(str_replace('_',' ',$r->equipment_status ?: 'delivered'))."</td>";
+			echo "</tr>";
+		}
+		if($i === 0){ echo "<tr><td colspan='11' class='text-center text-info'>No registered equipment found.</td></tr>"; }
+	}
+
+	private function _rpt_service_jobs(){
+		$store_id = $this->input->post('store_id', TRUE) ?: get_current_store_id();
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$engineer_id = (int)$this->input->post('engineer_id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		$search = trim((string)$this->input->post('search', TRUE));
+		$from = trim((string)$this->input->post('from_date', TRUE));
+		$to   = trim((string)$this->input->post('to_date', TRUE));
+		$this->db->select("j.*, c.customer_name, u.username AS engineer, e.serial_number", FALSE)
+			->from('db_service_jobs j')
+			->join('db_customers c', 'c.id = j.customer_id', 'left')
+			->join('db_users u', 'u.id = j.assigned_user_id', 'left')
+			->join('db_customer_equipment e', 'e.id = j.equipment_id', 'left')
+			->where('j.store_id', $store_id);
+		if($customer_id > 0){ $this->db->where('j.customer_id', $customer_id); }
+		if($engineer_id > 0){ $this->db->where('j.assigned_user_id', $engineer_id); }
+		if($status){ $this->db->where('j.status', $status); }
+		if($search !== ''){ $this->db->group_start()->like('j.job_code', $search)->or_like('j.title', $search)->or_like('e.serial_number', $search)->group_end(); }
+		if($from){ $this->db->where('j.scheduled_date >=', system_fromatted_date($from)); }
+		if($to){   $this->db->where('j.scheduled_date <=', system_fromatted_date($to)); }
+		$rows = $this->db->order_by('j.id','DESC')->get()->result();
+		$i = 0;
+		foreach($rows as $r){
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><a href='".base_url('operations/service_job_view/'.$r->id)."'>".$r->job_code."</a></td>";
+			echo "<td>".ucfirst($r->job_type)."</td>";
+			echo "<td>".$r->title."</td>";
+			echo "<td>".html_escape($r->customer_name)."</td>";
+			echo "<td>".($r->serial_number ? "<code>".html_escape($r->serial_number)."</code>" : '—')."</td>";
+			echo "<td>".html_escape($r->engineer ?: 'Unassigned')."</td>";
+			echo "<td>".(is_valid_date($r->scheduled_date) ? show_date($r->scheduled_date) : '—')."</td>";
+			echo "<td class='text-right'>".store_number_format($r->labour_charge)."</td>";
+			echo "<td class='text-right'>".store_number_format($r->parts_total)."</td>";
+			echo "<td>".ucwords(str_replace('_',' ',$r->status))."</td>";
+			echo "</tr>";
+		}
+		if($i === 0){ echo "<tr><td colspan='11' class='text-center text-info'>No service jobs found.</td></tr>"; }
+	}
+
+	private function _rpt_calibration(){
+		$days = (int)$this->input->post('days', TRUE);
+		if($days <= 0){ $days = 30; }
+		$this->_rpt_base_equipment_query()->where('e.next_calibration_date IS NOT NULL', null, FALSE)
+			->where('e.next_calibration_date <=', date('Y-m-d', strtotime("+$days days")));
+		$rows = $this->db->order_by('e.next_calibration_date','ASC')->get()->result();
+		$i = 0;
+		foreach($rows as $r){
+			$overdue = $r->next_calibration_date < date('Y-m-d');
+			$due_in = (int)round((strtotime($r->next_calibration_date) - strtotime(date('Y-m-d'))) / 86400);
+			echo "<tr>";
+			echo "<td>".++$i."</td>";
+			echo "<td><code>".html_escape($r->serial_number)."</code></td>";
+			echo "<td>".html_escape($r->item_name ?: $r->model)."</td>";
+			echo "<td>".html_escape($r->customer_name)."</td>";
+			echo "<td>".html_escape($r->site_name ?: '—')."</td>";
+			echo "<td class='text-center'>".(int)($r->calibration_interval_months ?: 12)."</td>";
+			echo "<td>".(is_valid_date($r->last_calibration_date) ? show_date($r->last_calibration_date) : '—')."</td>";
+			echo "<td>".show_date($r->next_calibration_date)."</td>";
+			echo "<td class='text-center'>".($overdue ? abs($due_in)."d overdue" : $due_in."d")."</td>";
+			echo "<td>".($overdue ? "<span class='label label-danger'>Overdue</span>" : "<span class='label label-warning'>Due soon</span>")."</td>";
+			echo "</tr>";
+		}
+		if($i === 0){ echo "<tr><td colspan='10' class='text-center text-success'>No calibrations due in the selected window.</td></tr>"; }
+	}
 
 }

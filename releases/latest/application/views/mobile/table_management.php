@@ -233,19 +233,18 @@
       fd.append('status', next);
       fd.append(csrf_token, csrf_hash);
 
-      fetch(base_url + 'mobile/table_update_status', {
+      mpFetchJson(base_url + 'mobile/table_update_status', {
         method: 'POST',
         body: fd
       })
-      .then(function(res){ return res.json(); })
       .then(function(data){
         if(data && data.success){
           window.location.reload();
         } else {
-          alert(data && data.message ? data.message : 'Update failed');
+          mpError(data && data.message ? data.message : 'The table status could not be updated. Please try again.');
         }
       })
-      .catch(function(){ alert('Network error'); });
+      .catch(function(err){ mpError(mpErrorText(err)); });
     }
 
     document.querySelector('.modal-overlay').addEventListener('click', function(e){

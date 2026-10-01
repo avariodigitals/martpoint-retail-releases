@@ -446,7 +446,7 @@ class Pos_model extends CI_Model {
 		$tot_amt = $this->input->get_post('tot_amt', TRUE);
 		$pay_all = $this->input->get_post('pay_all', TRUE);
 		$points_use = $this->input->post('points_use', TRUE);
-		$sales_note = $this->input->post('sales_note', TRUE);
+		$sales_note = mp_post_text('sales_note');
 		// Manual Shipping — columns guarded for un-migrated installs
 		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
 		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
@@ -456,6 +456,9 @@ class Pos_model extends CI_Model {
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$invoice_terms = $this->input->post('invoice_terms', TRUE);
+		// Optional document links (quote→invoice traceability, delivery site)
+		$pos_quotation_id = (int)$this->input->post('quotation_id', TRUE);
+		$pos_shipaddr_id  = (int)$this->input->post('shippingaddress_id', TRUE);
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
 		//varify max sales usage of the package subscription
@@ -637,7 +640,11 @@ class Pos_model extends CI_Model {
 				//FIND THE PREVIOUSE ITEM LIST ID'S
 				$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
 				##############################################END
-				
+
+				// Release serialised units bound to the previous version
+				if(function_exists('mp_release_sale_barcodes')){ mp_release_sale_barcodes($sales_id); }
+				if(function_exists('mp_unregister_equipment_for_sale')){ mp_unregister_equipment_for_sale($sales_id); }
+
 				$q11=$this->db->where('sales_id', $sales_id)->delete('db_salesitems');
 				$q12=$this->db->where('sales_id', $sales_id)->delete('db_salespayments');
 				if(!$q11 || !$q12){
@@ -672,6 +679,12 @@ class Pos_model extends CI_Model {
 		    				'status' 					=> 1,
 		    				'sales_note' 				=> $sales_note,
 		    			);
+			if($pos_quotation_id > 0 && $this->db->field_exists('quotation_id','db_sales')){
+				$sales_entry['quotation_id'] = $pos_quotation_id;
+			}
+			if($pos_shipaddr_id > 0 && $this->db->field_exists('shippingaddress_id','db_sales')){
+				$sales_entry['shippingaddress_id'] = $pos_shipaddr_id;
+			}
 			if($shipping_cols){
 				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
@@ -684,6 +697,10 @@ class Pos_model extends CI_Model {
 			$sales_id = $this->db->insert_id();
 			if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
 				$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+			}
+			// Keep the source quotation in sync when the sale carries its link
+			if($pos_quotation_id > 0 && $sales_id){
+				$this->db->set('sales_status','Converted')->where('id',$pos_quotation_id)->update('db_quotation');
 			}
 		}
 
@@ -773,10 +790,11 @@ class Pos_model extends CI_Model {
 				}
 
 				
-				/*$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
 				if($current_stock_of_item<$sales_qty && $service_bit==0){
-					return $item_name." has only ".$current_stock_of_item." in Stock!!";exit;
-				}*/
+					$this->db->trans_rollback();
+					return $item_name." has only ".$current_stock_of_item." in Stock!!";
+				}
 				
 				$salesitems_entry = array(
 		    				'store_id' 			=> $store_id, 
@@ -827,6 +845,11 @@ class Pos_model extends CI_Model {
 					}
 				}
 
+				// Register serialised equipment on the customer (equipment register)
+				if(function_exists('mp_register_equipment_from_sale') && ($track_serial || !empty($sold_serial_number))){
+					mp_register_equipment_from_sale($sales_id, $sale_items_id, $customer_id);
+				}
+
 				$q11=$this->update_items_quantity($item_id);
 				if(!$q11){
 					return "failed";
@@ -874,7 +897,7 @@ class Pos_model extends CI_Model {
 					}
 					$payment_type 	=$this->xss_html_filter(trim($_REQUEST['payment_type_'.$i] ?? ''));
 					$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
-					$payment_note 	=$this->xss_html_filter(trim($_REQUEST['payment_note_'.$i] ?? ''));
+					$payment_note 	=mp_clean_text($_REQUEST['payment_note_'.$i] ?? '');
 					$payment_reference = $this->xss_html_filter(trim($_REQUEST['payment_reference_'.$i] ?? ''));
 					$confirmation_status = intval($_REQUEST['confirmation_status_'.$i] ?? 1);
 					$payments_processed++;
@@ -1447,7 +1470,7 @@ class Pos_model extends CI_Model {
 		$tot_disc = $this->input->get_post('tot_disc', TRUE);
 		$tot_grand = $this->input->get_post('tot_grand', TRUE);
 		$tot_amt = $this->input->get_post('tot_amt', TRUE);
-		$sales_note = $this->input->post('sales_note', TRUE);
+		$sales_note = mp_post_text('sales_note');
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		// Manual Shipping — columns guarded for un-migrated installs

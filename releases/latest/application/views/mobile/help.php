@@ -92,6 +92,24 @@
           <div class="arrow"><i class="fa fa-external-link"></i></div>
         </a>
 
+        <a href="<?= base_url('docs/product-design/customer-guide/skincare-customer-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-leaf"></i></div>
+          <div class="text">
+            <div class="title">Skincare Use Case</div>
+            <div class="desc">A week at an organic skincare brand — formulas to storefront</div>
+          </div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+
+        <a href="<?= base_url('docs/product-design/customer-guide/electronics-customer-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-laptop"></i></div>
+          <div class="text">
+            <div class="title">Electronics Use Case</div>
+            <div class="desc">A week at a device shop — serials, IMEIs &amp; warranties</div>
+          </div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+
         <div class="folder-card locked">
           <div class="icon"><i class="fa fa-cogs"></i></div>
           <div class="text">

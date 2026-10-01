@@ -127,6 +127,59 @@
   window.mpSuccess = function(msg){ mpAlert(msg, 'success'); };
   window.mpError = function(msg){ mpAlert(msg, 'danger'); };
 
+  /* Plain-English translation of raw HTTP responses. Used by mpFetchJson and
+     mpAjaxError so users never see codes, HTML or technical jargon. */
+  function mpHttpMessage(status, body, redirected, fallback){
+    body = body || '';
+    if(status === 403 && /action you have requested is not allowed/i.test(body)){
+      return 'Your security check has expired. Please reload the page and try again.';
+    }
+    if(status === 403){
+      return 'The server blocked this request. Please reload the page and try again; if it keeps failing, contact your administrator.';
+    }
+    if(status === 404){
+      return 'That action was not found. Please reload the app and try again.';
+    }
+    if(status === 401 || redirected || (/name=["']?(user|email|pass|login)/i.test(body) && /<form/i.test(body))){
+      return 'Your session has expired. Please sign in again.';
+    }
+    if(status >= 500){
+      return 'The server hit a problem and could not finish. Please try again.';
+    }
+    return fallback || 'The server returned an unexpected response. Please try again.';
+  }
+
+  /* Turn a caught fetch()/JS error into a plain-English sentence. Technical
+     browser messages ("Failed to fetch", "Unexpected token", ...) are never
+     shown to the user. */
+  window.mpErrorText = function(err, fallback){
+    var m = (err && err.message) ? String(err.message).trim() : '';
+    if(m && !/failed to fetch|load failed|networkerror|network request failed|internet connection appears|typeerror|syntaxerror|unexpected token|unexpected end|not valid json|aborterror|operation was aborted|the request timed out/i.test(m)){
+      return m;
+    }
+    if(/failed to fetch|load failed|networkerror|network request failed|internet connection appears|aborterror|operation was aborted|timed out/i.test(m)){
+      return 'Could not reach the server. Check your internet connection and try again.';
+    }
+    return fallback || 'Something went wrong. Please try again.';
+  };
+
+  /* Same idea for jQuery $.ajax / $.get / $.post failures — pass the xhr. */
+  window.mpAjaxError = function(xhr, fallback){
+    if(!xhr) return fallback || 'Something went wrong. Please try again.';
+    if(xhr.status === 0){
+      return 'Could not reach the server. Check your internet connection and try again.';
+    }
+    var body = xhr.responseText || '';
+    var msg = null;
+    if(xhr.responseJSON && xhr.responseJSON.message){ msg = xhr.responseJSON.message; }
+    else if(body){
+      try { var j = JSON.parse(body); if(j && j.message) msg = j.message; } catch(e){}
+      if(!msg && body.indexOf('<') === -1 && body.length < 300){ msg = body; }
+    }
+    if(msg && !/^ok$|^\{|\[|<!/i.test(msg)) return msg;
+    return mpHttpMessage(xhr.status, body, false, fallback);
+  };
+
   /* fetch() for JSON endpoints — always resolves to parsed JSON or throws a
      plain-English Error. Never leaks SyntaxError/technical details. */
   window.mpFetchJson = function(url, options){
@@ -139,25 +192,27 @@
         var res = null;
         try { res = JSON.parse(body); } catch(e){ res = null; }
         if(res && typeof res === 'object') return res;
-        // Non-JSON response — translate into something a human understands
-        var msg;
-        if(r.status === 403 && /action you have requested is not allowed/i.test(body)){
-          msg = 'Your security check has expired. Please reload the page and try again.';
-        } else if(r.status === 403){
-          msg = 'The server blocked this request. Please reload the page and try again; if it keeps failing, contact your administrator.';
-        } else if(r.status === 404){
-          msg = 'That action was not found. Please reload the app and try again.';
-        } else if(r.status === 401 || /name=["']?(user|email|pass|login)/i.test(body) && /<form/i.test(body)){
-          msg = 'Your session has expired. Please sign in again.';
-        } else if(r.status >= 500){
-          msg = 'The server hit a problem and could not finish. Please try again.';
-        } else if(r.redirected){
-          msg = 'Your session has expired. Please sign in again.';
-        } else {
-          msg = 'The server returned an unexpected response. Please try again.';
-        }
-        throw new Error(msg);
+        throw new Error(mpHttpMessage(r.status, body, r.redirected));
       });
+    }, function(){
+      throw new Error('Could not reach the server. Check your internet connection and try again.');
+    });
+  };
+
+  /* fetch() for endpoints that return text/HTML — same plain-English errors. */
+  window.mpFetchText = function(url, options){
+    options = options || {};
+    options.headers = options.headers || {};
+    options.headers['X-Requested-With'] = 'XMLHttpRequest';
+    return fetch(url, options).then(function(r){
+      return r.text().then(function(body){
+        if(r.status >= 400 || (r.redirected && /login|signin|auth/i.test(r.url || ''))){
+          throw new Error(mpHttpMessage(r.status, body, r.redirected));
+        }
+        return body;
+      });
+    }, function(){
+      throw new Error('Could not reach the server. Check your internet connection and try again.');
     });
   };
 

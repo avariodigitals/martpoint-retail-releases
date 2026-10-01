@@ -121,7 +121,9 @@ $hasDiscount = $product->original_price > $product->effective_price;
         </div>
         <p class="pc-pd-desc"><?= nl2br(htmlspecialchars($product->description ?? '')); ?></p>
 
-        <div class="pc-pd-qty">
+                <?php $this->load->view('themes/shared/variant_picker'); ?>
+
+<div class="pc-pd-qty">
           <button onclick="adjustDetailQty(-1)">-</button>
           <span id="detail-qty">1</span>
           <button onclick="adjustDetailQty(1)">+</button>
@@ -134,31 +136,6 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <button class="pc-btn pc-btn-wa" onclick="sendDetailWhatsApp()">Order via WhatsApp</button>
           <?php endif; ?>
         </div>
-
-        <?php if(!empty($product_variants)): ?>
-        <div class="pc-pd-variants">
-          <div class="pc-section-label" style="margin-bottom:16px;">Available Variants</div>
-          <div class="pc-product-grid" style="grid-template-columns:repeat(2,1fr);gap:12px;">
-            <?php foreach($product_variants as $v):
-              $vImg = ($v->item_image && file_exists($v->item_image)) ? base_url($v->item_image) : '';
-            ?>
-            <a href="<?= base_url('store/' . $slug . '/product/' . $v->id); ?>" class="pc-product-card">
-              <div class="pc-product-media">
-                <?php if($vImg): ?>
-                <img src="<?= $vImg; ?>" alt="<?= htmlspecialchars($v->item_name); ?>" loading="lazy">
-                <?php else: ?>
-                <div class="pc-product-placeholder"><span><?= htmlspecialchars(substr($v->item_name, 0, 1)); ?></span></div>
-                <?php endif; ?>
-              </div>
-              <div class="pc-product-body">
-                <div class="pc-product-name"><?= htmlspecialchars($v->item_name); ?></div>
-                <div class="pc-product-price"><?= sf_currency($v->effective_price, $cur); ?></div>
-              </div>
-            </a>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="pc-pd-related">

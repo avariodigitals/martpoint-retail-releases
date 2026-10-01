@@ -267,9 +267,8 @@
         fd.set('as_of_date', form.elements['to_date'].value);
       }
       try {
-        var res = await fetch(base_url + endpoint, {method: 'POST', body: fd});
         if(reportType === 'stock' || reportType === 'profit_loss' || reportType === 'cash_flow'){
-          var data = await res.json();
+          var data = await mpFetchJson(base_url + endpoint, {method: 'POST', body: fd});
           reportData = data;
           if(reportType === 'stock'){
             result.innerHTML = '<h3 style="font-size:15px;margin:16px 0 8px;">Item Wise</h3>' +
@@ -283,7 +282,7 @@
           }
           actionBar.style.display = 'grid';
         } else {
-          var html = await res.text();
+          var html = await mpFetchText(base_url + endpoint, {method: 'POST', body: fd});
           var table = '<div class="report-scroll"><table id="report-table" class="report-table">';
           if(reportHeaders && reportHeaders.length){
             table += '<thead><tr>' + reportHeaders.map(function(h){ return '<th>' + h + '</th>'; }).join('') + '</tr></thead>';
@@ -293,7 +292,11 @@
           actionBar.style.display = 'grid';
         }
       } catch(err){
-        result.innerHTML = '<div class="empty-state">Could not load report. Please try again.</div>';
+        var errBox = document.createElement('div');
+        errBox.className = 'empty-state';
+        errBox.textContent = mpErrorText(err, 'The report could not be loaded. Please try again.');
+        result.innerHTML = '';
+        result.appendChild(errBox);
       }
     });
 

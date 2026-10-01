@@ -127,9 +127,9 @@
               mpAlert(result, 'danger');
             }
           },
-          error: function(){
+          error: function(xhr){
             $btn.attr('disabled', false);
-            mpAlert('Failed to save. Please try again.', 'danger');
+            mpAlert(mpAjaxError(xhr, 'The coupon could not be saved. Please check the details and try again.'), 'danger');
           }
         });
       });

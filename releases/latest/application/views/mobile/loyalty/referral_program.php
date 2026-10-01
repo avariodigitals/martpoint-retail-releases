@@ -174,17 +174,16 @@
       const btn = form.querySelector('.save-btn');
       if(btn) btn.disabled = true;
       const formData = new FormData(form);
-      fetch(form.action, {method: 'POST', body: formData})
-        .then(r => r.text())
+      mpFetchText(form.action, {method: 'POST', body: formData})
         .then(d => {
           if(btn) btn.disabled = false;
           if(d.trim().indexOf('success') === 0 || d.trim() === 'success'){
             mpSuccess(successMsg);
           } else {
-            mpError(d || 'Save failed.');
+            mpError(d || 'The settings could not be saved. Please check the details and try again.');
           }
         })
-        .catch(() => { if(btn) btn.disabled = false; mpError('Save failed.'); });
+        .catch(err => { if(btn) btn.disabled = false; mpError(mpErrorText(err, 'The settings could not be saved. Please try again.')); });
       return false;
     }
   </script>

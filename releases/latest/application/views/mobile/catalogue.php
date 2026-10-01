@@ -279,26 +279,26 @@
     })();
 
     function deleteProduct(id, name){
-      if(!confirm('Delete "' + name + '"?\nThis action cannot be undone.')) return;
-      var formData = new FormData();
-      formData.append('q_id', id);
-      formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('mobile/delete_product'); ?>', {
-        method: 'POST',
-        body: formData
-      })
-      .then(function(res){ return res.json(); })
-      .then(function(data){
-        if(data.status === 'success'){
-          alert('Product deleted.');
-          window.location.reload();
-        } else {
-          alert(data.message || 'Delete failed.');
-        }
-      })
-      .catch(function(){
-        alert('Network error. Try again.');
-      });
+      mpConfirm('Delete "' + name + '"? This action cannot be undone.', function(){
+        var formData = new FormData();
+        formData.append('q_id', id);
+        formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('mobile/delete_product'); ?>', {
+          method: 'POST',
+          body: formData
+        })
+        .then(function(data){
+          if(data.status === 'success'){
+            mpSuccess('Product deleted.');
+            setTimeout(function(){ window.location.reload(); }, 600);
+          } else {
+            mpError(data.message || 'The product could not be deleted. Please try again.');
+          }
+        })
+        .catch(function(err){
+          mpError(mpErrorText(err));
+        });
+      }, null, {danger: true, okText: 'Delete'});
     }
   </script>
 </body>

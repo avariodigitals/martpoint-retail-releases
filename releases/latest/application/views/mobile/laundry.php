@@ -192,20 +192,18 @@
         fd.append('action', action);
         fd.append(csrf_token, csrf_hash);
 
-        fetch(base_url + 'mobile/laundry_update_status', { method: 'POST', body: fd })
-        .then(function(res){ return res.json(); })
+        mpFetchJson(base_url + 'mobile/laundry_update_status', { method: 'POST', body: fd })
         .then(function(data){
           if(data && data.csrf_hash){ csrf_hash = data.csrf_hash; }
           if(data && data.success){ window.location.reload(); }
-          else { alert('Update failed.'); btn.disabled = false; btn.innerHTML = 'Try Again'; }
+          else { mpError(data && data.message ? data.message : 'The status could not be updated. Please try again.'); btn.disabled = false; btn.innerHTML = 'Try Again'; }
         })
-        .catch(function(){ alert('Network error. Try again.'); btn.disabled = false; btn.innerHTML = 'Try Again'; });
+        .catch(function(err){ mpError(mpErrorText(err)); btn.disabled = false; btn.innerHTML = 'Try Again'; });
       });
     });
 
     setInterval(function(){
-      fetch(base_url + 'mobile/laundry?ajax=1')
-        .then(function(res){ return res.json(); })
+      mpFetchJson(base_url + 'mobile/laundry?ajax=1')
         .then(function(data){
           if(data && data.status_counts){
             ['dropped_off','washing','ironing','ready'].forEach(function(k){
@@ -213,7 +211,8 @@
               if(el) el.textContent = data.status_counts[k] || 0;
             });
           }
-        });
+        })
+        .catch(function(){ /* background refresh — stay quiet */ });
     }, 15000);
   </script>
 </body>

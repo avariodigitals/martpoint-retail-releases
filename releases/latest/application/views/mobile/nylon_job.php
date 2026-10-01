@@ -210,14 +210,13 @@
       for(var k in fields){ fd.append(k, fields[k]); }
       fd.append(csrf_token, csrf_hash);
       if(btn) btn.disabled = true;
-      fetch(base_url + url, { method: 'POST', body: fd })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(base_url + url, { method: 'POST', body: fd })
         .then(function(d){
           if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
           if(d && d.success){ window.location.reload(); }
-          else { showToast(d && d.message ? d.message : 'Action failed.'); if(btn) btn.disabled = false; }
+          else { showToast(d && d.message ? d.message : 'That action could not be completed. Please try again.'); if(btn) btn.disabled = false; }
         })
-        .catch(function(){ showToast('Network error.'); if(btn) btn.disabled = false; });
+        .catch(function(err){ showToast(mpErrorText(err)); if(btn) btn.disabled = false; });
     }
 
     document.querySelectorAll('[data-act]').forEach(function(btn){

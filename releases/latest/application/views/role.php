@@ -733,6 +733,50 @@
                                               </label></div>
                                           </td>
                                         </tr>
+                                        <!-- EQUIPMENT REGISTER -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Equipment Register</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="equipment"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[equipment]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="equipment_all" id='equipment_add' name="permission[equipment_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="equipment_all" id='equipment_edit' name="permission[equipment_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="equipment_all" id='equipment_view' name="permission[equipment_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
+                                        <!-- SERVICE JOBS -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Service Jobs</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="service_jobs"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[service_jobs]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_jobs_all" id='service_jobs_add' name="permission[service_jobs_add]"> <?= $this->lang->line('add'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_jobs_all" id='service_jobs_edit' name="permission[service_jobs_edit]"> <?= $this->lang->line('edit'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="service_jobs_all" id='service_jobs_view' name="permission[service_jobs_view]"> <?= $this->lang->line('view'); ?>
+                                              </label></div>
+                                          </td>
+                                        </tr>
                                         <!-- PRODUCTION BATCHES -->
                                         <tr>
                                           <td><?= $i++;?></td>
@@ -1508,6 +1552,30 @@
 
                                               <div class="checkbox icheck"><label>
                                                 <input type="checkbox" class="reports_all" id='expired_items_report' name="permission[expired_items_report]"> Expired Items Report
+                                              </label></div>
+
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="reports_all" id='quotation_report' name="permission[quotation_report]"> Outstanding Quotations Report
+                                              </label></div>
+
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="reports_all" id='procurement_report' name="permission[procurement_report]"> Orders Awaiting Procurement Report
+                                              </label></div>
+
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="reports_all" id='warranty_report' name="permission[warranty_report]"> Warranty Report
+                                              </label></div>
+
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="reports_all" id='equipment_report' name="permission[equipment_report]"> Equipment Register Report
+                                              </label></div>
+
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="reports_all" id='service_jobs_report' name="permission[service_jobs_report]"> Service Jobs Report
+                                              </label></div>
+
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="reports_all" id='calibration_report' name="permission[calibration_report]"> Calibration Due Report
                                               </label></div>
 
                                               <div class="checkbox icheck"><label>

@@ -361,17 +361,16 @@
       compute();
       var fd = new FormData(form);
       try {
-        var res = await fetch(base_url + 'quotation/quotation_save_and_update', {method: 'POST', body: fd});
-        var txt = await res.text();
+        var txt = await mpFetchText(base_url + 'quotation/quotation_save_and_update', {method: 'POST', body: fd});
         var parts = txt.trim().split('<<<###>>>');
         if(parts[0] === 'success'){
           mpAlert('Quotation saved', 'success');
           setTimeout(function(){ window.location.href = base_url + 'mobile/quotation_view/' + (parts[1] || ''); }, 600);
         } else {
-          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'Save failed', 'danger');
+          mpAlert((txt.indexOf('<') === -1 ? txt.trim() : '') || 'The quotation could not be saved. Please check the details and try again.', 'danger');
         }
       } catch(err){
-        mpAlert('Network error. Please try again.', 'danger');
+        mpAlert(mpErrorText(err), 'danger');
       }
     });
 

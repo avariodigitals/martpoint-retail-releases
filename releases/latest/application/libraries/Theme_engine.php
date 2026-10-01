@@ -43,6 +43,22 @@ class Theme_engine {
             $allowedByKey[$t->theme_key] = $t;
         }
 
+        // The store's own stored selections are always valid. Preset/theme
+        // mappings can change over time, and a saved merchant choice must
+        // never be silently invalidated by an industry remap.
+        foreach(array_filter([$businessProfile['theme_key'] ?? null, $this->store->storefront_theme_key ?? null]) as $k){
+            if(!isset($allowedByKey[$k]) && ($row = $this->getThemeByKey($k))){
+                $allowedByKey[$k] = $row;
+                $allowedById[$row->id] = $row;
+                $allowedThemes[] = $row;
+            }
+        }
+        if(!empty($this->settings->theme_id) && !isset($allowedById[$this->settings->theme_id]) && ($row = $this->getTheme($this->settings->theme_id))){
+            $allowedById[$row->id] = $row;
+            $allowedByKey[$row->theme_key] = $row;
+            $allowedThemes[] = $row;
+        }
+
         // 1. Preview mode takes precedence, but it must belong to the industry
         if($previewTheme && isset($allowedById[$previewTheme])){
             $this->theme = $allowedById[$previewTheme];

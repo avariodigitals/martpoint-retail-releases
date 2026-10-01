@@ -56,7 +56,9 @@ $inStock = (int)$product->stock > 0 || !empty($settings->allow_backorder);
         </div>
         <?php endif; ?>
 
-        <div class="pf-pd-qty">
+                <?php $this->load->view('themes/shared/variant_picker'); ?>
+
+<div class="pf-pd-qty">
           <button onclick="pfDetailQty(-1)" aria-label="Decrease">&minus;</button>
           <span id="pf-detail-qty">1</span>
           <button onclick="pfDetailQty(1)" aria-label="Increase">+</button>
@@ -95,14 +97,6 @@ $inStock = (int)$product->stock > 0 || !empty($settings->allow_backorder);
         </div>
         <?php endif; ?>
 
-        <?php if(!empty($product_variants)): ?>
-        <div class="pf-pd-extra">
-          <div class="pf-pd-specs-title">Sizes &amp; Editions</div>
-          <div class="pf-grid">
-            <?php foreach($product_variants as $v): pf_card($v, $cur, $settings, $slug); endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="pf-pd-extra">

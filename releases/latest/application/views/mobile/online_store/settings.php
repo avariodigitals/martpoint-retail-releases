@@ -168,7 +168,8 @@
                   <input type="number" step="0.01" min="0" name="sm_fee[]" class="form-control" value="<?= htmlspecialchars($m['fee'] ?? ''); ?>" placeholder="Fee">
                   <input type="text" name="sm_desc[]" class="form-control" value="<?= htmlspecialchars($m['description'] ?? ''); ?>" placeholder="Description">
                 </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap;">
+                  <label class="check" style="margin:0;"><input type="checkbox" name="sm_quote[<?= $idx; ?>]" value="1" <?= !empty($m['quote']) ? 'checked' : ''; ?>> Fee on quote</label>
                   <label class="check" style="margin:0;"><input type="checkbox" name="sm_enabled[<?= $idx; ?>]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
                   <button type="button" class="btn btn-danger" onclick="removeShippingMethod(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button>
                 </div>
@@ -176,6 +177,32 @@
               <?php endforeach; ?>
             </div>
             <button type="button" class="btn btn-ghost" onclick="addShippingMethod()" style="margin-top:6px;"><i class="fa fa-plus"></i> Add Method</button>
+          </div>
+          <div class="form-group">
+            <label class="check"><input type="checkbox" name="city_shipping_enabled" value="1" <?= !empty($settings->city_shipping_enabled) ? 'checked' : ''; ?>> Enable City-based Delivery Fees</label>
+            <div class="hint" style="margin-top:4px;">Customers pick their delivery city at checkout; the fee is added automatically and replaces the shipping methods list.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Delivery Cities &amp; States</label>
+            <div id="city-zones-container">
+              <?php
+                $savedZones = json_decode($settings->city_shipping_json ?? '', true);
+                if(!is_array($savedZones) || empty($savedZones)){ $savedZones = [['state'=>'','city'=>'','fee'=>'']]; }
+                foreach($savedZones as $z):
+              ?>
+              <div class="sm-card city-zone-row">
+                <input type="text" name="cz_state[]" class="form-control" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="State (e.g. Lagos)" style="margin-bottom:10px;">
+                <div class="sm-grid">
+                  <input type="text" name="cz_city[]" class="form-control" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja)">
+                  <input type="number" step="0.01" min="0" name="cz_fee[]" class="form-control" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee">
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+                  <button type="button" class="btn btn-danger" onclick="removeCityZone(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button>
+                </div>
+              </div>
+              <?php endforeach; ?>
+            </div>
+            <button type="button" class="btn btn-ghost" onclick="addCityZone()" style="margin-top:6px;"><i class="fa fa-plus"></i> Add City</button>
           </div>
         </div>
 
@@ -266,6 +293,7 @@
         + '<input type="text" name="sm_name[]" class="form-control" placeholder="Method name" style="margin-bottom:10px;">'
         + '<div class="sm-grid"><input type="number" step="0.01" min="0" name="sm_fee[]" class="form-control" placeholder="Fee"><input type="text" name="sm_desc[]" class="form-control" placeholder="Description"></div>'
         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">'
+        + '<label class="check" style="margin:0;"><input type="checkbox" name="sm_quote[' + i + ']" value="1"> Fee on quote</label>'
         + '<label class="check" style="margin:0;"><input type="checkbox" name="sm_enabled[' + i + ']" value="1" checked> Enabled</label>'
         + '<button type="button" class="btn btn-danger" onclick="removeShippingMethod(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button></div>';
       c.appendChild(d);
@@ -275,17 +303,36 @@
       if(c.children.length <= 1) return;
       btn.closest('.sm-card').remove();
     }
+    function addCityZone(){
+      const c = document.getElementById('city-zones-container');
+      const d = document.createElement('div');
+      d.className = 'sm-card city-zone-row';
+      d.innerHTML = '<input type="text" name="cz_state[]" class="form-control" placeholder="State (e.g. Lagos)" style="margin-bottom:10px;">'
+        + '<div class="sm-grid"><input type="text" name="cz_city[]" class="form-control" placeholder="City (e.g. Ikeja)"><input type="number" step="0.01" min="0" name="cz_fee[]" class="form-control" placeholder="Fee"></div>'
+        + '<div style="display:flex;justify-content:flex-end;margin-top:10px;">'
+        + '<button type="button" class="btn btn-danger" onclick="removeCityZone(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button></div>';
+      c.appendChild(d);
+    }
+    function removeCityZone(btn){
+      const c = document.getElementById('city-zones-container');
+      if(c.children.length <= 1){
+        btn.closest('.city-zone-row').querySelectorAll('input').forEach(i => i.value = '');
+        return;
+      }
+      btn.closest('.city-zone-row').remove();
+    }
     function saveSettings(){
       const btn = document.getElementById('btn-save');
       const slug = document.querySelector('input[name="store_slug"]').value.trim();
       if(!slug){ showToast('Please enter a store slug', true); return; }
       btn.disabled = true; btn.textContent = 'Saving...';
       const fd = new FormData(document.getElementById('settings-form'));
-      fetch('<?= base_url('online_store/save_settings'); ?>', {method:'POST', body:fd})
-      .then(r=>r.text()).then(text=>{
-        try { const res = JSON.parse(text); showToast(res.message || 'Saved', res.status !== 'success'); if(res.status === 'success' && res.store_url){ document.querySelector('.url-box').textContent = res.store_url; } } catch(e){ showToast('Unexpected response', true); console.log(text); }
+      mpFetchJson('<?= base_url('online_store/save_settings'); ?>', {method:'POST', body:fd})
+      .then(res=>{
+        showToast(res.message || 'Saved', res.status !== 'success');
+        if(res.status === 'success' && res.store_url){ document.querySelector('.url-box').textContent = res.store_url; }
         btn.disabled = false; btn.textContent = 'Save Settings';
-      }).catch(()=>{ showToast('Server error', true); btn.disabled = false; btn.textContent = 'Save Settings'; });
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.textContent = 'Save Settings'; });
     }
   </script>
 </body>

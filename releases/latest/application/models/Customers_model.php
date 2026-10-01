@@ -744,7 +744,7 @@ class Customers_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = $this->input->post('payment_note', TRUE);
+		$payment_note = mp_post_text('payment_note');
 		$account_id = $this->input->post('account_id', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
@@ -1178,7 +1178,7 @@ class Customers_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = $this->input->post('payment_note', TRUE);
+		$payment_note = mp_post_text('payment_note');
 		$account_id = $this->input->post('account_id', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];

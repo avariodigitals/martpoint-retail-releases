@@ -1706,6 +1706,7 @@
     let couponEligibleItemIds = [];
     let loyaltyPoints = 850;
     const attendanceExempt = <?= json_encode(!empty($attendance_exempt)) ?>;
+    const clockInRequired = <?= json_encode(!empty($clock_in_required)) ?>;
     let clockedIn = attendanceExempt ? false : <?= json_encode((bool)(!$needs_clock_in)) ?>;
     let clockedAt = '<?= $clock_in_time ?>';
     let clockInTime = '<?= $clock_in_time ?>';
@@ -1802,6 +1803,71 @@
         toast.classList.add('hide');
         setTimeout(() => toast.remove(), 300);
       }, 4500);
+    }
+
+    /* Plain-English translation of raw HTTP responses so cashiers never see
+       status codes, HTML fragments or browser jargon. */
+    function posHttpMessage(status, body, redirected, fallback) {
+      body = body || '';
+      if (status === 403 && /action you have requested is not allowed/i.test(body)) {
+        return 'Your security check has expired. Please reload the page and try again.';
+      }
+      if (status === 403) {
+        return 'The server blocked this request. Please reload the page and try again; if it keeps failing, contact your administrator.';
+      }
+      if (status === 404) {
+        return 'That action was not found. Please reload the page and try again.';
+      }
+      if (status === 401 || redirected || (/name=["']?(user|email|pass|login)/i.test(body) && /<form/i.test(body))) {
+        return 'Your session has expired. Please sign in again.';
+      }
+      if (status >= 500) {
+        return 'The server hit a problem and could not finish. Please try again.';
+      }
+      return fallback || 'The server returned an unexpected response. Please try again.';
+    }
+
+    /* Turn a caught fetch()/JS error into a plain-English sentence. */
+    function posErrorText(err, fallback) {
+      const m = (err && err.message) ? String(err.message).trim() : '';
+      const technical = /failed to fetch|load failed|networkerror|network request failed|typeerror|syntaxerror|unexpected token|unexpected end|not valid json|invalid (server )?response|invalid json|^(server )?error:?\s*\d+$|aborterror|operation was aborted|timed out/i;
+      if (m && !technical.test(m)) return m;
+      if (/failed to fetch|load failed|networkerror|network request failed|aborterror|operation was aborted|timed out/i.test(m)) {
+        return 'Could not reach the server. Check your internet connection and try again.';
+      }
+      return fallback || 'Something went wrong. Please try again.';
+    }
+
+    /* fetch() for JSON endpoints — resolves to parsed JSON or throws a
+       plain-English Error. */
+    function posFetchJson(url, options) {
+      options = options || {};
+      options.headers = options.headers || {};
+      options.headers['X-Requested-With'] = 'XMLHttpRequest';
+      if (!('Accept' in options.headers)) options.headers['Accept'] = 'application/json';
+      return fetch(url, options).then(r => r.text().then(body => {
+        let res = null;
+        try { res = JSON.parse(body); } catch (e) { res = null; }
+        if (res && typeof res === 'object') return res;
+        throw new Error(posHttpMessage(r.status, body, r.redirected));
+      }), () => {
+        throw new Error('Could not reach the server. Check your internet connection and try again.');
+      });
+    }
+
+    /* fetch() for text/HTML endpoints — same plain-English errors. */
+    function posFetchText(url, options) {
+      options = options || {};
+      options.headers = options.headers || {};
+      options.headers['X-Requested-With'] = 'XMLHttpRequest';
+      return fetch(url, options).then(r => r.text().then(body => {
+        if (r.status >= 400 || (r.redirected && /login|signin|auth/i.test(r.url || ''))) {
+          throw new Error(posHttpMessage(r.status, body, r.redirected));
+        }
+        return body;
+      }), () => {
+        throw new Error('Could not reach the server. Check your internet connection and try again.');
+      });
     }
 
     function init() {
@@ -2205,7 +2271,11 @@
           video.srcObject = stream;
         })
         .catch(err => {
-          showToast('Camera error', 'Could not access camera: ' + (err.message || err), 'warning');
+          const name = err && err.name;
+          const msg = name === 'NotAllowedError' ? 'Camera access was blocked. Please allow camera access in your browser, or use the PIN below.'
+            : name === 'NotFoundError' ? 'No camera was found on this device. Use the PIN below instead.'
+            : 'Could not access the camera. Use the PIN below instead.';
+          showToast('Camera error', msg, 'warning');
           showClockPinFallback();
         });
     }
@@ -2294,22 +2364,16 @@
         const url = clockedIn ? baseUrl + '/attendance/clock_out' : baseUrl + '/attendance/clock_in';
         const wasClockedIn = clockedIn;
         
-        fetch(url, { 
-          method: 'POST', 
+        posFetchJson(url, {
+          method: 'POST',
           body: params,
-          headers: { 
+          headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'
           }
         })
-          .then(r => {
-            if (!r.ok) throw new Error('Server error: ' + r.status);
-            return r.text();
-          })
-          .then(text => {
+          .then(res => {
             confirmBtn.disabled = false;
-            try {
-              const res = JSON.parse(text);
               if (res.status === 'success') {
                 // Immediately flip local UI — don't wait for async status check
                 if (wasClockedIn) {
@@ -2330,20 +2394,15 @@
                 // Verify with server in background
                 setTimeout(checkClockStatus, 500);
               } else {
-                notice.textContent = res.message || 'Clock action failed';
-                showToast('Clock failed', res.message || 'Clock action failed', 'danger');
+                notice.textContent = res.message || 'The clock action failed. Please try again.';
+                showToast('Clock failed', res.message || 'The clock action failed. Please try again.', 'danger');
               }
-            } catch (e) {
-              console.error('Clock response parse error:', text, e);
-              notice.textContent = 'Invalid server response. Please try again.';
-              showToast('Clock error', 'Invalid server response', 'danger');
-            }
           })
           .catch(err => {
             confirmBtn.disabled = false;
-            console.error('Clock error:', err);
-            notice.textContent = 'Network or server error. Please try again.';
-            showToast('Clock error', 'Network or server error', 'danger');
+            const msg = posErrorText(err, 'The clock action failed. Please try again.');
+            notice.textContent = msg;
+            showToast('Clock failed', msg, 'danger');
           });
       };
       
@@ -2547,7 +2606,7 @@
         discountRow.style.display = 'none';
       }
       document.getElementById('grandTotal').textContent = formatMoney(total);
-      const canPay = cart.length > 0 && (clockedIn || attendanceExempt);
+      const canPay = cart.length > 0 && (!clockInRequired || clockedIn);
       document.getElementById('payBtn').disabled = !canPay;
       document.getElementById('payBtn').textContent = cart.length === 0 ? 'Pay' : `Pay ${formatMoney(total)}`;
       document.getElementById('splitBtn').disabled = !canPay;
@@ -2576,7 +2635,7 @@
       const redeemBtn = document.getElementById('redeemBtn');
       redeemBtn.disabled = !canRedeem;
       redeemBtn.textContent = 'Redeem';
-      document.getElementById('clockNotice').style.display = cart.length > 0 && !clockedIn && !attendanceExempt ? 'flex' : 'none';
+      document.getElementById('clockNotice').style.display = cart.length > 0 && clockInRequired && !clockedIn ? 'flex' : 'none';
     }
 
     // Manual shipping picker — fee is verified server-side on save
@@ -2729,15 +2788,12 @@
       params.append('customer_id', customerId);
       params.append('cart_subtotal', cart.reduce((s, i) => s + (i.unitPrice * i.qty), 0));
       params.append('csrf_test_name', csrfToken);
-      fetch(baseUrl + '/customer_coupon/get_coupon_details', {
+      posFetchJson(baseUrl + '/customer_coupon/get_coupon_details', {
         method: 'POST',
         body: params,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' }
       })
-        .then(r => { if(!r.ok) throw new Error('Server error: ' + r.status); return r.text(); })
-        .then(text => {
-          let data;
-          try { data = JSON.parse(text); } catch(e) { throw new Error('Invalid response'); }
+        .then(data => {
           if(data.expire_status === 'Valid') {
             couponCode = code;
             couponValue = parseFloat(data.coupon_value) || 0;
@@ -2763,9 +2819,9 @@
             showToast('Coupon invalid', data.message || 'Invalid coupon code', 'warning');
           }
         })
-        .catch(() => {
+        .catch(err => {
           clearCouponCode();
-          showToast('Error', 'Could not validate coupon. Please try again.', 'danger');
+          showToast('Coupon error', posErrorText(err, 'Could not validate the coupon. Please try again.'), 'danger');
         });
     }
 
@@ -2945,15 +3001,18 @@
         headers: { 'Accept': 'text/html' }
       })
         .then(r => {
-          if (!r.ok) throw new Error('Failed to load receipt');
+          if (!r.ok) throw new Error(posHttpMessage(r.status, '', r.redirected, 'Could not load the receipt.'));
           return r.text();
         })
         .then(html => {
           receiptContent.innerHTML = html;
         })
         .catch(err => {
-          console.error('Receipt load error:', err);
-          receiptContent.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--mp-danger);">Failed to load receipt. Please try again.</div>';
+          receiptContent.innerHTML = '';
+          const errBox = document.createElement('div');
+          errBox.style.cssText = 'text-align: center; padding: 40px; color: var(--mp-danger);';
+          errBox.textContent = posErrorText(err, 'Could not load the receipt. Please try again.');
+          receiptContent.appendChild(errBox);
         });
     }
 
@@ -3064,57 +3123,41 @@
       submitBtn.disabled = true;
       submitBtn.textContent = 'Holding...';
 
-      fetch(baseUrl + '/mobile/hold', {
+      posFetchJson(baseUrl + '/mobile/hold', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      .then(r => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(text => {
+      .then(res => {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Hold';
-        try {
-          const res = JSON.parse(text);
-          if (res.status === 'success') {
-            closeHoldModal();
-            const itemCount = cart.length;
-            const msg = itemCount + ' item' + (itemCount !== 1 ? 's' : '') + ' held successfully';
-            showToast('Sale Held', msg, 'success');
-            resetCart();
-            setTimeout(() => window.location.reload(), 1000);
-          } else {
-            openAlertModal('Hold failed', res.message || 'Could not hold sale. Make sure products are in stock and a branch is set.');
-          }
-        } catch (e) {
-          console.error('Hold response parse error:', text, e);
-          openAlertModal('Hold failed', 'Invalid server response. Please try again.');
+        if (res.status === 'success') {
+          closeHoldModal();
+          const itemCount = cart.length;
+          const msg = itemCount + ' item' + (itemCount !== 1 ? 's' : '') + ' held successfully';
+          showToast('Sale Held', msg, 'success');
+          resetCart();
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          openAlertModal('Hold failed', res.message || 'Could not hold the sale. Make sure products are in stock and a branch is set.');
         }
       })
       .catch(err => {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Hold';
-        console.error('Hold error:', err);
-        openAlertModal('Hold failed', 'Network or server error. Please try again.');
+        openAlertModal('Hold failed', posErrorText(err, 'Could not hold the sale. Please try again.'));
       });
     }
 
     function loadHold(holdId) {
       if (!holdId) return;
       const doLoad = () => {
-        fetch(baseUrl + '/mobile/get_hold/' + holdId, {
+        posFetchJson(baseUrl + '/mobile/get_hold/' + holdId, {
           method: 'GET',
           headers: { 'Accept': 'application/json' }
         })
-          .then(r => {
-            if (!r.ok) throw new Error('Server error: ' + r.status);
-            return r.text();
-          })
-          .then(text => {
+          .then(hold => {
             try {
-              const hold = JSON.parse(text);
               if (!hold || hold.status === 'error') {
                 openAlertModal('Hold not found', hold?.message || 'Could not load this hold.');
                 return;
@@ -3168,13 +3211,12 @@
               holdLoadedAt = Date.now();
               showToast('Hold loaded', hold.items.length + ' item(s) restored', 'success');
             } catch (e) {
-              console.error('Hold response parse error:', text, e);
-              openAlertModal('Hold error', 'Invalid server response. Please try again.');
+              console.error('Hold response error:', e);
+              openAlertModal('Hold error', 'The hold could not be loaded because the server sent an unexpected response. Please try again.');
             }
           })
           .catch(err => {
-            console.error('Load hold error:', err);
-            openAlertModal('Network error', 'Could not load hold. Check connection and try again.');
+            openAlertModal('Could not load hold', posErrorText(err, 'The hold could not be loaded. Please try again.'));
           });
       };
       if (cart.length > 0) {
@@ -3187,17 +3229,12 @@
     function deleteHold(holdId) {
       if (!holdId) return;
       openConfirmModal('Delete hold?', 'This held invoice will be removed permanently.', () => {
-        fetch(baseUrl + '/pos/hold_invoice_delete/' + holdId, {
+        posFetchText(baseUrl + '/pos/hold_invoice_delete/' + holdId, {
           method: 'GET',
           headers: { 'Accept': 'text/plain' }
         })
-          .then(r => {
-            if (!r.ok) throw new Error('Server error: ' + r.status);
-            return r.text();
-          })
           .then(res => {
             const trimmed = res.trim().toLowerCase();
-            console.log('Delete response:', trimmed);
             if (trimmed === 'success') {
               showToast('Hold deleted', 'Invoice removed from holds', 'success');
               // Remove the hold from the table immediately
@@ -3206,12 +3243,12 @@
               // Refresh the hold list
               openHoldPopup();
             } else {
-              openAlertModal('Delete failed', res || 'Could not delete hold.');
+              const msg = (res && res.indexOf('<') === -1 && res.length < 200) ? res.trim() : '';
+              openAlertModal('Delete failed', msg || 'Could not delete the hold. Please try again.');
             }
           })
           .catch(err => {
-            console.error('Delete hold error:', err);
-            openAlertModal('Network error', 'Could not delete hold. Check connection and try again.');
+            openAlertModal('Delete failed', posErrorText(err, 'Could not delete the hold. Please try again.'));
           });
       });
     }
@@ -3257,17 +3294,11 @@
       formData.append('mobile', phone);
       formData.append('csrf_test_name', csrfToken);
       
-      fetch(baseUrl + '/customers/add_customer_ajax', {
+      posFetchJson(baseUrl + '/customers/add_customer_ajax', {
         method: 'POST',
         body: formData
       })
-      .then(r => {
-        if (!r.ok) throw new Error('Server error: ' + r.status);
-        return r.text();
-      })
-      .then(text => {
-        try {
-          const res = JSON.parse(text);
+      .then(res => {
           if (res.status === 'success' && res.customer_id) {
             // Update customer selection
             const label = phone ? name + ' (' + phone + ')' : name;
@@ -3288,16 +3319,9 @@
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Customer';
           }
-        } catch (e) {
-          console.error('Customer save error:', text, e);
-          showToast('Error', 'Invalid server response', 'danger');
-          saveBtn.disabled = false;
-          saveBtn.textContent = 'Save Customer';
-        }
       })
       .catch(err => {
-        console.error('Customer save error:', err);
-        showToast('Network error', 'Could not save customer. Please try again.', 'danger');
+        showToast('Save failed', posErrorText(err, 'Could not save the customer. Please check the details and try again.'), 'danger');
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save Customer';
       });
@@ -3434,26 +3458,11 @@
       closeAllPopups();
       document.getElementById('holdPopup').classList.add('active');
       // Refresh hold list from server
-      fetch(baseUrl + '/pos/get_holds_ajax', {
+      posFetchJson(baseUrl + '/pos/get_holds_ajax', {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       })
-        .then(r => {
-          if (!r.ok) throw new Error('Server error: ' + r.status);
-          return r.text();
-        })
-        .then(text => {
-          let data;
-          if (!text || !text.trim()) {
-            console.error('Hold list parse error: empty response from server');
-            throw new Error('Invalid server response');
-          }
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            console.error('Hold list parse error:', text, e);
-            throw new Error('Invalid server response');
-          }
+        .then(data => {
           const tbody = document.querySelector('#holdPopup table tbody');
           if (!tbody) return;
           if (!data.holds || data.holds.length === 0) {
@@ -3474,10 +3483,14 @@
           }
         })
         .catch(err => {
-          console.error('Failed to load holds:', err);
           const tbody = document.querySelector('#holdPopup table tbody');
           if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--mp-danger);">Failed to load holds. Please try again.</td></tr>';
+            tbody.innerHTML = '';
+            const row = tbody.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 5;
+            cell.style.cssText = 'padding: 24px; text-align: center; color: var(--mp-danger);';
+            cell.textContent = posErrorText(err, 'Failed to load holds. Please try again.');
           }
         });
     };
@@ -3489,22 +3502,11 @@
       tbody.innerHTML = '<tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>';
       
       // Fetch today's sales
-      fetch(baseUrl + '/pos/get_todays_sales_ajax', {
+      posFetchJson(baseUrl + '/pos/get_todays_sales_ajax', {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       })
-        .then(r => {
-          if (!r.ok) throw new Error('Server error: ' + r.status);
-          return r.text();
-        })
-        .then(text => {
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            console.error('Sales list parse error:', text, e);
-            throw new Error('Invalid server response');
-          }
+        .then(data => {
           if (!data.sales || data.sales.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-muted);">No sales today</td></tr>';
           } else {
@@ -3519,8 +3521,12 @@
           }
         })
         .catch(err => {
-          console.error('Failed to load sales:', err);
-          tbody.innerHTML = '<tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-danger);">Failed to load sales. Please try again.</td></tr>';
+          tbody.innerHTML = '';
+          const row = tbody.insertRow();
+          const cell = row.insertCell();
+          cell.colSpan = 4;
+          cell.style.cssText = 'padding: 24px; text-align: center; color: var(--mp-danger);';
+          cell.textContent = posErrorText(err, 'Failed to load sales. Please try again.');
         });
     };
 
@@ -3781,48 +3787,37 @@
       const submitBtn = document.getElementById('paymentSubmitBtn');
       submitBtn.disabled = true;
       submitBtn.textContent = 'Saving...';
-      fetch(baseUrl + '/mobile/save', {
+      posFetchJson(baseUrl + '/mobile/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload)
       })
-      .then(r => {
-        if (!r.ok) throw new Error('Server error: ' + r.status);
-        return r.text();
-      })
-      .then(text => {
+      .then(res => {
         submitBtn.disabled = false;
         submitBtn.textContent = mode === 'plan' ? 'Create Plan' : 'Pay';
-        try {
-          const res = JSON.parse(text);
-          if (res.status === 'success') {
-            closePaymentPopup();
-            const salesId = res.sales_id;
-            const msg = res.message || 'Sale saved';
-            showToast('Sale Completed', msg, 'success');
-            
-            // Show post-sale actions if sales_id is available
-            if (salesId) {
-              setTimeout(() => {
-                openPostSaleModal(salesId, res.whatsapp_url);
-              }, 500);
-            } else {
-              resetCart();
-              setTimeout(() => window.location.reload(), 800);
-            }
+        if (res.status === 'success') {
+          closePaymentPopup();
+          const salesId = res.sales_id;
+          const msg = res.message || 'Sale saved';
+          showToast('Sale Completed', msg, 'success');
+
+          // Show post-sale actions if sales_id is available
+          if (salesId) {
+            setTimeout(() => {
+              openPostSaleModal(salesId, res.whatsapp_url);
+            }, 500);
           } else {
-            openAlertModal('Payment failed', res.message || 'Could not save sale.');
+            resetCart();
+            setTimeout(() => window.location.reload(), 800);
           }
-        } catch (e) {
-          console.error('Payment response parse error:', text, e);
-          openAlertModal('Payment error', 'Invalid server response. Please try again.');
+        } else {
+          openAlertModal('Payment failed', res.message || 'Could not save the sale. Please check the details and try again.');
         }
       })
       .catch(err => {
         submitBtn.disabled = false;
         submitBtn.textContent = mode === 'plan' ? 'Create Plan' : 'Pay';
-        console.error('Payment error:', err);
-        openAlertModal('Network error', 'Could not save sale. Please try again.');
+        openAlertModal('Payment failed', posErrorText(err, 'Could not save the sale. Please check the details and try again.'));
       });
     };
 

@@ -150,8 +150,8 @@
             showToast(res.message, 'error');
           }
         },
-        error: function(){
-          showToast('Network error. Try again.', 'error');
+        error: function(xhr){
+          showToast(mpAjaxError(xhr, 'Could not update your password. Please try again.'), 'error');
         }
       });
     });
@@ -179,8 +179,8 @@
             showToast(res.message, 'error');
           }
         },
-        error: function(){
-          showToast('Upload failed. Try again.', 'error');
+        error: function(xhr){
+          showToast(mpAjaxError(xhr, 'The photo could not be uploaded. Please try again.'), 'error');
         }
       });
     });

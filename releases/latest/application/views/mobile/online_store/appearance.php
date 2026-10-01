@@ -88,6 +88,7 @@
             <div style="flex:1;"><label class="form-label">Button</label><input type="color" name="button_color" value="<?= htmlspecialchars($settings->button_color ?? ($settings->primary_color ?? '#0057FF')); ?>"></div>
           </div>
           <div class="form-group color-row">
+            <div style="flex:1;"><label class="form-label">Page BG</label><input type="color" name="background_color" value="<?= htmlspecialchars(preg_match('/^#[0-9a-fA-F]{6}$/', trim($settings->background_color ?? '')) ? $settings->background_color : '#FFFFFF'); ?>" title="White = theme default"></div>
             <div style="flex:1;"><label class="form-label">Footer BG</label><input type="color" name="footer_bg_color" value="<?= htmlspecialchars($settings->footer_bg_color ?? '#0F172A'); ?>"></div>
             <div style="flex:1;"><label class="form-label">Footer Text</label><input type="color" name="footer_text_color" value="<?= htmlspecialchars($settings->footer_text_color ?? '#94A3B8'); ?>"></div>
             <div style="flex:1;"><label class="form-label">Header Text</label><input type="color" name="header_text_color" value="<?= htmlspecialchars($settings->header_text_color ?? '#FFFFFF'); ?>"></div>
@@ -99,7 +100,7 @@
           <div class="form-group">
             <label class="form-label">Font Family</label>
             <div class="choice-group">
-              <?php $fonts = ['Inter', 'Playfair Display', 'Montserrat', 'Roboto', 'Poppins', 'Open Sans']; ?>
+              <?php $fonts = ['Inter', 'Instrument Serif', 'Playfair Display', 'Montserrat', 'Roboto', 'Poppins', 'Open Sans']; ?>
               <?php foreach($fonts as $f): ?>
                 <label class="choice"><input type="radio" name="font_family" value="<?= $f; ?>" <?= ($settings->font_family ?? 'Inter') == $f ? 'checked' : ''; ?>><?= $f; ?></label>
               <?php endforeach; ?>
@@ -238,11 +239,11 @@
       const btn = document.querySelector('#appearance-form button[type=button]');
       btn.disabled = true; btn.textContent = 'Saving...';
       const fd = new FormData(document.getElementById('appearance-form'));
-      fetch('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         showToast(res.message || 'Saved', res.status !== 'success');
         btn.disabled = false; btn.textContent = 'Save Appearance';
-      }).catch(()=>{ showToast('Error saving', true); btn.disabled = false; btn.textContent = 'Save Appearance'; });
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.textContent = 'Save Appearance'; });
     }
   </script>
 </body>

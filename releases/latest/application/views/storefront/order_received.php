@@ -6,9 +6,10 @@
   <title>Order Confirmed | <?= htmlspecialchars($store->store_name ?? 'Store'); ?></title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root { --primary:#3B82F6; --primary-dark:#2563EB; --success:#059669; --success-light:#D1FAE5; --warning:#F59E0B; --danger:#EF4444; --dark:#0F172A; --gray:#64748B; --light-gray:#F1F5F9; --border:#E2E8F0; --white:#fff; --radius:16px; --radius-sm:10px; }
+    <?= $this->theme_engine->cssVariables(); ?>
+    :root { --primary:var(--mp-primary,#3B82F6); --primary-dark:var(--mp-primary-dark,#2563EB); --success:#059669; --success-light:#D1FAE5; --warning:#F59E0B; --danger:#EF4444; --dark:#0F172A; --gray:#64748B; --light-gray:#F1F5F9; --border:#E2E8F0; --white:#fff; --radius:16px; --radius-sm:10px; }
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Inter',sans-serif; background:#F8FAFC; color:var(--dark); -webkit-font-smoothing:antialiased; }
+    body { font-family:var(--mp-font,'Inter',sans-serif); background:#F8FAFC; color:var(--dark); -webkit-font-smoothing:antialiased; }
     a { text-decoration:none; color:inherit; }
     img { max-width:100%; display:block; }
 
@@ -231,12 +232,21 @@
       </div>
       <div class="sf-row">
         <span class="label">Delivery Fee</span>
-        <span class="value"><?= $order->delivery_fee > 0 ? ($placement === 'Left' ? $cur . number_format($order->delivery_fee, 2) : number_format($order->delivery_fee, 2) . ' ' . $cur) : 'Free'; ?></span>
+        <span class="value"><?php
+          if(!empty($order->delivery_quote_pending)) echo 'To be confirmed';
+          elseif($order->delivery_fee > 0) echo $placement === 'Left' ? $cur . number_format($order->delivery_fee, 2) : number_format($order->delivery_fee, 2) . ' ' . $cur;
+          else echo 'Free';
+        ?></span>
       </div>
       <div class="sf-row total">
-        <span class="label">Grand Total</span>
+        <span class="label"><?= !empty($order->delivery_quote_pending) ? 'Items Total' : 'Grand Total'; ?></span>
         <span class="value"><?= $placement === 'Left' ? $cur . number_format($order->grand_total, 2) : number_format($order->grand_total, 2) . ' ' . $cur; ?></span>
       </div>
+      <?php if(!empty($order->delivery_quote_pending)): ?>
+      <div style="font-size:12px;color:var(--gray);background:var(--light-gray);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.5;">
+        The store will confirm the delivery fee for <strong><?= htmlspecialchars($order->shipping_method); ?></strong> when processing your order — it is not included in the total above.
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -247,8 +257,8 @@
       Order Details
     </div>
     <div class="sf-info-row">
-      <span class="label">Payment Method</span>
-      <span class="value"><?= ucfirst(str_replace('_', ' ', $order->payment_method)); ?></span>
+      <span class="label"><?= $order->payment_method === 'whatsapp' ? 'Order Channel' : 'Payment Method'; ?></span>
+      <span class="value"><?= $order->payment_method === 'whatsapp' ? 'WhatsApp order' : ucfirst(str_replace('_', ' ', $order->payment_method)); ?></span>
     </div>
     <div class="sf-info-row">
       <span class="label">Payment Status</span>

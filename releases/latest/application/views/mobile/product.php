@@ -761,11 +761,10 @@
 
       var formData = new FormData(this);
 
-      fetch('<?= base_url('mobile/save_product'); ?>', {
+      mpFetchJson('<?= base_url('mobile/save_product'); ?>', {
         method: 'POST',
         body: formData
       })
-      .then(function(res){ return res.json(); })
       .then(function(data){
         btn.disabled = false;
         btn.textContent = 'Save Product';
@@ -775,17 +774,18 @@
             window.location.href = data.redirect || '<?= base_url('mobile/stock'); ?>';
           }, 800);
         } else {
-          showToast(data.message || 'Save failed.', 'error');
+          showToast(data.message || 'Could not save this product. Please check the details and try again.', 'error');
         }
       })
       .catch(function(err){
         btn.disabled = false;
         btn.textContent = 'Save Product';
-        showToast('Network or server error. Try again.', 'error');
+        showToast(mpErrorText(err), 'error');
       });
     });
   </script>
   <?php $this->load->view('mobile/bottom_nav', ['active' => 'more']); ?>
+  <?php $this->load->view('mobile/mp_alert'); ?>
   <?php $this->load->view('mobile/chat'); ?>
 </body>
 </html>

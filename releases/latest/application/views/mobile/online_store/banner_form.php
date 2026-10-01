@@ -135,11 +135,11 @@
       const btn = document.querySelector('#banner-form button[type=button]');
       btn.disabled = true; btn.textContent = 'Saving...';
       const fd = new FormData(document.getElementById('banner-form'));
-      fetch('<?= base_url('online_store/save_banner'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/save_banner'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         if(res.status === 'success'){ showToast(res.message); location.href='<?= base_url('mobile/online_store/banners'); ?>'; }
-        else { showToast(res.message || 'Failed to save', true); btn.disabled = false; btn.textContent = 'Save Banner'; }
-      }).catch(()=>{ showToast('Error saving', true); btn.disabled = false; btn.textContent = 'Save Banner'; });
+        else { showToast(res.message || 'The banner could not be saved. Please check the details and try again.', true); btn.disabled = false; btn.textContent = 'Save Banner'; }
+      }).catch(err=>{ showToast(mpErrorText(err, 'The banner could not be saved. Please check the details and try again.'), true); btn.disabled = false; btn.textContent = 'Save Banner'; });
     }
   </script>
 </body>

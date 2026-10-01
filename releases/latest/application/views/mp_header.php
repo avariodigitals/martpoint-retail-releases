@@ -579,3 +579,4 @@ body > .mp-support-modal{z-index:10000!important}
     </div>
   </div>
 </header>
+<?php $this->load->view('comman/incident_banner', ['context' => 'desktop']); ?>

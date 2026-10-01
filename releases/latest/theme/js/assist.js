@@ -147,8 +147,8 @@
             status.className = 'mp-support-status error';
           }
         },
-        error: function(){
-          status.textContent = 'Network error. Please try again.';
+        error: function(xhr){
+          status.textContent = (typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'The request could not be sent. Please try again.') : 'The request could not be sent. Please try again.';
           status.className = 'mp-support-status error';
         }
       });
@@ -219,9 +219,9 @@
           self._hideTyping();
           self._renderResponse(res);
         },
-        error: function(){
+        error: function(xhr){
           self._hideTyping();
-          self._addBotMessage('Sorry, something went wrong. Please try again.');
+          self._addBotMessage((typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Sorry, something went wrong. Please try again.') : 'Sorry, something went wrong. Please try again.');
         }
       });
     },
@@ -243,9 +243,9 @@
           self._hideTyping();
           self._renderResponse(res);
         },
-        error: function(){
+        error: function(xhr){
           self._hideTyping();
-          self._addBotMessage('Sorry, could not process your selection.');
+          self._addBotMessage((typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Sorry, I could not process your selection. Please try again.') : 'Sorry, I could not process your selection. Please try again.');
         }
       });
     },
@@ -268,9 +268,9 @@
           self.draftId = null;
           self._renderResponse(res);
         },
-        error: function(){
+        error: function(xhr){
           self._hideTyping();
-          self._addBotMessage('Failed to execute. Please try again.');
+          self._addBotMessage((typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Sorry, that action could not be completed. Please try again.') : 'Sorry, that action could not be completed. Please try again.');
         }
       });
     },
@@ -311,9 +311,9 @@
           self._hideTyping();
           self._renderResponse(res);
         },
-        error: function(){
+        error: function(xhr){
           self._hideTyping();
-          self._addBotMessage('Sorry, I could not process that. Please try again.');
+          self._addBotMessage((typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Sorry, I could not process that. Please try again.') : 'Sorry, I could not process that. Please try again.');
         }
       });
     },

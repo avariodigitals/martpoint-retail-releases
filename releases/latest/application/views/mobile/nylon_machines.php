@@ -152,13 +152,12 @@
       var btn = document.getElementById('saveBtn');
       btn.disabled = true;
       var form = document.getElementById('mForm');
-      fetch(form.action, { method: 'POST', body: new FormData(form) })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(form.action, { method: 'POST', body: new FormData(form) })
         .then(function(d){
           if(d && d.success){ window.location.reload(); }
-          else { showToast(d && d.message ? d.message : 'Save failed.'); btn.disabled = false; }
+          else { showToast(d && d.message ? d.message : 'Could not save this machine. Please check the details and try again.'); btn.disabled = false; }
         })
-        .catch(function(){ showToast('Network error.'); btn.disabled = false; });
+        .catch(function(err){ showToast(mpErrorText(err)); btn.disabled = false; });
       return false;
     }
 
@@ -169,14 +168,13 @@
         var fd = new FormData();
         fd.append('id', this.getAttribute('data-del'));
         fd.append(csrf_token, csrf_hash);
-        fetch(base_url + 'nylon/machine_delete', { method: 'POST', body: fd })
-          .then(function(r){ return r.json(); })
+        mpFetchJson(base_url + 'nylon/machine_delete', { method: 'POST', body: fd })
           .then(function(d){
             if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
             if(d && d.success){ window.location.reload(); }
-            else { showToast(d && d.message ? d.message : 'Delete failed.'); b.disabled = false; }
+            else { showToast(d && d.message ? d.message : 'Could not delete this machine. Please try again.'); b.disabled = false; }
           })
-          .catch(function(){ showToast('Network error.'); b.disabled = false; });
+          .catch(function(err){ showToast(mpErrorText(err)); b.disabled = false; });
       });
     });
   </script>

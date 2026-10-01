@@ -84,16 +84,15 @@
     function deleteFaq(id, e){
       e.preventDefault();
       if(!confirm('Delete this FAQ?')) return;
-      fetch('<?= base_url('online_store/delete_faq/'); ?>' + id, { method: 'POST' })
-        .then(r => r.json())
+      mpFetchJson('<?= base_url('online_store/delete_faq/'); ?>' + id, { method: 'POST' })
         .then(d => {
           if(d && d.status === 'success'){
             document.querySelector('[data-id="' + id + '"]').remove();
           } else {
-            alert(d && d.message ? d.message : 'Delete failed');
+            alert(d && d.message ? d.message : 'The FAQ could not be deleted. Please try again.');
           }
         })
-        .catch(() => alert('Delete failed. Please try again.'));
+        .catch(err => alert(mpErrorText(err, 'The FAQ could not be deleted. Please try again.')));
     }
   </script>
 </body>

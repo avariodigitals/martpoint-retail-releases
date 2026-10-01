@@ -99,6 +99,10 @@ class Default_data_model extends CI_Model {
             'Production Operator' => array(
                 'description' => 'Machine Operator. Reports output, rejects, scrap and waste per shift.',
                 'permissions' => $this->get_production_operator_permissions()
+            ),
+            'Service Engineer' => array(
+                'description' => 'Field / Service Engineer. Views customers and equipment, updates assigned service jobs and records calibration.',
+                'permissions' => $this->get_service_engineer_permissions()
             )
         );
 
@@ -330,6 +334,12 @@ class Default_data_model extends CI_Model {
             'nylon_report','nylon_approve','nylon_artwork','nylon_costing','nylon_settings',
             // Leads / CRM
             'leads_view','leads_add','leads_edit','leads_delete',
+            // Equipment register & service jobs
+            'equipment_add','equipment_edit','equipment_view',
+            'service_jobs_add','service_jobs_edit','service_jobs_view',
+            // Scientific-ops reports
+            'quotation_report','procurement_report','warranty_report',
+            'equipment_report','service_jobs_report','calibration_report',
         );
     }
 
@@ -404,7 +414,7 @@ class Default_data_model extends CI_Model {
             'discountCouponView','customerCouponView',
             // Reports
             'sales_report','purchase_report','expense_report','profit_report',
-            'stock_report','item_sales_report',
+            'stock_report','item_sales_report','expired_items_report',
             'purchase_payments_report','sales_payments_report',
             'sales_tax_report','purchase_tax_report',
             'supplier_items_report','seller_points_report',
@@ -430,6 +440,12 @@ class Default_data_model extends CI_Model {
             'nylon_report','nylon_approve','nylon_artwork','nylon_costing','nylon_settings',
             // Leads / CRM (Manager can work the pipeline but not delete)
             'leads_view','leads_add','leads_edit',
+            // Equipment register & service jobs
+            'equipment_add','equipment_edit','equipment_view',
+            'service_jobs_add','service_jobs_edit','service_jobs_view',
+            // Scientific-ops reports
+            'quotation_report','procurement_report','warranty_report',
+            'equipment_report','service_jobs_report','calibration_report',
         );
     }
 
@@ -614,6 +630,20 @@ class Default_data_model extends CI_Model {
     }
 
     /**
+     * Service Engineer: field service staff. Views customers and equipment,
+     * works assigned service jobs, records visits/parts and calibration results.
+     */
+    private function get_service_engineer_permissions() {
+        return array(
+            'dashboard_view',
+            'customers_view',
+            'items_view',
+            'equipment_view','equipment_edit',
+            'service_jobs_view','service_jobs_edit',
+        );
+    }
+
+    /**
      * Partner: Implementation and setup partner.
      * Full setup access (users, roles, business setup, master data) plus operational view.
      */
@@ -713,6 +743,60 @@ class Default_data_model extends CI_Model {
     }
 
     /**
+     * Additively backfill permissions for newer module keys onto standard
+     * roles that already have permissions. Unlike reseed_missing_permissions,
+     * this only ever adds keys that did not exist when the role was created —
+     * it never re-adds permissions an admin deliberately removed.
+     *
+     * Called when a store enables the equipment/service features (e.g. by
+     * selecting the Scientific Equipment industry in Business Profile).
+     */
+    public function seed_module_permissions($store_id = null) {
+        if (empty($store_id)) {
+            $store_id = get_current_store_id();
+        }
+        if (empty($store_id)) {
+            return 0;
+        }
+
+        $module_perms = array(
+            'equipment_add','equipment_edit','equipment_view',
+            'service_jobs_add','service_jobs_edit','service_jobs_view',
+            'quotation_report','procurement_report','warranty_report',
+            'equipment_report','service_jobs_report','calibration_report',
+        );
+
+        // Ensures the Service Engineer role exists on older stores too (idempotent).
+        $this->create_default_roles($store_id);
+
+        $added = 0;
+        // Roles can be shared across stores (e.g. the global "Admin" role row
+        // lives on store 1 but is referenced by db_permissions rows on other
+        // stores), so resolve each role by id rather than by store.
+        $role_ids = array_merge(
+            array_column($this->db->select('id')->where('store_id', $store_id)->get('db_roles')->result_array(), 'id'),
+            array_column($this->db->select('role_id')->distinct()->where('store_id', $store_id)->get('db_permissions')->result_array(), 'role_id')
+        );
+        foreach (array_unique($role_ids) as $role_id) {
+            $role = $this->db->where('id', $role_id)->get('db_roles')->row();
+            if (!$role) { continue; }
+            $defaults = $this->get_role_default_permissions($role->role_name);
+            if (empty($defaults)) { continue; }
+            $wanted = array_intersect($module_perms, $defaults);
+            if (empty($wanted)) { continue; }
+            $existing = array_column(
+                $this->db->where('role_id', $role_id)->get('db_permissions')->result_array(),
+                'permissions'
+            );
+            $missing = array_values(array_diff($wanted, $existing));
+            if (!empty($missing)) {
+                $added += $this->assign_permissions($role_id, $store_id, $missing);
+            }
+        }
+        return $added;
+    }
+
+    /**
      * Return the default permission list for a standard role name.
      * Used as a fallback when db_permissions is empty for a role.
      */
@@ -731,6 +815,7 @@ class Default_data_model extends CI_Model {
             'Inventory Officer' => $this->get_inventory_officer_permissions(),
             'Production Supervisor' => $this->get_production_supervisor_permissions(),
             'Production Operator'   => $this->get_production_operator_permissions(),
+            'Service Engineer'      => $this->get_service_engineer_permissions(),
             'Admin'          => $this->get_business_owner_permissions(),
         );
 
@@ -883,6 +968,7 @@ class Default_data_model extends CI_Model {
             'hospital'             => 'healthcare_services',
             'diagnostic_centre'    => 'healthcare_services',
             'perfume_shop'         => 'perfume',
+            'skincare'             => 'skincare',
             'jewellery_store'      => 'jewellery',
             'agro_dealer'          => 'agro',
             'feed_store'           => 'agro',
@@ -893,6 +979,7 @@ class Default_data_model extends CI_Model {
             'tailoring'            => 'tailoring',
             'manufacturer'         => 'manufacturing',
             'nylon_polythene'      => 'nylon',
+            'scientific_equipment' => 'scientific',
             'service_business'     => 'services',
             'online_store'         => 'digital',
             'creator'              => 'digital',
@@ -1008,6 +1095,34 @@ class Default_data_model extends CI_Model {
                     'Accessories'             => 'Chargers, cables, cases and other accessories',
                 ),
                 'brands' => array('Samsung', 'LG', 'Sony', 'HP', 'Tecno', 'Hisense'),
+            ),
+            'scientific' => array(
+                'units' => array(
+                    'Piece'  => array('PCS', null, 1, 1),
+                    'Unit'   => array('UNIT', null, 1, 0),
+                    'Box'    => array('BOX', null, 1, 0),
+                    'Pack'   => array('PACK', null, 1, 0),
+                    'Bottle' => array('BTL', null, 1, 0),
+                    'Vial'   => array('VIAL', null, 1, 0),
+                    'Litre'  => array('L', null, 1, 0),
+                    'Set'    => array('SET', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Analytical Instruments'      => 'Spectrometers, chromatographs, analysers and measuring instruments',
+                    'Laboratory Equipment'        => 'Centrifuges, incubators, balances, microscopes and bench equipment',
+                    'Reagents & Chemicals'        => 'Reagents, buffers, standards and laboratory chemicals',
+                    'Consumables & Glassware'     => 'Pipettes, tubes, glassware and single-use consumables',
+                    'Calibration Standards'       => 'Certified reference materials and calibration standards',
+                    'Spare Parts & Accessories'   => 'Lamps, probes, electrodes, cables and instrument accessories',
+                    'Safety & PPE'                => 'Safety equipment and personal protective equipment',
+                ),
+                'services' => array(
+                    'Installation & Commissioning' => array('price' => 0, 'duration' => 120, 'description' => 'On-site equipment installation and commissioning'),
+                    'Preventive Maintenance Visit' => array('price' => 0, 'duration' => 60,  'description' => 'Scheduled preventive maintenance visit'),
+                    'Calibration Service'          => array('price' => 0, 'duration' => 60,  'description' => 'Instrument calibration with certificate'),
+                    'Repair Call-out'              => array('price' => 0, 'duration' => 60,  'description' => 'On-site diagnostic and repair visit'),
+                    'Operator Training'            => array('price' => 0, 'duration' => 240, 'description' => 'Operator and user training session'),
+                ),
             ),
             'phone_accessories' => array(
                 'units' => array(
@@ -1316,6 +1431,41 @@ class Default_data_model extends CI_Model {
                 ),
                 'services' => array(
                     'Bespoke Blend Consultation' => array('price' => 0, 'duration' => '45 min', 'appointment' => 1),
+                ),
+            ),
+            'skincare' => array(
+                'units' => array(
+                    'Piece'      => array('PCS', null, 1,    1),
+                    'Jar'        => array('JAR', null, 1,    0),
+                    'Bottle'     => array('BTL', null, 1,    0),
+                    'Tube'       => array('TUBE',null, 1,    0),
+                    'Set'        => array('SET', null, 1,    0),
+                    'Kilogram'   => array('KG',  null, 1,    0),
+                    'Gram'       => array('g',   'KG', 1000, 0),
+                    'Litre'      => array('L',   null, 1,    0),
+                    'Millilitre' => array('ml',  'L',  1000, 0),
+                ),
+                'item_categories' => array(
+                    'Face Care'           => 'Face creams, moisturisers, day and night creams',
+                    'Body Care'           => 'Body butters, body creams, lotions and body oils',
+                    'Cleansers & Toners'  => 'Face washes, cleansers, toners and mists',
+                    'Serums & Actives'    => 'Concentrated serums, oils and active treatments',
+                    'Soaps & Scrubs'      => 'Bar soaps, body scrubs, exfoliants and masks',
+                    'Raw Ingredients'     => 'Butters, carrier oils, waxes, clays and actives for formulation',
+                    'Packaging'           => 'Jars, bottles, pumps, labels and packaging materials',
+                ),
+                'recipe_categories' => array(
+                    'Face Creams',
+                    'Body Butters',
+                    'Lotions & Emulsions',
+                    'Serums & Oils',
+                    'Soaps & Cleansers',
+                    'Scrubs & Masks',
+                ),
+                'services' => array(
+                    'Skin Consultation'     => array('price' => 0, 'duration' => '30 min', 'appointment' => 1, 'description' => 'Skin analysis and personalised routine recommendation'),
+                    'Facial Treatment'      => array('price' => 20000, 'duration' => '1 hr', 'appointment' => 1, 'description' => 'Deep-cleansing facial using in-house formulations'),
+                    'Custom Formulation'    => array('price' => 0, 'duration' => '1 hr', 'appointment' => 1, 'description' => 'Bespoke cream or butter blended to your skin needs'),
                 ),
             ),
             'jewellery' => array(

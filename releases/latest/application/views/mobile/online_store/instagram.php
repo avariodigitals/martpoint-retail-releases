@@ -146,18 +146,18 @@
       btn.disabled = true; btn.innerHTML = '<i class="fa fa-refresh fa-spin"></i> Fetching...';
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/fetch_instagram'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
+      mpFetchJson('<?= base_url('online_store/fetch_instagram'); ?>', {method:'POST', body:fd})
+      .then(res=>{
         btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Fetch Latest 10';
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Fetch failed', true); }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Fetch Latest 10'; });
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The posts could not be fetched. Please try again.', true); }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-refresh"></i> Fetch Latest 10'; });
     }
     function savePost(){
       const fd = new FormData(document.getElementById('postForm'));
-      fetch('<?= base_url('online_store/save_instagram'); ?>', {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed to save', true); }
-      }).catch(()=>showToast('Network error', true));
+      mpFetchJson('<?= base_url('online_store/save_instagram'); ?>', {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The post could not be saved. Please check the details and try again.', true); }
+      }).catch(err=>showToast(mpErrorText(err), true));
     }
     function editPost(id, caption, link, order, enabled){
       document.getElementById('post_id').value = id;
@@ -173,10 +173,10 @@
       btn.disabled = true;
       const fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fetch('<?= base_url('online_store/delete_instagram/'); ?>'+id, {method:'POST', body:fd})
-      .then(r=>r.json()).then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'Failed', true); btn.disabled = false; }
-      }).catch(()=>{ showToast('Network error', true); btn.disabled = false; });
+      mpFetchJson('<?= base_url('online_store/delete_instagram/'); ?>'+id, {method:'POST', body:fd})
+      .then(res=>{
+        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The post could not be deleted. Please try again.', true); btn.disabled = false; }
+      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
   </script>
 </body>

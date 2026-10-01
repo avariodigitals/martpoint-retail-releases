@@ -160,6 +160,18 @@
         <li><a href="#medical_notes" data-toggle="tab"><i class="fa fa-file-medical-o"></i> Medical Notes</a></li>
         <?php endif; ?>
         <li><a href="#custom_orders" data-toggle="tab"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
+        <?php if (!empty($contacts) || mp_feature_enabled('customer_contacts')): ?>
+        <li><a href="#contacts" data-toggle="tab"><i class="fa fa-address-book"></i> Contacts</a></li>
+        <?php endif; ?>
+        <?php if (mp_feature_enabled('customer_sites')): ?>
+        <li><a href="#cust_sites" data-toggle="tab"><i class="fa fa-map-marker"></i> Sites</a></li>
+        <?php endif; ?>
+        <?php if (!empty($equipment) || mp_feature_enabled('equipment_register')): ?>
+        <li><a href="#cust_equipment" data-toggle="tab"><i class="fa fa-microchip"></i> Equipment</a></li>
+        <?php endif; ?>
+        <?php if (!empty($service_jobs) || mp_feature_enabled('service_jobs')): ?>
+        <li><a href="#cust_service_jobs" data-toggle="tab"><i class="fa fa-wrench"></i> Service Jobs</a></li>
+        <?php endif; ?>
         <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
       </ul>
 
@@ -565,6 +577,181 @@
           </table>
         </div>
 
+        <!-- Contacts -->
+        <?php if (!empty($contacts) || mp_feature_enabled('customer_contacts')): ?>
+        <div class="tab-pane" id="contacts" style="padding:20px;">
+          <div class="mp-card-form" style="margin-bottom:16px;">
+            <div class="mp-card-body">
+              <form id="contactForm" class="mp-form-grid">
+                <input type="hidden" name="customer_id" value="<?= (int)$customer->id; ?>">
+                <input type="hidden" name="contact_id" id="contact_id" value="">
+                <div class="mp-form-group">
+                  <label>Contact name *</label>
+                  <input type="text" name="contact_name" id="contact_name" class="mp-form-control" placeholder="e.g. Dr. Amara Nwosu">
+                </div>
+                <div class="mp-form-group">
+                  <label>Role / title</label>
+                  <input type="text" name="role_title" id="contact_role" class="mp-form-control" placeholder="Lab Manager / Procurement">
+                </div>
+                <div class="mp-form-group">
+                  <label>Phone</label>
+                  <input type="text" name="phone" id="contact_phone" class="mp-form-control">
+                </div>
+                <div class="mp-form-group">
+                  <label>Email</label>
+                  <input type="email" name="email" id="contact_email" class="mp-form-control">
+                </div>
+                <div class="mp-form-group">
+                  <label>Notes</label>
+                  <input type="text" name="notes" id="contact_notes" class="mp-form-control" placeholder="e.g. approves POs, prefers email">
+                </div>
+                <div class="mp-form-group">
+                  <label>Primary</label>
+                  <label style="font-weight:normal;margin-top:8px;"><input type="checkbox" name="is_primary" id="contact_primary" value="1"> Primary contact</label>
+                </div>
+                <div class="mp-form-group" style="display:flex;align-items:flex-end;gap:8px;">
+                  <button type="button" class="mp-qa-btn green" onclick="saveContact()"><i class="fa fa-check"></i> Save Contact</button>
+                  <button type="button" class="mp-qa-btn blue" onclick="resetContactForm()">Clear</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <table class="mp-static-table">
+            <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Notes</th><th>Primary</th><th></th></tr></thead>
+            <tbody>
+              <?php if(!empty($contacts)): foreach($contacts as $ct): ?>
+              <tr>
+                <td><strong><?= $ct->contact_name; ?></strong></td>
+                <td><?= $ct->role_title ?? ''; ?></td>
+                <td><?= $ct->phone ?? ''; ?></td>
+                <td><?= $ct->email ?? ''; ?></td>
+                <td><?= $ct->notes ?? ''; ?></td>
+                <td><?= $ct->is_primary ? '<span class="mp-pill paid">Primary</span>' : ''; ?></td>
+                <td>
+                  <button class="mp-qa-btn blue" style="padding:4px 8px;" onclick='editContact(<?= json_encode($ct, JSON_HEX_APOS|JSON_HEX_QUOT); ?>)'><i class="fa fa-edit"></i></button>
+                  <button class="mp-qa-btn red" style="padding:4px 8px;" onclick="deleteContact(<?= (int)$ct->id; ?>)"><i class="fa fa-trash"></i></button>
+                </td>
+              </tr>
+              <?php endforeach; else: ?>
+              <tr><td colspan="7" class="text-center text-muted">No contacts recorded yet.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- Sites -->
+        <?php if (mp_feature_enabled('customer_sites')): ?>
+        <div class="tab-pane" id="cust_sites" style="padding:20px;">
+          <div class="mp-card-form" style="margin-bottom:16px;">
+            <div class="mp-card-body">
+              <form id="siteForm" class="mp-form-grid">
+                <input type="hidden" name="customer_id" value="<?= (int)$customer->id; ?>">
+                <input type="hidden" name="site_id" id="site_id" value="">
+                <div class="mp-form-group">
+                  <label>Site name</label>
+                  <input type="text" name="site_name" id="site_name" class="mp-form-control" placeholder="e.g. Central Lab — Block C">
+                </div>
+                <div class="mp-form-group" style="grid-column:span 2;">
+                  <label>Address *</label>
+                  <input type="text" name="address" id="site_address" class="mp-form-control">
+                </div>
+                <div class="mp-form-group">
+                  <label>City</label>
+                  <input type="text" name="city" id="site_city" class="mp-form-control">
+                </div>
+                <div class="mp-form-group">
+                  <label>Postcode</label>
+                  <input type="text" name="postcode" id="site_postcode" class="mp-form-control">
+                </div>
+                <div class="mp-form-group">
+                  <label>Map link</label>
+                  <input type="text" name="location_link" id="site_link" class="mp-form-control" placeholder="https://maps…">
+                </div>
+                <div class="mp-form-group">
+                  <label>Primary</label>
+                  <label style="font-weight:normal;margin-top:8px;"><input type="checkbox" name="is_primary" id="site_primary" value="1"> Primary delivery/service site</label>
+                </div>
+                <div class="mp-form-group" style="display:flex;align-items:flex-end;gap:8px;">
+                  <button type="button" class="mp-qa-btn green" onclick="saveSite()"><i class="fa fa-check"></i> Save Site</button>
+                  <button type="button" class="mp-qa-btn blue" onclick="resetSiteForm()">Clear</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <table class="mp-static-table">
+            <thead><tr><th>Site</th><th>Address</th><th>City</th><th>Postcode</th><th>Primary</th><th></th></tr></thead>
+            <tbody>
+              <?php if(!empty($sites)): foreach($sites as $st): ?>
+              <tr>
+                <td><strong><?= $st->site_name ?? 'Site '.$st->id; ?></strong></td>
+                <td><?= $st->address; ?></td>
+                <td><?= $st->city ?? ''; ?></td>
+                <td><?= $st->postcode ?? ''; ?></td>
+                <td><?= (!empty($st->is_primary) || (int)$customer->shippingaddress_id === (int)$st->id) ? '<span class="mp-pill paid">Primary</span>' : '<button class="mp-qa-btn blue" style="padding:3px 8px;" onclick="setPrimarySite('.(int)$st->id.')">Make primary</button>'; ?></td>
+                <td>
+                  <button class="mp-qa-btn blue" style="padding:4px 8px;" onclick='editSite(<?= json_encode($st, JSON_HEX_APOS|JSON_HEX_QUOT); ?>)'><i class="fa fa-edit"></i></button>
+                  <button class="mp-qa-btn red" style="padding:4px 8px;" onclick="deleteSite(<?= (int)$st->id; ?>)"><i class="fa fa-trash"></i></button>
+                </td>
+              </tr>
+              <?php endforeach; else: ?>
+              <tr><td colspan="6" class="text-center text-muted">No sites recorded yet.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- Equipment -->
+        <?php if (!empty($equipment) || mp_feature_enabled('equipment_register')): ?>
+        <div class="tab-pane" id="cust_equipment" style="padding:20px;">
+          <table class="mp-static-table">
+            <thead><tr><th>Equipment</th><th>Serial</th><th>Site</th><th>Sold</th><th>Installed</th><th>Warranty</th><th>Next Calibration</th><th></th></tr></thead>
+            <tbody>
+              <?php if(!empty($equipment)): foreach($equipment as $e): ?>
+              <tr>
+                <td><strong><?= htmlspecialchars($e->item_name ?? $e->model ?? '-'); ?></strong></td>
+                <td><code><?= htmlspecialchars($e->serial_number ?? '-'); ?></code></td>
+                <td><?= htmlspecialchars($e->site_name ?? '—'); ?></td>
+                <td><?= !empty($e->sale_date) ? show_date($e->sale_date) : '—'; ?></td>
+                <td><?= is_valid_date($e->install_date) ? show_date($e->install_date) : '—'; ?></td>
+                <td><?= !empty($e->warranty_end) ? show_date($e->warranty_end) : '—'; ?></td>
+                <td><?= !empty($e->next_calibration_date) ? show_date($e->next_calibration_date) : '—'; ?></td>
+                <td><a href="<?= base_url('operations/equipment_view/'.$e->id); ?>" class="mp-qa-btn teal" style="padding:4px 8px;"><i class="fa fa-eye"></i> View</a></td>
+              </tr>
+              <?php endforeach; else: ?>
+              <tr><td colspan="8" class="text-center text-muted">No equipment registered to this <?= strtolower(mp_label('customer')); ?> yet.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- Service Jobs -->
+        <?php if (!empty($service_jobs) || mp_feature_enabled('service_jobs')): ?>
+        <div class="tab-pane" id="cust_service_jobs" style="padding:20px;">
+          <div style="margin-bottom:12px;"><a href="<?= base_url('operations/service_job_form?customer_id='.(int)$customer->id); ?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> New Service Job</a></div>
+          <table class="mp-static-table">
+            <thead><tr><th>Job</th><th>Type</th><th>Title</th><th>Scheduled</th><th>Engineer</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <?php if(!empty($service_jobs)): foreach($service_jobs as $j): ?>
+              <tr>
+                <td><code><?= htmlspecialchars($j->job_code); ?></code></td>
+                <td><?= ucfirst($j->job_type); ?></td>
+                <td><?= $j->title ?? ''; ?></td>
+                <td><?= is_valid_date($j->scheduled_date) ? show_date($j->scheduled_date) : '—'; ?></td>
+                <td><?= htmlspecialchars($j->engineer ?? '—'); ?></td>
+                <td><span class="mp-pill <?= $j->status === 'completed' ? 'paid' : ($j->status === 'cancelled' ? 'unpaid' : 'partial'); ?>"><?= ucwords(str_replace('_',' ',$j->status)); ?></span></td>
+                <td><a href="<?= base_url('operations/service_job_view/'.$j->id); ?>" class="mp-qa-btn teal" style="padding:4px 8px;"><i class="fa fa-eye"></i></a></td>
+              </tr>
+              <?php endforeach; else: ?>
+              <tr><td colspan="7" class="text-center text-muted">No service jobs for this <?= strtolower(mp_label('customer')); ?> yet.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php endif; ?>
+
         <!-- ID Card -->
         <div class="tab-pane" id="idcard" style="padding:20px;">
           <div class="id-card-fit" style="margin:0 auto 20px;max-width:360px;">
@@ -682,4 +869,59 @@ $(function(){
     $form.toggle();
     if ($form.is(':visible')) { $form.find('textarea').focus(); }
   });
+
+  /* ---- Contacts ---- */
+  function resetContactForm(){
+    $('#contact_id').val(''); $('#contact_name').val(''); $('#contact_role').val('');
+    $('#contact_phone').val(''); $('#contact_email').val(''); $('#contact_notes').val('');
+    $('#contact_primary').prop('checked', false);
+  }
+  function editContact(c){
+    $('#contact_id').val(c.id); $('#contact_name').val(c.contact_name);
+    $('#contact_role').val(c.role_title); $('#contact_phone').val(c.phone);
+    $('#contact_email').val(c.email); $('#contact_notes').val(c.notes);
+    $('#contact_primary').prop('checked', c.is_primary == 1);
+  }
+  function saveContact(){
+    if(!$('#contact_name').val()){ toastr.error('Contact name is required.'); return; }
+    $.post(base_url+'customers/save_contact', $('#contactForm').serialize() + '&csrf_test_name='+csrf_token, function(res){
+      if(res === 'success'){ location.hash = '#contacts'; location.reload(); } else { toastr.error(res); }
+    });
+  }
+  function deleteContact(id){
+    if(!confirm('Remove this contact?')){ return; }
+    $.post(base_url+'customers/delete_contact', {contact_id: id, csrf_test_name: csrf_token}, function(res){
+      if(res === 'success'){ location.hash = '#contacts'; location.reload(); } else { toastr.error(res); }
+    });
+  }
+
+  /* ---- Sites ---- */
+  function resetSiteForm(){
+    $('#site_id').val(''); $('#site_name').val(''); $('#site_address').val('');
+    $('#site_city').val(''); $('#site_postcode').val(''); $('#site_link').val('');
+    $('#site_primary').prop('checked', false);
+  }
+  function editSite(s){
+    $('#site_id').val(s.id); $('#site_name').val(s.site_name);
+    $('#site_address').val(s.address); $('#site_city').val(s.city);
+    $('#site_postcode').val(s.postcode); $('#site_link').val(s.location_link);
+    $('#site_primary').prop('checked', s.is_primary == 1);
+  }
+  function saveSite(){
+    if(!$('#site_address').val()){ toastr.error('Site address is required.'); return; }
+    $.post(base_url+'customers/save_site', $('#siteForm').serialize() + '&csrf_test_name='+csrf_token, function(res){
+      if(res === 'success'){ location.hash = '#cust_sites'; location.reload(); } else { toastr.error(res); }
+    });
+  }
+  function deleteSite(id){
+    if(!confirm('Remove this site?')){ return; }
+    $.post(base_url+'customers/delete_site', {site_id: id, csrf_test_name: csrf_token}, function(res){
+      if(res === 'success'){ location.hash = '#cust_sites'; location.reload(); } else { toastr.error(res); }
+    });
+  }
+  function setPrimarySite(id){
+    $.post(base_url+'customers/set_primary_site', {customer_id: <?= (int)$customer->id; ?>, site_id: id, csrf_test_name: csrf_token}, function(res){
+      if(res === 'success'){ location.hash = '#cust_sites'; location.reload(); } else { toastr.error(res); }
+    });
+  }
 </script>

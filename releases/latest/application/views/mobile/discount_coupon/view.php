@@ -112,16 +112,18 @@
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       fd.append('id', id);
       fd.append('status', status);
-      fetch('<?= base_url('discount_coupon/update_status'); ?>', {method:'POST', body:fd})
-      .then(r=>r.text()).then(res=>{ if(res.trim() === 'success') location.reload(); else mpAlert(res || 'Failed', 'danger'); });
+      mpFetchText('<?= base_url('discount_coupon/update_status'); ?>', {method:'POST', body:fd})
+      .then(res=>{ if(res.trim() === 'success') location.reload(); else mpAlert(res || 'The coupon status could not be updated. Please try again.', 'danger'); })
+      .catch(err => mpAlert(mpErrorText(err, 'The coupon status could not be updated. Please try again.'), 'danger'));
     }
     function deleteCoupon(id){
       if(!confirm('Delete this coupon?')) return;
       var fd = new FormData();
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       fd.append('q_id', id);
-      fetch('<?= base_url('discount_coupon/delete_coupon'); ?>', {method:'POST', body:fd})
-      .then(r=>r.text()).then(res=>{ if(res.trim() === 'success') location.reload(); else mpAlert(res || 'Failed', 'danger'); });
+      mpFetchText('<?= base_url('discount_coupon/delete_coupon'); ?>', {method:'POST', body:fd})
+      .then(res=>{ if(res.trim() === 'success') location.reload(); else mpAlert(res || 'The coupon could not be deleted. Please try again.', 'danger'); })
+      .catch(err => mpAlert(mpErrorText(err, 'The coupon could not be deleted. Please try again.'), 'danger'));
     }
   </script>
 </body>

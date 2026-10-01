@@ -163,22 +163,21 @@
         fd.append('status', next);
         fd.append(csrf_token, csrf_hash);
 
-        fetch(base_url + 'mobile/kitchen_update_status', {
+        mpFetchJson(base_url + 'mobile/kitchen_update_status', {
           method: 'POST',
           body: fd
         })
-        .then(function(res){ return res.json(); })
         .then(function(data){
           if(data && data.success){
             window.location.reload();
           } else {
-            alert(data && data.message ? data.message : 'Update failed.');
+            mpError(data && data.message ? data.message : 'The order status could not be updated. Please try again.');
             btn.disabled = false;
             btn.innerHTML = 'Try Again';
           }
         })
-        .catch(function(){
-          alert('Network error. Try again.');
+        .catch(function(err){
+          mpError(mpErrorText(err));
           btn.disabled = false;
           btn.innerHTML = 'Try Again';
         });
@@ -186,15 +185,15 @@
     });
 
     setInterval(function(){
-      fetch(base_url + 'mobile/kitchen?ajax=1')
-        .then(function(res){ return res.json(); })
+      mpFetchJson(base_url + 'mobile/kitchen?ajax=1')
         .then(function(data){
           if(data && data.status_counts){
             document.getElementById('count_new').textContent = data.status_counts.new || 0;
             document.getElementById('count_preparing').textContent = data.status_counts.preparing || 0;
             document.getElementById('count_ready').textContent = data.status_counts.ready || 0;
           }
-        });
+        })
+        .catch(function(){ /* background refresh — stay quiet */ });
     }, 15000);
   </script>
 </body>

@@ -25,6 +25,8 @@ else{
   $other_charges_tax_id=$q2->row()->other_charges_tax_id;
   $quotation_note=$q2->row()->quotation_note;
   $store_id=$q2->row()->store_id;
+  $revision_no = (int)($q2->row()->revision_no ?? 0);
+  $shippingaddress_id = (int)($q2->row()->shippingaddress_id ?? 0);
 
   $items_count = $this->db->query("select count(*) as items_count from db_quotationitems where quotation_id=$quotation_id")->row()->items_count;
 }
@@ -148,6 +150,22 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
         <input type="text" value="<?php echo  $reference_no; ?>" class="form-control mp-form-control" id="reference_no" name="reference_no" placeholder="">
         <span id="reference_no_msg" style="display:none" class="text-danger"></span>
       </div>
+
+      <div class="mp-form-group">
+        <label for="shippingaddress_id">Delivery / Service Site</label>
+        <select class="form-control mp-form-control" id="shippingaddress_id" name="shippingaddress_id" data-selected="<?= (int)($shippingaddress_id ?? 0); ?>">
+          <option value="">— Customer primary address —</option>
+        </select>
+        <p class="mp-form-hint">Site this quote is destined for. Manage sites on the customer profile.</p>
+      </div>
+
+      <?php if(isset($quotation_id)): ?>
+      <div class="mp-form-group">
+        <label for="revision_note">Revision Note <span class="text-muted">(Rev <?= (int)($revision_no ?? 0) + 1; ?>)</span></label>
+        <input type="text" value="" class="form-control mp-form-control" id="revision_note" name="revision_note" placeholder="What changed in this revision? e.g. reduced buffer qty, repriced analyser">
+        <p class="mp-form-hint">Saving stores the current version in revision history — it is never lost.</p>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>
@@ -310,6 +328,61 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 
 <?= form_close(); ?>
 
+<?php
+/* Revision history — read-only snapshot of every prior version of this quote */
+if(isset($quotation_id) && $this->db->table_exists('db_quotation_revisions')){
+  $revisions = $this->db->where('quotation_id',$quotation_id)->order_by('revision_no','DESC')->get('db_quotation_revisions')->result();
+  if(!empty($revisions)){
+?>
+<div class="mp-card-form">
+  <div class="mp-card-head">
+    <h3><i class="fa fa-history"></i> Revision History <span class="text-muted" style="font-weight:400">(current: Rev <?= (int)$revision_no; ?>)</span></h3>
+  </div>
+  <div class="mp-card-body" style="padding:0;">
+    <table class="table table-bordered table-striped" style="margin:0;">
+      <thead><tr class="bg-primary">
+        <th style="width:80px;">Rev</th><th>Date</th><th>Revision Note</th><th>Total</th><th>Status</th><th>Items</th>
+      </tr></thead>
+      <tbody>
+      <?php foreach($revisions as $rev){
+        $hdr = json_decode($rev->header_json, true) ?: array();
+        $its = json_decode($rev->items_json, true) ?: array();
+      ?>
+        <tr>
+          <td><span class="label label-default">Rev <?= (int)$rev->revision_no; ?></span></td>
+          <td><?= !empty($hdr['quotation_date']) ? show_date($hdr['quotation_date']) : show_date($rev->created_date); ?></td>
+          <td><?= htmlspecialchars($rev->revision_note ?? ''); ?></td>
+          <td><?= store_number_format($hdr['grand_total'] ?? 0); ?></td>
+          <td><?= htmlspecialchars($hdr['quotation_status'] ?? ''); ?></td>
+          <td>
+            <a data-toggle="collapse" href="#rev-<?= $rev->id; ?>"><?= count($its); ?> item(s)</a>
+            <div id="rev-<?= $rev->id; ?>" class="collapse" style="margin-top:6px;">
+              <table class="table table-condensed" style="font-size:12px;margin-bottom:0;">
+                <thead><tr><th>Item</th><th>Spec/Note</th><th class="text-right">Qty</th><th class="text-right">Price</th><th class="text-right">Total</th></tr></thead>
+                <tbody>
+                <?php foreach($its as $it){
+                  $iname = $this->db->select('item_name')->where('id',$it['item_id'])->get('db_items')->row();
+                ?>
+                  <tr>
+                    <td><?= htmlspecialchars($iname->item_name ?? ('#'.$it['item_id'])); ?></td>
+                    <td><?= htmlspecialchars($it['description'] ?? ''); ?></td>
+                    <td class="text-right"><?= $it['quotation_qty']; ?></td>
+                    <td class="text-right"><?= store_number_format($it['price_per_unit'] ?? 0); ?></td>
+                    <td class="text-right"><?= store_number_format($it['total_cost'] ?? 0); ?></td>
+                  </tr>
+                <?php } ?>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      <?php } ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+<?php } } ?>
+
 <script src="<?= htmlspecialchars($theme_link); ?>js/modals.js"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/modals/modal_item.js"></script>
 <script type="text/javascript">
@@ -329,6 +402,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
       var customer_id = "<?= (!empty($customer_id)) ? $customer_id : '';  ?>";
       if(customer_id!=''){
          autoLoadFirstCustomer(customer_id);
+         loadCustomerSites(customer_id);
       }
    });
    //Customer Selection Box Search - END
@@ -336,6 +410,26 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
   function set_previous_due(previous_due,tot_advance){
     $(".customer_previous_due").html(previous_due);
   }
+
+  /* Delivery / Service site selector — loads the customer's saved sites */
+  function loadCustomerSites(customer_id){
+    var $sel = $("#shippingaddress_id");
+    var keep = $sel.data('selected') || '';
+    $sel.data('selected','');
+    $sel.html('<option value="">— Customer primary address —</option>');
+    if(!customer_id){ return; }
+    $.getJSON(base_url+"customers/get_customer_sites", {customer_id: customer_id}, function(sites){
+      var primarySet = false;
+      $.each(sites, function(i, s){
+        var opt = $('<option>').val(s.id).text(s.label);
+        if(keep && String(s.id) === String(keep)){ opt.prop('selected', true); primarySet = true; }
+        else if(!keep && s.is_primary){ opt.prop('selected', true); primarySet = true; }
+        $sel.append(opt);
+      });
+      if($sel.hasClass('select2')){ $sel.select2(); }
+    });
+  }
+  $("#customer_id").on("change", function(){ loadCustomerSites($(this).val()); });
 
   var base_url=$("#base_url").val();
   $("#store_id").on("change",function(){

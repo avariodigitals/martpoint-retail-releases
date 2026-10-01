@@ -175,8 +175,11 @@
       xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       xhr.onreadystatechange = function(){
         if(xhr.readyState === 4){
-          var res = {status:'error', message:'Network error. Please try again.'};
-          try { res = JSON.parse(xhr.responseText); } catch(e){}
+          var res = null;
+          try { res = JSON.parse(xhr.responseText); } catch(e){ res = null; }
+          if(!res || typeof res !== 'object'){
+            res = {status:'error', message: (typeof mpAjaxError === 'function') ? mpAjaxError(xhr, 'Could not record your clock ' + action + '. Please try again.') : 'Could not record your clock ' + action + '. Please try again.'};
+          }
           if(res.status === 'success'){
             document.getElementById('step1').style.display = 'none';
             document.getElementById('result').style.display = 'block';

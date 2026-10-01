@@ -68,6 +68,8 @@ $billing = $pt === 'membership' ? ($product->membership_billing ?? 'monthly') : 
         <?php if($pt === 'membership'): ?><span>Billed <?= htmlspecialchars($billing); ?></span><?php endif; ?>
       </div>
 
+      <?php $this->load->view('themes/shared/variant_picker', ['sf_picker_mode' => 'select']); ?>
+
       <?php if($isPhysical): ?>
       <div class="crf-qty">
         <button onclick="adjustDetailQty(-1)">-</button>
@@ -124,13 +126,29 @@ $billing = $pt === 'membership' ? ($product->membership_billing ?? 'monthly') : 
 
 <script>
   let detailQty = 1;
+  const detailProduct = {
+    id: <?= $product->id; ?>,
+    name: '<?= htmlspecialchars(addslashes($product->item_name)); ?>',
+    price: <?= $product->effective_price; ?>,
+    image: '<?= $product->item_image; ?>',
+    stock: <?= (int)$product->stock; ?>
+  };
+  const needsVariant = <?= (($product->item_group ?? '') === 'Variants') ? 'true' : 'false'; ?>;
+  document.addEventListener('sf:variant-picked', function(e){
+    const v = e.detail; if(!v) return;
+    detailProduct.id = v.id; detailProduct.name = v.name;
+    detailProduct.price = v.price; detailProduct.image = v.image; detailProduct.stock = v.stock;
+    const pe = document.querySelector('.crf-detail-price');
+    if(pe) pe.childNodes[0].textContent = formatMoney(v.price);
+  });
   function adjustDetailQty(d){
     detailQty = Math.max(1, detailQty + d);
     const el = document.getElementById('detail-qty');
     if(el) el.value = detailQty;
   }
   function addDetailToCart(){
-    addToCart(<?= $product->id; ?>, '<?= $pt; ?>', '<?= htmlspecialchars(addslashes($product->item_name)); ?>', <?= $product->effective_price; ?>, '<?= $product->item_image; ?>', detailQty, <?= (int)$product->stock; ?>);
+    if(needsVariant && !window.sfPickedVariant){ showToast('Please choose an option'); return; }
+    addToCart(detailProduct.id, '<?= $pt; ?>', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock);
   }
   function sendDetailWhatsApp(){
     let msg = 'Hello, I am interested in: <?= htmlspecialchars(addslashes($product->item_name)); ?> — <?= sf_currency($product->effective_price, $store_currency ?? null); ?>';

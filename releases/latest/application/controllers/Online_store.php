@@ -146,6 +146,8 @@ class Online_store extends MY_Controller {
 				'allow_pay_on_delivery' => $this->input->post('allow_pay_on_delivery') ? 1 : 0,
 				'shipping_notice' => trim($this->input->post('shipping_notice')),
 				'shipping_methods_json' => $this->_build_shipping_methods_json(),
+				'city_shipping_enabled' => $this->input->post('city_shipping_enabled') ? 1 : 0,
+				'city_shipping_json' => $this->_build_city_shipping_json(),
 				'allow_services' => $this->input->post('allow_services') ? 1 : 0,
 				'allow_backorder' => $this->input->post('allow_backorder') ? 1 : 0,
 				'show_search' => $this->input->post('show_search') ? 1 : 0,
@@ -184,6 +186,7 @@ class Online_store extends MY_Controller {
 		$fees = $this->input->post('sm_fee');
 		$descs = $this->input->post('sm_desc');
 		$enabled = $this->input->post('sm_enabled');
+		$quote = $this->input->post('sm_quote');
 		$rowids = $this->input->post('sm_rowid');
 		if(!is_array($names)) return json_encode([]);
 		$methods = [];
@@ -195,10 +198,33 @@ class Online_store extends MY_Controller {
 				'name' => $name,
 				'fee' => (float)($fees[$i] ?? 0),
 				'description' => trim($descs[$i] ?? ''),
-				'enabled' => (is_array($enabled) && isset($enabled[$rowKey])) ? 1 : 0
+				'enabled' => (is_array($enabled) && isset($enabled[$rowKey])) ? 1 : 0,
+				'quote' => (is_array($quote) && isset($quote[$rowKey])) ? 1 : 0
 			];
 		}
 		return json_encode($methods);
+	}
+
+	/**
+	 * Build the city/state delivery-fee list for the online storefront.
+	 * Rows: cz_state[], cz_city[], cz_fee[] — city is required, state optional.
+	 */
+	private function _build_city_shipping_json(){
+		$states = $this->input->post('cz_state');
+		$cities = $this->input->post('cz_city');
+		$fees   = $this->input->post('cz_fee');
+		if(!is_array($cities)) return json_encode([]);
+		$zones = [];
+		foreach($cities as $i => $city){
+			$city = trim($city);
+			if($city === '') continue;
+			$zones[] = [
+				'state' => trim(is_array($states) ? ($states[$i] ?? '') : ''),
+				'city'  => $city,
+				'fee'   => (float)(is_array($fees) ? ($fees[$i] ?? 0) : 0),
+			];
+		}
+		return json_encode($zones);
 	}
 	public function debug_storefront(){
 		if(!$this->_can_edit()){ echo json_encode(['status' => 'error', 'message' => 'Access denied']); return; }
@@ -290,13 +316,13 @@ class Online_store extends MY_Controller {
 		$previousStatus = $order ? $order->payment_status : '';
 		$this->storefront_model->updatePaymentStatus($orderId, $status);
 		// Stock logic: decrement when marked paid, restore when leaving paid status
-		if($status === 'paid' && $previousStatus !== 'paid'){
-			$this->storefront_model->adjustStock($orderId);
-			// Deliver digital products, courses and memberships when manually marked paid
-			$this->storefront_model->deliverDigitalOrder($orderId);
-			$this->storefront_model->deliverCourseAndMembership($orderId);
-			$this->storefront_model->completeIfNoPhysicalProducts($orderId);
-		} elseif($status === 'refunded' && $previousStatus === 'paid'){
+		if($status === 'paid'){
+			if($previousStatus !== 'paid'){
+				$this->storefront_model->adjustStock($orderId);
+			}
+			// Idempotent — also heals a paid order whose fulfilment died earlier.
+			$this->storefront_model->fulfilPaidOrder($orderId);
+		} elseif(in_array($status, ['refunded','failed','unpaid']) && $previousStatus === 'paid'){
 			$this->storefront_model->restoreStock($orderId);
 		}
 		echo json_encode(['status' => 'success', 'message' => 'Payment status updated']);
@@ -407,7 +433,10 @@ class Online_store extends MY_Controller {
 			'service_note' => ''
 		]);
 
-		$this->session->set_flashdata('success', 'WhatsApp order created. Mark it paid to deduct stock.');
+		// Reserve stock immediately; cancelling the order releases it.
+		$this->storefront_model->adjustStock($orderId);
+
+		$this->session->set_flashdata('success', 'WhatsApp order created. Stock is reserved until you cancel or complete it.');
 		redirect('online_store/order/' . $orderId);
 	}
 
@@ -956,6 +985,7 @@ class Online_store extends MY_Controller {
 			'theme_id' => $themeId,
 			'primary_color' => $this->input->post('primary_color') ?: '#3B82F6',
 			'secondary_color' => $this->input->post('secondary_color') ?: '#10B981',
+			'background_color' => trim($this->input->post('background_color')),
 			'footer_bg_color' => $this->input->post('footer_bg_color') ?: '#0F172A',
 			'footer_text_color' => $this->input->post('footer_text_color') ?: '#94A3B8',
 			'header_text_color' => trim($this->input->post('header_text_color')),
@@ -1003,8 +1033,25 @@ class Online_store extends MY_Controller {
 			}
 		}
 
+		// Saving appearance is the explicit "publish" action: clear preview
+		// state so the picked theme becomes the live storefront theme.
+		$data['preview_mode'] = 0;
+		$data['preview_theme_id'] = null;
+
 		$ok = $this->storefront_model->saveSettings($storeId, $data);
 		if($ok){
+			// Keep the canonical theme sources in sync so the merchant's
+			// Appearance choice wins over an older business-profile value
+			// and persists across later profile edits.
+			if($themeId){
+				$theme = $this->storefront_model->getTheme($themeId);
+				if($theme && !empty($theme->theme_key)){
+					$this->db->where('store_id', $storeId)
+						->update('db_store_industry_settings', ['storefront_theme_key' => $theme->theme_key]);
+					$this->db->where('id', $storeId)
+						->update('db_store', ['storefront_theme_key' => $theme->theme_key]);
+				}
+			}
 			echo json_encode(['status' => 'success', 'message' => 'Appearance saved']);
 		} else {
 			$dbError = $this->db->error();

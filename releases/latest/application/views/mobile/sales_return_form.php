@@ -378,8 +378,7 @@
         var q = custSearch.value.trim();
         if(q.length < 1){ document.getElementById('customer_results').classList.remove('open'); return; }
         custTimer = setTimeout(function(){
-          fetch(base_url + 'mobile/customer_search?q=' + encodeURIComponent(q))
-            .then(function(r){ return r.json(); })
+          mpFetchJson(base_url + 'mobile/customer_search?q=' + encodeURIComponent(q))
             .catch(function(){ return []; })
             .then(function(rows){
               var box = document.getElementById('customer_results');
@@ -420,8 +419,7 @@
         var q = itemSearch.value.trim();
         if(q.length < 2){ document.getElementById('item_results').classList.remove('open'); return; }
         itemTimer = setTimeout(function(){
-          fetch(base_url + 'mobile/item_search?q=' + encodeURIComponent(q))
-            .then(function(r){ return r.json(); })
+          mpFetchJson(base_url + 'mobile/item_search?q=' + encodeURIComponent(q))
             .catch(function(){ return []; })
             .then(function(rows){
               var box = document.getElementById('item_results');
@@ -559,7 +557,9 @@
           }
         })
         .catch(function(err){
-          var msg = (err && err.message) ? err.message : 'Could not reach the server. Check your connection and try again.';
+          var msg = (typeof mpErrorText === 'function')
+            ? mpErrorText(err, 'The return could not be saved. Please check the details and try again.')
+            : 'The return could not be saved. Please check the details and try again.';
           toast(msg, 'error');
           btn.disabled = false;
           btn.textContent = original;

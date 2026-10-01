@@ -166,7 +166,7 @@
       var fd = new FormData();
       fd.append(CSRF_NAME, CSRF_HASH);
       if(extra){ for(var k in extra){ fd.append(k, extra[k]); } }
-      return fetch(url, { method: 'POST', body: fd }).then(function(r){ return r.json(); });
+      return mpFetchJson(url, { method: 'POST', body: fd });
     }
     function toggleForm(){
       var el = document.getElementById('leadForm');
@@ -200,22 +200,25 @@
         notes: document.getElementById('ld_notes').value
       }).then(function(d){
         if(d && d.status === 'success'){ location.reload(); }
-        else { alert(d && d.message ? d.message : 'Save failed'); }
-      }).catch(function(){ alert('Save failed. Please try again.'); });
+        else { mpError(d && d.message ? d.message : 'The lead could not be saved. Please check the details and try again.'); }
+      }).catch(function(err){ mpError(mpErrorText(err)); });
     }
     function setStatus(id, status){
       post('<?= base_url('leads/update_status/'); ?>' + id, { status: status })
-        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { alert(d && d.message ? d.message : 'Failed'); } });
+        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); } })
+        .catch(function(err){ mpError(mpErrorText(err)); });
     }
     function convertLead(id){
       if(!confirm('Convert this lead to a customer?')) return;
       post('<?= base_url('leads/convert/'); ?>' + id, {})
-        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { alert(d && d.message ? d.message : 'Conversion failed'); } });
+        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError(d && d.message ? d.message : 'The lead could not be converted. Please try again.'); } })
+        .catch(function(err){ mpError(mpErrorText(err)); });
     }
     function deleteLead(id){
       if(!confirm('Delete this lead?')) return;
       post('<?= base_url('leads/delete/'); ?>' + id, {})
-        .then(function(d){ if(d && d.status === 'success'){ document.querySelector('[data-id="' + id + '"]').remove(); } else { alert(d && d.message ? d.message : 'Delete failed'); } });
+        .then(function(d){ if(d && d.status === 'success'){ document.querySelector('[data-id="' + id + '"]').remove(); } else { mpError(d && d.message ? d.message : 'The lead could not be deleted. Please try again.'); } })
+        .catch(function(err){ mpError(mpErrorText(err)); });
     }
   </script>
 </body>

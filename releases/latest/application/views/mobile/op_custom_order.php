@@ -161,10 +161,9 @@
       var fd = new FormData();
       for(var k in fields){ fd.append(k, fields[k]); }
       fd.append(csrf_token, csrf_hash);
-      fetch(base_url + url, { method: 'POST', body: fd })
-        .then(function(r){ return r.json(); })
+      mpFetchJson(base_url + url, { method: 'POST', body: fd })
         .then(function(d){ if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; } cb(d); })
-        .catch(function(){ cb({success:false, message:'Network error.'}); });
+        .catch(function(err){ cb({success:false, message: mpErrorText(err)}); });
     }
 
     document.querySelectorAll('.st-btn').forEach(function(btn){
@@ -174,7 +173,7 @@
         var b = this; b.disabled = true;
         post('mobile/custom_order_status', { id: order_id, status: st }, function(d){
           if(d && d.success){ window.location.reload(); }
-          else { alert(d && d.message ? d.message : 'Update failed.'); b.disabled = false; }
+          else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
         });
       });
     });
@@ -185,7 +184,7 @@
         if(!confirm('Delete <?= htmlspecialchars($order->order_code); ?>? This cannot be undone.')){ return; }
         post('mobile/custom_order_delete', { id: order_id }, function(d){
           if(d && d.success){ window.location.href = base_url + 'mobile/custom_orders'; }
-          else { alert(d && d.message ? d.message : 'Delete failed.'); }
+          else { mpError(d && d.message ? d.message : 'The order could not be deleted. Please try again.'); }
         });
       });
     }

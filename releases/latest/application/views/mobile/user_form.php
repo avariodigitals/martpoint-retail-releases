@@ -241,8 +241,7 @@
       btn.disabled = true;
       btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
       var fd = new FormData(form);
-      fetch('<?= base_url('users/save_or_update'); ?>', {method: 'POST', body: fd})
-        .then(function(r){ return r.text(); })
+      mpFetchText('<?= base_url('users/save_or_update'); ?>', {method: 'POST', body: fd})
         .then(function(res){
           if(res.trim() === 'success' || res.indexOf('success') !== -1){
             showToast('Saved successfully', 'success');
@@ -258,12 +257,13 @@
           }
         })
         .catch(function(err){
-          showToast('Could not reach the server. Check your connection and try again.', '');
+          showToast(mpErrorText(err), '');
           btn.disabled = false;
           btn.innerHTML = '<i class="fa fa-save"></i> Save';
         });
     });
   </script>
+  <?php $this->load->view('mobile/mp_alert'); ?>
   <?php $this->load->view('mobile/chat'); ?>
 </body>
 </html>

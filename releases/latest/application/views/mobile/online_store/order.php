@@ -154,9 +154,9 @@
       <?php if($this->security): ?>
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       <?php endif; ?>
-      fetch('<?= base_url('online_store/update_order_status'); ?>', {method:'POST', body:fd})
-        .then(r => r.json()).then(d => { showToast(d.message, d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 800); })
-        .catch(() => showToast('Update failed', true));
+      mpFetchJson('<?= base_url('online_store/update_order_status'); ?>', {method:'POST', body:fd})
+        .then(d => { showToast(d.message || 'Done', d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 800); })
+        .catch(err => showToast(mpErrorText(err, 'The order status could not be updated. Please try again.'), true));
     }
     function updatePaymentStatus(status){
       var fd = new FormData();
@@ -165,9 +165,9 @@
       <?php if($this->security): ?>
       fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
       <?php endif; ?>
-      fetch('<?= base_url('online_store/update_payment_status'); ?>', {method:'POST', body:fd})
-        .then(r => r.json()).then(d => { showToast(d.message, d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 800); })
-        .catch(() => showToast('Update failed', true));
+      mpFetchJson('<?= base_url('online_store/update_payment_status'); ?>', {method:'POST', body:fd})
+        .then(d => { showToast(d.message || 'Done', d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 800); })
+        .catch(err => showToast(mpErrorText(err, 'The payment status could not be updated. Please try again.'), true));
     }
   </script>
 </body>

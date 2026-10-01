@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.53';
+    return '4.0.9.59';
   }
   function required_php_version(){
     return 7.4;
@@ -2619,5 +2619,102 @@
     } catch (Exception $e) {
       log_message('error', 'mp_audit_log failed: ' . $e->getMessage());
       return false;
+    }
+  }
+
+  /* ----------------------------------------------------------------------
+   * Serial / barcode lifecycle + customer equipment register helpers
+   * (Scientific Equipment & asset-tracking workflows)
+   * -------------------------------------------------------------------- */
+
+  /* Free-text note/description fields must NOT pass through CI3 xss_clean:
+   * Security.php rawurldecode()s any input containing '%' (e.g. "50% balance"
+   * → "50?lance" because %ba is valid hex). Views echo these fields raw, so
+   * store them html_escape()d — that blocks stored XSS without URL-decoding. */
+  if(!function_exists('mp_clean_text')){
+    function mp_clean_text($str){
+      return html_escape(trim((string)$str));
+    }
+  }
+  if(!function_exists('mp_post_text')){
+    function mp_post_text($key){
+      $CI =& get_instance();
+      return mp_clean_text($CI->input->post($key)); // raw post — no xss_clean
+    }
+  }
+
+  /* Release every tracked unit bound to a sale (sale update/delete paths).
+   * Only releases rows still marked 'sold' so units under warranty-return
+   * review (status 2) are left untouched. */
+  if(!function_exists('mp_release_sale_barcodes')){
+    function mp_release_sale_barcodes($sales_id){
+      $CI =& get_instance();
+      if(empty($sales_id) || !$CI->db->table_exists('db_item_barcodes')){ return; }
+      if(!$CI->db->field_exists('barcode_id','db_salesitems')){ return; }
+      $CI->db->query(
+        "UPDATE db_item_barcodes b
+         JOIN db_salesitems si ON si.barcode_id = b.id
+         SET b.status = 1
+         WHERE si.sales_id = ? AND si.barcode_id > 0 AND b.status = 0",
+        array((int)$sales_id)
+      );
+    }
+  }
+
+  /* Create a db_customer_equipment row for each serialised unit on a sale line.
+   * Idempotent per (salesitems_id, barcode_id). */
+  if(!function_exists('mp_register_equipment_from_sale')){
+    function mp_register_equipment_from_sale($sales_id, $salesitems_id, $customer_id = null){
+      $CI =& get_instance();
+      if(!$CI->db->table_exists('db_customer_equipment')){ return; }
+      if(!function_exists('mp_feature_enabled') || !mp_feature_enabled('equipment_register')){ return; }
+      $line = $CI->db->where('id',$salesitems_id)->get('db_salesitems')->row();
+      $sale = $CI->db->where('id',$sales_id)->get('db_sales')->row();
+      if(!$line || !$sale){ return; }
+      $customer_id = $customer_id ?: $sale->customer_id;
+      if(empty($customer_id)){ return; }
+      $bc = ($line->barcode_id > 0) ? $CI->db->where('id',$line->barcode_id)->get('db_item_barcodes')->row() : null;
+      $serial = $bc ? $bc->serial_number : ($line->sold_serial_number ?? null);
+      if(empty($serial)){ return; }
+      $item = $CI->db->select('item_name,warranty_months')->where('id',$line->item_id)->get('db_items')->row();
+
+      // Idempotent: one register row per sale line + physical unit
+      $CI->db->where('salesitems_id',$salesitems_id);
+      if($line->barcode_id > 0){ $CI->db->where('barcode_id',$line->barcode_id); }
+      else { $CI->db->where('serial_number',$serial); }
+      if($CI->db->get('db_customer_equipment')->num_rows() > 0){ return; }
+
+      $warranty_months = (int)($item->warranty_months ?? 0);
+      $warranty_end = ($warranty_months > 0 && !empty($sale->sales_date))
+        ? date('Y-m-d', strtotime($sale->sales_date." +{$warranty_months} months")) : null;
+
+      $CI->db->insert('db_customer_equipment', array(
+        'store_id'        => $sale->store_id,
+        'customer_id'     => $customer_id,
+        'site_id'         => $CI->db->field_exists('shippingaddress_id','db_sales') ? ($sale->shippingaddress_id ?? null) : null,
+        'item_id'         => $line->item_id,
+        'barcode_id'      => $line->barcode_id ?: null,
+        'serial_number'   => $serial,
+        'model'           => $item->item_name ?? null,
+        'sales_id'        => $sales_id,
+        'salesitems_id'   => $salesitems_id,
+        'sale_date'       => $sale->sales_date,
+        'warranty_months' => $warranty_months,
+        'warranty_start'  => $sale->sales_date,
+        'warranty_end'    => $warranty_end,
+        'equipment_status'=> 'delivered',
+        'created_by'      => $CI->session->userdata('inv_userid'),
+        'created_date'    => date('Y-m-d'),
+        'created_time'    => date('H:i:s'),
+      ));
+    }
+  }
+
+  /* Remove equipment-register rows created by a sale (update/delete paths). */
+  if(!function_exists('mp_unregister_equipment_for_sale')){
+    function mp_unregister_equipment_for_sale($sales_id){
+      $CI =& get_instance();
+      if(empty($sales_id) || !$CI->db->table_exists('db_customer_equipment')){ return; }
+      $CI->db->where('sales_id',(int)$sales_id)->delete('db_customer_equipment');
     }
   }

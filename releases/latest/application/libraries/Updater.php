@@ -257,6 +257,9 @@ class Updater {
      * failures are logged but never affect the caller.
      */
     public function sendHeartbeat(): void {
+        // Status feed sync is independent of fleet config — installs with no
+        // fleet_url still get incident banners from the status backend.
+        $this->syncStatusFeed();
         try {
             // Central is the registry, not a member — never register itself.
             if (function_exists('mp_is_central') && mp_is_central()) {
@@ -290,6 +293,73 @@ class Updater {
             $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
         } catch (Throwable $e) {
             log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Poll the public status API on the MartPoint backend (martpoint.com.ng —
+     * a Next.js service, not this codebase) and mirror its incident state
+     * into db_sitesettings. This is the ONLY remote trigger for the banner —
+     * a real incident must exist on the status backend for it to show.
+     * Runs inside sendHeartbeat() so it rides the existing ~15-min check-in
+     * (auto_tick + cron fleet_ping) with no extra schedule; self-throttled
+     * via its own stamp file.
+     * Fail-open: an unreachable API keeps the last known state — a backend
+     * outage is exactly when the banner should keep showing.
+     * Contract: GET {feed} → 200 JSON { incident: { active, severity,
+     * message, url, started_at } } — see AGENTS.md "Service status".
+     */
+    public function syncStatusFeed(): void {
+        try {
+            if (!$this->shouldAutoCheck(900, 'status-feed.stamp')) {
+                return;
+            }
+            $this->touchAutoCheck('status-feed.stamp');
+            $url = $this->getSitesetting('status_feed_url');
+            if ($url === '') {
+                $url = 'https://www.martpoint.com.ng/api/status';
+            }
+            $resp = $this->httpGet($url, 6);
+            if ($resp === null) {
+                return;
+            }
+            $data = json_decode($resp, true);
+            if (is_array($data) && isset($data['incident']) && is_array($data['incident'])) {
+                $this->applyIncidentState($data['incident']);
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Updater syncStatusFeed failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mirror the status backend's incident/banner state into db_sitesettings.
+     * active=1 always wins (platform notice outranks a local one); active=0
+     * only clears an incident this install got from the feed — a store's own
+     * locally-set notice is left alone.
+     */
+    public function applyIncidentState(array $inc): array {
+        try {
+            if (!function_exists('mp_get_incident') || !function_exists('mp_set_incident')) {
+                return ['ok' => false, 'message' => 'Incident helpers missing on this build.'];
+            }
+            $cur = mp_get_incident();
+            $active = !empty($inc['active']);
+            if (!$active && $cur['source'] !== 'central') {
+                return ['ok' => true, 'message' => 'All clear (local notice untouched).'];
+            }
+            $ok = mp_set_incident([
+                'active'     => $active ? 1 : 0,
+                'severity'   => (string) ($inc['severity'] ?? 'investigating'),
+                'message'    => (string) ($inc['message'] ?? ''),
+                'url'        => (string) ($inc['url'] ?? ''),
+                'started_at' => (string) ($inc['started_at'] ?? ''),
+            ], 'central');
+            return ['ok' => (bool) $ok, 'message' => $ok
+                ? ($active ? 'Incident banner activated.' : 'Incident cleared.')
+                : 'Could not write incident state.'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Incident apply error: ' . $e->getMessage()];
         }
     }
 

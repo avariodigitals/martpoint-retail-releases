@@ -101,12 +101,40 @@
             <input type="text" class="os-ship-name sm-name" name="sm_name[]" value="<?= htmlspecialchars($m['name'] ?? ''); ?>" placeholder="Method name (e.g. Home Delivery)">
             <input type="number" step="0.01" min="0" class="os-ship-fee sm-fee" name="sm_fee[]" value="<?= htmlspecialchars($m['fee'] ?? ''); ?>" placeholder="Fee 0.00">
             <input type="text" class="os-ship-desc sm-desc" name="sm_desc[]" value="<?= htmlspecialchars($m['description'] ?? ''); ?>" placeholder="Description (optional)">
+            <label class="os-ship-en"><input type="checkbox" class="sm-quote" name="sm_quote[<?= $idx; ?>]" value="1" <?= !empty($m['quote']) ? 'checked' : ''; ?>> Fee on quote</label>
             <label class="os-ship-en"><input type="checkbox" class="sm-enabled" name="sm_enabled[<?= $idx; ?>]" value="1" <?= ($m['enabled'] ?? 1) ? 'checked' : ''; ?>> Enabled</label>
             <button type="button" class="os-ship-rm sm-remove" onclick="removeShippingMethod(this)"><i class="fa fa-trash"></i></button>
           </div>
           <?php endforeach; ?>
         </div>
         <button type="button" class="mp-qa-btn blue" onclick="addShippingMethod()" style="margin-top:8px;padding:8px 14px;font-size:13px;"><i class="fa fa-plus"></i> Add Method</button>
+      </div>
+
+      <div class="mp-form-group" style="margin-top:18px;border-top:1px dashed var(--mp-border);padding-top:16px;">
+        <label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;">
+          <input type="checkbox" id="city_shipping_enabled" name="city_shipping_enabled" value="1" <?= !empty($settings->city_shipping_enabled) ? 'checked' : ''; ?>>
+          Enable City-based Delivery Fees
+        </label>
+        <div class="mp-form-hint" style="margin-top:6px;">When on, customers pick their delivery city at checkout and the fee below is added automatically — it replaces the shipping methods list above.</div>
+      </div>
+      <div class="mp-form-group"><label>Delivery Cities &amp; States</label><div class="mp-form-hint" style="margin-bottom:10px;">List every city you deliver to. State is optional but helps customers find their city faster.</div>
+        <div id="city-zones-container">
+          <?php
+            $savedZones = json_decode($settings->city_shipping_json ?? '', true);
+            if(!is_array($savedZones) || empty($savedZones)){
+              $savedZones = [['state'=>'','city'=>'','fee'=>'']];
+            }
+            foreach($savedZones as $z):
+          ?>
+          <div class="os-ship-row city-zone-row">
+            <input type="text" class="os-ship-name cz-state" name="cz_state[]" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="State (e.g. Lagos)">
+            <input type="text" class="os-ship-name cz-city" name="cz_city[]" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja)">
+            <input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee 0.00">
+            <button type="button" class="os-ship-rm cz-remove" onclick="removeCityZone(this)"><i class="fa fa-trash"></i></button>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <button type="button" class="mp-qa-btn blue" onclick="addCityZone()" style="margin-top:8px;padding:8px 14px;font-size:13px;"><i class="fa fa-plus"></i> Add City</button>
       </div>
 
       <div class="os-section-title"><i class="fa fa-sliders"></i> Store Features</div>
@@ -214,6 +242,7 @@ function addShippingMethod(){
     + '<input type="text" class="os-ship-name sm-name" name="sm_name[]" value="" placeholder="Method name (e.g. Home Delivery)">'
     + '<input type="number" step="0.01" min="0" class="os-ship-fee sm-fee" name="sm_fee[]" value="" placeholder="Fee 0.00">'
     + '<input type="text" class="os-ship-desc sm-desc" name="sm_desc[]" value="" placeholder="Description (optional)">'
+    + '<label class="os-ship-en"><input type="checkbox" class="sm-quote" name="sm_quote[' + i + ']" value="1"> Fee on quote</label>'
     + '<label class="os-ship-en"><input type="checkbox" class="sm-enabled" name="sm_enabled[' + i + ']" value="1" checked> Enabled</label>'
     + '<button type="button" class="os-ship-rm sm-remove" onclick="removeShippingMethod(this)"><i class="fa fa-trash"></i></button>';
   container.appendChild(row);
@@ -222,6 +251,26 @@ function removeShippingMethod(btn){
   var container = document.getElementById('shipping-methods-container');
   if(container.children.length <= 1){ return; }
   btn.closest('.shipping-method-row').remove();
+}
+function addCityZone(){
+  var container = document.getElementById('city-zones-container');
+  var row = document.createElement('div');
+  row.className = 'os-ship-row city-zone-row';
+  row.innerHTML = ''
+    + '<input type="text" class="os-ship-name cz-state" name="cz_state[]" value="" placeholder="State (e.g. Lagos)">'
+    + '<input type="text" class="os-ship-name cz-city" name="cz_city[]" value="" placeholder="City (e.g. Ikeja)">'
+    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="" placeholder="Fee 0.00">'
+    + '<button type="button" class="os-ship-rm cz-remove" onclick="removeCityZone(this)"><i class="fa fa-trash"></i></button>';
+  container.appendChild(row);
+}
+function removeCityZone(btn){
+  var container = document.getElementById('city-zones-container');
+  if(container.children.length <= 1){
+    var row = btn.closest('.city-zone-row');
+    row.querySelectorAll('input').forEach(function(i){ i.value=''; });
+    return;
+  }
+  btn.closest('.city-zone-row').remove();
 }
 </script>
 <script>$(".online_store-settings-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

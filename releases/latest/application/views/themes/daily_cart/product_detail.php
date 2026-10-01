@@ -152,7 +152,9 @@ $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($
         <?php endif; ?>
 
         <?php if($inStock || ($settings->allow_backorder ?? false)): ?>
-        <div class="dc-detail-qty">
+                <?php $this->load->view('themes/shared/variant_picker'); ?>
+
+<div class="dc-detail-qty">
           <span style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;color:var(--dc-dark);">Quantity</span>
           <div class="dc-qty-control">
             <button class="dc-qty-btn" onclick="adjustDetailQty(-1)">&minus;</button>

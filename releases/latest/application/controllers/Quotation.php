@@ -77,7 +77,7 @@ class Quotation extends MY_Controller {
 			$row[] = show_date($quotation->quotation_date)."<br>".$str;
 			$row[] = (!empty($quotation->expire_date)) ? show_date($quotation->expire_date) : '';
 
-			$row[] = $quotation->quotation_code;
+			$row[] = $quotation->quotation_code.((isset($quotation->revision_no) && (int)$quotation->revision_no>0) ? " <span class='label label-default' title='Revision ".(int)$quotation->revision_no."'>R".(int)$quotation->revision_no."</span>" : "");
 			
 			$row[] = $quotation->reference_no;
 			$row[] = $quotation->customer_name;
