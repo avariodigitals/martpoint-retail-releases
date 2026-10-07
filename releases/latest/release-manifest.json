@@ -1,6 +1,6 @@
 {
     "version": "4.0.9.106",
-    "previous_version": "4.0.9.49",
+    "previous_version": "4.0.9.59",
     "release_date": "2026-10-07",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -6472,8 +6472,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "29e26bc2436b33f6d1f7c0347b529fc8273aac1de9b2578a5aa6c968b4290f9e",
-            "size": 105451
+            "hash": "93f3fd0f31fb58b4c715ec2b5cf4388832febfe05cbf9875286c5faa9a37e482",
+            "size": 108535
         },
         {
             "path": "application/controllers/Updates.php",

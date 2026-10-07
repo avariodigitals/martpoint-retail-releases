@@ -117,6 +117,62 @@ class Fleet extends MY_Controller {
     /*  Admin panel                                                       */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Fetch the release manifest from the live update channel.
+     *
+     * The channel — not a file on Central's disk — is the truth about what
+     * installs will receive, because it is literally what they download.
+     * Cached for 5 minutes so opening the fleet page repeatedly does not make
+     * a network call each time; the version changes only when a release is
+     * published, so a short cache costs nothing and a stale cache would be
+     * the very bug this replaces.
+     *
+     * Returns null when the channel is unreachable or unset — the caller then
+     * falls back to the local build manifest.
+     */
+    private function fetchChannelManifest(): ?array {
+        try {
+            $cacheFile = FCPATH . 'release_build/channel-manifest-cache.json';
+            if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < 300) {
+                $cached = json_decode((string) @file_get_contents($cacheFile), true);
+                if (is_array($cached) && !empty($cached['version'])) {
+                    return $cached;
+                }
+            }
+
+            $channel = $this->getSetting('update_channel_url');
+            if ($channel === '') {
+                return null;
+            }
+            $url = rtrim($channel, '/') . '/release-manifest.json?t=' . time();
+
+            $ctx = stream_context_create([
+                'http' => ['timeout' => 6, 'user_agent' => 'MartPointFleet/1.0'],
+                'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
+            ]);
+            $json = @file_get_contents($url, false, $ctx);
+            if ($json === false) {
+                return null;
+            }
+            $data = json_decode($json, true);
+            if (!is_array($data) || empty($data['version']) || empty($data['files'])) {
+                return null;
+            }
+
+            // Cache only what the fleet needs — the full file list is large
+            // and would be written to disk on every refresh.
+            @file_put_contents($cacheFile, json_encode([
+                'version'    => $data['version'],
+                'migrations' => $data['migrations'] ?? [],
+                'cached_at'  => date('Y-m-d H:i:s'),
+            ]));
+            return $data;
+        } catch (Throwable $e) {
+            log_message('error', 'Fleet fetchChannelManifest failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     public function index() {
         $this->requireAdmin();
         $data = $this->data;
@@ -137,20 +193,34 @@ class Fleet extends MY_Controller {
         $data['package_exists'] = file_exists($pkg);
         $data['package_size'] = $data['package_exists'] ? round(filesize($pkg) / 1048576, 1) : 0;
 
-        // Latest released version — the manifest generator writes this file
-        // on this machine, so the fleet table can flag outdated installs.
+        // Latest released version — what installs will actually receive.
+        //
+        // This MUST come from the live update channel, not from a manifest
+        // file on Central's disk. release_build/ is a build artefact and is
+        // never shipped to Central, so reading it there either fails or
+        // returns a stale version (Central showed .104 while the channel and
+        // every install were on .106). The channel is the single source of
+        // truth: it is literally what an install downloads.
+        //
+        // Falls back to the local build manifest for a dev machine that has
+        // no channel configured.
         $data['latest_version'] = null;
-        $manifestFile = FCPATH . 'release_build/release-manifest.json';
-        if (is_file($manifestFile)) {
-            $m = json_decode((string) @file_get_contents($manifestFile), true);
-            $data['latest_version'] = $m['version'] ?? null;
+        $data['migration_total'] = 0;
+
+        $manifest = $this->fetchChannelManifest();
+        if ($manifest === null) {
+            $manifestFile = FCPATH . 'release_build/release-manifest.json';
+            if (is_file($manifestFile)) {
+                $manifest = json_decode((string) @file_get_contents($manifestFile), true);
+            }
+        }
+        if (is_array($manifest)) {
+            $data['latest_version'] = $manifest['version'] ?? null;
             // How many migrations the current release ships — the denominator
             // for each install's migration progress bar. Without it the count
             // alone says nothing: 42 applied is fine if 42 exist and stalled
             // if 103 do.
-            $data['migration_total'] = isset($m['migrations']) ? count($m['migrations']) : 0;
-        } else {
-            $data['migration_total'] = 0;
+            $data['migration_total'] = isset($manifest['migrations']) ? count($manifest['migrations']) : 0;
         }
 
         $data['stats'] = [
