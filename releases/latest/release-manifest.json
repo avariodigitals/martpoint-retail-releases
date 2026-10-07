@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.103",
+    "version": "4.0.9.104",
     "previous_version": "4.0.9.59",
     "release_date": "2026-10-07",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -3522,8 +3522,8 @@
         },
         {
             "path": "application/views/fleet.php",
-            "hash": "4ca1703fa5d70b16622f3a947480736ee602d2a9e60907c90a5b254f4cefc4c9",
-            "size": 72688
+            "hash": "c254331455e44832bd7f31a3a0cc84eb99b1028577666dbce369978d0e40dc04",
+            "size": 81894
         },
         {
             "path": "application/views/services/services.php",
@@ -4967,8 +4967,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "e7426d8dace2283ddfc1c0ac30786c4f391cf68cd1fa0adbe1f9cdaf904abf03",
-            "size": 8657
+            "hash": "8404f373769b24d7ac7e594ceab45bac16388aa671ebb466ef30ed3507dbd291",
+            "size": 8928
         },
         {
             "path": "application/config/routes.php",
@@ -6252,8 +6252,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "59af73ca1584a7bcdc419b822eff43d82bec2fc29c8d5dff03dda63749486790",
-            "size": 36113
+            "hash": "f69ae3d86c336a003061f3760f63805239e5d7dfd034650200df075c6259dfcf",
+            "size": 37246
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -6472,8 +6472,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "581ae07289ed7126b71bba89dcb8916a930574a51f7865ed5b75928121715e32",
-            "size": 93139
+            "hash": "92b1cf64240fbe2d1ce02d188abe1006517c0914e2b2ea8f9aab0ec6b2c738c2",
+            "size": 95859
         },
         {
             "path": "application/controllers/Updates.php",
@@ -9537,8 +9537,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "8d332465f5df669181f930bd7b0c2b3a058d71a0d44637df03af61c785e71cd5",
-            "size": 113260
+            "hash": "b645f0543a0e49e608ac3318d21ce6ffb8249ce46f2acff1bc6642bd1fd59e40",
+            "size": 114969
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -10982,7 +10982,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "f320d5e16cc6ba56d585d393d225c320293a8af0ec9a41e617bab4f2e0abfd0e",
+            "hash": "8666bd846bc9856957079e47b6347e551a8fa6be7e3ff1f4eee31d0cf3a80496",
             "size": 105351
         },
         {
@@ -17220,6 +17220,7 @@
         "4.0.9.101_quotation_response_schema_repair.sql",
         "4.0.9.102_orphan_table_repair.sql",
         "4.0.9.103_fleet_update_stage.sql",
+        "4.0.9.104_fleet_command_resume.sql",
         "4.0.9.10_stock_state.sql",
         "4.0.9.11_leads_crm.sql",
         "4.0.9.12_industry_modules.sql",
@@ -17312,5 +17313,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.103"
+    "changelog": "Release 4.0.9.104"
 }

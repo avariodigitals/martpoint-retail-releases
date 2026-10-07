@@ -713,9 +713,58 @@ class Fleet extends MY_Controller {
         }
 
         $id = (int) $this->input->post('command_id');
-        $status = in_array($this->input->post('status'), ['done', 'failed'], true)
+        // 'resume' = the install made progress but ran out of time mid-update.
+        // It is neither done nor failed, and must NOT close the command.
+        $status = in_array($this->input->post('status'), ['done', 'failed', 'resume'], true)
             ? $this->input->post('status') : 'done';
         $result = substr((string) $this->input->post('result'), 0, 4000);
+
+        if ($status === 'resume') {
+            // Re-queue immediately AND wake the install again, so a multi-step
+            // update drives itself to completion without anyone clicking
+            // twice. Bounded so a genuinely stuck install cannot loop for ever
+            // — after the cap the row is marked failed with the real reason.
+            $row = $this->db->where('id', $id)->where('install_id', $install->id)
+                ->get('db_fleet_commands')->row();
+            // resume_count may not exist yet on a Central that has not run the
+            // migration — read defensively so the resume loop still advances.
+            $hasCount = $this->db->field_exists('resume_count', 'db_fleet_commands');
+            $tries = ($hasCount ? (int) ($row->resume_count ?? 0) : 0) + 1;
+            $maxTries = 20;   // ~20 slices — well beyond a normal update
+
+            if ($row && $tries <= $maxTries) {
+                if ($hasCount) {
+                    $this->db->where('id', $id)->update('db_fleet_commands', ['resume_count' => $tries]);
+                }
+                $this->db->insert('db_fleet_commands', [
+                    'install_id' => $install->id,
+                    'command'    => 'update_now',
+                    'payload'    => null,
+                    'status'     => 'pending',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+                $this->db->where('id', $row->id)->update('db_fleet_commands', [
+                    'status'    => 'resumed',
+                    'result'    => $result . ' [auto-resumed ' . $tries . '/' . $maxTries . ']',
+                    'resumed_at' => date('Y-m-d H:i:s'),
+                ]);
+                $this->wakeInstalls([(int) $install->id]);
+                echo json_encode(['status' => 'ok', 'resumed' => true, 'attempt' => $tries]);
+                return;
+            }
+
+            // Out of attempts — this is a real failure. Record why.
+            $this->db->where('id', $id)->where('install_id', $install->id)
+                ->update('db_fleet_commands', [
+                    'status' => 'failed',
+                    'result' => $result . ' — update did not complete after ' . $maxTries
+                        . ' resume attempts. The install is repeatedly running out of time mid-update; check its error log.',
+                    'completed_at' => date('Y-m-d H:i:s'),
+                ]);
+            echo json_encode(['status' => 'ok', 'resumed' => false, 'gave_up' => true]);
+            return;
+        }
+
         $this->db->where('id', $id)->where('install_id', $install->id)
             ->update('db_fleet_commands', [
                 'status' => $status,

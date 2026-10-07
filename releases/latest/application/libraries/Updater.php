@@ -534,7 +534,14 @@ class Updater {
                     'install_url' => base_url(),
                     'install_key' => $installKey,
                     'command_id'  => $id,
-                    'status'      => $result['ok'] ? 'done' : 'failed',
+                    // Three outcomes, not two. A long job that checkpointed
+                    // and ran out of budget is neither done nor failed — it
+                    // is RESUME. Reporting it as failed (or as done) is what
+                    // let an install sit half-updated while Central showed
+                    // success, or showed an error that never went away.
+                    'status'      => !empty($result['resume']) ? 'resume'
+                        : (!empty($result['final']) && !empty($result['ok']) ? 'done'
+                        : ($result['ok'] ? 'done' : 'failed')),
                     'result'      => substr((string) $result['message'], 0, 2000),
                 ], 8);
                 $results[] = ['command' => $command] + $result;
@@ -674,11 +681,28 @@ class Updater {
     protected function executeFleetCommand(string $command, string $payload = ''): array {
         switch ($command) {
             case 'update_now':
+                // An update is a multi-minute, resumable pipeline — it cannot
+                // finish inside one request. runAutoUpdate() returns
+                // {status:ok, done:false} when it runs out of budget with the
+                // work checkpointed, which is PROGRESS, not completion.
+                //
+                // Treating "ok" as success marked the command done after a
+                // 90-second slice, so Central showed a green tick while the
+                // install was still millions of bytes behind — and because the
+                // command was closed, nothing ever re-queued it. Report the
+                // real outcome instead, and let the caller keep pushing.
                 $r = $this->runAutoUpdate(90);
-                return [
-                    'ok' => in_array($r['status'] ?? '', ['ok', 'skipped'], true),
-                    'message' => ($r['status'] ?? '?') . ': ' . ($r['message'] ?? ''),
-                ];
+                $finished = !empty($r['done']);
+                $msg = ($r['status'] ?? '?') . ': ' . ($r['message'] ?? '');
+                if (!empty($r['step']) && !empty($r['step_label'])) {
+                    $msg .= ' [step ' . (int) $r['step'] . '/8 — ' . $r['step_label'] . ']';
+                }
+                if ($finished) {
+                    return ['ok' => true, 'message' => $msg, 'final' => true];
+                }
+                // Not finished: hand the command back so Central re-queues it
+                // rather than believing the install is up to date.
+                return ['ok' => false, 'message' => $msg, 'final' => false, 'resume' => true];
             case 'report_status':
                 // Include migration state so Central can see whether the DB
                 // chain actually completed, not just what version the code is.

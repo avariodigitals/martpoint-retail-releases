@@ -159,4 +159,9 @@ return [
 	// Fleet install update-stage columns — lets Central show WHERE an install
 	// is stuck in its update, not just that it is outdated.
 	'4.0.9.103v'  => '4.0.9.103_fleet_update_stage.sql',
+
+	// Fleet command resume tracking — "Update now" is a multi-minute pipeline
+	// that cannot finish in one request; 'resume' lets Central drive it to
+	// completion instead of closing it as done after 90 seconds.
+	'4.0.9.104v'  => '4.0.9.104_fleet_command_resume.sql',
 ];

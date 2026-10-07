@@ -24,12 +24,91 @@
   font-family: monospace; font-size: 11px;
 }
 .fleet-key-row .btn { flex: 0 0 auto; white-space: nowrap; }
-.fleet-table-wrap { overflow-x: auto; }
-.fleet-table-wrap .mp-static-table { width: 100%; min-width: 0; table-layout: auto; }
-.fleet-table-wrap th { white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
-.fleet-table-wrap td { white-space: nowrap; vertical-align: top; padding: 8px 10px; }
-.fleet-table-wrap td.fleet-wide { white-space: normal; overflow-wrap: break-word; }
-.fleet-table-wrap .fleet-cmd-btns { max-width: 300px; }
+/* ---- Installs list ---------------------------------------------------
+   A 9-column table with a button cluster and a clamped detail block in
+   every row does not survive scale: row height is set by the widest cell,
+   so 50 installs is a wall and 1000 is unusable. Replaced with a list of
+   fixed-height rows that expand in place. Collapsed = scannable; expanded
+   = everything for the ONE install you are looking at. */
+.fleet-list { border: 1px solid #E7E5E4; border-radius: 10px; overflow: hidden; background: #fff; }
+.fleet-row { border-bottom: 1px solid #F1F0EF; }
+.fleet-row:last-child { border-bottom: 0; }
+.fleet-row.is-open { background: #FAFAF9; }
+.fleet-row.is-bad { box-shadow: inset 3px 0 0 #DC2626; }
+.fleet-row.is-warn { box-shadow: inset 3px 0 0 #D97706; }
+
+/* Collapsed summary — one line, fixed height, nothing that can grow. */
+.fleet-row-main {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; min-height: 46px; cursor: pointer;
+}
+.fleet-row-main:hover { background: #F5F5F4; }
+.fleet-row-main .fleet-check { flex: 0 0 auto; width: 26px; text-align: center; }
+.fleet-caret {
+  flex: 0 0 auto; width: 14px; color: #A8A29E; font-size: 11px;
+  transition: transform .15s ease;
+}
+.fleet-row.is-open .fleet-caret { transform: rotate(90deg); }
+.fleet-id { flex: 1 1 200px; min-width: 0; }
+.fleet-id .nm {
+  font-weight: 600; font-size: 12.5px; color: #1C1917;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fleet-id .url {
+  font-size: 11px; color: #78716C; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+/* Fixed-width columns so every row lines up and the eye can scan a column. */
+.fleet-col { flex: 0 0 auto; }
+.fleet-col-ver   { width: 92px; }
+.fleet-col-stage { width: 168px; }
+.fleet-col-seen  { width: 132px; }
+
+.fleet-row-main .fleet-quick {
+  flex: 0 0 auto; display: flex; gap: 4px; align-items: center;
+  opacity: 0; transition: opacity .12s ease;
+}
+.fleet-row-main:hover .fleet-quick,
+.fleet-row.is-open .fleet-quick { opacity: 1; }
+
+/* Expanded panel — the dense detail lives ONLY here. */
+.fleet-row-detail { padding: 0 12px 14px 60px; cursor: default; }
+.fleet-detail-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px; padding-top: 4px;
+}
+.fleet-detail-box {
+  background: #fff; border: 1px solid #E7E5E4; border-radius: 8px;
+  padding: 9px 11px;
+}
+.fleet-detail-box h5 {
+  margin: 0 0 6px; font-size: 10px; text-transform: uppercase;
+  letter-spacing: .4px; color: #78716C; font-weight: 700;
+}
+.fleet-detail-box .kv { font-size: 11.5px; color: #44403C; line-height: 1.7; }
+.fleet-detail-box .kv code { font-size: 10.5px; }
+.fleet-detail-actions {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid #E7E5E4;
+}
+.fleet-longtext {
+  font-size: 11px; color: #57534E; line-height: 1.6; word-break: break-word;
+  max-height: 120px; overflow-y: auto;
+}
+
+/* Toolbar above the list. */
+.fleet-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.fleet-toolbar .form-control { height: 30px; font-size: 12px; }
+.fleet-toolbar .fleet-search { flex: 1 1 200px; max-width: 280px; }
+.fleet-toolbar select { width: auto; }
+.fleet-count { font-size: 12px; color: #78716C; }
+.fleet-pager { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+.fleet-pager .btn-group .btn { padding: 4px 10px; font-size: 12px; }
+
+.fleet-empty { padding: 34px 16px; text-align: center; color: #78716C; font-size: 13px; }
 .fleet-badge {
   display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px;
   border-radius: 20px; text-transform: uppercase; letter-spacing: .3px;
@@ -39,20 +118,8 @@
 .fleet-badge.bad { background: #FEE2E2; color: #B91C1C; }
 .fleet-badge.off { background: #E7E5E4; color: #57534E; }
 .fleet-badge.info { background: #DBEAFE; color: #1D4ED8; }
-.fleet-usage { font-size: 11px; color: #57534E; line-height: 1.7; }
-.fleet-cmd-btns .btn { margin: 0 2px 4px 0; }
-.fleet-cmd-status { font-size: 11px; color: #78716C; }
-  /* Status column — the last reported command result, readable in place. */
-  .fleet-status { font-size: 11px; line-height: 1.6; min-width: 190px; max-width: 260px; }
-  .fleet-status-text {
-    margin-top: 4px; color: #57534E; font-size: 11px;
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-    overflow: hidden; word-break: break-word;
-  }
-
-  /* Update stage — where this install is IN its update, so a stalled one is
-     distinguishable from a healthy one that simply has not checked in. */
-  .fleet-stage { margin-bottom: 5px; }
+/* Update stage badge — the one visual vocabulary shared by the collapsed
+   row and the expanded panel, so the colour always means the same thing. */
   .fleet-stage-badge {
     display: inline-flex; align-items: center; gap: 5px; font-size: 10px;
     font-weight: 600; padding: 3px 8px; border-radius: 20px;
@@ -79,11 +146,7 @@
     overflow: hidden; max-width: 180px;
   }
   .fleet-stage-bar > span { display: block; height: 100%; background: #1D4ED8; }
-  .fleet-stage-detail {
-    margin-top: 3px; color: #57534E; font-size: 10px; line-height: 1.5;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden; word-break: break-word;
-  }
+.fleet-bulkbar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: #F5F5F4; border: 1px solid #E7E5E4; border-radius: 8px;
   padding: 8px 12px; margin-bottom: 10px; font-size: 12px;
@@ -93,7 +156,6 @@
   width: auto; display: inline-block; height: 28px; padding: 3px 8px; font-size: 12px;
 }
 .fleet-bulkbar .fleet-bulk-progress { color: #78716C; }
-.fleet-table-wrap td.fleet-check, .fleet-table-wrap th.fleet-check { width: 26px; text-align: center; }
 </style>
 
 <div class="mp-page-head">
@@ -220,15 +282,42 @@
           </button>
           <span class="fleet-bulk-progress" id="bulkProgress"></span>
         </div>
-        <div class="fleet-table-wrap">
-        <table class="mp-static-table" style="font-size:12px">
-          <thead>
-            <tr><th class="fleet-check"><input type="checkbox" id="fleetSelAll" title="Select all"></th><th>Install</th><th>Version</th><th>Update Stage</th><th>Status</th><th>License</th><th>Usage</th><th>Last Seen</th><th>Remote Command</th><th></th></tr>
-          </thead>
-          <tbody>
-          <?php if (empty($installs)): ?>
-            <tr><td colspan="10" class="text-muted">No installs have phoned home yet. Heartbeats start once a manifest carries <code>fleet_url</code>.</td></tr>
-          <?php else: $licData = []; foreach ($installs as $i): $cmd = $last_commands[$i->id] ?? null;
+        <div class="fleet-toolbar">
+          <input type="text" id="fleetSearch" class="form-control fleet-search"
+                 placeholder="Search store, domain or plan…" autocomplete="off">
+          <select id="fleetFilter" class="form-control">
+            <option value="">All installs</option>
+            <option value="attention">Needs attention</option>
+            <option value="outdated">Outdated</option>
+            <option value="stuck">Stuck / failed</option>
+            <option value="active">Licence active</option>
+            <option value="expired">Expired</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <div class="checkbox" style="margin:0">
+            <label style="font-size:12px;font-weight:600">
+              <input type="checkbox" id="fleetSelAll"> Select all <span id="fleetSelScope" class="text-muted"></span>
+            </label>
+          </div>
+          <span class="fleet-count" id="fleetCount"></span>
+          <div class="fleet-pager">
+            <span class="fleet-count">Show</span>
+            <div class="btn-group" id="fleetPageSize">
+              <button type="button" class="btn btn-default active" data-n="25">25</button>
+              <button type="button" class="btn btn-default" data-n="50">50</button>
+              <button type="button" class="btn btn-default" data-n="100">100</button>
+            </div>
+            <div class="btn-group">
+              <button type="button" class="btn btn-default" id="fleetPrev"><i class="fa fa-chevron-left"></i></button>
+              <button type="button" class="btn btn-default" id="fleetNext"><i class="fa fa-chevron-right"></i></button>
+            </div>
+            <span class="fleet-count" id="fleetPageInfo"></span>
+          </div>
+        </div>
+        <div class="fleet-list" id="fleetList">
+        <?php if (empty($installs)): ?>
+          <div class="fleet-empty">No installs have phoned home yet. Heartbeats start once a manifest carries <code>fleet_url</code>.</div>
+        <?php else: $licData = []; foreach ($installs as $i): $cmd = $last_commands[$i->id] ?? null;
             $licStatus = strtoupper((string) ($i->license_status ?? ''));
             $suspended = ($licStatus === 'SUSPENDED');
             $outdated = $latest_version && !empty($i->version) && version_compare($i->version, $latest_version, '<');
@@ -271,134 +360,157 @@
               'client_name' => (string) ($licDec['client_name'] ?? ''),
               'limits' => $limits,
             ];
-          ?>
-            <tr>
-              <td class="fleet-check"><input type="checkbox" class="fleet-sel" value="<?= (int) $i->id ?>"></td>
-              <td class="fleet-wide">
-                <?php if (!empty($i->store_name)): ?><strong><?= htmlspecialchars($i->store_name) ?></strong><br><?php endif; ?>
-                <a href="<?= htmlspecialchars($i->install_url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($i->install_url) ?></a>
-                <?php if (!empty($i->plan_name)): ?><br><small class="text-muted"><?= htmlspecialchars($i->plan_name) ?></small><?php endif; ?>
-                <?php if (!empty($i->admin_pass)): ?><br><small class="text-muted">admin: <code><?= htmlspecialchars($i->admin_pass) ?></code></small><?php endif; ?>
-                <br><small class="text-muted">PHP <?= htmlspecialchars($i->php_version) ?></small>
-              </td>
-              <td>
-                <?= htmlspecialchars($i->version) ?>
-                <?php if ($outdated): ?><br><span class="fleet-badge info">update avail.</span><?php endif; ?>
-              </td>
-              <td class="fleet-wide">
-                <?php
-                  // WHERE this install is in its update. Reported by the
-                  // install on each heartbeat from its own persisted update
-                  // state, so a stalled install is visibly different from one
-                  // that is simply up to date and quiet.
-                  //
-                  // NULL means the install is too old to report a stage. That
-                  // is shown as "no data" — never as idle, because "we cannot
-                  // see" and "nothing to do" are different answers.
-                  $stage = strtolower(trim((string) ($i->update_stage ?? '')));
-                  $step  = (int) ($i->update_step ?? 0);
-                  $stDetail = trim((string) ($i->update_detail ?? ''));
 
-                  // Group the stages into the five states an operator cares
-                  // about, so colour means something consistent.
-                  $stMap = [
-                    'idle'        => ['st-idle',     'Idle',        'No update in progress'],
-                    'ready'       => ['st-ready',    'Starting',    'Backing up before changes'],
-                    'downloading' => ['st-progress', 'Downloading', 'Fetching changed files'],
-                    'verifying'   => ['st-progress', 'Verifying',   'Checking file hashes'],
-                    'applying'    => ['st-progress', 'Applying',    'Writing files'],
-                    'migrating'   => ['st-progress', 'Migrating',   'Running database migrations'],
-                    'finalizing'  => ['st-progress', 'Finalizing',  'Stamping the new version'],
-                    'cleanup'     => ['st-progress', 'Cleanup',     'Removing temp files'],
-                    'stalled'     => ['st-stalled',  'Stalled',     'No progress — will resume on next check-in'],
-                    'failed'      => ['st-failed',   'Failed',      'Update stopped with an error'],
-                  ];
-                  $st = $stMap[$stage] ?? null;
-                ?>
-                <?php if ($stage === ''): ?>
-                  <span class="fleet-stage-badge st-unknown" title="This install has not reported an update stage yet — it is running a build older than v4.0.9.103.">
-                    <span class="dot"></span> no data
+            // Stage → colour class + severity. Severity drives the row's
+            // left edge bar and the "Needs attention" filter, so a broken
+            // install is findable without reading every row.
+            $stage = strtolower(trim((string) ($i->update_stage ?? '')));
+            $step  = (int) ($i->update_step ?? 0);
+            $stDetail = trim((string) ($i->update_detail ?? ''));
+            $stMap = [
+              'idle'        => ['st-idle',     'Idle',        'No update in progress',        'ok'],
+              'ready'       => ['st-ready',    'Starting',    'Backing up before changes',    'busy'],
+              'downloading' => ['st-progress', 'Downloading', 'Fetching changed files',       'busy'],
+              'verifying'   => ['st-progress', 'Verifying',   'Checking file hashes',         'busy'],
+              'applying'    => ['st-progress', 'Applying',    'Writing files',                'busy'],
+              'migrating'   => ['st-progress', 'Migrating',   'Running database migrations',  'busy'],
+              'finalizing'  => ['st-progress', 'Finalizing',  'Stamping the new version',     'busy'],
+              'cleanup'     => ['st-progress', 'Cleanup',     'Removing temp files',          'busy'],
+              'stalled'     => ['st-stalled',  'Stalled',     'No progress — will resume on next check-in', 'bad'],
+              'failed'      => ['st-failed',   'Failed',      'Update stopped with an error', 'bad'],
+            ];
+            $st = $stMap[$stage] ?? null;
+            $stCls   = $st[0] ?? 'st-unknown';
+            $stLabel = $stage === '' ? 'no data' : ($st[1] ?? ucfirst($stage));
+            $stTitle = $st[2] ?? $stage;
+
+            $cmdStatus = strtolower((string) ($cmd->status ?? ''));
+            $cmdText   = trim((string) ($cmd->result ?? ''));
+            $needsAttention = in_array($stage, ['stalled', 'failed'], true)
+                || $outdated || $licStatus === 'EXPIRED' || $suspended || $cmdStatus === 'failed';
+
+            // Row accent: red beats amber. Uses the same severity the badge
+            // shows so the colour and the word never disagree.
+            $rowCls = '';
+            if (in_array($stage, ['stalled', 'failed'], true) || $licStatus === 'EXPIRED' || $suspended || $cmdStatus === 'failed') {
+              $rowCls = 'is-bad';
+            } elseif ($outdated || $st !== null && $st[3] === 'busy') {
+              $rowCls = 'is-warn';
+            }
+
+            // Search/filter haystack — built server-side so the client only
+            // does a cheap indexOf, which matters at a thousand rows.
+            $haystack = strtolower(implode(' ', array_filter([
+              (string) ($i->store_name ?? ''), (string) $i->install_url,
+              (string) ($i->plan_name ?? ''), (string) $i->version,
+              (string) ($i->php_version ?? ''), $licStatus, $stage, $stLabel,
+            ])));
+        ?>
+          <div class="fleet-item<?= $rowCls ? ' ' . $rowCls : '' ?>"
+               data-hay="<?= htmlspecialchars($haystack, ENT_QUOTES) ?>"
+               data-attn="<?= $needsAttention ? '1' : '0' ?>"
+               data-outdated="<?= $outdated ? '1' : '0' ?>"
+               data-stuck="<?= in_array($stage, ['stalled', 'failed'], true) ? '1' : '0' ?>"
+               data-lic="<?= htmlspecialchars($licStatus ?: 'UNKNOWN', ENT_QUOTES) ?>">
+            <div class="fleet-row <?= $rowCls ?>">
+              <div class="fleet-row-main" onclick="toggleRow(this)">
+                <span class="fleet-check" onclick="event.stopPropagation()">
+                  <input type="checkbox" class="fleet-sel" value="<?= (int) $i->id ?>">
+                </span>
+                <span class="fleet-caret"><i class="fa fa-chevron-right"></i></span>
+
+                <span class="fleet-id">
+                  <span class="nm"><?= htmlspecialchars($i->store_name ?: parse_url($i->install_url, PHP_URL_HOST)) ?></span>
+                  <span class="url"><?= htmlspecialchars($i->install_url) ?></span>
+                </span>
+
+                <span class="fleet-col fleet-col-ver">
+                  <?= htmlspecialchars($i->version) ?>
+                  <?php if ($outdated): ?><br><span class="fleet-badge info">outdated</span><?php endif; ?>
+                </span>
+
+                <span class="fleet-col fleet-col-stage">
+                  <span class="fleet-stage-badge <?= $stCls ?>" title="<?= htmlspecialchars($stTitle, ENT_QUOTES) ?>">
+                    <span class="dot"></span> <?= htmlspecialchars($stLabel) ?>
+                    <?php if ($step > 0): ?><span style="opacity:.75"><?= $step ?>/8</span><?php endif; ?>
                   </span>
-                <?php else: ?>
-                  <?php $cls = $st[0] ?? 'st-unknown'; $label = $st[1] ?? ucfirst($stage); ?>
-                  <div class="fleet-stage">
-                    <span class="fleet-stage-badge <?= $cls ?>"
-                          title="<?= htmlspecialchars($st[2] ?? $stage, ENT_QUOTES) ?>">
-                      <span class="dot"></span> <?= htmlspecialchars($label) ?>
-                      <?php if ($step > 0): ?><span style="opacity:.75"><?= $step ?>/8</span><?php endif; ?>
-                    </span>
-                    <?php if ($step > 0 && $step < 8): ?>
-                      <div class="fleet-stage-bar" title="Step <?= $step ?> of 8">
-                        <span style="width:<?= (int) round($step / 8 * 100) ?>%"></span>
-                      </div>
-                    <?php endif; ?>
-                    <?php if ($stDetail !== ''): ?>
-                      <div class="fleet-stage-detail" title="<?= htmlspecialchars($stDetail, ENT_QUOTES) ?>">
-                        <?= htmlspecialchars($stDetail) ?>
-                      </div>
-                    <?php endif; ?>
+                  <?php if ($step > 0 && $step < 8): ?>
+                    <span class="fleet-stage-bar"><span style="width:<?= (int) round($step / 8 * 100) ?>%"></span></span>
+                  <?php endif; ?>
+                </span>
+
+                <span class="fleet-col fleet-col-seen">
+                  <?php if ($suspended): ?>
+                    <span class="fleet-badge off">suspended</span>
+                  <?php elseif ($licStatus === 'EXPIRED'): ?>
+                    <span class="fleet-badge bad">expired</span>
+                  <?php elseif ($licStatus === 'EXPIRING_SOON'): ?>
+                    <span class="fleet-badge soon">expiring</span>
+                  <?php elseif ($licStatus === 'ACTIVE'): ?>
+                    <span class="fleet-badge ok">active</span>
+                  <?php else: ?>
+                    <span class="fleet-badge off">unknown</span>
+                  <?php endif; ?>
+                  <br><span class="url"><?= htmlspecialchars($i->last_seen) ?></span>
+                </span>
+
+                <span class="fleet-quick" onclick="event.stopPropagation()">
+                  <button class="btn btn-xs btn-primary" onclick="queueCmd(<?= (int) $i->id ?>, 'update_now')" title="Update now">Update</button>
+                  <button class="btn btn-xs btn-default" onclick="toggleRow(this, true)" title="Show everything">More</button>
+                </span>
+              </div>
+
+              <div class="fleet-row-detail" style="display:none">
+                <div class="fleet-detail-grid">
+                  <div class="fleet-detail-box">
+                    <h5>Install</h5>
+                    <div class="kv">
+                      <a href="<?= htmlspecialchars($i->install_url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($i->install_url) ?></a><br>
+                      PHP <?= htmlspecialchars($i->php_version) ?>
+                      <?php if (!empty($i->plan_name)): ?><br>Plan: <?= htmlspecialchars($i->plan_name) ?><?php endif; ?>
+                      <?php if (!empty($i->admin_pass)): ?><br>admin: <code><?= htmlspecialchars($i->admin_pass) ?></code><?php endif; ?>
+                    </div>
                   </div>
-                <?php endif; ?>
-              </td>
-              <td class="fleet-status">
-                <?php
-                  // Readable health of the LAST reported command result, so
-                  // "did migrations run / did the update work" is visible at a
-                  // glance instead of being queued and hunted for in a modal.
-                  // $cmd is the most recent row in db_fleet_commands for this
-                  // install (command, status, result).
-                  $cmdStatus = strtolower((string) ($cmd->status ?? ''));
-                  $cmdText   = trim((string) ($cmd->result ?? ''));
-                ?>
-                <?php if ($cmdStatus === 'done'): ?>
-                  <span class="fleet-badge ok"><i class="fa fa-check"></i> ok</span>
-                <?php elseif ($cmdStatus === 'failed'): ?>
-                  <span class="fleet-badge bad"><i class="fa fa-times"></i> failed</span>
-                <?php elseif ($cmdStatus === 'pending'): ?>
-                  <span class="fleet-badge soon"><i class="fa fa-clock-o"></i> queued</span>
-                <?php else: ?>
-                  <span class="fleet-badge off">no report</span>
-                <?php endif; ?>
-                <button class="btn btn-xs btn-default" style="margin-left:4px"
-                        onclick="reportStatus(<?= (int) $i->id ?>)" title="Ask this install to report version + migration count now">
-                  <i class="fa fa-refresh"></i> Check
-                </button>
-                <?php if ($cmdText !== ''): ?>
-                  <div class="fleet-status-text" title="<?= htmlspecialchars($cmdText, ENT_QUOTES) ?>">
-                    <?= htmlspecialchars($cmdText) ?>
+
+                  <div class="fleet-detail-box">
+                    <h5>Update stage</h5>
+                    <div class="kv">
+                      <span class="fleet-stage-badge <?= $stCls ?>"><span class="dot"></span> <?= htmlspecialchars($stLabel) ?></span>
+                      <?php if ($step > 0): ?> step <?= $step ?>/8<?php endif; ?>
+                      <?php if ($stDetail !== ''): ?>
+                        <div class="fleet-longtext" style="margin-top:5px"><?= htmlspecialchars($stDetail) ?></div>
+                      <?php endif; ?>
+                    </div>
                   </div>
-                <?php endif; ?>
-                <?php if (!empty($cmd->command)): ?>
-                  <div class="text-muted" style="font-size:10px"><?= htmlspecialchars((string) $cmd->command) ?></div>
-                <?php endif; ?>
-              </td>
-              <td>
-                <?php if ($licStatus === 'ACTIVE'): ?>
-                  <span class="fleet-badge ok">active</span>
-                <?php elseif ($licStatus === 'EXPIRING_SOON'): ?>
-                  <span class="fleet-badge soon">expiring</span>
-                <?php elseif ($licStatus === 'EXPIRED'): ?>
-                  <span class="fleet-badge bad">expired</span>
-                <?php elseif ($suspended): ?>
-                  <span class="fleet-badge off">suspended</span>
-                <?php else: ?>
-                  <span class="fleet-badge off"><?= $licStatus ? strtolower($licStatus) : 'unknown' ?></span>
-                <?php endif; ?>
-                <?php if (isset($i->days_left) && $i->days_left !== null): ?>
-                  <br><small class="text-muted"><?= (int) $i->days_left ?>d left</small>
-                <?php endif; ?>
-              </td>
-              <td class="fleet-usage">
-                <?php if ($uUsers || $uProds): ?>
-                  <?php if ($uUsers): ?>Users <?= (int) $uUsers['used'] ?>/<?= (int) $uUsers['limit'] ?><br><?php endif; ?>
-                  <?php if ($uProds): ?>Products <?= (int) $uProds['used'] ?>/<?= (int) $uProds['limit'] ?><?php endif; ?>
-                <?php else: ?>
-                  <span class="text-muted">—</span>
-                <?php endif; ?>
-              </td>
-              <td><?= htmlspecialchars($i->last_seen) ?></td>
-              <td class="fleet-wide">
-                <div class="fleet-cmd-btns">
+
+                  <div class="fleet-detail-box">
+                    <h5>Last command</h5>
+                    <div class="kv">
+                      <?php if ($cmd): ?>
+                        <span class="label label-<?= $cmd->status === 'done' ? 'success' : ($cmd->status === 'failed' ? 'danger' : 'info') ?>"><?= htmlspecialchars($cmd->status) ?></span>
+                        <?= htmlspecialchars((string) $cmd->command) ?>
+                        <?php if ($cmdText !== ''): ?>
+                          <div class="fleet-longtext" style="margin-top:5px"><?= htmlspecialchars($cmdText) ?></div>
+                        <?php endif; ?>
+                      <?php else: ?>
+                        <span class="text-muted">Nothing queued yet.</span>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+
+                  <div class="fleet-detail-box">
+                    <h5>Licence &amp; usage</h5>
+                    <div class="kv">
+                      <?= $licStatus ? htmlspecialchars($licStatus) : 'unknown' ?>
+                      <?php if (isset($i->days_left) && $i->days_left !== null): ?> · <?= (int) $i->days_left ?>d left<?php endif; ?>
+                      <?php if ($uUsers): ?><br>Users <?= (int) $uUsers['used'] ?>/<?= (int) $uUsers['limit'] ?><?php endif; ?>
+                      <?php if ($uProds): ?><br>Products <?= (int) $uProds['used'] ?>/<?= (int) $uProds['limit'] ?><?php endif; ?>
+                      <?php if (!empty($i->cron_key)): ?><br>Cron key set<?php endif; ?>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="fleet-detail-actions">
                   <button class="btn btn-xs btn-primary" onclick="queueCmd(<?= (int) $i->id ?>, 'update_now')">Update now</button>
                   <button class="btn btn-xs btn-success" onclick="openLicenseModal(<?= (int) $i->id ?>)">License</button>
                   <?php if ($suspended): ?>
@@ -406,6 +518,7 @@
                   <?php else: ?>
                     <button class="btn btn-xs btn-warning" onclick="toggleSuspend(<?= (int) $i->id ?>, 'suspend')">Suspend</button>
                   <?php endif; ?>
+                  <button class="btn btn-xs btn-default" onclick="reportStatus(<?= (int) $i->id ?>)"><i class="fa fa-refresh"></i> Report status</button>
                   <button class="btn btn-xs btn-default" onclick="openEmailModal(<?= (int) $i->id ?>)">Email</button>
                   <button class="btn btn-xs btn-default" onclick="openSettingsModal(<?= (int) $i->id ?>)"><i class="fa fa-sliders"></i> Settings</button>
                   <button class="btn btn-xs btn-default" onclick="queueCmd(<?= (int) $i->id ?>, 'run_backup')" title="Runs a full DB backup on the install"><i class="fa fa-database"></i> Backup</button>
@@ -416,19 +529,14 @@
                     <button class="btn btn-xs btn-default" onclick="setupCron(<?= (int) $i->id ?>)">Cron</button>
                   <?php endif; ?>
                   <button class="btn btn-xs btn-default" onclick="editCronKey(<?= (int) $i->id ?>, '<?= htmlspecialchars((string) ($i->cron_key ?? ''), ENT_QUOTES) ?>')" title="Save the install's cron key so wake pings work"><i class="fa fa-key"></i></button>
+                  <button class="btn btn-xs btn-danger pull-right" onclick="removeInstall(<?= (int) $i->id ?>, this)"><i class="fa fa-trash"></i> Remove</button>
                 </div>
-                <?php if ($cmd): ?>
-                  <div class="fleet-cmd-status"><?= htmlspecialchars($cmd->command) ?>: <span class="label label-<?= $cmd->status === 'done' ? 'success' : ($cmd->status === 'failed' ? 'danger' : 'info') ?>"><?= htmlspecialchars($cmd->status) ?></span>
-                  <?php if ($cmd->result): ?><br><?= htmlspecialchars(substr($cmd->result, 0, 80)) ?><?php endif; ?></div>
-                <?php endif; ?>
-              </td>
-              <td><button class="btn btn-xs btn-danger" onclick="removeInstall(<?= (int) $i->id ?>, this)"><i class="fa fa-trash"></i></button></td>
-            </tr>
-          <?php endforeach; endif; ?>
-          </tbody>
-        </table>
+              </div>
+            </div>
+          </div>
+        <?php endforeach; endif; ?>
         </div>
-        <p class="text-muted" style="font-size:11px">Commands are queued — each install picks them up on its next check-in (cron or admin login, whichever comes first). Suspend blocks every page on the install except the dashboard until you Resume. No client login is ever needed.</p>
+        <p class="text-muted" style="font-size:11px;margin-top:10px">Click a row to expand it. Commands are queued — each install picks them up on its next check-in (cron or admin login). Suspend blocks every page on the install except the dashboard until you Resume. No client login is ever needed.</p>
       </div>
     </div>
   </div>
@@ -836,6 +944,106 @@ function reportStatus(id) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Installs list — expand / search / filter / page                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Expand one install's detail in place.
+ *
+ * Only the panel is toggled — rows are never rebuilt — so expanding is
+ * instant no matter how many installs there are. Multiple rows may be open
+ * at once: comparing two installs is a real thing to want.
+ *
+ * Pass force=true from the "More" button so it opens even if the click
+ * already bubbled and toggled it.
+ */
+function toggleRow(el, force) {
+  var $row = $(el).closest('.fleet-row');
+  var $detail = $row.find('.fleet-row-detail');
+  var open = $detail.is(':visible');
+  var next = (force === true) ? true : !open;
+  $detail.toggle(next);
+  $row.toggleClass('is-open', next);
+}
+
+var fleetPage = 1, fleetPageSize = 25;
+
+/**
+ * Render the list for the current search + filter + page.
+ *
+ * Filtering happens on data-* attributes rather than re-parsing the DOM,
+ * so it stays O(n) with n cheap comparisons — this has to remain usable
+ * with a thousand installs.
+ */
+function fleetRender() {
+  var q = $.trim($('#fleetSearch').val()).toLowerCase();
+  var f = $('#fleetFilter').val();
+  var $items = $('#fleetList .fleet-item');
+  var matched = [];
+
+  $items.each(function () {
+    var $i = $(this);
+    var ok = true;
+    if (q && $i.data('hay').indexOf(q) === -1) ok = false;
+    if (ok && f) {
+      switch (f) {
+        case 'attention': ok = $i.data('attn') == 1; break;
+        case 'outdated':  ok = $i.data('outdated') == 1; break;
+        case 'stuck':     ok = $i.data('stuck') == 1; break;
+        case 'active':    ok = $i.data('lic') === 'ACTIVE'; break;
+        case 'expired':   ok = $i.data('lic') === 'EXPIRED'; break;
+        case 'suspended': ok = $i.data('lic') === 'SUSPENDED'; break;
+      }
+    }
+    $i.data('match', ok);
+    if (ok) matched.push(this);
+    else $i.hide();
+  });
+
+  // Page the matched set. Collapse any expanded rows on a page change so
+  // the page opens at a predictable, scannable height.
+  var total = matched.length;
+  var pages = Math.max(1, Math.ceil(total / fleetPageSize));
+  if (fleetPage > pages) fleetPage = pages;
+  var start = (fleetPage - 1) * fleetPageSize;
+  var end = Math.min(start + fleetPageSize, total);
+
+  $.each(matched, function (idx) {
+    var show = idx >= start && idx < end;
+    var $i = $(this);
+    $i.toggle(show);
+    if (!show) {
+      $i.find('.fleet-row-detail').hide();
+      $i.find('.fleet-row').removeClass('is-open');
+    }
+  });
+
+  $('#fleetCount').text(
+    total === $items.length
+      ? total + ' install' + (total === 1 ? '' : 's')
+      : total + ' of ' + $items.length + ' shown'
+  );
+  $('#fleetPageInfo').text(total ? (start + 1) + '–' + end + ' of ' + total : '');
+  $('#fleetPrev').prop('disabled', fleetPage <= 1);
+  $('#fleetNext').prop('disabled', fleetPage >= pages);
+  $('#fleetSelAll').prop('checked', false);
+  bulkRefresh();
+}
+
+$(document).on('input', '#fleetSearch', function () { fleetPage = 1; fleetRender(); });
+$(document).on('change', '#fleetFilter', function () { fleetPage = 1; fleetRender(); });
+
+$('#fleetPageSize').on('click', 'button', function () {
+  $('#fleetPageSize button').removeClass('active');
+  $(this).addClass('active');
+  fleetPageSize = parseInt($(this).data('n'), 10) || 25;
+  fleetPage = 1;
+  fleetRender();
+});
+$('#fleetPrev').on('click', function () { if (fleetPage > 1) { fleetPage--; fleetRender(); } });
+$('#fleetNext').on('click', function () { fleetPage++; fleetRender(); });
+
+/* ------------------------------------------------------------------ */
 /*  Bulk actions — tick installs, pick a command, run it on all of them */
 /* ------------------------------------------------------------------ */
 
@@ -843,16 +1051,30 @@ function fleetSelIds() {
   return $('.fleet-sel:checked').map(function() { return parseInt(this.value, 10); }).get();
 }
 
+// "Select all" means all VISIBLE installs — ticking it must not silently
+// queue a command on rows hidden by a search, a filter, or another page.
+function fleetVisibleItems() {
+  return $('#fleetList .fleet-item').filter(function () { return $(this).is(':visible'); });
+}
+
 function bulkRefresh() {
   var n = fleetSelIds().length, total = $('.fleet-sel').length;
   $('#bulkApply').prop('disabled', n === 0);
   $('#bulkCount').text(n ? n + ' of ' + total + ' selected' : 'Tick installs to run a command on all of them');
-  $('#fleetSelAll').prop('checked', n > 0 && n === total);
+
+  // "Select all" is scoped to what is VISIBLE. The label states the scope
+  // explicitly, because ticking a box that quietly queued commands on
+  // filtered-out installs would be the worst kind of surprise in a tool
+  // that can suspend a client's store.
+  var vis = fleetVisibleItems().length;
+  $('#fleetSelAll').prop('checked', vis > 0 && n >= vis);
+  $('#fleetSelScope').text(vis && vis < total ? '(this page: ' + vis + ')' : '');
 }
 
 $(document).on('change', '.fleet-sel', bulkRefresh);
 $('#fleetSelAll').on('change', function() {
-  $('.fleet-sel').prop('checked', this.checked);
+  var on = this.checked;
+  fleetVisibleItems().find('.fleet-sel').prop('checked', on);
   bulkRefresh();
 });
 
@@ -970,6 +1192,10 @@ function onQueued(id, command, res) {
 // Poll command_status until the install reports done/failed — the click was
 // always silent before, so failures looked identical to success. Bounded at
 // ~2min when woken (the install answers in seconds); ~5min otherwise.
+//
+// 'resumed' is a live update, not a finished one: the install made progress
+// and Central re-queued the next slice. Keep watching rather than declaring
+// success, so a multi-slice update is visible as it advances.
 function watchCommand(id, command, woke) {
   var tries = 0, max = woke ? 40 : 100, label = command.replace(/_/g, ' ');
   var t = setInterval(function() {
@@ -981,6 +1207,9 @@ function watchCommand(id, command, woke) {
         if (r.command_status === 'done') { toastr.success(msg, 'Confirmed by install', { timeOut: 8000 }); }
         else { toastr.error(msg, 'Install reported a failure', { timeOut: 15000 }); }
         setTimeout(function(){ location.reload(); }, 2500);
+      } else if (r.command_status === 'resumed') {
+        // Progress, not completion — say so instead of faking a finish.
+        toastr.info(label + ' is still running — ' + (r.result || 'in progress') + '\nCentral continued it automatically.', '', { timeOut: 6000 });
       } else if (tries >= max) {
         clearInterval(t);
         toastr.warning(label + ' is still pending — the install has not confirmed yet. It will run on its next cron check-in; reload this page later to see the result.', '', { timeOut: 15000 });

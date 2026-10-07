@@ -658,7 +658,33 @@ class Cron extends CI_Controller {
 			$this->updater->sendHeartbeat();
 			$commands = $this->updater->pollFleetCommands();
 			if(!empty($commands)){ $this->updater->sendHeartbeat(); } // report post-command state (license, suspension…)
-			echo json_encode(['status'=>'ok','commands'=>$commands]);
+
+			// A queued `update_now` MUST advance here.
+			//
+			// This endpoint is what Central's wake ping hits, and it was
+			// deliberately built to skip the update pipeline so license/OTP
+			// commands answered in seconds. But that also meant "Update now"
+			// was polled, marked done, and then never actually ran the update
+			// — the only thing that advanced an install was the 30-minute
+			// cron. Central said "woken now" while nothing moved.
+			//
+			// The update is resumable by design (persisted state + step
+			// runner), so a bounded slice here is safe: it makes progress
+			// whether or not cron ever fires, and the next ping continues.
+			$wantsUpdate = false;
+			foreach ((array) $commands as $c) {
+				if (($c['command'] ?? '') === 'update_now') { $wantsUpdate = true; break; }
+			}
+			$update = null;
+			if ($wantsUpdate) {
+				// Short slice — this request may be Central's 5s curl, which
+				// disconnects early. ignore_user_abort keeps it running to
+				// the budget so the work is not wasted.
+				$update = $this->updater->runAutoUpdate(25);
+				$this->updater->sendHeartbeat();
+			}
+
+			echo json_encode(['status'=>'ok','commands'=>$commands,'update'=>$update]);
 		} catch (Throwable $e) {
 			// Never blank-500 a wake ping — report the fault so Central shows it.
 			log_message('error', 'fleet_ping failed: ' . $e->getMessage());
