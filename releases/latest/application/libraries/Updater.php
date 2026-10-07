@@ -68,6 +68,63 @@ class Updater {
         return $row ? $row->version : '0.0';
     }
 
+    /**
+     * The version of the CODE actually on disk — `app_version()` reads
+     * custom_helper.php, so it always reflects what was deployed.
+     *
+     * This is the truthful answer to "what is this install running", and it
+     * is what the fleet registry should show. db_sitesettings.version is a
+     * record of the last COMPLETED migration run, which drifts ahead or
+     * behind whenever an update is interrupted.
+     *
+     * Falls back to the DB value when the helper is unavailable (very old
+     * installs, or a partial update mid-flight).
+     */
+    public function getCodeVersion(): string {
+        try {
+            if (!function_exists('app_version')) {
+                $this->CI->load->helper('custom');
+            }
+            if (function_exists('app_version')) {
+                $v = (string) app_version();
+                if ($v !== '' && preg_match('/^\d+(\.\d+)+$/', $v)) {
+                    return $v;
+                }
+            }
+        } catch (Throwable $e) {
+            // fall through to the DB value
+        }
+        return $this->getInstalledVersion();
+    }
+
+    /**
+     * If the code on disk is newer than db_sitesettings.version, the last
+     * update was interrupted before step 7 and the DB was never stamped.
+     * Reconcile it so the two stop disagreeing.
+     *
+     * Deliberately one-way: only advance DB → code, never roll it back. A DB
+     * version ahead of the code means migrations may still be pending, and
+     * pretending otherwise would let the app run against an unmigrated schema.
+     */
+    public function reconcileVersion(): bool {
+        try {
+            $code = $this->getCodeVersion();
+            $db = $this->getInstalledVersion();
+            if ($code === '' || $db === '' || $code === $db) {
+                return false;
+            }
+            if (version_compare($code, $db, '<=')) {
+                return false;
+            }
+            $this->CI->db->where('id', 1)->update('db_sitesettings', ['version' => $code]);
+            log_message('info', "Updater: reconciled db_sitesettings.version {$db} -> {$code} (code was ahead after an interrupted update).");
+            return true;
+        } catch (Throwable $e) {
+            log_message('error', 'Updater reconcileVersion failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     public function fetchManifest(): ?array {
         $channel = $this->getUpdateChannelUrl();
         // Cache-bust: a stale cached manifest paired with fresh files (or vice
@@ -260,6 +317,10 @@ class Updater {
         // Status feed sync is independent of fleet config — installs with no
         // fleet_url still get incident banners from the status backend.
         $this->syncStatusFeed();
+        // Heal a DB version left stale by an interrupted update, so the
+        // registry and the install stop disagreeing. Runs before the payload
+        // is built so both fields report the same, correct value.
+        $this->reconcileVersion();
         try {
             // Central is the registry, not a member — never register itself.
             if (function_exists('mp_is_central') && mp_is_central()) {
@@ -274,10 +335,26 @@ class Updater {
                 'install_url' => base_url(),
                 'install_key' => $this->installKey(),
                 'version'     => $this->getInstalledVersion(),
+                // The CODE version, read from custom_helper.php rather than
+                // db_sitesettings.version. The DB column is only stamped at
+                // step 7 of an update, so an interrupted run (timeout, a
+                // skipped file, a killed request) leaves the code ahead of the
+                // DB for ever — the install shows v4.0.9.102 locally while the
+                // fleet list sticks on the old number. Sending the code version
+                // lets the registry reflect what is actually deployed.
+                'code_version' => $this->getCodeVersion(),
                 'php_version' => PHP_VERSION,
                 'license_code' => $this->getLicenseCode(),
                 'cron_key'    => $this->cronKey(),
             ];
+            // Where this install is in its update — lets Central show which
+            // installs are stuck and at which step, instead of only which are
+            // outdated. Derived from the persisted state file, so it survives
+            // the killed requests that cause most stalls.
+            $stage = $this->updateStage();
+            $payload['update_stage']  = $stage['stage'];
+            $payload['update_step']   = (string) $stage['step'];
+            $payload['update_detail'] = $stage['detail'];
             $meta = $this->storeMeta();
             $payload['store_name']    = $meta['store_name'];
             $payload['store_city']    = $meta['city'];
@@ -469,6 +546,131 @@ class Updater {
         }
     }
 
+    /**
+     * How many migrations this install has applied, and the newest one.
+     *
+     * Central can ask for this via the `report_status` fleet command to answer
+     * "did every migration run?" without SSH. A count well below the release's
+     * migration total means the chain stopped part-way — the usual cause of an
+     * install that looks updated but is missing schema.
+     *
+     * @return array{applied:int,newest:?string,last:array<int,string>}
+     */
+    public function migrationStatus(): array {
+        $out = ['applied' => 0, 'newest' => null, 'last' => []];
+        try {
+            if (!$this->CI->db->table_exists('db_schema_migrations')) {
+                return $out;
+            }
+            $out['applied'] = (int) $this->CI->db->count_all_results('db_schema_migrations');
+            $rows = $this->CI->db->select('filename, version')
+                ->order_by('id', 'desc')->limit(10)
+                ->get('db_schema_migrations')->result();
+            foreach ($rows as $r) {
+                $out['last'][] = (string) $r->filename;
+            }
+            $out['newest'] = $out['last'][0] ?? null;
+        } catch (Throwable $e) {
+            log_message('error', 'Updater migrationStatus failed: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Where this install is in its update, for the fleet heartbeat.
+     *
+     * The persisted state file is the only truthful source: it is written at
+     * every step boundary and survives the killed requests that make an update
+     * stall. Reading it lets Central see "stuck at migrating / hash mismatch on
+     * PAYROLL_model.php" instead of only "outdated" — which is the difference
+     * between knowing an install needs attention and knowing WHY.
+     *
+     * Returns:
+     *   stage  — idle | ready | downloading | verifying | applying | migrating
+     *            | finalizing | cleanup | failed | stalled
+     *   step   — 1-8, or 0 when idle
+     *   detail — one short sentence naming the cause
+     *
+     * Deliberately never writes to the DB or the state file — it is a reader,
+     * called on every heartbeat, and must not perturb an in-flight update.
+     *
+     * @return array{stage:string,step:int,detail:string}
+     */
+    public function updateStage(): array {
+        $idle = ['stage' => 'idle', 'step' => 0, 'detail' => 'No update in progress.'];
+
+        try {
+            $state = $this->readState();
+            if (empty($state)) {
+                // No state file, but the DB may record a failed run whose
+                // state was already cleared — report that rather than "idle".
+                $job = $this->CI->db->order_by('id', 'DESC')->limit(1)
+                    ->get('db_system_updates')->row();
+                if ($job && ($job->status ?? '') === 'failed') {
+                    return [
+                        'stage'  => 'failed',
+                        'step'   => (int) ($job->current_step ?? 0),
+                        'detail' => substr((string) ($job->error_message ?? 'Update failed.'), 0, 200),
+                    ];
+                }
+                return $idle;
+            }
+
+            $step = (int) ($state['step'] ?? 1);
+
+            if (!empty($state['failed'])) {
+                return [
+                    'stage'  => 'failed',
+                    'step'   => $step,
+                    'detail' => substr((string) ($state['message'] ?? 'Update failed.'), 0, 200),
+                ];
+            }
+            if (!empty($state['done']) && $step >= 8) {
+                return $idle;
+            }
+
+            // A state file that has not changed in 15+ minutes means the
+            // request that was running it died (host timeout, killed worker).
+            // The state is still valid and resumable, so this is "stalled" —
+            // not "failed" — and clears itself on the next cron or login.
+            $stamp = @filemtime($this->statePath) ?: 0;
+            $ageSeconds = $stamp > 0 ? (time() - $stamp) : 0;
+            if ($ageSeconds > 900) {
+                return [
+                    'stage'  => 'stalled',
+                    'step'   => $step,
+                    'detail' => 'No progress for ' . round($ageSeconds / 60) . ' min at step '
+                        . $step . ' (' . $this->stepLabel($step) . ') — resumes on the next check-in.',
+                ];
+            }
+
+            $map = [
+                1 => 'ready', 2 => 'ready',
+                3 => 'downloading', 4 => 'verifying', 5 => 'applying',
+                6 => 'migrating', 7 => 'finalizing', 8 => 'cleanup',
+            ];
+            $total = (int) ($state['total'] ?? 0);
+            $batch = (int) ($state['batch'] ?? 0);
+            $detail = $this->stepLabel($step);
+            if ($total > 0 && in_array($step, [3, 4, 5, 6], true)) {
+                $detail .= ' (' . min($batch, $total) . '/' . $total . ')';
+            }
+            if (!empty($state['message'])) {
+                // The step's own message names the concrete cause (a failing
+                // file, a stalled migration) — far more useful than the label.
+                $detail = substr((string) $state['message'], 0, 180);
+            }
+
+            return [
+                'stage'  => $map[$step] ?? 'ready',
+                'step'   => $step,
+                'detail' => $detail,
+            ];
+        } catch (Throwable $e) {
+            return $idle;
+        }
+    }
+
     protected function executeFleetCommand(string $command, string $payload = ''): array {
         switch ($command) {
             case 'update_now':
@@ -478,7 +680,16 @@ class Updater {
                     'message' => ($r['status'] ?? '?') . ': ' . ($r['message'] ?? ''),
                 ];
             case 'report_status':
-                return ['ok' => true, 'message' => 'v' . $this->getInstalledVersion() . ' / PHP ' . PHP_VERSION];
+                // Include migration state so Central can see whether the DB
+                // chain actually completed, not just what version the code is.
+                $ms = $this->migrationStatus();
+                return [
+                    'ok' => true,
+                    'message' => 'v' . $this->getCodeVersion() . ' (db ' . $this->getInstalledVersion() . ')'
+                        . ' / PHP ' . PHP_VERSION
+                        . ' / migrations applied: ' . $ms['applied']
+                        . ($ms['newest'] ? ' (newest ' . $ms['newest'] . ')' : ''),
+                ];
             case 'set_license':
                 return $this->applyPushedLicense($payload);
             case 'request_license_otp':
@@ -1915,9 +2126,19 @@ class Updater {
 
         $migrationFile = $migrations[$offset];
 
-        // Skip if already applied
+        // Skip if already applied.
+        //
+        // Matches by FILENAME ONLY — a migration file applies once, ever,
+        // whichever release happened to carry it. This must agree with
+        // previewChanges(), which already diffs on filename alone.
+        //
+        // The previous check also matched `version` (the release that ran it),
+        // so a migration recorded under an earlier release was NOT recognised
+        // when a later release listed it again — it re-ran, hit
+        // "Duplicate column name", and the benign-error filter swallowed it.
+        // Harmless with idempotent SQL, but it logged a wall of errors and
+        // re-executed DDL on every update.
         $already = $this->CI->db->where('filename', $migrationFile)
-            ->where('version', $manifest['version'])
             ->get('db_schema_migrations')
             ->num_rows();
         if ($already > 0) {

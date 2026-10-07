@@ -42,9 +42,48 @@
 .fleet-usage { font-size: 11px; color: #57534E; line-height: 1.7; }
 .fleet-cmd-btns .btn { margin: 0 2px 4px 0; }
 .fleet-cmd-status { font-size: 11px; color: #78716C; }
+  /* Status column — the last reported command result, readable in place. */
+  .fleet-status { font-size: 11px; line-height: 1.6; min-width: 190px; max-width: 260px; }
+  .fleet-status-text {
+    margin-top: 4px; color: #57534E; font-size: 11px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word;
+  }
 
-/* Bulk action bar — activates once installs are ticked */
-.fleet-bulkbar {
+  /* Update stage — where this install is IN its update, so a stalled one is
+     distinguishable from a healthy one that simply has not checked in. */
+  .fleet-stage { margin-bottom: 5px; }
+  .fleet-stage-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10px;
+    font-weight: 600; padding: 3px 8px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: .3px; white-space: nowrap;
+  }
+  .fleet-stage-badge .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+    flex: 0 0 auto;
+  }
+  /* Colour carries the meaning — green flows, amber is moving/needs a look,
+     red is stopped, grey is quiet. */
+  .fleet-stage-badge.st-idle       { background: #DCFCE7; color: #15803D; }
+  .fleet-stage-badge.st-progress   { background: #DBEAFE; color: #1D4ED8; }
+  .fleet-stage-badge.st-ready      { background: #FEF3C7; color: #B45309; }
+  .fleet-stage-badge.st-stalled    { background: #FFEDD5; color: #C2410C; }
+  .fleet-stage-badge.st-failed     { background: #FEE2E2; color: #B91C1C; }
+  .fleet-stage-badge.st-unknown    { background: #E7E5E4; color: #57534E; }
+  /* A live pulse only while something is actually moving — an animation on a
+     stuck install would be a lie. */
+  .fleet-stage-badge.st-progress .dot { animation: fleetPulse 1.4s ease-in-out infinite; }
+  @keyframes fleetPulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  .fleet-stage-bar {
+    height: 3px; background: #E7E5E4; border-radius: 2px; margin-top: 3px;
+    overflow: hidden; max-width: 180px;
+  }
+  .fleet-stage-bar > span { display: block; height: 100%; background: #1D4ED8; }
+  .fleet-stage-detail {
+    margin-top: 3px; color: #57534E; font-size: 10px; line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word;
+  }
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: #F5F5F4; border: 1px solid #E7E5E4; border-radius: 8px;
   padding: 8px 12px; margin-bottom: 10px; font-size: 12px;
@@ -67,6 +106,8 @@
   <div class="fleet-stat<?= $stats['outdated'] ? ' warn' : '' ?>"><div class="num"><?= (int) $stats['outdated'] ?></div><div class="lbl">Outdated<?= $latest_version ? ' (v' . htmlspecialchars($latest_version) . ')' : '' ?></div></div>
   <div class="fleet-stat<?= $stats['expired'] ? ' warn' : '' ?>"><div class="num"><?= (int) $stats['expired'] ?></div><div class="lbl">Expired</div></div>
   <div class="fleet-stat<?= $stats['suspended'] ? ' bad' : '' ?>"><div class="num"><?= (int) $stats['suspended'] ?></div><div class="lbl">Suspended</div></div>
+  <div class="fleet-stat<?= $stats['updating'] ? ' warn' : '' ?>"><div class="num"><?= (int) $stats['updating'] ?></div><div class="lbl">Updating now</div></div>
+  <div class="fleet-stat<?= $stats['stuck'] ? ' bad' : '' ?>"><div class="num"><?= (int) $stats['stuck'] ?></div><div class="lbl">Stuck / failed</div></div>
 </div>
 
 <div class="row">
@@ -172,6 +213,7 @@
             <option value="report_status">Report status</option>
             <option value="suspend">Suspend</option>
             <option value="resume">Resume</option>
+            <option value="push_file">Push a file to ALL…</option>
           </select>
           <button class="btn btn-primary btn-sm" id="bulkApply" onclick="bulkApply()" disabled>
             <i class="fa fa-bolt"></i> Run on selected
@@ -181,11 +223,11 @@
         <div class="fleet-table-wrap">
         <table class="mp-static-table" style="font-size:12px">
           <thead>
-            <tr><th class="fleet-check"><input type="checkbox" id="fleetSelAll" title="Select all"></th><th>Install</th><th>Version</th><th>License</th><th>Usage</th><th>Last Seen</th><th>Remote Command</th><th></th></tr>
+            <tr><th class="fleet-check"><input type="checkbox" id="fleetSelAll" title="Select all"></th><th>Install</th><th>Version</th><th>Update Stage</th><th>Status</th><th>License</th><th>Usage</th><th>Last Seen</th><th>Remote Command</th><th></th></tr>
           </thead>
           <tbody>
           <?php if (empty($installs)): ?>
-            <tr><td colspan="8" class="text-muted">No installs have phoned home yet. Heartbeats start once a manifest carries <code>fleet_url</code>.</td></tr>
+            <tr><td colspan="10" class="text-muted">No installs have phoned home yet. Heartbeats start once a manifest carries <code>fleet_url</code>.</td></tr>
           <?php else: $licData = []; foreach ($installs as $i): $cmd = $last_commands[$i->id] ?? null;
             $licStatus = strtoupper((string) ($i->license_status ?? ''));
             $suspended = ($licStatus === 'SUSPENDED');
@@ -242,6 +284,93 @@
               <td>
                 <?= htmlspecialchars($i->version) ?>
                 <?php if ($outdated): ?><br><span class="fleet-badge info">update avail.</span><?php endif; ?>
+              </td>
+              <td class="fleet-wide">
+                <?php
+                  // WHERE this install is in its update. Reported by the
+                  // install on each heartbeat from its own persisted update
+                  // state, so a stalled install is visibly different from one
+                  // that is simply up to date and quiet.
+                  //
+                  // NULL means the install is too old to report a stage. That
+                  // is shown as "no data" — never as idle, because "we cannot
+                  // see" and "nothing to do" are different answers.
+                  $stage = strtolower(trim((string) ($i->update_stage ?? '')));
+                  $step  = (int) ($i->update_step ?? 0);
+                  $stDetail = trim((string) ($i->update_detail ?? ''));
+
+                  // Group the stages into the five states an operator cares
+                  // about, so colour means something consistent.
+                  $stMap = [
+                    'idle'        => ['st-idle',     'Idle',        'No update in progress'],
+                    'ready'       => ['st-ready',    'Starting',    'Backing up before changes'],
+                    'downloading' => ['st-progress', 'Downloading', 'Fetching changed files'],
+                    'verifying'   => ['st-progress', 'Verifying',   'Checking file hashes'],
+                    'applying'    => ['st-progress', 'Applying',    'Writing files'],
+                    'migrating'   => ['st-progress', 'Migrating',   'Running database migrations'],
+                    'finalizing'  => ['st-progress', 'Finalizing',  'Stamping the new version'],
+                    'cleanup'     => ['st-progress', 'Cleanup',     'Removing temp files'],
+                    'stalled'     => ['st-stalled',  'Stalled',     'No progress — will resume on next check-in'],
+                    'failed'      => ['st-failed',   'Failed',      'Update stopped with an error'],
+                  ];
+                  $st = $stMap[$stage] ?? null;
+                ?>
+                <?php if ($stage === ''): ?>
+                  <span class="fleet-stage-badge st-unknown" title="This install has not reported an update stage yet — it is running a build older than v4.0.9.103.">
+                    <span class="dot"></span> no data
+                  </span>
+                <?php else: ?>
+                  <?php $cls = $st[0] ?? 'st-unknown'; $label = $st[1] ?? ucfirst($stage); ?>
+                  <div class="fleet-stage">
+                    <span class="fleet-stage-badge <?= $cls ?>"
+                          title="<?= htmlspecialchars($st[2] ?? $stage, ENT_QUOTES) ?>">
+                      <span class="dot"></span> <?= htmlspecialchars($label) ?>
+                      <?php if ($step > 0): ?><span style="opacity:.75"><?= $step ?>/8</span><?php endif; ?>
+                    </span>
+                    <?php if ($step > 0 && $step < 8): ?>
+                      <div class="fleet-stage-bar" title="Step <?= $step ?> of 8">
+                        <span style="width:<?= (int) round($step / 8 * 100) ?>%"></span>
+                      </div>
+                    <?php endif; ?>
+                    <?php if ($stDetail !== ''): ?>
+                      <div class="fleet-stage-detail" title="<?= htmlspecialchars($stDetail, ENT_QUOTES) ?>">
+                        <?= htmlspecialchars($stDetail) ?>
+                      </div>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
+              </td>
+              <td class="fleet-status">
+                <?php
+                  // Readable health of the LAST reported command result, so
+                  // "did migrations run / did the update work" is visible at a
+                  // glance instead of being queued and hunted for in a modal.
+                  // $cmd is the most recent row in db_fleet_commands for this
+                  // install (command, status, result).
+                  $cmdStatus = strtolower((string) ($cmd->status ?? ''));
+                  $cmdText   = trim((string) ($cmd->result ?? ''));
+                ?>
+                <?php if ($cmdStatus === 'done'): ?>
+                  <span class="fleet-badge ok"><i class="fa fa-check"></i> ok</span>
+                <?php elseif ($cmdStatus === 'failed'): ?>
+                  <span class="fleet-badge bad"><i class="fa fa-times"></i> failed</span>
+                <?php elseif ($cmdStatus === 'pending'): ?>
+                  <span class="fleet-badge soon"><i class="fa fa-clock-o"></i> queued</span>
+                <?php else: ?>
+                  <span class="fleet-badge off">no report</span>
+                <?php endif; ?>
+                <button class="btn btn-xs btn-default" style="margin-left:4px"
+                        onclick="reportStatus(<?= (int) $i->id ?>)" title="Ask this install to report version + migration count now">
+                  <i class="fa fa-refresh"></i> Check
+                </button>
+                <?php if ($cmdText !== ''): ?>
+                  <div class="fleet-status-text" title="<?= htmlspecialchars($cmdText, ENT_QUOTES) ?>">
+                    <?= htmlspecialchars($cmdText) ?>
+                  </div>
+                <?php endif; ?>
+                <?php if (!empty($cmd->command)): ?>
+                  <div class="text-muted" style="font-size:10px"><?= htmlspecialchars((string) $cmd->command) ?></div>
+                <?php endif; ?>
               </td>
               <td>
                 <?php if ($licStatus === 'ACTIVE'): ?>
@@ -573,18 +702,56 @@
   </div>
 </div>
 
-<div class="modal fade" id="suspendModal" tabindex="-1">
-  <div class="modal-dialog" style="max-width:380px">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-        <h4 class="modal-title">Suspend Install</h4>
+  <!-- Push ONE file to MANY installs — the recovery path when installs are
+       stuck on an old Updater.php and cannot update themselves. -->
+  <div class="modal fade" id="bulkFileModal" tabindex="-1">
+    <div class="modal-dialog" style="max-width:520px">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Push One File to Selected Installs</h4>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning" style="font-size:12px">
+            Use this to place a file directly on installs that <b>cannot update themselves</b>
+            (e.g. an old <code>Updater.php</code>). Each install applies it on its next check-in.
+          </div>
+          <div class="form-group">
+            <label>File on this computer</label>
+            <input type="file" id="bfFile" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Destination path <small class="text-muted">— relative to the install root</small></label>
+            <input type="text" id="bfPath" class="form-control" value="application/libraries/Updater.php">
+          </div>
+          <p class="text-muted" style="font-size:11px">
+            Only <code>application/</code> or <code>theme/</code> paths are accepted.
+            <code>config.php</code>, <code>database.php</code> and <code>installed.lock</code>
+            are refused on the install side too. One file per action, max ~900&nbsp;KB.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-warning" onclick="bulkPushFile()">
+            <i class="fa fa-upload"></i> Push to All Selected
+          </button>
+        </div>
       </div>
-      <div class="modal-body">
-        <input type="hidden" id="susInstallId">
-        <div class="form-group"><label>Reason (optional)</label><input type="text" id="susReason" class="form-control" placeholder="e.g. Subscription payment overdue"></div>
-        <p class="text-muted" style="font-size:11px">The install keeps its data but every page is locked except the dashboard, until you Resume it.</p>
-      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="suspendModal" tabindex="-1">
+    <div class="modal-dialog" style="max-width:420px">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Suspend Install</h4>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="susInstallId">
+          <div class="form-group"><label>Reason (optional)</label><input type="text" id="susReason" class="form-control" placeholder="e.g. Subscription payment overdue"></div>
+          <p class="text-muted" style="font-size:11px">The install keeps its data but every page is locked except the dashboard, until you Resume it.</p>
+        </div>
       <div class="modal-footer">
         <button class="btn btn-default" data-dismiss="modal">Cancel</button>
         <button class="btn btn-warning" onclick="doSuspend()">Queue Suspend</button>
@@ -641,6 +808,33 @@ function queueCmd(id, command, extra) {
   }, function() { toastr.error('Server error'); });
 }
 
+/**
+ * Ask ONE install to report its version + migration count, then poll for the
+ * answer and reload so the Status column shows it. Central can only ask and
+ * wait — the install answers on its next check-in — so this polls briefly and
+ * says so plainly rather than pretending the result is instant.
+ */
+function reportStatus(id) {
+  queueCmd(id, 'report_status');
+  toastr.info('Asked the install to report — waiting for it to check in…');
+  var tries = 0, maxTries = 20;   // ~2 minutes at 6s intervals
+  var poll = setInterval(function() {
+    tries++;
+    fleetPost('<?= base_url('fleet/status'); ?>', { install_id: id }, function(res) {
+      // Reload as soon as the install has answered, so the new result renders
+      // in the Status column without the user hunting for it.
+      if (res && res.answered) {
+        clearInterval(poll);
+        location.reload();
+      }
+    }, function() { /* keep polling */ });
+    if (tries >= maxTries) {
+      clearInterval(poll);
+      toastr.warning('No reply yet — the install has not checked in. Status will appear once it does.');
+    }
+  }, 6000);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Bulk actions — tick installs, pick a command, run it on all of them */
 /* ------------------------------------------------------------------ */
@@ -673,12 +867,55 @@ function bulkApply() {
     $('#suspendModal').modal('show');
     return;
   }
+  // Pushing one file to every selected install — the recovery path when
+  // installs are stuck on an old Updater.php and cannot update themselves.
+  if (cmd === 'push_file') {
+    bulkPushIds = ids;
+    $('#bfFile').val('');
+    $('#bfPath').val('application/libraries/Updater.php');
+    $('#bulkFileModal').modal('show');
+    return;
+  }
   var labels = {
     update_now: 'Update now', run_backup: 'Backup', cron: 'Setup cron',
-    report_status: 'Report status', resume: 'Resume'
+    report_status: 'Report status', resume: 'Resume', push_file: 'Push file'
   };
   if (!confirm('Run "' + (labels[cmd] || cmd) + '" on ' + ids.length + ' selected install(s)?')) return;
   runBulk(cmd, ids, {});
+}
+
+/**
+ * Push ONE file to MANY installs in a single action.
+ *
+ * This is the escape hatch for installs stuck on an old Updater.php: they
+ * cannot complete an update to fetch the fix, so Central has to place the file
+ * directly. Doing that site-by-site is what made a fleet-wide problem
+ * unbearable — this queues the same push to every selected install and reports
+ * how many were accepted.
+ */
+var bulkPushIds = [];
+function bulkPushFile() {
+  var path = $.trim($('#bfPath').val());
+  var f = document.getElementById('bfFile').files[0];
+  if (!f) { toastr.error('Choose a file.'); return; }
+  if (!path) { toastr.error('Enter the destination path on the install.'); return; }
+  if (!/^(application|theme)\/[\w\-./]+$/i.test(path) || path.indexOf('..') !== -1) {
+    toastr.error('Path must be under application/ or theme/ (e.g. application/libraries/Updater.php).');
+    return;
+  }
+  if (f.size > 900 * 1024) { toastr.error('File too large — max ~900KB per push.'); return; }
+  if (!bulkPushIds.length) { toastr.error('No installs selected.'); return; }
+  if (!confirm('Push "' + path + '" to ' + bulkPushIds.length + ' install(s)?\n\n'
+      + 'Each install applies it on its next check-in.')) return;
+  var r = new FileReader();
+  r.onload = function () {
+    var b64 = (r.result || '').split(',')[1] || '';
+    if (!b64) { toastr.error('Could not read the file.'); return; }
+    $('#bulkFileModal').modal('hide');
+    runBulk('push_file', bulkPushIds, { path: path, content_b64: b64 });
+  };
+  r.onerror = function () { toastr.error('Could not read the file.'); };
+  r.readAsDataURL(f);
 }
 
 // Chunked so thousands of installs never hit request timeouts — commands go

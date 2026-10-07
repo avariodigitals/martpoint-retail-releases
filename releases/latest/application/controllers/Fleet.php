@@ -152,6 +152,11 @@ class Fleet extends MY_Controller {
             'outdated'  => 0,
             'suspended' => 0,
             'expired'   => 0,
+            // How many installs are mid-update or stuck. Counted here so the
+            // fleet header answers "is anything broken right now?" without
+            // scanning every row.
+            'updating'  => 0,
+            'stuck'     => 0,
         ];
         $dayAgo = date('Y-m-d H:i:s', time() - 86400);
         foreach ($data['installs'] as $i) {
@@ -160,6 +165,21 @@ class Fleet extends MY_Controller {
                 && version_compare($i->version, $data['latest_version'], '<')) $data['stats']['outdated']++;
             if (($i->license_status ?? '') === 'SUSPENDED') $data['stats']['suspended']++;
             if (($i->license_status ?? '') === 'EXPIRED') $data['stats']['expired']++;
+
+            // "Stuck" = the install told us it stopped, or it claims to be
+            // working but has not checked in since. Both need a human; a
+            // healthy idle install does not.
+            $stage = strtolower(trim((string) ($i->update_stage ?? '')));
+            if (in_array($stage, ['stalled', 'failed'], true)) {
+                $data['stats']['stuck']++;
+            } elseif (in_array($stage, ['ready', 'downloading', 'verifying', 'applying', 'migrating', 'finalizing', 'cleanup'], true)) {
+                $data['stats']['updating']++;
+                // Still "running" but silent for over an hour means the
+                // request died — count it as stuck too.
+                if (empty($i->last_seen) || $i->last_seen < date('Y-m-d H:i:s', time() - 3600)) {
+                    $data['stats']['stuck']++;
+                }
+            }
         }
 
         // Provisioning config (cPanel API)
@@ -546,9 +566,21 @@ class Fleet extends MY_Controller {
             return;
         }
 
+        // Which version to record for this install.
+        //
+        // `code_version` is read from the install's custom_helper.php, so it
+        // is always what is actually deployed. `version` is the DB value,
+        // stamped only at step 7 of an update — an interrupted run leaves it
+        // stale indefinitely, and with hundreds of installs that silently
+        // misreports the whole fleet. Prefer the code version; fall back to
+        // the DB value for installs too old to send it.
+        $codeVersion = trim((string) $this->input->post('code_version'));
+        $dbVersion   = trim((string) $this->input->post('version'));
+        $reported = preg_match('/^\d+(\.\d+)+$/', $codeVersion) ? $codeVersion : $dbVersion;
+
         $data = [
             'license_code' => substr((string) $this->input->post('license_code'), 0, 255),
-            'version'      => substr((string) $this->input->post('version'), 0, 20),
+            'version'      => substr($reported, 0, 20),
             'php_version'  => substr((string) $this->input->post('php_version'), 0, 20),
             'last_seen'    => date('Y-m-d H:i:s'),
         ];
@@ -565,6 +597,7 @@ class Fleet extends MY_Controller {
             'store_state'    => 150,
             'store_country'  => 150,
             'usage_json'     => 4000,
+            'update_detail'  => 255,
         ] as $field => $max) {
             if ($this->db->field_exists($field, 'db_fleet_installs')) {
                 $val = substr((string) $this->input->post($field), 0, $max);
@@ -572,6 +605,18 @@ class Fleet extends MY_Controller {
                     $data[$field] = $val;
                 }
             }
+        }
+        // Stage is the one field that must be able to go BACK to idle after an
+        // update finishes — the loop above skips empty values, which would
+        // freeze a completed install on its last stage for ever. Always write
+        // both when the columns exist; NULL means "never reported", which the
+        // UI shows as no-data rather than a false idle.
+        if ($this->db->field_exists('update_stage', 'db_fleet_installs')) {
+            $stage = substr(trim((string) $this->input->post('update_stage')), 0, 32);
+            $data['update_stage'] = $stage !== '' ? $stage : null;
+        }
+        if ($this->db->field_exists('update_step', 'db_fleet_installs')) {
+            $data['update_step'] = max(0, min(8, (int) $this->input->post('update_step')));
         }
         // Installer placeholder store (id 1) — older builds report it when no
         // session is present. Never let it overwrite the client's real name;
@@ -994,6 +1039,45 @@ class Fleet extends MY_Controller {
      * AJAX (admin) — latest status/result of a command for an install.
      * The license modal polls this after "Request OTP" to autofill the code.
      */
+    /**
+     * AJAX — has this install answered the most recent report_status?
+     *
+     * The Fleet Status column calls this after queuing a `report_status`, so
+     * the page can reload the moment the install checks in. Central cannot
+     * read an install's migration count directly — it can only ask and wait
+     * for the next poll — so the UI polls this cheaply rather than pretending
+     * the answer is instant.
+     */
+    public function status() {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+        $installId = (int) $this->input->post('install_id');
+        if ($installId <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'install_id required']);
+            return;
+        }
+        if (!$this->db->table_exists('db_fleet_commands')) {
+            echo json_encode(['status' => 'ok', 'answered' => false]);
+            return;
+        }
+        $row = $this->db->where('install_id', $installId)
+            ->where('command', 'report_status')
+            ->order_by('id', 'desc')->limit(1)
+            ->get('db_fleet_commands')->row();
+        if (!$row) {
+            echo json_encode(['status' => 'ok', 'answered' => false]);
+            return;
+        }
+        $st = strtolower((string) $row->status);
+        echo json_encode([
+            'status' => 'ok',
+            // Only 'done'/'failed' mean the install actually replied.
+            'answered' => in_array($st, ['done', 'failed'], true),
+            'command_status' => $st,
+            'result' => (string) ($row->result ?? ''),
+        ]);
+    }
+
     public function command_status() {
         $this->requireAdmin();
         header('Content-Type: application/json');
@@ -1251,7 +1335,7 @@ class Fleet extends MY_Controller {
     private function doQueueBulk() {
         set_time_limit(180);
         $command = (string) $this->input->post('command');
-        $allowed = ['update_now', 'run_backup', 'report_status', 'suspend', 'resume', 'set_cron_key', 'cron'];
+        $allowed = ['update_now', 'run_backup', 'report_status', 'suspend', 'resume', 'set_cron_key', 'cron', 'push_file'];
         if (!in_array($command, $allowed, true)) {
             echo json_encode(['status' => 'error', 'message' => 'That command cannot run in bulk.']);
             return;
@@ -1273,6 +1357,37 @@ class Fleet extends MY_Controller {
         $suspendReason = $command === 'suspend'
             ? substr(trim((string) $this->input->post('reason')), 0, 255) : null;
 
+        // push_file carries the same {path, content_b64} payload as the
+        // single-install path, validated identically and once for the whole
+        // batch — the install side re-checks it anyway.
+        $pushPayload = null;
+        if ($command === 'push_file') {
+            $relPath = trim(str_replace('\\', '/', (string) $this->input->post('path')));
+            $b64     = (string) $this->input->post('content_b64');
+            if (!preg_match('#^(application|theme)/[\w\-./]+$#i', $relPath) || strpos($relPath, '..') !== false) {
+                echo json_encode(['status' => 'error', 'message' => 'Path must be under application/ or theme/ (e.g. application/libraries/Updater.php).']);
+                return;
+            }
+            if (in_array(strtolower($relPath), [
+                'application/config/config.php', 'application/config/database.php',
+                'application/config/constants.php', 'application/config/installed.lock',
+                'index.php', '.htaccess',
+            ], true)) {
+                echo json_encode(['status' => 'error', 'message' => 'That file is protected — it cannot be pushed.']);
+                return;
+            }
+            $raw = base64_decode($b64, true);
+            if ($raw === false || $raw === '') {
+                echo json_encode(['status' => 'error', 'message' => 'Could not read the file content.']);
+                return;
+            }
+            if (strlen($raw) > 900 * 1024) {
+                echo json_encode(['status' => 'error', 'message' => 'File too large — max ~900KB per push. For bigger changes use the release channel.']);
+                return;
+            }
+            $pushPayload = json_encode(['path' => $relPath, 'content_b64' => base64_encode($raw)]);
+        }
+
         $queued = 0; $wokeIds = []; $errors = [];
         foreach ($ids as $id) {
             if ($command === 'cron') {
@@ -1289,7 +1404,8 @@ class Fleet extends MY_Controller {
             // set_cron_key needs a unique payload per install — same shape as
             // the single-install path in doQueue().
             $payload = $command === 'set_cron_key' ? 'ck_' . bin2hex(random_bytes(10))
-                : ($command === 'suspend' ? $suspendReason : null);
+                : ($command === 'suspend' ? $suspendReason
+                : ($command === 'push_file' ? $pushPayload : null));
             $this->db->insert('db_fleet_commands', [
                 'install_id' => $id,
                 'command' => $command,

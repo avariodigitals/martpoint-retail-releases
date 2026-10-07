@@ -155,4 +155,8 @@ return [
 	// Repairs tables that had no installer/migration origin (Sendchamp SMS,
 	// storefront customer OTP + sessions). Found by the schema-coverage check.
 	'4.0.9.102v'  => '4.0.9.102_orphan_table_repair.sql',
+
+	// Fleet install update-stage columns — lets Central show WHERE an install
+	// is stuck in its update, not just that it is outdated.
+	'4.0.9.103v'  => '4.0.9.103_fleet_update_stage.sql',
 ];
