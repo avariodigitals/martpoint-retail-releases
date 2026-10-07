@@ -84,6 +84,8 @@ class Manifest extends MY_Controller {
             'release_build/',
             'generate_manifest.php',
             'martpoint_auto_update_v1.sql',
+            'application/logs/',
+            'application/cache/',
         ];
 
         $files = [];
