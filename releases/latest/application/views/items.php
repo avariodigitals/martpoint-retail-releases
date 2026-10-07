@@ -37,7 +37,7 @@ if(!isset($item_name)){
   // when the feature flag is on and bundles (Variants) are available.
   if(mp_feature_enabled('fashion_variants_default')
      && !empty($store_profile['industry_type']) && $store_profile['industry_type']==='fashion'
-     && mp_feature_enabled('bundles')){
+     && mp_feature_enabled('item_variants')){
     $item_group='Variants';
   }
   $discount='';
@@ -484,7 +484,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <label for="item_group">Product Type <small class="text-muted">Single product or product with variants (flavor, size, color)</small> <span class="text-danger">*</span></label>
         <select class="mp-form-control select2" id="item_group" name="item_group" style="width:100%;">
           <option value="Single" <?php if($item_group=='Single') echo 'selected'; ?>>Single Product</option>
-          <?php if(mp_feature_enabled('bundles')): ?>
+          <?php if(mp_feature_enabled('item_variants')): ?>
           <option value="Variants" <?php if($item_group=='Variants') echo 'selected'; ?>>Has Variants (flavor / size / color)</option>
           <?php endif; ?>
         </select>
@@ -958,7 +958,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 </div>
 <?php endif; ?>
 
-<?php if(mp_feature_enabled('bundles')): ?>
+<?php if(mp_feature_enabled('item_variants')): ?>
 <!-- Variant Table -->
 <div class="mp-card-form mp-item-only variant_div" style="display:none;">
   <div class="mp-card-head">

@@ -246,6 +246,30 @@
 			$data['content'] = $this->load->view('admin/desktop/users_form', $data, TRUE);
 			$this->load->view('mp_layout', $data);
 		}
+
+		/**
+		 * Self-service profile — the destination behind the header avatar.
+		 *
+		 * The header used to link to users/edit/<own id>, which calls
+		 * permission_check('users_edit'). That is a STAFF-MANAGEMENT grant only
+		 * administrators hold, so the avatar was a dead end for every clinical
+		 * role: a therapist clicking their own name got 403.
+		 *
+		 * Opening users/edit for everyone is not the answer either — that form
+		 * exposes role assignment, branch and status. This action shows the same
+		 * screen for the user's OWN record only, and the save path refuses any
+		 * field that could escalate a privilege.
+		 */
+		public function profile(){
+			$id = (int)$this->session->userdata('inv_userid');
+			if(empty($id)){ redirect(base_url('logout')); return; }
+			$this->load->model('users_model');
+			$data = $this->users_model->get_details($id);
+			$data['page_title'] = 'My Profile';
+			$data['self_service'] = true;
+			$data['content'] = $this->load->view('admin/desktop/users_form', $data, TRUE);
+			$this->load->view('mp_layout', $data);
+		}
 		public function delete_user(){
 			$this->permission_check_with_msg('users_delete');
 			$this->load->model('users_model');

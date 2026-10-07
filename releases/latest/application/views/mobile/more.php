@@ -65,7 +65,7 @@
       <div class="topbar">
         <a href="<?= base_url('mobile'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>More</h1>
         </div>
       </div>
@@ -122,7 +122,7 @@
         <div class="topbar">
           <button type="button" class="back" aria-label="Back" onclick="showMenuGrid()"><i class="fa fa-chevron-left"></i></button>
           <div class="topbar-titles">
-            <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+            <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
             <h1><?= $group; ?></h1>
           </div>
         </div>

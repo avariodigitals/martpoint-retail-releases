@@ -944,7 +944,7 @@
                                               </label></div>
                                           </td>
                                         </tr>
-                                        <?php if(mp_feature_enabled('bundles')) { ?>
+                                        <?php if(mp_feature_enabled('item_variants')) { ?>
                                         <!-- Attributes -->
                                         <tr>
                                           <td><?= $i++;?></td>
@@ -972,7 +972,7 @@
                                         </tr>
                                         <?php } ?>
 
-                                        <?php if(mp_feature_enabled('bundles')) { ?>
+                                        <?php if(mp_feature_enabled('item_variants')) { ?>
                                         <!-- variants -->
                                         <tr>
                                           <td><?= $i++;?></td>
@@ -1052,6 +1052,9 @@
                                               </label></div>
                                               <div class="checkbox icheck"><label>
                                                 <input type="checkbox" class="customers_all" id='import_customers' name="permission[import_customers]"> <?= $this->lang->line('import_customers'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="customers_all" id='export_customers' name="permission[export_customers]"> <?= $this->lang->line('export_customers') ?: 'Export'; ?>
                                               </label></div>
                                           </td>
                                         </tr>
@@ -1191,6 +1194,9 @@
                                               </label></div>
                                               <div class="checkbox icheck"><label>
                                                 <input type="checkbox" class="sales_all" id='sales_payment_delete' name="permission[sales_payment_delete]"> <?= $this->lang->line('sales_payments_delete'); ?>
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="sales_all" id='payments_reconcile' name="permission[payments_reconcile]"> <?= $this->lang->line('payments_reconcile') ?: 'Payment Reconciliation'; ?>
                                               </label></div>
                                               <div class="checkbox icheck"><label>
                                                 <input type="checkbox" class="sales_all" id='show_all_users_sales_invoices' name="permission[show_all_users_sales_invoices]"> <?= $this->lang->line('show_all_users_sales_invoices'); ?>

@@ -349,18 +349,66 @@ class Promotions_model extends CI_Model {
 	}
 
 	/**
+	 * Atomically claim one redemption of a promotion.
+	 *
+	 * MUST be called inside an active DB transaction — SELECT ... FOR UPDATE
+	 * locks the promotion row so concurrent checkouts serialize: the second
+	 * claim only sees the first claim's usage row after it commits, so
+	 * per-customer and total usage limits can never be exceeded by racing
+	 * sales. Call record_usage() afterwards (same transaction) to write the
+	 * usage row.
+	 *
+	 * @return array('ok'=>bool,'message'=>string,'promo'=>object|null)
+	 */
+	public function claim_redemption($promotion_id, $customer_id, $cart_subtotal = 0, $store_id = null){
+		$store_id = $store_id ?: get_current_store_id();
+		$promo = $this->db->query(
+			"SELECT * FROM db_promotions WHERE id = ? AND store_id = ? FOR UPDATE",
+			array((int)$promotion_id, (int)$store_id)
+		)->row();
+		if(!$promo){
+			return array('ok' => false, 'message' => 'Promotion not found.', 'promo' => null);
+		}
+		$elig = $this->check_promotion_eligibility($promo, $customer_id, $cart_subtotal);
+		if(!$elig['ok']){
+			return array('ok' => false, 'message' => $elig['message'], 'promo' => $promo);
+		}
+		return array('ok' => true, 'message' => '', 'promo' => $promo);
+	}
+
+	/**
 	 * Record that a promotion was used in a sale.
 	 */
-	public function record_usage($promotion_id, $customer_id, $sales_id, $store_id = null){
-		if(empty($promotion_id) || empty($sales_id)) return;
+	public function record_usage($promotion_id, $customer_id, $sales_id, $store_id = null, $order_id = null){
+		if(empty($promotion_id) || (empty($sales_id) && empty($order_id))) return;
 		$store_id = $store_id ?: get_current_store_id();
-		$this->db->insert('db_promotion_usage', array(
+		$row = array(
 			'promotion_id' => (int)$promotion_id,
 			'customer_id'  => (int)$customer_id,
 			'sales_id'     => (int)$sales_id,
 			'store_id'     => (int)$store_id,
 			'used_date'    => date('Y-m-d'),
 			'used_time'    => date('H:i:s'),
-		));
+		);
+		// Storefront orders record usage against order_id (column added by
+		// migration 4.0.9.69 — guarded so old installs without it still work).
+		if(!empty($order_id) && $this->db->field_exists('order_id', 'db_promotion_usage')){
+			$row['order_id'] = (int)$order_id;
+		}
+		$this->db->insert('db_promotion_usage', $row);
+	}
+
+	/**
+	 * Release a storefront order's coupon claim when the order dies
+	 * (cancelled or refunded) so usage limits recover and the customer can
+	 * redeem the code again on a retry. Only rows keyed by order_id are
+	 * affected — POS redemptions (sales_id) are left alone. Orders that
+	 * stay pending keep their claim so a payment retry on the same order
+	 * retains its discount. Safe to call repeatedly.
+	 */
+	public function release_order_usage($order_id){
+		$order_id = (int)$order_id;
+		if(!$order_id || !$this->db->field_exists('order_id', 'db_promotion_usage')) return;
+		$this->db->where('order_id', $order_id)->delete('db_promotion_usage');
 	}
 }

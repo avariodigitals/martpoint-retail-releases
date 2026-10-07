@@ -11,7 +11,7 @@ SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES';
 
 SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'db_online_orders' AND column_name = 'stock_state');
 SET @sql = IF(@col_exists = 0,
-  "ALTER TABLE `db_online_orders` ADD COLUMN `stock_state` ENUM('none','reserved','committed','released') NOT NULL DEFAULT 'none' AFTER `stock_adjusted`",
+  "ALTER TABLE `db_online_orders` ADD COLUMN `stock_state` ENUM('none','reserved','committed','released') NOT NULL DEFAULT 'none'",
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 

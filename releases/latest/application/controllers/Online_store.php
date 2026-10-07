@@ -153,6 +153,8 @@ class Online_store extends MY_Controller {
 				'show_search' => $this->input->post('show_search') ? 1 : 0,
 				'show_categories' => $this->input->post('show_categories') ? 1 : 0,
 				'show_whatsapp_cta' => $this->input->post('show_whatsapp_cta') ? 1 : 0,
+				'cart_recovery_enabled' => $this->input->post('cart_recovery_enabled') ? 1 : 0,
+				'abandoned_after_hours' => max(1, min(720, (int)$this->input->post('abandoned_after_hours'))),
 				'featured_products_limit' => (int)($this->input->post('featured_products_limit') ?: 8),
 				'instagram_access_token' => trim($this->input->post('instagram_access_token')),
 				'instagram_username' => trim($this->input->post('instagram_username')),
@@ -167,6 +169,12 @@ class Online_store extends MY_Controller {
 				'newsletter_title' => trim($this->input->post('newsletter_title')),
 				'newsletter_subtitle' => trim($this->input->post('newsletter_subtitle'))
 			];
+			// .73 adds automated-recovery columns — skip on unmigrated installs.
+			if($this->db->field_exists('auto_recovery_enabled', 'db_storefront_settings')){
+				$data['auto_recovery_enabled'] = $this->input->post('auto_recovery_enabled') ? 1 : 0;
+				$data['auto_recovery_channel'] = $this->input->post('auto_recovery_channel') === 'sms' ? 'sms' : 'email';
+				$data['auto_recovery_test'] = $this->input->post('auto_recovery_test') ? 1 : 0;
+			}
 
 			$result = $this->storefront_model->saveSettings($storeId, $data);
 			if($result){
@@ -213,16 +221,25 @@ class Online_store extends MY_Controller {
 		$states = $this->input->post('cz_state');
 		$cities = $this->input->post('cz_city');
 		$fees   = $this->input->post('cz_fee');
+		$mins   = $this->input->post('cz_min_order');
+		$frees  = $this->input->post('cz_free_over');
 		if(!is_array($cities)) return json_encode([]);
 		$zones = [];
 		foreach($cities as $i => $city){
 			$city = trim($city);
 			if($city === '') continue;
-			$zones[] = [
+			$zone = [
 				'state' => trim(is_array($states) ? ($states[$i] ?? '') : ''),
 				'city'  => $city,
 				'fee'   => (float)(is_array($fees) ? ($fees[$i] ?? 0) : 0),
 			];
+			// Optional rule fields — only emitted when set so old consumers
+			// (older storefront builds, API clients) see the plain shape.
+			$min = (float)(is_array($mins) ? ($mins[$i] ?? 0) : 0);
+			$free = (float)(is_array($frees) ? ($frees[$i] ?? 0) : 0);
+			if($min > 0) $zone['min_order'] = $min;
+			if($free > 0) $zone['free_over'] = $free;
+			$zones[] = $zone;
 		}
 		return json_encode($zones);
 	}
@@ -258,10 +275,59 @@ class Online_store extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 
+	/**
+	 * Abandoned carts — persisted storefront carts that went stale with
+	 * customer contact details attached. Recovery is a manual WhatsApp
+	 * nudge carrying a per-cart restore link; nothing is sent automatically.
+	 */
+	public function abandoned_carts(){
+		if(!$this->_can_view_orders()){ $this->show_access_denied_page(); return; }
+		$storeId = get_current_store_id();
+		$settings = $this->storefront_model->getSettings($storeId);
+		$hours = max(1, (int)($settings->abandoned_after_hours ?? 24));
+		$data = array_merge($this->data, [
+			'page_title' => 'Abandoned Carts',
+			'carts' => $this->storefront_model->getAbandonedCarts($storeId, $hours, 100),
+			'enabled' => !empty($settings->cart_recovery_enabled),
+			'hours' => $hours,
+			'store_slug' => $settings->store_slug ?? ''
+		]);
+		$data['content'] = $this->load->view('online_store/abandoned_carts', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	/** Record a manual recovery nudge so carts don't get spammed. */
+	public function mark_cart_reminded(){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$cartId = (int)$this->input->post('cart_id');
+		$storeId = get_current_store_id();
+		if(!$cartId){ echo json_encode(['status' => 'error', 'message' => 'Cart not found']); return; }
+		$cart = $this->storefront_model->getCartById($cartId, $storeId);
+		$settings = $this->storefront_model->getSettings($storeId);
+		// Recheck eligibility at nudge time — a cart that just converted,
+		// opted out, or was nudged <24h ago is refused here, not only in
+		// the list query.
+		$hours = (int)($settings->abandoned_after_hours ?? 24);
+		if(!$this->storefront_model->cartReminderEligible($cart, $hours)){
+			echo json_encode(['status' => 'error', 'message' => 'Cart is no longer eligible for a reminder (converted, opted out, or nudged recently)']);
+			return;
+		}
+		$channel = $this->input->post('channel') === 'email' ? 'email' : 'whatsapp';
+		$recipient = $channel === 'email' ? $cart->customer_email : $cart->customer_phone;
+		$ok = $this->storefront_model->claimCartReminder(
+			$cartId, $storeId, $channel, 'manual', $recipient,
+			'Merchant-initiated recovery nudge', $this->session->userdata('inv_username')
+		);
+		echo json_encode(['status' => $ok ? 'success' : 'error', 'message' => $ok ? 'Reminder recorded' : 'Reminder already sent or cart ineligible']);
+	}
+
 	public function order_detail($orderId = 0){
 		if(!$this->_can_view_orders()){ $this->show_access_denied_page(); return; }
 		$order = $this->storefront_model->getOrder($orderId);
-		if(!$order){
+		if(!$order || (int)$order->store_id !== (int)get_current_store_id()){
 			show_404();
 			return;
 		}
@@ -288,14 +354,43 @@ class Online_store extends MY_Controller {
 		}
 		// Get current order to check previous status
 		$order = $this->storefront_model->getOrder($orderId);
-		$previousStatus = $order ? $order->order_status : '';
-		$this->storefront_model->updateOrderStatus($orderId, $status);
-		// Stock logic: decrement when marked paid, restore when cancelled
-		if($status === 'paid' && $previousStatus !== 'paid'){
-			$this->storefront_model->adjustStock($orderId);
-		} elseif($status === 'cancelled' && $previousStatus !== 'cancelled'){
-			$this->storefront_model->restoreStock($orderId);
+		if(!$order || (int)$order->store_id !== (int)get_current_store_id()){
+			echo json_encode(['status' => 'error', 'message' => 'Order not found']);
+			return;
 		}
+		$previousStatus = $order ? $order->order_status : '';
+		if($status === 'cancelled' && $order->payment_status === 'paid'){
+			echo json_encode(['status' => 'error', 'message' => 'Paid orders require a full refund through Payment Status before cancellation.']);
+			return;
+		}
+		if($previousStatus === $status){ echo json_encode(['status' => 'success', 'message' => 'Order status unchanged']); return; }
+		$this->db->trans_begin();
+		if($status === 'cancelled' && !$this->storefront_model->restoreStock($orderId)){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Stock could not be released; order was not cancelled.']);
+			return;
+		}
+		if(!$this->storefront_model->updateOrderStatus($orderId, $status)){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Order status could not be updated.']);
+			return;
+		}
+		if($status === 'paid' && $previousStatus !== 'paid' && !$this->storefront_model->adjustStock($orderId)){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Stock could not be committed; order status was not updated.']);
+			return;
+		}
+		if($status === 'cancelled' && $previousStatus !== 'cancelled'){
+			// Dead order — return its coupon redemption so limits recover.
+			$this->load->model('Promotions_model','promotions_m');
+			$this->promotions_m->release_order_usage($orderId);
+		}
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Order update failed; no changes were saved.']);
+			return;
+		}
+		$this->db->trans_commit();
 		echo json_encode(['status' => 'success', 'message' => 'Order status updated']);
 	}
 
@@ -313,19 +408,99 @@ class Online_store extends MY_Controller {
 		}
 		// Get current order to check previous payment status
 		$order = $this->storefront_model->getOrder($orderId);
-		$previousStatus = $order ? $order->payment_status : '';
-		$this->storefront_model->updatePaymentStatus($orderId, $status);
-		// Stock logic: decrement when marked paid, restore when leaving paid status
-		if($status === 'paid'){
-			if($previousStatus !== 'paid'){
-				$this->storefront_model->adjustStock($orderId);
-			}
-			// Idempotent — also heals a paid order whose fulfilment died earlier.
-			$this->storefront_model->fulfilPaidOrder($orderId);
-		} elseif(in_array($status, ['refunded','failed','unpaid']) && $previousStatus === 'paid'){
-			$this->storefront_model->restoreStock($orderId);
+		if(!$order || (int)$order->store_id !== (int)get_current_store_id()){
+			echo json_encode(['status' => 'error', 'message' => 'Order not found']);
+			return;
 		}
-		echo json_encode(['status' => 'success', 'message' => 'Payment status updated']);
+		$previousStatus = $order ? $order->payment_status : '';
+		if($previousStatus === 'refunded'){
+			echo json_encode($status === 'refunded'
+				? ['status' => 'success', 'message' => 'Full refund is already recorded.']
+				: ['status' => 'error', 'message' => 'A refunded order cannot return to a payable status.']);
+			return;
+		}
+		if($status === 'refunded' && $previousStatus !== 'paid'){
+			echo json_encode(['status' => 'error', 'message' => 'Only paid orders can be fully refunded.']);
+			return;
+		}
+		if($previousStatus === 'paid' && in_array($status, ['failed','unpaid'], true)){
+			echo json_encode(['status' => 'error', 'message' => 'Paid orders must use the full-refund action.']);
+			return;
+		}
+		if($status === 'paid' && $order->order_status === 'cancelled'){
+			echo json_encode(['status' => 'error', 'message' => 'Cancelled orders cannot be marked paid.']);
+			return;
+		}
+		// Refunds are full-order only. "Marked refunded in MartPoint" is a
+		// BOOKKEEPING state — it does not move money. The merchant must confirm
+		// the external provider refund (reference required), and must state what
+		// happened to the goods so stock is only restocked when it physically
+		// came back or fulfilment was cancelled before dispatch.
+		$refundReference = trim((string)$this->input->post('refund_reference', TRUE));
+		$refundDisposition = (string)$this->input->post('refund_disposition', TRUE);
+		$allowedDispositions = ['returned', 'not_shipped', 'kept'];
+		if($status === 'refunded'){
+			if($refundReference === ''){
+				echo json_encode(['status' => 'error', 'message' => 'Enter the external refund reference from your payment provider. Marking an order refunded records bookkeeping only — it does not return the money.']);
+				return;
+			}
+			if(!in_array($refundDisposition, $allowedDispositions, true)){
+				echo json_encode(['status' => 'error', 'message' => 'State what happened to the goods before refunding: returned, not shipped, or kept.']);
+				return;
+			}
+		}
+		$shouldRestock = ($status === 'refunded' && in_array($refundDisposition, ['returned', 'not_shipped'], true));
+		$this->db->trans_begin();
+		if($shouldRestock && !$this->storefront_model->restoreStock($orderId)){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Stock release failed; the refund status was not recorded.']);
+			return;
+		}
+		$refundData = [];
+		if($status === 'refunded'){
+			$refundData = [
+				'refund_reference'    => $refundReference,
+				'refund_amount'       => $order->grand_total,
+				'refund_disposition'  => $refundDisposition,
+				'refund_restocked'    => $shouldRestock ? 1 : 0,
+				'refund_confirmed_by' => (string)($this->session->userdata('inv_username') ?? 'system'),
+				'refund_confirmed_at' => date('Y-m-d H:i:s'),
+			];
+		}
+		if(!$this->storefront_model->updatePaymentStatus($orderId, $status, $refundData)){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Payment status could not be updated.']);
+			return;
+		}
+		if($status === 'paid' && $previousStatus !== 'paid'){
+			if(!$this->storefront_model->adjustStock($orderId)){
+				$this->db->trans_rollback();
+				echo json_encode(['status' => 'error', 'message' => 'Stock could not be committed; payment status was not updated.']);
+				return;
+			}
+			$this->storefront_model->recordPurchaseEvent($orderId, 'manual_confirm');
+		}
+		if($status === 'paid') $this->storefront_model->fulfilPaidOrder($orderId);
+		if($status === 'refunded'){
+			$this->load->model('Promotions_model','promotions_m');
+			$this->promotions_m->release_order_usage($orderId);
+		}
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			echo json_encode(['status' => 'error', 'message' => 'Payment update failed; no changes were saved.']);
+			return;
+		}
+		$this->db->trans_commit();
+		if($status === 'refunded'){
+			$message = 'Refund recorded against provider reference ' . $refundReference
+				. ' for ' . store_number_format($order->grand_total) . '. '
+				. ($shouldRestock
+					? 'Stock returned to inventory.'
+					: 'Goods kept by the customer — stock was NOT restocked.');
+		} else {
+			$message = 'Payment status updated';
+		}
+		echo json_encode(['status' => 'success', 'message' => $message]);
 	}
 
 	// ============== QUICK WHATSAPP ORDER ==============
@@ -638,6 +813,93 @@ class Online_store extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 
+	public function commerce_rules(){
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); return; }
+		$storeId = (int)get_current_store_id();
+		$this->load->model('Extras_model', 'extras_model');
+		$products = $this->db->where('store_id', $storeId)->where('status', 1)->where('service_bit', 0)->order_by('item_name', 'asc')->get('db_items')->result();
+		$bundles = array_values(array_filter($products, function($item){ return !empty($item->is_bundle); }));
+		$services = $this->storefront_model->getOnlineServices($storeId, null, '', 500);
+		$bundleComponents = $this->db->select('c.*, b.item_name AS bundle_name, i.item_name AS component_name')
+			->from('db_bundle_components c')
+			->join('db_items b', 'b.id = c.bundle_item_id AND b.store_id = c.store_id', 'inner')
+			->join('db_items i', 'i.id = c.component_item_id AND i.store_id = c.store_id', 'inner')
+			->where('c.store_id', $storeId)->order_by('b.item_name', 'asc')->order_by('i.item_name', 'asc')->get()->result();
+		$addons = $this->db->select('a.*, i.item_name AS product_name, s.service_name')
+			->from('db_item_addons a')
+			->join('db_items i', 'i.id = a.item_id AND i.store_id = a.store_id', 'left')
+			->join('db_services s', 's.id = a.service_id AND s.store_id = a.store_id', 'left')
+			->where('a.store_id', $storeId)->order_by('a.name', 'asc')->get()->result();
+		$data = array_merge($this->data, [
+			'page_title' => 'Commerce Rules',
+			'products' => $products,
+			'bundles' => $bundles,
+			'services' => $services,
+			'bundle_components' => $bundleComponents,
+			'addons' => $addons,
+			'upsells' => $this->extras_model->getUpsellLinks($storeId),
+		]);
+		$data['content'] = $this->load->view('online_store/commerce_rules', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function save_commerce_rule(){
+		if(!$this->_can_edit()){ $this->session->set_flashdata('error', 'You do not have permission to edit commerce rules.'); redirect('online_store/commerce_rules'); return; }
+		$storeId = (int)get_current_store_id();
+		$this->load->model('Extras_model', 'extras_model');
+		$type = (string)$this->input->post('rule_type', TRUE);
+		$ok = false;
+		if($type === 'bundle'){
+			$bundleId = (int)$this->input->post('bundle_item_id');
+			$componentId = (int)$this->input->post('component_item_id');
+			$qty = (float)$this->input->post('component_qty');
+			$rows = [];
+			foreach($this->extras_model->getBundleComponents($bundleId, $storeId) as $component){
+				$rows[] = ['component_item_id' => (int)$component->component_item_id, 'qty' => (float)$component->qty];
+			}
+			$rows[] = ['component_item_id' => $componentId, 'qty' => $qty];
+			$ok = $this->extras_model->saveBundleComponents($bundleId, $rows, $storeId);
+		} elseif($type === 'addon'){
+			$parentType = $this->input->post('parent_type', TRUE) === 'service' ? 'service' : 'product';
+			$parentId = (int)$this->input->post($parentType === 'service' ? 'service_id' : 'product_id');
+			$ok = $this->extras_model->saveAddon([
+				'parent_type' => $parentType,
+				'parent_id' => $parentId,
+				'linked_item_id' => (int)$this->input->post('linked_item_id'),
+				'name' => trim((string)$this->input->post('addon_name', TRUE)),
+				'price' => (float)$this->input->post('addon_price'),
+				'max_qty' => (int)$this->input->post('addon_max_qty'),
+				'is_active' => $this->input->post('addon_active') ? 1 : 0,
+			], $storeId);
+		} elseif($type === 'upsell'){
+			$ok = $this->extras_model->saveUpsell([
+				'trigger_item_id' => (int)$this->input->post('trigger_item_id'),
+				'upsell_item_id' => (int)$this->input->post('upsell_item_id'),
+				'sort_order' => (int)$this->input->post('sort_order'),
+				'is_active' => $this->input->post('upsell_active') ? 1 : 0,
+			], $storeId);
+		} elseif($type === 'quantity'){
+			$ok = $this->extras_model->saveQuantityRules(
+				(int)$this->input->post('item_id'), $storeId,
+				$this->input->post('min_order_qty'), $this->input->post('max_order_qty'), $this->input->post('qty_step')
+			);
+		}
+		$this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Commerce rule saved.' : 'The rule could not be saved. Check the selected records and values.');
+		redirect('online_store/commerce_rules');
+	}
+
+	public function delete_commerce_rule($type = '', $id = 0){
+		if(!$this->_can_edit()){ $this->session->set_flashdata('error', 'You do not have permission to edit commerce rules.'); redirect('online_store/commerce_rules'); return; }
+		$this->load->model('Extras_model', 'extras_model');
+		$storeId = (int)get_current_store_id();
+		$ok = false;
+		if($type === 'addon') $ok = $this->extras_model->deleteAddon($id, $storeId);
+		if($type === 'upsell') $ok = $this->extras_model->deleteUpsell($id, $storeId);
+		if($type === 'component') $ok = $this->extras_model->deleteBundleComponent($id, $storeId);
+		$this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Commerce rule removed.' : 'The rule could not be removed.');
+		redirect('online_store/commerce_rules');
+	}
+
 	public function toggle_product_online(){
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
@@ -942,6 +1204,249 @@ class Online_store extends MY_Controller {
 		]);
 	}
 
+	// ============== BULK FIELD EDIT (price / category / stock threshold / stock) ==============
+
+	private function _batch_edit_json($arr){
+		$arr['csrf_hash'] = $this->security->get_csrf_hash();
+		header('Content-Type: application/json');
+		echo json_encode($arr);
+		exit;
+	}
+
+	// Concurrency fingerprint: any change to these fields after preview
+	// invalidates the hash and the item is skipped as a conflict.
+	private function _batch_edit_hash($item){
+		return md5(implode('|', array(
+			(int)$item->id, (string)$item->sales_price, (string)$item->price,
+			(string)$item->online_price, (string)$item->category_id,
+			(string)$item->alert_qty, (string)$item->stock,
+		)));
+	}
+
+	private function _batch_edit_spec(){
+		$price_field = $this->input->post('price_field', TRUE);
+		if(!in_array($price_field, array('sales_price','price','online_price'),true)){ $price_field = null; }
+		$price_mode = $this->input->post('price_mode', TRUE);
+		if(!in_array($price_mode, array('set','increase_pct','decrease_pct','increase_amt','decrease_amt'),true)){ $price_mode = 'set'; }
+		$stock_mode = $this->input->post('stock_mode', TRUE);
+		if(!in_array($stock_mode, array('set','increase_amt','decrease_amt'),true)){ $stock_mode = null; }
+		$aq = $this->input->post('alert_qty');
+		$cat = $this->input->post('category_id', TRUE);
+
+		return array(
+			'price_field' => $price_field,
+			'price_mode'  => $price_mode,
+			'price_value' => $this->input->post('price_value'),
+			'category_id' => trim((string)$cat),
+			'alert_qty'   => ($aq===null || $aq==='') ? '' : $aq,
+			'stock_mode'  => $stock_mode,
+			'stock_value' => $this->input->post('stock_value'),
+		);
+	}
+
+	private function _batch_edit_validate($spec, $storeId){
+		if(!$spec['price_field'] && $spec['category_id']==='' && $spec['alert_qty']==='' && !$spec['stock_mode']){
+			return 'Nothing to change — pick a field to update.';
+		}
+		if($spec['price_field']){
+			if($spec['price_value']===null || $spec['price_value']==='' || !is_numeric($spec['price_value']) || (float)$spec['price_value'] < 0){
+				return 'Price value must be a non-negative number.';
+			}
+			if(in_array($spec['price_mode'],array('increase_pct','decrease_pct'),true) && (float)$spec['price_value'] > 1000){
+				return 'Percentage change is capped at 1000%.';
+			}
+		}
+		if($spec['alert_qty']!=='' && $spec['alert_qty']!==null){
+			if(!is_numeric($spec['alert_qty']) || (float)$spec['alert_qty'] < 0){
+				return 'Stock threshold (alert quantity) must be a non-negative number.';
+			}
+		}
+		if($spec['category_id']!==''){
+			$cid=(int)$spec['category_id'];
+			if($cid<=0){ return 'Choose a valid category.'; }
+			$exists=$this->db->where('id',$cid)->where('store_id',$storeId)->where('status',1)->get('db_category')->num_rows();
+			if(!$exists){ return 'The chosen category does not exist in this store.'; }
+		}
+		if($spec['stock_mode']){
+			if($spec['stock_value']===null || $spec['stock_value']==='' || !is_numeric($spec['stock_value']) || (float)$spec['stock_value'] < 0){
+				return 'Stock quantity must be a non-negative number.';
+			}
+		}
+		return null;
+	}
+
+	// Proposed change set for one item: array(field => array('from'=>, 'to'=>))
+	private function _batch_edit_plan($item, $spec){
+		$changes = array();
+		if($spec['price_field']){
+			$cur = (float)$item->{$spec['price_field']};
+			$v = (float)$spec['price_value'];
+			switch($spec['price_mode']){
+				case 'increase_pct': $new = $cur + ($cur * $v / 100); break;
+				case 'decrease_pct': $new = $cur - ($cur * $v / 100); break;
+				case 'increase_amt': $new = $cur + $v; break;
+				case 'decrease_amt': $new = $cur - $v; break;
+				default: $new = $v;
+			}
+			$new = max(0, round($new, 4));
+			if(abs($new - $cur) > 0.0001){ $changes[$spec['price_field']] = array('from'=>$cur,'to'=>$new); }
+		}
+		if($spec['category_id']!==''){
+			$cid=(int)$spec['category_id'];
+			if((int)$item->category_id !== $cid){ $changes['category_id']=array('from'=>(int)$item->category_id,'to'=>$cid); }
+		}
+		if($spec['alert_qty']!=='' && $spec['alert_qty']!==null){
+			$aq=(float)$spec['alert_qty'];
+			if((float)$item->alert_qty !== $aq){ $changes['alert_qty']=array('from'=>(float)$item->alert_qty,'to'=>$aq); }
+		}
+		if($spec['stock_mode']){
+			if(!empty($item->service_bit)){
+				$changes['_stock_error'] = 'services do not carry stock';
+			} else {
+				$cur=(float)$item->stock; $v=(float)$spec['stock_value'];
+				$target = $spec['stock_mode']==='set' ? $v : ($spec['stock_mode']==='increase_amt' ? $cur+$v : $cur-$v);
+				if(abs($target-$cur) > 0.0001){ $changes['_stock_delta'] = array('from'=>$cur,'to'=>$target,'delta'=>$target-$cur); }
+			}
+		}
+		return $changes;
+	}
+
+	public function batch_edit_preview(){
+		if(!$this->_can_edit()){ $this->_batch_edit_json(array('status'=>'error','message'=>'Access denied')); }
+		$storeId = get_current_store_id();
+		$ids = array_filter(array_map('intval', (array)$this->input->post('product_ids')));
+		if(empty($ids)){ $this->_batch_edit_json(array('status'=>'error','message'=>'No products selected')); }
+		$spec = $this->_batch_edit_spec();
+		$err = $this->_batch_edit_validate($spec,$storeId);
+		if($err){ $this->_batch_edit_json(array('status'=>'error','message'=>$err)); }
+
+		$items = $this->db->where('store_id',$storeId)->where_in('id',$ids)->where('status',1)->get('db_items')->result();
+		$out = array();
+		foreach($items as $item){
+			$out[] = array(
+				'id'=>(int)$item->id,'name'=>$item->item_name,
+				'changes'=>$this->_batch_edit_plan($item,$spec),
+				'hash'=>$this->_batch_edit_hash($item),
+			);
+		}
+		$this->_batch_edit_json(array('status'=>'success','items'=>$out,'missing'=>array_diff($ids,array_column($out,'id'))));
+	}
+
+	public function batch_edit_apply(){
+		if(!$this->_can_edit()){ $this->_batch_edit_json(array('status'=>'error','message'=>'Access denied')); }
+		$storeId = get_current_store_id();
+		$ids = array_filter(array_map('intval', (array)$this->input->post('product_ids')));
+		$expect = (array)$this->input->post('expect');
+		if(empty($ids)){ $this->_batch_edit_json(array('status'=>'error','message'=>'No products selected')); }
+		$spec = $this->_batch_edit_spec();
+		$err = $this->_batch_edit_validate($spec,$storeId);
+		if($err){ $this->_batch_edit_json(array('status'=>'error','message'=>$err)); }
+
+		$items = $this->db->where('store_id',$storeId)->where_in('id',$ids)->where('status',1)->get('db_items')->result();
+		$results = array();
+		$stock_lines = array();
+		foreach($items as $item){
+			$id = (int)$item->id;
+			// Optimistic concurrency: skip items changed since preview
+			if(!empty($expect[$id]) && $expect[$id] !== $this->_batch_edit_hash($item)){
+				$results[] = array('id'=>$id,'name'=>$item->item_name,'status'=>'conflict','detail'=>'changed since preview — skipped');
+				continue;
+			}
+			$plan = $this->_batch_edit_plan($item,$spec);
+			if(isset($plan['_stock_error'])){
+				$results[] = array('id'=>$id,'name'=>$item->item_name,'status'=>'error','detail'=>$plan['_stock_error']);
+				unset($plan['_stock_error']);
+				if(empty($plan)) continue;
+			}
+			if(empty($plan)){
+				$results[] = array('id'=>$id,'name'=>$item->item_name,'status'=>'skipped','detail'=>'no change needed');
+				continue;
+			}
+			$fields = array();
+			$stock_queued = false;
+			foreach($plan as $f=>$chg){
+				if($f === '_stock_delta'){ $stock_lines[] = array('item'=>$item,'delta'=>$chg['delta'],'to'=>$chg['to']); $stock_queued = true; continue; }
+				$fields[$f] = $chg['to'];
+			}
+			if(!empty($fields)){
+				$ok = $this->db->where('id',$id)->where('store_id',$storeId)->update('db_items',$fields);
+				if(!$ok){
+					$results[] = array('id'=>$id,'name'=>$item->item_name,'status'=>'error','detail'=>'database update failed');
+					continue;
+				}
+			}
+			$results[] = array('id'=>$id,'name'=>$item->item_name,'status'=>'ok',
+				'detail'=>($fields?'fields updated':'').($stock_queued ? ($fields ? '; stock queued':'stock change queued') : ''));
+		}
+		foreach(array_diff($ids, array_map(function($i){return (int)$i->id;},$items)) as $mid){
+			$results[] = array('id'=>$mid,'name'=>'# '.$mid,'status'=>'error','detail'=>'item not found in this store');
+		}
+
+		// Stock changes go through the stock-adjustment ledger — one
+		// adjustment document per run, one line per item, then recalc.
+		$stock_applied = array();
+		if(!empty($stock_lines)){
+			$this->load->model('pos_model');
+			$warehouse_id = function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null;
+			$this->db->trans_begin();
+			$hdr = array(
+				'store_id'=>$storeId,'warehouse_id'=>$warehouse_id,
+				'reference_no'=>null,'adjustment_date'=>date('Y-m-d'),
+				'adjustment_note'=>'Bulk catalogue edit (batch apply)',
+				'created_date'=>date('Y-m-d'),'created_time'=>date('H:i:s'),
+				'created_by'=>isset($this->data['CUR_USERNAME'])?$this->data['CUR_USERNAME']:'',
+				'system_ip'=>isset($this->data['SYSTEM_IP'])?$this->data['SYSTEM_IP']:'',
+				'system_name'=>isset($this->data['SYSTEM_NAME'])?$this->data['SYSTEM_NAME']:'',
+				'status'=>1,
+			);
+			$stock_ok = $this->db->insert('db_stockadjustment',$hdr);
+			$adjustment_id = $this->db->insert_id();
+			if(!$stock_ok || !$adjustment_id){
+				$this->db->trans_rollback();
+				foreach($stock_lines as $sl){ $stock_applied[$sl['item']->id] = 'error'; }
+			} else {
+				foreach($stock_lines as $sl){
+					$line_ok = $this->db->insert('db_stockadjustmentitems',array(
+						'store_id'=>$storeId,'warehouse_id'=>$warehouse_id,
+						'adjustment_id'=>$adjustment_id,'item_id'=>$sl['item']->id,
+						'adjustment_qty'=>$sl['delta'],
+						'description'=>'Bulk edit to '.round($sl['to'],4),'status'=>1,
+					));
+					if(!$line_ok || !$this->pos_model->update_items_quantity($sl['item']->id)){
+						$stock_ok = false;
+						break;
+					}
+					$stock_applied[$sl['item']->id] = 'ok';
+				}
+				if(!$stock_ok || $this->db->trans_status() === FALSE){
+					$this->db->trans_rollback();
+					foreach($stock_lines as $sl){ $stock_applied[$sl['item']->id] = 'error'; }
+				} else {
+					$this->db->trans_commit();
+				}
+			}
+			foreach($results as &$r){
+				foreach($stock_lines as $sl){
+					if((int)$sl['item']->id === (int)$r['id']){
+						$r['detail'] .= '; stock '.($stock_applied[$r['id']]==='ok' ? 'adjusted to '.round($sl['to'],4).' via adjustment #'.$adjustment_id : 'adjustment FAILED — rolled back');
+						if($stock_applied[$r['id']]!=='ok'){ $r['status']='error'; }
+					}
+				}
+			}
+			unset($r);
+		}
+
+		$ok_n=0;$conflict_n=0;$err_n=0;$skip_n=0;
+		foreach($results as $r){
+			if($r['status']==='ok')$ok_n++; elseif($r['status']==='conflict')$conflict_n++;
+			elseif($r['status']==='skipped')$skip_n++; else $err_n++;
+		}
+		$this->_batch_edit_json(array(
+			'status'=>'success','results'=>$results,
+			'ok'=>$ok_n,'conflicts'=>$conflict_n,'skipped'=>$skip_n,'errors'=>$err_n,
+		));
+	}
+
 	// ============== APPEARANCE ==============
 
 	public function appearance(){
@@ -1011,9 +1516,15 @@ class Online_store extends MY_Controller {
 			'meta_keywords' => trim($this->input->post('meta_keywords')),
 			'google_analytics_id' => trim($this->input->post('google_analytics_id')),
 			'facebook_pixel_id' => trim($this->input->post('facebook_pixel_id')),
+			'tiktok_pixel_id' => trim($this->input->post('tiktok_pixel_id')),
+			'require_tracking_consent' => (int)$this->input->post('require_tracking_consent') ? 1 : 0,
 			'robots_index' => (int)$this->input->post('robots_index'),
 			'custom_head_scripts' => trim($this->input->post('custom_head_scripts'))
 		];
+		// .73 adds tiktok_pixel_id — drop it on installs not yet migrated.
+		if(!$this->db->field_exists('tiktok_pixel_id', 'db_storefront_settings')){
+			unset($data['tiktok_pixel_id']);
+		}
 
 		// Store logo upload → db_storefront_settings.store_logo
 		if(!empty($_FILES['store_logo']['name'])){
@@ -1343,6 +1854,8 @@ class Online_store extends MY_Controller {
 			'search_terms' => $this->storefront_model->getSearchTerms($storeId, $startDate, $endDate),
 			'customers' => $this->storefront_model->getCustomerVisits($storeId, $startDate, $endDate),
 			'recent_visits' => $this->storefront_model->getRecentVisits($storeId, 50),
+			'event_funnel' => $this->storefront_model->getEventFunnel($storeId, 30),
+			'recent_events' => $this->storefront_model->getRecentEvents($storeId, 25),
 			'filter' => $filter,
 			'range_label' => $rangeLabel,
 			'start_date' => date('Y-m-d', strtotime($startDate)),

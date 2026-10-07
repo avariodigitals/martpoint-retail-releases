@@ -4,7 +4,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Monnify extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
-		$this->load_global();
+		// The webhook endpoint receives signed POSTs from Monnify — there is
+		// no merchant session, so it must skip the dashboard auth gate.
+		// Authenticity is enforced by verify_webhook_signature() inside.
+		if(strtolower($this->router->fetch_method()) !== 'webhook'){
+			$this->load_global();
+		}
 		$this->load->model('monnify_model','monnify');
 	}
 
@@ -241,6 +246,7 @@ class Monnify extends MY_Controller {
 			case 'SUCCESSFUL_TRANSACTION':
 				$ref = $event_data['paymentReference'] ?? '';
 				if(!empty($ref)){
+					$known = $this->monnify->get_payment_by_reference($ref);
 					$this->monnify->update_payment_status($ref, $event_data['paymentStatus'] ?? 'PAID', array(
 						'payment_method' => $event_data['paymentMethod'] ?? null,
 						'paid_on' => isset($event_data['paidOn']) ? date('Y-m-d H:i:s', strtotime($event_data['paidOn'])) : null,
@@ -248,6 +254,41 @@ class Monnify extends MY_Controller {
 						'transaction_reference' => $event_data['transactionReference'] ?? null
 					));
 					$this->monnify->confirm_sales_payment($ref);
+
+					// Reconciliation: no local payment link → unmatched;
+					// settled amount disagrees with initiated amount → discrepancy.
+					$this->load->model('payment_reconcile_model','recon');
+					$paid_amt = isset($event_data['amountPaid']) ? (float)$event_data['amountPaid'] : null;
+					if(!$known){
+						$this->recon->queue((int)$store_id, array(
+							'exception_type' => 'unmatched',
+							'provider'       => 'monnify',
+							'reference'      => $ref,
+							'amount'         => $paid_amt,
+							'detail'         => 'Provider reported a successful transaction with no matching local payment',
+							'detected_by'    => 'webhook',
+							'payload'        => $event_data,
+						));
+					} else {
+						$ev_currency = $event_data['currencyCode'] ?? ($event_data['currency'] ?? null);
+						$currency_mismatch = !empty($ev_currency) && !empty($known->currency)
+							&& strtoupper($ev_currency) !== strtoupper($known->currency);
+						if(($paid_amt !== null && abs($paid_amt - (float)$known->amount) > 0.01) || $currency_mismatch){
+							$this->recon->queue((int)$known->store_id, array(
+								'exception_type'  => 'discrepancy',
+								'provider'        => 'monnify',
+								'reference'       => $ref,
+								'sales_id'        => $known->sales_id,
+								'amount'          => $paid_amt,
+								'expected_amount' => $known->amount,
+								'currency'        => $ev_currency ?? $known->currency,
+								'detail'          => $currency_mismatch
+									? 'Settled currency differs from initiated currency'
+									: 'Settled amount differs from initiated amount',
+								'detected_by'     => 'webhook',
+							));
+						}
+					}
 				}
 				break;
 

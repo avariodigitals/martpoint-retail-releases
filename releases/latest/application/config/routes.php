@@ -60,6 +60,7 @@ $route['store/(:any)/products'] = 'storefront/products/$1';
 $route['store/(:any)/services'] = 'storefront/services/$1';
 $route['store/(:any)/vehicles'] = 'storefront/vehicles/$1';
 $route['store/(:any)/product/(:num)'] = 'storefront/product/$1/$2';
+$route['store/(:any)/product/(:num)/review'] = 'storefront/submit_product_review/$1/$2';
 $route['store/(:any)/service/(:num)'] = 'storefront/service/$1/$2';
 $route['store/(:any)/vehicle/(:num)'] = 'storefront/vehicle/$1/$2';
 $route['store/(:any)/cart'] = 'storefront/cart/$1';
@@ -81,6 +82,7 @@ $route['store/(:any)/course/(:num)'] = 'storefront/course/$1/$2';
 $route['store/(:any)/download/(:any)'] = 'storefront/download/$1/$2';
 $route['qr/(:num)'] = 'storefront/qr/$1';
 $route['storefront/place_order'] = 'storefront/place_order';
+$route['storefront/cart_upsells'] = 'storefront/cart_upsells';
 $route['storefront/paystack_callback'] = 'storefront/paystack_callback';
 $route['storefront/verify_payment'] = 'storefront/verify_payment';
 $route['sitemap.xml'] = 'storefront/sitemap';
@@ -110,9 +112,14 @@ $route['online_store/update_domain_status'] = 'online_store/update_domain_status
 $route['online_store/delete_domain/(:num)'] = 'online_store/delete_domain/$1';
 $route['online_store/orders'] = 'online_store/orders';
 $route['online_store/order/(:num)'] = 'online_store/order_detail/$1';
+$route['online_store/abandoned_carts'] = 'online_store/abandoned_carts';
+$route['online_store/mark_cart_reminded'] = 'online_store/mark_cart_reminded';
 $route['online_store/services'] = 'online_store/services';
 $route['online_store/qr_codes'] = 'online_store/qr_codes';
 $route['online_store/products_online'] = 'online_store/products_online';
+$route['online_store/commerce_rules'] = 'online_store/commerce_rules';
+$route['online_store/save_commerce_rule'] = 'online_store/save_commerce_rule';
+$route['online_store/delete_commerce_rule/(:any)/(:num)'] = 'online_store/delete_commerce_rule/$1/$2';
 $route['online_store/seed_permissions'] = 'online_store/seed_permissions';
 $route['online_store/debug_storefront'] = 'online_store/debug_storefront';
 
@@ -157,3 +164,17 @@ $route['approvals/save_settings'] = 'approvals/save_settings';
 $route['approvals/check_ajax'] = 'approvals/check_ajax';
 $route['approvals/validate'] = 'approvals/validate';
 $route['approvals/logs'] = 'approvals/logs';
+
+/* Clinical reports (physiotherapy & rehabilitation business type) */
+$route['clinical_reports'] = 'clinical_reports/index';
+$route['clinical_reports/(:any)'] = 'clinical_reports/view/$1';
+
+/* Self-service profile — the header avatar destination for every role.
+   Must be declared BEFORE nothing conflicting; users/<id> style routes are
+   handled by the controller's own methods. */
+$route['users/profile'] = 'users/profile';
+
+/* Public booking widget (keyed on db_store.intake_key, like intake/lead).
+   Read-only slot lookup + optional self-booking when the store enables it. */
+$route['intake_slots'] = 'intake_slots/index';
+$route['intake_booking'] = 'intake_slots/book';

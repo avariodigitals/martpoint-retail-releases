@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — <?= $page_title; ?></title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= htmlspecialchars($page_title); ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -78,7 +78,7 @@
       <div class="topbar">
         <a href="<?= base_url('mobile'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1><?= $page_title; ?></h1>
         </div>
       </div>
@@ -133,7 +133,7 @@
             <label>Product Type</label>
             <select class="mp-select" name="item_group" id="item_group">
               <option value="Single" <?= $item_group == 'Single' ? 'selected' : ''; ?>>Single Product</option>
-              <?php if(mp_feature_enabled('bundles')): ?>
+              <?php if(mp_feature_enabled('item_variants')): ?>
               <option value="Variants" <?= $item_group == 'Variants' ? 'selected' : ''; ?>>Variant Product</option>
               <?php endif; ?>
             </select>

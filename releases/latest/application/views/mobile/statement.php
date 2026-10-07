@@ -30,8 +30,8 @@
     .stat-card .label { font-size: 11px; color: var(--mp-muted); margin-bottom: 4px; }
     .stat-card .value { font-size: 18px; font-weight: 700; }
     .stat-card .value.due { color: var(--mp-danger); }
-    .table-wrap { background: #fff; border-radius: 14px; border: 1px solid var(--mp-border); overflow: hidden; margin-bottom: 14px; }
-    .statement-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table-wrap { background: #fff; border-radius: 14px; border: 1px solid var(--mp-border); overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; margin-bottom: 14px; }
+    .statement-table { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 13px; }
     .statement-table th { background: var(--mp-bg); padding: 10px 8px; text-align: left; font-weight: 700; color: var(--mp-muted); border-bottom: 1px solid var(--mp-border); }
     .statement-table td { padding: 10px 8px; border-bottom: 1px solid var(--mp-border); vertical-align: top; }
     .statement-table tr:last-child td { border-bottom: none; }
@@ -57,7 +57,7 @@
       <div class="topbar">
         <a href="<?= base_url('mobile/customer_profile/' . $customer->id . '?tab=statements'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Statement</h1>
         </div>
       </div>

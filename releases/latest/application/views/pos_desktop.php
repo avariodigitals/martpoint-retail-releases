@@ -1,3 +1,17 @@
+<?php
+/*
+ * The POS is a standalone full-page app: it does NOT load mp_layout or the clinic
+ * shell, it defines its own palette and header. That is why the clinic's POS link
+ * appeared to lead to "the old shell" — it led to the retail-blue page while the
+ * rest of the clinic was green.
+ *
+ * Rather than adopt the whole shell here (the POS is deliberately a distraction-
+ * free, full-screen selling surface), the palette follows the store's business
+ * type, and a Clinapp link is offered so a clinic user is never stranded inside
+ * the till with no way back.
+ */
+$mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'physiotherapy_rehabilitation';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,19 +25,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --mp-primary: #0057FF;
-      --mp-primary-dark: #0044CC;
+      --mp-primary: <?= $mp_is_clinic ? '#176753' : '#0057FF' ?>;
+      --mp-primary-dark: <?= $mp_is_clinic ? '#104d40' : '#0044CC' ?>;
       --mp-pay: #D97706;
       --mp-pay-dark: #B45309;
-      --mp-bg: #F5F4F0;
+      --mp-bg: <?= $mp_is_clinic ? '#eef3f0' : '#F5F4F0' ?>;
       --mp-surface: #FFFFFF;
-      --mp-text: #292524;
-      --mp-muted: #78716C;
-      --mp-border: #E7E5E4;
-      --mp-success: #059669;
-      --mp-danger: #DC2626;
-      --mp-warning: #F59E0B;
-      --mp-ink: #44403C;
+      --mp-text: <?= $mp_is_clinic ? '#1e2d28' : '#292524' ?>;
+      --mp-muted: <?= $mp_is_clinic ? '#687a72' : '#78716C' ?>;
+      --mp-border: <?= $mp_is_clinic ? '#d8e2dc' : '#E7E5E4' ?>;
+      --mp-success: <?= $mp_is_clinic ? '#176753' : '#059669' ?>;
+      --mp-danger: <?= $mp_is_clinic ? '#c95f49' : '#DC2626' ?>;
+      --mp-warning: <?= $mp_is_clinic ? '#a96e24' : '#F59E0B' ?>;
+      --mp-ink: <?= $mp_is_clinic ? '#1e2d28' : '#44403C' ?>;
       --shadow-sm: 0 1px 2px rgba(41, 37, 36, 0.05);
       --shadow: 0 10px 25px -5px rgba(41, 37, 36, 0.08), 0 4px 10px -4px rgba(41, 37, 36, 0.04);
     }
@@ -60,6 +74,10 @@
       overflow: visible;
     }
     .brand { flex-shrink: 0; }
+    /* Clinic escape hatch: the POS is full-screen with no shell nav, so a clinic
+       user needs one obvious way back to their workspace. */
+    .mp-back { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 8px 14px; border-radius: 9px; background: rgba(255,255,255,.14); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
+    .mp-back:hover { background: rgba(255,255,255,.24); color: #fff; text-decoration: none; }
     .header-actions { flex-shrink: 0; }
     .intelligence {
       flex: 1;
@@ -1230,6 +1248,9 @@
 <body>
 
   <header class="app-header">
+    <?php if($mp_is_clinic): ?>
+    <a href="<?= base_url('dashboard') ?>" class="mp-back" title="Back to the clinic"><i class="fa fa-chevron-left"></i> Clinic</a>
+    <?php endif; ?>
     <a href="<?= base_url() ?>" class="brand" style="text-decoration: none; color: inherit; cursor: pointer;">
       <h1><?= htmlspecialchars(get_store_name() ?: 'Metro Mart') ?></h1>
       <div class="sub">Point of Sale</div>

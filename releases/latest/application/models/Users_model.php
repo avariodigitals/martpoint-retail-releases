@@ -176,6 +176,35 @@ class Users_model extends CI_Model {
 		$q_id = $this->input->post('q_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
 		$CUR_USERID = isset($data['CUR_USERID']) ? $data['CUR_USERID'] : 0;
+
+		/*
+		 * Self-service guard.
+		 *
+		 * users/profile lets a user edit their OWN record without holding the
+		 * users_edit staff-management grant. That form also carries role_id,
+		 * store_id, warehouses and status — fields a user must not be able to
+		 * change on themselves, or a therapist could promote themselves to
+		 * administrator. When the save targets the signed-in user and they do
+		 * not hold users_edit, those fields are dropped and the stored values
+		 * are kept.
+		 */
+		$CI =& get_instance();
+		$isSelf = ((int)$q_id === (int)$CUR_USERID);
+		$canManageStaff = (bool)$CI->permissions('users_edit');
+		if($isSelf && !$canManageStaff){
+			$existing = $this->db->select('role_id, store_id, status, approval_pin')
+				->where('id', (int)$q_id)->get('db_users')->row();
+			if($existing){
+				$role_id = $existing->role_id;
+				$store_id = $existing->store_id;
+				// The approval PIN authorises money actions, so it is not
+				// self-assignable either.
+				$approval_pin = $existing->approval_pin;
+			}
+			// Branch assignment is an administrative decision.
+			$warehouses = null;
+			$default_warehouse_id = null;
+		}
 		$this->db->trans_begin();
 
 		$profile_picture='';
@@ -277,8 +306,17 @@ class Users_model extends CI_Model {
 		if(warehouse_module() && $role_id!=1 && $role_id!=store_admin_id()){
 			// Get warehouses to assign
 			$warehouses_to_assign = array();
-			
-			if(isset($_POST['warehouses']) && !empty($_POST['warehouses'])){
+
+			/*
+			 * Branch assignment is administrative. In self-service mode the
+			 * block below must be skipped entirely: to change WHO a user is we
+			 * would otherwise delete and re-insert their db_userswarehouses rows
+			 * (and it re-reads $_POST['warehouses'] rather than the local
+			 * variable, so merely clearing that variable is not enough).
+			 */
+			if($isSelf && !$canManageStaff){
+				$warehouses_to_assign = array();
+			} elseif(isset($_POST['warehouses']) && !empty($_POST['warehouses'])){
 				// Use selected warehouses
 				$warehouses_to_assign = $_POST['warehouses'];
 			} else {

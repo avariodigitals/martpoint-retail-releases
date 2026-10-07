@@ -369,6 +369,7 @@ $lang['purchase_return_payments_view'	]	=		'Purchase Return Payments View';
 $lang['purchase_return_payments_add'	]	=		'Purchase Return Payments Add';
 $lang['purchase_return_payments_delete'	]	=		'Purchase Return Payments Delete';
 $lang['sales_payments_view'				]	=		'Sales Payments View';
+$lang['payments_reconcile'				]	=		'Payment Reconciliation';
 $lang['sales_payments_add'				]	=		'Sales Payments Add';
 $lang['sales_payments_delete'			]	=		'Sales Payments Delete';
 $lang['purchase_payments_view'			]	=		'Purchase Payments View';
@@ -428,6 +429,7 @@ $lang['bill_to'							]	=		'Bill to';
 $lang['hsn'								]	=		'Tariff Code';
 /*1.6*/
 $lang['import_customers'				]	=		'Import Customers';
+$lang['export_customers'				]	=		'Export Customers';
 $lang['import_instructions'				]	=		'Import Instructions';
 $lang['column_name'						]	=		'Column Name';
 $lang['instructions'					]	=		'Instructions';

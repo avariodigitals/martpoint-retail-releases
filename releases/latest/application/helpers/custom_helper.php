@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.59';
+    return '4.0.9.102';
   }
   function required_php_version(){
     return 7.4;
@@ -637,12 +637,90 @@
   function store_admin_id(){
     return 2;
   }
+
+  /**
+   * Role NAMES that carry store-owner authority.
+   *
+   * Roles are store-scoped — db_roles.store_id says which store a role belongs
+   * to (role 2 'Store Admin' belongs to store 1). store_admin_id() is a
+   * hard-coded legacy id, so on a store that was never given role 2 — e.g. a
+   * clinic provisioned with its own role set (Physiotherapist, Nurse,
+   * Receptionist ... Business Owner) — NO user could ever satisfy
+   * is_store_admin(), leaving owner-level screens (Site & branding,
+   * Subscription & licence, Email settings, Approvals & authority) unreachable
+   * for every account in that store.
+   *
+   * Owner authority is therefore resolved by role name within the session's own
+   * store, the same way get_excluded_staff_roles() resolves 'Partner'.
+   */
+  function store_owner_role_names(){
+    return array('BUSINESS OWNER', 'STORE OWNER', 'STORE ADMIN', 'OWNER');
+  }
+
+  /**
+   * Role IDs that carry owner authority for a store (matched by name).
+   * Returns an empty array when the store is unknown, so an unresolved store
+   * never grants anything.
+   */
+  function store_owner_role_ids($store_id = null){
+    $CI =& get_instance();
+    if($store_id === null || $store_id === ''){
+      $store_id = $CI->session->userdata('store_id');
+    }
+    $store_id = (int) $store_id;
+    if($store_id <= 0){
+      return array();
+    }
+
+    $names = array();
+    foreach(store_owner_role_names() as $name){
+      $names[] = "'".$CI->db->escape_str(strtoupper($name))."'";
+    }
+
+    $query = $CI->db->query(
+      "SELECT id FROM db_roles
+        WHERE store_id = ".$store_id."
+          AND UPPER(role_name) IN (".implode(',', $names).")"
+    );
+    if(!$query){
+      return array();
+    }
+
+    $ids = array();
+    foreach($query->result() as $row){
+      $ids[] = (int) $row->id;
+    }
+    return $ids;
+  }
+
+  /**
+   * True when the signed-in user holds store-owner authority.
+   *
+   * Additive: the legacy hard-coded role id still wins, plus the owner role of
+   * the user's OWN store (by name). No caller loses access; a store whose owner
+   * role is missing simply never matched before and does now.
+   */
   function is_store_admin(){
     $CI =& get_instance();
-    if($CI->session->userdata('role_id')==store_admin_id()){
+
+    $role_id = (int) $CI->session->userdata('role_id');
+    if(empty($role_id)){
+      return false;
+    }
+
+    // Legacy path — unchanged.
+    if($role_id === (int) store_admin_id()){
       return true;
     }
-    return false;
+
+    // Owner role(s) of the session's own store, resolved once per store.
+    static $owner_roles = array();
+    $store_id = (int) $CI->session->userdata('store_id');
+    if(!array_key_exists($store_id, $owner_roles)){
+      $owner_roles[$store_id] = store_owner_role_ids($store_id);
+    }
+
+    return in_array($role_id, $owner_roles[$store_id], true);
   }
   function is_admin(){
     if(strtoupper(get_role_name())==strtoupper('admin')){
@@ -1195,12 +1273,14 @@
   //08-09-2020
   function get_profile_picture(){
     $CI =& get_instance();
-    $profile_picture = $CI->db->select('profile_picture')->where("id",$CI->session->userdata('inv_userid'))->get('db_users')->row()->profile_picture;
+    $row = $CI->db->select('profile_picture')->where("id",$CI->session->userdata('inv_userid'))->get('db_users')->row();
+    $profile_picture = $row ? $row->profile_picture : '';
     if(!empty($profile_picture)){
       $profile_picture = base_url($profile_picture);
     }
     else{
-      $profile_picture = base_url("theme/dist/img/avatar5.png");
+      // Shared default avatar used across desktop + mobile (see uploads/users/avatar.png).
+      $profile_picture = base_url("uploads/users/avatar.png");
     }
     return $profile_picture;
   }
@@ -2074,10 +2154,15 @@
     }
     return true;
   }
+  // Legacy name kept — 'bundles' was the old flag key for item variants.
   function bundles_module(){
     if (function_exists('mp_feature_flag_raw')) {
-        $flag = mp_feature_flag_raw('bundles');
+        $flag = mp_feature_flag_raw('item_variants');
+        if ($flag === null) { $flag = mp_feature_flag_raw('bundles'); }
         if ($flag !== null) { return $flag; }
+    }
+    if (function_exists('mp_feature_enabled')) {
+        return mp_feature_enabled('item_variants');
     }
     return true;
   }

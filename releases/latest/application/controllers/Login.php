@@ -16,6 +16,24 @@ class Login extends MY_Controller {
 		}
 	}
 
+	/**
+	 * Where a successfully authenticated user should land.
+	 *
+	 * CENTRAL LANDS ON /dashboard — like every other install — because on
+	 * Central `/dashboard` is NOT the retail dashboard: Dashboard::index()
+	 * detects mp_is_central() and renders centralConsole() instead
+	 * (views/central_dashboard.php). That screen is the Central landing page:
+	 * fleet KPIs, the Central-vs-channel version line, and the
+	 * "Slim menu (hide retail menus)" checkbox that drives the sidebar.
+	 *
+	 * Sending Central straight to /fleet would skip that screen and hide the
+	 * menu-mode control, so this deliberately does NOT special-case Central.
+	 * Only the mobile shell differs.
+	 */
+	private function _post_login_landing(){
+		return base_url() . (is_mobile() ? 'mobile' : 'dashboard');
+	}
+
 	public function langauge($id){
 		$this->load->model('language_model');
         $this->language_model->set($id);
@@ -34,7 +52,7 @@ class Login extends MY_Controller {
 			exit;
 		}
 		if($this->session->userdata('logged_in')==1){ 
-			redirect(base_url(). (is_mobile() ? 'mobile' : 'dashboard'),'refresh');
+			redirect($this->_post_login_landing(),'refresh');
 		}
 		$data = $this->data;
 
@@ -84,7 +102,7 @@ class Login extends MY_Controller {
 	}
 	public function forgot_password(){
 		if($this->session->userdata('logged_in')==1){ 
-			redirect(base_url(). (is_mobile() ? 'mobile' : 'dashboard'),'refresh');
+			redirect($this->_post_login_landing(),'refresh');
 		}
 		$data = $this->data;
 		$this->load->view('forgot-password',$data);
@@ -111,7 +129,7 @@ class Login extends MY_Controller {
 	}
 	public function otp(){
 		if($this->session->userdata('logged_in')==1){ 
-			redirect(base_url(). (is_mobile() ? 'mobile' : 'dashboard'),'refresh');
+			redirect($this->_post_login_landing(),'refresh');
 		}
 		$data = $this->data;
 		$this->load->view('otp',$data);

@@ -71,6 +71,7 @@ $badgeLabel = [
       <?php endif; ?>
 
       <button id="detail-add-btn" onclick="addDetailToCart()" <?= $sfOos ? 'disabled' : ''; ?> style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-primary); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-bottom:12px; <?= $sfOos ? 'opacity:.5;cursor:not-allowed;' : ''; ?>"><?= $sfOos ? 'Out of Stock' : $ctaLabel; ?></button>
+      <?php if($sfOos) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
       <?php
       // Delivery information for physical products — from merchant shipping config
       if($pType === 'physical'):
@@ -91,7 +92,7 @@ $badgeLabel = [
       <?php endif; ?>
       <?php endif; ?>
       <?php if($pType === 'physical' && !empty($settings->whatsapp_number)): ?>
-      <button onclick="sendDetailWhatsApp()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:#25D366; color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px;">Order via WhatsApp</button>
+      <button id="detail-wa-btn" onclick="sendDetailWhatsApp()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:#25D366; color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px;"><?= $sfOos ? 'Ask about availability' : 'Order via WhatsApp'; ?></button>
       <?php endif; ?>
     </div>
   </div>
@@ -152,6 +153,10 @@ $badgeLabel = [
     if(price) price.textContent = formatMoney(v.price);
     const stock = document.getElementById('detail-stock');
     if(stock) stock.textContent = v.stock;
+    const vBtn = document.getElementById('detail-add-btn');
+    const vOos = detailProduct.type !== 'service' && (detailProduct.type === 'product' || detailProduct.type === 'physical') && v.stock <= 0 && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>;
+    if(vBtn){ vBtn.disabled = vOos; vBtn.textContent = vOos ? 'Out of Stock' : '<?= $ctaLabel; ?>'; vBtn.style.opacity = vOos ? '.5' : ''; vBtn.style.cursor = vOos ? 'not-allowed' : ''; }
+    const vWa = document.getElementById('detail-wa-btn'); if(vWa && detailProduct.type !== 'service') vWa.textContent = vOos ? 'Ask about availability' : 'Order via WhatsApp';
   });
 
   function addDetailToCart(){
@@ -164,8 +169,12 @@ $badgeLabel = [
   }
 
   function sendDetailWhatsApp(){
+    if(typeof detailProduct !== 'undefined' && detailProduct.stock !== undefined && detailProduct.stock <= 0 && (!detailProduct.type || detailProduct.type === 'product' || detailProduct.type === 'physical') && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){ const wnum2 = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>'; if(wnum2) window.open('https://wa.me/' + wnum2 + '?text=' + encodeURIComponent('Hello, is ' + detailProduct.name + ' back in stock?'), '_blank'); return; }
     let msg = 'Hello, I am interested in: ' + detailProduct.name + ' — ' + formatMoney(detailProduct.price);
     const wnum = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
     if(wnum) window.open('https://wa.me/' + wnum + '?text=' + encodeURIComponent(msg), '_blank');
   }
+
+  // Funnel event — consent-gated inside mpTrackEvent.
+  if(typeof mpTrackEvent === 'function') mpTrackEvent('view_item', detailProduct.id, detailProduct.price);
 </script>

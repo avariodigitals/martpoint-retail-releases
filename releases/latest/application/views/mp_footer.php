@@ -402,6 +402,22 @@ $(function(){
 })();
 </script>
 
+<style>
+/* Toast / notification styles. These live here, with the container and
+   mpShowToast(), so EVERY shell that renders notifications has them — they
+   used to sit in mp_header.php, which the clinic shell does not load, so a
+   clinic user's toasts were built and then rendered unstyled. */
+.mp-toast-container{position:fixed!important;top:20px!important;right:20px!important;z-index:10000!important;display:flex!important;flex-direction:column!important;gap:10px!important;pointer-events:none!important}
+.mp-toast{background:var(--mp-surface)!important;color:var(--mp-text)!important;border:1px solid var(--mp-border)!important;border-radius:12px!important;box-shadow:var(--mp-shadow)!important;padding:14px 16px!important;min-width:300px!important;max-width:420px!important;display:flex!important;align-items:flex-start!important;gap:12px!important;transform:translateX(120%)!important;opacity:0!important;transition:all .45s cubic-bezier(.16,1,.3,1)!important;pointer-events:auto!important}
+.mp-toast.show{transform:translateX(0)!important;opacity:1!important}
+.mp-toast.hide{transform:translateX(-120%)!important;opacity:0!important}
+.mp-toast-icon{width:32px!important;height:32px!important;border-radius:10px!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;background:#D1FAE5!important;color:var(--mp-success)!important}
+.mp-toast.danger .mp-toast-icon{background:#FEE2E2!important;color:var(--mp-danger)!important}
+.mp-toast.warning .mp-toast-icon{background:#FEF3C7!important;color:#B45309!important}
+.mp-toast-content{flex:1!important;min-width:0!important}
+.mp-toast-title{font-size:14px!important;font-weight:700!important;margin:0 0 2px!important;color:var(--mp-ink)!important}
+.mp-toast-message{font-size:13px!important;color:var(--mp-muted)!important;line-height:1.35!important}
+</style>
 <div class="mp-toast-container" id="mpToastContainer"></div>
 
 <script>

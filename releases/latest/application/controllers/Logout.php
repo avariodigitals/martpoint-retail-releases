@@ -47,9 +47,18 @@ class Logout extends MY_Controller {
 		if(config_item('sess_driver') === 'database'){
 			$this->db->where("timestamp<=",time()-config_item('sess_expiration'))->delete(config_item('sess_save_path'));
 		}
+		// Preserve which store this session belonged to so the logged-out
+		// page shows that store's own branding and copy - a clinic must
+		// never land on retail marketing.
+		$logout_store = (int) $this->session->userdata('store_id');
+		// CENTRAL IS EXEMPT. Central is not a store, so carrying ?store=N sent
+		// the vendor to a CLIENT store's login page (e.g. ?store=2) with that
+		// customer's branding. Central must always return to its own login.
+		$is_central = function_exists('mp_is_central') && mp_is_central();
 		//CLEAR ALL SESSION FROM VIRTUAL VARIABLES
 		$this->session->sess_destroy();
-		//LOGOUT
-		redirect(base_url('login'));
+		//LOGOUT - return to the logged-out page for this store
+		$target = base_url('login') . (($logout_store && !$is_central) ? '?store=' . $logout_store : '');
+		redirect($target);
 	}
 }

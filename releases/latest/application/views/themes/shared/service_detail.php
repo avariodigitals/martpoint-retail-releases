@@ -66,4 +66,7 @@
     addToCart(serviceDetail.id, 'service', serviceDetail.name, serviceDetail.price, serviceDetail.image, 1, 999);
     setTimeout(() => { window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '') . '/cart'); ?>'; }, 600);
   }
+
+  // Funnel event — consent-gated inside mpTrackEvent.
+  if(typeof mpTrackEvent === 'function') mpTrackEvent('view_item', serviceDetail.id, serviceDetail.price);
 </script>

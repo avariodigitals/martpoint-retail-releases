@@ -1,16 +1,202 @@
 {
-    "version": "4.0.9.59",
-    "previous_version": "4.0.9.52",
-    "release_date": "2026-10-01",
-    "requires_php_min": "7.4.0",
-    "requires_php_max": "7.4.99",
-    "fleet_url": "https://central.martpoint.com.ng",
-    "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
+    "version": "4.0.9.102",
+    "previous_version": "4.0.9.40",
+    "release_date": "2026-10-07",
     "files": [
+        {
+            "path": "application/logs/log-2026-10-04.php",
+            "hash": "d5bde7f4a5a8a7edb87954b9af64afa6dc47eb278f386d58726f57c84f0c3459",
+            "size": 498
+        },
+        {
+            "path": "application/logs/log-2026-09-01.php",
+            "hash": "5883898c97023670e9d816f69d5bc812e6a3b432298657eae6d424134d91f8fc",
+            "size": 9319
+        },
+        {
+            "path": "application/logs/log-2026-09-17.php",
+            "hash": "6092e25fc1131cdcf2ec680d045076b37f61e0ccf1aa6f71c2630150ec808438",
+            "size": 1426
+        },
+        {
+            "path": "application/logs/log-2026-09-24.php",
+            "hash": "58605eb8f4768a3aceea69e68f143e218258a094f1ce04480f9bb1960594d164",
+            "size": 5999
+        },
+        {
+            "path": "application/logs/log-2026-09-05.php",
+            "hash": "c297d1dca8bda1f9bec618fb90fefda57b096bbe4881abecbded8007cd9bacb0",
+            "size": 12822
+        },
+        {
+            "path": "application/logs/log-2026-09-16.php",
+            "hash": "a0b36c692bc8e1d3a9d128325d633888c823768cd77853f1f43f458afaa5a9f2",
+            "size": 284602
+        },
+        {
+            "path": "application/logs/log-2026-09-09.php",
+            "hash": "ce002a0caac07a75ee05b726d5adc6390009012a3968920b985841af5656c9f2",
+            "size": 2832
+        },
+        {
+            "path": "application/logs/log-2026-10-03.php",
+            "hash": "bac9e9e3d2848f15a3d88e885d46b106d2705b276c2e4dbac2eb7af15783abc2",
+            "size": 901
+        },
+        {
+            "path": "application/logs/log-2026-09-20.php",
+            "hash": "4f412e851689a4cd9fd28a60e0c787a91bb30462b4015fdd0c69d873966c5498",
+            "size": 1004
+        },
+        {
+            "path": "application/logs/log-2026-09-27.php",
+            "hash": "cc9d5e1e70fd26454dba51f6a28c230f9b950e3064ae6221340609bae8cee4f9",
+            "size": 763
+        },
+        {
+            "path": "application/logs/log-2026-10-05.php",
+            "hash": "7e747c94ed0fb8f1ab2df80fd8432cd7e32d5b65de74a9acda8134b02b98e4cd",
+            "size": 339
+        },
+        {
+            "path": "application/logs/log-2026-09-22.php",
+            "hash": "5acd0482d7051c61c356a52901ddcbba0be6d77087f60e04622c31cc50bae695",
+            "size": 11393
+        },
+        {
+            "path": "application/logs/log-2026-08-31.php",
+            "hash": "2179e7c14fe2f29036ec4177edc2325452d5ebc882d766856de9c4fe969281ac",
+            "size": 35265
+        },
+        {
+            "path": "application/logs/log-2026-09-18.php",
+            "hash": "e575bad33d9da373d49672478cb2e89d28ef97433d03134b1424774892b09ad6",
+            "size": 4465
+        },
+        {
+            "path": "application/logs/log-2026-10-01.php",
+            "hash": "2e7b9291fc809b3008f4bc338eb7d58748cec2aa37645c6f89acbf48fe1b8244",
+            "size": 763
+        },
+        {
+            "path": "application/logs/log-2026-09-30.php",
+            "hash": "1cb98a53175f6b54e5500a03496b20dd486f996d702255b930c03c09c0ae85d0",
+            "size": 1350
+        },
+        {
+            "path": "application/logs/log-2026-09-14.php",
+            "hash": "135183e557509d5a87faa7aa4209051b2872e2b436a942fcd25d7145b22b835a",
+            "size": 427945
+        },
+        {
+            "path": "application/logs/log-2026-09-23.php",
+            "hash": "3f604918cda7bd5b32a7ea1622634eca712bdf147e641fdceada31fb1027e3a1",
+            "size": 17056
+        },
+        {
+            "path": "application/logs/log-2026-10-06.php",
+            "hash": "dc828139f4250e2d35f1261e0bc00f24d7a02dda71352d7273f0f5468fcce472",
+            "size": 763
+        },
+        {
+            "path": "application/logs/log-2026-09-03.php",
+            "hash": "b9f6c07c73938d3b4ed112fe9310dce65b493c7c104f8b69235bdd82463f2272",
+            "size": 40390
+        },
+        {
+            "path": "application/logs/log-2026-09-04.php",
+            "hash": "448bc35e9a7168748af85656ec061c762ea06304a167f187cc9316feccea0e9e",
+            "size": 37090
+        },
+        {
+            "path": "application/logs/log-2026-09-21.php",
+            "hash": "64b596d2d8f456bfd6fcc3299d492baa19dffcb08568239fffed5c864dd59aff",
+            "size": 1148
+        },
+        {
+            "path": "application/logs/log-2026-09-29.php",
+            "hash": "50a1dca98cf7df7e185f7c393a2980b4a3a6fc86af712bba78702028ecb19501",
+            "size": 763
+        },
+        {
+            "path": "application/logs/log-2026-09-28.php",
+            "hash": "1625d1b4764695563cc86e246321516cbb5ce2f793f015ae4d1d5d06f941f547",
+            "size": 763
+        },
+        {
+            "path": "application/logs/log-2026-09-10.php",
+            "hash": "5b1824f09472c086356b0caf1ea833bf4f778744bbc7f849296aa6b8d1bf9e9f",
+            "size": 437
+        },
+        {
+            "path": "application/logs/log-2026-09-12.php",
+            "hash": "46429c245ff56ec27beff1ff0559d232351d860e10135160701574ddd501abb3",
+            "size": 220405
+        },
+        {
+            "path": "application/logs/log-2026-09-19.php",
+            "hash": "cdababa41e05c7d638d7d649d39f2e554c1f5b1ddb6be26ca69e48f2a2ffecf4",
+            "size": 3610
+        },
+        {
+            "path": "application/logs/log-2026-09-15.php",
+            "hash": "20e35a9d880f9c5261e2fdc744ff2185fb555b3a260c45d31f2277f0b79a217f",
+            "size": 362948
+        },
+        {
+            "path": "application/logs/log-2026-09-06.php",
+            "hash": "390e35f552fd5da63f0b643b02a1551e0568210090da9465b9f5c09c1860fb28",
+            "size": 4378
+        },
+        {
+            "path": "application/logs/log-2026-09-08.php",
+            "hash": "85593a4888b699e9b307b2dca69b56ac6902c9853cc3a90bdb10af8b35d1d76c",
+            "size": 2745
+        },
+        {
+            "path": "application/logs/log-2026-09-02.php",
+            "hash": "e39782bbe2bd4460b39838ecbd83c956b32d246345460a2c3da1e8952296e0af",
+            "size": 38320
+        },
+        {
+            "path": "application/logs/log-2026-09-13.php",
+            "hash": "becd106ad663b286cb92bf23905cd6927b44dea2233a3b34c58a8791819aa85d",
+            "size": 145688
+        },
+        {
+            "path": "application/logs/log-2026-09-07.php",
+            "hash": "f2c92ca92f4e4e5398072b11710226e5c520b2cec94b196a2d074429506117e3",
+            "size": 20137
+        },
+        {
+            "path": "application/logs/log-2026-10-02.php",
+            "hash": "60124ce18738c7ced2cc7762014fab8a6b42094734caaadffef9475a5edd1d1b",
+            "size": 1726
+        },
+        {
+            "path": "application/logs/log-2026-09-26.php",
+            "hash": "468923acf1320e62a24ce13b446cba6298f95068124218372486a352b1b47a78",
+            "size": 869
+        },
+        {
+            "path": "application/logs/log-2026-10-07.php",
+            "hash": "4273c7b73f89cf78bebc03a51164be78f191ea6cb9810c7d2a38c4e9f5614cfb",
+            "size": 12741
+        },
+        {
+            "path": "application/logs/log-2026-09-25.php",
+            "hash": "cd22debb0a98ddeba0230e11bc6a76342e59041bf4511eaf53df1ec48f3f8ea5",
+            "size": 1635
+        },
         {
             "path": "application/views/sales_mobile.php",
             "hash": "1807bc9e69ac6b130f4b1d40682d57aaa91e19611e18fc8c376b3fd9bc2f16ed",
             "size": 75897
+        },
+        {
+            "path": "application/views/marketing/desktop/segments.php",
+            "hash": "7194d2c09fce89ab4d6f7e4adfe237a245188ce8ed0f1d289d9e5f4daf15af88",
+            "size": 5152
         },
         {
             "path": "application/views/marketing/desktop/store_credit/list.php",
@@ -26,6 +212,11 @@
             "path": "application/views/marketing/desktop/overview.php",
             "hash": "7334af3aa9a49fa464d1b9943f04f94159a02966df9a770f25ca5c9dedbbd1bf",
             "size": 3498
+        },
+        {
+            "path": "application/views/marketing/desktop/stock_alerts.php",
+            "hash": "9bff701a72f79dcba2e2a17e2477870db8419561a8339b4ddbe865cf24dae1f3",
+            "size": 2316
         },
         {
             "path": "application/views/marketing/desktop/loyalty/dashboard.php",
@@ -64,8 +255,8 @@
         },
         {
             "path": "application/views/marketing/desktop/_styles.php",
-            "hash": "5884757a8171b7cf5248c0bae75c21293ace44d082e541964f39f2aae0d0ff3d",
-            "size": 18410
+            "hash": "89561309cfc00190f2a56db52ddb5ec2b6814e40000c9fc8056c6e8a8930ccdb",
+            "size": 18442
         },
         {
             "path": "application/views/marketing/desktop/gift_cards/list.php",
@@ -76,6 +267,11 @@
             "path": "application/views/marketing/desktop/gift_cards/form.php",
             "hash": "12127eca8fc99b73ef1c881d83ebee4dd9c7eeb5c2cea6ff8c446dfd9cb869d1",
             "size": 3637
+        },
+        {
+            "path": "application/views/marketing/desktop/campaigns.php",
+            "hash": "d4d7c52b579d2c9973c067f43f649db3bd572ef081974005f529601e57483355",
+            "size": 8130
         },
         {
             "path": "application/views/marketing/desktop/coupons/customer_coupons_list.php",
@@ -96,6 +292,11 @@
             "path": "application/views/marketing/desktop/coupons/discount_coupons_list.php",
             "hash": "070c4dfe88eba9a5382bbae5becb682f0037777afd5e0c04b265c81732ff6c92",
             "size": 4487
+        },
+        {
+            "path": "application/views/marketing/desktop/campaign_detail.php",
+            "hash": "468d82cb5a9e394fca1f9792ea414d35f0a834db2764f17c860128d47a3a1275",
+            "size": 5530
         },
         {
             "path": "application/views/report-purchase-return.php",
@@ -149,8 +350,8 @@
         },
         {
             "path": "application/views/business_profile.php",
-            "hash": "92718331a545d1ab91899428f88a086bcd5a99532279cf1ee786d30982151a8e",
-            "size": 37593
+            "hash": "75489f3eb81616029ab67c2b667cac351cb61439f805e28a180becd821cd991a",
+            "size": 39481
         },
         {
             "path": "application/views/report-sales-and-payments.php",
@@ -228,9 +429,14 @@
             "size": 2780
         },
         {
+            "path": "application/views/leads/integrator.php",
+            "hash": "5717f6e6cea936a8698bc615c8ec86cf9d482ca57b6e97539639475f8fbfc835",
+            "size": 16534
+        },
+        {
             "path": "application/views/leads/index.php",
-            "hash": "afeebb3575c4630d460c198221405fa6d085b1b84b82be759d52f2bef50fc454",
-            "size": 14169
+            "hash": "0c62e28787053d312b814b62fbc40138b1db5f9fb72162da172d92b305088b1b",
+            "size": 22156
         },
         {
             "path": "application/views/bank_details.php",
@@ -254,8 +460,8 @@
         },
         {
             "path": "application/views/modals/modal_item.php",
-            "hash": "8c4374b79785aa2d140876dde43b27f450add099456dce12596a9c01141b7fe2",
-            "size": 18797
+            "hash": "d1dd1a4ce1f131eb6d2267174ee26b3e96d42d9f7d609d220effcd1add2da9dd",
+            "size": 18803
         },
         {
             "path": "application/views/modals/modal_supplier.php",
@@ -394,8 +600,8 @@
         },
         {
             "path": "application/views/storefront/order_received.php",
-            "hash": "96a4ca49382c42605c1d5124ca26bd910809d556d2474a3f4bfb133a0f26d96d",
-            "size": 20427
+            "hash": "8e971fe8d0876876eb436c330916299a933529db8ec27844f25a9011589cfcc9",
+            "size": 24150
         },
         {
             "path": "application/views/storefront/store.php",
@@ -438,14 +644,59 @@
             "size": 3267
         },
         {
+            "path": "application/views/inpatient/view.php",
+            "hash": "34ad1736eb6c77ba2f86ef3593227fe631c341a6b7fafee51311f949f96d4784",
+            "size": 26125
+        },
+        {
+            "path": "application/views/inpatient/tasks.php",
+            "hash": "4db8c9f49c31c49506d307b38795275a12ccce0bd8dd6f54b2df7ea2c0d03ae3",
+            "size": 6479
+        },
+        {
+            "path": "application/views/inpatient/referrals.php",
+            "hash": "dc6f7a8bff00a097f3deb6a058c3ad316c45e9b4a710169393221571c3a71941",
+            "size": 6246
+        },
+        {
+            "path": "application/views/inpatient/billing_setup.php",
+            "hash": "f48a541737306fd3fc8ae6f1f544d0f3208727d21bcef14a0a9c420a9cdb55aa",
+            "size": 5221
+        },
+        {
+            "path": "application/views/inpatient/debt_reminders.php",
+            "hash": "793aa69e547316a256366ad27b26f6f6b43a228d770577421d69cdba453697cc",
+            "size": 6093
+        },
+        {
+            "path": "application/views/inpatient/index.php",
+            "hash": "8a0e01e09a14029af1a0d24271910e5423c457cb4e9238eee03cbc5cec3786ef",
+            "size": 5322
+        },
+        {
+            "path": "application/views/inpatient/beds.php",
+            "hash": "50aad6e28df74609c19a6304a0213c60544c40d37ee19fc458ba91728a68dae9",
+            "size": 3865
+        },
+        {
             "path": "application/views/report-purchase-payments.php",
             "hash": "121164fe5882c2916c3767854df34384b519405fa167780c0000291d282982fe",
             "size": 10712
         },
         {
+            "path": "application/views/quotation/public_response.php",
+            "hash": "b0cf8dd095954521a6626a8581863cb57678d7ad72d3c478d2acd306b9a5d594",
+            "size": 5067
+        },
+        {
             "path": "application/views/quotation/quotation.php",
-            "hash": "5ea6c142e6cc309fa688b3e428cf6e647a8cf81b88cf32b2e5d480b719329434",
-            "size": 33974
+            "hash": "d83c75151cc2569caa01edfcc37a7f88df2121fb90217704a16f1028899261ff",
+            "size": 28978
+        },
+        {
+            "path": "application/views/quotation/_items_table.php",
+            "hash": "8cefdbe52aa73823440b91c9104255fd4f5ea13e5fe882bd2aa773650040b143",
+            "size": 640
         },
         {
             "path": "application/views/quotation/print-quotation-invoice-2.php",
@@ -539,13 +790,28 @@
         },
         {
             "path": "application/views/sidebar.php",
-            "hash": "bfab8b82604c92e431be09e9888adef1c26bea4a7698364a0a96aabf7aa73403",
-            "size": 94825
+            "hash": "d335f922d8b645c7f34445196680940401b245e4d87e44673a5682ad22d1dc0a",
+            "size": 94935
         },
         {
             "path": "application/views/report-stock-transfer.php",
             "hash": "52827a9183e66f2dd0b49887df2cacc616ac7457f2ae01f3bd0cbc2e7f7bcaa0",
             "size": 15143
+        },
+        {
+            "path": "application/views/patient_billing/receipt.php",
+            "hash": "5e8cedb6aa514995f10dc830cab9c53159f1facd505c70b263ca90ba9a6a203a",
+            "size": 1849
+        },
+        {
+            "path": "application/views/patient_billing/view.php",
+            "hash": "2d0e225839a2287d349754bcf4346f8d94a845b009d2871a183f824088d1ff65",
+            "size": 9851
+        },
+        {
+            "path": "application/views/patient_billing/index.php",
+            "hash": "8bfaaef224493725921470301e53e20994649f33c967917851aa82408b4910da",
+            "size": 2123
         },
         {
             "path": "application/views/email-settings.php",
@@ -554,8 +820,8 @@
         },
         {
             "path": "application/views/themes/parfum_core/_skin.php",
-            "hash": "0f7aaa7a80048f88836928f361dcc143a41fa274e5b699d5db7d5f6b86572d0e",
-            "size": 14277
+            "hash": "432971219ebfaf17838255693476027c144692a0b6ccbbc0dc08db04700dd6e4",
+            "size": 14598
         },
         {
             "path": "application/views/themes/parfum_core/store.php",
@@ -569,8 +835,8 @@
         },
         {
             "path": "application/views/themes/parfum_core/product_detail.php",
-            "hash": "2224da3a99e0d5d65ef54f06f0ba902c987f888212320683b650b25adcf79511",
-            "size": 7727
+            "hash": "acd386cb7fb8733d615bd0a1b32601f061f4cc06d62d5d57b2149b3967997bb7",
+            "size": 8087
         },
         {
             "path": "application/views/themes/parfum_core/header.php",
@@ -649,23 +915,28 @@
         },
         {
             "path": "application/views/themes/fashion_modest/store.php",
-            "hash": "f4513b53b27ef711dc10cbaf061fd19fed21a67890c90858b08208bc739e0180",
-            "size": 44593
+            "hash": "37d847f288fef6d8cafe363c3f49778b35b6b80ef94dd525498fe557c99b2304",
+            "size": 44604
         },
         {
             "path": "application/views/themes/fashion_modest/products.php",
-            "hash": "2a326c8b9e2367befca1ab35d8ea618cef0f5f704229103d1eb82d85f559f7ef",
-            "size": 22630
+            "hash": "ba2b001e2c4d3b8d3ecf3ac23d285aed07bc6981e65baccd72411a0609185c7f",
+            "size": 22900
         },
         {
             "path": "application/views/themes/fashion_modest/product_detail.php",
-            "hash": "ad85db0df23f08b0dfc4f2f5547899b99cd01001f884e6f1d20ac6399584156d",
-            "size": 11516
+            "hash": "aa1faaa020c07634b4429f15c3ebb840855f882e61327002f0ac89daa8cc2935",
+            "size": 13300
         },
         {
             "path": "application/views/themes/fashion_modest/header.php",
             "hash": "1554e1f7ec2d6127439847929e0d9b98e339a3f81718c4e94152b2acf902ede2",
             "size": 11734
+        },
+        {
+            "path": "application/views/themes/print_works/store.php",
+            "hash": "b69d6eaf2ddc6c88664e5c6a993e286d09b7f7b659aaaa22e9204da0d34611c4",
+            "size": 25722
         },
         {
             "path": "application/views/themes/auto_luxe/store.php",
@@ -708,6 +979,16 @@
             "size": 91
         },
         {
+            "path": "application/views/themes/print_neonprint/home.php",
+            "hash": "41d5f5c310894820b249d10a0ff48849cc5c44a8ad817e76960617dd2f722029",
+            "size": 6982
+        },
+        {
+            "path": "application/views/themes/print_neonprint/store.php",
+            "hash": "dbf9e032c97bf88d4a87a011d24c8967640b7b7016a913e9f64c3e31b71a4957",
+            "size": 7050
+        },
+        {
             "path": "application/views/themes/service_pro/home.php",
             "hash": "46df75589d7591a9070370f9f2fdc9d802d9287d986e8a4fe5bcb1788204df56",
             "size": 4376
@@ -744,18 +1025,18 @@
         },
         {
             "path": "application/views/themes/fashion_boutique/store.php",
-            "hash": "87ae7088513f2706b1278289231fdf2959ca52a464dc6114cdd15674c4305182",
-            "size": 45420
+            "hash": "0dd107e87037a01f5ef1b564fd88cd755d4080700b6f27d7fb5bf7b3523d5845",
+            "size": 45431
         },
         {
             "path": "application/views/themes/fashion_boutique/products.php",
-            "hash": "fae7b7f6b6ebced0a3e1674b285faf41e467e41b0fcffdeafff457aba3f7ee42",
-            "size": 23516
+            "hash": "7753d1ba6012536df5a823422ab4c521e4bb6f0a4f19f1be78165cfb77cb7037",
+            "size": 23786
         },
         {
             "path": "application/views/themes/fashion_boutique/product_detail.php",
-            "hash": "dbdcf63c3885985ab13c918b940eeb5cce27fc62211f228160d8d69994fc1fc8",
-            "size": 10834
+            "hash": "145a246e43ffb9e5e8e1f37695a95b90de52b301b356bf4a1d4a9f61a46c50a8",
+            "size": 11628
         },
         {
             "path": "application/views/themes/fashion_boutique/header.php",
@@ -774,18 +1055,18 @@
         },
         {
             "path": "application/views/themes/grocery_plus/store.php",
-            "hash": "c4d623b3533cb20d69ae72b34dca11fcf25ad8e6ebe4278cb9a13dd8afc553a8",
-            "size": 51954
+            "hash": "7628b5ed13aa2e3a6c7493053043a6787203498713350c6c86b7277c8aaa932b",
+            "size": 53249
         },
         {
             "path": "application/views/themes/grocery_plus/products.php",
-            "hash": "1987fef8491680f5810a5829ab7edf978fb11bb2f9093437944cace325812083",
-            "size": 21483
+            "hash": "89a38adf0e1dafd91b1cb8469e831edc77b726cfb5385a0145dc48dc10d89dda",
+            "size": 21911
         },
         {
             "path": "application/views/themes/grocery_plus/product_detail.php",
-            "hash": "20944174cc39f3de00db001d8fd451c15afaf110e5d1a6582736d746aa967f45",
-            "size": 23913
+            "hash": "66452045c94bd4ed862f478a9fb2148b9df2ae1f29280f3aba9c0817f3b33e4a",
+            "size": 24381
         },
         {
             "path": "application/views/themes/grocery_plus/header.php",
@@ -854,18 +1135,18 @@
         },
         {
             "path": "application/views/themes/daily_cart/store.php",
-            "hash": "5443146e08e5c158057379503d4d617a5545431a88d6b6c20c825e23f0694703",
-            "size": 53584
+            "hash": "865844a58f9c980298ce685036772a1e00b0c58cb31b90a8606582dde67ae867",
+            "size": 54879
         },
         {
             "path": "application/views/themes/daily_cart/products.php",
-            "hash": "bafb1f8553f4f5d5798c87ab0bc400497685178146ca9b4eaa7e2cb308a67cda",
-            "size": 21610
+            "hash": "43ce7a0e05765a486d18af80bd5fbbaa66766b1b4fafecf5fe1b44075ec22f2d",
+            "size": 22038
         },
         {
             "path": "application/views/themes/daily_cart/product_detail.php",
-            "hash": "6ff79e3344539911c26be0219df49eedd06f45f267b98451ffc937c4b16e76c8",
-            "size": 23942
+            "hash": "d14f187065f87913f6aa38ab1d00d79829656b38151e5408fae525f8a7faf786",
+            "size": 24410
         },
         {
             "path": "application/views/themes/daily_cart/header.php",
@@ -886,6 +1167,16 @@
             "path": "application/views/themes/agro/store.php",
             "hash": "61116fc73182ffd9438379d375db05d6ab06fc12c8232729a643b04f52b6590e",
             "size": 1764
+        },
+        {
+            "path": "application/views/themes/print_inkpress/home.php",
+            "hash": "4917ae6393bcf7cd5c0fcc64e645c70178ee5f14992c9a823f1bd3aef2906647",
+            "size": 7380
+        },
+        {
+            "path": "application/views/themes/print_inkpress/store.php",
+            "hash": "514e8371c13b98796bc766d3b349972f184f1d1bc06bec00b2d1277ff4fbf5db",
+            "size": 9873
         },
         {
             "path": "application/views/themes/atelier_essence/store.php",
@@ -913,19 +1204,24 @@
             "size": 160
         },
         {
+            "path": "application/views/themes/printing/home.php",
+            "hash": "7332aa7646fb5e24f65ca0c72cac51bb8b4b7966df5a2358120cf8b723744e70",
+            "size": 41617
+        },
+        {
             "path": "application/views/themes/pharma_wellness/store.php",
-            "hash": "cdab2a99aac918e441cc6763cef2dfed42e4db2cfd569ff70b0fafb8f838c626",
-            "size": 62571
+            "hash": "b45530b6dd80173de83231b0355bc7c14ee5f0d69a7de4757ecfc7b19019f2e4",
+            "size": 63866
         },
         {
             "path": "application/views/themes/pharma_wellness/products.php",
-            "hash": "a2767524a72425b81b25d03666819d88d5239989a7b19c611188f51e82412a98",
-            "size": 23100
+            "hash": "76a68a2e1431f8b64d3dc6652aff619a816763cf1e22db76ea6299c64729fcc9",
+            "size": 23528
         },
         {
             "path": "application/views/themes/pharma_wellness/product_detail.php",
-            "hash": "54da75e76428c32e198797bff774c2e5f2eb2e2bff47d0f99111bea0373da692",
-            "size": 10946
+            "hash": "24d4d5132fe5c5fb2ed5fd23b3566a6e269d66abf6b41c7c6c7f5c6389606efb",
+            "size": 11740
         },
         {
             "path": "application/views/themes/pharma_wellness/header.php",
@@ -979,8 +1275,8 @@
         },
         {
             "path": "application/views/themes/creator_focus/product_detail.php",
-            "hash": "cf57ad5b18b40772ff73ed66666034ea9288d1db31d6441b2ecfacbd07d38ff2",
-            "size": 9765
+            "hash": "8f74ffcfdc540ef51f1f60bfd1ad6d726ef90470e2fb30e80ddbcb4f388f1b3f",
+            "size": 14579
         },
         {
             "path": "application/views/themes/creator_focus/_nav.php",
@@ -989,8 +1285,8 @@
         },
         {
             "path": "application/views/themes/skin_core/_skin.php",
-            "hash": "f1c3ad8cfd0da321b78e9f7cdf35cad6e49f598edcbcadb460f43cce0ffa7bd6",
-            "size": 15044
+            "hash": "9353e671e73da2b78ec9b5c138d0192a8dd9f500ad7b46633e3c4506fbe90adb",
+            "size": 15365
         },
         {
             "path": "application/views/themes/skin_core/store.php",
@@ -1004,8 +1300,8 @@
         },
         {
             "path": "application/views/themes/skin_core/product_detail.php",
-            "hash": "d7382132a53186a1fca387322e6c19ffa5c00f7d68d28c06f5017bbeacfbf1dc",
-            "size": 7715
+            "hash": "37e3aebb9fb12a4777e3f71605b9e19e54bcf65e1c79811aa54354613f4f523a",
+            "size": 8075
         },
         {
             "path": "application/views/themes/skin_core/header.php",
@@ -1024,13 +1320,13 @@
         },
         {
             "path": "application/views/themes/urban_fashion/products.php",
-            "hash": "53f8b468d50c7fac6328ab44c7c69bfd30c40bf57e17990201e45e026e417be3",
-            "size": 22092
+            "hash": "3a1205e3080ef89c3a760fb057601472557a0c70abb861c52c34609e33f9050c",
+            "size": 22362
         },
         {
             "path": "application/views/themes/urban_fashion/product_detail.php",
-            "hash": "0a8e138bf1c69c38ae777ac1d77a64fa30dae9773e12167b9071663e6266689f",
-            "size": 9704
+            "hash": "c75235d8b016c8baa42f4dfc9f66e065857ffac53353c064811ad31eab8c6420",
+            "size": 10498
         },
         {
             "path": "application/views/themes/urban_fashion/header.php",
@@ -1054,18 +1350,18 @@
         },
         {
             "path": "application/views/themes/fashion_luxe/store.php",
-            "hash": "c741e41d8414892c1b0bbfd0118b93f8fb40797ef5326ce0330d4d38b8bd57a9",
-            "size": 61724
+            "hash": "0cd873d9633dd5961d0cae09c8a640a7868b647a70fe426a8081be50761a4cc0",
+            "size": 62545
         },
         {
             "path": "application/views/themes/fashion_luxe/products.php",
-            "hash": "7fbce14aaa576a46a8a4a9d78ca04a86ff1a0a31007d7e3bdf979d49ac34140c",
-            "size": 24423
+            "hash": "f4a631393504d30b628626938a1310e8ad2526ce00c1de4ce9baf255ab93e4e0",
+            "size": 24693
         },
         {
             "path": "application/views/themes/fashion_luxe/product_detail.php",
-            "hash": "71029c2f9700c89ed81c5dba2706074d7412135e5a027e2e8b567d480625c160",
-            "size": 11985
+            "hash": "6717ca4ac301ff58a9004ae67573832f56072517ef9f26a09252b3f89c59758a",
+            "size": 12779
         },
         {
             "path": "application/views/themes/fashion_luxe/header.php",
@@ -1083,19 +1379,29 @@
             "size": 3447
         },
         {
+            "path": "application/views/themes/print_papercraft/home.php",
+            "hash": "66a15199fab2645cb2e632a6d2eb414f8914089709e56faa81458008b5d22df7",
+            "size": 6760
+        },
+        {
+            "path": "application/views/themes/print_papercraft/store.php",
+            "hash": "d5a98e7c414abf5fbb2519d83aaddb723bab604a6be58e1b56efeedb55ee77f3",
+            "size": 6527
+        },
+        {
             "path": "application/views/themes/fashion_modern/store.php",
-            "hash": "9c6752fb56d9add1d1fcc19d9d7b8e5b607fc20575db942d1eb89730c282ab25",
-            "size": 44305
+            "hash": "7fb91d68a582f61aa995c7a0edc6a841e2347b3a43deed31f4259008aa06ecfe",
+            "size": 44316
         },
         {
             "path": "application/views/themes/fashion_modern/products.php",
-            "hash": "b24f09f11713688123600ec04bca4fca5742c2ce0a32ce0178628a1cbd9b79ff",
-            "size": 21865
+            "hash": "407f8e1c0b00590bbb156b94ff7089333a9d1ceac96d39c31b1eef6c05780751",
+            "size": 22135
         },
         {
             "path": "application/views/themes/fashion_modern/product_detail.php",
-            "hash": "a86a1f3c2517266ebcc34fb182db293807037a7f490770e9204d33cac0cd2224",
-            "size": 9832
+            "hash": "571b48cb12d93df5dfc32da7a947c1fe48add5782e604f78e2c3f1fef242f9c4",
+            "size": 10626
         },
         {
             "path": "application/views/themes/fashion_modern/header.php",
@@ -1114,13 +1420,13 @@
         },
         {
             "path": "application/views/themes/verdant/_theme.php",
-            "hash": "1ad35926aa0f42a3eb19411c9b19ba916697b533b878d7e18f4700d1cb1f13af",
-            "size": 11985
+            "hash": "394a48b9a677986e2ea023885277e4c16182ed1113625ae298d4202ccd3db889",
+            "size": 12292
         },
         {
             "path": "application/views/themes/verdant/product_detail.php",
-            "hash": "f12b3befe5645d30002b239121e5571bd4d591005564d1bfeae6133a48a68098",
-            "size": 6522
+            "hash": "a64f5bbccd5964812602a4abd1529266b85bed0113263944766fa61333c6dd5f",
+            "size": 6884
         },
         {
             "path": "application/views/themes/verdant/header.php",
@@ -1149,18 +1455,18 @@
         },
         {
             "path": "application/views/themes/market_fresh/store.php",
-            "hash": "40532b35931830f1cf190bf421ebc3ed03cd766c278f581b7f34219730f4ae03",
-            "size": 62208
+            "hash": "dac43f7f27c1ccce86e96efe83b160f95176f98b18b603451c29c6087c302938",
+            "size": 63503
         },
         {
             "path": "application/views/themes/market_fresh/products.php",
-            "hash": "6ac9a162f30cf26d2b28f18698d318d203c7bb47a28cbdada7c38fd345670668",
-            "size": 23570
+            "hash": "e5c3ac91f9b9e5a416e409fe837bccae61f093002c0b734ebf52226d4b3e53e3",
+            "size": 23998
         },
         {
             "path": "application/views/themes/market_fresh/product_detail.php",
-            "hash": "5734f223caedafeee14784ac1df981cb687754a4046fe1fba6d7aae9d18704ff",
-            "size": 24950
+            "hash": "563d63de6a107fa3777011782560f0a3cf7ee26463673b973ef10bcb823e9d57",
+            "size": 25418
         },
         {
             "path": "application/views/themes/market_fresh/header.php",
@@ -1198,14 +1504,19 @@
             "size": 12923
         },
         {
+            "path": "application/views/themes/shared/product_addons.php",
+            "hash": "3abff77b9de8ca876446227d1c0552263f12a47a3331c8e2f7751faba00f9193",
+            "size": 3100
+        },
+        {
             "path": "application/views/themes/shared/cart.php",
-            "hash": "42b9876b2ba549314d5df5434522bb605e257ab2ff7be2ff3f9e4c9bc2b90021",
-            "size": 37586
+            "hash": "a79362b964a984161e0de8dd96ee06202615596398d203beb531e1662ecfa49a",
+            "size": 55727
         },
         {
             "path": "application/views/themes/shared/service_detail.php",
-            "hash": "715f7eb07aaf7cd3e50ebf47e6b1c09effc275ac6d0d3f44490744eefc4c85ab",
-            "size": 3958
+            "hash": "af672cbcd65b001b713a935b694b82b905f32116a07e18f9e40aaf8113d4ef71",
+            "size": 4123
         },
         {
             "path": "application/views/themes/shared/services.php",
@@ -1224,8 +1535,8 @@
         },
         {
             "path": "application/views/themes/shared/sections/featured_products.php",
-            "hash": "6e402bdcf5d751b9f5ecf5ab5d7ee852bdf13b0b9bcf2a9639e5ad1aceb36121",
-            "size": 6960
+            "hash": "7008b71d6c0c1aebd4d620d2382d891d0e20691abd51b7a2ce99773a41af497e",
+            "size": 7253
         },
         {
             "path": "application/views/themes/shared/sections/newsletter.php",
@@ -1244,13 +1555,13 @@
         },
         {
             "path": "application/views/themes/shared/sections/new_arrivals.php",
-            "hash": "38cef88724e5fa4e2e3f005ce7c31bd3fde11f391ce79b77fa51adfcc51cca5f",
-            "size": 7001
+            "hash": "c3c5b3b206548fda314cb4c2bf92ffd939ed795bc65dd49c28efae1ddc464652",
+            "size": 7294
         },
         {
             "path": "application/views/themes/shared/sections/best_sellers.php",
-            "hash": "8854e06a27b6c62acb226ed51500a4ef26b39e8c701ab4ca63559b8bb5fe852e",
-            "size": 7015
+            "hash": "75182cee77d724d6c6492781e77e95b260189b4700d14aa4b7c8da6a2cca2253",
+            "size": 7308
         },
         {
             "path": "application/views/themes/shared/sections/brands.php",
@@ -1308,19 +1619,24 @@
             "size": 1841
         },
         {
+            "path": "application/views/themes/shared/product_reviews.php",
+            "hash": "e6cc42950a8e8b64cdd32688a442b8c409c29cba77af40a72542785e9f0025a5",
+            "size": 8312
+        },
+        {
             "path": "application/views/themes/shared/store.php",
             "hash": "cc5038594f69e757ec44b5b4f3f72990fcd475856eac447abec755945a7af76d",
             "size": 1816
         },
         {
             "path": "application/views/themes/shared/products.php",
-            "hash": "6cf0a51d7454afd496152a62eed250e822c906396db7a4c5177c40450a752010",
-            "size": 9214
+            "hash": "96b4f3d7f498f63267bc198b2de7c983901d72cd5e22a370f409a0a8ab936f5e",
+            "size": 9543
         },
         {
             "path": "application/views/themes/shared/layout.php",
-            "hash": "9cda7714ee75601af00f34722fa99d74930734efc3683ce48061caadec4cbbbb",
-            "size": 53794
+            "hash": "e549b498319883b4800982a952d60df53cce046085284a06cca8b30d7ab4f76d",
+            "size": 59168
         },
         {
             "path": "application/views/themes/shared/vehicle.php",
@@ -1329,8 +1645,13 @@
         },
         {
             "path": "application/views/themes/shared/product_detail.php",
-            "hash": "d5e43335e61df0486ce4284d7cb924188fa5b6699b4e8c09fa63933309b7e727",
-            "size": 9398
+            "hash": "c9a91f2ac4f1202b5aa3fedc43c1e8f4ab7ddfdefb8156a7f1435d69b3df83b1",
+            "size": 10897
+        },
+        {
+            "path": "application/views/themes/shared/restock_subscribe.php",
+            "hash": "8afe7233645330d24bbdad2d51d4dd266d071c829433b84e09e76e17edc8f5ae",
+            "size": 2823
         },
         {
             "path": "application/views/themes/shared/vehicles.php",
@@ -1344,13 +1665,13 @@
         },
         {
             "path": "application/views/themes/shared/footer.php",
-            "hash": "7f85fb5a2ee54b38c837ea2050c5ffedd02c59c14ae1881427cfbb9022db436b",
-            "size": 15678
+            "hash": "c08b9940b2fdfc205b6525147144401d9afa9022374d9a435d28495078f9db96",
+            "size": 15956
         },
         {
             "path": "application/views/themes/shared/scripts.php",
-            "hash": "291dcf1ae71a0ea0d05e6e4d686f69a1744f4f1cd9b836789bafc8d8bbdf26bf",
-            "size": 10542
+            "hash": "6ac2b46fbadb3c6ed3fd6de939afcf82103192d9538c64fff4b77517cbb9970c",
+            "size": 16725
         },
         {
             "path": "application/views/themes/shared/branches.php",
@@ -1439,18 +1760,18 @@
         },
         {
             "path": "application/views/themes/pharma_clinical/store.php",
-            "hash": "1e2ffb7aa8dbf696478ce90ec379815dbe6d209c1755f0cf93223571208afa3c",
-            "size": 62129
+            "hash": "b9eae3a75d5135501186181502bdf6c6734e3fdd647662e3bda8144dc6b5ce2d",
+            "size": 63424
         },
         {
             "path": "application/views/themes/pharma_clinical/products.php",
-            "hash": "4cf5c682edd7ebabfcb5080b9b6ffc0a7e284643c75de1def8d60f99a0b753c4",
-            "size": 23229
+            "hash": "a7cd4aac6986432a0cbe78922138dbc214e42087cd63f2b65518bb61be051205",
+            "size": 23657
         },
         {
             "path": "application/views/themes/pharma_clinical/product_detail.php",
-            "hash": "1ec05329f45cea178b218e70f68e31bc507f29f1a5508a3e3ab845bbd3fa691d",
-            "size": 10912
+            "hash": "fd8b150a813a8160d449b9ad07f765229eb98315610634dff93a042c6979fb13",
+            "size": 11706
         },
         {
             "path": "application/views/themes/pharma_clinical/header.php",
@@ -1504,18 +1825,18 @@
         },
         {
             "path": "application/views/themes/pharma_care/store.php",
-            "hash": "6254fef669054076ddb2f47aea3bc2650fe62520bdbf608de25bd337a614ec89",
-            "size": 63163
+            "hash": "914d8e294ab68683ed57e8324d11240b05cd8b8b20b364743d13792c25e3a153",
+            "size": 64458
         },
         {
             "path": "application/views/themes/pharma_care/products.php",
-            "hash": "b506a975661001fefc243ea45355069fd4a2a5f975ba5158eb343d62990ad57f",
-            "size": 23170
+            "hash": "29a47d2a582752c5b81dd414c80e06a9caccf651080392a2bbc27aba295ccd21",
+            "size": 23598
         },
         {
             "path": "application/views/themes/pharma_care/product_detail.php",
-            "hash": "5bcf79768d9f7a51cfda9aef3b54373453144dc7d6d7b048f2f4cc4350c64a4b",
-            "size": 11016
+            "hash": "95bd62fdb0879bf805928278f06d4486de5b8486cf23b8a7ab10f49e913110ab",
+            "size": 11810
         },
         {
             "path": "application/views/themes/pharma_care/header.php",
@@ -1573,134 +1894,179 @@
             "size": 6228
         },
         {
+            "path": "application/views/mobile/printing_quotations.php",
+            "hash": "3e3a29969ae75941d5e65faa92acb414dabe4d61cfab5f525261314867bf24cc",
+            "size": 6017
+        },
+        {
             "path": "application/views/mobile/op_membership_plans.php",
-            "hash": "b0f11d3d994b58642fd9fa9ac3d2381ebc4cfbfd638a6e76923ea494bb27a35f",
-            "size": 8227
+            "hash": "6750ca59c229fbd096c4461e025b65d4304accd24f43c32a70f2ca69670eaaf0",
+            "size": 8257
+        },
+        {
+            "path": "application/views/mobile/printing_jobs.php",
+            "hash": "2663ed4e4177aef7ef1e01b861e5813e086e5da114f16805c050d1105c8957a9",
+            "size": 7819
         },
         {
             "path": "application/views/mobile/dashboard.php",
-            "hash": "3a68659e8ce7686192434fc4f51b11e2a1fb97c185ad2c99de2601588ea9621d",
-            "size": 30852
+            "hash": "23c2967c2ea0d233ee571200c3e5bbd947ee0dfa720f28ce99366a23e5986aba",
+            "size": 30882
         },
         {
             "path": "application/views/mobile/statement.php",
-            "hash": "0c4467a0a6114c997c1f25e3f5c3f0fa6abceb2eb35a8ec91ff13b1786ddf4e4",
-            "size": 8864
+            "hash": "6928f8d3abcc5350520cb497b8dc0db93216a94642d3361e948a7243b8714429",
+            "size": 8952
         },
         {
             "path": "application/views/mobile/butchery.php",
-            "hash": "27f8ebada9614dbf9bfc2002e30b9c98737bfd770157005100480c90aefdb834",
-            "size": 7133
+            "hash": "97cd8be0661e725cd7b531883e0317b3aebdec2d5cc2cd70e141d4752de9dca1",
+            "size": 7163
         },
         {
             "path": "application/views/mobile/business_profile.php",
-            "hash": "f5f9aff91d0fc9a0551c71752f7b7666317b6249bcc4f3637ef2a508cea401b5",
-            "size": 20221
+            "hash": "8790c2157492311f90e92fefdf20f21bda772ce8fa8c00569b6a862a4522dd07",
+            "size": 20251
+        },
+        {
+            "path": "application/views/mobile/admissions.php",
+            "hash": "5613f3ca61abbef783b737e141bd7d30d1add41c0ebf77103a1ed96005b2c9b9",
+            "size": 4175
         },
         {
             "path": "application/views/mobile/supplier_payment.php",
-            "hash": "5c68e7d3aa82000f2c25e628e89962d2f8f5e477f2aa142e6a9274900d4e6281",
-            "size": 12525
+            "hash": "47479807932e261bafa6b119120771b7d8e1bd517fd774f9fd2ac99b1c5a1368",
+            "size": 12540
         },
         {
             "path": "application/views/mobile/site_status.php",
-            "hash": "22e9fa5d308748b4aff450dc898d171981e70e698650bfcc7fb76687307c104e",
-            "size": 12167
+            "hash": "3a66ba615ca016ba6d0713ad93a768db55d6ea881126a2525bdc5ec089bbf9a5",
+            "size": 12197
         },
         {
             "path": "application/views/mobile/op_medical_notes.php",
-            "hash": "ce5ad7077aa5c67ca897b3dde130807df94db5c23300ca65275009e4b8c05ec3",
-            "size": 10665
+            "hash": "c87ccf1a7b6b478362ea5f72a82ed58473d8b3391ab378aa99807396f6b71749",
+            "size": 10695
         },
         {
             "path": "application/views/mobile/price_catalogue.php",
-            "hash": "677a08a83260e5dd4623fd3181ed67851e187133e5c7b09aa730bbc70656bb5e",
-            "size": 8670
+            "hash": "208e720af6146250a6fed42007638fbbf43db0fd698c2d51f00593f455bb4183",
+            "size": 8685
         },
         {
             "path": "application/views/mobile/op_staff_commission.php",
-            "hash": "f5bbce1707e1b2f45766cb1fcf515fadd85f997a05a5131a881ca10bf6b4e8f5",
-            "size": 10786
+            "hash": "5ac94b3fb0666b027db2e4fd0ad10a5dfbce7a18f9ceda57e57fb241ac6ff84a",
+            "size": 10816
         },
         {
             "path": "application/views/mobile/bottom_nav.php",
-            "hash": "7ee40afcdd72c37cee5d9c926ca33a7cef39921c573916cb15cbde70abf41dbf",
-            "size": 14588
+            "hash": "b8cbdcdb27a7a9ed3fa455e4b5cbf033a6c56ecdf68a70c47a70b51634b618ce",
+            "size": 21703
+        },
+        {
+            "path": "application/views/mobile/printing.php",
+            "hash": "9aa485e8baad8987ee6ac011fd30899196f444f822f5fa09f5c0202335ed51f6",
+            "size": 10067
         },
         {
             "path": "application/views/mobile/sales_return_invoice.php",
-            "hash": "907a063cb07d88418eec3a153908c6fbea7e4880a04c243e7772c5e52be7d04c",
-            "size": 17286
+            "hash": "a42ea9e8ac755689cfcacb6f08c25c062e3288d7989df4d4bbbf8e25a949e6f0",
+            "size": 17316
         },
         {
             "path": "application/views/mobile/pay_due.php",
-            "hash": "c31d49cefbabed03dd54cd58b24af79ee65290a096c6ec8aac8f4e1c083b08c9",
-            "size": 8579
+            "hash": "f64d53488b23b12e9e90dc83a2a5c907fae21d1aad5a8d8e6bdcc161faa4bb24",
+            "size": 8609
         },
         {
             "path": "application/views/mobile/op_medical_note_form.php",
-            "hash": "3bb05fb317925a5d2cf6d51ddfabc86ad0c5120fb62dcfacb1629a150c8c3757",
-            "size": 18377
+            "hash": "c0e2ef03deba1c80675f7e082777fcbb146eed38041caaeddbf3a6e58153230e",
+            "size": 18407
         },
         {
             "path": "application/views/mobile/nylon_machines.php",
-            "hash": "97f04b96c38177f6ff49a0f4a34c0b24d87d4da8a9751e3ed494569337659778",
-            "size": 11966
+            "hash": "25d1b734ffda82189fb22a49c638149b3f3cb5bda065ef629712b6704618c36a",
+            "size": 11996
         },
         {
             "path": "application/views/mobile/leads.php",
-            "hash": "a030e0aa676b73ec8bbd83f49ca03c5d2db889748eb3f547251630dcee31d10a",
-            "size": 15078
+            "hash": "6183ec9377bf28c4d7a071c0f7c2f4a7a08a44c6b3a0f589570f8c6198699c8a",
+            "size": 15108
         },
         {
             "path": "application/views/mobile/nylon_job.php",
-            "hash": "726f4680f9ab33c888fd34aa6e445ac04429e58734c4b287724a2b7f50a6ed6c",
-            "size": 16827
+            "hash": "c837a6c1935753224ce5509c59ff71b6713f2fbe32f0d3fa1a7ae04998bf043e",
+            "size": 16857
+        },
+        {
+            "path": "application/views/mobile/reconcile.php",
+            "hash": "5b92ff21ef7cd3153716cef4fa6d537827fdc0e807669f9288cbaa0fce3cc9cb",
+            "size": 11511
+        },
+        {
+            "path": "application/views/mobile/appointments.php",
+            "hash": "21a9082394c3e5d99cf544216e19583c0e893a474ef43864c14dbe9d60c08c03",
+            "size": 7785
+        },
+        {
+            "path": "application/views/mobile/sessions.php",
+            "hash": "db6a4662c44eeda38a4cb8089dff54a7150f25f8a589c68f52352917acd4dfcf",
+            "size": 6357
         },
         {
             "path": "application/views/mobile/op_custom_order.php",
-            "hash": "4a859502639505798cc611a09a9362831c5b63a5771a86bb11bdedbce29ad074",
-            "size": 12819
+            "hash": "692cb6b75f8261eb6575c319f62c67fa244da929347c8c14c0928f8b4a6d14f5",
+            "size": 12849
         },
         {
             "path": "application/views/mobile/finance_form.php",
-            "hash": "55367ca02427b9ff392a86fb88558d41bed8f3fc260cb14e61c6dc962db97b3f",
-            "size": 21619
+            "hash": "cd63c621b3b0390fa5280dad7a7eaf1d7a321ca195d2b8180935f2fa4ce51e98",
+            "size": 21685
         },
         {
             "path": "application/views/mobile/op_delivery_form.php",
-            "hash": "99be5a19060798b7e5e57eaa180fe7bb34c1ce8731313a982595c7af8a04d295",
-            "size": 13030
+            "hash": "b5f4316593fb5cdd551d7be8838fe5ec56cd3df5fa446ef3aa83a1b769751d07",
+            "size": 13060
         },
         {
             "path": "application/views/mobile/butchery_coldchain.php",
-            "hash": "d15fed29139833228bdc8109c9275e98c3aa03bed68da8c4c5e6b08a2799eeb6",
-            "size": 12295
+            "hash": "2c7436807fbeee3b704f31472c3306c2daffebda286f220c54b40a0c036aac66",
+            "size": 12325
         },
         {
             "path": "application/views/mobile/supplier_profile.php",
-            "hash": "98e0629951ab0096059de975a81fad8cc8a60596724aad5e287a48e618a8bac6",
-            "size": 12514
+            "hash": "c19f1bba648549cd898c3a5ed63d01104497e4b10241eee088d4dc11a9a1c175",
+            "size": 12529
         },
         {
             "path": "application/views/mobile/brand_form.php",
-            "hash": "7b2b3a6f01c85ed68f438f486fd1a4810d8a6181a848f4488eee7504a4ad6ce6",
-            "size": 6596
+            "hash": "6ff57cee3a4e86665da02b324058f8ef626a934992bbec3784ac3535f3d24dc7",
+            "size": 6611
         },
         {
             "path": "application/views/mobile/login.php",
-            "hash": "4e13deaa4400d306dab4336580820c988442ab98bdcb3654197f3735d8021ef7",
-            "size": 20994
+            "hash": "b29d266aa3b3f7ebbc6514008f5ff36fc80a572837274cfba223c9f57b960aaa",
+            "size": 21024
+        },
+        {
+            "path": "application/views/mobile/access_denied.php",
+            "hash": "547fa576636d23801c0e5df9e588f026db1c288267b0d3a840f33ca2b90f7d1e",
+            "size": 3517
         },
         {
             "path": "application/views/mobile/product.php",
-            "hash": "32fac93b1aa450e8acddfb8dc7a608a10f52bbb22efdd06c2bf9f3908dd4ec47",
-            "size": 41635
+            "hash": "4d6478ea00f10809043c6afa1e2f29c638ddc0ef1322fee4a6039d5a5aefc121",
+            "size": 41707
         },
         {
             "path": "application/views/mobile/due.php",
-            "hash": "c82138ca48fc0fbd8b43283eca866cbde77e02ed44669ac93739017f1d768471",
-            "size": 5775
+            "hash": "a842bec5ebe047fa79bb66de243186e5073dbbfa20548868c5b661929d6be3d5",
+            "size": 5790
+        },
+        {
+            "path": "application/views/mobile/ward_tasks.php",
+            "hash": "22a9d787016f8f6d00d3b17e8d0a8b591dbd555b0e16346c9ef4c7387693a491",
+            "size": 6831
         },
         {
             "path": "application/views/mobile/online_store/banner_form.php",
@@ -1769,13 +2135,13 @@
         },
         {
             "path": "application/views/mobile/online_store/appearance.php",
-            "hash": "51aca0953c35e56a4463dcc43f06afb0eec54cbae1fff30fcfdc17ff23990194",
-            "size": 17291
+            "hash": "3d44b9a36b68dd9a2d4bd5a2cd776245f2c7fbfafc045b3794a959eb1e600b7a",
+            "size": 18017
         },
         {
             "path": "application/views/mobile/online_store/products.php",
-            "hash": "64f7fa075dcf5e90bcc9217934c56abdf178df7d40f0477a9a23e0ac86a86d9f",
-            "size": 25440
+            "hash": "f82a2d5a8ba74f1dd85e89b26ba120e0f0fee3d54c3858b1c4252ddcbe5d340e",
+            "size": 34758
         },
         {
             "path": "application/views/mobile/online_store/banners.php",
@@ -1804,33 +2170,33 @@
         },
         {
             "path": "application/views/mobile/sales_invoice.php",
-            "hash": "cfffa0b74d72d7f1acf116327f69715f4745c4c811febfae519a87468656a6ee",
-            "size": 19789
+            "hash": "ea661069f2e53e2944b55585fe6d5833a9bb918303d1e8bc259ec8e4fa50c8b8",
+            "size": 19819
         },
         {
             "path": "application/views/mobile/quotations.php",
-            "hash": "0d53355507174857d4f97185293fc0d04b8d916a2349bd639f4c6552f6c56cc8",
-            "size": 9333
+            "hash": "582ee838dacec7db74223889c405002de3477d7ec13419255e4eb97abd7b658d",
+            "size": 9348
         },
         {
             "path": "application/views/mobile/stock_adjustments.php",
-            "hash": "f5e6e619f7f552983c2fec61e302f3fa2dc3a602c791737994a1dd8d5228896f",
-            "size": 6197
+            "hash": "1e017a3c59df2cd1d24730b423227ee78220530a879a2a4393aabcb769dc1dc4",
+            "size": 6212
         },
         {
             "path": "application/views/mobile/op_custom_orders.php",
-            "hash": "ee60f4f855b12c82d499461d5b8c80f7daf112fa9e6913fb2b937d22feca05ad",
-            "size": 7942
+            "hash": "0159685ee7da084694c2cebba8d28769132efe03db1f3aa735bcb21292fada97",
+            "size": 7972
         },
         {
             "path": "application/views/mobile/users.php",
-            "hash": "7c29e3700c517d020a9838756f0cc5df3761a43b7e0211538cb09b2862d85226",
-            "size": 11978
+            "hash": "a3742bd615405e1147c54e7a3c8317a7a5fc28f3243e3dde6f54fa14079e8f71",
+            "size": 11993
         },
         {
             "path": "application/views/mobile/staff.php",
-            "hash": "a7abe7f3f4c83fe710371620ce0aee737ad4728f808b127e5b29d8133099889c",
-            "size": 9477
+            "hash": "5ca25a492ff57986ec88631f733dd293db9287693bbf8d493fe28ae7499ecbff",
+            "size": 9492
         },
         {
             "path": "application/views/mobile/discount_coupon/view.php",
@@ -1844,213 +2210,228 @@
         },
         {
             "path": "application/views/mobile/quotation_form.php",
-            "hash": "5284fc971a411612d4b2c598ddddb53a944bbe3d2635847103c3230b959a3522",
-            "size": 20904
+            "hash": "19a4ac7fc76c691c6a2038d98cc1b70b62bb5588df50941b7c54c45b98bc90f1",
+            "size": 20919
         },
         {
             "path": "application/views/mobile/table_management.php",
-            "hash": "7e5a2e9deb13d276969b550882987651e2eb9e1a38452b6ef5aff0861f4c969e",
-            "size": 14093
+            "hash": "cab67c3cc212ef6dcf435e548db609f67161ca11277a5f2118b2a88063b55f68",
+            "size": 14123
         },
         {
             "path": "application/views/mobile/automobile_receipt.php",
-            "hash": "f19519bc6b1e4fd16ed6b2986b626b46fcbf974257818ce12ab9eb3749e6bae5",
-            "size": 6386
+            "hash": "2fa5d4b490a3a7270c132f6cb088e2911ca5d8b75108704f4bd1c55d0cd3f5d7",
+            "size": 6416
         },
         {
             "path": "application/views/mobile/op_memberships.php",
-            "hash": "5d01d2bafc3c33548da69a9011d09f66740cf6e25f967618c543e06a448f093c",
-            "size": 9146
+            "hash": "a047f4dc778ec9c939f1bf2f4d9a1900c93612e095878b505cfec583146a5259",
+            "size": 9176
         },
         {
             "path": "application/views/mobile/category_form.php",
-            "hash": "cc4aa397b2171237d3a94f8a8d4eca40f5355f292719e14e9c7a54f2829d5a84",
-            "size": 6677
+            "hash": "9929084ee6fd848478b4ca9c00669dc733cb1128f05b867e74d6a32a20d77ce3",
+            "size": 6692
         },
         {
             "path": "application/views/mobile/account_book.php",
-            "hash": "e9d8e647617f1cbf3838038132c80d3f1bd751565881ad879b4adcb4c4b7cc3f",
-            "size": 9627
+            "hash": "6047ef9d7d6ed0812f7ffb61fe2831e487c00fef3cec1bd5eb94940e8f38409f",
+            "size": 9657
         },
         {
             "path": "application/views/mobile/operations.php",
-            "hash": "8bece144c545a10ca999b6d4b129196f8bbe31ef69ad59576eca2178c5c43d5e",
-            "size": 5642
+            "hash": "5045d2805966a9b03e5f0ca222b48e8d30be8f2a31333361a8fb687eca9f4afd",
+            "size": 5672
         },
         {
             "path": "application/views/mobile/online_store.php",
-            "hash": "77520e53c38e7b2f5000fa8a0a7a0077ae89f73e50a408e00d758ec4d5ee3219",
-            "size": 4421
+            "hash": "7054239358d57a297ef1b12a4118c4c9457283684ea71c894601b1b5b8fa67d4",
+            "size": 4451
         },
         {
             "path": "application/views/mobile/marketing.php",
-            "hash": "90dfe25a792831820cf74024fbcce8a8699be541c53eb0a844f79bf21a4964ac",
-            "size": 4898
+            "hash": "da36bc804e40142b8274ac8fce6cb20495c6026ef6d1f178739fadc769705e75",
+            "size": 4928
         },
         {
             "path": "application/views/mobile/stock.php",
-            "hash": "58fe3f82e87f28801b3a1ba4351e7a29e10591a4cfc0002a38ce056a95b8fc4b",
-            "size": 9828
+            "hash": "ea428e743dea619f94af4ee6f78741c6cc9e060bd413b530a96e05f899996655",
+            "size": 9843
         },
         {
             "path": "application/views/mobile/purchase.php",
-            "hash": "5371f99cc31d9938e3600c0f8633de6361d1ad0c21092a2cd0d1a64329d8b7c9",
-            "size": 14332
+            "hash": "f723029ca672d199e84ba0fb35e33c0b7436dccf4bb094ee1edd04a9d4220790",
+            "size": 14347
         },
         {
             "path": "application/views/mobile/quotation_report.php",
-            "hash": "b002abbc2d17d17d24787fc7302fca60dc4ab724e09d6baa22da42b3f0290d57",
-            "size": 7715
+            "hash": "8bc024661c3ef23337c0669c64b5c3b059fff506fda80dd9738ae86f8909a02e",
+            "size": 7730
         },
         {
             "path": "application/views/mobile/cash_in_hand.php",
-            "hash": "2320f3df2e7d654bc24fa02e7f7b0732b7550f0a75ed1e72d948b2e3c4df3d9e",
-            "size": 8406
+            "hash": "088afa45580a1503c699c6d100af8cc8839cd310ac1f812e6e0fa3a7e7edb358",
+            "size": 8436
         },
         {
             "path": "application/views/mobile/stock_transfer_form.php",
-            "hash": "5e9c7ee36c190e36393226ce3bdc5065ed0cde0b13562f5684062b0d3a25b751",
-            "size": 20545
+            "hash": "0aef012b75787034b84903e0b5fa4663e42616748eb73e118e42f83c71c4c9b7",
+            "size": 20560
         },
         {
             "path": "application/views/mobile/op_membership_plan_form.php",
-            "hash": "7c09d9404addce8b144edb8902adb7a2d311e7714e2ace2026144e5ac5dcfb90",
-            "size": 11989
+            "hash": "cc6d2aba0807a91222f672ea1a2468c05c141ceb9414a50d9c18bb6acfcbd489",
+            "size": 12019
+        },
+        {
+            "path": "application/views/mobile/patient_profile.php",
+            "hash": "075775b03a74c8c6418a3bb0fc159723e7ca05a5e39d7e6d3627050eab7eb487",
+            "size": 9243
         },
         {
             "path": "application/views/mobile/laundry.php",
-            "hash": "32d056876ddce51bbdb141a665b45d0d7ee34351b772ac1cf77493b265cb9d3f",
-            "size": 13753
+            "hash": "ba518dac396ee887b430a8deef0f1407e7acaad2b116b0859b966d1890b13636",
+            "size": 13783
         },
         {
             "path": "application/views/mobile/store_credit.php",
-            "hash": "2284f8195d820d7527244d71c067c56eb35bfde235d0d51c4a2cce94e437a673",
-            "size": 16889
+            "hash": "0d7b2b65a0451023311776ef0bba667d5ec2ba744bca4512ec11d56cf1f8f4ce",
+            "size": 16919
         },
         {
             "path": "application/views/mobile/automobile_form.php",
-            "hash": "a21e7abbc4ae5c54d28d99ffa709f0e0114d18bd434bdf4471796182cac296a2",
-            "size": 17854
+            "hash": "26d100ec47f0943f945a7f9434580b5d14f13e08685ec5cd98b0e064b8a4bd89",
+            "size": 17884
         },
         {
             "path": "application/views/mobile/user_form.php",
-            "hash": "e0b670c028728c7938170119028b22e3398eaaedbc14c132c3fd87a480b7728c",
-            "size": 14424
+            "hash": "e887cc6ea40f361ff285b6edfdafe8456345d48daef4d0707c79e1a0e4fc0f21",
+            "size": 14490
         },
         {
             "path": "application/views/mobile/attributes.php",
-            "hash": "99fb93097a418a8480970d60491d82d3be1457e832bd224ef8d82ce786bd6da1",
-            "size": 9188
+            "hash": "db48782f7a751fd6abe652e4cfc62045aa258b7393b8849eee94bd42ebf91a61",
+            "size": 9203
         },
         {
             "path": "application/views/mobile/sales_returns.php",
-            "hash": "b2ddc7bf44c5aa03716986579b666586dcf50efd1e7a8b2f7c25fa52cc5e71b2",
-            "size": 13197
+            "hash": "b34371cce15f81916228ab6701360e5ed9721c0dd6fbde63a9862b7186f80524",
+            "size": 13227
         },
         {
             "path": "application/views/mobile/nylon_order.php",
-            "hash": "bff27c1230d1481aade07ef0b1bb174852d9c775cad3b2bd8ed70b1eb2e9ac4b",
-            "size": 16531
+            "hash": "960fe62ac6284f6e29171836b992e22db702f2dd247c6aa4598cb9e95a19b882",
+            "size": 16561
         },
         {
             "path": "application/views/mobile/sales_return_form.php",
-            "hash": "180350de2fb571c277438380cc5d0e0b949be8dfacc1df18f8c95b4a4e7c8e51",
-            "size": 30651
+            "hash": "353087b0b09cf63f6c05f518072cba939713de65f81308336e249521df02a19c",
+            "size": 30681
         },
         {
             "path": "application/views/mobile/customers.php",
-            "hash": "ede76a52d43a2e25a00eb07376b83837a6efec8ab226e4542948da2a3b8fa7c0",
-            "size": 11637
+            "hash": "06553e4c04472ee831b094f2860d4ea1598b0cd1a31b9a74f693070794fcd79d",
+            "size": 11652
         },
         {
             "path": "application/views/mobile/op_treatment_note_form.php",
-            "hash": "6621f1ff0907abf3f8a511ad6ffe6f53ac6ef9b14275d026114552d275da1d7f",
-            "size": 16909
+            "hash": "c27aad202974bcb292c4b8880ed882f5954eaf3bb1ba220faab45d34f6a98d76",
+            "size": 16939
         },
         {
             "path": "application/views/mobile/profile.php",
-            "hash": "870e10d81ae846a9026b8fbb7770d4083b179ef47806da40b12fc12c2fe3f8b4",
-            "size": 12004
+            "hash": "c71ba0118d15fec4fc9801f749ebdbf2d041bdbf38dfdf513d29e37344e3e7c3",
+            "size": 12590
         },
         {
             "path": "application/views/mobile/clock.php",
-            "hash": "1c271eba27de2aa5db4a7911aa5aacfb172828d59b83cb888f8e62d76beb2ab8",
-            "size": 12337
+            "hash": "78c4e79648c2967c070e08d9ee3a4c5d1573a14465ae9e82fb92fc37213cc8f2",
+            "size": 12367
         },
         {
             "path": "application/views/mobile/public_catalogue_settings.php",
-            "hash": "8962d3c661a12db1e1c108e1ae91bbaadffb26098ed097dbc7cfb473eb6045bb",
-            "size": 7056
+            "hash": "0c4809e6248d252d05eb56160873918dc34469f227fddcfbe18feb8c3b9cae72",
+            "size": 7086
         },
         {
             "path": "application/views/mobile/quotation_view.php",
-            "hash": "98afb51d34781720c25335e60fda80aac85a6310429610fe716a54c67930f67a",
-            "size": 10225
+            "hash": "5d38fe92f653a9238b930998cfe04fcdf1447daa5e4ab6a3d8393079bb7b87c9",
+            "size": 10240
         },
         {
             "path": "application/views/mobile/report_viewer.php",
-            "hash": "e3ba0558e46e8ea9ff4f441d5c8e41b3383b7a9a94680ce122c3da4886d54c33",
-            "size": 26889
+            "hash": "3e0769300565ea74558afc8e98a12d33bad31a096315cd4837b46c91fdc30556",
+            "size": 26904
         },
         {
             "path": "application/views/mobile/op_membership_assign.php",
-            "hash": "94cb4ef93438d3532d8be0c346fe5bb86bc5fa6f7b322bf61b986de4d067f93f",
-            "size": 13687
+            "hash": "ab61317ed8a4cbd08fc3986ae9b30b395ac3574f72bf3678c90adcbcf890d906",
+            "size": 13717
         },
         {
             "path": "application/views/mobile/suppliers.php",
-            "hash": "345e709adf18ef8875cfcbef3bebe010a09564a5d7473fd839eff7a65694e3f4",
-            "size": 9398
+            "hash": "ff220dd51feb802989c0328b3cf4fc99c848edaa0c41b484061b59881cf8fc35",
+            "size": 9413
         },
         {
             "path": "application/views/mobile/perfume_lab.php",
-            "hash": "4ae67bac7addd6305fad1abbde7e3ca7db5bad856b7db25729a579d261de6770",
-            "size": 14767
+            "hash": "6993470979e251a327fbb95e617d7fd78dc1d877f6c23a4e4d84bbd6c249bc9c",
+            "size": 14797
         },
         {
             "path": "application/views/mobile/nylon_job_form.php",
-            "hash": "787d7a4810653a1535a1229f4fd45414a79e54deb57468a78f7bc5f4a5449483",
-            "size": 15039
+            "hash": "f539276b4dddc3e64cd9217bf273cd730bd8bcf5223fbd0a03f3ba3319d1507d",
+            "size": 15069
         },
         {
             "path": "application/views/mobile/more.php",
-            "hash": "d1ea9ab85384d19d7da69d8299173527c19488e24d1a2b2498177719c58ef61d",
-            "size": 11198
+            "hash": "0fd2ef207565d5d55023ad4c32b008ab302ac433a30766f475d1912727db3112",
+            "size": 11228
         },
         {
             "path": "application/views/mobile/op_deliveries.php",
-            "hash": "732203df4df09dd26c7f404742a302e73a20f287dcb4448ab2294be851f51cb7",
-            "size": 7756
+            "hash": "0ac7acfdb804b395a615b6057528c0d2e984418137d4d5a85465ecd22a380f9c",
+            "size": 7786
         },
         {
             "path": "application/views/mobile/purchase_form.php",
-            "hash": "b1cfd08b0aac5d57c0add6e7342e69115134ed97ef915d6a4f323038abf81772",
-            "size": 29677
+            "hash": "76c298ed51d62c2bae54c363347d2fa9657575860dc29d803d1536ff6fd114f8",
+            "size": 29692
         },
         {
             "path": "application/views/mobile/product_view.php",
-            "hash": "d09fe234fa6097f866581d34c155b62a67d471e356ff659fcddf5ac44d73cb30",
-            "size": 14352
+            "hash": "6a9583c0e0cbd53fffab3c949c4dc26c75b01c8aebe69bcd4e2b47d87c759fa4",
+            "size": 14367
+        },
+        {
+            "path": "application/views/mobile/encounter.php",
+            "hash": "deaa4eed2e818ad2785dce7dd2115065fbf2178950fbfc199b4709b3df833db0",
+            "size": 12506
+        },
+        {
+            "path": "application/views/mobile/printing_job.php",
+            "hash": "82676d6a49ae1732e47fa92ed5022550eaff2f58eebab68a3f5c7c06d324b581",
+            "size": 10316
         },
         {
             "path": "application/views/mobile/nylon_products.php",
-            "hash": "0471af17e7db95e0849c87fe2404835919be61c85ee793e0ee5401508608dfb0",
-            "size": 6090
+            "hash": "746470b469a6207b8a4d6e9cd05d078d604c323ef903715f71731ca0f908c99a",
+            "size": 6120
         },
         {
             "path": "application/views/mobile/sales_list.php",
-            "hash": "3f42ef15965c5116276b15d92688ee2d31dccca7ad91e30c9ceb9d271efa8bb9",
-            "size": 12663
+            "hash": "2666c6a3a63920da2474b50b0c790809c028f5dfa99a8505a01520174b481b4d",
+            "size": 12693
         },
         {
             "path": "application/views/mobile/op_warranty.php",
-            "hash": "e579673ebdc5f9b0f60951a595908ae4ba5ef4d9c108e5e4526267b854cb3645",
-            "size": 7935
+            "hash": "598be6712113df132f376903907c89d6ca37a15ef39f33379b7a2acfd78b0124",
+            "size": 7965
         },
         {
             "path": "application/views/mobile/catalogue.php",
-            "hash": "db33360bb2560218d09db2a641349dbc97886b249b30e2e0a9ed5667b6483de0",
-            "size": 17029
+            "hash": "6d65e4f4e2c2a002d2de64d02459190eb6f44f55ffeb7704eb7252e0b3e0bd98",
+            "size": 17095
         },
         {
             "path": "application/views/mobile/mp_alert.php",
@@ -2058,14 +2439,19 @@
             "size": 14874
         },
         {
+            "path": "application/views/mobile/care_queue.php",
+            "hash": "537471a0200be72ecf5dcf356f18f2585286a62daacb8ee4a061637770f56fe9",
+            "size": 15330
+        },
+        {
             "path": "application/views/mobile/sale.php",
-            "hash": "6ae05c8b3aa06188360db2a8da67303d3aa949ce61e3f640042d6c451bc248f4",
-            "size": 73846
+            "hash": "7caecd4358d345f25de58b8a102aac7e2fedcb01c82df830f11b3cabea21c1d6",
+            "size": 73876
         },
         {
             "path": "application/views/mobile/nylon_orders.php",
-            "hash": "f1adf1fa8e78e6326cd238903e3440265204c6783a6989e5e7a8863a64fbc4d6",
-            "size": 7338
+            "hash": "67c8047044fdfb1c00da1be1e5db62c1a8e03e69fd9a339ec585bbe1c7eb004e",
+            "size": 7368
         },
         {
             "path": "application/views/mobile/chat.php",
@@ -2074,28 +2460,28 @@
         },
         {
             "path": "application/views/mobile/nylon_report.php",
-            "hash": "a6ede019d8230faf78a52a04b1b324993aa1f3b679d34f4d5caf163011461694",
-            "size": 13150
+            "hash": "c103c08ad4870e26bf5a577e4f8b438cb7e5fe388ee7ab0123ee164f04bf30c2",
+            "size": 13180
         },
         {
             "path": "application/views/mobile/automobile_sell.php",
-            "hash": "609b451ca5733abad1a349e1a2f0dee38b2cc36d877683127b24f3a6c3c065d2",
-            "size": 10008
+            "hash": "c74802558bda98fb004e8a5fd8b484f17af63fe31e7662f9402a391fec2d3cc3",
+            "size": 10038
         },
         {
             "path": "application/views/mobile/butchery_form.php",
-            "hash": "418724cdf777ebbf180107106402e002ef70749b525ea903897532e109ffc4c4",
-            "size": 10486
+            "hash": "d3a012b465673f23f377f9a6e4fea4eb9bf13ea5b475084c8def5e1e47afa44a",
+            "size": 10516
         },
         {
             "path": "application/views/mobile/nylon.php",
-            "hash": "bba5e59ca25a0a336eef6ef77d3022e3acb2f4ff4bc4f7efc75364059e31d890",
-            "size": 10219
+            "hash": "5cfbde3c07ed6816cf667f8d1b82077f81035691aebbacbc1a3a6d36baf7a739",
+            "size": 10249
         },
         {
             "path": "application/views/mobile/daily_summary.php",
-            "hash": "f372a2711d55f59175c725a430faadb1b2a0fa0b42ef56804f32ea74d5a263b8",
-            "size": 30197
+            "hash": "6e95e0dd0c7d6dd23437fc21ded2ef769874911a40f3325063c9d7d827fa30bf",
+            "size": 30227
         },
         {
             "path": "application/views/mobile/customer_coupon/generate.php",
@@ -2106,6 +2492,11 @@
             "path": "application/views/mobile/customer_coupon/index.php",
             "hash": "1c123f4cea7b3c297d69e2fe6d53ef6b0fabc24f0483772de0a24845b51f36fa",
             "size": 10552
+        },
+        {
+            "path": "application/views/mobile/patient_form.php",
+            "hash": "6e7427b3ad52c252146888c5c1729ef9df3f8ff233953da4622d618494818463",
+            "size": 13030
         },
         {
             "path": "application/views/mobile/loyalty/product_points.php",
@@ -2144,123 +2535,133 @@
         },
         {
             "path": "application/views/mobile/reports.php",
-            "hash": "f3b352bc5908d85c2051b06cd67073a001df13b2e547b45b93f326d3d5ecb049",
-            "size": 5181
+            "hash": "4946f05c350f5b369def778f8ffadd285d8573bdd9e50b0c18beb8afca9b3c34",
+            "size": 5196
         },
         {
             "path": "application/views/mobile/customer_form.php",
-            "hash": "55312693906c9922c14e020963387b465e9b944a6f7cfabb799380a50489052b",
-            "size": 24020
+            "hash": "af8b9fe9543e6ac34355d041a3e3b4f1af775dc4ffce3cac99f0f10b134b4376",
+            "size": 24035
         },
         {
             "path": "application/views/mobile/help.php",
-            "hash": "97ced4e4c9f828e9bb276c65bc152e54c9d6b257200822fdb99a5dbf3f1ae2f3",
-            "size": 8541
+            "hash": "1bfaafb31e8522c1ae0caeac0b461542d2bcc65bbd866810f1bd1f669b742a76",
+            "size": 8571
         },
         {
             "path": "application/views/mobile/purchase_view.php",
-            "hash": "5e5f7f3c29129e72ef42e29a3e363c1530099a1c21c891cc8e40dbefa0e865e7",
-            "size": 12959
+            "hash": "168e5a30850c4382909679e298a120e00a0401738f882de1a2277d5ef82e3f10",
+            "size": 12974
         },
         {
             "path": "application/views/mobile/attribute_form.php",
-            "hash": "45b024bc2ffb3c1b272bcdd7136eebfdedbd946a638c00c0a432dc296b29e22d",
-            "size": 7672
+            "hash": "1260b36d606df1799e36be5833b1ef5ce52a73401bb423d24b9a1a394b83b402",
+            "size": 7687
         },
         {
             "path": "application/views/mobile/approval_logs.php",
-            "hash": "fcce3813e17d3a06eae90e2a82eb3551bbf964c20af61672ef11033cd23dc2fd",
-            "size": 9510
+            "hash": "f45a1236a10ff8c5e9a3bf19148ff8f3fb5b44e0d45c1c12824e2abe353031a0",
+            "size": 9525
         },
         {
             "path": "application/views/mobile/op_custom_order_form.php",
-            "hash": "1bc48d439fcc0f6640a144f2a8699b85f3ff4f5f930af019aa2e9bb435611755",
-            "size": 16094
+            "hash": "5156902bd389784caf30c1650b280ac0907105af5d2b4a6df64012d3a317bd18",
+            "size": 16124
         },
         {
             "path": "application/views/mobile/op_treatment_notes.php",
-            "hash": "83d11198651c8ddbbf26c7230ab092fc4ffb5c08fc4524a26c7caa15d6266571",
-            "size": 8103
+            "hash": "957a1e35050df8474478949af274eee8be9cc9e51ed143cf7ef0f2cb1f76fdc5",
+            "size": 8133
         },
         {
             "path": "application/views/mobile/holds.php",
-            "hash": "99ef46c12c1350c4e91e1f019586e33da9a004777ba05c2d2346dbe600c124da",
-            "size": 8773
+            "hash": "b835fda62587e93b9721945b5f34f28a3a944b94628a3c86ac17651ae14c3c30",
+            "size": 8803
         },
         {
             "path": "application/views/mobile/op_delivery_view.php",
-            "hash": "16402169252ef171b180fd88eb1a2cc5a9808f0e5f01ce8c3adb3d602b8038a2",
-            "size": 12815
+            "hash": "b822fc9bf2c0f733210d85c1ddb676f8ea8cb1f7de718aeb1852793d59f4813c",
+            "size": 12845
         },
         {
             "path": "application/views/mobile/op_staff_assignment.php",
-            "hash": "b3de026834f2ca68eba0870fa600e0978a2f4f612e835f2cac7b68c4c83aa344",
-            "size": 8307
+            "hash": "6ff04ee67af5c70f4c1169c779b9d5e6f4935dc3267d20b8cb89e4bf6bbf9995",
+            "size": 8337
+        },
+        {
+            "path": "application/views/mobile/clinic_home.php",
+            "hash": "be7334d925b4e885d827ff7154380d9bab5d94fc033fd645d0d0dc792387ca97",
+            "size": 12136
         },
         {
             "path": "application/views/mobile/nylon_jobs.php",
-            "hash": "b06da5bbf920f18dc77c24f1bc053f85bcf733393be3181c277037b76eca4baa",
-            "size": 7066
+            "hash": "6932c188d9ecea25fcbe9890b112a830704283acc91632d333fc668232e355c3",
+            "size": 7096
         },
         {
             "path": "application/views/mobile/butchery_cut.php",
-            "hash": "80edd36876156171caf3e7903f66b86b4ab70d19c21db8242ded3bda894714b7",
-            "size": 7067
+            "hash": "3009f5d95cd3f029cff3366d135f591ae61ad196cba7d47543cc8865d0d4329b",
+            "size": 7097
         },
         {
             "path": "application/views/mobile/automobile.php",
-            "hash": "7afe2e73aeec1fa238373843f5dde17014e607ac5f5819a66e11d6d24800211c",
-            "size": 8209
+            "hash": "c3c14dd7fb29a123d904aad9ed92665415794cd3b90820b367ff8e697a6967ef",
+            "size": 8239
         },
         {
             "path": "application/views/mobile/stock_transfers.php",
-            "hash": "d825cc52e310ee1a1358a14f560175926281f305c0212cbc04ce510f6fadf55b",
-            "size": 8237
+            "hash": "bfe688fb12b594fe53d0504bdb110d5c28af36d216213e2a1061819c84eeb550",
+            "size": 8252
         },
         {
             "path": "application/views/mobile/butchery_shares.php",
-            "hash": "5bf558cf2c066c10dc40778f68a88cb7ebf7a97ad7f6fc0e64719e919243ac74",
-            "size": 10331
+            "hash": "b47dadd155884e90b92d9f98f28a4962354348b6da05f6db67f1ed5a218d204b",
+            "size": 10361
         },
         {
             "path": "application/views/mobile/customer_profile.php",
-            "hash": "5313aa6862e78c69563bcf7c835e6e1c9bd6095b87686df30c1e8ced067b2820",
-            "size": 39904
+            "hash": "31b2ca90a0d7b0b10451032e9be6134fe4be2d9ba02a03310dec7cc8e80cf25a",
+            "size": 39949
         },
         {
             "path": "application/views/mobile/finance_list.php",
-            "hash": "1d91e86c69b3604f619190cab813885628938e5b2bc5eeab5a5bab4383d908fb",
-            "size": 12618
+            "hash": "eda9d7422e4334cb74e4f8bc996755e340a608bdddbfb81722330234be2ce842",
+            "size": 12684
         },
         {
             "path": "application/views/mobile/support.php",
-            "hash": "d41696ed30c2d09776c631a1157576aa8aa8136f5f9834cceb555c6547cd04aa",
-            "size": 5501
+            "hash": "c5a262f5c1c6b1ff6ccff0d32e89ceec991f15a5070c18dfdc0b5e864e85dc58",
+            "size": 5531
         },
         {
             "path": "application/views/mobile/supplier_form.php",
-            "hash": "2424bb0ad3b12c5a00f45e6e08c18784d03b595d23fabea87017e8fc7107957f",
-            "size": 17871
+            "hash": "d33e16be17e294b6da7a2e4e3665f98a64bf211e9c681a1cadefce54f3d80af0",
+            "size": 17886
         },
         {
             "path": "application/views/mobile/op_production.php",
-            "hash": "5aee36aa511858d56807fc9dcdde8b3bc5ad524b41b04716c60054c554229d1f",
-            "size": 10114
+            "hash": "177a949fdf94dffa13da0345d11b396d256c144f909b61fd2e7bd99683f6bc29",
+            "size": 10144
+        },
+        {
+            "path": "application/views/mobile/patients.php",
+            "hash": "7cf418ff30be01f2d27fbc42aaf254a7ceb346d94cf0aaec7817473c1e82cd4b",
+            "size": 7972
         },
         {
             "path": "application/views/mobile/purchase_payment.php",
-            "hash": "22b83afe382efd2ce43c858e957dd32a14b8b99b668b34d2dda1972bbecb97c9",
-            "size": 11947
+            "hash": "5d6f805f002e5ccefb3fbce3dc921d20347b7c2eecd0b3d43c534917b63235e0",
+            "size": 11977
         },
         {
             "path": "application/views/mobile/kitchen.php",
-            "hash": "8e1d831f7f002a7f7873eedaee43ad737e35aefdc32fc256a99b1ccbc97bcfc2",
-            "size": 11354
+            "hash": "7275112bb196b6232344e26a1bcd15213a02c958b70ca728f564842755b17e29",
+            "size": 11384
         },
         {
             "path": "application/views/mobile/nylon_order_form.php",
-            "hash": "d3d876a1cce1d5c3bddf36cf63d86fcffb34f2627ca68dfbbde7e9eb805e4705",
-            "size": 17205
+            "hash": "33423eded5433aa9925e73625a11fce5f86374de03e93c9256adc32b89751e30",
+            "size": 17235
         },
         {
             "path": "application/views/print-sales-invoice-3.php",
@@ -2313,6 +2714,16 @@
             "size": 11334
         },
         {
+            "path": "application/views/feedback/testimonials.php",
+            "hash": "ebbbb8da79e94b3a08e84097d96efa7bb80261db88ee280488b8f9512f59d75e",
+            "size": 3364
+        },
+        {
+            "path": "application/views/feedback/index.php",
+            "hash": "217aa6bb79be58768d9c572a5a6f502e3e94ac9361365686ec610ed38a3bd00c",
+            "size": 2977
+        },
+        {
             "path": "application/views/items-list.php",
             "hash": "38a0f613ce81df5052baa1f6d1aa30440526fa93bc9bf7a12b35e0c506e20af9",
             "size": 15642
@@ -2324,13 +2735,13 @@
         },
         {
             "path": "application/views/report-z-report.php",
-            "hash": "57e5160d2fa44e773ea29ad2adc024f40448c86d7690c994379dca2cd12d010e",
-            "size": 8781
+            "hash": "b610b82381db64c962862e77882dfddc26e6317b4e287d1c45c071e4cdb9efdb",
+            "size": 8673
         },
         {
             "path": "application/views/login.php",
-            "hash": "1f135dec28ebbce92d2f657a1358e3e736eddd3f3bbfc99805046cf4585df436",
-            "size": 31176
+            "hash": "0c19237bca0605d84fef58f6a47644645334c91b90a010e5a09a1b7c67d2318c",
+            "size": 32792
         },
         {
             "path": "application/views/automobile/dashboard.php",
@@ -2356,6 +2767,11 @@
             "path": "application/views/automobile/sell.php",
             "hash": "fc16930d76b84d8b7ab01c98c1212707ba53eae3e68a9d928c3db1f9379981f0",
             "size": 3776
+        },
+        {
+            "path": "application/views/patient_docs/index.php",
+            "hash": "57607ac96f191003284e143184bcf6234c5871f9e355527d9b285dc655ac8fd0",
+            "size": 6108
         },
         {
             "path": "application/views/report-sales-tax.php",
@@ -2429,8 +2845,8 @@
         },
         {
             "path": "application/views/online_store/settings.php",
-            "hash": "01b19307574c87c8a55ffbb371e509c789c639c35df959183bec5f1e906dd3d8",
-            "size": 22174
+            "hash": "7c547267cc7f87e3c67e94c83bc5655124e18f82e114e91c3dce689c41a74d78",
+            "size": 26779
         },
         {
             "path": "application/views/online_store/qr_codes.php",
@@ -2441,6 +2857,11 @@
             "path": "application/views/online_store/services.php",
             "hash": "b23fb4b379cf749e096643732db705cb75d766d6449d186eb8627524c68a45fa",
             "size": 10596
+        },
+        {
+            "path": "application/views/online_store/commerce_rules.php",
+            "hash": "fd88a2165645e3240272873e6871c6ae0c9cc1f80fd1a8ec069a21d980bd9577",
+            "size": 11790
         },
         {
             "path": "application/views/online_store/brands.php",
@@ -2454,8 +2875,8 @@
         },
         {
             "path": "application/views/online_store/products_online.php",
-            "hash": "bda1d6a46bcef0d3e553217e189e38da7c9c1e3eac7ce443e6f51995938f2de9",
-            "size": 16368
+            "hash": "e63c391e39f8933fa746b7ae4068308432d7500b42358b6a2903347a6e858a3b",
+            "size": 24820
         },
         {
             "path": "application/views/online_store/subscribers.php",
@@ -2463,19 +2884,24 @@
             "size": 4853
         },
         {
+            "path": "application/views/online_store/abandoned_carts.php",
+            "hash": "40eb075be4cd99a2a8981b9bc641e3c8a71e5bf694bf7591fe01744c1ba95944",
+            "size": 4871
+        },
+        {
             "path": "application/views/online_store/analytics.php",
-            "hash": "621fcae8fad006dddc9c9cda4729f2de4da57b5486ae78e7fcf623c4eb0fec9c",
-            "size": 15134
+            "hash": "15de1a931546ac0756e89a237a7509451485aff8705fbca91ec89f1a416eae7d",
+            "size": 18307
         },
         {
             "path": "application/views/online_store/appearance.php",
-            "hash": "f49cc0e850c860d14ddde58edb87f337814a67f48cc756ecb85eee6c1cea452f",
-            "size": 18026
+            "hash": "5b783084b7f0f57935cf40a13a27234d9acb71f124e790082422b32b4c4176d4",
+            "size": 19037
         },
         {
             "path": "application/views/online_store/order_detail.php",
-            "hash": "121f6955359d0b4bf52bbd8414278992bfbbace4b0cc186f9a10172aa21ade0b",
-            "size": 8853
+            "hash": "182abe5c212ff14ced17a625701f442e7eb5ed7217fac0c503a2a0121bd6a2c9",
+            "size": 11991
         },
         {
             "path": "application/views/online_store/banners.php",
@@ -2678,6 +3104,91 @@
             "size": 9028
         },
         {
+            "path": "application/views/reports/clinical/appointments.php",
+            "hash": "a3e879d817f8f1084d9bf733d4868cf7c78d177647bab4cfac4b3ceba01f6e03",
+            "size": 2753
+        },
+        {
+            "path": "application/views/reports/clinical/sessions.php",
+            "hash": "fcf487c827307ec689579fc4cae7a5bd644bc9e93cb6a6e38aa4d8f1b11037cc",
+            "size": 3097
+        },
+        {
+            "path": "application/views/reports/clinical/_chrome.php",
+            "hash": "a7a4471637e803ecae73e6f8bfc3ebebd6e2c11b4d04efb88c9ac90e24da7460",
+            "size": 5085
+        },
+        {
+            "path": "application/views/reports/clinical/revenue.php",
+            "hash": "ed35c736b8fdcef7a2b3d4b0e3aa3de81b55deeb9290a4b5e734cf76baacb2df",
+            "size": 3613
+        },
+        {
+            "path": "application/views/reports/clinical/procurement.php",
+            "hash": "fd44d02baa7dff26e4496527da5fb6de6aba02467edd707c8c17d0b792a170df",
+            "size": 1901
+        },
+        {
+            "path": "application/views/reports/clinical/opening.php",
+            "hash": "d9ab94db15c21f67ba0c2cf45a9446b38155cc721cbd1aff634d92ab3b0b970d",
+            "size": 1805
+        },
+        {
+            "path": "application/views/reports/clinical/aids.php",
+            "hash": "e00a30aac555e2a03a97b43cd91d2c432a1bc771114deedb5c81637c441317ca",
+            "size": 2120
+        },
+        {
+            "path": "application/views/reports/clinical/investigations.php",
+            "hash": "eb0a2f06d9eddc8bf9c7acac1fbff702b53ee34ec2a2046f7077555652d7c397",
+            "size": 2699
+        },
+        {
+            "path": "application/views/reports/clinical/activity.php",
+            "hash": "23be12ac11198a5123f1400ea0a0f6cce80be670506b693cb41aee3329077a16",
+            "size": 2797
+        },
+        {
+            "path": "application/views/reports/clinical/plans.php",
+            "hash": "37b3f0fc5b7ea45f5afdc277f945367877e949394a17e9c8104af64d12fb2542",
+            "size": 4553
+        },
+        {
+            "path": "application/views/reports/clinical/tasks.php",
+            "hash": "1eddc51da4231717d3c75f64cc86341f0096b9c5848c9e3931b4bc7d4486360a",
+            "size": 2924
+        },
+        {
+            "path": "application/views/reports/clinical/register.php",
+            "hash": "73e8733da65a16017b435018c18924d268a5b68a6d8fa95aec3c5c95840de3d1",
+            "size": 2890
+        },
+        {
+            "path": "application/views/reports/clinical/outstanding.php",
+            "hash": "7236a3abc36a39ad6fc167029d7a22a78f9629d0ea3e2b725ce07f8b078bbc62",
+            "size": 3251
+        },
+        {
+            "path": "application/views/reports/clinical/documents.php",
+            "hash": "c787063b64c815e39cda15f9af31e00ab5a89fd248a7d614583126c0b026e093",
+            "size": 4896
+        },
+        {
+            "path": "application/views/reports/clinical/index.php",
+            "hash": "60a42a9d72dc0d42b4142491761d36304b18e6a3a37f98587bba42d1e46aad8e",
+            "size": 2165
+        },
+        {
+            "path": "application/views/reports/clinical/cancellations.php",
+            "hash": "2b1572bd4954d280d208632ac706c8f6e576347cd09d577f1605b07150613442",
+            "size": 5445
+        },
+        {
+            "path": "application/views/reports/clinical/ward.php",
+            "hash": "8f47ad5f836202549e84ae691631509f9d5c5a27f407421288932ee8d648d061",
+            "size": 3588
+        },
+        {
             "path": "application/views/reports/desktop/variant_attribute.php",
             "hash": "677589389b6e7a9fce26b2b15399b90630a5a3e9ae92acd4e81e3fd2cbdc5605",
             "size": 5298
@@ -2878,14 +3389,19 @@
             "size": 2460
         },
         {
+            "path": "application/views/payments/reconcile.php",
+            "hash": "53f53ed7ec67efec1a886fc40b9a5f6167648cdec34c36ff83f1522e3eb312a3",
+            "size": 9418
+        },
+        {
             "path": "application/views/roles-list.php",
             "hash": "8ce01e4410ab74ee33f9ab3efb61bd7fd478e28a120224f1a3b8862d98887efb",
             "size": 6950
         },
         {
             "path": "application/views/pos_desktop.php",
-            "hash": "1e54bd06c2e51603b5b79da03eab440c256e626f4a569a0d648c86095a02d45e",
-            "size": 162030
+            "hash": "9511503b0c9afa263b949c7b934492efba2aabdcdf14820b44ab3010ef9d1afe",
+            "size": 163849
         },
         {
             "path": "application/views/suppliers/desktop/list.php",
@@ -2959,13 +3475,18 @@
         },
         {
             "path": "application/views/purchase.php",
-            "hash": "c94f381a4f8e481de3815d0fc4d6c0ab945aedc98f32e84e20d1908ea1d03d4a",
-            "size": 57445
+            "hash": "3683e2b3a2babc1d4ae5dc4806e67aa9a5172ef75cfbeb2bde73fd85aed99085",
+            "size": 54967
         },
         {
             "path": "application/views/state.php",
             "hash": "bd6e97dd0141d7d3f522bb65523cdff2229f467c2ed2a61cfd6b65418a2de579",
             "size": 6398
+        },
+        {
+            "path": "application/views/manifest-generator.php",
+            "hash": "45efc82a025a4db54b3d439ece323a1fd116f8e6ebcdf86d2e486408e4132cc2",
+            "size": 4823
         },
         {
             "path": "application/views/pur-return-invoice.php",
@@ -3004,8 +3525,8 @@
         },
         {
             "path": "application/views/mp_header.php",
-            "hash": "31fed996da6cd66a25b47129be6e91dabce54a05e8dfb88b4aaa490bff9d27d7",
-            "size": 60190
+            "hash": "58607645d12d83a3ede54ad7db940096e2cc02be6f52a460f96ec9f3acb87037",
+            "size": 64503
         },
         {
             "path": "application/views/finance/desktop/tills/list.php",
@@ -3098,6 +3619,81 @@
             "size": 18019
         },
         {
+            "path": "application/views/printing/unlinked_quotations.php",
+            "hash": "81a87f74019f111e41e143ba8645fc2ace2ed89dc40168923753af2ecf980d0e",
+            "size": 5535
+        },
+        {
+            "path": "application/views/printing/production.php",
+            "hash": "a8071cb0c3b5b43794ee7c86166a750a8e5c775c52d156ffa93c1aa01b05a243",
+            "size": 12336
+        },
+        {
+            "path": "application/views/printing/dashboard.php",
+            "hash": "7b2a9f51895715651224ee206f2f51334e4dc383dcae16c57ceb27a56cca9408",
+            "size": 19621
+        },
+        {
+            "path": "application/views/printing/payments.php",
+            "hash": "08ab189c1c39cc9b8c3b82feb5a30912042a6258d057a7007e0a34eb8ac91c74",
+            "size": 2871
+        },
+        {
+            "path": "application/views/printing/artworks.php",
+            "hash": "1d164780ea09e337e91db45ffa6287ac672e4a30bde9e4096873fedbb29968c8",
+            "size": 11713
+        },
+        {
+            "path": "application/views/printing/job.php",
+            "hash": "5f3ec3c198a4aa0e871aac440f1a1c527d0115b903a20d549a59a16f8e5582b6",
+            "size": 46445
+        },
+        {
+            "path": "application/views/printing/new_quotation.php",
+            "hash": "451f175be91eacb5aa4f29ae9e3ca9f7be5f68264aa6af28b293535ef6f781a4",
+            "size": 4703
+        },
+        {
+            "path": "application/views/printing/quotation_view.php",
+            "hash": "820a6cee9613fccb2f017d1dbaff2d3dae1d87a2a4a5278af016a0bd3452091a",
+            "size": 14511
+        },
+        {
+            "path": "application/views/printing/authorizations.php",
+            "hash": "91d2771c867d8d826fc5e03a1a219aa621e468eb464732133936eee0cbdbc6e4",
+            "size": 1804
+        },
+        {
+            "path": "application/views/printing/enquiry_form.php",
+            "hash": "68e9f085fbd70e3cb6a72366149844625a4a1a0c4d75720a9f077c7bc9a82bfe",
+            "size": 11401
+        },
+        {
+            "path": "application/views/printing/reports.php",
+            "hash": "38d3daef0e274d655eff904c339f100406267b91d352c9e963900c235fd8bb4a",
+            "size": 24642
+        },
+        {
+            "path": "application/views/printing/quotation_print.php",
+            "hash": "42c2b02425654417c088a4700850d7a193d282e33aa3b0437081d678845461c7",
+            "size": 12599
+        },
+        {
+            "path": "application/views/printing/jobs.php",
+            "hash": "accaf5f1bd594f052e877d54e30d417c8c6cb3005f15abb0e96df679b6b50883",
+            "size": 4074
+        },
+        {
+            "path": "application/views/care_queue/encounter.php",
+            "hash": "47738c6043d46bd111e0752a83dc00a5235892bc9a3715bad883c31159cc962b",
+            "size": 19988
+        },
+        {
+            "path": "application/views/care_queue/index.php",
+            "hash": "01b128e7243391a51c038a044d59e53cef4932676ddcf1a6772ced3736e1ef07",
+            "size": 16406
+        },
+        {
             "path": "application/views/sms-templates-list.php",
             "hash": "4a39ba4eda1812dd58e91dfc140e654a21465f5cdbb39e60e7b86dc00ccb5b36",
             "size": 2060
@@ -3108,9 +3704,89 @@
             "size": 2051
         },
         {
+            "path": "application/views/fleet.php",
+            "hash": "ca3f0beafdf26b69a2804dffdcb9bf8eed75aafb41703ec720089961b7723ad8",
+            "size": 59603
+        },
+        {
             "path": "application/views/services/services.php",
-            "hash": "616a2284f347d8a415d463e1f9f8a77eea73e356befac3f03a9fd6e47145e9d0",
-            "size": 21005
+            "hash": "8f2402ca6121a9d211813da0f4f7db789931802982fcf2fc8b8b3b6a2fcf9da1",
+            "size": 21343
+        },
+        {
+            "path": "application/views/portal/statement.php",
+            "hash": "614dc99e392decf9382b481b66eaa8829e8b23a4ad7707c1c300648a88abd284",
+            "size": 2673
+        },
+        {
+            "path": "application/views/portal/testimonials.php",
+            "hash": "b1e05cd0ed47496e08130dfb0a6180ac6baa2188d2ad77387a5462ab9f4daa5f",
+            "size": 2865
+        },
+        {
+            "path": "application/views/portal/_foot.php",
+            "hash": "c333169273995a1ddb58e3df1d176dda09d79087ae0da042a8fe7ff8151dd06c",
+            "size": 143
+        },
+        {
+            "path": "application/views/portal/_head.php",
+            "hash": "daf0d0001151114600acd9ac50fc3df0368acb727520ad9d14c1ad6defef1982",
+            "size": 4901
+        },
+        {
+            "path": "application/views/portal/appointments.php",
+            "hash": "5ac12832a8da67cbfb7386058852abb3998737e1429e9022ed8cd50640160804",
+            "size": 715
+        },
+        {
+            "path": "application/views/portal/login.php",
+            "hash": "5742d03d8ed02b50b023f59bcd158fd4f8ced30b936911de0eaee9b57268bc6d",
+            "size": 979
+        },
+        {
+            "path": "application/views/portal/funds.php",
+            "hash": "bfdfffeac9070d75b9745526e3fab6c1fe6a40e4a407b73a911cb7826e83a857",
+            "size": 1542
+        },
+        {
+            "path": "application/views/portal/home.php",
+            "hash": "9d682ae2fd097034f3cb4940cee824298c20d45d6f5f31737b6ea4342ab5e636",
+            "size": 1519
+        },
+        {
+            "path": "application/views/portal/progress.php",
+            "hash": "1ebd294d38886769a411ab0b6f98e9b95f87436213d750496a1da31806b7ef0f",
+            "size": 1176
+        },
+        {
+            "path": "application/views/portal/feedback.php",
+            "hash": "c0977b317abb7be31ae80362f48f3a2656b23b39dc407d720ebaae7a60832e77",
+            "size": 1373
+        },
+        {
+            "path": "application/views/portal/bill.php",
+            "hash": "d07484196077b32df787f8545a12e31a679e502064fc88ed1826e465c15035d9",
+            "size": 2137
+        },
+        {
+            "path": "application/views/portal/invite.php",
+            "hash": "32131b140a7011fd944007f1b3c05c02bf6b41715a5e4d27a12b4b6be19fb3f9",
+            "size": 821
+        },
+        {
+            "path": "application/views/portal/bills.php",
+            "hash": "94e703b21d96f74dbe9c79867a57b7c837e053d349a72d46f57f6f1a7a66bbdc",
+            "size": 945
+        },
+        {
+            "path": "application/views/portal/documents.php",
+            "hash": "9adf985de1f681aa5a13fadec6cb651c7442d39a445a55e50a33ba5fffc37f44",
+            "size": 686
+        },
+        {
+            "path": "application/views/portal/denied.php",
+            "hash": "439e7ffbb023fe2b2ff22c5689c51c54f4d42adedac3af6342af630ee60e14ca",
+            "size": 364
         },
         {
             "path": "application/views/modals_pos_payment/modal_payments_multi.php",
@@ -3178,9 +3854,14 @@
             "size": 16785
         },
         {
+            "path": "application/views/physio_dashboard.php",
+            "hash": "7f2a13463f2c3e823186336c856260ee773d1fa11a6a0c839363e42b19ccc0a9",
+            "size": 9086
+        },
+        {
             "path": "application/views/mp_sidebar.php",
-            "hash": "7295586fdc9fd0c65e782cb84f79c170e62fbdbecf6a40c003fb96077d296c2c",
-            "size": 73100
+            "hash": "3767a5f80ced9edceb136d6630314f4c5546e09737a31b73ed2ff61a1bb6627f",
+            "size": 73866
         },
         {
             "path": "application/views/report-stock.php",
@@ -3204,13 +3885,18 @@
         },
         {
             "path": "application/views/role.php",
-            "hash": "924297b7389c98eea8a0e56c854575285e83f1663d8f2ba1eb2d01b07b043542",
-            "size": 152170
+            "hash": "677bbdfe7ba31398ae400375495eba1ac40eb3a5d27d07c855c818f3e3031dcb",
+            "size": 152908
         },
         {
             "path": "application/views/report-supplier_items.php",
             "hash": "4dfc3cf359991182cfa1588a52f6fec334ee478414f7b3632c981dbda973b2d5",
             "size": 9541
+        },
+        {
+            "path": "application/views/assessments/form.php",
+            "hash": "30255df01729938680ad3972c14ee60fce816a7794b65a09379288ed8150cc5d",
+            "size": 8646
         },
         {
             "path": "application/views/ninverify_usage.php",
@@ -3224,8 +3910,8 @@
         },
         {
             "path": "application/views/mp_layout.php",
-            "hash": "f0674af7da7c543cd6454f825e70428f0219ff5d20713af2304552b7f072878e",
-            "size": 6063
+            "hash": "d3794dda319a1f77124bc7b3cd5243d4f795ae2ac9d6e9a3e871f5c7aaf4a11a",
+            "size": 6262
         },
         {
             "path": "application/views/idle_lock.php",
@@ -3314,8 +4000,8 @@
         },
         {
             "path": "application/views/sales.php",
-            "hash": "3d4a8a6e81c44706e14a53c18e2a415db6c3762a3bd7b2e8a0b9a3624a4ba9cc",
-            "size": 60361
+            "hash": "bf748ce4d455c23dcc83ccaafa0f6971e372db9485f34345b02f5bf837c12d49",
+            "size": 58464
         },
         {
             "path": "application/views/sms-template.php",
@@ -3324,8 +4010,8 @@
         },
         {
             "path": "application/views/tax-group.php",
-            "hash": "b6eecc341951b48c604f6f545a9d5befd6bf9a032ceb19892f254c2807e6f509",
-            "size": 7377
+            "hash": "7d9fce8332316a920f16b65a20b9c6b8ed8729b12c1867c3c24e1a056555d808",
+            "size": 7125
         },
         {
             "path": "application/views/vehicle_data/index.php",
@@ -3369,13 +4055,13 @@
         },
         {
             "path": "application/views/mp_footer.php",
-            "hash": "139d59343171e6205c66f8568196d83a46ef9aecc2b67ffc7b34d146c818d69b",
-            "size": 21506
+            "hash": "630971f0ee39cf52d310b64d4ad47fc189cb0d82bbf18f58a141c26d78f8ffd3",
+            "size": 23388
         },
         {
             "path": "application/views/cashier_shift/manage.php",
-            "hash": "abf602584fb44379442f00deb464d43a17dd3ca270c87c88f28316fec48d46c1",
-            "size": 9586
+            "hash": "daae039cd41c519bf1eab1078c120aa912b42d7d40854ef0782193be8fa3cb71",
+            "size": 5862
         },
         {
             "path": "application/views/cashier_shift/pos_modal.php",
@@ -3384,13 +4070,13 @@
         },
         {
             "path": "application/views/cashier_shift/view.php",
-            "hash": "c37aa2ea1304617077e73737f23f9955a392824762f02bfd04d224a7f072159a",
-            "size": 7476
+            "hash": "b01ae5bbbc1b73271831554b86aae404997629014088c73205e296c1f9521689",
+            "size": 6400
         },
         {
             "path": "application/views/cashier_shift/close.php",
-            "hash": "1d10a773a8ecb4d90acbeb83d06c93c69512f43d07033834ff3efc2de277ffdb",
-            "size": 13484
+            "hash": "895413034e8acab25f8123ce4c31d348328aabe91ebc231e92ebd20ff1e27d6b",
+            "size": 11476
         },
         {
             "path": "application/views/rightbar.php",
@@ -3408,24 +4094,39 @@
             "size": 4739
         },
         {
+            "path": "application/views/patients/portal_access.php",
+            "hash": "336aeaaf3a28234f364b454fbaaa146d779ea857e2447cf54911ad82fcc2d701",
+            "size": 8935
+        },
+        {
+            "path": "application/views/patients/profile.php",
+            "hash": "f9be146e3cc1c4613498f235fa034de8acf76ba425157096e536478af29f721a",
+            "size": 13312
+        },
+        {
+            "path": "application/views/patients/index.php",
+            "hash": "d53ad29238a5f0729130e9e83b1a6b18b66926376ca60844d8351a82c470b712",
+            "size": 19495
+        },
+        {
             "path": "application/views/sales-list.php",
             "hash": "669417f47f2aca6dcd3a047eb9490d892b1c2a143221494ca0f87738a3b3f3bc",
             "size": 12197
         },
         {
             "path": "application/views/variants/matrix_builder.php",
-            "hash": "5cb0ad3242b677962cccd30bd0106a45cb8bfe5a81dabb91a0a928a1998d44b1",
-            "size": 6035
+            "hash": "ac1986cf0088411996e191b57e2e8b010aa4ca271599d3a20737ec332c7d0458",
+            "size": 6282
         },
         {
             "path": "application/views/variants/variants_list.php",
-            "hash": "1c9e7671d1659ff014a13e222c6d89f16dd9fb83fc9e5de74fc94633a7da303d",
-            "size": 6485
+            "hash": "942175b923cdc52d05fe6d6c4724c5006e606efc66cf0313e6d454ca9a666180",
+            "size": 5674
         },
         {
             "path": "application/views/variants/variants.php",
-            "hash": "e88f99f7f8ba0c40c14468f9303a5fccf63cc0e970763c6f365e5ef450e1a440",
-            "size": 8775
+            "hash": "722b2df3d3b6c7743f5c2825b22dde436c0b7c8b751d5435cb66865e98358236",
+            "size": 8512
         },
         {
             "path": "application/views/central_dashboard.php",
@@ -3446,6 +4147,11 @@
             "path": "application/views/mp_purchase_return.php",
             "hash": "abcb757f8d92230469897502976188be8b41cc188c887a12ff750df292c09b76",
             "size": 34759
+        },
+        {
+            "path": "application/views/investigations/index.php",
+            "hash": "a049223bf4af609baed7d462ee3d3cea3723e010242d1c19d77bf2a9998cf6cb",
+            "size": 6161
         },
         {
             "path": "application/views/payment_modes_list.php",
@@ -3554,8 +4260,8 @@
         },
         {
             "path": "application/views/operations/production_batch.php",
-            "hash": "a56b057ea0b50348e13794388d516fe99ab51af4edf8317a324cae65e789cfbe",
-            "size": 26759
+            "hash": "9dbc5c8f4ccb742fae33bcc305a99008adff472366d2503c75646122b8929ef3",
+            "size": 25712
         },
         {
             "path": "application/views/operations/custom_order.php",
@@ -3769,8 +4475,18 @@
         },
         {
             "path": "application/views/items.php",
-            "hash": "95151874f53bc7ec2a492b37ff3d8665fe63744f9e9d483f6cbd93ee3ad197f8",
-            "size": 86830
+            "hash": "6681f1ad6005ccf292c5615b7fe9c6ee5d6c8cd944f45c3b152f8636edfc375f",
+            "size": 86848
+        },
+        {
+            "path": "application/views/imports/batch.php",
+            "hash": "af850903b0b8241eabac679419f76d93f36b877c5e2eff398b56a494acc54c54",
+            "size": 5827
+        },
+        {
+            "path": "application/views/imports/index.php",
+            "hash": "b122f84baecb5ff5568275ccbcb08795c2ef951236b45040b9b7d90d7917780c",
+            "size": 5680
         },
         {
             "path": "application/views/sales_payments/list.php",
@@ -3829,8 +4545,8 @@
         },
         {
             "path": "application/views/help.php",
-            "hash": "6de0f42ecbd9f2977fd0e836c925c3204e52e3ffe4ef5b451f9d77b689c2fb96",
-            "size": 6474
+            "hash": "797a1ab446b49fde17e93f97a072ecc48a04317481acc5d6bc316a8b31bd5bab",
+            "size": 5518
         },
         {
             "path": "application/views/print-cust-payment-receipt.php",
@@ -3919,8 +4635,23 @@
         },
         {
             "path": "application/views/tax-list.php",
-            "hash": "13ef810e606c5a10bcc5ec1170ec468f8e2ad238eb11ef408462d675bbbce564",
-            "size": 10723
+            "hash": "edabde7b15ef704b8042caa58be8ea32553a52866b39da8d36103f77f7e8765f",
+            "size": 10232
+        },
+        {
+            "path": "application/views/treatment_plans/view.php",
+            "hash": "c3c7028fe0db60f7fe994d3a984d6e2660c45e094871f4f64d2b9215c83f847f",
+            "size": 9134
+        },
+        {
+            "path": "application/views/treatment_plans/form.php",
+            "hash": "6c8d75e9c553f71ccae4392f29f91a173da38cb20eac80cabcc7ff224667fec0",
+            "size": 5701
+        },
+        {
+            "path": "application/views/treatment_plans/index.php",
+            "hash": "1ab62798966ad491ee357012ff21485b2134b84fae1b3acbb9d6eb4de22d65c0",
+            "size": 2637
         },
         {
             "path": "application/views/subscription_suspended.php",
@@ -3929,8 +4660,13 @@
         },
         {
             "path": "application/views/system-updates.php",
-            "hash": "cea3c6f14e54e37363a0d552eeb994a2c1c93d9ca4bedc1ea4efbc45552c29c6",
-            "size": 23019
+            "hash": "28622ac49c53bdfaac10e6c4b175173b4ea719dee01e28c804bc687d43be2764",
+            "size": 21467
+        },
+        {
+            "path": "application/views/print_layout.php",
+            "hash": "44560844807d1bfde4f7e939ea763e1ff9dc8cde056bfb59df91da923052109e",
+            "size": 2558
         },
         {
             "path": "application/views/purchase-returns-list.php",
@@ -3951,6 +4687,16 @@
             "path": "application/views/customer-packages.php",
             "hash": "f2358c98cab5c95489fb698f53e36890a8679a51f97476a1faa049d81b58b3ed",
             "size": 9178
+        },
+        {
+            "path": "application/views/sessions/index.php",
+            "hash": "2fd0764830d5ba9f49941db953ff62cc5021b1ff50d884b2694c0fd8dba31b8e",
+            "size": 3399
+        },
+        {
+            "path": "application/views/sessions/ticket.php",
+            "hash": "71792e91420fc651c145884e87ef6cd9c8d22c9c5f8b4a28f26a37198e670a8c",
+            "size": 2024
         },
         {
             "path": "application/views/category-view.php",
@@ -4009,8 +4755,8 @@
         },
         {
             "path": "application/views/pos.php",
-            "hash": "a4511de48c99027d22efb550c9b3823cc78039691a37b3ef053dbad213592c70",
-            "size": 128820
+            "hash": "cce56dc9176a5fa1698ec59ce2d24e1bc4196c6e73cf9bef9a56ea5295ceb3ed",
+            "size": 128607
         },
         {
             "path": "application/views/report-inventory-aging.php",
@@ -4053,9 +4799,39 @@
             "size": 6466
         },
         {
+            "path": "application/views/patient_funds/statement.php",
+            "hash": "c614de07150e1fe879a610b71dd04fc5506cc2faa14f4ff8c538c2dc1af8f9cb",
+            "size": 4579
+        },
+        {
+            "path": "application/views/patient_funds/openings.php",
+            "hash": "a22e7ff56fa1d6a888f7a4c81494eb58a724ce9c692416fbc04f5de5e927ac39",
+            "size": 7324
+        },
+        {
+            "path": "application/views/patient_funds/picker.php",
+            "hash": "bc90293e15d48e62667f9f1f70e6533584dc30d76e12105314248a4e39ddc705",
+            "size": 3949
+        },
+        {
+            "path": "application/views/patient_funds/index.php",
+            "hash": "41c0e837357cfdd140cfb649ee0982c9937a5759b618c9ea8122f364ba8524d6",
+            "size": 9247
+        },
+        {
             "path": "application/views/report-sales-item.php",
             "hash": "d5e69022f91ef2f050792ddc5a44155960430c803207001d4c32419f69ca7810",
             "size": 12657
+        },
+        {
+            "path": "application/views/consents/print.php",
+            "hash": "7d529eb1d4f1ddca6bb8b1c41875154413f37028696624301d9f7f96c1c84eb0",
+            "size": 834
+        },
+        {
+            "path": "application/views/consents/index.php",
+            "hash": "1900a93b34dcf8f7da7b359cd907cb6226c75c35ad155caa91a5409c35240c4e",
+            "size": 5394
         },
         {
             "path": "application/views/expiry_settings.php",
@@ -4109,8 +4885,8 @@
         },
         {
             "path": "application/views/admin/desktop/roles_form.php",
-            "hash": "51805a1023cd3ef391fcc364c1b6b28f7f59d5084cff06f3f5763d5ab276a8e5",
-            "size": 22750
+            "hash": "56309fff2745c1f6efa7ddcccd0555832270a77e3b8039ccc45cbffcc2a1bb3d",
+            "size": 24502
         },
         {
             "path": "application/views/admin/desktop/crud_list.php",
@@ -4129,8 +4905,8 @@
         },
         {
             "path": "application/views/admin/desktop/_styles.php",
-            "hash": "fe61b6a2f2c14676c05e42ed1eb99787acb248e9cc758ba1e38e32013248d5fa",
-            "size": 22132
+            "hash": "f0072bb9176fb9558fcf0b4c5d47bfcbf0cff9cf8010bc8750d9f01c7cbe464b",
+            "size": 22571
         },
         {
             "path": "application/views/report-sales-payments.php",
@@ -4174,8 +4950,8 @@
         },
         {
             "path": "application/views/customers/desktop/list.php",
-            "hash": "778d3f617955bf2ce61153650cb1ee6a27357894d3bee1870e9cddc84e52e930",
-            "size": 8418
+            "hash": "6a581977888298171c6b33cc4421311cbc871cf5eeca33b57315fcd1457868b0",
+            "size": 8620
         },
         {
             "path": "application/views/customers/desktop/form.php",
@@ -4184,8 +4960,8 @@
         },
         {
             "path": "application/views/customers/desktop/profile.php",
-            "hash": "40b8ee54c5679f7497f9f3064289225c260f0e59ad6d749d7f0faffaeba5076c",
-            "size": 52316
+            "hash": "17351e33f5546546dcc4ac3defdcfad3776a3824fa74fcae94c1ee960b28ff93",
+            "size": 37891
         },
         {
             "path": "application/views/customers/desktop/advance_list.php",
@@ -4204,8 +4980,8 @@
         },
         {
             "path": "application/views/customers/desktop/import_customers.php",
-            "hash": "467eef79aa6358ff8b7ea8dcfdc9489b1a4a4a225bd4c734b8feff2b1bfa1004",
-            "size": 7517
+            "hash": "1063618549c34eb45a9c370fba3ab9d6191611032e67af4143ff1045d016a226",
+            "size": 13902
         },
         {
             "path": "application/views/email-schedules.php",
@@ -4239,8 +5015,33 @@
         },
         {
             "path": "application/views/site-settings.php",
-            "hash": "f982101bc493d151adee52c609d2f25705a0f39f11802d9466a809d38b22807d",
-            "size": 14985
+            "hash": "e3547a38c03920434fe293c8e153c71b39f663585fab588b38aec150c3c46300",
+            "size": 16391
+        },
+        {
+            "path": "application/views/assessment_templates/edit.php",
+            "hash": "8cd2bf189c5a46d611ee8827dc418619254c4ef44638d7accc6ff35d93aa5876",
+            "size": 2914
+        },
+        {
+            "path": "application/views/assessment_templates/preview.php",
+            "hash": "d3cd0928704f78d0fb736d2a2554361df820da92e270f38cd05f6266f75a8e78",
+            "size": 1285
+        },
+        {
+            "path": "application/views/assessment_templates/index.php",
+            "hash": "fb097169319acd1c603c64f05bd1f7767380de27df395e8d80527d49d8448b31",
+            "size": 4471
+        },
+        {
+            "path": "application/views/appointments/index.php",
+            "hash": "20e36c326196fa7bfdcb738af1b51e62c12e405c6242b1515a07c8bacd9c7699",
+            "size": 13842
+        },
+        {
+            "path": "application/views/release-builder.php",
+            "hash": "a32091e7703e30590a0d33deb5036463f115b46cc53b89539174efaa427dd5b3",
+            "size": 3039
         },
         {
             "path": "application/views/accounts/money_transfer.php",
@@ -4284,13 +5085,18 @@
         },
         {
             "path": "application/views/accounts/cash_ledger.php",
-            "hash": "77b9ab6d47c2bd5c47681629a636759eea93ea3304b09cebadd0cf9b426fbf4d",
-            "size": 17986
+            "hash": "75295f74422c18296ef52a449a4526f4a8bd3d29bdec4ce8d557c55a6e2623a0",
+            "size": 16454
         },
         {
             "path": "application/views/tax.php",
             "hash": "6de990a870c995739973ae7225ec44932b05e4cb2b84225c64cc66fb67cf55a2",
             "size": 5477
+        },
+        {
+            "path": "application/views/physio_layout.php",
+            "hash": "259a280250251410d099d3efe8e779ddf5db9b8b88d61b2da358ec08c667f277",
+            "size": 47192
         },
         {
             "path": "application/config/assist_ai.php",
@@ -4313,14 +5119,19 @@
             "size": 3046
         },
         {
+            "path": "application/config/central.php",
+            "hash": "bdc44051c0433484fbd67a7d720532a3350bcde6101e16ef4e0f4ac89ef92514",
+            "size": 1023
+        },
+        {
             "path": "application/config/stripe.php",
             "hash": "b9499efb4cb7a88cee68e577f51d8f23bc301d9fe67dcb382f30ccc59dff9403",
             "size": 923
         },
         {
             "path": "application/config/autoload.php",
-            "hash": "6c1b2618423c8a905fca2c8874fdcc268b546ffc2a4883756ee96060db17ff3f",
-            "size": 4227
+            "hash": "ffcc400addbb150c89266341a3c7a934d31921bd91fa02c8fc448b91260ce1bc",
+            "size": 4236
         },
         {
             "path": "application/config/migration.php",
@@ -4338,9 +5149,14 @@
             "size": 2230
         },
         {
+            "path": "application/config/migrations.php",
+            "hash": "1bacced1b5ff24dff92ce684eba46eb7676a352b38fde0ca8bd518311295cb1f",
+            "size": 8466
+        },
+        {
             "path": "application/config/routes.php",
-            "hash": "ac4d78cc10d3434fc877ba57c46d431aae2e99226be1d5a83d4468ebcd487b30",
-            "size": 8240
+            "hash": "0d1fcf7ba26aa798fd8a1efbd304336e0cc7bebb347c405a77e537ee1e33c5a9",
+            "size": 9478
         },
         {
             "path": "application/config/smileys.php",
@@ -4533,19 +5349,24 @@
             "size": 21277
         },
         {
+            "path": "application/models/Consents_model.php",
+            "hash": "1bf4b014ef75f6eaa1dbc8d79ccac8dc0b9c6db3cda5c89bfbc12767248ab7d1",
+            "size": 8673
+        },
+        {
             "path": "application/models/Users_model.php",
-            "hash": "23a270bc355483eedde6c86042fa8dd062c9902b6c71469953545de5f2185b6d",
-            "size": 14572
+            "hash": "14f1003fdbeed2181677b65b9e63366228b70169507d1b3f5e74d3b801f8dde1",
+            "size": 16180
         },
         {
             "path": "application/models/Gateways_model.php",
-            "hash": "40cc0a9eb30493c77973788e31a9b20b872051102dc044163e3c43c7f793386a",
-            "size": 44872
+            "hash": "34d4e61c2ba38d98f03caa2f4227115ea63f44d523f0b433a05e4870122b3319",
+            "size": 44896
         },
         {
             "path": "application/models/Custom_orders_model.php",
-            "hash": "4e5b7db092f25db3d2a3e9858b989857b60f347a3a583739822302e141529301",
-            "size": 9297
+            "hash": "e08b8ade8e0f63119ef989c08846ebf152baf851772f3d730472eac4a487ffad",
+            "size": 8828
         },
         {
             "path": "application/models/Fivemojo_model.php",
@@ -4569,8 +5390,8 @@
         },
         {
             "path": "application/models/Customers_model.php",
-            "hash": "168e9d0256f3acf4bdc9a0779d8f3c0409255798a42e68b8b2a20b8c9702dac8",
-            "size": 66477
+            "hash": "a3a779d9c6e709b82a91f64f5fe65645087b64590eb187615785125418d663a2",
+            "size": 66557
         },
         {
             "path": "application/models/Installments_model.php",
@@ -4583,6 +5404,16 @@
             "size": 16500
         },
         {
+            "path": "application/models/Imports_model.php",
+            "hash": "2363e7d10785cce2a1c55d5f02bc5cf268243c2941bdebacf74313740ab48b41",
+            "size": 22002
+        },
+        {
+            "path": "application/models/Patients_model.php",
+            "hash": "9eb6d174708db644836724f1536991a3885924aedd4ce9e6ff7d1b47c5c8d590",
+            "size": 14111
+        },
+        {
             "path": "application/models/Subscription_model.php",
             "hash": "92844501e29ef2c23ca3edb9ec79a49a91abe0b8a98b44e9de5554cab7dbda97",
             "size": 7403
@@ -4593,14 +5424,19 @@
             "size": 9500
         },
         {
+            "path": "application/models/Appointments_model.php",
+            "hash": "1c68f1b30d98c04d9577155173940148b0f040420d824a044dc0095a2491e111",
+            "size": 10186
+        },
+        {
             "path": "application/models/Debt_reminder_model.php",
             "hash": "ae10d0db3021500d82fafcf48b6f29c94a79a0bc26299afe3c06461fac8fccc7",
             "size": 9730
         },
         {
             "path": "application/models/Quotation_model.php",
-            "hash": "2961bcbf26437e61ab029260e0ae08874f59aec9dfa60f780c10b71862e2e233",
-            "size": 29628
+            "hash": "40fc55c3f013aa3f53c275018737b39814736c5fb874592df61a83a198bac684",
+            "size": 27698
         },
         {
             "path": "application/models/Stripe_model.php",
@@ -4634,8 +5470,8 @@
         },
         {
             "path": "application/models/Suppliers_model.php",
-            "hash": "548f9ad8ea2f569624d6589cf60e921d6acf380eef2a265452d0cb8dffdc35f9",
-            "size": 50614
+            "hash": "b24e2cefe3be004f6941c521ce3a851f711498561ad744d0a5deca67e1ed2361",
+            "size": 50638
         },
         {
             "path": "application/models/Email_settings_model.php",
@@ -4649,8 +5485,8 @@
         },
         {
             "path": "application/models/Purchase_model.php",
-            "hash": "f0f67f908b6044cc922e1a9ce975561a95f69b7f73fbe50fc246bafaf312c996",
-            "size": 82918
+            "hash": "dd321979633c9208d0b154dc22a9861665f7fb85d1cec75bdc3ae90de0b80927",
+            "size": 76752
         },
         {
             "path": "application/models/Services_model.php",
@@ -4673,9 +5509,19 @@
             "size": 9230
         },
         {
+            "path": "application/models/Treatment_plans_model.php",
+            "hash": "ce80af5a040cfd5805d1500cf69fd8264d9e58948a8bbe6708ff37c2c4c0f436",
+            "size": 8381
+        },
+        {
             "path": "application/models/Tills_model.php",
             "hash": "b5cf98caf7206c092981222e2af5cb9c3ba1d55fa59dc03fd882646687661ecd",
             "size": 3016
+        },
+        {
+            "path": "application/models/Payment_reconcile_model.php",
+            "hash": "6786a2f5efaa0f5e52951379f159caf9be9fd364531590eedb7b3168d67fcd26",
+            "size": 12074
         },
         {
             "path": "application/models/Tax_model.php",
@@ -4694,8 +5540,13 @@
         },
         {
             "path": "application/models/Pos_model.php",
-            "hash": "37340aab00a5054828e1654977efb239541943d90c097444b0962399de17189c",
-            "size": 75937
+            "hash": "1e662ddb44062e94d5410bda64dede24c15277bc428eec59ee862945ed8f0cba",
+            "size": 77951
+        },
+        {
+            "path": "application/models/Patient_billing_model.php",
+            "hash": "db7c9f74cf872913ae2c6cc7dbc26865777ca768af2aad491575561aa7ef2cc2",
+            "size": 22806
         },
         {
             "path": "application/models/Treatment_notes_model.php",
@@ -4704,8 +5555,8 @@
         },
         {
             "path": "application/models/Sales_return_model.php",
-            "hash": "4bf70158e1bf275656af13c2f2f8b4735a14dd6bcb728578f36e854ab77e034d",
-            "size": 62157
+            "hash": "ab4e276224c915eb0acbd9a159f45ee393173f1849463fb99b0f372aa44f6903",
+            "size": 62193
         },
         {
             "path": "application/models/Email_model.php",
@@ -4728,9 +5579,19 @@
             "size": 17190
         },
         {
+            "path": "application/models/Sessions_model.php",
+            "hash": "cb9b2aa977af920ddc1c111852eab21b15b0b29b1fb8b9b01e9a69b5832224cd",
+            "size": 23892
+        },
+        {
             "path": "application/models/Money_transfer_model.php",
             "hash": "dae7bde5030230d4da23f112d7e1b3e1d81c9d8ff3e7f94bdc0c3071b3a60a5a",
             "size": 9465
+        },
+        {
+            "path": "application/models/Investigations_model.php",
+            "hash": "b0da32fdf4116a32d7d93425fd2dfd2f6873225f767f8a93d7dddaf476115f0c",
+            "size": 12895
         },
         {
             "path": "application/models/Send_email_model.php",
@@ -4739,8 +5600,8 @@
         },
         {
             "path": "application/models/Site_model.php",
-            "hash": "c61062d3b448d0cff82366eecf236d93fdb0b544595943400e49a0549785b770",
-            "size": 5059
+            "hash": "07d0b82943952097dabb2d756b336c529bbded216590a07e2d90bf5e0bcbfe30",
+            "size": 5765
         },
         {
             "path": "application/models/Templates_model.php",
@@ -4758,6 +5619,16 @@
             "size": 7213
         },
         {
+            "path": "application/models/Portal_model.php",
+            "hash": "bc61a6f1f2de63de05db23f7911782f61161d8cf7eaf14445962b10dba9ed9d9",
+            "size": 30741
+        },
+        {
+            "path": "application/models/Encounters_model.php",
+            "hash": "17faecfbc4483e1522565f39242a3202c318d384c6bdd4ee4ed697d12cc80c00",
+            "size": 18555
+        },
+        {
             "path": "application/models/Tax_group_model.php",
             "hash": "6be0ddadbc0af5245248ee86a470ea6e0ad37dd82f6831c52c100f0eaa5a5d4d",
             "size": 6123
@@ -4773,14 +5644,39 @@
             "size": 11020
         },
         {
+            "path": "application/models/Sh4_source_model.php",
+            "hash": "3dcffb5e2a4b01ccf84a6a4c8d9493de80ccdae10e6127a0abef33fb9be54f44",
+            "size": 13584
+        },
+        {
             "path": "application/models/Warehouse_model.php",
             "hash": "0c700485cc41f19dadd1588e635919f2a28abe309572a417a290104836f1d8c0",
             "size": 12435
         },
         {
+            "path": "application/models/Assessments_model.php",
+            "hash": "530796044cdaba2fc3f7ccaee255a6c355f2ab1ac15d750986ac004247d39fa8",
+            "size": 13853
+        },
+        {
             "path": "application/models/Items_model.php",
             "hash": "cfc56c004fec3c029f7dae724989d064766a25c29740c8530ff164cfacc6b98a",
             "size": 76840
+        },
+        {
+            "path": "application/models/Printing_model.php",
+            "hash": "ed605054386510b7aec66327d068a0e063997792bd4d01ac6d2913f7513dbfb5",
+            "size": 187500
+        },
+        {
+            "path": "application/models/Reviews_model.php",
+            "hash": "af3ad965bc31551ff10caf1164ed62b9f8ab84dd8d0cc0f9816e04c6a11d0346",
+            "size": 9568
+        },
+        {
+            "path": "application/models/Inpatient_model.php",
+            "hash": "56da2669861efbad9d3cb67a8c81e9c5eb731fec757e721e87ed73434b1f165f",
+            "size": 57704
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
@@ -4789,8 +5685,13 @@
         },
         {
             "path": "application/models/Delivery_model.php",
-            "hash": "1cc363de034b7120a0ec5bea316dd2e1ac495513895dd718dcf36bbc60992b60",
-            "size": 14136
+            "hash": "c35a077c9a5d481fd709bd900f970c979444979b8438f177aa2ab382da45c865",
+            "size": 13750
+        },
+        {
+            "path": "application/models/Debt_reminder_v2_model.php",
+            "hash": "a534359e6e32da95a03e45b278b68f41fc4c71792f81301f6d4b973141d7e46f",
+            "size": 18091
         },
         {
             "path": "application/models/Monnify_model.php",
@@ -4814,8 +5715,8 @@
         },
         {
             "path": "application/models/Dashboard_model.php",
-            "hash": "963077ead5b30e7aea3d26b756ee42c1b2f257564e4b8da8a708ab673def926f",
-            "size": 59748
+            "hash": "c7408afbce65fdc30afb7be88df173c4177459bef20f72d13f15394dbe07e1f0",
+            "size": 59754
         },
         {
             "path": "application/models/Membership_model.php",
@@ -4834,8 +5735,8 @@
         },
         {
             "path": "application/models/Paystack_model.php",
-            "hash": "c3b4d1a70e79d0961e3fcb14581ad1d7ca8c77ae38f9e82256b8a7054fc7bd02",
-            "size": 7513
+            "hash": "045067fe41ba69e26106960cf4cd795d22b0bf53b37cf6a71ddbdd57eca32211",
+            "size": 8395
         },
         {
             "path": "application/models/Subscription_license_model.php",
@@ -4844,8 +5745,8 @@
         },
         {
             "path": "application/models/Leads_model.php",
-            "hash": "52881e469230e8d71d4cb8d90483110bf29b05fd9141718692b53e3f4b82ab3e",
-            "size": 4010
+            "hash": "cc3a308d44bdacae874919652ecbd2b322c494204dd80ed7c19feee305c5e1c7",
+            "size": 8845
         },
         {
             "path": "application/models/Store_credit_model.php",
@@ -4853,14 +5754,24 @@
             "size": 7844
         },
         {
+            "path": "application/models/Patient_statement_model.php",
+            "hash": "7d9b7902571b226482cc538a6bedc7dd999c2f25f15e9e3e33125359f7b92937",
+            "size": 5983
+        },
+        {
             "path": "application/models/Promotions_model.php",
-            "hash": "a460cc4db6f82be18c179b16f1c491762c8d863aa5640b6c867774ad4ca0be1a",
-            "size": 13984
+            "hash": "e77afb732ce9f5bb19b3eb2e7ddc8b249905a75a76d1b27ef7d3850fe74f6320",
+            "size": 16168
         },
         {
             "path": "application/models/Medical_notes_model.php",
             "hash": "c7927c360bfcebb14314dea8c23326837943da86a1c7fa23c72480a9e1f5c77c",
             "size": 8885
+        },
+        {
+            "path": "application/models/Marketing_model.php",
+            "hash": "0ffa673c737fb0a9aa2072526f3b9f0ec083cdaed3759bd47d1c255cf8a6adfb",
+            "size": 19659
         },
         {
             "path": "application/models/Item_selling_units_model.php",
@@ -4879,8 +5790,8 @@
         },
         {
             "path": "application/models/Purchase_returns_model.php",
-            "hash": "cacf27f808c612b6167af72773f910176c190531f36c0d0aec31143b7f86b23a",
-            "size": 51824
+            "hash": "6a099364c6f15bad6514bcbe72ab721ac70e81d6eb85029d99a984af37687138",
+            "size": 51860
         },
         {
             "path": "application/models/Attributes_model.php",
@@ -4896,6 +5807,11 @@
             "path": "application/models/Package_model.php",
             "hash": "553bc073a14e7b83321cdc46afd13a1815ae612031dfb866f35746192a96f3fb",
             "size": 14058
+        },
+        {
+            "path": "application/models/Reports_clinical_model.php",
+            "hash": "e32cea0df35f1d29c564e69f87e675bbfa87ee70021643ce1d0ed18e40ee65a0",
+            "size": 49150
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -4929,8 +5845,8 @@
         },
         {
             "path": "application/models/Login_model.php",
-            "hash": "7673d344a654b59f8a062222ad92e5a7f97d083b161780e2eb3e1aec133f6081",
-            "size": 9041
+            "hash": "613b9ffdb71d8ff7cf60da8c1ad6eda15f37df8bf4cde7ece2336c2f01920d48",
+            "size": 8720
         },
         {
             "path": "application/models/Expense_category_model.php",
@@ -4939,8 +5855,8 @@
         },
         {
             "path": "application/models/Approval_settings_model.php",
-            "hash": "f77bed28ce099ae9e4f1b400bf7e6678a70eefd6c43a244f0d9d5b3bb62e9caa",
-            "size": 5685
+            "hash": "4ed03f4126e49be6fd6025c0151881ab56ffaa8f08b90fd519c6939a2a51f82c",
+            "size": 6193
         },
         {
             "path": "application/models/Stock_transfer_model.php",
@@ -4951,6 +5867,11 @@
             "path": "application/models/Email_log_model.php",
             "hash": "3c87d10d9c1f96d0a8e3d1ece45a79da12d68ff42e50393fd515075d42355fe5",
             "size": 3698
+        },
+        {
+            "path": "application/models/Extras_model.php",
+            "hash": "96a24518c772eb4a66051aecf11e27865b7f0aff168df93541de3776b1269b8e",
+            "size": 20379
         },
         {
             "path": "application/models/Accounts_model.php",
@@ -4974,13 +5895,13 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "3e611f0b0a409f60cf2393a61a6f90695a32054972d6381f6688af348b5661e5",
-            "size": 4449
+            "hash": "6d0d0c7b45edb95bffdb188d98d9f5a9f21c995501c2104820f6cb62c07d2c77",
+            "size": 9903
         },
         {
             "path": "application/models/Production_batches_model.php",
-            "hash": "0bf99e116433386d592a60f3f7eb6ad9f19732e2e8823ac7083d9454769d1999",
-            "size": 22180
+            "hash": "a215b102f7de8c2c148ae12190147607da2b8c1c1cbaa6a31fcfee0688ea6a24",
+            "size": 21607
         },
         {
             "path": "application/models/Email_service.php",
@@ -4994,8 +5915,8 @@
         },
         {
             "path": "application/models/Approval_logs_model.php",
-            "hash": "f0c32bf566a7febc7cf6f0888c4d2ff59b9a5716302571fb5d8757c273813781",
-            "size": 3058
+            "hash": "dcd5f212a7313e097d157786fc0ea3a9dcb184412a21e8048e5de81c564f5715",
+            "size": 4181
         },
         {
             "path": "application/models/Automobile_model.php",
@@ -5013,9 +5934,14 @@
             "size": 10498
         },
         {
+            "path": "application/models/Patient_funds_model.php",
+            "hash": "c6541ccd86f0d6905c1a503bde7501bc098a3cea023543865c193a12598384c3",
+            "size": 40802
+        },
+        {
             "path": "application/models/Storefront_model.php",
-            "hash": "d7664db890e6783ef1de34559fc4a36be7b5de0076d290ba021cb46dbc6c0098",
-            "size": 88957
+            "hash": "439aaf2d4330ec804252f40afd223645e69def9e3bfd6847c5cb854401260650",
+            "size": 109588
         },
         {
             "path": "application/models/Subscribers_model.php",
@@ -5029,8 +5955,8 @@
         },
         {
             "path": "application/models/Sales_model.php",
-            "hash": "5a49b26328f1cf6e2c8dfd4fcc065639fbdc489e10f6d925b12cf6d27bc4071a",
-            "size": 94310
+            "hash": "b3246bfe1a92cf2d6267ccf50b5ba9b09b8f3593416ea028ad65363e4c410bf4",
+            "size": 95655
         },
         {
             "path": "application/models/Butchery_model.php",
@@ -5039,8 +5965,8 @@
         },
         {
             "path": "application/models/Roles_model.php",
-            "hash": "bb7b47fe1cab90183d8d23e1a2d258005ef288a19c879a4c91e86eca1a87d3de",
-            "size": 23300
+            "hash": "fbcadd635465cd4d6a5cb81918685ceb67bc71e7e31a3a6a7869cbdb24a09721",
+            "size": 26907
         },
         {
             "path": "application/models/Business_profile_model.php",
@@ -5069,13 +5995,18 @@
         },
         {
             "path": "application/models/Default_data_model.php",
-            "hash": "e2203a3c27086f95be221990e3523ab3acd6a7a447030982a6e6a066247f3059",
-            "size": 95713
+            "hash": "b89e8a7764ff6ca061259fde89e71c6285f6aaae9c1cd8a36f64e793d285b4e1",
+            "size": 125671
+        },
+        {
+            "path": "application/models/Patient_docs_model.php",
+            "hash": "88ee02806a5ace2909232f232bb083a07d2f59f91fa7abc63702d83766367572",
+            "size": 10902
         },
         {
             "path": "application/models/Reports_model.php",
-            "hash": "d7afda6a01714290d3b63170c898f220f1135e784c4753960f7f76ea3fb06f2a",
-            "size": 167161
+            "hash": "7be89746f0dee40b0e62037211bb95f96dd5eee577006bc73103f350f3fe734c",
+            "size": 153741
         },
         {
             "path": "application/models/Expiry_settings_model.php",
@@ -5094,8 +6025,8 @@
         },
         {
             "path": "application/language/English/English_lang.php",
-            "hash": "8ecbdd0ce563b5515552cb8e7d0e2cb859ba7804932827e9a7043947fa76d429",
-            "size": 55530
+            "hash": "70227d120404c472c1390e8300badb066f96aa4f3bfd0d08103b9c4d304f3c04",
+            "size": 55646
         },
         {
             "path": "application/language/Russian/Russian_lang.php",
@@ -5123,6 +6054,11 @@
             "size": 7668
         },
         {
+            "path": "application/controllers/Printing_quote_evidence.php",
+            "hash": "89e9e66663e05e0affc3f2cc51538c8d35feba7ab0470ccc6b5558b049ac2530",
+            "size": 4433
+        },
+        {
             "path": "application/controllers/Features_brochure.php",
             "hash": "0903b4b0850fd27b5285d773bf22a4a6ca19702bd78ee0796d1e032886ca186e",
             "size": 15902
@@ -5139,8 +6075,8 @@
         },
         {
             "path": "application/controllers/Site.php",
-            "hash": "33ece405716863221a0b3a1d453fa5025087b169cd97818a39b9a97b310f0816",
-            "size": 4493
+            "hash": "1ae1c8a3bd745be6b667cb77fbffac8ad77b8a41c93b4d0b813c76ae66aa5688",
+            "size": 2631
         },
         {
             "path": "application/controllers/Cash_transactions.php",
@@ -5149,8 +6085,8 @@
         },
         {
             "path": "application/controllers/Variants.php",
-            "hash": "7569a3e19dda3e734d23ee0d5f2c44f5a3c7bdb8afbf921adbaec4403b4ba7f8",
-            "size": 5292
+            "hash": "050175c098ff83fda8a9d967add445209a39426f5d3c179a72a3753e9ad027ee",
+            "size": 5892
         },
         {
             "path": "application/controllers/Creator.php",
@@ -5169,18 +6105,23 @@
         },
         {
             "path": "application/controllers/Reports.php",
-            "hash": "25217fd53695e1d66e6ecb749b356ed138fe8ca3b7c932c162db66f7c0ce68fe",
-            "size": 20631
+            "hash": "35b2cce70477333a311bb67e0db85acaec419f1b089c5a4ba0a1d1377dd4c3ea",
+            "size": 17570
         },
         {
             "path": "application/controllers/System_updates.php",
-            "hash": "f627a467a1688cb233c2fba15fe9095dd939a06699a9170f4533544521956675",
-            "size": 13394
+            "hash": "adee86fb619cb753f6958b862df957b19fbbf7a8470c00430f35362f501b81bd",
+            "size": 7381
         },
         {
             "path": "application/controllers/Units.php",
             "hash": "c06c1291e9895fda29a414d1b23e114983879f9b8bc57493ec84d944bd81d3d3",
             "size": 8291
+        },
+        {
+            "path": "application/controllers/Verify_vitals.php",
+            "hash": "013f6b63c912bf995fc699505b7edae59160528574c6a60a96786a2597221819",
+            "size": 8030
         },
         {
             "path": "application/controllers/Pdf.php",
@@ -5191,6 +6132,16 @@
             "path": "application/controllers/Email.php",
             "hash": "b9d8dd9429601fa3588aa1a9fdc5c4e8826735336cad063e487e2d15ea3831cb",
             "size": 1300
+        },
+        {
+            "path": "application/controllers/Investigations.php",
+            "hash": "3b4fc5bd630be1cece57e66271f79073542b2da46c443e0c4bec67dba6227927",
+            "size": 8319
+        },
+        {
+            "path": "application/controllers/Treatment_plans.php",
+            "hash": "937a3b8259d24802c4757f8090c702dbf1480a5c5fe9176d56d32ec6a3561c69",
+            "size": 7245
         },
         {
             "path": "application/controllers/Skrill.php",
@@ -5204,8 +6155,8 @@
         },
         {
             "path": "application/controllers/Monnify.php",
-            "hash": "68bc815510f8953b935035532fa1dfee07d21ba6b62b086ed9ed21fa83de2d24",
-            "size": 12813
+            "hash": "703e35f54d21cc5fd93a1f3e6ad6ece0d42c7805cd733da701bff986afa0d289",
+            "size": 14802
         },
         {
             "path": "application/controllers/City.php",
@@ -5216,6 +6167,16 @@
             "path": "application/controllers/Permission_audit.php",
             "hash": "7a6dd038cd5291c98224f30783d17f4f12bf398698e7cffc4af8b3a26012fc57",
             "size": 7975
+        },
+        {
+            "path": "application/controllers/Manifest.php",
+            "hash": "dbf6bd984f52c406782617ad6603cb270e71da29778535e415b1310a37100e4f",
+            "size": 6937
+        },
+        {
+            "path": "application/controllers/Consents.php",
+            "hash": "53164593fcf4204fab16134e00d53b75bd38bafe5056680300b68989c5c56e64",
+            "size": 5656
         },
         {
             "path": "application/controllers/State.php",
@@ -5229,18 +6190,33 @@
         },
         {
             "path": "application/controllers/Business_profile.php",
-            "hash": "3ec270a82b778ab18733117b37febae374317593027092e018bceebc381f4a6b",
-            "size": 9269
+            "hash": "1b44caf604d4489988f6ea73a15bc823f51c34ecd9ad45996175e1780ead7bd0",
+            "size": 10996
+        },
+        {
+            "path": "application/controllers/Test_physio_acceptance.php",
+            "hash": "7caa086c562c0f158bd68b1c37cdf8771e7198668233f9ae0002046f846bab23",
+            "size": 58289
+        },
+        {
+            "path": "application/controllers/Quote_response.php",
+            "hash": "4b94f6639804c2085309d780d6589579de60f0ca523a287bac31caf176474946",
+            "size": 8150
         },
         {
             "path": "application/controllers/Quotation.php",
-            "hash": "d57a8d986ea332bfc6662a29abcb704576a99db001f975aff3e64fca95a70220",
-            "size": 10551
+            "hash": "ce36c990e28726218ce2ae306362556e04dae782ba019c9320e4687b067ed8eb",
+            "size": 10347
         },
         {
             "path": "application/controllers/Login.php",
-            "hash": "13a62bac38f5b7961695643f6ecc57dfda347187ec2439914003ed10d469469b",
-            "size": 6014
+            "hash": "d3cae40b571745904ef119fca9b5d8b461b1fe94b15896165b0032d144592bbd",
+            "size": 6736
+        },
+        {
+            "path": "application/controllers/Sessions.php",
+            "hash": "ccb23d0e4d52bc8bb10127f0a00ecda14b21df44ce7642ff99b15f19fb1c91e3",
+            "size": 8044
         },
         {
             "path": "application/controllers/Test_data.php",
@@ -5249,13 +6225,18 @@
         },
         {
             "path": "application/controllers/Butchery.php",
-            "hash": "9a3085a3a27a8ecf217aaf507a3b9b4d42226b7c0bfdce8d615d6fe9f9e84bf4",
-            "size": 8729
+            "hash": "960bfcd9cd9f9d0f51e2258bc2cd871f1657ebe353c9bc493a7c40ea2473577c",
+            "size": 8869
         },
         {
             "path": "application/controllers/Purchase.php",
             "hash": "c2d9d493e9d0e4e48efdde00f31df8edd75854a8987bf677670b94e2d81e3281",
             "size": 13225
+        },
+        {
+            "path": "application/controllers/Verify_isolation.php",
+            "hash": "88b878b03506497801832568b3c600b0792a6a9891a90e92ebc37866af0afc09",
+            "size": 4548
         },
         {
             "path": "application/controllers/Assist.php",
@@ -5264,8 +6245,8 @@
         },
         {
             "path": "application/controllers/Install_seed.php",
-            "hash": "afdacb6001cd3ce35cc554084fa7219e9b495cfd8f110f98a929e3942a100132",
-            "size": 12356
+            "hash": "da688e984261a8e05a60db45158652c6bc6ff285b3e9e9014c115737ee46ff39",
+            "size": 9962
         },
         {
             "path": "application/controllers/Customer_coupon.php",
@@ -5284,13 +6265,18 @@
         },
         {
             "path": "application/controllers/Perfume.php",
-            "hash": "555f5356964c83368a09b5040619777f31631f158d4b5743b9005153a8d8f9c3",
-            "size": 6320
+            "hash": "f558fcda8d81efec3a17f0c57bc2c9d8bdd15740ed67b25464ec65763447fd4f",
+            "size": 6468
         },
         {
             "path": "application/controllers/Dashboard.php",
-            "hash": "7ff295e9fd12db0a05dd48a5d06030d4775bf29dc356c3653940a48af17fe7a2",
-            "size": 23820
+            "hash": "55a5dec2750ac9d20895fe9264b548bb2510da1178d639e6061024d1cb023b4a",
+            "size": 32672
+        },
+        {
+            "path": "application/controllers/Feedback.php",
+            "hash": "38cb4285102881bb30a00713b59abeab632b86b9959d5cffe8faab7381869d24",
+            "size": 3171
         },
         {
             "path": "application/controllers/Promotions.php",
@@ -5303,14 +6289,24 @@
             "size": 5011
         },
         {
+            "path": "application/controllers/Care_queue.php",
+            "hash": "4075121402217dc4ade54634ee4baf18e5ba0e5b0f0a44f2a0c2ad26349ae91d",
+            "size": 11998
+        },
+        {
             "path": "application/controllers/Nylon.php",
             "hash": "f5ee41866ccae738248e7a6561b647476d8382d4cf104cc32787070cb6182a98",
             "size": 38703
         },
         {
+            "path": "application/controllers/Patients.php",
+            "hash": "f5c9a2217b5563bb233224fce3487c416bb4d2a5ba830dcf3b255771c1ff8a29",
+            "size": 14774
+        },
+        {
             "path": "application/controllers/Automobile.php",
-            "hash": "a74c8319808742e310906073b113d916a4c6bb6d818fd1a1c8e499a6b2beea58",
-            "size": 13341
+            "hash": "a5a0e4e8b151b0338c684e0b85a56bc51b207065ab24be4b7ef99b218bcf84cc",
+            "size": 13481
         },
         {
             "path": "application/controllers/Service_packages.php",
@@ -5323,19 +6319,44 @@
             "size": 4827
         },
         {
+            "path": "application/controllers/Clinical_reports.php",
+            "hash": "b01bd4277eed3e1eca7fd39881cc35bf17867085d0918c5ef2fe8af0e36bccf4",
+            "size": 15993
+        },
+        {
             "path": "application/controllers/Barcode.php",
             "hash": "a4d5ef1fd3614d52a5829c9c15b04ed1358c519a715e7c494138f208c57efff8",
             "size": 2013
         },
         {
+            "path": "application/controllers/Portal.php",
+            "hash": "67eb0f5e8f4a672c4141b564d813142c04ead3dc9b6b5ac5757306e419f90b46",
+            "size": 8495
+        },
+        {
             "path": "application/controllers/Logout.php",
-            "hash": "0d0a603f7ccc1fd478048a10f96528b55a0a1f8ed84265c24c5ff5d3d2be792a",
-            "size": 1997
+            "hash": "13d65f7a72379f3d656a72b2009d68066687068842050166541e9c7819d09e56",
+            "size": 2665
+        },
+        {
+            "path": "application/controllers/Reconcile.php",
+            "hash": "8ac19bf78b692533f9e02a6cf383894613c7b8abb5dc29b3e801f4ed0c8c89da",
+            "size": 2753
+        },
+        {
+            "path": "application/controllers/Tmp_history_probe.php",
+            "hash": "1e7a4dbe7ec8e7c4d055c750dc19b1e8c033fd3fea9a194d86e6fef5fd4d20be",
+            "size": 2368
         },
         {
             "path": "application/controllers/Online_store.php",
-            "hash": "91819ae74908b8015768c178d7aa96f8635aadaf40268f0337c82bb3b314516e",
-            "size": 87799
+            "hash": "8c717604a918234927aa230137b5489c9a33d1d55cf5541b483715898334ae89",
+            "size": 112690
+        },
+        {
+            "path": "application/controllers/Intake_slots.php",
+            "hash": "d95ad0bc1f2da473c9942175009c9d090fdd296bdc0d181471723458fe5396f2",
+            "size": 15264
         },
         {
             "path": "application/controllers/Vehicle_data.php",
@@ -5353,9 +6374,14 @@
             "size": 9994
         },
         {
+            "path": "application/controllers/Release.php",
+            "hash": "cbd7ed2062ce690ee0383631da8de4932ccf791fb5eb7f7200d9f3a38376a658",
+            "size": 4161
+        },
+        {
             "path": "application/controllers/Tax_group.php",
-            "hash": "00b6b679386faf0f2259fef559e8a3729a48f8c3b7c5d80014665f606a9a6996",
-            "size": 4019
+            "hash": "ef3e0210cf846efd2f46df26764a4fb64d6ee7bde86ef762f3f7cd56db80605d",
+            "size": 4807
         },
         {
             "path": "application/controllers/Email_templates.php",
@@ -5363,9 +6389,19 @@
             "size": 4571
         },
         {
+            "path": "application/controllers/Verify_ward.php",
+            "hash": "711aa8d60f1336ef4b1ffc33b287a3a8fa782a01faca99573ca1391cc9561b20",
+            "size": 16247
+        },
+        {
             "path": "application/controllers/Currency.php",
             "hash": "b1f5ae280b8f56741379e06e1e93800f416d89b9724e973b1f5341354dfe6351",
             "size": 7434
+        },
+        {
+            "path": "application/controllers/Intake.php",
+            "hash": "b3a9a3f3f2d2c3b9021cc96313ff9760ae4743f240d8cc0e9580488b1a7b1ca8",
+            "size": 7773
         },
         {
             "path": "application/controllers/Memberships.php",
@@ -5393,19 +6429,29 @@
             "size": 5246
         },
         {
+            "path": "application/controllers/Imports.php",
+            "hash": "70e7488d43b4343f1ce274366d0213513304c7ab4c8aecdb05069243a3141ad0",
+            "size": 5344
+        },
+        {
             "path": "application/controllers/Cron.php",
-            "hash": "2808f7ebabc0ca8485db925fa316aa0f549a5b34eb12de19d609e109df9bf323",
-            "size": 17138
+            "hash": "59af73ca1584a7bcdc419b822eff43d82bec2fc29c8d5dff03dda63749486790",
+            "size": 36113
         },
         {
             "path": "application/controllers/Marketing.php",
-            "hash": "94843e19e86d7c9bac268b27971ab0862820b670b0b9423fb727909fe4b5a0be",
-            "size": 1446
+            "hash": "4d11e55f80c5cc6aa42a55a08efc3a170e095a60127f3a8a0834f7413f0a73a4",
+            "size": 16616
         },
         {
             "path": "application/controllers/Customers.php",
-            "hash": "e194cf21a72fcb67db93cf656f4473b2ad5f3fa60de5a34516b487934620798b",
-            "size": 31454
+            "hash": "a15b6c16e1f33c1f7ea99fb69abbf64fce5d8a4d648939aac72047125bd08454",
+            "size": 33409
+        },
+        {
+            "path": "application/controllers/Assessment_templates.php",
+            "hash": "173ce2e29e8a04e8710aadc8e1059a19853a1a40ad1efbe9efcb6185d9e94ae5",
+            "size": 3765
         },
         {
             "path": "application/controllers/Installments.php",
@@ -5419,8 +6465,28 @@
         },
         {
             "path": "application/controllers/Operations.php",
-            "hash": "8a3aac09ed972387ec8fe49988dea9a3cff0de60006cdf240fb63912cad83033",
-            "size": 119057
+            "hash": "89c945a04162cfaa231576b922f359ee156f4262e2bf2747eb0c3febe4505dee",
+            "size": 119197
+        },
+        {
+            "path": "application/controllers/Verify_screens.php",
+            "hash": "277e8f7aa9d0a23fa51ef333d8af949752301f82e9687908248d452ffb50a95f",
+            "size": 17252
+        },
+        {
+            "path": "application/controllers/Patient_docs.php",
+            "hash": "82f76ba0500daf6fde6195d0ab8ac7fe26daa4eed101f5ecb0f9c386a9499ac9",
+            "size": 7531
+        },
+        {
+            "path": "application/controllers/Assessments.php",
+            "hash": "203a63d642384af046927df7f279605dea49f9404de37a47a1cf1ab3eedc565f",
+            "size": 5143
+        },
+        {
+            "path": "application/controllers/Verify_rail.php",
+            "hash": "6bc0a691f5d86c10f14d4078d84523434eb391030600e56a9f3520b83d93584b",
+            "size": 5397
         },
         {
             "path": "application/controllers/Inventory.php",
@@ -5448,6 +6514,11 @@
             "size": 4517
         },
         {
+            "path": "application/controllers/Printing_acceptance.php",
+            "hash": "147df39f7452041ffcaaebfed0d399ae2732a44fac6df2326f7d5ea0754e96b2",
+            "size": 126270
+        },
+        {
             "path": "application/controllers/Discount_coupon.php",
             "hash": "a110ac82c1a069e950ab54ad0b1cb102fef76b861f340e2792ecb3166ec06526",
             "size": 4998
@@ -5468,6 +6539,16 @@
             "size": 31605
         },
         {
+            "path": "application/controllers/Appointments.php",
+            "hash": "0ff721fadcf5956c0d4fe2fdc6a335af4eb84a44af9bd03c32ce96044a91cdea",
+            "size": 6435
+        },
+        {
+            "path": "application/controllers/Printing.php",
+            "hash": "7e4057fa09d3816efcd1a272ccd794c00cfc0c86ecd57d244d56346024ec2370",
+            "size": 56219
+        },
+        {
             "path": "application/controllers/Courses.php",
             "hash": "22e207b4ebc81598c6c55ba7415efd84604daffc9b92c76c07428fa1ec291a3c",
             "size": 6951
@@ -5479,8 +6560,8 @@
         },
         {
             "path": "application/controllers/Accounts.php",
-            "hash": "ff110f040cd22c594ba3cf86393779ec2fda182ba557c0f7407ef08f235e8e30",
-            "size": 11888
+            "hash": "46be71fc68351a763f8f4e46f96cf7b421aac1038cece7d9892487ce58dfd2fb",
+            "size": 12305
         },
         {
             "path": "application/controllers/Qrcoder.php",
@@ -5513,6 +6594,11 @@
             "size": 11684
         },
         {
+            "path": "application/controllers/Patient_funds.php",
+            "hash": "67c729ee311a99dafbd306af2885cccf3c5b3b4931157d5099aa9103042251be",
+            "size": 15262
+        },
+        {
             "path": "application/controllers/Customers_advance.php",
             "hash": "febbd73e1c5cb0d316da76e98b5b8cb84be7619dc3ebcec42bcc878295dcc8ce",
             "size": 5668
@@ -5524,13 +6610,13 @@
         },
         {
             "path": "application/controllers/Pos.php",
-            "hash": "a5a2e8d295841940ae7129765d9c992d8acca90bf04c4d1cf4c66dc29f1e7e22",
-            "size": 27693
+            "hash": "0e10a5181a25573ce3b55456c1244fc3cf33ee18dd90b0d6b6fa30d0fee74ea8",
+            "size": 27634
         },
         {
             "path": "application/controllers/Services.php",
-            "hash": "68d74fb9a40f16401c9a3f25efe4af06f8fd500f326a921e08bda37dd97935b6",
-            "size": 3409
+            "hash": "1ec368002f42fc162a222fc3061c70ac0f8174adfcc63c9f5cdc67ed92a5bfbf",
+            "size": 3858
         },
         {
             "path": "application/controllers/Smtp.php",
@@ -5549,8 +6635,8 @@
         },
         {
             "path": "application/controllers/Import.php",
-            "hash": "0a4033cdcb60a85fe0c7374613e5a530ffe91a01bf3227b934ca0279f636c39f",
-            "size": 87405
+            "hash": "7414a71684d67d63f32b6568f5aaac65a83397209c68ee29dd34ffc1ad1b4bf5",
+            "size": 116575
         },
         {
             "path": "application/controllers/Session_lock.php",
@@ -5568,14 +6654,24 @@
             "size": 1400
         },
         {
+            "path": "application/controllers/Fleet.php",
+            "hash": "d635c51321c230b4de476a90497f5bc433246b73ba6ccbb0615164fbfae3d173",
+            "size": 87477
+        },
+        {
             "path": "application/controllers/Updates.php",
             "hash": "c92f1e80d46eaeb2f8e058a5832be07f7b19df96b3c040bc1aa8d65217b2bc9b",
             "size": 43636
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "776f27c3f631ed20f0fa70faf89b145106f8a1da5a1cb8d6a434f54f73fe7ade",
-            "size": 93229
+            "hash": "b1df1489c3c147ed5e6ff7fc3c5ce4bb4ed23e1d100068999cd4276875310cb6",
+            "size": 118601
+        },
+        {
+            "path": "application/controllers/Sh4_import.php",
+            "hash": "871546d8d311df61eb05939b4163c626d9349b83d16dcf2377a1551cc366012d",
+            "size": 33450
         },
         {
             "path": "application/controllers/Stripe.php",
@@ -5584,8 +6680,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "ec6c729b1ce06298dc744c9ffc276d94cf59d5e689ff9e1431f9aec6cc5d67cc",
-            "size": 324707
+            "hash": "1c4f674c1a27524bfb4c290a53b37f96b5d93a2a4557eb36386eec877c56234e",
+            "size": 363256
         },
         {
             "path": "application/controllers/Migrate.php",
@@ -5599,8 +6695,8 @@
         },
         {
             "path": "application/controllers/Leads.php",
-            "hash": "7a197d3b10d98f0ed1eaf7ec0bc96a04434f6623271cfd53d2cb1f068b7a08f0",
-            "size": 5963
+            "hash": "28ae38c8d458c54fcca9bf60c25d475cc33c78f482dfa1307f1a853ce7347557",
+            "size": 12661
         },
         {
             "path": "application/controllers/Shipping_fees.php",
@@ -5609,8 +6705,8 @@
         },
         {
             "path": "application/controllers/Users.php",
-            "hash": "e4b9f75378aa798d75483775bb1ec091a4a5c465c356c43594217b7da205f287",
-            "size": 10182
+            "hash": "84e8d7792c070817e7b4dd7d81523b7a1ba9d4b643a561c71137e97f9e626c40",
+            "size": 11270
         },
         {
             "path": "application/controllers/Subscription_license.php",
@@ -5623,14 +6719,19 @@
             "size": 7831
         },
         {
+            "path": "application/controllers/Patient_billing.php",
+            "hash": "8b33d738469570e45516a9a3deabff3ec0a6222cf48b300caf7541565d125cba",
+            "size": 8996
+        },
+        {
             "path": "application/controllers/Publicpdf.php",
             "hash": "03522380c62f1aea1a7fb8283abad7945098e2adef236b0d82404d8004769df2",
             "size": 7608
         },
         {
             "path": "application/controllers/Cashier_shifts.php",
-            "hash": "4c189858706e9d065e1c5c0b541da6b029f6bd30087ec1ea5915fb274d567407",
-            "size": 6545
+            "hash": "8d493b39c70c51666fa464622422dbf273ae8b1bc1dff7bb7a8b41db4476d39c",
+            "size": 7094
         },
         {
             "path": "application/controllers/Warehouse.php",
@@ -5643,14 +6744,24 @@
             "size": 6955
         },
         {
+            "path": "application/controllers/Physio_roles.php",
+            "hash": "9d09201fe1ff410c20e74c1b32577dc4e39327d6a4b8be87a8a6d121113adc1d",
+            "size": 8064
+        },
+        {
             "path": "application/controllers/Tills.php",
             "hash": "3005664c04f085f2f61a2c63bb9d1efd5d9eb028fe178b460139113fd876869d",
             "size": 2582
         },
         {
             "path": "application/controllers/Paystack.php",
-            "hash": "0fc0f07e07ccf9fa118da887e246ef6109e0288eb5942374a9aaae49975605f2",
-            "size": 7323
+            "hash": "b02f328e88d51618919f44d299f998629c98cc82671043025ebb1c733d97bc4b",
+            "size": 11317
+        },
+        {
+            "path": "application/controllers/Debt_reminders.php",
+            "hash": "47fae5727a441cb147f312d499a9b39ae07c360def865a13db7bc6ede6fc286c",
+            "size": 4673
         },
         {
             "path": "application/controllers/Migrations.php",
@@ -5666,6 +6777,11 @@
             "path": "application/controllers/Omni.php",
             "hash": "4a48652167ca9b316d6b1a805e9faba7fb90c38450a718a78fd373823ba204c3",
             "size": 4334
+        },
+        {
+            "path": "application/controllers/Inpatient.php",
+            "hash": "bf0773363dba62ab457cf9575b78357b0b13a667b3b8b2f915d1488f3f1b5d88",
+            "size": 17205
         },
         {
             "path": "application/libraries/Assist_brain.php",
@@ -8604,8 +9720,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "014ad1e1410a5d1dbd1746fb619da0f8a70e2756bcf7d4f0f5c18ee7429b2f69",
-            "size": 100360
+            "hash": "9b771fb7e1d1557548d880199c81b3cc8fe5779760fd4eea2765bb3db4d39432",
+            "size": 44423
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -10039,18 +11155,18 @@
         },
         {
             "path": "application/core/MY_Security.php",
-            "hash": "59a49fc6fee32fe7dfb806b2d87af3763402199034033ab383d0c90b607a3773",
-            "size": 4110
+            "hash": "d67411932c255a58c2b101bb4145d612e4ff26c01f23230b9ed1d4d1c5ccc49a",
+            "size": 5722
         },
         {
             "path": "application/core/MY_Controller.php",
-            "hash": "ef2242e082ac293f3ef7a5360934baae5a5e3e722717bedd2fdff7f52077e6f3",
-            "size": 24132
+            "hash": "4c857de2168809b050ab89d64b136c61723e9c6a25f84d518b4c2ef68847e76c",
+            "size": 26224
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "4aa4d1fe70882028e194b94d3fbae5de41ed1c8a38ef7887eca6f42c5e715217",
-            "size": 102362
+            "hash": "81f7be7ccb5d9b652ea11de0727686de1b425bffb54e70fc1701d287fa3f06ce",
+            "size": 105351
         },
         {
             "path": "application/helpers/sms_template_helper.php",
@@ -10078,6 +11194,11 @@
             "size": 3660
         },
         {
+            "path": "application/helpers/clinical_report_helper.php",
+            "hash": "a451843cfa3c981685bef2cac1cc5f9fac861eddb6aa68cef07afd2b3fb158dc",
+            "size": 13772
+        },
+        {
             "path": "application/helpers/accounts_helper.php",
             "hash": "a89bb346210a1b25d36856296535376899898c326bf0109b4e299adea94faf5a",
             "size": 20775
@@ -10099,8 +11220,13 @@
         },
         {
             "path": "application/helpers/saas_helper.php",
-            "hash": "3a157e0e8c8caa68a098e6f46679a84e7344df581828068c79feed16d3dec84d",
-            "size": 5935
+            "hash": "d367250d9c932f42f079c59692c6214f8ac00359d810436fa01275060c41fa36",
+            "size": 4425
+        },
+        {
+            "path": "application/helpers/physio_helper.php",
+            "hash": "c8448bb047141abda2de6ecb49f59f19de0c1d6f081eb579d6914ddb6fb878f6",
+            "size": 26610
         },
         {
             "path": "application/helpers/appinfo_helper.php",
@@ -10109,8 +11235,8 @@
         },
         {
             "path": "application/helpers/inventory_helper.php",
-            "hash": "caa9be67f581fdc2ce5748824ac2a64c0e44eeb4da958c0ca97e3757767d0acd",
-            "size": 20475
+            "hash": "1aa238e9e9605032a5eb74822f38f63c9eaa5288693701e249d034e3574a4225",
+            "size": 20933
         },
         {
             "path": "application/helpers/store_settings_helper.php",
@@ -10124,18 +11250,23 @@
         },
         {
             "path": "application/helpers/marketing_helper.php",
-            "hash": "096a64d898fa6ddad0be8627fcc3f9141e92543aa8b15caebda120a70641a2be",
-            "size": 6292
+            "hash": "812e4e4047923d65cf5108415ea79b9bc1fafd55ca7f4c2271771d7cab13a19f",
+            "size": 7378
         },
         {
             "path": "application/helpers/business_profile_helper.php",
-            "hash": "fb878defccdfc43334b7cfc720a22067903e0aaaf0076492a345d0486661b24c",
-            "size": 74857
+            "hash": "3e9d4861e97d7a954d8c0f3ce5e7e552fa7a5fbb841aa1beafb659a95bf066f4",
+            "size": 79591
         },
         {
             "path": "application/helpers/approval_helper.php",
             "hash": "7b572f5c9f1809d1334d00178f2627ee720d28b3e5b6ce8f3bd4a86134584aa4",
             "size": 6135
+        },
+        {
+            "path": "application/helpers/print_visuals_helper.php",
+            "hash": "d4cf740563538316b83415f8fb801f2a8486a555ad845420a4fbe805f260b6a6",
+            "size": 6127
         },
         {
             "path": "application/helpers/migrate_helper.php",
@@ -10619,8 +11750,8 @@
         },
         {
             "path": "theme/js/assist.js",
-            "hash": "7b81fdfd6ce4252fc2923685368c3ebc8faa08fd1651a71b4e3ecb0b79d17dd8",
-            "size": 32828
+            "hash": "e6014cf18f4c9f775cc75f2a2744937e0a7d1e1c95b7f66c0c01dbe4304e5f11",
+            "size": 32184
         },
         {
             "path": "theme/js/ajaxselect/customer_select_ajax.js",
@@ -10869,8 +12000,8 @@
         },
         {
             "path": "theme/js/pos.js",
-            "hash": "66b4334986a3217f04c2cf88dfb1456176d7d932c035cb6d598602d07637ca6d",
-            "size": 45069
+            "hash": "7a444ee25e628deb69f3e7d63bdc85f2d8b41fad7d9e4a9d34a149deb91fc6d1",
+            "size": 43754
         },
         {
             "path": "theme/js/report-ingredient-usage.js",
@@ -16249,8 +17380,8 @@
         },
         {
             "path": "index.php",
-            "hash": "99590b2a475e406d29bfc8b90f722a583edc907664a56c8161093bb5c496a731",
-            "size": 14973
+            "hash": "73654ffc63146007a3695f6fda4dd600eda625ba9a2536b28f364f51ffb57c7c",
+            "size": 13724
         }
     ],
     "migrations": [
@@ -16268,6 +17399,9 @@
         "4.0.8_featured_products.sql",
         "4.0.8_to_4.0.9_compatibility.sql",
         "4.0.8_to_4.0.9_holditems_staff_commission.sql",
+        "4.0.9.100_quotation_response_email.sql",
+        "4.0.9.101_quotation_response_schema_repair.sql",
+        "4.0.9.102_orphan_table_repair.sql",
         "4.0.9.10_stock_state.sql",
         "4.0.9.11_leads_crm.sql",
         "4.0.9.12_industry_modules.sql",
@@ -16302,9 +17436,51 @@
         "4.0.9.58_order_fulfilment.sql",
         "4.0.9.59_status_incident.sql",
         "4.0.9.5_to_4.0.9.6_multi_unit_selling.sql",
+        "4.0.9.60_physiotherapy_foundation.sql",
+        "4.0.9.61_physiotherapy_intake_queue.sql",
+        "4.0.9.62_physiotherapy_clinical.sql",
+        "4.0.9.63_tracker_consent.sql",
+        "4.0.9.64_physiotherapy_plans_funds.sql",
+        "4.0.9.65_feature_coverage_variants.sql",
+        "4.0.9.66_customer_import.sql",
+        "4.0.9.67_physiotherapy_stage4_hardening.sql",
+        "4.0.9.68_payment_reconciliation.sql",
+        "4.0.9.69_storefront_coupons.sql",
         "4.0.9.6_to_4.0.9.7_multi_unit_variants.sql",
+        "4.0.9.70_physiotherapy_inpatient.sql",
+        "4.0.9.71_storefront_events_carts.sql",
+        "4.0.9.72_physiotherapy_portal_feedback.sql",
+        "4.0.9.73_storefront_phase2_hardening.sql",
+        "4.0.9.74_physiotherapy_imports.sql",
+        "4.0.9.75_phase3_segments_campaigns.sql",
+        "4.0.9.76_physiotherapy_approval_binding.sql",
+        "4.0.9.77_phase3_hardening.sql",
+        "4.0.9.78_phase4_commerce.sql",
+        "4.0.9.79_refund_traceability.sql",
         "4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql",
+        "4.0.9.80_public_booking.sql",
+        "4.0.9.81_debt_reminder_pause.sql",
+        "4.0.9.82_debt_reminder_delivery_mode.sql",
+        "4.0.9.83_permission_revocations.sql",
+        "4.0.9.84_printing.sql",
+        "4.0.9.85_printing_planning.sql",
+        "4.0.9.86_printing_services.sql",
+        "4.0.9.87_printing_material_issues.sql",
+        "4.0.9.88_printing_quotation_link.sql",
+        "4.0.9.89_printing_tax.sql",
         "4.0.9.8_newsletter_subscribers.sql",
+        "4.0.9.90_printing_themes.sql",
+        "4.0.9.91_printing_services_seed.sql",
+        "4.0.9.92_printing_line_finance.sql",
+        "4.0.9.93_quotation_lifecycle.sql",
+        "4.0.9.94_quotation_email_templates.sql",
+        "4.0.9.94_quote_response_used_link.sql",
+        "4.0.9.95_printing_homepage_sections.sql",
+        "4.0.9.96_add_allow_products_online.sql",
+        "4.0.9.96_print_works_catalogue_mode.sql",
+        "4.0.9.97_printing_storefront.sql",
+        "4.0.9.98_service_deposit_columns.sql",
+        "4.0.9.99_quotation_response_links.sql",
         "4.0.9.9_delivery_quote_pending.sql",
         "4.0.9_new_arrival_products.sql",
         "4.0.9_online_excluded.sql",
@@ -16318,5 +17494,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.59"
+    "changelog": "Release 4.0.9.102"
 }

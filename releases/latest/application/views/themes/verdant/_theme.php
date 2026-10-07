@@ -179,7 +179,7 @@ if (!function_exists('vd_card')) {
               <div class="vd-card-actions">
                 <button type="button" class="vd-add" <?= $soldOut ? 'disabled' : ''; ?> onclick="addToCart(<?= $p->id; ?>,'product','<?= $nameJs; ?>',<?= $price; ?>,'<?= $p->item_image; ?>',1,<?= $stock; ?>)"><?= $soldOut ? 'Sold out' : 'Add to bag'; ?></button>
                 <?php if($hasWa): ?>
-                <button type="button" class="vd-wa-ic" onclick="vdWaOrder(<?= $p->id; ?>,'<?= $nameJs; ?>',<?= $price; ?>,'<?= $p->item_image; ?>')" aria-label="Order on WhatsApp"><?= vd_wa_svg(); ?></button>
+                <button class="vd-wa-ic" onclick="<?= $soldOut ? "window.open('https://wa.me/" . preg_replace('/[^0-9]/','',$settings->whatsapp_number ?? '') . "?text=" . rawurlencode('Hello, is ' . $p->item_name . ' back in stock?') . "','_blank')" : "vdWaOrder(" . $p->id . ",'" . $nameJs . "'," . $price . ",'" . $p->item_image . "')"; ?>" title="<?= $soldOut ? 'Ask about availability' : 'WhatsApp'; ?>" aria-label="<?= $soldOut ? 'Ask about availability' : 'Order on WhatsApp'; ?>"><?= vd_wa_svg(); ?></button>
                 <?php endif; ?>
               </div>
             </div>

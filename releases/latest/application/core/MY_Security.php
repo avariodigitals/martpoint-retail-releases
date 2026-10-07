@@ -29,7 +29,32 @@ class MY_Security extends CI_Security {
 			return $this->csrf_set_cookie();
 		}
 
-		// Check if URI has been whitelisted from CSRF checks
+		// Server-to-server endpoints authenticated by their own shared-secret
+		// headers rather than a browser session cookie. config.php is per-install
+		// (not shipped), so code-level exclusions live here. Paystack/Monnify
+		// webhook POSTs carry HMAC signatures verified inside the handler — a
+		// browser CSRF token can never exist for them.
+                //
+                // NOTE the separator class [/_] : the original 'intake/' matched
+                // intake/lead but NOT intake_slots or intake_booking, which are
+                // siblings under an underscore. Those two are keyed public
+                // endpoints exactly like intake/lead, so they were being rejected
+                // with a CSRF error before ever reaching their controller.
+                //
+                // The path is read from REQUEST_URI, not uri_string():
+                // csrf_verify() runs while CI_Input is still being constructed,
+                // which happens BEFORE routing — so the URI object is empty at
+                // this point and a match against it silently never fires.
+                $mp_path = parse_url(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH);
+                $mp_path = ltrim((string)$mp_path, '/');
+                // Strip a sub-directory install prefix (e.g. /app/index.php/...).
+                $mp_path = preg_replace('#^.*?index\.php/#i', '', $mp_path);
+                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$)#i', $mp_path))
+                {
+                        return $this;
+                }
+
+                // Check if URI has been whitelisted from CSRF checks
 		if ($exclude_uris = config_item('csrf_exclude_uris'))
 		{
 			$uri = load_class('URI', 'core');

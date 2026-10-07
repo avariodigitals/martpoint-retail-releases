@@ -209,6 +209,12 @@ hr{border:none!important;border-top:1px solid var(--mp-border)!important;margin:
 .mp-page-head h2{margin:0;font-size:22px;font-weight:800;color:var(--mp-ink);letter-spacing:-.3px}
 .mp-page-sub{font-size:13px;color:var(--mp-muted);margin-top:2px}
 .mp-qa-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;transition:all .15s ease;border:none;cursor:pointer}
+/* Action buttons are almost always clustered in a row (header actions, table
+   row actions, empty states). With no spacing they sat flush against each
+   other. A flex container with a real gap fixes the cluster without relying on
+   per-button margins, which collapse differently in each context. */
+.mp-page-head>div:last-child{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.mp-page-head>div:last-child>.mp-qa-btn{margin:0}
 .mp-qa-btn.green{background:var(--mp-success);color:#fff}
 .mp-qa-btn.blue{background:var(--mp-primary);color:#fff}
 .mp-qa-btn:hover{opacity:.9;transform:translateY(-1px)}

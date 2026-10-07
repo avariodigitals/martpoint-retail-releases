@@ -4,8 +4,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Variants extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
-		if(!mp_feature_enabled('bundles')){
-			$this->show_feature_not_activated('bundles');
+		if(!mp_feature_enabled('item_variants')){
+			$this->show_feature_not_activated('item_variants');
 			return;
 		}
 		$this->load_global();
@@ -16,7 +16,11 @@ class Variants extends MY_Controller {
 		$this->permission_check('variant_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('variant');
-		$this->load->view('variants/variants', $data);
+		// Render inside the shared shell (mp_layout dispatches to physio_layout
+		// on clinical stores). variants.js binds to #variant-form / .box.
+		$data['extra_js_files'] = ['js/variants/variants.js'];
+		$data['content'] = $this->load->view('variants/variants', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newvariant(){
 		$this->form_validation->set_rules('variant', 'Variant', 'trim|required');
@@ -40,7 +44,9 @@ class Variants extends MY_Controller {
 		$result=$this->variants_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('variant');
-		$this->load->view('variants/variants', $data);
+		$data['extra_js_files'] = ['js/variants/variants.js'];
+		$data['content'] = $this->load->view('variants/variants', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_variant(){
 		$this->form_validation->set_rules('variant', 'Variant', 'trim|required');
@@ -58,7 +64,9 @@ class Variants extends MY_Controller {
 		$this->permission_check('variant_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('variants_list');
-		$this->load->view('variants/variants_list', $data);
+		$data['extra_js_files'] = ['js/variants/variants.js'];
+		$data['content'] = $this->load->view('variants/variants_list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function ajax_list()
@@ -147,7 +155,8 @@ class Variants extends MY_Controller {
 		$this->permission_check('variant_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('variant_matrix');
-		$this->load->view('variants/matrix_builder', $data);
+		$data['content'] = $this->load->view('variants/matrix_builder', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function generate_matrix(){

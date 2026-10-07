@@ -683,8 +683,8 @@
         <?php } ?>
 
         <!-- 10. ONLINE STORE -->
-        <?php if(($CI->permissions('online_store_view') || $CI->permissions('online_store_orders') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')) { ?>
-        <li class="online-store-active-li online-store-settings-active-li online-store-orders-active-li online-store-services-active-li online-store-qr-active-li online-store-products-active-li treeview">
+        <?php if(($CI->permissions('online_store_view') || $CI->permissions('online_store_orders') || $CI->permissions('online_store_edit') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')) { ?>
+        <li class="online-store-active-li online-store-settings-active-li online-store-orders-active-li online-store-services-active-li online-store-qr-active-li online-store-products-active-li online-store-commerce-active-li treeview">
           <a href="#">
             <i class="fa fa-globe text-green"></i> <span>Online Store</span>
             <span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span>
@@ -699,6 +699,9 @@
             <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
             <li class="online-store-products-active-li"><a href="<?php echo $base_url; ?>online_store/products_online"><i class="fa fa-cube"></i> Online Products</a></li>
             <li class="online-store-services-active-li"><a href="<?php echo $base_url; ?>online_store/services"><i class="fa fa-wrench"></i> Services</a></li>
+            <?php if($CI->permissions('online_store_edit') || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
+            <li class="online-store-commerce-active-li"><a href="<?php echo $base_url; ?>online_store/commerce_rules"><i class="fa fa-cubes"></i> Commerce Rules</a></li>
+            <?php } ?>
             <?php if(mp_feature_enabled('qr_ordering')) { ?>
             <li class="online-store-qr-active-li"><a href="<?php echo $base_url; ?>online_store/qr_codes"><i class="fa fa-qrcode"></i> QR Codes</a></li>
             <?php } ?>
@@ -723,7 +726,7 @@
         <!-- 11. OPERATIONS (includes Staff + Table Management) -->
         <?php if(true){ ?>
         <?php
-          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','perfumery_workflow','nylon_workflow'];
+          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','perfumery_workflow'];
           $has_ops = false;
           foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
           $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -770,9 +773,6 @@
             <?php } ?>
             <?php if(mp_feature_enabled('perfumery_workflow')) { ?>
             <li class="perfume-active-li"><a href="<?= $base_url; ?>perfume"><i class="fa fa-flask"></i> Perfume Lab</a></li>
-            <?php } ?>
-            <?php if(mp_feature_enabled('nylon_workflow')) { ?>
-            <li class="nylon-active-li"><a href="<?= $base_url; ?>nylon"><i class="fa fa-industry"></i> <?= htmlspecialchars(mp_label('production','Nylon Production')); ?></a></li>
             <?php } ?>
             <?php if(mp_feature_enabled('delivery_scheduling')) { ?>
             <li class="delivery-scheduling-active-li"><a href="<?= $base_url; ?>operations/delivery_scheduling"><i class="fa fa-truck"></i> Delivery Scheduling</a></li>

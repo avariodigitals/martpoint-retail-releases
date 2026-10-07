@@ -50,8 +50,91 @@
     <button class="os-batch-btn indigo" onclick="batchAction('unmark_new')"><i class="fa fa-star-o"></i> Unmark New</button>
     <button class="os-batch-btn blue" onclick="batchAction('mark_featured')"><i class="fa fa-thumbs-up"></i> Mark Featured</button>
     <button class="os-batch-btn blue" onclick="batchAction('unmark_featured')"><i class="fa fa-thumbs-o-down"></i> Unmark Featured</button>
+    <button class="os-batch-btn indigo" onclick="openBulkEdit()"><i class="fa fa-edit"></i> Edit Fields</button>
   </div>
   <button class="os-batch-clear" onclick="clearSelection()"><i class="fa fa-times"></i> Clear</button>
+</div>
+
+<!-- Bulk field edit modal (preview → apply) -->
+<div id="bulkEditModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.45);">
+  <div style="background:var(--mp-surface,#fff);max-width:760px;width:92%;margin:4vh auto;border-radius:14px;padding:20px 22px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="margin:0;font-size:16px;">Bulk Edit Selected Products</h3>
+      <button type="button" onclick="closeBulkEdit()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--mp-muted,#64748B);">&times;</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:10px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--mp-muted,#64748B);">Price field</label>
+        <select id="be_price_field" class="form-control" onchange="beSync()">
+          <option value="">— do not change —</option>
+          <option value="sales_price">Sales price</option>
+          <option value="price">Purchase price</option>
+          <option value="online_price">Online price</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--mp-muted,#64748B);">Change</label>
+        <select id="be_price_mode" class="form-control">
+          <option value="set">Set to</option>
+          <option value="increase_pct">Increase by %</option>
+          <option value="decrease_pct">Decrease by %</option>
+          <option value="increase_amt">Increase by amount</option>
+          <option value="decrease_amt">Decrease by amount</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--mp-muted,#64748B);">Value</label>
+        <input type="number" step="0.01" min="0" id="be_price_value" class="form-control" placeholder="e.g. 10">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--mp-muted,#64748B);">Category</label>
+        <select id="be_category_id" class="form-control">
+          <option value="">— do not change —</option>
+          <?php foreach($categories as $cat): ?>
+          <option value="<?= (int)$cat->id; ?>"><?= htmlspecialchars($cat->category_name); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--mp-muted,#64748B);">Stock alert threshold</label>
+        <input type="number" step="1" min="0" id="be_alert_qty" class="form-control" placeholder="Leave empty to keep">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--mp-muted,#64748B);">Stock quantity</label>
+        <div style="display:flex;gap:6px;">
+          <select id="be_stock_mode" class="form-control" style="flex:1;">
+            <option value="">— do not change —</option>
+            <option value="set">Set to</option>
+            <option value="increase_amt">Increase by</option>
+            <option value="decrease_amt">Decrease by</option>
+          </select>
+          <input type="number" step="1" min="0" id="be_stock_value" class="form-control" style="flex:1;" placeholder="qty">
+        </div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--mp-muted,#64748B);margin-bottom:12px;">
+      <i class="fa fa-info-circle"></i> Stock quantity changes are recorded through the stock-adjustment ledger. Items changed by someone else after preview are skipped and reported as conflicts.
+    </div>
+
+    <div id="be_preview_area" style="display:none;margin-bottom:12px;">
+      <table class="table mp-dt-table" style="width:100%;font-size:12px;">
+        <thead><tr><th>Product</th><th>Change</th></tr></thead>
+        <tbody id="be_preview_rows"></tbody>
+      </table>
+    </div>
+    <div id="be_result_area" style="display:none;margin-bottom:12px;">
+      <div id="be_result_summary" style="font-size:13px;font-weight:600;margin-bottom:6px;"></div>
+      <table class="table mp-dt-table" style="width:100%;font-size:12px;">
+        <tbody id="be_result_rows"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="os-batch-btn" onclick="bulkEditPreview()" id="be_preview_btn"><i class="fa fa-eye"></i> Preview</button>
+      <button type="button" class="os-batch-btn green" onclick="bulkEditApply()" id="be_apply_btn" disabled><i class="fa fa-check"></i> Apply</button>
+    </div>
+  </div>
 </div>
 
 <div class="mp-page-head">
@@ -253,6 +336,85 @@ function batchAction(action){
     toastr.error('Batch update failed. Please try again.');
   });
 }
+
+// === Bulk field edit (preview → apply) ===
+var beHashes = {};
+function openBulkEdit(){
+  if(getSelectedIds().length === 0){ toastr.warning('No products selected'); return; }
+  beHashes = {};
+  $('#be_preview_area,#be_result_area').hide();
+  $('#be_preview_rows,#be_result_rows').empty();
+  $('#be_apply_btn').prop('disabled', true);
+  $('#bulkEditModal').show();
+}
+function closeBulkEdit(){ $('#bulkEditModal').hide(); }
+function beSync(){
+  var on = $('#be_price_field').val() !== '';
+  $('#be_price_mode,#be_price_value').prop('disabled', !on);
+}
+function beSpec(){
+  var d = {
+    price_field: $('#be_price_field').val(),
+    price_mode:  $('#be_price_mode').val(),
+    price_value: $('#be_price_value').val(),
+    category_id: $('#be_category_id').val(),
+    alert_qty:   $('#be_alert_qty').val(),
+    stock_mode:  $('#be_stock_mode').val(),
+    stock_value: $('#be_stock_value').val()
+  };
+  d[csrfName] = csrfHash;
+  return d;
+}
+function beDescribe(changes){
+  var labels = {sales_price:'Sales price',price:'Purchase price',online_price:'Online price',category_id:'Category',alert_qty:'Alert qty'};
+  var parts = [];
+  $.each(changes, function(k,v){
+    if(k === '_stock_error'){ parts.push('<span style="color:#991B1B;">Stock: '+v+'</span>'); return; }
+    if(k === '_stock_delta'){ parts.push('Stock: '+v.from+' → '+v.to); return; }
+    parts.push((labels[k]||k)+': '+v.from+' → '+v.to);
+  });
+  return parts.length ? parts.join('<br>') : '<span style="color:#64748B;">no change</span>';
+}
+function bulkEditPreview(){
+  var ids = getSelectedIds();
+  var btn = $('#be_preview_btn').prop('disabled',true);
+  $('#be_result_area').hide(); $('#be_result_rows').empty();
+  $.post('<?=base_url("online_store/batch_edit_preview");?>', $.extend({product_ids:ids}, beSpec()), function(res){
+    btn.prop('disabled',false);
+    if(res.csrf_hash){ csrfHash = res.csrf_hash; }
+    if(res.status !== 'success'){ toastr.error(res.message); return; }
+    beHashes = {};
+    var rows = '';
+    $.each(res.items, function(i,it){
+      if(it.hash){ beHashes[it.id] = it.hash; }
+      rows += '<tr><td>'+ $('<div>').text(it.name).html() +'</td><td>'+ beDescribe(it.changes) +'</td></tr>';
+    });
+    $('#be_preview_rows').html(rows);
+    $('#be_preview_area').show();
+    $('#be_apply_btn').prop('disabled', false);
+  }, 'json').fail(function(){ btn.prop('disabled',false); toastr.error('Preview failed. Please try again.'); });
+}
+function bulkEditApply(){
+  var ids = getSelectedIds();
+  var btn = $('#be_apply_btn').prop('disabled',true);
+  var post = $.extend({product_ids:ids, expect:beHashes}, beSpec());
+  $.post('<?=base_url("online_store/batch_edit_apply");?>', post, function(res){
+    btn.prop('disabled',false);
+    if(res.csrf_hash){ csrfHash = res.csrf_hash; }
+    if(res.status !== 'success'){ toastr.error(res.message); return; }
+    var rows = '';
+    var colors = {ok:'#065F46',conflict:'#92400E',skipped:'#64748B',error:'#991B1B'};
+    $.each(res.results, function(i,r){
+      rows += '<tr><td>'+ $('<div>').text(r.name).html() +'</td><td style="color:'+(colors[r.status]||'#333')+';">'+r.status+'</td><td>'+ $('<div>').text(r.detail).html() +'</td></tr>';
+    });
+    $('#be_result_rows').html(rows);
+    $('#be_result_summary').text(res.ok+' updated, '+res.conflicts+' conflict'+(res.conflicts==1?'':'s')+', '+res.skipped+' skipped, '+res.errors+' error'+(res.errors==1?'':'s'));
+    $('#be_preview_area').hide();
+    $('#be_result_area').show();
+    if(res.ok > 0){ setTimeout(function(){ window.location.reload(); }, 2500); }
+  }, 'json').fail(function(){ btn.prop('disabled',false); toastr.error('Apply failed. Please try again.'); });
+}
+beSync();
 
 $(document).ready(function(){
   var dt = $('#os-products-table').DataTable({

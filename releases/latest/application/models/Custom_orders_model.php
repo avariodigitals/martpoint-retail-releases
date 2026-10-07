@@ -34,8 +34,6 @@ class Custom_orders_model extends CI_Model {
             'food'     => ['new','confirmed','deposit_paid','baking','ready','picked_up','cancelled'],
             'furniture'=> ['new','quoted','deposit_paid','in_production','qc_passed','delivered','cancelled'],
             'perfume'  => ['new','quoted','deposit_paid','sampling','approved','blending','macerating','bottling','ready','delivered','cancelled'],
-            'skincare' => ['new','quoted','deposit_paid','sampling','approved','formulating','curing','ready','delivered','cancelled'],
-            'nylon'    => ['new','quoted','awaiting_artwork','approved','deposit_paid','in_production','ready','delivered','cancelled'],
         ];
         return $workflows[$key] ?? $workflows['standard'];
     }
@@ -47,10 +45,9 @@ class Custom_orders_model extends CI_Model {
             'ready' => 'Ready', 'qc_passed' => 'QC Passed',
             'delivered' => 'Delivered', 'picked_up' => 'Picked Up',
             'cancelled' => 'Cancelled', 'confirmed' => 'Confirmed',
-            'sampling' => 'Sampling', 'approved' => 'Approved',
+            'sampling' => 'Sampling', 'approved' => 'Formula Approved',
             'blending' => 'Blending', 'macerating' => 'Macerating',
-            'bottling' => 'Bottling', 'awaiting_artwork' => 'Awaiting Artwork',
-            'formulating' => 'Formulating', 'curing' => 'Curing',
+            'bottling' => 'Bottling',
         ];
         return $labels[$status] ?? ucfirst(str_replace('_',' ',$status));
     }
@@ -64,8 +61,7 @@ class Custom_orders_model extends CI_Model {
             'cancelled' => 'danger', 'confirmed' => 'info',
             'sampling' => 'info', 'approved' => 'primary',
             'blending' => 'primary', 'macerating' => 'warning',
-            'bottling' => 'primary', 'awaiting_artwork' => 'warning',
-            'formulating' => 'primary', 'curing' => 'warning',
+            'bottling' => 'primary',
         ];
         return $map[$status] ?? 'default';
     }

@@ -13,7 +13,12 @@ class Tax_group extends MY_Controller {
 		$this->permission_check('tax_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('tax_list');
-		$this->load->view('tax-list', $data);
+		// Render inside the shared shell (mp_layout dispatches to physio_layout
+		// on clinical stores). tax-group.js binds to #tax-form / .box; the list
+		// view also relied on tax.js for its modal helpers.
+		$data['extra_js_files'] = ['js/tax.js','js/tax-group.js'];
+		$data['content'] = $this->load->view('tax-list', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function newtax(){
 		$this->form_validation->set_rules('tax_name', 'Tax Name', 'trim|required');
@@ -31,7 +36,9 @@ class Tax_group extends MY_Controller {
 		$result=$this->tax->get_details($id);
 		$data=array_merge($this->data,$result);
 		$data['page_title']=$this->lang->line('tax_group');
-		$this->load->view('tax-group', $data);
+		$data['extra_js_files'] = ['js/tax-group.js'];
+		$data['content'] = $this->load->view('tax-group', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_tax(){
 		$this->form_validation->set_rules('tax_name', 'Tax Name', 'trim|required');
@@ -47,9 +54,15 @@ class Tax_group extends MY_Controller {
 	}
 	public function add(){
 		$this->permission_check('tax_add');
+
+		// $this->data carries theme_link / base_url / currency and the session
+		// context the shared shell needs — add() previously started a bare
+		// $data array, which would leave mp_layout without those keys.
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('tax_group');
-		$this->load->view('tax-group', $data);
+		$data['extra_js_files'] = ['js/tax-group.js'];
+		$data['content'] = $this->load->view('tax-group', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function get_tax_name($ids=''){

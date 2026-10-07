@@ -1,50 +1,19 @@
 <?php $CI =& get_instance(); ?>
-<!DOCTYPE html>
-<html>
-<head>
-<?php $this->load->view('comman/code_css.php');?>
-<style>
-  .cash-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .cash-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .cash-card .label { font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .cash-card .value { font-size: 20px; font-weight: 700; }
-  .cash-card.opening .value { color: #3B82F6; }
-  .cash-card.in .value { color: #059669; }
-  .cash-card.out .value { color: #DC2626; }
-  .cash-card.net .value { color: #7C3AED; }
-  .cash-card.current { background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #fff; border: none; }
-  .cash-card.current .label { color: rgba(255,255,255,0.8); }
-  .ledger-table th { background: #f8fafc; font-weight: 600; color: #475569; }
-  .ledger-table .in-row td { color: #059669; }
-  .ledger-table .out-row td { color: #DC2626; }
-  .ledger-table .in-row .in-amt { font-weight: 600; }
-  .ledger-table .out-row .out-amt { font-weight: 600; }
-  .ledger-table .balance-col { font-weight: 700; color: #1E293B; }
-  .ledger-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-  .badge-in { background: #D1FAE5; color: #059669; }
-  .badge-out { background: #FEE2E2; color: #DC2626; }
-  .opening-row { background: #F1F5F9; font-weight: 600; }
-  .empty-msg { padding: 40px; text-align: center; color: #94A3B8; font-size: 15px; }
-</style>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-  <?php $this->load->view('sidebar');?>
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?= $page_title; ?></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?= $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class="active">Cash Ledger</li>
-      </ol>
-    </section>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2>Cash In Hand Ledger</h2>
+      <div class="mp-page-sub">Daily cash movement</div>
+    </div>
+  </div>
+</div>
 
     <section class="content">
       <div class="row">
         <div class="col-xs-12">
           <?php $this->load->view('comman/code_flashdata');?>
 
-          <div class="box box-primary">
+          <div class="box box-primary mp-items-box">
             <div class="box-header">
               <form method="get" action="<?= base_url('accounts/cash_ledger'); ?>" class="form-inline" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
                 <div class="form-group">
@@ -257,12 +226,7 @@
         </div>
       </div>
     </section>
-  </div>
-  <?php $this->load->view('footer.php');?>
-</div>
 
-<?php $this->load->view('comman/code_js_sound.php');?>
-<?php $this->load->view('comman/code_js.php');?>
 <script>
 function submitMoveCash(){
   var amount = $('#mc_amount').val();
@@ -336,5 +300,11 @@ function exportLedgerCSV(){
 }
 $('.ledger-active-li').addClass('active');
 </script>
-</body>
-</html>
+
+<style>
+/* The page JS appends its loading .overlay to $(".box"), so the .box wrapper
+   must stay; only its own frame is stripped so the card is not flush against
+   a second border. */
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>

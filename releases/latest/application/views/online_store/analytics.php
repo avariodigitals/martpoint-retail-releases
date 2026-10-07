@@ -223,4 +223,59 @@
   </div>
 </div>
 
+<?php
+  // Shopping funnel — first-party events recorded with consent state.
+  $funnelOrder = ['view_item'=>'Product views','add_to_cart'=>'Added to cart','begin_checkout'=>'Started checkout','order_placed'=>'Orders placed'];
+  $funnelHits = [];
+  $maxHits = 1;
+  foreach($funnelOrder as $ev=>$lbl){
+    $hits = (int)($event_funnel[$ev]->hits ?? 0);
+    $consented = (int)($event_funnel[$ev]->consented_hits ?? 0);
+    $funnelHits[$ev] = ['label'=>$lbl,'hits'=>$hits,'consented'=>$consented];
+    if($hits > $maxHits) $maxHits = $hits;
+  }
+  $funnelTotal = array_sum(array_column($funnelHits,'hits'));
+?>
+<div class="os-content-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3>Shopping Funnel <small style="font-weight:400;color:var(--mp-muted);">last 30 days</small></h3></div>
+    <div class="mp-card-body">
+      <?php if($funnelTotal === 0): ?>
+        <div class="mp-empty-state">No funnel events yet — events appear as shoppers view items, add to cart and check out.</div>
+      <?php else: foreach($funnelOrder as $ev=>$lbl): $f = $funnelHits[$ev]; $pct = round($f['hits']/$maxHits*100); ?>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span><?= $f['label']; ?></span>
+            <span><strong><?= number_format($f['hits']); ?></strong><?= $f['consented'] < $f['hits'] ? ' <small class="text-muted">('.number_format($f['hits']-$f['consented']).' consent-free)</small>' : ''; ?></span>
+          </div>
+          <div style="height:8px;background:var(--mp-light-gray,#F1F5F9);border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:<?= $pct; ?>%;background:var(--mp-primary,#2563EB);border-radius:4px;"></div>
+          </div>
+        </div>
+      <?php endforeach; endif; ?>
+      <div style="font-size:12px;color:var(--mp-muted);margin-top:8px;">Events respect your tracking-consent setting — order_placed is recorded server-side at checkout.</div>
+    </div>
+  </div>
+
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3>Recent Shopping Events</h3></div>
+    <div class="mp-card-body" style="padding:0!important;">
+      <table class="os-analytics-table" width="100%">
+        <thead><tr><th>Time</th><th>Event</th><th>Value</th><th>Consented</th></tr></thead>
+        <tbody>
+          <?php foreach($recent_events as $e): ?>
+          <tr>
+            <td><?= date('M j, g:i a', strtotime($e->created_at)); ?></td>
+            <td><span class="label label-info"><?= htmlspecialchars(str_replace('_',' ',$e->event_type)); ?></span></td>
+            <td><?= $e->value !== null ? number_format((float)$e->value, 2) : '—'; ?></td>
+            <td><?= $e->consented ? '<span class="label label-success">yes</span>' : '<span class="label label-default">no</span>'; ?></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($recent_events)): ?><tr><td colspan="4" class="mp-empty-state">No events recorded yet.</td></tr><?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <script>$(".online_store-analytics-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

@@ -63,11 +63,12 @@ if(!is_array($vdTrust)) $vdTrust = [];
             <button type="button" class="vd-btn vd-btn-primary" <?= $inStock ? '' : 'disabled'; ?> onclick="vdDetailAdd()">Add to bag</button>
           </div>
           <div class="vd-pd-buy-row">
-            <button type="button" class="vd-btn vd-btn-ghost" onclick="vdDetailAdd();window.location.href='<?= base_url('store/' . $slug . '/cart'); ?>'">Buy now</button>
+            <button type="button" class="vd-btn vd-btn-ghost" <?= $inStock ? '' : 'disabled'; ?> onclick="if(vdDetailAdd())window.location.href='<?= base_url('store/' . $slug . '/cart'); ?>'">Buy now</button>
             <?php if($waNum): ?>
-            <button type="button" class="vd-btn vd-btn-wa" onclick="vdWaOrder(vdProduct.id, vdProduct.name, vdProduct.price, vdProduct.image, vdQty)"><?= vd_wa_svg(); ?> WhatsApp</button>
+            <button type="button" class="vd-btn vd-btn-wa" onclick="<?= $inStock ? "vdWaOrder(vdProduct.id, vdProduct.name, vdProduct.price, vdProduct.image, vdQty)" : "window.open('https://wa.me/" . $waNum . "?text='+encodeURIComponent('Hello, is '+vdProduct.name+' back in stock?'),'_blank')"; ?>"><?= vd_wa_svg(); ?> <?= $inStock ? 'WhatsApp' : 'Ask about availability'; ?></button>
             <?php endif; ?>
           </div>
+          <?php if(!$inStock) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
         </div>
 
         <?php if(!empty($vdTrust)): ?>
@@ -118,5 +119,5 @@ if(!is_array($vdTrust)) $vdTrust = [];
     stock: <?= (int)$product->stock; ?>
   };
   function vdDetailQty(d){ vdQty = Math.max(1, vdQty + d); document.getElementById('vd-detail-qty').textContent = vdQty; }
-  function vdDetailAdd(){ addToCart(vdProduct.id, 'product', vdProduct.name, vdProduct.price, vdProduct.image, vdQty, vdProduct.stock); }
+  function vdDetailAdd(){ return addToCart(vdProduct.id, 'product', vdProduct.name, vdProduct.price, vdProduct.image, vdQty, vdProduct.stock); }
 </script>

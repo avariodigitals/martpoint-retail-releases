@@ -115,7 +115,7 @@
       <div class="topbar">
         <a href="<?= base_url('mobile/customers'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Customer Profile</h1>
         </div>
       </div>
@@ -519,9 +519,9 @@
                 <img src="https://bwipjs-api.metafloor.com/?bcid=code128&text=C<?= $customer->id; ?>&scale=2&height=8" alt="barcode">
               </div>
             </div>
-            <div class="id-card-brand"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+            <div class="id-card-brand"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
             <div class="id-card-footer">
-              <div><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+              <div><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
               <div><?= date('M Y'); ?></div>
             </div>
           </div>

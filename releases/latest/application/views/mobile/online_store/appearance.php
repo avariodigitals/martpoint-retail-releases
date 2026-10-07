@@ -181,6 +181,14 @@
             <input type="text" name="facebook_pixel_id" class="form-control" value="<?= htmlspecialchars($settings->facebook_pixel_id ?? ''); ?>">
           </div>
           <div class="form-group">
+            <label class="form-label">Visitor Consent for Trackers</label>
+            <div class="choice-group">
+              <label class="choice"><input type="radio" name="require_tracking_consent" value="1" <?= ($settings->require_tracking_consent ?? 1) == 1 ? 'checked' : ''; ?>>Required</label>
+              <label class="choice"><input type="radio" name="require_tracking_consent" value="0" <?= ($settings->require_tracking_consent ?? 1) == 0 ? 'checked' : ''; ?>>Not required</label>
+            </div>
+            <small style="color:var(--mp-muted);">When required, a consent banner shows and analytics/pixel scripts only load after the visitor accepts.</small>
+          </div>
+          <div class="form-group">
             <label class="form-label">Allow Search Indexing</label>
             <div class="choice-group">
               <label class="choice"><input type="radio" name="robots_index" value="1" <?= ($settings->robots_index ?? '1') == '1' ? 'checked' : ''; ?>>Yes</label>

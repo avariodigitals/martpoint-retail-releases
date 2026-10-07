@@ -495,7 +495,7 @@ class Dashboard_model extends CI_Model
 			LEFT JOIN (
 				SELECT customer_id, COALESCE(SUM(grand_total - paid_amount), 0) AS inv_due
 				FROM db_sales
-				WHERE store_id = ? AND sales_status = 'Final'$wh_clause
+				WHERE store_id = ? AND sales_status IN ('Final','Opening')
 				GROUP BY customer_id
 			) sales_due ON sales_due.customer_id = c.id
 			LEFT JOIN (
@@ -615,7 +615,7 @@ class Dashboard_model extends CI_Model
 			LEFT JOIN (
 				SELECT customer_id, COALESCE(SUM(grand_total - paid_amount), 0) AS inv_due
 				FROM db_sales
-				WHERE store_id = ? AND sales_status = 'Final'$wh_clause
+				WHERE store_id = ? AND sales_status IN ('Final','Opening')
 				GROUP BY customer_id
 			) sales_due ON sales_due.customer_id = c.id
 			LEFT JOIN (

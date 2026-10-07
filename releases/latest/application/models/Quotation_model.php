@@ -11,7 +11,6 @@ class Quotation_model extends CI_Model {
 								'a.expire_date',
 								'a.quotation_code',
 								'a.reference_no',
-								'a.revision_no',
 								'b.customer_name',
 								'a.grand_total',
 								'a.created_by',
@@ -148,13 +147,6 @@ class Quotation_model extends CI_Model {
 
 	//Save Quotation
 	public function verify_save_and_update(){
-		$CUR_DATE    = $this->data['CUR_DATE'] ?? date('Y-m-d');
-		$CUR_TIME    = $this->data['CUR_TIME'] ?? date('H:i:s');
-		$CUR_USERNAME= $this->data['CUR_USERNAME'] ?? $this->session->userdata('inv_username');
-		$CUR_USERID  = $this->data['CUR_USERID'] ?? $this->session->userdata('inv_userid');
-		$SYSTEM_IP   = $this->data['SYSTEM_IP'] ?? ($_SERVER['REMOTE_ADDR'] ?? null);
-		$SYSTEM_NAME = $this->data['SYSTEM_NAME'] ?? null;
-
 		$command = $this->input->post_get('command', TRUE);
 		$quotation_date = $this->input->post('quotation_date', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
@@ -170,14 +162,11 @@ class Quotation_model extends CI_Model {
 		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
 		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
 		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
-		$quotation_note = mp_post_text('quotation_note');
+		$quotation_note = $this->input->post('quotation_note', TRUE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$quotation_id = $this->input->post('quotation_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
-		$revision_note = mp_post_text('revision_note');
-		$shippingaddress_id = $this->input->post('shippingaddress_id', TRUE);
-		if($shippingaddress_id=='' || $shippingaddress_id==0){$shippingaddress_id=null;}
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
 		$this->db->trans_begin();
@@ -219,9 +208,6 @@ class Quotation_model extends CI_Model {
 		    				'round_off' 				=> $tot_round_off_amt,
 		    				'grand_total' 				=> $tot_total_amt,
 		    				'quotation_note' 				=> $quotation_note,
-		    				'shippingaddress_id' 		=> $shippingaddress_id,
-		    				'revision_no' 				=> 0,
-		    				'revision_note' 			=> $revision_note,
 		    				/*System Info*/
 		    				'created_date' 				=> $CUR_DATE,
 		    				'created_time' 				=> $CUR_TIME,
@@ -235,35 +221,14 @@ class Quotation_model extends CI_Model {
 			$q1 = $this->db->insert('db_quotation', $quotation_entry);
 			$quotation_id = $this->db->insert_id();
 		}
-		else if($command=='update'){
-			// Snapshot the CURRENT version into db_quotation_revisions before
-			// overwriting — so every prior revision remains retrievable.
-			if($this->db->table_exists('db_quotation_revisions')){
-				$prev_quote  = $this->db->where('id',$quotation_id)->get('db_quotation')->row_array();
-				$prev_items  = $this->db->where('quotation_id',$quotation_id)->get('db_quotationitems')->result_array();
-				if(!empty($prev_quote)){
-					$this->db->insert('db_quotation_revisions', array(
-						'store_id'      => $prev_quote['store_id'],
-						'quotation_id'  => $quotation_id,
-						'revision_no'   => (int)($prev_quote['revision_no'] ?? 0),
-						'revision_note' => $prev_quote['revision_note'] ?? null,
-						'header_json'   => json_encode($prev_quote),
-						'items_json'    => json_encode($prev_items),
-						'created_by'    => $CUR_USERID,
-						'created_date'  => $CUR_DATE,
-						'created_time'  => $CUR_TIME,
-					));
-					$next_revision_no = (int)($prev_quote['revision_no'] ?? 0) + 1;
-				}
-			}
-
+		else if($command=='update'){	
 			$quotation_entry = array(
-		    				'reference_no' 				=> $reference_no,
+		    				'reference_no' 				=> $reference_no, 
 		    				'quotation_date' 			=> $quotation_date,
 		    				'expire_date' 				=> $expire_date,
 		    				'quotation_status' 			=> $quotation_status,
 		    				'customer_id' 				=> $customer_id,
-		    				'shippingaddress_id' 		=> $shippingaddress_id,
+		    				/*'warehouse_id' 				=> $warehouse_id,*/
 		    				/*Other Charges*/
 		    				'other_charges_input' 		=> $other_charges_input,
 		    				'other_charges_tax_id' 		=> $other_charges_tax_id,
@@ -278,11 +243,7 @@ class Quotation_model extends CI_Model {
 		    				'grand_total' 				=> $tot_total_amt,
 		    				'quotation_note' 			=> $quotation_note,
 		    			);
-			if(isset($next_revision_no)){
-				$quotation_entry['revision_no']   = $next_revision_no;
-				$quotation_entry['revision_note'] = $revision_note;
-			}
-			$quotation_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			$quotation_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 			$quotation_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->where('id',$quotation_id)->update('db_quotation', $quotation_entry);
 
@@ -314,7 +275,7 @@ class Quotation_model extends CI_Model {
 				$total_cost			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9']));
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
 				$unit_tax			=$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));
-				$description		=mp_clean_text($_REQUEST['description_'.$i] ?? '');
+				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
 
                 //$discount_input  =(empty($discount_input)) ? 0 : $discount_input;
 				//$discount_amt 		=($quotation_qty * $unit_total_cost)*$discount_input/100;

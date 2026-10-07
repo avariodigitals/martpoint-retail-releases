@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — <?= htmlspecialchars($page_title); ?></title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= htmlspecialchars($page_title); ?></title>
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
   <style>
     :root { --mp-primary: #0057FF; --mp-success: #10B981; --mp-danger: #EF4444; --mp-warning: #F59E0B; --mp-bg: #F3F4F6; --mp-surface: #FFFFFF; --mp-border: #E5E7EB; --mp-ink: #111827; --mp-muted: #6B7280; --safe-bottom: env(safe-area-inset-bottom); }
@@ -43,7 +43,7 @@
       <div class="topbar">
         <a href="<?= base_url('mobile'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1><?= htmlspecialchars($page_title); ?></h1>
         </div>
       </div>

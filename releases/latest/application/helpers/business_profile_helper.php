@@ -48,6 +48,7 @@ if (!function_exists('mp_get_business_types')) {
             'clinic'                => 'Clinic',
             'hospital'              => 'Hospital',
             'diagnostic_centre'     => 'Diagnostic Centre',
+            'physiotherapy_rehabilitation' => 'Physiotherapy & Rehabilitation',
             'boutique'              => 'Boutique',
             'shoe_store'            => 'Shoe Store',
             'perfume_shop'          => 'Perfume Shop',
@@ -101,8 +102,8 @@ if (!function_exists('mp_get_feature_flags')) {
             'service_workflow'          => 'Service Workflow',
             'custom_orders'             => 'Custom Orders',
             'packages'                  => 'Packages',
-            'bundles'                   => 'Bundles',
             'memberships'               => 'Memberships',
+            'item_variants'             => 'Item Variants (Size, Colour, Style)',
             'multi_unit_inventory'      => 'Multi-Unit Inventory',
             'multi_unit_selling'        => 'Multi-Unit Selling (Pack/Piece/Box)',
             'batch_tracking'            => 'Batch Tracking',
@@ -146,6 +147,15 @@ if (!function_exists('mp_get_feature_flags')) {
             'customer_sites'            => 'Customer Sites (Multiple Delivery / Service Sites)',
             'equipment_register'        => 'Customer Equipment Register',
             'service_jobs'              => 'Service Jobs (Install / Calibrate / Maintain)',
+            'patient_registry'          => 'Patient Registry & Episodes',
+            'clinical_encounters'       => 'Clinical Encounters & Vitals',
+            'clinical_assessments'      => 'Assessments & Investigations',
+            'treatment_plans'           => 'Treatment Plans & Sessions',
+            'patient_wallet'            => 'Patient Funds & Reservations',
+            'patient_documents'         => 'Patient Documents & Consent',
+            'inpatient_care'            => 'Inpatient Care (Admissions & Beds)',
+            'patient_portal'            => 'Patient Portal',
+            'patient_experience'        => 'Patient Feedback & Testimonials',
         ];
     }
 }
@@ -263,7 +273,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'fashion' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
                 'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Item','category'=>'Collection','customer'=>'Customer','warehouse'=>'Branch'],
             ],
@@ -447,27 +457,33 @@ if (!function_exists('mp_get_business_presets')) {
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Test','service_order'=>'Booking','customer'=>'Patient','staff'=>'Technician'],
             ],
+            'physiotherapy_rehabilitation' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','leads','appointments','service_workflow','packages','store_credit','staff_assignment','manager_approvals','price_catalogue','customer_notes','patient_registry','clinical_encounters','clinical_assessments','treatment_plans','patient_wallet','patient_documents','inpatient_care','patient_portal','patient_experience'],
+                'theme_key'=>'healthcare_pro','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
+                'labels'=>['service'=>'Treatment','service_order'=>'Appointment','customer'=>'Patient','staff'=>'Therapist','package'=>'Session Package','warehouse'=>'Branch'],
+            ],
             'boutique' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
                 'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Item','category'=>'Collection','customer'=>'Customer','warehouse'=>'Branch'],
             ],
             'shoe_store' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','bundles','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
                 'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Shoe','category'=>'Category','customer'=>'Customer','warehouse'=>'Branch'],
             ],
             'perfume_shop' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','loyalty','gift_cards','store_credit','bundles','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','perfumery_workflow','manager_approvals','price_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','custom_orders','loyalty','gift_cards','store_credit','item_variants','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','perfumery_workflow','manager_approvals','price_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'noir_parfum','dashboard_template'=>'perfume_shop','workflow_template'=>'perfumery_standard',
                 'labels'=>['item'=>'Fragrance','product'=>'Fragrance','service'=>'Blending Service','service_order'=>'Bespoke Order','customer'=>'Client','staff'=>'Perfumer','category'=>'Fragrance Family','brand'=>'House','batch'=>'Batch Code','recipe'=>'Formula','production'=>'Blend Batch','custom_order'=>'Bespoke Blend','expiry'=>'Best Before','mfg'=>'Blended On','warehouse'=>'Branch'],
             ],
             'skincare' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','appointments','service_workflow','custom_orders','packages','bundles','loyalty','gift_cards','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','staff_assignment','staff_commission','treatment_notes','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
+                'features'=>['accounts','warehouse','online_store','qr_ordering','appointments','service_workflow','custom_orders','packages','item_variants','loyalty','gift_cards','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','staff_assignment','staff_commission','treatment_notes','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'verdant','dashboard_template'=>'skincare','workflow_template'=>'skincare_standard',
                 'labels'=>['item'=>'Product','product'=>'Product','service'=>'Treatment','service_order'=>'Booking','customer'=>'Client','staff'=>'Therapist','category'=>'Range','brand'=>'Brand','batch'=>'Batch','expiry'=>'Best Before','mfg'=>'Made On','recipe'=>'Formula','production'=>'Batch Run','custom_order'=>'Custom Formulation','appointment'=>'Consultation','package'=>'Skincare Set','warehouse'=>'Branch'],
             ],
@@ -613,6 +629,27 @@ if (!function_exists('mp_get_business_presets')) {
             if (!in_array('leads', $preset['features'], true)) {
                 $preset['features'][] = 'leads';
             }
+            // General commerce capabilities are available to every business
+            // type; a store can still disable them via its own feature flags.
+            foreach (['loyalty', 'gift_cards', 'store_credit'] as $universal) {
+                if (!in_array($universal, $preset['features'], true)) {
+                    $preset['features'][] = $universal;
+                }
+            }
+            // Storefront QR codes apply wherever the online store is enabled.
+            // Table QR ordering stays gated by table_management.
+            if (in_array('online_store', $preset['features'], true) && !in_array('qr_ordering', $preset['features'], true)) {
+                $preset['features'][] = 'qr_ordering';
+            }
+            // Item variants and manual POS delivery fees apply to any business
+            // that can sell physical products.
+            if (($preset['business_model'] ?? '') !== 'service_based') {
+                foreach (['item_variants', 'manual_shipping'] as $product_flag) {
+                    if (!in_array($product_flag, $preset['features'], true)) {
+                        $preset['features'][] = $product_flag;
+                    }
+                }
+            }
         }
         unset($preset);
         return $presets;
@@ -694,7 +731,14 @@ if (!function_exists('mp_feature_enabled')) {
             case 'customer_notes': case 'manager_approvals': case 'cashier_shifts': return true;
             case 'medical_notes': return in_array('medical_notes', $profile_features);
             case 'payplan': return true;
-            case 'bundles': return true; // variants available unless explicitly disabled in feature flags
+            // 'bundles' is the legacy flag key for item variants — kept as a
+            // readable alias so existing saved feature flags keep working.
+            // True composite bundles are a separate future capability.
+            case 'bundles': return mp_feature_enabled('item_variants');
+            case 'item_variants':
+                $legacy = mp_feature_flag_raw('bundles');
+                if ($legacy !== null) { return $legacy; }
+                return in_array('item_variants', $profile_features);
             default: return in_array($flag_key, $profile_features);
         }
     }
@@ -728,6 +772,32 @@ if (!function_exists('mp_feature_enabled_for_store')) {
         }
         if ($raw !== null) {
             return $raw;
+        }
+        // 'bundles' is the legacy flag key for item variants (same alias as
+        // mp_feature_enabled); true composite bundles are a future capability.
+        if ($flag_key === 'bundles') {
+            return mp_feature_enabled_for_store('item_variants', $store_id);
+        }
+        if ($flag_key === 'item_variants') {
+            $CI2 =& get_instance();
+            if ($CI2->db->table_exists('db_store_industry_settings')) {
+                $store = $CI2->db->select('feature_flags_json')->where('store_id', $store_id)->get('db_store_industry_settings')->row();
+                if ($store && !empty($store->feature_flags_json)) {
+                    $flags = json_decode($store->feature_flags_json, true);
+                    if (is_array($flags) && array_key_exists('bundles', $flags)) {
+                        return filter_var($flags['bundles'], FILTER_VALIDATE_BOOLEAN);
+                    }
+                }
+            }
+            if ($CI2->db->field_exists('feature_flags_json', 'db_store')) {
+                $store = $CI2->db->select('feature_flags_json')->where('id', $store_id)->get('db_store')->row();
+                if ($store && !empty($store->feature_flags_json)) {
+                    $flags = json_decode($store->feature_flags_json, true);
+                    if (is_array($flags) && array_key_exists('bundles', $flags)) {
+                        return filter_var($flags['bundles'], FILTER_VALIDATE_BOOLEAN);
+                    }
+                }
+            }
         }
         $profile = mp_get_store_profile($store_id);
         return in_array($flag_key, $profile['features'] ?? []);

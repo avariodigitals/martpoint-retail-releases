@@ -5,6 +5,11 @@
  *   $data['content'] = $this->load->view('sales', $data, TRUE);
  *   $this->load->view('mp_layout', $data);
  */
+if(!function_exists('physio_enabled')) $this->load->helper('physio');
+if(function_exists('physio_enabled') && physio_enabled()){
+  $this->load->view('physio_layout', get_defined_vars());
+  return;
+}
 $this->load->view('mp_header');
 $this->load->view('mp_sidebar');
 /* Load shared JS plugins before page content so content views can rely on

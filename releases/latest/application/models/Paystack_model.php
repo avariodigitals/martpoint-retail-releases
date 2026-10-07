@@ -19,6 +19,27 @@ class Paystack_model extends CI_Model {
 		return $this->db->where('store_id', $store_id)->get($this->table)->row();
 	}
 
+	/**
+	 * Resolve the store a signed webhook belongs to when the reference has
+	 * no local order or payment link. Webhooks carry no session so
+	 * get_current_store_id() is empty here — test each enabled account's
+	 * webhook secret against the signature; the matching store owns the
+	 * event. With no signature match (or no secrets configured) fall back
+	 * to the first enabled account, preserving single-store behaviour.
+	 */
+	public function resolve_webhook_settings($input)
+	{
+		$sig = isset($_SERVER['HTTP_X_PAYSTACK_SIGNATURE']) ? $_SERVER['HTTP_X_PAYSTACK_SIGNATURE'] : '';
+		$rows = $this->db->where('enabled', 1)->get($this->table)->result();
+		foreach($rows as $row){
+			if(!empty($row->webhook_secret) && $sig !== ''
+				&& hash_equals(hash_hmac('sha512', $input, $row->webhook_secret), $sig)){
+				return $row;
+			}
+		}
+		return !empty($rows) ? $rows[0] : null;
+	}
+
 	public function save_settings($data)
 	{
 		$store_id = get_current_store_id();

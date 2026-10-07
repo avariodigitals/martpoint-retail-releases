@@ -437,15 +437,21 @@
  		if($q3){ foreach ($q3->result() as $res3) {
  			$ids[] = $res3->warehouse_id;
  		} }
- 		$ids = implode(',', $ids);
- 		$CI->db->where("id in ($ids)");
- 		
- 	}
 
+		/*
+		 * A user with NO branch assignment previously produced "id in ()",
+		 * which is invalid SQL — the query returned false and the num_rows()
+		 * call below then fataled with "Call to a member function num_rows() on
+		 * bool", 500-ing the whole screen. A warehouse-less user is a normal
+		 * state (a single-branch clinic, or a role that needs no branch), so
+		 * return an empty option list instead of a broken query.
+		 */
+		if(empty($ids)){
+			return ($show_select ? '<option value="">-Select-</option>' : '')
+				. '<option value="">-</option>';
+		}
 
-    //if not admin
-	  if(!empty($store_id)){
-	    $CI->db->where("store_id",$store_id);
+		$ids = implode(',', array_map('intval', $ids));
 	  }
 	  else{
 	  	$CI->db->where("store_id",get_current_store_id());

@@ -14,7 +14,12 @@ class Services extends MY_Controller {
 		$this->permission_check('services_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('services');
-		$this->load->view('services/services',$data);
+		// Render inside the shared shell (mp_layout dispatches to physio_layout
+		// on clinical stores). services.js binds to #items-form / .box, and
+		// mp_layout loads extra_js_files before the content.
+		$data['extra_js_files'] = ['js/services/services.js'];
+		$data['content'] = $this->load->view('services/services', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	public function newservices(){
@@ -59,7 +64,9 @@ class Services extends MY_Controller {
 		$result=$this->items_model->get_details($id,$data);
 		$data=array_merge($data,$result);
 		$data['page_title']=$this->lang->line('services');
-		$this->load->view('services/services', $data);
+		$data['extra_js_files'] = ['js/services/services.js'];
+		$data['content'] = $this->load->view('services/services', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 	public function update_services(){
 		$this->form_validation->set_rules('item_name', 'Item Name', 'trim|required');

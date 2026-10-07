@@ -148,7 +148,7 @@ class Purchase_returns_model extends CI_Model {
 		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
 		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
 		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
-		$return_note = mp_post_text('return_note');
+		$return_note = $this->input->post('return_note', TRUE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$return_id = $this->input->post('return_id', TRUE);
 		$purchase_id = $this->input->post('purchase_id', TRUE);
@@ -156,7 +156,7 @@ class Purchase_returns_model extends CI_Model {
 		$store_id = $this->input->post('store_id', TRUE);
 		$amount = $this->input->post('amount', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
-		$payment_note = mp_post_text('payment_note');
+		$payment_note = $this->input->post('payment_note', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
@@ -1023,7 +1023,7 @@ class Purchase_returns_model extends CI_Model {
 		$amount = $this->input->post('amount', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = mp_post_text('payment_note');
+		$payment_note = $this->input->post('payment_note', TRUE);
 		$return_id = $this->input->post('return_id', TRUE);
 		$supplier_id = $this->input->post('supplier_id', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);

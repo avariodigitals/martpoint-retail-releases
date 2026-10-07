@@ -1,19 +1,36 @@
 <?php
 $CI =& get_instance();
-// On the vendor's central domain the sidebar collapses to Dashboard +
-// Central tooling only — the retail menus are never rendered there.
-// mp_is_central() is domain-pinned, so this can never fire on a client
-// install; db_sitesettings.central_slim_menu lets the vendor switch it
-// off (default on — a missing column means slim).
-$is_central = function_exists('mp_is_central') && mp_is_central();
-if ($is_central) {
+// CENTRAL MENU MODE.
+//
+// On the vendor's central domain the sidebar can run in two modes, driven by
+// db_sitesettings.central_slim_menu (the checkbox on the Central Dashboard):
+//
+//   central_slim_menu = 0 (DEFAULT) -> show ALL menus. Central works like a
+//                           normal install; the Central group is appended.
+//   central_slim_menu = 1            -> HIDE the retail menus; only the
+//                           Dashboard + Central group remain.
+//
+// Default is 0 = full menu. A missing column also means full, so a fresh
+// Central shows everything until the vendor ticks "Slim menu". (This was
+// previously inverted — it defaulted to slim, so Central came up with the
+// retail menus hidden before the vendor had chosen anything.)
+//
+// mp_is_central() is domain-pinned, so on a client install $is_central is
+// always false and this block is inert.
+$is_central_install = function_exists('mp_is_central') && mp_is_central();
+$hide_retail_menus  = false;
+if ($is_central_install) {
+  $slim = 0;                       // 0 = full menu (default)
   try {
     if ($CI->db->field_exists('central_slim_menu', 'db_sitesettings')) {
       $row = $CI->db->select('central_slim_menu')->where('id', 1)->get('db_sitesettings')->row();
-      $is_central = !$row || (int) $row->central_slim_menu === 1;
+      $slim = $row ? (int) $row->central_slim_menu : 0;
     }
-  } catch (Exception $e) { /* keep slim on error */ }
+  } catch (Exception $e) { $slim = 0; }
+  $hide_retail_menus = ($slim === 1);
 }
+// $is_central gates the retail menus below; it means "hide them".
+$is_central = $hide_retail_menus;
 $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
 $is_car = $industry === 'car_dealership';
 $is_creator = $industry === 'creator';

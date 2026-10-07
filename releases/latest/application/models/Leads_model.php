@@ -13,17 +13,27 @@ class Leads_model extends CI_Model {
 	public function getLeads($storeId = null, $status = '', $search = '', $limit = 200, $offset = 0){
 		try{
 			$storeId = $storeId ?: get_current_store_id();
-			$this->db->where('store_id', $storeId);
-			if($status !== '' && in_array($status, self::STATUSES)) $this->db->where('status', $status);
+			if($this->db->field_exists('assigned_to', 'db_leads')){
+				$this->db->select('l.*, u.username AS assigned_name')
+					->from('db_leads l')
+					->join('db_users u', 'u.id = l.assigned_to', 'left');
+			} else {
+				$this->db->select('l.*')->from('db_leads l');
+			}
+			if($this->db->field_exists('patient_id', 'db_leads') && $this->db->table_exists('db_patients')){
+				$this->db->select('p.patient_code')->join('db_patients p', 'p.id = l.patient_id', 'left');
+			}
+			$this->db->where('l.store_id', $storeId);
+			if($status !== '' && in_array($status, self::STATUSES)) $this->db->where('l.status', $status);
 			if($search !== ''){
 				$this->db->group_start()
-					->like('name', $search)
-					->or_like('phone', $search)
-					->or_like('email', $search)
-					->or_like('interest', $search)
+					->like('l.name', $search)
+					->or_like('l.phone', $search)
+					->or_like('l.email', $search)
+					->or_like('l.interest', $search)
 				->group_end();
 			}
-			return $this->db->order_by('id', 'desc')->limit($limit, $offset)->get('db_leads')->result();
+			return $this->db->order_by('l.id', 'desc')->limit($limit, $offset)->get()->result();
 		} catch(Exception $e){ return []; }
 	}
 
@@ -61,6 +71,99 @@ class Leads_model extends CI_Model {
 	public function deleteLead($id, $storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
 		return $this->db->where('id', $id)->where('store_id', $storeId)->delete('db_leads');
+	}
+
+	// ============== ACTIVITIES / OWNERSHIP (stage 2) ==============
+
+	public function addActivity($leadId, $type, $note = null, $meta = null, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		if(!$this->db->table_exists('db_lead_activities')) return false;
+		return $this->db->insert('db_lead_activities', array(
+			'store_id' => $storeId,
+			'lead_id' => $leadId,
+			'activity_type' => $type,
+			'note' => $note,
+			'meta_json' => $meta ? json_encode($meta) : null,
+			'created_by' => $this->session->userdata('inv_userid'),
+			'created_by_name' => $this->session->userdata('inv_username'),
+			'created_at' => date('Y-m-d H:i:s'),
+		));
+	}
+
+	public function getActivities($leadId, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		if(!$this->db->table_exists('db_lead_activities')) return array();
+		return $this->db->where('lead_id', $leadId)->where('store_id', $storeId)
+			->order_by('id', 'desc')->limit(100)->get('db_lead_activities')->result();
+	}
+
+	/** Assign an owner (db_users.id) and/or follow-up date. */
+	public function assign($id, $userId, $followupAt = null, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		$lead = $this->getLead($id, $storeId);
+		if(!$lead) return false;
+		$update = array('updated_at' => date('Y-m-d H:i:s'));
+		if($this->db->field_exists('assigned_to', 'db_leads')) $update['assigned_to'] = $userId ?: null;
+		if($this->db->field_exists('next_followup_at', 'db_leads')) $update['next_followup_at'] = $followupAt ?: null;
+		$res = $this->db->where('id', $id)->where('store_id', $storeId)->update('db_leads', $update);
+		if($res){
+			$who = $userId ? $this->db->select('username')->where('id', $userId)->get('db_users')->row() : null;
+			$this->addActivity($id, 'assignment', null, array('assigned_to' => $userId, 'assigned_name' => $who->username ?? null, 'next_followup_at' => $followupAt), $storeId);
+		}
+		return $res;
+	}
+
+	/**
+	 * Convert a lead to a physiotherapy patient — idempotent: a converted lead
+	 * returns its existing patient, never creates a second patient, customer
+	 * or financial balance.
+	 */
+	public function convertToPatient($id, $storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		$lead = $this->getLead($id, $storeId);
+		if(!$lead) return array('error' => 'Lead not found');
+		if(!empty($lead->patient_id)) return array('patient_id' => (int)$lead->patient_id, 'already' => true);
+
+		// Link an existing patient on the same contact number rather than
+		// creating a duplicate registry entry.
+		$this->load->model('patients_model', 'patients');
+		$patientId = 0;
+		if(!empty($lead->phone)){
+			$existing = $this->db->select('p.id')
+				->from('db_patients p')
+				->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+				->where('p.store_id', $storeId)->where('c.mobile', $lead->phone)
+				->where('p.status', 1)->where('p.deceased', 0)
+				->get()->row();
+			if($existing) $patientId = (int)$existing->id;
+		}
+		if(!$patientId){
+			$result = $this->patients->savePatient(
+				array('updated_at' => date('Y-m-d H:i:s')),
+				array(
+					'name'    => $lead->name,
+					'mobile'  => $lead->phone ?: '',
+					'email'   => $lead->email ?: '',
+					'phone'   => '', 'address' => '', 'city' => '',
+					'link_customer_id' => !empty($lead->converted_customer_id) ? (int)$lead->converted_customer_id : null,
+				)
+			);
+			if(is_array($result)){
+				// Propagate possible-duplicate detail so the UI can surface it
+				return isset($result['duplicates'])
+					? array('error' => $result['error'], 'duplicates' => $result['duplicates'])
+					: array('error' => $result['error']);
+			}
+			$patientId = (int)$result;
+		}
+		$patient = $this->db->select('customer_id')->where('id', $patientId)->where('store_id', $storeId)->get('db_patients')->row();
+
+		$update = array('status' => 'converted', 'converted_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'));
+		if($patient) $update['converted_customer_id'] = (int)$patient->customer_id;
+		if($this->db->field_exists('patient_id', 'db_leads')) $update['patient_id'] = $patientId;
+		$this->db->where('id', $id)->where('store_id', $storeId)->update('db_leads', $update);
+		$this->addActivity($id, 'converted', 'Converted to patient', array('patient_id' => $patientId), $storeId);
+		return array('patient_id' => $patientId, 'already' => false);
 	}
 
 	/**

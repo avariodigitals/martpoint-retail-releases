@@ -24,7 +24,6 @@
       $coupon_id=$q2->row()->coupon_id;
       $coupon_code = (!empty($coupon_id)) ? get_customer_coupon_details($coupon_id)->code : '';
       $invoice_terms=$q2->row()->invoice_terms;
-      $shippingaddress_id = (int)($q2->row()->shippingaddress_id ?? 0);
 
 
       $items_count = $this->db->query("select count(*) as items_count from db_salesitems where sales_id=$sales_id")->row()->items_count;
@@ -55,7 +54,6 @@
 
       $store_details = get_store_details($store_id);
       $invoice_terms =$store_details->invoice_terms;
-      $shippingaddress_id = (int)($q2->row()->shippingaddress_id ?? 0);
       $save_operation = true;
     }
     else{
@@ -67,8 +65,7 @@
       $sales_date=show_date(date("d-m-Y"));
       $discount_input = $this->db->select("sales_discount")->get('db_store')->row()->sales_discount;
       $discount_input = ($discount_input==0) ? 0 : $discount_input;
-      $shippingaddress_id = 0;
-
+      
       $init_code=get_only_init_code('sales');
       $count_id=get_last_count_id('db_sales');
 
@@ -390,12 +387,6 @@
                 <label for="reference_no">Reference No.</label>
                 <input type="text" class="form-control" id="reference_no" name="reference_no" value="<?= $reference_no; ?>" placeholder="Optional reference...">
                 <span id="reference_no_msg" style="display:none" class="text-danger"></span>
-              </div>
-              <div class="form-group">
-                <label for="shippingaddress_id">Delivery / Service Site</label>
-                <select class="form-control" id="shippingaddress_id" name="shippingaddress_id" data-selected="<?= (int)($shippingaddress_id ?? 0); ?>" style="width:100%;">
-                  <option value="">— Customer primary address —</option>
-                </select>
               </div>
             </div>
           </div>
@@ -748,36 +739,6 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
     var cid = $(getCustomerSelectionId()).val();
     return (walkin_customer_id && cid == walkin_customer_id);
   }
-
-/* Delivery / Service site selector — loads the customer's saved sites */
-function loadSaleCustomerSites(customer_id){
-  var $sel = $("#shippingaddress_id");
-  var keep = $sel.data('selected') || '';
-  $sel.data('selected','');
-  $sel.html('<option value="">— Customer primary address —</option>');
-  if(!customer_id){ return; }
-  $.getJSON(base_url+"customers/get_customer_sites", {customer_id: customer_id}, function(sites){
-    $.each(sites, function(i, s){
-      var opt = $('<option>').val(s.id).text(s.label);
-      if(keep && String(s.id) === String(keep)){ opt.prop('selected', true); }
-      else if(!keep && s.is_primary){ opt.prop('selected', true); }
-      $sel.append(opt);
-    });
-  });
-}
-$("#customer_id").on('change', function(){ loadSaleCustomerSites($(this).val()); });
-
-/* Serialised unit picker — sync hidden serial/IMEI fields + pin qty to 1 */
-$(document).on('change', '.serial-pick', function(){
-  var row = $(this).data('row');
-  var opt = $(this).find('option:selected');
-  $("#sold_serial_number_"+row).val(opt.data('serial') || '');
-  $("#sold_imei_number_"+row).val(opt.data('imei') || '');
-  if($(this).val()){
-    $("#td_data_"+row+"_3").val('1.00');
-    if(typeof calculate_tax === 'function'){ calculate_tax(row); }
-  }
-});
 </script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=2"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
@@ -794,7 +755,6 @@ $(document).on('change', '.serial-pick', function(){
             var customer_id = "<?= (!empty($customer_id)) ? $customer_id : ($walkin_customer_id ?? '');  ?>";
 
             autoLoadFirstCustomer(customer_id);
-            loadSaleCustomerSites(customer_id);
 
             // Toggle walk-in warning on customer change
             function refreshCustomerData(){

@@ -38,80 +38,120 @@
     font-family: var(--mp-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
   }
 
-  /* Two-column checkout layout */
-  .mp-cart-layout { display:flex; flex-direction:column; gap:24px; }
-  @media(min-width:900px){
-    .mp-cart-layout { flex-direction:row; align-items:flex-start; }
-    .mp-cart-left { flex:1 1 0; max-width:560px; }
-    .mp-cart-right { flex:0 0 380px; position:sticky; top:80px; }
+  /* Two-column layout — spacious item list + form on the left,
+     compact sticky summary on the right */
+  .mp-cart-layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:32px; align-items:start; }
+  @media(max-width:959px){
+    .mp-cart-layout { grid-template-columns:1fr; gap:24px; }
+  }
+  .mp-cart-aside { position:sticky; top:80px; }
+  @media(max-width:959px){ .mp-cart-aside { position:static; } }
+
+  /* Item list — one bordered container, rows separated by hairlines */
+  .mp-items-card { background:var(--mp-white); border:1px solid var(--mp-border); border-radius:var(--mp-radius); margin-bottom:24px; overflow:hidden; }
+  .mp-items-head { display:flex; justify-content:space-between; align-items:baseline; padding:18px 24px; border-bottom:1px solid var(--mp-border); }
+  .mp-items-title { font-size:15px; font-weight:700; color:var(--mp-dark); }
+  .mp-items-count { font-size:13px; color:var(--mp-gray); }
+  .mp-item { display:grid; grid-template-columns:72px minmax(0,1fr) auto; grid-template-areas:'img body side'; gap:16px; padding:18px 24px; align-items:center; }
+  .mp-item + .mp-item { border-top:1px solid var(--mp-border); }
+  .mp-item-img { grid-area:img; width:72px; height:72px; border-radius:10px; background:var(--mp-light-gray); overflow:hidden; }
+  .mp-item-img img { width:100%; height:100%; object-fit:cover; display:block; }
+  .mp-item-body { grid-area:body; min-width:0; }
+  .mp-item-name { font-size:15px; font-weight:600; color:var(--mp-dark); line-height:1.35; }
+  .mp-item-meta { display:flex; align-items:center; gap:8px; margin-top:4px; font-size:12.5px; color:var(--mp-gray); flex-wrap:wrap; }
+  .mp-item-type { font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:var(--mp-light-gray); color:var(--mp-gray); }
+  .mp-item-stockwarn { font-size:12px; color:var(--mp-warning); font-weight:600; margin-top:4px; }
+  .mp-item-side { grid-area:side; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  .mp-item-price { font-size:15px; font-weight:700; color:var(--mp-dark); white-space:nowrap; }
+  .mp-item-actions { display:flex; align-items:center; gap:8px; }
+  .mp-stepper { display:inline-flex; align-items:center; border:1px solid var(--mp-border); border-radius:999px; }
+  .mp-stepper button { width:36px; height:36px; border:none; background:transparent; font-size:17px; line-height:1; cursor:pointer; color:var(--mp-dark); display:flex; align-items:center; justify-content:center; }
+  .mp-stepper button:hover { background:var(--mp-light-gray); }
+  .mp-stepper button:first-child { border-radius:999px 0 0 999px; }
+  .mp-stepper button:last-child { border-radius:0 999px 999px 0; }
+  .mp-stepper span { min-width:30px; text-align:center; font-weight:600; font-size:14px; color:var(--mp-dark); }
+  .mp-item-remove { background:none; border:none; color:var(--mp-gray); cursor:pointer; padding:8px; border-radius:8px; display:flex; align-items:center; }
+  .mp-item-remove:hover { color:var(--mp-danger); background:rgba(239,68,68,.08); }
+  .mp-item-remove svg { width:16px; height:16px; }
+  @media(max-width:959px){
+    .mp-item { grid-template-columns:56px minmax(0,1fr); grid-template-areas:'img body' 'side side'; padding:16px; }
+    .mp-item-img { width:56px; height:56px; }
+    .mp-item-side { flex-direction:row; align-items:center; justify-content:space-between; }
   }
 
-  /* Left column — checkout form */
-  .mp-checkout-card { background:var(--mp-white); border-radius:var(--mp-radius); border:1px solid var(--mp-border); padding:24px; margin-bottom:16px; }
-  .mp-checkout-card-title { font-size:16px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; color:var(--mp-dark); }
-  .mp-checkout-card-title .mp-step-num { width:24px; height:24px; border-radius:50%; background:var(--mp-primary); color:#fff; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .mp-checkout-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  /* Checkout sections — restrained cards, no shadows */
+  .mp-checkout-card { background:var(--mp-white); border-radius:var(--mp-radius); border:1px solid var(--mp-border); padding:22px 24px; margin-bottom:16px; }
+  .mp-checkout-card-title { font-size:15px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px; color:var(--mp-dark); }
+  .mp-checkout-card-title .mp-step-num { width:22px; height:22px; border-radius:50%; background:var(--mp-primary); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .mp-checkout-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .mp-checkout-fields .mp-field-full { grid-column:1 / -1; }
   @media(max-width:560px){ .mp-checkout-fields { grid-template-columns:1fr; } }
-  .mp-cart-input { width:100%; padding:12px 14px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); font-size:14px; outline:none; transition:border-color .2s, box-shadow .2s; }
+  .mp-cart-input { width:100%; padding:12px 14px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); font-size:14px; outline:none; transition:border-color .2s, box-shadow .2s; background:var(--mp-white); color:var(--mp-dark); }
   .mp-cart-input:focus { border-color:var(--mp-primary); box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
   .mp-cart-input.mp-error { border-color:var(--mp-danger); box-shadow:0 0 0 3px rgba(239,68,68,0.08); }
   .mp-field-error { font-size:12px; color:var(--mp-danger); margin-top:4px; display:none; }
   .mp-field-error.show { display:block; }
-  .mp-cart-label { font-size:13px; font-weight:600; color:var(--mp-gray); margin-bottom:6px; display:block; }
+  .mp-cart-label { font-size:12.5px; font-weight:600; color:var(--mp-gray); margin-bottom:6px; display:block; letter-spacing:.01em; }
 
   /* Shipping notice */
   .mp-ship-notice { background:#FEF3C7; border:1px solid #FCD34D; border-radius:var(--mp-radius-sm); padding:12px 14px; margin-bottom:16px; font-size:13px; color:#92400E; line-height:1.5; display:flex; gap:8px; align-items:flex-start; }
   .mp-ship-notice i { margin-top:2px; flex-shrink:0; }
 
-  /* Payment/Shipping option cards */
-  .mp-payment-options { display:flex; flex-direction:column; gap:10px; }
-  .mp-payment-option { display:flex; align-items:center; gap:12px; padding:14px; border:1.5px solid var(--mp-border); border-radius:var(--mp-radius-sm); cursor:pointer; background:var(--mp-white); transition:all .2s; }
+  /* Inline city selector — expands within the page, never an OS dropdown */
+  .mp-citysel { position:relative; }
+  .mp-citysel-btn { width:100%; display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); font-size:14px; background:var(--mp-white); color:var(--mp-dark); cursor:pointer; text-align:left; }
+  .mp-citysel-btn i { color:var(--mp-gray); font-size:12px; }
+  .mp-citysel-btn.mp-error { border-color:var(--mp-danger); }
+  .mp-citysel-list { display:none; margin-top:4px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); background:var(--mp-white); max-height:240px; overflow-y:auto; }
+  .mp-citysel.open .mp-citysel-list { display:block; }
+  .mp-citysel-group { padding:8px 14px 4px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--mp-gray); }
+  .mp-citysel-opt { padding:10px 14px; font-size:14px; color:var(--mp-dark); cursor:pointer; }
+  .mp-citysel-opt:hover { background:var(--mp-light-gray); }
+  .mp-citysel-opt.disabled { color:var(--mp-gray); cursor:not-allowed; opacity:.7; }
+
+  /* Payment/Shipping option rows — hairline borders, tinted active state */
+  .mp-payment-options { display:flex; flex-direction:column; gap:8px; }
+  .mp-payment-option { display:flex; align-items:center; gap:12px; padding:14px 16px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); cursor:pointer; background:var(--mp-white); transition:border-color .15s, background .15s; }
   .mp-payment-option:hover { border-color:var(--mp-primary); }
   .mp-payment-option.active { border-color:var(--mp-primary); background:#EFF6FF; }
   .mp-pay-divider { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--mp-gray); margin:14px 0 4px; display:flex; align-items:center; gap:10px; }
   .mp-pay-divider::after { content:''; flex:1; height:1px; background:var(--mp-border); }
-  .mp-payment-option input { width:18px; height:18px; flex-shrink:0; }
+  .mp-payment-option input { width:18px; height:18px; flex-shrink:0; accent-color:var(--mp-primary); }
   .mp-payment-option > div { flex:1; min-width:0; }
   .mp-pay-label { font-size:14px; font-weight:600; color:var(--mp-dark); }
-  .mp-pay-desc { font-size:12px; color:var(--mp-gray); margin-top:2px; }
-  .mp-pay-fee { font-size:14px; font-weight:700; color:var(--mp-primary); white-space:nowrap; }
+  .mp-pay-desc { font-size:12px; color:var(--mp-gray); margin-top:2px; line-height:1.45; }
+  .mp-pay-fee { font-size:13.5px; font-weight:700; color:var(--mp-primary); white-space:nowrap; }
 
-  /* Place order button */
-  .mp-cart-checkout { width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-button); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-top:20px; transition:background .2s, transform .1s; box-shadow:0 4px 12px rgba(0,0,0,0.12); }
+  /* Primary action — consistent radius, no heavy shadow */
+  .mp-cart-checkout { width:100%; padding:15px; border-radius:var(--mp-radius-sm); background:var(--mp-button); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:15px; margin-top:16px; transition:background .2s, transform .1s; }
   .mp-cart-checkout:hover { background:var(--mp-button-dark); }
-  .mp-cart-checkout:active { transform:scale(0.98); }
-  .mp-cart-checkout:disabled { background:#CBD5E1; cursor:not-allowed; box-shadow:none; }
+  .mp-cart-checkout:active { transform:scale(0.99); }
+  .mp-cart-checkout:disabled { background:#CBD5E1; cursor:not-allowed; }
   .mp-cart-checkout .mp-btn-spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; vertical-align:-3px; margin-right:8px; animation:mpSpin .7s linear infinite; }
   @keyframes mpSpin { to { transform:rotate(360deg); } }
-  /* On mobile the summary sits below the form in one column — a sticky
-     button overlaps its own card content, so it stays in normal flow. */
+  /* On mobile the summary sits below the form in one column — the
+     button stays in normal flow so nothing is obstructed. */
 
-  /* Right column — order summary */
-  .mp-order-summary { background:var(--mp-white); border-radius:var(--mp-radius); border:1px solid var(--mp-border); padding:24px; }
-  .mp-order-summary-title { font-size:16px; font-weight:700; margin-bottom:16px; color:var(--mp-dark); }
-  .mp-order-items { max-height:320px; overflow-y:auto; margin-bottom:16px; }
-  .mp-order-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--mp-border); }
-  .mp-order-item:last-child { border-bottom:none; }
-  .mp-order-item-img { width:56px; height:56px; border-radius:8px; object-fit:cover; background:var(--mp-light-gray); flex-shrink:0; overflow:hidden; }
-  .mp-order-item-info { flex:1; min-width:0; }
-  .mp-order-item-name { font-size:13px; font-weight:600; color:var(--mp-dark); line-height:1.3; margin-bottom:4px; }
-  .mp-order-item-meta { font-size:12px; color:var(--mp-gray); display:flex; align-items:center; gap:8px; }
-  .mp-order-item-qty { display:flex; align-items:center; gap:6px; }
-  .mp-order-item-qty button { width:24px; height:24px; border-radius:50%; border:1px solid var(--mp-border); background:var(--mp-white); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; }
-  @media(max-width:899px){ .mp-order-item-qty button { width:32px; height:32px; font-size:15px; } }
-  .mp-order-item-unit { font-size:11px; color:var(--mp-gray); margin-top:2px; }
-  .mp-order-item-stock { font-size:11px; color:var(--mp-warning); font-weight:600; margin-top:2px; }
-  .mp-order-item-price { font-size:13px; font-weight:700; color:var(--mp-primary); white-space:nowrap; }
-  .mp-order-item-remove { color:var(--mp-danger); font-size:11px; cursor:pointer; margin-left:4px; }
-  .mp-continue-shopping { display:inline-flex; align-items:center; gap:6px; margin-top:14px; font-size:13px; font-weight:600; color:var(--mp-primary); }
+  /* Compact summary — mini item list + totals only */
+  .mp-order-summary { background:var(--mp-white); border-radius:var(--mp-radius); border:1px solid var(--mp-border); padding:20px 22px; }
+  .mp-order-summary-title { font-size:15px; font-weight:700; margin-bottom:14px; color:var(--mp-dark); }
+  .mp-summary-items { max-height:220px; overflow-y:auto; margin-bottom:14px; }
+  .mp-summary-item { display:flex; align-items:center; gap:10px; padding:7px 0; }
+  .mp-summary-item + .mp-summary-item { border-top:1px solid var(--mp-border); }
+  .mp-summary-item-img { width:40px; height:40px; border-radius:8px; background:var(--mp-light-gray); overflow:hidden; flex-shrink:0; }
+  .mp-summary-item-img img { width:100%; height:100%; object-fit:cover; display:block; }
+  .mp-summary-item-body { flex:1; min-width:0; }
+  .mp-summary-item-name { font-size:12.5px; font-weight:600; color:var(--mp-dark); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mp-summary-item-qty { font-size:11.5px; color:var(--mp-gray); margin-top:1px; }
+  .mp-summary-item-price { font-size:12.5px; font-weight:700; color:var(--mp-dark); white-space:nowrap; }
+  .mp-continue-shopping { display:inline-flex; align-items:center; gap:6px; margin-top:12px; font-size:13px; font-weight:600; color:var(--mp-primary); }
   .mp-continue-shopping:hover { color:var(--mp-primary-dark); }
   .mp-quote-note { font-size:12px; color:var(--mp-gray); line-height:1.5; margin-top:10px; padding:10px 12px; background:var(--mp-light-gray); border-radius:var(--mp-radius-sm); }
 
-  .mp-summary-totals { border-top:1px solid var(--mp-border); padding-top:16px; }
-  .mp-cart-row { display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; color:var(--mp-gray); }
+  .mp-summary-totals { border-top:1px solid var(--mp-border); padding-top:14px; }
+  .mp-cart-row { display:flex; justify-content:space-between; font-size:13.5px; margin-bottom:8px; color:var(--mp-gray); }
   .mp-cart-row span:last-child { color:var(--mp-dark); font-weight:600; }
-  .mp-cart-total { display:flex; justify-content:space-between; align-items:center; font-size:20px; font-weight:800; border-top:1px solid var(--mp-border); padding-top:12px; margin-top:12px; color:var(--mp-dark); }
+  .mp-cart-total { display:flex; justify-content:space-between; align-items:center; font-size:19px; font-weight:800; border-top:1px solid var(--mp-border); padding-top:12px; margin-top:10px; color:var(--mp-dark); }
   .mp-cart-total span:last-child { color:var(--mp-primary); }
 
   /* Empty cart */
@@ -154,10 +194,13 @@ const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ?
 const TABLE_NUMBER = <?= json_encode($table_number ?? ''); ?>;
 const ALLOW_BACKORDER = <?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;
 
-// Detect if cart is digital-only (no physical items needing shipping)
-function isCartDigitalOnly(){
+// A cart needs delivery only if it contains something physically
+// deliverable — merchandise or a service. Digital downloads, courses
+// and memberships never trigger the shipping section.
+const MP_DELIVERABLE_TYPES = ['product','physical','service'];
+function cartNeedsDelivery(){
   if(cartData.length === 0) return false;
-  return cartData.every(i => ['digital','course','membership'].indexOf(i.type) !== -1);
+  return cartData.some(i => MP_DELIVERABLE_TYPES.indexOf(i.type || 'product') !== -1 || i.product_type === 'physical' || i.product_type === 'service');
 }
 
 function isCartPhysicalOnly(){
@@ -175,52 +218,81 @@ function renderCart(){
     return;
   }
 
+  const needsDelivery = cartNeedsDelivery();
+
   // Build two-column layout
   let html = '<div class="mp-cart-layout">';
 
-  // === LEFT COLUMN: Checkout form ===
-  html += '<div class="mp-cart-left">';
+  // === LEFT COLUMN: item list, then checkout sections ===
+  html += '<div class="mp-cart-main">';
+
+  // Items — spacious rows, quantity/remove handled here; the summary
+  // on the right mirrors the totals only.
+  html += '<div class="mp-items-card">';
+  html += '<div class="mp-items-head"><span class="mp-items-title">Your items</span><span class="mp-items-count">'+cartData.length+' item'+(cartData.length>1?'s':'')+'</span></div>';
+  html += '<div id="cart-items"></div>';
+  html += '</div>';
+  html += '<div class="mp-checkout-card" id="mp-cart-upsell-wrap" style="display:none"><div class="mp-checkout-card-title">You may also like</div><div id="mp-cart-upsells" class="mp-cart-upsells"></div></div>';
 
   // Table QR banner
   if(TABLE_NUMBER){
     html += '<div style="background:#EFF6FF;border:1px solid var(--mp-primary);border-radius:var(--mp-radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--mp-primary);"><i class="fa fa-qrcode"></i> Ordering for Table: ' + TABLE_NUMBER + '</div>';
   }
 
-  // Step 1: Contact details
+  // Step numbering adjusts as sections appear
+  let stepNum = 1;
+
+  // Contact details
   html += '<div class="mp-checkout-card">';
-  html += '<div class="mp-checkout-card-title"><span class="mp-step-num">1</span> ' + (TABLE_NUMBER ? 'Your Name for Table ' + TABLE_NUMBER + ' *' : 'Contact Details') + '</div>';
+  html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (TABLE_NUMBER ? 'Your Name for Table ' + TABLE_NUMBER + ' *' : 'Contact Details') + '</div>';
+  stepNum++;
   html += '<div class="mp-checkout-fields">';
   html += '<div><label class="mp-cart-label">Full Name *</label><input type="text" class="mp-cart-input" id="cust-name" placeholder="John Doe" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-name">Please enter your name</div></div>';
   html += '<div><label class="mp-cart-label">Phone Number *</label><input type="tel" class="mp-cart-input" id="cust-phone" placeholder="08012345678" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-phone">Please enter your phone number</div></div>';
   html += '<div class="mp-field-full"><label class="mp-cart-label">Email (optional)</label><input type="email" class="mp-cart-input" id="cust-email" placeholder="john@example.com"></div>';
-  html += '<div class="mp-field-full"><label class="mp-cart-label">Delivery / Service Address</label><textarea class="mp-cart-input" style="min-height:72px;resize:vertical;" id="cust-address" placeholder="Enter your address..."></textarea></div>';
+  html += '<div class="mp-field-full"><label class="mp-cart-label">' + (needsDelivery ? 'Delivery / Service Address' : 'Address (optional)') + '</label><textarea class="mp-cart-input" style="min-height:72px;resize:vertical;" id="cust-address" placeholder="Enter your address..."></textarea></div>';
   html += '</div>';
   html += '</div>';
 
-  // Step 2: Shipping
-  cityShipMode = !isCartDigitalOnly() && !TABLE_NUMBER && CITY_SHIPPING.length > 0;
-  if(!isCartDigitalOnly() && (cityShipMode || SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE)){
+  // Delivery — only when the cart contains a deliverable item
+  cityShipMode = needsDelivery && !TABLE_NUMBER && CITY_SHIPPING.length > 0;
+  if(needsDelivery && (cityShipMode || SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE)){
     html += '<div class="mp-checkout-card">';
-    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">2</span> ' + (cityShipMode ? 'Delivery City' : 'Shipping Method') + '</div>';
+    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (cityShipMode ? 'Delivery City' : 'Shipping Method') + '</div>';
+    stepNum++;
     if(SHIPPING_NOTICE){
       html += '<div class="mp-ship-notice"><i class="fa fa-info-circle"></i><span>' + SHIPPING_NOTICE.replace(/</g,'&lt;') + '</span></div>';
     }
     if(cityShipMode){
       html += '<label class="mp-cart-label">Where should we deliver? *</label>';
-      html += '<select class="mp-cart-input" id="ship-city" onchange="selCity()">';
-      html += '<option value="">Select your city...</option>';
+      // Inline custom select — the hidden input keeps the posted semantics
+      // while the list expands inside the page (no OS dropdown).
+      html += '<input type="hidden" id="ship-city" value="">';
+      html += '<div class="mp-citysel">';
+      html += '<button type="button" class="mp-citysel-btn" id="ship-city-btn" onclick="toggleCitySel(event)"><span id="ship-city-label">Select your city...</span><i class="fa fa-chevron-down"></i></button>';
+      html += '<div class="mp-citysel-list" id="ship-city-list">';
+      const cartSubtotal = cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
       let czGroups = {};
       CITY_SHIPPING.forEach((z,idx)=>{ const st=(z.state||'').trim()||'Other'; (czGroups[st]=czGroups[st]||[]).push(idx); });
       Object.keys(czGroups).sort().forEach(st=>{
-        html += '<optgroup label="' + String(st).replace(/</g,'&lt;') + '">';
+        html += '<div class="mp-citysel-group">' + String(st).replace(/</g,'&lt;') + '</div>';
         czGroups[st].forEach(idx=>{
           const z = CITY_SHIPPING[idx];
-          const lbl = z.city + (parseFloat(z.fee) > 0 ? ' — ' + formatMoney(z.fee) : ' — Free');
-          html += '<option value="' + idx + '">' + String(lbl).replace(/</g,'&lt;') + '</option>';
+          const freeOver = parseFloat(z.free_over)||0;
+          const minOrder = parseFloat(z.min_order)||0;
+          let lbl = (z.city === '*' ? 'Other areas' : z.city);
+          if(minOrder > 0 && cartSubtotal < minOrder){
+            lbl += ' — min order ' + formatMoney(minOrder);
+            html += '<div class="mp-citysel-opt disabled" data-idx="' + idx + '">' + String(lbl).replace(/</g,'&lt;') + '</div>';
+            return;
+          }
+          lbl += (freeOver > 0 && cartSubtotal < freeOver)
+            ? ' — ' + formatMoney(parseFloat(z.fee)||0) + ' (free over ' + formatMoney(freeOver) + ')'
+            : (parseFloat(z.fee) > 0 ? ' — ' + formatMoney(z.fee) : ' — Free');
+          html += '<div class="mp-citysel-opt" data-idx="' + idx + '" onclick="pickCity(' + idx + ')">' + String(lbl).replace(/</g,'&lt;') + '</div>';
         });
-        html += '</optgroup>';
       });
-      html += '</select>';
+      html += '</div></div>';
       html += '<div class="mp-field-error" id="err-ship-city">Please select your delivery city</div>';
       html += '<div style="font-size:12px;color:var(--mp-gray);margin-top:6px;">Delivery fee is set by your city.</div>';
     }
@@ -246,7 +318,8 @@ function renderCart(){
   cartData.forEach(i=>{ if(i.type==='service'){ if(i.requires_appointment)hasAppt=true; if(i.requires_note)hasNote=true; }});
   if(hasAppt || hasNote){
     html += '<div class="mp-checkout-card">';
-    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">' + (cityShipMode || SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE ? '3' : '2') + '</span> Service Details</div>';
+    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Service Details</div>';
+    stepNum++;
     if(hasAppt){
       html += '<div class="mp-checkout-fields">';
       html += '<div><label class="mp-cart-label">Preferred Service Date</label><input type="date" class="mp-cart-input" id="service-date"></div>';
@@ -260,16 +333,9 @@ function renderCart(){
     html += '</div>';
   }
 
-  // Step 3/4: Payment
-  let hasShip = !isCartDigitalOnly() && (cityShipMode || SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE);
-  let payStepNum = 3;
-  if(!hasShip && !hasAppt && !hasNote) payStepNum = 2;
-  else if(!hasShip && (hasAppt || hasNote)) payStepNum = 3;
-  else if(hasShip && !(hasAppt || hasNote)) payStepNum = 3;
-  else payStepNum = 4;
-
+  // Order & Payment
   html += '<div class="mp-checkout-card">';
-  html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+payStepNum+'</span> Order &amp; Payment</div>';
+  html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Order &amp; Payment</div>';
   html += '<div class="mp-payment-options">';
   <?php if($settings->allow_paystack && $paystack_enabled): ?>
   html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" value="paystack" checked><div><div class="mp-pay-label">Pay Online (Paystack)</div><div class="mp-pay-desc">Pay securely with card, bank or USSD</div></div></div>';
@@ -288,13 +354,21 @@ function renderCart(){
 
   html += '</div>'; // end left column
 
-  // === RIGHT COLUMN: Order summary ===
-  html += '<div class="mp-cart-right">';
+  // === RIGHT COLUMN: compact order summary ===
+  html += '<div class="mp-cart-aside">';
   html += '<div class="mp-order-summary">';
-  html += '<div class="mp-order-summary-title">Order Summary</div>';
-  html += '<div class="mp-order-items" id="cart-items"></div>';
+  html += '<div class="mp-order-summary-title">Order summary</div>';
+  html += '<div class="mp-summary-items" id="summary-items"></div>';
+  html += '<div class="mp-coupon-box" id="coupon-box">'
+       +  '<div style="display:flex;gap:8px;">'
+       +  '<input type="text" class="mp-cart-input" id="coupon-code" placeholder="Coupon code" style="flex:1;text-transform:uppercase;">'
+       +  '<button type="button" class="mp-cart-checkout" id="coupon-btn" onclick="applyCoupon()" style="margin-top:0;width:auto;padding:10px 16px;font-size:13px;">Apply</button>'
+       +  '</div>'
+       +  '<div id="coupon-msg" style="font-size:12px;margin-top:6px;display:none;"></div>'
+       +  '</div>';
   html += '<div class="mp-summary-totals">';
   html += '<div class="mp-cart-row"><span>Subtotal</span><span id="summary-subtotal"></span></div>';
+  html += '<div class="mp-cart-row" id="summary-discount-row" style="display:none;color:#059669;"><span>Coupon <span id="summary-coupon-code"></span> <a href="javascript:void(0)" onclick="removeCoupon()" style="color:#991B1B;font-size:11px;">[remove]</a></span><span id="summary-discount"></span></div>';
   html += '<div class="mp-cart-row" id="summary-shipping-row" style="display:none;"><span>Shipping</span><span id="summary-shipping"></span></div>';
   html += '<div class="mp-cart-total"><span id="summary-total-label">Total</span><span id="summary-total"></span></div>';
   html += '<div class="mp-quote-note" id="summary-quote-note" style="display:none;"><i class="fa fa-info-circle"></i> Delivery for the selected method is priced by the store — the delivery fee will be confirmed when your order is processed. This total covers your items only.</div>';
@@ -306,39 +380,84 @@ function renderCart(){
 
   html += '</div>'; // end layout
   c.innerHTML = html;
+  loadCartUpsells();
 
-  // Render cart items in the right column
-  let subtotal=0, itemsHtml='';
+  // Render item rows (left column) + compact summary list (right column)
+  const MP_TYPE_LABELS = {digital:'Digital download',course:'Course',membership:'Membership',service:'Service'};
+  const trashSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+  let subtotal=0, itemsHtml='', miniHtml='';
   cartData.forEach((item,idx)=>{
-    let it=item.price*item.qty; subtotal+=it;
-    const isPhys = ['product','physical'].indexOf(item.type || 'product') !== -1 || item.product_type === 'physical';
-    const lowStock = isPhys && !ALLOW_BACKORDER && typeof item.stock === 'number' && item.stock > 0 && item.qty >= item.stock;
-    itemsHtml+='<div class="mp-order-item">';
-    itemsHtml+='<div class="mp-order-item-img">'+(item.image?'<img src="<?= base_url(); ?>'+item.image+'" alt="'+item.name+'" style="width:100%;height:100%;object-fit:cover;">':'')+'</div>';
-    itemsHtml+='<div class="mp-order-item-info">';
-    itemsHtml+='<div class="mp-order-item-name">'+item.name+'</div>';
-    itemsHtml+='<div class="mp-order-item-unit">'+formatMoney(item.price)+' each</div>';
-    if(lowStock) itemsHtml+='<div class="mp-order-item-stock">Only '+item.stock+' in stock</div>';
-    itemsHtml+='<div class="mp-order-item-meta">';
-    itemsHtml+='<div class="mp-order-item-qty"><button onclick="upQty('+idx+',-1)" aria-label="Decrease quantity">&minus;</button><span>'+item.qty+'</span><button onclick="upQty('+idx+',1)" aria-label="Increase quantity">+</button></div>';
-    itemsHtml+='<span class="mp-order-item-remove" onclick="rmItem('+idx+')">Remove</span>';
+    let it=sfCartLineTotal(item); subtotal+=it;
+    const unitTotal=sfCartUnitTotal(item);
+    const addonText=(item.addons||[]).map(addon=>String(addon.qty)+' × '+String(addon.name||'Extra')+' ('+formatMoney((Number(addon.price)||0)*(Number(addon.qty)||0))+')').join(', ');
+    const isPhys = MP_DELIVERABLE_TYPES.indexOf(item.type || 'product') !== -1 || item.product_type === 'physical';
+    const typeLabel = MP_TYPE_LABELS[item.type] || (MP_TYPE_LABELS[item.product_type] || '');
+    const lowStock = (item.type !== 'service') && isPhys && !ALLOW_BACKORDER && typeof item.stock === 'number' && item.stock > 0 && item.qty >= item.stock;
+    const imgHtml = item.image ? '<img src="<?= base_url(); ?>'+item.image+'" alt="'+String(item.name).replace(/"/g,'&quot;')+'">' : '';
+
+    itemsHtml+='<div class="mp-item">';
+    itemsHtml+='<div class="mp-item-img">'+imgHtml+'</div>';
+    itemsHtml+='<div class="mp-item-body">';
+    itemsHtml+='<div class="mp-item-name">'+String(item.name).replace(/</g,'&lt;')+'</div>';
+    itemsHtml+='<div class="mp-item-meta">'+(typeLabel?'<span class="mp-item-type">'+typeLabel+'</span>':'')+'<span>'+formatMoney(unitTotal)+' each</span></div>';
+    if(addonText) itemsHtml+='<div class="mp-item-meta">Extras: '+addonText.replace(/</g,'&lt;')+'</div>';
+    if(lowStock) itemsHtml+='<div class="mp-item-stockwarn">Only '+item.stock+' in stock</div>';
+    itemsHtml+='</div>';
+    itemsHtml+='<div class="mp-item-side">';
+    itemsHtml+='<div class="mp-item-price">'+formatMoney(it)+'</div>';
+    itemsHtml+='<div class="mp-item-actions">';
+    itemsHtml+='<div class="mp-stepper"><button onclick="upQty('+idx+',-1)" aria-label="Decrease quantity">&minus;</button><span>'+item.qty+'</span><button onclick="upQty('+idx+',1)" aria-label="Increase quantity">+</button></div>';
+    itemsHtml+='<button class="mp-item-remove" onclick="rmItem('+idx+')" aria-label="Remove '+String(item.name).replace(/"/g,'&quot;')+'" title="Remove">'+trashSvg+'</button>';
     itemsHtml+='</div>';
     itemsHtml+='</div>';
-    itemsHtml+='<div class="mp-order-item-price">'+formatMoney(it)+'</div>';
     itemsHtml+='</div>';
+
+    miniHtml+='<div class="mp-summary-item">';
+    miniHtml+='<div class="mp-summary-item-img">'+imgHtml+'</div>';
+    miniHtml+='<div class="mp-summary-item-body"><div class="mp-summary-item-name">'+String(item.name).replace(/</g,'&lt;')+'</div><div class="mp-summary-item-qty">'+item.qty+' × '+formatMoney(unitTotal)+(addonText?'<br>Extras: '+addonText.replace(/</g,'&lt;'):'')+'</div></div>';
+    miniHtml+='<div class="mp-summary-item-price">'+formatMoney(it)+'</div>';
+    miniHtml+='</div>';
   });
   document.getElementById('cart-items').innerHTML=itemsHtml;
+  document.getElementById('summary-items').innerHTML=miniHtml;
   document.getElementById('summary-subtotal').textContent=formatMoney(subtotal);
   selectedPayment=document.querySelector('input[name="paymethod"]:checked')?.value||'pay_on_delivery';
-  selectedShippingMethod=document.querySelector('input[name="shipmethod"]:checked')?.value||((!cityShipMode && SHIPPING_METHODS.length>0)?SHIPPING_METHODS[0].name:'');
+  selectedShippingMethod=document.querySelector('input[name="shipmethod"]:checked')?.value||((needsDelivery && !cityShipMode && SHIPPING_METHODS.length>0)?SHIPPING_METHODS[0].name:'');
   selectedCityIdx=-1;
   updateShipSummary(subtotal);
+}
+
+let mpCartUpsellItems = [];
+function loadCartUpsells(){
+  const wrap=document.getElementById('mp-cart-upsell-wrap');
+  const target=document.getElementById('mp-cart-upsells');
+  if(!wrap||!target||!cartData.length)return;
+  const body=new URLSearchParams({store_id:STORE_ID,cart_ids:JSON.stringify(cartData.map(i=>i.id)),[CSRF_NAME]:CSRF_HASH});
+  fetch('<?= base_url('storefront/cart_upsells'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()})
+    .then(r=>r.json()).then(res=>{
+      mpCartUpsellItems=Array.isArray(res.items)?res.items:[];
+      if(!mpCartUpsellItems.length)return;
+      const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      target.innerHTML=mpCartUpsellItems.map((item,index)=>'<div class="mp-cart-upsell">'+(item.image?'<img src="'+esc(item.image)+'" alt="">':'')+'<div class="mp-cart-upsell-info"><strong>'+esc(item.name)+'</strong><span>'+formatMoney(item.price)+'</span></div><button type="button" aria-label="Add '+esc(item.name)+'" onclick="addUpsellToCart('+index+')"><i class="fa fa-plus"></i></button></div>').join('');
+      wrap.style.display='block';
+    }).catch(()=>{});
+}
+function addUpsellToCart(index){
+  const item=mpCartUpsellItems[index];if(!item)return;
+  const existing=cartData.find(row=>String(row.id)===String(item.id)&&(row.type==='product'||row.type==='physical'));
+  if(existing){existing.qty=(parseInt(existing.qty,10)||1)+1;}
+  else{cartData.push({key:'product_'+item.id,id:item.id,type:'product',name:item.name,price:item.price,image:item.image,qty:1,stock:item.stock});}
+  cart=cartData;saveCartState();
 }
 
 function getShipFee(){
   if(cityShipMode){
     const z=CITY_SHIPPING[selectedCityIdx];
-    return z?(parseFloat(z.fee)||0):0;
+    if(!z) return 0;
+    const freeOver = parseFloat(z.free_over)||0;
+    const subtotal = cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
+    if(freeOver > 0 && subtotal >= freeOver) return 0;
+    return parseFloat(z.fee)||0;
   }
   if(!selectedShippingMethod) return 0;
   const sm=SHIPPING_METHODS.find(m=>m.name===selectedShippingMethod);
@@ -349,17 +468,81 @@ function selectedShipIsQuote(){
   const sm=SHIPPING_METHODS.find(m=>m.name===selectedShippingMethod);
   return !!(sm && sm.quote);
 }
+function toggleCitySel(e){
+  if(e) e.stopPropagation();
+  const box=document.querySelector('.mp-citysel');
+  if(box) box.classList.toggle('open');
+}
+document.addEventListener('click',function(e){
+  const box=document.querySelector('.mp-citysel');
+  if(box && !box.contains(e.target)) box.classList.remove('open');
+});
+function pickCity(idx){
+  const hidden=document.getElementById('ship-city');
+  const lbl=document.getElementById('ship-city-label');
+  const z=CITY_SHIPPING[idx];
+  if(!hidden||!z) return;
+  hidden.value=idx;
+  const freeOver=parseFloat(z.free_over)||0;
+  const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
+  let name=(z.city==='*'?'Other areas':z.city);
+  if(freeOver>0&&subtotal>=freeOver) name+=' — Free delivery';
+  else if(freeOver>0) name+=' — '+formatMoney(parseFloat(z.fee)||0)+' (free over '+formatMoney(freeOver)+')';
+  else name+=(parseFloat(z.fee)>0?' — '+formatMoney(z.fee):' — Free');
+  if(lbl) lbl.textContent=name;
+  const box=document.querySelector('.mp-citysel');
+  if(box) box.classList.remove('open');
+  clearErr(document.getElementById('ship-city-btn'));
+  selCity();
+}
 function selCity(){
   const sel=document.getElementById('ship-city');
-  clearErr(sel);
   selectedCityIdx=sel&&sel.value!==''?parseInt(sel.value):-1;
   if(selectedCityIdx>=0){
     const z=CITY_SHIPPING[selectedCityIdx];
-    selectedShippingMethod='Delivery - '+z.city+((z.state||'').trim()?', '+z.state.trim():'');
+    selectedShippingMethod='Delivery - '+(z.city==='*'?'Other areas':z.city)+((z.state||'').trim()?', '+z.state.trim():'');
   } else {
     selectedShippingMethod='';
   }
-  const subtotal=cartData.reduce((s,i)=>s+(i.price*i.qty),0);
+  const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
+  updateShipSummary(subtotal);
+}
+// Coupon state — the displayed discount is a preview; place_order recomputes
+// it server-side before saving the order.
+var appliedCoupon='', couponDiscountPreview=0;
+function applyCoupon(){
+  const code=(document.getElementById('coupon-code').value||'').trim().toUpperCase();
+  const msg=document.getElementById('coupon-msg');
+  if(!code){ msg.style.display='none'; return; }
+  const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
+  const data=new URLSearchParams();
+  data.append('store_id',STORE_ID); data.append('coupon_code',code); data.append('subtotal',subtotal);
+  if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
+  const btn=document.getElementById('coupon-btn'); btn.disabled=true;
+  fetch('<?= base_url('storefront/validate_coupon'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data.toString()})
+  .then(r=>r.json()).then(res=>{
+    btn.disabled=false;
+    if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
+    if(res.status){
+      appliedCoupon=code; couponDiscountPreview=parseFloat(res.discount)||0;
+      msg.style.display='block'; msg.style.color='#059669';
+      msg.textContent=(res.promo_name||'Coupon')+' applied — you save '+formatMoney(couponDiscountPreview);
+      document.getElementById('coupon-code').disabled=true;
+      btn.textContent='Applied';
+    } else {
+      appliedCoupon=''; couponDiscountPreview=0;
+      msg.style.display='block'; msg.style.color='#991B1B';
+      msg.textContent=res.message||'Invalid coupon';
+    }
+    updateShipSummary(subtotal);
+  }).catch(()=>{ btn.disabled=false; showToast('Could not validate coupon'); });
+}
+function removeCoupon(){
+  appliedCoupon=''; couponDiscountPreview=0;
+  const inp=document.getElementById('coupon-code'); inp.disabled=false; inp.value='';
+  const btn=document.getElementById('coupon-btn'); btn.disabled=false; btn.textContent='Apply';
+  document.getElementById('coupon-msg').style.display='none';
+  const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
   updateShipSummary(subtotal);
 }
 function updateShipSummary(subtotal){
@@ -379,7 +562,15 @@ function updateShipSummary(subtotal){
   const totalLbl=document.getElementById('summary-total-label');
   if(note) note.style.display = quotePending ? 'block' : 'none';
   if(totalLbl) totalLbl.textContent = quotePending ? 'Items total' : 'Total';
-  document.getElementById('summary-total').textContent=formatMoney(subtotal+fee);
+  const dRow=document.getElementById('summary-discount-row');
+  if(dRow){
+    if(appliedCoupon && couponDiscountPreview>0){
+      dRow.style.display='flex';
+      document.getElementById('summary-coupon-code').textContent=appliedCoupon;
+      document.getElementById('summary-discount').textContent='−'+formatMoney(couponDiscountPreview);
+    } else { dRow.style.display='none'; }
+  }
+  document.getElementById('summary-total').textContent=formatMoney(Math.max(0,subtotal+fee-couponDiscountPreview));
   updateCheckoutBtn();
 }
 
@@ -388,8 +579,8 @@ function updateShipSummary(subtotal){
 function updateCheckoutBtn(){
   const btn=document.getElementById('checkout-btn');
   if(!btn || btn.disabled) return;
-  const subtotal=cartData.reduce((s,i)=>s+(i.price*i.qty),0);
-  const total=subtotal+getShipFee();
+  const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
+  const total=Math.max(0,subtotal+getShipFee()-couponDiscountPreview);
   if(selectedPayment==='paystack') btn.textContent='Pay '+formatMoney(total)+' securely';
   else if(selectedPayment==='whatsapp') btn.textContent='Send order via WhatsApp';
   else if(selectedPayment==='pay_on_delivery') btn.textContent='Place order — pay on delivery';
@@ -398,7 +589,7 @@ function updateCheckoutBtn(){
 function selShip(el,method){
   document.querySelectorAll('input[name="shipmethod"]').forEach(o=>o.closest('.mp-payment-option').classList.remove('active'));
   el.classList.add('active'); el.querySelector('input').checked=true; selectedShippingMethod=method;
-  const subtotal=cartData.reduce((s,i)=>s+(i.price*i.qty),0);
+  const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
   updateShipSummary(subtotal);
 }
 
@@ -412,13 +603,16 @@ function setErr(id){
   const input=document.getElementById(id);
   const err=document.getElementById('err-'+id);
   if(input) input.classList.add('mp-error');
+  const btn=document.getElementById(id+'-btn');
+  if(btn) btn.classList.add('mp-error');
   if(err) err.classList.add('show');
-  if(input && input.scrollIntoView) input.scrollIntoView({behavior:'smooth',block:'center'});
+  const target=btn||input;
+  if(target && target.scrollIntoView) target.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function clearErr(el){
-  if(!el||!el.id) return;
+  if(!el) return;
   el.classList.remove('mp-error');
-  const err=document.getElementById('err-'+el.id);
+  const err=document.getElementById('err-'+(el.id||'').replace(/-btn$/,''));
   if(err) err.classList.remove('show');
 }
 function upQty(idx,delta){
@@ -432,7 +626,7 @@ function upQty(idx,delta){
   it.qty=q; saveCartState();
 }
 function rmItem(idx){ cartData.splice(idx,1); saveCartState(); }
-function saveCartState(){ localStorage.setItem('sf_cart_'+STORE_ID,JSON.stringify(cartData)); renderCart(); updateCartUI(); }
+function saveCartState(){ localStorage.setItem('sf_cart_'+STORE_ID,JSON.stringify(cartData)); renderCart(); updateCartUI(); mpSaveCart(); }
 
 function placeOrder(){
   const name=document.getElementById('cust-name').value.trim();
@@ -449,11 +643,11 @@ function placeOrder(){
   if(firstBad){ const el=document.getElementById(firstBad); if(el&&el.focus) el.focus(); return; }
   if(cartData.length===0){ showToast('Cart is empty'); return; }
   const btn=document.getElementById('checkout-btn'); btn.disabled=true; btn.innerHTML='<span class="mp-btn-spinner"></span>'+(selectedPayment==='whatsapp'?'Sending order...':selectedPayment==='paystack'?'Opening payment...':'Placing order...');
-  const payload=cartData.map(i=>({id:i.id,type:i.type,name:i.name,price:i.price,qty:i.qty,image:i.image,note:i.service_note||'',requires_appointment:i.requires_appointment||false,requires_note:i.requires_note||false}));
+  const payload=cartData.map(i=>({id:i.id,type:i.type==='physical'?'product':i.type,name:i.name,price:i.price,qty:i.qty,image:i.image,note:i.service_note||'',addons:(i.addons||[]).map(addon=>({id:addon.id,qty:addon.qty})),requires_appointment:i.requires_appointment||false,requires_note:i.requires_note||false}));
   if(selectedPayment==='whatsapp'){
     let msg='Hello, I would like to place an order from <?= htmlspecialchars(addslashes($store->store_name ?? 'your store')); ?>';
     msg+='\n\nItems:\n'; let total=0;
-    cartData.forEach(i=>{ msg+=i.qty+' x '+i.name+' — '+formatMoney(i.price*i.qty)+'\n'; total+=i.price*i.qty; });
+    cartData.forEach(i=>{ msg+=i.qty+' x '+i.name+' — '+formatMoney(sfCartLineTotal(i))+'\n'; (i.addons||[]).forEach(addon=>{msg+='   + '+addon.qty+' x '+addon.name+'\n';}); total+=sfCartLineTotal(i); });
     const shipFee=getShipFee();
     msg+='\nSubtotal: '+formatMoney(total);
     if(selectedShippingMethod){ msg+='\nShipping: '+selectedShippingMethod+(shipFee>0?' ('+formatMoney(shipFee)+')':(selectedShipIsQuote()?' (fee quoted by store)':' (Free)')); } else if(cityShipMode&&selectedCityIdx>=0){ msg+='\nDelivery City: '+CITY_SHIPPING[selectedCityIdx].city+(shipFee>0?' ('+formatMoney(shipFee)+')':' (Free)'); }
@@ -477,7 +671,10 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   }
   data.append('service_date',sDate); data.append('service_time',sTime); data.append('service_note',sNote);
   data.append('table_number',TABLE_NUMBER);
+  data.append('coupon_code',appliedCoupon||'');
   data.append('cart',JSON.stringify(payload));
+  data.append('cart_token',mpCartToken());
+  data.append('consent',(window.mpTrackConsent && window.mpTrackConsent.granted())?'1':'0');
   if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
   fetch('<?= base_url('storefront/place_order'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data.toString()})
   .then(r=>{
@@ -551,6 +748,71 @@ function showOrderSuccess(orderCode, redirectUrl, paymentMethod){
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
+
+// Recover a persisted cart when the page is opened via a recovery link
+// (?cart=TOKEN — the merchant shares it with the customer directly).
+// The server revalidates every line (live price/stock/availability) and
+// returns only items — saved contact details are never exposed here.
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('cart');
+  if(!token || cartData.length) return;
+  const body = new URLSearchParams({store_id: STORE_ID, cart_token: token});
+  if(CSRF_NAME && CSRF_HASH) body.append(CSRF_NAME, CSRF_HASH);
+  fetch('<?= base_url('storefront/get_cart'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()})
+    .then(r=>r.json()).then(res=>{
+      if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
+      if(res.status && Array.isArray(res.items) && res.items.length){
+        cartData = res.items; cart = res.items;
+        localStorage.setItem('sf_cart_'+STORE_ID, JSON.stringify(cartData));
+        // Restored cart adopts the recovered token so further snapshots
+        // keep updating the same server row.
+        try{ localStorage.setItem('sf_cart_token_'+STORE_ID, token); }catch(e){}
+        renderCart(); updateCartUI();
+        showToast('Your saved cart has been restored with current prices');
+        if(Array.isArray(res.dropped) && res.dropped.length){
+          showToast('No longer available: ' + res.dropped.join(', '));
+        }
+        // Opt-out affordance — recovery link holders can stop reminders.
+        const box = document.createElement('div');
+        box.id = 'mp-cart-optout';
+        box.style.cssText = 'margin:8px auto 0;max-width:640px;text-align:center;font-size:12px;color:#64748B;';
+        box.innerHTML = '<a href="#" id="mp-cart-optout-link" style="color:inherit;text-decoration:underline;">Don\'t remind me about this cart</a>';
+        const host = document.querySelector('.cart-container, .sf-section, main, body');
+        if(host && host.insertBefore) host.insertBefore(box, host.firstChild);
+        const link = document.getElementById('mp-cart-optout-link');
+        if(link) link.addEventListener('click', function(e){
+          e.preventDefault();
+          const b2 = new URLSearchParams({store_id: STORE_ID, cart_token: token});
+          if(CSRF_NAME && CSRF_HASH) b2.append(CSRF_NAME, CSRF_HASH);
+          fetch('<?= base_url('storefront/cart_optout'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b2.toString()})
+            .then(r=>r.json()).then(r2=>{ if(r2.csrf_hash) CSRF_HASH = r2.csrf_hash; box.innerHTML='Reminders stopped.'; }).catch(()=>{});
+        });
+      }
+    }).catch(()=>{});
+})();
+
+// Begin-checkout funnel event + initial persisted snapshot (consent-gated
+// by mpTrackEvent). Persisted carts are order-adjacent, not ads — they are
+// always saved so the merchant can see abandonment.
+if(cartData.length){
+  if(typeof mpTrackEvent === 'function') mpTrackEvent('begin_checkout', 0, cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0));
+  if(typeof mpSaveCart === 'function') mpSaveCart();
+}
+
+// Contact fields flow into the persisted cart — that's what makes an
+// abandoned checkout reachable for a manual reminder.
+['cust-name','cust-phone','cust-email'].forEach(function(id){
+  document.addEventListener('input', function(e){
+    if(e.target && e.target.id === id){
+      mpSaveCart({
+        customer_name: (document.getElementById('cust-name')||{}).value || '',
+        customer_phone: (document.getElementById('cust-phone')||{}).value || '',
+        customer_email: (document.getElementById('cust-email')||{}).value || ''
+      });
+    }
+  });
+});
 
 renderCart();
 </script>

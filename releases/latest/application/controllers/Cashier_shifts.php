@@ -30,7 +30,10 @@ class Cashier_shifts extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = $this->lang->line('z_report');
 		$data['cashiers']   = $this->shifts->get_cashiers();
-		$this->load->view('report-z-report', $data);
+		// Render inside the shared shell (mp_layout dispatches to physio_layout
+		// on clinical stores).
+		$data['content'] = $this->load->view('report-z-report', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/** AJAX: returns HTML rows for the history table. */
@@ -85,7 +88,8 @@ class Cashier_shifts extends MY_Controller {
 		$data['page_title'] = $this->lang->line('cashier_shifts');
 		$data['open_shift'] = $this->shifts->get_open_shift();
 		$data['tills']      = $this->shifts->get_tills_for_user();
-		$this->load->view('cashier_shift/manage', $data);
+		$data['content'] = $this->load->view('cashier_shift/manage', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/** AJAX: open a new shift. */
@@ -115,7 +119,8 @@ class Cashier_shifts extends MY_Controller {
 		$data['page_title'] = 'Close Shift — '.$shift->shift_code;
 		$data['shift']      = $shift;
 		$data['expected']   = $this->shifts->compute_expected($shift);
-		$this->load->view('cashier_shift/close', $data);
+		$data['content'] = $this->load->view('cashier_shift/close', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 
 	/** JSON: live expected amounts for the current open shift. */
@@ -163,6 +168,10 @@ class Cashier_shifts extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Z-Report — '.$detail['shift']->shift_code;
 		$data['detail']     = $detail;
-		$this->load->view('cashier_shift/view', $data);
+		// view.php exports via js/sheetjs.js — enqueued so mp_layout loads it
+		// before the content (the view used to pull it in itself).
+		$data['extra_js_files'] = ['js/sheetjs.js'];
+		$data['content'] = $this->load->view('cashier_shift/view', $data, TRUE);
+		$this->load->view('mp_layout', $data);
 	}
 }

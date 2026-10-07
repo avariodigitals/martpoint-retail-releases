@@ -30,33 +30,7 @@ $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
 $is_install_seed = (strpos($request_uri, 'install_seed') !== false);
 
 if (PHP_SAPI !== 'cli' && !$is_install_seed && !file_exists($lock_file)) {
-    // Self-heal: package re-uploads can drop installed.lock. If database.php
-    // holds real credentials AND the MartPoint schema exists, this is an
-    // installed system — recreate the lock instead of sending to setup.
-    if (file_exists($db_config_path)) {
-        $dbc = file_get_contents($db_config_path);
-        if (strpos($dbc, '%HOSTNAME%') === false && strpos($dbc, '%DATABASE%') === false) {
-            $db = null;
-            include $db_config_path;
-            $d = is_array($db ?? null) ? ($db['default'] ?? null) : null;
-            if (is_array($d) && !empty($d['database'])) {
-                $link = @mysqli_connect(
-                    (string) ($d['hostname'] ?? ''),
-                    (string) ($d['username'] ?? ''),
-                    (string) ($d['password'] ?? ''),
-                    (string) $d['database']
-                );
-                if ($link) {
-                    $t = @mysqli_query($link, "SHOW TABLES LIKE 'db_sitesettings'");
-                    if ($t && mysqli_num_rows($t) > 0) {
-                        @file_put_contents($lock_file, 'restored ' . date('c'));
-                    }
-                    mysqli_close($link);
-                }
-            }
-        }
-    }
-    $needs_install = !file_exists($lock_file);
+    $needs_install = true;
 }
 
 if (!$needs_install && file_exists($db_config_path)) {

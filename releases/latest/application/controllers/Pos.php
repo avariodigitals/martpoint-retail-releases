@@ -33,8 +33,7 @@ class Pos extends MY_Controller {
 		$data['clock_in_time'] = '';
 		$data['attendance_exempt'] = is_store_admin();
 		$roleName = trim($this->session->userdata('role_name') ?: '');
-		$data['clock_in_required'] = !$data['attendance_exempt'] && stripos($roleName, 'cashier') !== false;
-		if($data['clock_in_required']){
+		if(!$data['attendance_exempt'] && stripos($roleName, 'cashier') !== false){
 			$this->load->model('attendance_model');
 			$userId = $this->session->userdata('inv_userid');
 			$data['needs_clock_in'] = !$this->attendance_model->needsClockOut($userId);

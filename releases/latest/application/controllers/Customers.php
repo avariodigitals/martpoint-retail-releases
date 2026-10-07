@@ -211,6 +211,46 @@ class Customers extends MY_Controller {
 		//output to json format
 		echo json_encode($output);
 	}
+	public function export_csv(){
+		$this->permission_check('export_customers');
+		$store_id = get_current_store_id();
+
+		$headers = array(
+			'customer_code','customer_name','customer_type','mobile','phone','email',
+			'gstin','tax_number','opening_balance','credit_limit','payment_terms_days',
+			'country','state','city','postcode','address',
+			'ship_city','ship_postcode','ship_address',
+			'sales_due','sales_return_due','tot_advance',
+			'loyalty_points','loyalty_tier','store_credit_balance','gift_card_balance',
+			'referral_code','birthday','last_purchase_date','created_date','created_by'
+		);
+
+		$this->db->select('c.customer_code,c.customer_name,c.customer_type,c.mobile,c.phone,c.email,c.gstin,c.tax_number,c.opening_balance,c.credit_limit,c.payment_terms_days,ct.country as country_name,st.state as state_name,c.city,c.postcode,c.address,c.ship_city,c.ship_postcode,c.ship_address,c.sales_due,c.sales_return_due,c.tot_advance,c.loyalty_points,c.loyalty_tier,c.store_credit_balance,c.gift_card_balance,c.referral_code,c.birthday,c.last_purchase_date,c.created_date,c.created_by', FALSE);
+		$this->db->from('db_customers c');
+		$this->db->join('db_country ct','ct.id=c.country_id','left');
+		$this->db->join('db_states st','st.id=c.state_id','left');
+		$this->db->where('c.store_id', $store_id);
+		$this->db->where('c.status', 1);
+		$this->db->where('c.delete_bit', 0);
+		$this->db->order_by('c.customer_name','asc');
+		$query = $this->db->get();
+
+		header('Content-Type: text/csv; charset=utf-8');
+		header('Content-Disposition: attachment; filename="customers_export_'.date('Ymd_His').'.csv"');
+		$out = fopen('php://output','w');
+		fputcsv($out, $headers);
+		foreach($query->result_array() as $row){
+			$line = array();
+			foreach($headers as $h){
+				$key = $h==='country' ? 'country_name' : ($h==='state' ? 'state_name' : $h);
+				$line[] = isset($row[$key]) ? $row[$key] : '';
+			}
+			fputcsv($out, $line);
+		}
+		fclose($out);
+		exit;
+	}
+
 	public function update_status(){
 		$this->permission_check_with_msg('customers_edit');
 		$id=$this->input->post('id');

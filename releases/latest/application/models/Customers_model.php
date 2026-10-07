@@ -591,7 +591,7 @@ class Customers_model extends CI_Model {
 	    $sum_of_ob_paid = $this->db->query("select coalesce(sum(payment),0) sum_of_ob_paid from db_salespayments where customer_id=$customer_id and short_code='OPENING BALANCE PAID'")->row()->sum_of_ob_paid; 
 	    $customer_opening_balance_due = $customer_opening_balance - $sum_of_ob_paid;
 
-	    $q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_sales where customer_id=$customer_id"); 
+	    $q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_sales where customer_id=$customer_id and (sales_status != 'Opening' or sales_status is null)"); 
 	    $total_sales_amount = $q6->row()->total_sales_amount;
 	    $total_paid_amount = $q6->row()->total_paid_amount;
 	    //$total_sales_due_amount =$total_sales_amount - $total_paid_amount;
@@ -744,7 +744,7 @@ class Customers_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = mp_post_text('payment_note');
+		$payment_note = $this->input->post('payment_note', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
@@ -1178,7 +1178,7 @@ class Customers_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$payment_date = $this->input->post('payment_date', TRUE);
-		$payment_note = mp_post_text('payment_note');
+		$payment_note = $this->input->post('payment_note', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];

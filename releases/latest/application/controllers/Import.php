@@ -12,6 +12,13 @@ class Import extends MY_Controller {
 		$this->permission_check('import_customers');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('import_customers');
+		$data['import_fields'] = $this->_customer_import_fields();
+		$data['import_history'] = array();
+		if($this->db->table_exists('db_import_batches')){
+			$data['import_history'] = $this->db->where('store_id',get_current_store_id())
+				->where('import_type','customers')->order_by('id','desc')->limit(20)
+				->get('db_import_batches')->result();
+		}
 		$data['content']=$this->load->view('customers/desktop/import_customers', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -50,20 +57,27 @@ class Import extends MY_Controller {
                     $i=1;
                     while(($importdata = fgetcsv($file, NULL, ",")) !== FALSE){
                         if($i++==1){ continue; }
-                        
+
                         //Customers name should not be empty
                         if(empty($importdata[0])){
                           continue;
                         }
 
+                        //Neutralise formula injection / markup before any use
+                        $importdata = array_map(function($v){ return $this->xss_html_filter($v); }, $importdata);
 
                         $customer_name=$importdata[0];
-                        $mobile=$importdata[1];
-                       
-                        $query2=$this->db->query("select * from db_customers where mobile='$mobile' and store_id=$store_id");
-                        if($query2->num_rows()>0 && !empty($mobile)){
-                            echo "Import Failed!<br>'".$mobile."' Mobile Number already Exist.<br>Row Number:".$i++;
-                            exit();
+                        $mobile=trim($importdata[1]);
+
+                        if(!empty($mobile)){
+                            $query2=$this->db->select('id')->from('db_customers')
+                                ->where('mobile', $mobile)->where('store_id', $store_id)->get();
+                            if($query2->num_rows()>0){
+                                $this->db->trans_rollback();
+                                fclose($file);
+                                echo "Import Failed!<br>'".htmlspecialchars($mobile)."' Mobile Number already Exist.<br>Row Number:".$i;
+                                return;
+                            }
                         }
 
                         $country_name=trim($importdata[8]);
@@ -137,14 +151,16 @@ class Import extends MY_Controller {
                                                         );
                         $Q2 = $this->db->insert('db_shippingaddress', $shipping_address_details);
                         if(!$Q2){
-                            return "failed";
+                            $flag='false';
+                            continue;
                         }
                         $shipping_address_id=$this->db->insert_id();
                         //end
                         //Update shipping address to customer
                         $Q3 = $this->db->set('shippingaddress_id',$shipping_address_id)->where('id',$customer_id)->update('db_customers');
                         if(!$Q3){
-                            return "failed";
+                            $flag='false';
+                            continue;
                         }
                         //end
 
@@ -165,13 +181,501 @@ class Import extends MY_Controller {
  			//unlink('uploads/csv/customers/'.$file_name);
         }
 
+    /* ============================================================
+     * Customer import v2 — staged pipeline
+     * upload -> map -> preview -> chunked run. Each stage is a separate
+     * request; db_import_batches is the audit record and db_import_rows
+     * holds per-row status so a failed run can be resumed.
+     * ============================================================ */
+
+    private function _customer_import_fields(){
+        return array(
+            'customer_name'       => 'Customer Name *',
+            'mobile'              => 'Mobile',
+            'email'               => 'Email',
+            'phone'               => 'Phone',
+            'gstin'               => 'GST Number',
+            'tax_number'          => 'Tax Number',
+            'opening_balance'     => 'Opening Balance',
+            'credit_limit'        => 'Credit Limit',
+            'customer_type'       => 'Customer Type',
+            'country'             => 'Country',
+            'state'               => 'State',
+            'postcode'            => 'Postcode',
+            'city'                => 'City',
+            'address'             => 'Address',
+            'location_link'       => 'Location Link',
+            'ship_country'        => 'Shipping Country',
+            'ship_state'          => 'Shipping State',
+            'ship_city'           => 'Shipping City',
+            'ship_postcode'       => 'Shipping Postcode',
+            'ship_address'        => 'Shipping Address',
+            'payment_terms_days'  => 'Payment Terms (days)',
+            'birthday'            => 'Birthday (YYYY-MM-DD)',
+            'notes'               => 'Notes',
+        );
+    }
+
+    private function _import_json($arr){
+        $arr['csrf_hash'] = $this->security->get_csrf_hash();
+        header('Content-Type: application/json');
+        echo json_encode($arr);
+        exit;
+    }
+
+    private function _load_import_batch($batch_id, $store_id){
+        return $this->db->where('id',(int)$batch_id)->where('store_id',$store_id)
+            ->where('import_type','customers')->get('db_import_batches')->row();
+    }
+
+    private function _guess_customer_map($headers){
+        $aliases = array(
+            'customer_name' => array('customer_name','name','customer','client','full name','fullname','customer name','client name'),
+            'mobile'        => array('mobile','mobile number','phone','phone number','contact','whatsapp','telephone'),
+            'email'         => array('email','e-mail','email address','mail'),
+            'phone'         => array('phone','alt phone','alternate phone','landline','phone2'),
+            'gstin'         => array('gstin','gst','gst number','gst_number'),
+            'tax_number'    => array('tax_number','tax number','tax id','vat','vat number','vatin'),
+            'opening_balance'=> array('opening_balance','opening balance','previous_due','previous due','balance','due'),
+            'credit_limit'  => array('credit_limit','credit limit'),
+            'customer_type' => array('customer_type','type','customer type'),
+            'country'       => array('country','country_name','country name'),
+            'state'         => array('state','state_name','state name'),
+            'postcode'      => array('postcode','postal code','zip','zip code','pincode','pin code'),
+            'city'          => array('city','town'),
+            'address'       => array('address','street','address line'),
+            'location_link' => array('location_link','location link','map link','location'),
+            'ship_country'  => array('shipping_country','ship_country','shipping country','shipping country name'),
+            'ship_state'    => array('shipping_state','ship_state','shipping state','shipping state name'),
+            'ship_city'     => array('shipping_city','ship_city','shipping city'),
+            'ship_postcode' => array('shipping_postcode','ship_postcode','shipping postcode','shipping zip'),
+            'ship_address'  => array('shipping_address','ship_address','shipping address'),
+            'payment_terms_days' => array('payment_terms_days','payment terms','payment_terms'),
+            'birthday'      => array('birthday','dob','date of birth','birth date'),
+            'notes'         => array('notes','note','comments','remarks'),
+        );
+        $map = array();
+        foreach($headers as $idx=>$h){
+            $norm = strtolower(trim((string)$h));
+            $norm = preg_replace('/\s+/',' ',str_replace(array('_','-'),' ',$norm));
+            foreach($aliases as $field=>$names){
+                if(isset($map[$field])) continue;
+                if(in_array($norm,$names,true) || in_array(strtolower(str_replace(' ','_',$norm)),$names,true)){
+                    $map[$field] = $idx;
+                    break;
+                }
+            }
+        }
+        return $map;
+    }
+
+    public function import_customers_upload(){
+        $this->permission_check_with_msg('import_customers');
+        $store_id = get_current_store_id();
+
+        if(empty($_FILES['import_file']['name']) || $_FILES['import_file']['size'] <= 0){
+            $this->_import_json(array('status'=>'error','message'=>'Please choose a CSV file.'));
+        }
+
+        $config['upload_path']   = './uploads/csv/customers';
+        $config['allowed_types'] = 'csv';
+        $config['encrypt_name']  = TRUE;
+        $config['max_size']      = 10240;
+        $this->load->library('upload', $config);
+        if(!$this->upload->do_upload('import_file')){
+            $this->_import_json(array('status'=>'error','message'=>strip_tags($this->upload->display_errors())));
+        }
+        $file_name = $this->upload->data('file_name');
+        $filepath  = 'uploads/csv/customers/'.$file_name;
+
+        $fh = fopen($filepath,'r');
+        if(!$fh){ $this->_import_json(array('status'=>'error','message'=>'Could not read the uploaded file.')); }
+        $header = fgetcsv($fh);
+        if(!$header || count(array_filter($header)) === 0){
+            fclose($fh);
+            $this->_import_json(array('status'=>'error','message'=>'The file does not look like a valid CSV.'));
+        }
+        $samples = array();
+        while(count($samples) < 5 && ($row = fgetcsv($fh)) !== FALSE){
+            $samples[] = $row;
+        }
+        fclose($fh);
+
+        $this->db->insert('db_import_batches', array(
+            'store_id'    => $store_id,
+            'import_type' => 'customers',
+            'filename'    => $this->security->xss_clean($_FILES['import_file']['name']),
+            'filepath'    => $filepath,
+            'status'      => 'uploaded',
+            'created_by'  => isset($this->data['CUR_USERNAME']) ? $this->data['CUR_USERNAME'] : '',
+        ));
+        $batch_id = $this->db->insert_id();
+
+        $this->_import_json(array(
+            'status'    => 'success',
+            'batch_id'  => $batch_id,
+            'headers'   => array_values($header),
+            'samples'   => $samples,
+            'suggested' => $this->_guess_customer_map($header),
+            'fields'    => $this->_customer_import_fields(),
+        ));
+    }
+
+    private function _validate_customer_row($data){
+        $errs = array();
+        if(empty($data['customer_name'])){
+            $errs[] = 'Customer name is required';
+        }
+        if(!empty($data['mobile']) && !preg_match('/^[0-9+\-\s()]{5,25}$/',$data['mobile'])){
+            $errs[] = 'Invalid mobile number';
+        }
+        if(!empty($data['phone']) && !preg_match('/^[0-9+\-\s()]{5,25}$/',$data['phone'])){
+            $errs[] = 'Invalid phone number';
+        }
+        if(!empty($data['email']) && !filter_var($data['email'],FILTER_VALIDATE_EMAIL)){
+            $errs[] = 'Invalid email address';
+        }
+        if(!empty($data['opening_balance']) && !is_numeric($data['opening_balance'])){
+            $errs[] = 'Opening balance must be a number';
+        }
+        if(!empty($data['credit_limit']) && !is_numeric($data['credit_limit'])){
+            $errs[] = 'Credit limit must be a number';
+        }
+        if(!empty($data['birthday']) && !preg_match('/^\d{4}-\d{2}-\d{2}$/',$data['birthday'])){
+            $errs[] = 'Birthday must be YYYY-MM-DD';
+        }
+        if(!empty($data['payment_terms_days']) && !ctype_digit((string)$data['payment_terms_days'])){
+            $errs[] = 'Payment terms must be whole days';
+        }
+        return $errs;
+    }
+
+    public function import_customers_preview(){
+        $this->permission_check_with_msg('import_customers');
+        $store_id  = get_current_store_id();
+        $batch_id  = (int)$this->input->post('batch_id', TRUE);
+        $batch     = $this->_load_import_batch($batch_id,$store_id);
+        if(!$batch){ $this->_import_json(array('status'=>'error','message'=>'Import batch not found.')); }
+        if(in_array($batch->status,array('processing','completed'))){
+            $this->_import_json(array('status'=>'error','message'=>'This import is already '.$batch->status.'.'));
+        }
+
+        $map = $this->input->post('map');
+        $has_header = (int)$this->input->post('has_header', TRUE) ? 1 : 0;
+        $dup_policy = $this->input->post('dup_policy', TRUE);
+        if(!in_array($dup_policy,array('skip','update','reject'),true)){ $dup_policy = 'skip'; }
+        if(!is_array($map)){ $map = array(); }
+        // Whitelist + one column per field
+        $fields = array_keys($this->_customer_import_fields());
+        $clean_map = array();
+        $used_cols = array();
+        foreach($map as $field=>$col){
+            if(!in_array($field,$fields,true)) continue;
+            $col = (int)$col;
+            if($col < 0 || isset($used_cols[$col])) continue;
+            $used_cols[$col] = true;
+            $clean_map[$field] = $col;
+        }
+        if(!isset($clean_map['customer_name'])){
+            $this->_import_json(array('status'=>'error','message'=>'Map a CSV column to Customer Name before previewing.'));
+        }
+
+        $fh = fopen($batch->filepath,'r');
+        if(!$fh){ $this->_import_json(array('status'=>'error','message'=>'Uploaded file is no longer available.')); }
+
+        $this->db->trans_begin();
+        $this->db->where('batch_id',$batch_id)->where('store_id',$store_id)->delete('db_import_rows');
+
+        $row_no = 0;
+        $total = $err_rows = $dup_rows = 0;
+        $seen_mobile = array();
+        $seen_email  = array();
+        while(($csv = fgetcsv($fh)) !== FALSE){
+            if($row_no === 0 && $has_header){ $row_no++; continue; }
+            $row_no++;
+            if(count($csv) === 1 && trim((string)$csv[0]) === ''){ continue; } // skip blank lines
+            $total++;
+
+            $data = array();
+            foreach($clean_map as $field=>$col){
+                $v = isset($csv[$col]) ? $csv[$col] : '';
+                $data[$field] = trim((string)$this->xss_html_filter($v));
+            }
+
+            $errors = $this->_validate_customer_row($data);
+            $status = 'pending';
+            $msg = null;
+
+            if(empty($errors)){
+                // within-file duplicates
+                if(!empty($data['mobile']) && isset($seen_mobile[$data['mobile']])){
+                    $status='duplicate'; $msg='Mobile repeated from row '.$seen_mobile[$data['mobile']];
+                } elseif(!empty($data['email']) && isset($seen_email[strtolower($data['email'])])){
+                    $status='duplicate'; $msg='Email repeated from row '.$seen_email[strtolower($data['email'])];
+                } else {
+                    // duplicates against the live table (store-scoped)
+                    if(!empty($data['mobile'])){
+                        $exists = $this->db->where('store_id',$store_id)->where('mobile',$data['mobile'])
+                            ->where('status',1)->where('delete_bit',0)
+                            ->limit(1)->get('db_customers')->num_rows();
+                        if($exists){ $status='duplicate'; $msg='Mobile already exists'; }
+                    }
+                    if($status==='pending' && !empty($data['email'])){
+                        $exists = $this->db->where('store_id',$store_id)->where('email',$data['email'])
+                            ->where('status',1)->where('delete_bit',0)
+                            ->limit(1)->get('db_customers')->num_rows();
+                        if($exists){ $status='duplicate'; $msg='Email already exists'; }
+                    }
+                }
+            } else {
+                $status='error'; $msg=implode('; ',$errors);
+            }
+
+            if($status==='pending'){
+                if(!empty($data['mobile'])) $seen_mobile[$data['mobile']] = $row_no;
+                if(!empty($data['email']))  $seen_email[strtolower($data['email'])] = $row_no;
+            } elseif($status==='error'){ $err_rows++; } else { $dup_rows++; }
+
+            $this->db->insert('db_import_rows',array(
+                'batch_id'=>$batch_id,'store_id'=>$store_id,'row_number'=>$row_no,
+                'status'=>$status,'error_message'=>$msg,'raw_json'=>json_encode($data),
+            ));
+        }
+        fclose($fh);
+
+        $this->db->where('id',$batch_id)->where('store_id',$store_id)->update('db_import_batches',array(
+            'field_map_json'=>json_encode($clean_map),'dup_policy'=>$dup_policy,'has_header'=>$has_header,
+            'total_rows'=>$total,'error_rows'=>$err_rows,'dup_rows'=>$dup_rows,
+            'status'=>'previewed',
+        ));
+
+        if($this->db->trans_status() === FALSE){
+            $this->db->trans_rollback();
+            $this->_import_json(array('status'=>'error','message'=>'Failed to stage the file. Please try again.'));
+        }
+        $this->db->trans_commit();
+
+        $sample_errors = $this->db->select('row_number,status,error_message')
+            ->where('batch_id',$batch_id)->where_in('status',array('error','duplicate'))
+            ->order_by('row_number','asc')->limit(10)->get('db_import_rows')->result_array();
+
+        $this->_import_json(array(
+            'status'=>'success','batch_id'=>$batch_id,'total'=>$total,
+            'valid'=>$total-$err_rows-$dup_rows,'errors'=>$err_rows,'duplicates'=>$dup_rows,
+            'sample_errors'=>$sample_errors,'dup_policy'=>$dup_policy,
+        ));
+    }
+
+    // Fields that may be written when dup_policy=update (never balances)
+    private function _customer_update_fields(){
+        return array('customer_name','email','phone','gstin','tax_number','customer_type',
+            'postcode','city','address','location_link','payment_terms_days','birthday','notes');
+    }
+
+    public function import_customers_run(){
+        $this->permission_check_with_msg('import_customers');
+        $store_id = get_current_store_id();
+        $batch_id = (int)$this->input->post('batch_id', TRUE);
+        $batch    = $this->_load_import_batch($batch_id,$store_id);
+        if(!$batch){ $this->_import_json(array('status'=>'error','message'=>'Import batch not found.')); }
+        if(!in_array($batch->status,array('previewed','processing','failed'))){
+            $this->_import_json(array('status'=>'error','message'=>'Preview the file before running the import.'));
+        }
+
+        $policy = $batch->dup_policy;
+        $chunk  = 200;
+
+        // Rows to apply this pass: valid rows + duplicates when policy=update
+        $this->db->where('batch_id',$batch_id)->where('store_id',$store_id)
+            ->where_in('status', $policy==='update' ? array('pending','duplicate') : array('pending'))
+            ->order_by('row_number','asc')->limit($chunk);
+        $rows = $this->db->get('db_import_rows')->result();
+
+        if(empty($rows)){
+            $this->_import_customers_finish($batch,$store_id);
+            return;
+        }
+
+        if($batch->status !== 'processing'){
+            $this->db->where('id',$batch_id)->where('store_id',$store_id)
+                ->update('db_import_batches',array('status'=>'processing','started_at'=>date('Y-m-d H:i:s'),'error_message'=>null));
+        }
+
+        $this->db->trans_begin();
+        $failed = null;
+        foreach($rows as $r){
+            $data = json_decode($r->raw_json,true);
+            if(!is_array($data)){ $failed='Row '.$r->row_number.' has corrupt data'; break; }
+
+            // Re-check duplicates at apply time — another import may have
+            // created the customer between preview and run.
+            $existing = null;
+            if(!empty($data['mobile'])){
+                $existing = $this->db->where('store_id',$store_id)->where('mobile',$data['mobile'])
+                    ->where('status',1)->where('delete_bit',0)->limit(1)->get('db_customers')->row();
+            }
+            if(!$existing && !empty($data['email'])){
+                $existing = $this->db->where('store_id',$store_id)->where('email',$data['email'])
+                    ->where('status',1)->where('delete_bit',0)->limit(1)->get('db_customers')->row();
+            }
+
+            if($existing){
+                if($policy === 'reject'){
+                    $this->db->where('id',$r->id)->update('db_import_rows',array('status'=>'error','error_message'=>'Duplicate: matches existing customer #'.$existing->id));
+                } elseif($policy === 'update'){
+                    $upd = array();
+                    foreach($this->_customer_update_fields() as $f){
+                        if(isset($data[$f]) && $data[$f] !== ''){ $upd[$f] = $data[$f]; }
+                    }
+                    if(!empty($upd)){
+                        if(!$this->db->where('id',$existing->id)->where('store_id',$store_id)->update('db_customers',$upd)){
+                            $failed='Row '.$r->row_number.' update failed'; break;
+                        }
+                    }
+                    $this->db->where('id',$r->id)->update('db_import_rows',array('status'=>'updated','customer_id'=>$existing->id));
+                } else {
+                    $this->db->where('id',$r->id)->update('db_import_rows',array('status'=>'skipped','error_message'=>'Duplicate: matches existing customer #'.$existing->id,'customer_id'=>$existing->id));
+                }
+                continue;
+            }
+
+            if($r->status === 'duplicate'){
+                // in-file duplicate that no longer matches the live table
+                if($policy === 'reject'){
+                    $this->db->where('id',$r->id)->update('db_import_rows',array('status'=>'error','error_message'=>'Duplicate row rejected by policy'));
+                    continue;
+                }
+                if($policy === 'skip'){
+                    $this->db->where('id',$r->id)->update('db_import_rows',array('status'=>'skipped','error_message'=>'Duplicate row skipped'));
+                    continue;
+                }
+            }
+
+            $country_id = !empty($data['country']) ? $this->get_country_id($data['country']) : null;
+            $state_id   = !empty($data['state'])   ? $this->get_state_id($data['state'],$data['country'] ?? '',$country_id,$store_id) : null;
+            $ship_country_id = !empty($data['ship_country']) ? $this->get_country_id($data['ship_country']) : null;
+            $ship_state_id   = !empty($data['ship_state'])   ? $this->get_state_id($data['ship_state'],$data['ship_country'] ?? '',$ship_country_id,$store_id) : null;
+
+            $row = array(
+                'store_id'      => $store_id,
+                'count_id'      => get_count_id('db_customers'),
+                'customer_code' => get_init_code('customer'),
+                'customer_name' => $data['customer_name'],
+                'mobile'        => $data['mobile'] ?? '',
+                'email'         => $data['email'] ?? '',
+                'phone'         => $data['phone'] ?? '',
+                'gstin'         => $data['gstin'] ?? '',
+                'tax_number'    => $data['tax_number'] ?? '',
+                'customer_type' => $data['customer_type'] ?? '',
+                'opening_balance'   => (isset($data['opening_balance']) && $data['opening_balance'] !== '') ? $data['opening_balance'] : '',
+                'credit_limit'      => (isset($data['credit_limit']) && $data['credit_limit'] !== '') ? $data['credit_limit'] : '',
+                'country_id'    => $country_id,
+                'state_id'      => $state_id,
+                'postcode'      => $data['postcode'] ?? '',
+                'city'          => $data['city'] ?? '',
+                'address'       => $data['address'] ?? '',
+                'location_link' => !empty($data['location_link']) ? $data['location_link'] : null,
+                'payment_terms_days' => (isset($data['payment_terms_days']) && $data['payment_terms_days'] !== '') ? (int)$data['payment_terms_days'] : null,
+                'birthday'      => !empty($data['birthday']) ? $data['birthday'] : null,
+                'notes'         => $data['notes'] ?? '',
+                'created_date'  => isset($this->data['CUR_DATE']) ? $this->data['CUR_DATE'] : date('Y-m-d'),
+                'created_time'  => isset($this->data['CUR_TIME']) ? $this->data['CUR_TIME'] : date('H:i:s'),
+                'created_by'    => isset($this->data['CUR_USERNAME']) ? $this->data['CUR_USERNAME'] : '',
+                'system_ip'     => isset($this->data['SYSTEM_IP']) ? $this->data['SYSTEM_IP'] : '',
+                'system_name'   => isset($this->data['SYSTEM_NAME']) ? $this->data['SYSTEM_NAME'] : '',
+                'status'        => 1,
+            );
+
+            if(!$this->db->insert('db_customers',$row)){
+                $failed='Row '.$r->row_number.' insert failed'; break;
+            }
+            $customer_id = $this->db->insert_id();
+
+            if(!empty($data['ship_country']) || !empty($data['ship_state']) || !empty($data['ship_city'])
+                || !empty($data['ship_postcode']) || !empty($data['ship_address'])){
+                $ship = array(
+                    'store_id'=>$store_id,'country_id'=>$ship_country_id,'state_id'=>$ship_state_id,
+                    'city'=>$data['ship_city'] ?? '','postcode'=>$data['ship_postcode'] ?? '',
+                    'address'=>$data['ship_address'] ?? '','customer_id'=>$customer_id,'status'=>1,
+                );
+                if(!$this->db->insert('db_shippingaddress',$ship)){
+                    $failed='Row '.$r->row_number.' shipping address failed'; break;
+                }
+                $this->db->set('shippingaddress_id',$this->db->insert_id())
+                    ->where('id',$customer_id)->where('store_id',$store_id)->update('db_customers');
+            }
+
+            $this->db->where('id',$r->id)->update('db_import_rows',array('status'=>'ok','customer_id'=>$customer_id));
+        }
+
+        if($failed !== null || $this->db->trans_status() === FALSE){
+            $this->db->trans_rollback();
+            $this->db->where('id',$batch_id)->where('store_id',$store_id)
+                ->update('db_import_batches',array('status'=>'failed','error_message'=>$failed ?: 'Database error'));
+            $this->_import_json(array('status'=>'error','message'=>'Import paused: '.($failed ?: 'database error').'. No rows from this batch were written — you can retry safely.','batch_id'=>$batch_id));
+        }
+        $this->db->trans_commit();
+        $this->_import_customers_finish($batch,$store_id);
+    }
+
+    private function _import_customers_finish($batch,$store_id){
+        $counts = array('pending'=>0,'ok'=>0,'error'=>0,'skipped'=>0,'duplicate'=>0,'updated'=>0);
+        $q = $this->db->select('status,COUNT(*) as n')->where('batch_id',$batch->id)
+            ->where('store_id',$store_id)->group_by('status')->get('db_import_rows')->result();
+        foreach($q as $c){ if(isset($counts[$c->status])) $counts[$c->status] = (int)$c->n; }
+
+        $remaining = $counts['pending'] + ($batch->dup_policy==='update' ? $counts['duplicate'] : 0);
+        $done = ($remaining === 0);
+        $this->db->where('id',$batch->id)->where('store_id',$store_id)->update('db_import_batches',array(
+            'processed_rows'=>$batch->total_rows - $remaining,
+            'ok_rows'=>$counts['ok'],'error_rows'=>$counts['error'],
+            'dup_rows'=>$counts['duplicate'] + $counts['skipped'],
+            'updated_rows'=>$counts['updated'],
+            'status'=> $done ? 'completed' : 'processing',
+            'completed_at'=> $done ? date('Y-m-d H:i:s') : null,
+        ));
+        $this->_import_json(array(
+            'status'=>'success','batch_id'=>$batch->id,'done'=>$done,
+            'processed'=>$batch->total_rows - $remaining,'total'=>(int)$batch->total_rows,
+            'ok'=>$counts['ok'],'updated'=>$counts['updated'],
+            'skipped'=>$counts['skipped']+$counts['duplicate'],'errors'=>$counts['error'],
+        ));
+    }
+
+    public function import_customers_errors($batch_id){
+        $this->permission_check('import_customers');
+        $store_id = get_current_store_id();
+        $batch = $this->_load_import_batch((int)$batch_id,$store_id);
+        if(!$batch){ show_404(); return; }
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="import_errors_batch_'.$batch_id.'.csv"');
+        $out = fopen('php://output','w');
+        fputcsv($out,array('row_number','status','error','customer_name','mobile','email'));
+        $rows = $this->db->where('batch_id',$batch->id)->where('store_id',$store_id)
+            ->where_in('status',array('error','skipped','duplicate'))
+            ->order_by('row_number','asc')->get('db_import_rows')->result();
+        foreach($rows as $r){
+            $d = json_decode($r->raw_json,true);
+            fputcsv($out,array($r->row_number,$r->status,$r->error_message,
+                isset($d['customer_name'])?$d['customer_name']:'',
+                isset($d['mobile'])?$d['mobile']:'',
+                isset($d['email'])?$d['email']:''));
+        }
+        fclose($out);
+        exit;
+    }
+
     public function get_country_id($country_name=''){
-        $q2=$this->db->query("select id from db_country where upper(country)=upper('$country_name')");
+        $country_name = trim((string)$country_name);
+        if($country_name === ''){ return null; }
+        $q2=$this->db->select('id')->from('db_country')
+            ->where('UPPER(country) = UPPER('.$this->db->escape($country_name).')', null, false)->get();
         if($q2->num_rows()>0){
             return $q2->row()->id;
         }
         else{
-            $q2=$this->db->query("insert into db_country(country,status) values('$country_name',1)");
+            $q2=$this->db->insert('db_country', array('country'=>$country_name,'status'=>1));
             if($q2){
                 return $this->db->insert_id();
             }
@@ -179,12 +683,18 @@ class Import extends MY_Controller {
         }
     }
     public function get_state_id($state_name,$country_name,$country_id,$store_id){
-        $q2=$this->db->query("select id from db_states where upper(state)=upper('$state_name') and store_id=$store_id");
+        $state_name = trim((string)$state_name);
+        if($state_name === ''){ return null; }
+        $q2=$this->db->select('id')->from('db_states')
+            ->where('UPPER(state) = UPPER('.$this->db->escape($state_name).')', null, false)
+            ->where('store_id', (int)$store_id)->get();
         if($q2->num_rows()>0){
             return $q2->row()->id;
         }
         else{
-            $q2=$this->db->query("insert into db_states(state,country,country_id,status,store_id) values('$state_name','$country_name',$country_id,1,$store_id)");
+            $q2=$this->db->insert('db_states', array(
+                'state'=>$state_name,'country'=>trim((string)$country_name),
+                'country_id'=>$country_id,'status'=>1,'store_id'=>(int)$store_id));
             if($q2){
                 return $this->db->insert_id();
             }
@@ -235,12 +745,20 @@ class Import extends MY_Controller {
                           continue;
                         }
 
+                        //Neutralise formula injection / markup before any use
+                        $importdata = array_map(function($v){ return $this->xss_html_filter($v); }, $importdata);
+
                         $supplier_name=$importdata[0];
-                        $mobile=$importdata[1];
-                        $query2=$this->db->query("select * from db_suppliers where mobile='$mobile' and store_id=$store_id");
-                        if($query2->num_rows()>0 && !empty($mobile)){
-                            echo "Import Failed!<br>'".$mobile."' Mobile Number already Exist.<br>Row Number:".$i++;
-                            exit();
+                        $mobile=trim($importdata[1]);
+                        if(!empty($mobile)){
+                            $query2=$this->db->select('id')->from('db_suppliers')
+                                ->where('mobile', $mobile)->where('store_id', $store_id)->get();
+                            if($query2->num_rows()>0){
+                                $this->db->trans_rollback();
+                                fclose($file);
+                                echo "Import Failed!<br>'".htmlspecialchars($mobile)."' Mobile Number already Exist.<br>Row Number:".$i;
+                                return;
+                            }
                         }
 
                         $country_name=trim($importdata[6]);
@@ -314,7 +832,7 @@ class Import extends MY_Controller {
     public function import_items_csv() {
 
               
-                $warehouse_id = $_POST['warehouse_id'];
+                $warehouse_id = (int)$this->input->post('warehouse_id');
                 $filename = $_FILES["import_file"]["name"];
                 $this->load->model('pos_model');      
                 $this->load->model('items_model');      
@@ -435,9 +953,10 @@ class Import extends MY_Controller {
                                                     'warehouse_id'=>$warehouse_id, 
                                                     'adjustment_qty'=>$this->xss_html_filter($importdata[13]));
                             $this->load->model('items_model');
-                            $q2 = $this->items_model->add_opening_stock($array_params); 
+                            $q2 = $this->items_model->add_opening_stock($array_params);
                             if(!$q2){
-                                return "failed";
+                                $flag=false;
+                                continue;
                             }
 
                       
@@ -461,7 +980,7 @@ class Import extends MY_Controller {
                         $this->db->trans_rollback();
                         echo 'failed';
                     }else{
-                        $this->db->query("update db_items set expire_date=null where expire_date LIKE '0000%'");
+                        $this->db->where('store_id', (int)$store_id)->where("expire_date LIKE '0000%'", null, false)->update('db_items', array('expire_date'=>null));
                         $this->db->trans_commit();
                         echo "success";
                         $this->session->set_flashdata('success', 'Success!! items Data Imported Successfully!');
@@ -473,8 +992,11 @@ class Import extends MY_Controller {
         }
 
         public function get_category_id($category_name,$store_id){
-
-            $q2=$this->db->query("select id from db_category where upper(category_name)=upper('$category_name') and store_id=$store_id");
+            $category_name = trim((string)$category_name);
+            if($category_name === ''){ return null; }
+            $q2=$this->db->select('id')->from('db_category')
+                ->where('UPPER(category_name) = UPPER('.$this->db->escape($category_name).')', null, false)
+                ->where('store_id', (int)$store_id)->get();
             if($q2->num_rows()>0){
                 return $q2->row()->id;
             }
@@ -493,7 +1015,11 @@ class Import extends MY_Controller {
             }
         }
         public function get_unit_id($unit_name,$store_id){
-            $q2=$this->db->query("select id from db_units where upper(unit_name)=upper('$unit_name') and store_id=$store_id");
+            $unit_name = trim((string)$unit_name);
+            if($unit_name === ''){ return null; }
+            $q2=$this->db->select('id')->from('db_units')
+                ->where('UPPER(unit_name) = UPPER('.$this->db->escape($unit_name).')', null, false)
+                ->where('store_id', (int)$store_id)->get();
             if($q2->num_rows()>0){
                 return $q2->row()->id;
             }
@@ -510,7 +1036,11 @@ class Import extends MY_Controller {
             }
         }
         public function get_brand_id($brand_name,$store_id){
-            $q2=$this->db->query("select id from db_brands where upper(brand_name)=upper('$brand_name') and store_id=$store_id");
+            $brand_name = trim((string)$brand_name);
+            if($brand_name === ''){ return null; }
+            $q2=$this->db->select('id')->from('db_brands')
+                ->where('UPPER(brand_name) = UPPER('.$this->db->escape($brand_name).')', null, false)
+                ->where('store_id', (int)$store_id)->get();
             if($q2->num_rows()>0){
                 return $q2->row()->id;
             }
@@ -527,7 +1057,11 @@ class Import extends MY_Controller {
             }
         }
         public function get_tax_id($tax_name,$tax_per,$store_id){
-            $q2=$this->db->query("select id from db_tax where upper(tax_name)=upper('$tax_name') and store_id=$store_id");
+            $tax_name = trim((string)$tax_name);
+            if($tax_name === ''){ return null; }
+            $q2=$this->db->select('id')->from('db_tax')
+                ->where('UPPER(tax_name) = UPPER('.$this->db->escape($tax_name).')', null, false)
+                ->where('store_id', (int)$store_id)->get();
             if($q2->num_rows()>0){
                 return $q2->row()->id;
             }
@@ -649,7 +1183,7 @@ public function services(){
                         $this->db->trans_rollback();
                         echo 'failed';
                     }else{
-                        $this->db->query("update db_items set expire_date=null where expire_date LIKE '0000%'");
+                        $this->db->where('store_id', (int)$store_id)->where("expire_date LIKE '0000%'", null, false)->update('db_items', array('expire_date'=>null));
                         $this->db->trans_commit();
                         echo "success";
                         $this->session->set_flashdata('success', 'Success!! Services Data Imported Successfully!');
@@ -683,7 +1217,8 @@ public function services(){
                         $country = $this->xss_html_filter($country);                    
                         $country = trim($country);
                         
-                        $q2=$this->db->query("select * from db_country where upper(country) like upper('%".$country."%')");
+                        $q2=$this->db->select('id')->from('db_country')
+                            ->like('UPPER(country)', strtoupper($country), 'both', false)->get();
                         if($q2->num_rows()>0){
                             continue;
                         }
@@ -720,7 +1255,7 @@ public function services(){
     }
 
     public function import_variants_csv(){
-        $warehouse_id = $_POST['warehouse_id'];
+        $warehouse_id = (int)$this->input->post('warehouse_id');
         $filename = $_FILES["import_file"]["name"];
         $this->load->model('pos_model');
         $this->load->model('items_model');
@@ -843,7 +1378,7 @@ public function services(){
                         'adjustment_qty'    =>  $this->xss_html_filter($importdata[13])
                     );
                     $q2 = $this->items_model->add_opening_stock($array_params);
-                    if(!$q2){ return "failed"; }
+                    if(!$q2){ $flag=false; continue; }
                 }
             }
 
@@ -940,7 +1475,7 @@ public function services(){
                         'adjustment_qty'    =>  $this->xss_html_filter($importdata[13])
                     );
                     $q2 = $this->items_model->add_opening_stock($array_params);
-                    if(!$q2){ return "failed"; }
+                    if(!$q2){ $flag=false; continue; }
                 }
             }
 
@@ -948,7 +1483,7 @@ public function services(){
                 $this->db->trans_rollback();
                 echo 'failed';
             }else{
-                $this->db->query("update db_items set expire_date=null where expire_date LIKE '0000%'");
+                $this->db->where('store_id', (int)$store_id)->where("expire_date LIKE '0000%'", null, false)->update('db_items', array('expire_date'=>null));
                 $this->db->trans_commit();
                 echo "success";
                 $this->session->set_flashdata('success', 'Success!! Variant Products Imported Successfully!');
@@ -1229,7 +1764,7 @@ public function services(){
     }
 
     public function import_advanced_items_csv(){
-        $warehouse_id = $_POST['warehouse_id'];
+        $warehouse_id = (int)$this->input->post('warehouse_id');
         $filename = $_FILES["import_file"]["name"];
         $this->load->model('pos_model');
         $this->load->model('items_model');
@@ -1398,7 +1933,7 @@ public function services(){
                         'adjustment_qty' => $this->xss_html_filter($d['opening_stock'])
                     );
                     $q2 = $this->items_model->add_opening_stock($array_params);
-                    if(!$q2){ return "failed"; }
+                    if(!$q2){ $flag=false; continue; }
                 }
             }
 
@@ -1511,7 +2046,7 @@ public function services(){
                         'adjustment_qty' => $this->xss_html_filter($d['opening_stock'])
                     );
                     $q2 = $this->items_model->add_opening_stock($array_params);
-                    if(!$q2){ return "failed"; }
+                    if(!$q2){ $flag=false; continue; }
                 }
             }
 
@@ -1519,7 +2054,7 @@ public function services(){
                 $this->db->trans_rollback();
                 echo 'failed';
             } else {
-                $this->db->query("update db_items set expire_date=null where expire_date LIKE '0000%'");
+                $this->db->where('store_id', (int)$store_id)->where("expire_date LIKE '0000%'", null, false)->update('db_items', array('expire_date'=>null));
                 $this->db->trans_commit();
                 echo "success";
                 $this->session->set_flashdata('success', 'Success!! Advanced Products Imported Successfully!');

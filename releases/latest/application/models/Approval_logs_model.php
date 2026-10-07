@@ -27,9 +27,38 @@ class Approval_logs_model extends CI_Model {
 			'threshold' => $data['threshold'] ?? null,
 			'device_info' => $data['device_info'] ?? ($_SERVER['HTTP_USER_AGENT'] ?? null),
 			'ip_address' => $data['ip_address'] ?? $this->input->ip_address(),
+			'target_module' => $data['target_module'] ?? null,
+			'target_id' => $data['target_id'] ?? null,
+			'target_version' => $data['target_version'] ?? null,
+			'expires_at' => $data['expires_at'] ?? null,
 		];
 		$this->db->insert('db_approval_logs', $insert);
 		return $this->db->insert_id();
+	}
+
+	/**
+	 * Supersede all live requests bound to a target — called when the
+	 * underlying plan/bill values change so a stale approval can never post.
+	 */
+	public function supersedeTarget($module, $targetId){
+		$this->db->where('target_module', $module)
+			->where('target_id', $targetId)
+			->where_in('status', ['pending','approved'])
+			->update('db_approval_logs', ['status' => 'superseded']);
+		return $this->db->affected_rows();
+	}
+
+	/**
+	 * Is there a current (non-superseded) approved request matching this
+	 * target + fingerprint version? Fingerprint lives in target_version.
+	 */
+	public function hasCurrentApproval($type, $module, $targetId, $version){
+		$row = $this->db->where('approval_type', $type)
+			->where('target_module', $module)->where('target_id', $targetId)
+			->where('target_version', $version)
+			->where('status', 'approved')
+			->get('db_approval_logs')->row();
+		return $row ?: null;
 	}
 
 	public function updateStatus($logId, $status, $approverId = null, $approverName = null, $methodUsed = null){

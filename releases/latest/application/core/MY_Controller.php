@@ -91,6 +91,19 @@ class MY_Controller extends CI_Controller{
             $this->data = array('theme_link'    => base_url().'theme/',
                                 'base_url'      => base_url(),
                                 'SITE_TITLE'    => $query->row()->site_name,
+                                /*
+                                 * The STORE's own name, for anywhere the user is
+                                 * meant to see which shop they are in.
+                                 *
+                                 * $SITE_TITLE is db_sitesettings.site_name: ONE
+                                 * row for the whole installation, seeded by the
+                                 * installer to the vendor's product name
+                                 * ('MartPoint Retail'). Every mobile header used
+                                 * it, so a customer's own shop was labelled with
+                                 * the vendor's brand. Exposed here so the views
+                                 * do not each have to reach into the session.
+                                 */
+                                'store_name'    => $query1->row()->store_name,
                                 'VERSION'       => app_version(),
                                 'CURRENCY'      => $this->session->userdata('currency'),
                                 'CURRENCY_PLACE'=> $this->session->userdata('currency_placement'),
@@ -423,7 +436,22 @@ class MY_Controller extends CI_Controller{
           $d['page_title'] = 'Access Denied';
           $d['message']    = $message ?: 'You don\'t have permission to access this feature. Contact your administrator if you believe this is a mistake.';
           $d['content']    = $this->load->view('errors/access_denied', $d, TRUE);
-          $this->load->view('mp_layout', $d);
+
+          /*
+           * Render to a STRING and echo it.
+           *
+           * A top-level $this->load->view() does not echo: Loader::_ci_load()
+           * hands the buffer to CI_Output::append_output() and cleans it, and
+           * that buffer is only sent by Output::_display() on a normal
+           * shutdown. This method exits immediately after, so _display() never
+           * runs and the page was thrown away — every ungranted screen answered
+           * 403 with ZERO bytes, i.e. a blank white page instead of the
+           * "Permission Required" screen that explains it.
+           *
+           * Asking for the string and echoing sidesteps the output object
+           * entirely, so the explanation always reaches the browser.
+           */
+          echo $this->load->view('mp_layout', $d, TRUE);
           exit;
         }
 
@@ -466,6 +494,7 @@ class MY_Controller extends CI_Controller{
             'store_credit'         => 'fa-credit-card',
             'payplan'              => 'fa-money',
             'bundles'              => 'fa-cubes',
+            'item_variants'        => 'fa-cubes',
             'manager_approvals'    => 'fa-check-circle-o',
             'accounts'             => 'fa-calculator',
             'warehouse'            => 'fa-building',
@@ -486,7 +515,11 @@ class MY_Controller extends CI_Controller{
           $d['enable_url']      = base_url('business_profile');
           $d['back_url']        = base_url('dashboard');
           $d['content']         = $this->load->view('errors/feature_not_activated', $d, TRUE);
-          $this->load->view('mp_layout', $d);
+          // Echo the buffered layout before exiting. A bare load->view() only
+          // appends to CI_Output, which is discarded by exit — that is exactly
+          // what made the 403 page blank (see show_access_denied_page). Without
+          // the echo every feature-gated screen returned 200 with 0 bytes.
+          echo $this->load->view('mp_layout', $d, TRUE);
           exit;
         }
             //end

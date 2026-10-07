@@ -690,7 +690,7 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
   var walkin_customer_id = <?=json_encode($walkin_customer_id ?? null);?>;
 </script>
 <script src="<?php echo $theme_link; ?>js/mp-offline-db.js?v=3"></script>
-<script src="<?php echo $theme_link; ?>js/pos.js?v=18"></script>
+<script src="<?php echo $theme_link; ?>js/pos.js?v=17"></script>
 <script src="<?php echo $theme_link; ?>js/pos-custom-orders.js?v=1"></script>
 <script src="<?php echo $theme_link; ?>js/approval-modal.js?v=4"></script>
 <script>
@@ -1946,8 +1946,8 @@ function get_details(last_id='',show_only_searched=false){
       }
       $(".search_div").append(data);
       reset_tooltip();
-  }).fail(function(jqXHR){
-      toastr.error(posAjaxError(jqXHR, 'The search could not be completed. Please try again.'));
+  }).fail(function(jqXHR, ajaxOptions, thrownError){
+      toastr.error('Server not responding. Please try again.');
   });
 }
 
@@ -2064,9 +2064,9 @@ function generatePaystackLink(){
             $('#paystack-link-error').text(res.message || 'Failed to generate link').removeClass('hide');
           }
         },
-        error: function(xhr){
+        error: function(){
           $('#paystack-link-loading').addClass('hide');
-          $('#paystack-link-error').text(posAjaxError(xhr, 'The payment link could not be created. Please try again.')).removeClass('hide');
+          $('#paystack-link-error').text('Network error. Please try again.').removeClass('hide');
         }
       });
     }
@@ -2155,9 +2155,9 @@ function generateMoniepointAccount(){
             $('#moniepoint-error').text(res.message || 'Failed to generate account').removeClass('hide');
           }
         },
-        error: function(xhr){
+        error: function(){
           $('#moniepoint-loading').addClass('hide');
-          $('#moniepoint-error').text(posAjaxError(xhr, 'The payment account could not be created. Please try again.')).removeClass('hide');
+          $('#moniepoint-error').text('Network error. Please try again.').removeClass('hide');
         }
       });
     }
@@ -2194,9 +2194,9 @@ function checkMoniepointPayment(){
         $('#moniepoint-status').html('<span class="label label-danger">' + (res.message || 'Could not verify') + '</span>');
       }
     },
-    error: function(xhr){
+    error: function(){
       $('#btn-check-moniepoint').prop('disabled', false);
-      $('#moniepoint-status').empty().append($('<span class="label label-danger"></span>').text(posAjaxError(xhr, 'Could not verify the payment. Please try again.')));
+      $('#moniepoint-status').html('<span class="label label-danger">Network error. Try again.</span>');
     }
   });
 }
@@ -2328,7 +2328,8 @@ function checkMoniepointPayment(){
         toastr['error'](res.message || 'Clock action failed');
       }
     }, 'json').fail(function(xhr){
-      toastr['error'](posAjaxError(xhr, 'The clock action failed. Please try again.'));
+      toastr['error']('Network error. Please try again.');
+      console.log('Clock action error:', xhr.responseText);
     });
   }
 
@@ -2620,7 +2621,7 @@ function fetchCustomerByBarcode(){
         } else {
             toastr.error('Customer not found');
         }
-    }, 'json').fail(function(xhr){ toastr.error(posAjaxError(xhr, 'Could not look up this customer. Please try again.')); });
+    }, 'json').fail(function(){ toastr.error('Failed to fetch customer'); });
 }
 function showCustomerBenefits(){
     $('#customerBenefitsModal').modal('show');
@@ -2891,8 +2892,8 @@ $(function(){
           swal({ title: "Clock Out Failed", text: (res.message || 'Failed to clock out') + ". Please try again or contact admin.", icon: "error" });
         }
       }
-    }, 'json').fail(function(xhr){
-      toastr.error(posAjaxError(xhr, 'Could not clock out. Please try again.'));
+    }, 'json').fail(function(){
+      toastr.error('Network error. Please try again.');
       $posLogoutLink.data('processing', false);
     });
   }

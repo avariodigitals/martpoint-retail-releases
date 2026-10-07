@@ -9,17 +9,10 @@ class System_updates extends MY_Controller {
 
     public function __construct() {
         parent::__construct();
-        // auto_tick is the install's self-service check-in AND Central's
-        // keyless wake ping (?force=1&commands_only=1) — it must run without
-        // a session. It only heartbeats, polls authed fleet commands, and
-        // runs the signed update pipeline; nothing sensitive is exposed.
-        // Every other method stays admin-only.
-        if (strtolower($this->router->fetch_method()) !== 'auto_tick') {
-            $this->load_global();
-            if (!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1) {
-                echo json_encode(['status' => 'error', 'message' => 'Access denied']);
-                exit;
-            }
+        $this->load_global();
+        if (!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1) {
+            echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+            exit;
         }
         $this->load->library('Updater');
     }
@@ -77,29 +70,18 @@ class System_updates extends MY_Controller {
             session_write_close();
         }
 
-        // Resume fast-path: a stored state already carries the manifest and
-        // the work lists — refetching GitHub + rehashing the tree on every
-        // chunk call is what stalls updates on shared hosting.
-        $state = $this->updater->getPersistedState();
-        if (!empty($state['manifest'])) {
-            $manifest = $state['manifest'];
-            $preview = [
-                'files_to_update' => $state['files_to_update'] ?? [],
-                'files_to_add'    => $state['files_to_add'] ?? [],
-                'migrations'      => $state['migrations'] ?? [],
-            ];
-        } else {
-            $manifest = $this->updater->fetchManifest();
-            if (!$manifest) {
-                echo json_encode(['status' => 'error', 'message' => 'Cannot fetch manifest.']);
-                return;
-            }
-            $preview = $this->updater->previewChanges($manifest);
+        $manifest = $this->updater->fetchManifest();
+        if (!$manifest) {
+            echo json_encode(['status' => 'error', 'message' => 'Cannot fetch manifest.']);
+            return;
         }
+
+        $preview = $this->updater->previewChanges($manifest);
 
         // We no longer require a posted step. The Updater's persisted state
         // knows the current step and resume point. Accept it if sent, otherwise
         // the Updater will use its internal state.
+        $state = $this->updater->getPersistedState();
         $step = ($state['step'] ?? 0) > 0 ? ($state['step'] ?? 1) : 1;
         $postedStep = (int) $this->input->post('step');
         if ($postedStep >= 1 && $postedStep <= 8) {
@@ -216,133 +198,6 @@ class System_updates extends MY_Controller {
             'total'     => $total,
             'errors'    => $errors,
             'message'   => "Rebuilt stock for {$processed} of {$total} items" . ($errors ? " ({$errors} item errors)" : ''),
-        ]);
-    }
-
-    /**
-     * AJAX: Lazy auto-update tick — called by the layout on admin page loads.
-     * Throttled server-side (~6h); resumes a mid-flight update immediately.
-     * Returns a small instruction set; the JS drives run_step itself.
-     */
-    public function auto_tick() {
-        if (function_exists('session_write_close')) {
-            session_write_close();
-        }
-
-        // Lightweight check-in on a short leash (~15min), independent of the
-        // 6h update gate: ANY login heartbeats and picks up queued fleet
-        // commands, so Central's pushes never wait for the update throttle.
-        // ?force=1&commands_only=1 is Central's keyless wake ping — heartbeat +
-        // command poll with no update work; ?force=1 alone bypasses the 6h
-        // update gate too (floored at 60s so it can't be hammered).
-        $force = $this->input->get('force') === '1';
-        $commandsOnly = $this->input->get('commands_only') === '1';
-        $checkedIn = false;
-        if ($force || $this->updater->shouldAutoCheck(900, 'hb-check.stamp')) {
-            $this->updater->touchAutoCheck('hb-check.stamp');
-            $this->updater->sendHeartbeat();
-            $this->updater->pollFleetCommands();
-            $checkedIn = true;
-            if ($commandsOnly) {
-                echo json_encode(['status' => 'ok']);
-                return;
-            }
-        }
-
-        $updateDue = $this->updater->shouldAutoCheck();
-        if (!$updateDue && $force) {
-            // Bypass the 6h gate, but floor forced full checks at 60s.
-            $updateDue = $this->updater->shouldAutoCheck(60, 'force-check.stamp');
-            if ($updateDue) {
-                $this->updater->touchAutoCheck('force-check.stamp');
-            }
-        }
-        if (!$updateDue) {
-            echo json_encode(['status' => 'idle']);
-            return;
-        }
-        $this->updater->touchAutoCheck();
-
-        // Forced calls (Central's wake ping) run the whole pipeline server-side —
-        // no login and no JS driver needed to finish an update.
-        if ($force) {
-            if (!$checkedIn) {
-                $this->updater->sendHeartbeat();
-                $this->updater->pollFleetCommands();
-            }
-            $result = $this->updater->runAutoUpdate(90);
-            $this->updater->sendHeartbeat();
-            echo json_encode($result);
-            return;
-        }
-
-        // Heartbeat + command poll FIRST: checkForUpdate() can spend up to 60s
-        // fetching the manifest from the channel — if it hangs or errors, the
-        // install must still check in and pick up queued commands.
-        if (!$checkedIn) {
-            $this->updater->sendHeartbeat();
-            $this->updater->pollFleetCommands();
-        }
-        $check = $this->updater->checkForUpdate();
-
-        if (!empty($check['error'])) {
-            echo json_encode(['status' => 'idle', 'reason' => $check['error']]);
-            return;
-        }
-
-        $resuming = ($this->updater->getPersistedState()['step'] ?? 0) > 0;
-
-        if (empty($check['available']) && !$resuming) {
-            echo json_encode(['status' => 'none', 'installed_version' => $check['installed_version'] ?? null]);
-            return;
-        }
-        if (!$resuming && !empty($check['blocked'])) {
-            echo json_encode([
-                'status' => 'blocked',
-                'message' => $check['block_reason'],
-                'remote_version' => $check['remote_version'],
-            ]);
-            return;
-        }
-        if (!$this->updater->autoUpdateEnabled()) {
-            echo json_encode([
-                'status' => 'available',
-                'remote_version' => $check['remote_version'],
-                'installed_version' => $check['installed_version'],
-            ]);
-            return;
-        }
-
-        echo json_encode([
-            'status' => 'update',
-            'from' => $check['installed_version'],
-            'to' => $check['remote_version'],
-        ]);
-    }
-
-    /**
-     * AJAX: Enable/disable unattended updates
-     */
-    public function toggle_auto() {
-        $enabled = (int) $this->input->post('enabled') === 1 ? 1 : 0;
-        if ($this->db->field_exists('auto_update_enabled', 'db_sitesettings')) {
-            $this->db->where('id', 1)->update('db_sitesettings', [
-                'auto_update_enabled' => $enabled,
-            ]);
-        }
-        echo json_encode(['status' => 'ok', 'enabled' => $enabled]);
-    }
-
-    /**
-     * AJAX: Current auto-update setting (for the panel toggle)
-     */
-    public function get_auto() {
-        echo json_encode([
-            'status' => 'ok',
-            'enabled' => $this->updater->autoUpdateEnabled() ? 1 : 0,
-            'fleet_url' => $this->db->field_exists('fleet_url', 'db_sitesettings')
-                ? (string) ($this->db->select('fleet_url')->where('id', 1)->get('db_sitesettings')->row()->fleet_url ?? '')
-                : '',
         ]);
     }
 

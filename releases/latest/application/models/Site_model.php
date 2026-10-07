@@ -35,6 +35,21 @@ class Site_model extends CI_Model {
 		$round_off = $this->input->post('round_off', TRUE);
 		$q_id = $this->input->post('q_id', TRUE);
 
+		/*
+		 * site_name is an INSTALL-level value: db_sitesettings holds one row for
+		 * the whole installation and MY_Controller publishes it as $SITE_TITLE,
+		 * which every shell, the login page and every tenant's header render.
+		 * A client store admin must therefore not be able to change it, or one
+		 * customer renames the product for all of them. The form now hides the
+		 * field on client installs; this guard means a forged POST cannot slip
+		 * past that.
+		 */
+		if(!(function_exists('mp_is_central') && mp_is_central())){
+			$current = $this->db->select('site_name')->where('id', 1)
+				->get('db_sitesettings')->row();
+			if($current){ $site_name = $current->site_name; }
+		}
+
 		$sales_target = (float)$this->input->post('sales_target', TRUE);
 		//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST))));exit();
 				

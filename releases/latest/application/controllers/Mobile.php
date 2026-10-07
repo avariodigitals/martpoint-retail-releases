@@ -239,6 +239,11 @@ class Mobile extends MY_Controller {
 
 	public function index()
 	{
+		// Physiotherapy & rehabilitation stores get a clinical home: the retail
+		// sales/profit dashboard and its POS/Sale tiles are meaningless for a
+		// clinic. Clinical access stays behind explicit physio_can() grants.
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(physio_enabled()){ $this->clinicHome(); return; }
 		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
 			redirect(base_url().'mobile/pos');
 		}
@@ -304,7 +309,7 @@ class Mobile extends MY_Controller {
 
 		// Outstanding debt
 		$this->db->select("COALESCE(SUM(grand_total - paid_amount),0) as total_debt, COUNT(*) as debtor_count");
-		$this->db->where("sales_status", "Final");
+		$this->db->where_in("sales_status", array("Final", "Opening"));
 		$this->db->where("(grand_total - paid_amount) >", 0);
 		$this->db->where("store_id", $store_id);
 		$debt = $this->db->get("db_sales")->row();
@@ -1198,6 +1203,599 @@ class Mobile extends MY_Controller {
 		$this->load->view('mobile/leads', $data);
 	}
 
+	// ============ PATIENTS (physiotherapy & rehabilitation) ============
+	// All patient endpoints use physio_can() — explicit clinical grants only,
+	// no inv_userid 1/2 bypass for clinical data.
+
+	private function _physio_gate(){
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !mp_feature_enabled('patient_registry')){
+			$this->show_feature_not_activated('patient_registry');
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Clinical mobile home. Counts mirror the desktop gates exactly: every tile
+	 * is shown only when the user holds the matching explicit clinical grant,
+	 * and every figure is read from the same tables/models the desktop screens
+	 * use (encounters queue, bed occupancy, treatment sessions, patient bills,
+	 * wallet ledger). No new permission or money logic is introduced here.
+	 */
+	private function clinicHome()
+	{
+		$data = $this->data;
+		$storeId = get_current_store_id();
+		$branchIds = physio_branch_ids();
+
+		$data['page_title'] = 'Clinic';
+		$data['clinic'] = array();
+
+		// Register snapshot (patient_registry feature)
+		if(physio_can('patients_view') && mp_feature_enabled('patient_registry')){
+			$this->load->model('patients_model', 'patients_m');
+			$data['clinic']['patients'] = $this->patients_m->getPatientStats($storeId);
+		}
+
+		// Live care queue — encounters whose queue stage is still open
+		if(physio_can('care_queue_view')){
+			$this->load->model('encounters_model', 'encounters_m');
+			$queue = $this->encounters_m->getQueue($storeId, $branchIds);
+			$waiting = 0;
+			foreach(array('waiting_nurse','nursing_intake','waiting_physio','with_physio','awaiting_finance') as $stage){
+				$waiting += isset($queue[$stage]) ? count($queue[$stage]) : 0;
+			}
+			$data['clinic']['queue_total'] = $waiting;
+			$data['clinic']['queue'] = $queue;
+		}
+
+		// Today's booked appointments
+		if(physio_can('appointments_view')){
+			$this->load->model('appointments_model', 'appts_m');
+			$todays = $this->appts_m->getAppointments($storeId, array(
+				'date' => date('Y-m-d'),
+				'branch_ids' => physio_can('clinical_cross_branch') ? null : $branchIds,
+			));
+			$data['clinic']['appointments_today'] = count($todays);
+		}
+
+		// Sessions scheduled for today (diary)
+		if(physio_can('sessions_view') && $this->db->table_exists('db_treatment_sessions')){
+			$data['clinic']['sessions_today'] = (int)$this->db->where('store_id', $storeId)
+				->where('DATE(scheduled_at)', date('Y-m-d'))
+				->count_all_results('db_treatment_sessions');
+		}
+
+		// Bed occupancy (inpatient_care feature)
+		if(physio_can('admissions_view') && mp_feature_enabled('inpatient_care')){
+			$this->load->model('inpatient_model', 'ipd_m');
+			$board = $this->ipd_m->bedBoard();
+			$occupied = 0;
+			foreach($board['beds'] as $b){ if(!empty($b->occupancy_id)) $occupied++; }
+			$data['clinic']['beds_total']  = count($board['beds']);
+			$data['clinic']['beds_in_use'] = $occupied;
+			$data['clinic']['beds_free']   = count($board['beds']) - $occupied;
+		}
+
+		// Open ward tasks
+		if(physio_can_any(array('nursing_tasks_view','porter_tasks_view'))){
+			$this->load->model('inpatient_model', 'ipd_m');
+			$nursing = physio_can('nursing_tasks_view') ? $this->ipd_m->tasksBoard() : array();
+			$porter  = physio_can_any(array('porter_tasks_view','admissions_view')) ? $this->ipd_m->porterTasks() : array();
+			$open = 0;
+			foreach($nursing as $t){ if(in_array($t->status, array('open'), true)) $open++; }
+			foreach($porter  as $t){ if(in_array($t->status, array('open'), true)) $open++; }
+			$data['clinic']['tasks_open'] = $open;
+		}
+
+		// Patient money — outstanding patient bills and held funds.
+		// Read through the billing/wallet models so the figures match desktop.
+		if(physio_can_any(array('patient_billing_view','patient_funds_view')) && $this->db->table_exists('db_patients')){
+			$outstanding = (float)$this->db->select('COALESCE(SUM(s.grand_total - s.paid_amount),0) AS due', false)
+				->from('db_sales s')
+				->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
+				->where('s.store_id', $storeId)
+				->where('(s.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
+				->where('s.grand_total > s.paid_amount', null, false)
+				->get()->row()->due;
+			$held = (float)$this->db->select('COALESCE(SUM(amount_reserved - amount_consumed),0) AS reserved', false)
+				->where('store_id', $storeId)->where('status', 'active')
+				->get('db_fund_reservations')->row()->reserved;
+			$data['clinic']['billing_due'] = $this->currency($outstanding, true);
+			$data['clinic']['funds_reserved'] = $this->currency($held, true);
+		}
+
+		// Tiles the current user may work from — each one is a real route.
+		$data['clinic_access'] = array(
+			'patients'     => physio_can('patients_view'),
+			'queue'        => physio_can('care_queue_view'),
+			'appointments' => physio_can('appointments_view'),
+			'sessions'     => physio_can('sessions_view'),
+			'ward'         => physio_can_any(array('nursing_tasks_view','porter_tasks_view','admissions_view')),
+			'accounts'     => physio_can_any(array('patient_billing_view','patient_funds_view')),
+			'imports'      => physio_can_any(array('imports_view','opening_positions_view')),
+		);
+		$data['clinic_can_add']  = physio_can('patients_add');
+		$data['display_name']    = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['store_name']      = get_store_name();
+		$user = $this->db->select('profile_picture')->where('id', $this->session->userdata('inv_userid'))->get('db_users')->row();
+		$data['profile_picture'] = ($user && !empty($user->profile_picture)) ? $user->profile_picture : '';
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/clinic_home', $data);
+	}
+
+	public function patients()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can_any(['patients_view','patients_add'])){ $this->show_access_denied_page(); return; }
+		$data = $this->data;
+		$patient_term = mp_label('customer');
+		$data['page_title'] = $patient_term.'s';
+		$store_id = get_current_store_id();
+		$this->load->model('patients_model', 'patients_m');
+		$status = trim($this->input->get('status', TRUE) ?: '');
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data['patients'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatients($store_id, $status, $search) : array();
+		$data['stats'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatientStats($store_id) : array('total' => 0);
+		$data['status_filter'] = $status;
+		$data['search'] = $search;
+		$data['patient_term'] = $patient_term;
+		$data['can_add'] = physio_can('patients_add');
+		$data['can_edit'] = physio_can('patients_edit');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patients', $data);
+	}
+
+	public function patient_form($id = 0)
+	{
+		if(!$this->_physio_gate()) return;
+		$id = (int)$id;
+		if(!physio_can($id ? 'patients_edit' : 'patients_add')){ $this->show_access_denied_page(); return; }
+		$data = $this->data;
+		$patient_term = mp_label('customer');
+		$data['patient_term'] = $patient_term;
+		$data['page_title'] = ($id ? 'Edit ' : 'Register ').$patient_term;
+		$data['patient'] = null;
+		if($id){
+			$this->load->model('patients_model', 'patients_m');
+			$data['patient'] = $this->patients_m->getPatient($id, get_current_store_id());
+			if(!$data['patient']){ show_404(); return; }
+		}
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patient_form', $data);
+	}
+
+	public function patient_profile($id = 0)
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('patients_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('patients_model', 'patients_m');
+		$store_id = get_current_store_id();
+		$patient = $this->patients_m->getPatient((int)$id, $store_id);
+		if(!$patient){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $patient->customer_name;
+		$data['patient_term'] = mp_label('customer');
+		$data['patient'] = $patient;
+		$data['episodes'] = $this->patients_m->getEpisodes($patient->id, $store_id);
+		$data['appointments'] = $this->patients_m->getAppointments($patient->id, $store_id);
+		$data['can_edit'] = physio_can('patients_edit');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patient_profile', $data);
+	}
+
+	public function save_patient()
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		$id = (int)$this->input->post('patient_id');
+		if(!physio_enabled() || !physio_can($id ? 'patients_edit' : 'patients_add')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('patients_model', 'patients_m');
+		$name = trim($this->input->post('name', TRUE) ?: '');
+		if($name === ''){ echo json_encode(array('status' => 'error', 'message' => 'Patient name is required')); return; }
+		$store_id = get_current_store_id();
+		$mobile = trim($this->input->post('mobile', TRUE) ?: '');
+		$dob = trim($this->input->post('dob', TRUE) ?: '');
+		$dups = $this->patients_m->findDuplicates($store_id, $mobile, $name, $dob ?: null, $id);
+		if($dups && !(int)$this->input->post('confirm_duplicate')){
+			echo json_encode(array('status' => 'duplicates', 'message' => 'Possible duplicate record found', 'duplicates' => $dups)); return;
+		}
+		$gender = trim($this->input->post('gender', TRUE) ?: '');
+		$blood = trim($this->input->post('blood_group', TRUE) ?: '');
+		$patient = array(
+			'gender'          => in_array($gender, Patients_model::GENDERS) ? $gender : null,
+			'dob'             => $dob ?: null,
+			'marital_status'  => trim($this->input->post('marital_status', TRUE) ?: '') ?: null,
+			'occupation'      => trim($this->input->post('occupation', TRUE) ?: '') ?: null,
+			'blood_group'     => in_array($blood, Patients_model::BLOOD_GROUPS) ? $blood : null,
+			'nok_name'        => trim($this->input->post('nok_name', TRUE) ?: '') ?: null,
+			'nok_phone'       => trim($this->input->post('nok_phone', TRUE) ?: '') ?: null,
+			'nok_relationship'=> trim($this->input->post('nok_relationship', TRUE) ?: '') ?: null,
+			'updated_at'      => date('Y-m-d H:i:s'),
+		);
+		$customer = array(
+			'name'    => $name,
+			'mobile'  => $mobile,
+			'email'   => trim($this->input->post('email', TRUE) ?: ''),
+			'phone'   => trim($this->input->post('phone', TRUE) ?: ''),
+			'address' => trim($this->input->post('address', TRUE) ?: ''),
+			'city'    => trim($this->input->post('city', TRUE) ?: ''),
+			'confirm_duplicate' => (int)$this->input->post('confirm_duplicate'),
+		);
+		$result = $this->patients_m->savePatient($patient, $customer, $id ?: null);
+		if(is_array($result)){
+			if(!empty($result['duplicates'])){
+				echo json_encode(array('status' => 'duplicates', 'message' => $result['error'], 'duplicates' => $result['duplicates'])); return;
+			}
+			echo json_encode(array('status' => 'error', 'message' => $result['error'])); }
+		else { echo json_encode(array('status' => 'success', 'message' => 'Patient saved', 'patient_id' => $result)); }
+	}
+
+	// ============ APPOINTMENTS + CARE QUEUE (physiotherapy) ============
+
+	public function appointments()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('appointments_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('appointments_model', 'appts_m');
+		$store_id = get_current_store_id();
+		$date = trim($this->input->get('date', TRUE) ?: date('Y-m-d'));
+		$filters = array('date' => $date);
+		if(!physio_can('clinical_cross_branch')) $filters['branch_ids'] = physio_branch_ids();
+		$data = $this->data;
+		$data['page_title'] = 'Appointments';
+		$data['appointments'] = $this->db->table_exists('db_appointments') ? $this->appts_m->getAppointments($store_id, $filters) : array();
+		$data['filter_date'] = $date;
+		$data['can_checkin'] = physio_can('care_checkin');
+		$data['can_edit'] = physio_can('appointments_edit');
+		$data['can_cancel'] = physio_can('appointments_cancel');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/appointments', $data);
+	}
+
+	public function care_queue()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('care_queue_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('encounters_model', 'encounters_m');
+		$this->load->model('patients_model', 'patients_m');
+		$this->load->model('appointments_model', 'appts_m');
+		$store_id = get_current_store_id();
+		$branchIds = physio_can('clinical_cross_branch') ? null : physio_branch_ids();
+		$waiting = $this->appts_m->getAppointments($store_id, array('date' => date('Y-m-d'), 'branch_ids' => $branchIds));
+		$arrivals = array();
+		foreach($waiting as $a){
+			if(in_array($a->status, array('confirmed','requested','proposed')) && !$a->arrived_at) $arrivals[] = $a;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Care Queue';
+		$data['queue'] = $this->db->table_exists('db_encounters') ? $this->encounters_m->getQueue($store_id, $branchIds) : array();
+		$data['arrivals'] = $arrivals;
+		$data['patients'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatients($store_id, 'active', '', 300) : array();
+		$data['can_checkin'] = physio_can('care_checkin');
+		$data['can_vitals'] = physio_can('vitals_add');
+		$data['can_physio'] = physio_can('encounters_add');
+		$data['can_finance'] = physio_can('patient_funds_view');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/care_queue', $data);
+	}
+
+	public function care_checkin()
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('care_checkin')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$warehouseId = (int)$this->input->post('warehouse_id');
+		if($warehouseId && !physio_can_branch($warehouseId)){
+			echo json_encode(array('status' => 'error', 'message' => 'Branch not in your scope')); return;
+		}
+		$res = $this->encounters_m->checkin(array(
+			'appointment_id' => (int)$this->input->post('appointment_id') ?: null,
+			'patient_id'     => (int)$this->input->post('patient_id') ?: null,
+			'checkin_key'    => trim($this->input->post('checkin_key', TRUE) ?: ''),
+			'warehouse_id'   => $warehouseId ?: null,
+			'clinician_user_id' => (int)$this->input->post('clinician_user_id') ?: null,
+			'note'           => trim($this->input->post('note', TRUE) ?: '') ?: null,
+		));
+		if(isset($res['error'])){
+			echo json_encode(array('status' => 'error', 'message' => $res['error']));
+		} else {
+			echo json_encode(array('status' => 'success',
+				'message' => !empty($res['already']) ? 'Already checked in — same visit returned' : 'Checked in',
+				'encounter_id' => $res['encounter_id']));
+		}
+	}
+
+	public function care_move($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('care_queue_view')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$to = trim($this->input->post('to', TRUE) ?: '');
+		$res = $this->encounters_m->moveStage((int)$id, $to, trim($this->input->post('note', TRUE) ?: '') ?: null);
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Updated') : $res);
+	}
+
+	/**
+	 * Mobile clinical workspace for one encounter — vitals entry, intake
+	 * handover and read-only record lists. All panels permission-gated.
+	 */
+	public function encounter($id = 0)
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('care_queue_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('encounters_model', 'encounters_m');
+		$this->load->model('patients_model', 'patients_m');
+		$this->load->model('assessments_model', 'assessments_m');
+		$this->load->model('investigations_model', 'investigations_m');
+		$this->load->model('consents_model', 'consents_m');
+		$this->load->model('patient_docs_model', 'docs_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			$this->show_access_denied_page(); return;
+		}
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Visit ' . $enc->encounter_code;
+		$data['enc'] = $enc;
+		$data['patient'] = $this->patients_m->getPatient((int)$enc->patient_id);
+		$data['vitals_sets'] = physio_can('vitals_view') ? $this->encounters_m->getVitals((int)$id) : array();
+
+		/*
+		 * The OPEN DRAFT, so the vitals form continues it instead of starting a
+		 * new set on every save.
+		 *
+		 * The view posts vitals_set_id to update an existing set, but was never
+		 * handed one — so each "Save Draft" inserted a fresh set and a single
+		 * patient intake accumulated "Set #25 draft / #26 draft / #27 draft".
+		 * Only a non-final set is offered: finalised vitals are locked by design
+		 * and must not be reopened.
+		 */
+		$data['vitals_draft'] = null;
+		$data['vitals_draft_entries'] = array();
+		if(!empty($data['vitals_sets'])){
+			foreach($data['vitals_sets'] as $vs){
+				if(($vs->status ?? '') !== 'final'){
+					$data['vitals_draft'] = $vs;
+					// getVitals() already attaches each set's entries.
+					$data['vitals_draft_entries'] = $vs->entries ?? array();
+					break;
+				}
+			}
+		}
+		$data['assessments'] = physio_can('assessments_view') ? $this->assessments_m->listForEncounter((int)$id) : array();
+		$data['investigations'] = physio_can('investigations_view') ? $this->investigations_m->listRows($store_id, array('encounter_id' => (int)$id)) : array();
+		$data['consents'] = physio_can('patient_docs_view') ? $this->consents_m->listRows($store_id, array('patient_id' => (int)$enc->patient_id)) : array();
+		$data['documents'] = physio_can('patient_docs_view') ? $this->docs_m->listForPatient((int)$enc->patient_id) : array();
+		$data['can'] = array(
+			'vitals_add' => physio_can('vitals_add'),
+			'assessments'=> physio_can('assessments_add'),
+			'inv_review' => physio_can('investigations_review'),
+			'docs_upload'=> physio_can('patient_docs_upload'),
+		);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/encounter', $data);
+	}
+
+	/** Save a vitals set from mobile — same structured endpoint as desktop. */
+	public function care_vitals($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('vitals_add')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$entries = array();
+		$keys   = (array)$this->input->post('vit_key');
+		$vals   = (array)$this->input->post('vit_value');
+		$units  = (array)$this->input->post('vit_unit');
+		$nms    = (array)$this->input->post('vit_nm');
+		$labels = (array)$this->input->post('vit_label');
+		foreach($keys as $i => $k){
+			$entries[] = array(
+				'vital_key'    => $k,
+				'label'        => $labels[$i] ?? null,
+				'value'        => $vals[$i] ?? null,
+				'unit'         => $units[$i] ?? null,
+				'not_measured' => !empty($nms[$i]),
+			);
+		}
+		/*
+		 * Pass the vitals_set_id through.
+		 *
+		 * This was hard-coded to 0, so the endpoint ALWAYS inserted a new set: the
+		 * mobile form's "continue this draft" was silently discarded and one
+		 * patient intake accumulated a stack of draft sets (#25, #29, #30 …) with
+		 * no way to finish any of them. A non-zero id updates that set in place;
+		 * saveVitalsSet() refuses one that is already final, so locked readings
+		 * stay locked.
+		 */
+		$vitalsSetId = (int)$this->input->post('vitals_set_id');
+		$res = $this->encounters_m->saveVitalsSet((int)$id, $entries,
+			(bool)$this->input->post('finalize'), $vitalsSetId,
+			trim($this->input->post('vitals_notes', TRUE) ?: '') ?: null);
+		echo json_encode(isset($res['error'])
+			? array('status' => 'error', 'message' => $res['error'])
+			: array('status' => 'success', 'message' => !empty($res['status']) && $res['status']==='final' ? 'Vitals finalised' : 'Draft saved'));
+	}
+
+	public function care_intake_complete($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('care_queue_view')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$res = $this->encounters_m->completeIntake((int)$id, null);
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Intake complete — handed to physiotherapy') : $res);
+	}
+
+	public function appt_transition($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()){ echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return; }
+		$to = trim($this->input->post('to', TRUE) ?: '');
+		$permMap = array('proposed' => 'appointments_edit', 'confirmed' => 'appointments_edit',
+			'cancelled' => 'appointments_cancel', 'no_show' => 'appointments_edit');
+		if(!isset($permMap[$to]) || !physio_can($permMap[$to])){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('appointments_model', 'appts_m');
+		$appt = $this->appts_m->getAppointment((int)$id);
+		if($appt && $appt->warehouse_id && !physio_can_branch($appt->warehouse_id)){
+			echo json_encode(array('status' => 'error', 'message' => 'Branch not in your scope')); return;
+		}
+		$res = $this->appts_m->transition((int)$id, $to, trim($this->input->post('note', TRUE) ?: '') ?: null);
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Updated') : $res);
+	}
+
+	/** Treatment session diary — check-in / start / complete / no-show. */
+	public function sessions()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('sessions_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('sessions_model', 'sessions_m');
+		$store_id = get_current_store_id();
+		$rows = $this->db->select('s.*, p.patient_code, c.customer_name AS patient_name')
+			->from('db_treatment_sessions s')
+			->join('db_patients p', 'p.id = s.patient_id')
+			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->where('s.store_id', $store_id)
+			->order_by('s.scheduled_at', 'desc')->limit(100)->get()->result();
+		$data = $this->data;
+		$data['page_title'] = 'Sessions';
+		$data['sessions'] = $rows;
+		$data['can'] = array(
+			'checkin'  => physio_can('sessions_checkin'),
+			'complete' => physio_can('sessions_complete'),
+		);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/sessions', $data);
+	}
+
+	// ============ INPATIENT (physiotherapy & rehabilitation) ============
+
+	public function admissions()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('admissions_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('inpatient_model', 'ipd');
+		$data = $this->data;
+		$data['page_title'] = 'Admissions';
+		$data['admissions'] = $this->ipd->admissions('all');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/admissions', $data);
+	}
+
+	/** Ward task board — nursing tasks + porter movement tasks. */
+	public function ward_tasks()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can_any(array('nursing_tasks_view','porter_tasks_view','admissions_view'))){
+			$this->show_access_denied_page(); return;
+		}
+		$this->load->model('inpatient_model', 'ipd');
+		$data = $this->data;
+		$data['page_title'] = 'Ward Tasks';
+		$data['nursing'] = physio_can('nursing_tasks_view') ? $this->ipd->tasksBoard() : array();
+		$data['porter']  = physio_can_any(array('porter_tasks_view','admissions_view')) ? $this->ipd->porterTasks() : array();
+		$data['can'] = array(
+			'nurse'  => physio_can('nursing_tasks_complete'),
+			'porter' => physio_can('porter_tasks_complete'),
+		);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/ward_tasks', $data);
+	}
+
+	/** JSON action endpoint for ward tasks (claim/complete porter, complete nursing). */
+	public function ward_task_action($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()){ echo json_encode(array('status'=>'error','message'=>'Access denied')); return; }
+		$this->load->model('inpatient_model', 'ipd');
+		$act = trim($this->input->post('act', TRUE) ?: '');
+		$r = array('ok'=>false,'error'=>'Unknown action');
+		if($act === 'claim' || $act === 'complete'){
+			if(!physio_can('porter_tasks_complete')){ echo json_encode(array('status'=>'error','message'=>'Access denied')); return; }
+			$r = $act === 'claim' ? $this->ipd->claimTask((int)$id) : $this->ipd->completeTask((int)$id);
+		} elseif($act === 'nurse_done'){
+			if(!physio_can('nursing_tasks_complete')){ echo json_encode(array('status'=>'error','message'=>'Access denied')); return; }
+			$r = $this->ipd->completeTaskItem((int)$id, $this->input->post('note', TRUE));
+		}
+		if(!empty($r['ok'])){ echo json_encode(array('status'=>'success','message'=>'Done') + $r); }
+		else { echo json_encode(array('status'=>'error','message'=>$r['error'] ?? 'Failed')); }
+	}
+
+	public function session_action($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()){ echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return; }
+		$this->load->model('sessions_model', 'sessions_m');
+		$to = trim($this->input->post('to', TRUE) ?: '');
+		$permMap = array('checkin' => 'sessions_checkin', 'start' => 'sessions_checkin',
+			'complete' => 'sessions_complete', 'cancel' => 'sessions_complete',
+			'no_show' => 'sessions_checkin', 'interrupt' => 'sessions_complete');
+		if(!isset($permMap[$to]) || !physio_can($permMap[$to])){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$reason = trim($this->input->post('reason', TRUE) ?: '');
+		switch($to){
+			case 'checkin':   $res = $this->sessions_m->checkin((int)$id, trim($this->input->post('checkin_key', TRUE) ?: '') ?: null); break;
+			case 'start':     $res = $this->sessions_m->start((int)$id); break;
+			case 'complete':  $res = $this->sessions_m->complete((int)$id); break;
+			case 'cancel':    $res = $this->sessions_m->cancel((int)$id, $reason, false); break;
+			case 'no_show':   $res = $this->sessions_m->cancel((int)$id, $reason, true); break;
+			case 'interrupt': $res = $this->sessions_m->interrupt((int)$id, $reason); break;
+		}
+		echo json_encode(!empty($res['ok'])
+			? array('status' => 'success', 'message' => 'Updated')
+			: array('status' => 'error', 'message' => $res['error'] ?? 'Failed'));
+	}
+
 	public function add_customer()
 	{
 		$this->permission_check('customers_add');
@@ -1911,7 +2509,7 @@ class Mobile extends MY_Controller {
 		$this->db->select("COALESCE(SUM(grand_total - paid_amount),0) as due");
 		$this->db->where('store_id', $store_id);
 		$this->db->where('customer_id', $customer_id);
-		$this->db->where('sales_status', 'Final');
+		$this->db->where_in('sales_status', array('Final', 'Opening'));
 		$due = $this->db->get('db_sales')->row()->due;
 		$customer = $this->db->select('mobile, tot_advance, store_credit_balance, gift_card_balance, loyalty_points, credit_limit')->where('id', $customer_id)->get('db_customers')->row();
 		echo json_encode([
@@ -2708,7 +3306,7 @@ class Mobile extends MY_Controller {
 		// when the feature flag is on and bundles (Variants) are available.
 		if(!$is_update && mp_feature_enabled('fashion_variants_default')){
 			$profile = mp_get_store_profile();
-			if(!empty($profile['industry_type']) && $profile['industry_type']==='fashion' && mp_feature_enabled('bundles')){
+			if(!empty($profile['industry_type']) && $profile['industry_type']==='fashion' && mp_feature_enabled('item_variants')){
 				$data['item_group'] = 'Variants';
 			}
 		}
@@ -3519,6 +4117,8 @@ class Mobile extends MY_Controller {
 		$data['page_title'] = 'More';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name();
+		if(!function_exists('physio_enabled')) $this->load->helper('physio');
+		$is_physio = function_exists('physio_enabled') && physio_enabled();
 
 		$menu_groups = [
 			'Overview' => [
@@ -3533,6 +4133,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Sales List', 'desc' => 'View all sales', 'icon' => 'fa-list', 'url' => 'mobile/sales_list', 'perm' => 'sales_view', 'color' => 'blue'],
 				['title' => 'Sales Returns', 'desc' => 'Returned sales invoices', 'icon' => 'fa-undo', 'url' => 'mobile/sales_returns', 'perm' => 'sales_return_view', 'color' => 'orange'],
 				['title' => 'Due Payments', 'desc' => 'Unpaid invoices', 'icon' => 'fa-money', 'url' => 'mobile/due', 'perm' => 'sales_view', 'color' => 'red'],
+				['title' => 'Reconciliation', 'desc' => 'Payment exception queue', 'icon' => 'fa-check-square-o', 'url' => 'mobile/reconcile', 'perm' => 'payments_reconcile', 'color' => 'teal'],
 			],
 			'Purchase' => [
 				['title' => 'New Purchase', 'desc' => 'Create a purchase order', 'icon' => 'fa-plus-square', 'url' => 'mobile/purchase_form', 'perm' => 'purchase_add', 'color' => 'green'],
@@ -3596,6 +4197,17 @@ class Mobile extends MY_Controller {
 				['title' => 'Add Customer', 'desc' => 'Register a new customer', 'icon' => 'fa-user-plus', 'url' => 'mobile/add_customer', 'perm' => 'customers_add', 'color' => 'purple'],
 				['title' => 'Leads', 'desc' => 'Enquiries & prospects', 'icon' => 'fa-user-plus', 'url' => 'mobile/leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'teal'],
 			],
+			// physio_perm = explicit clinical grant (physio_can), no admin bypass
+			'Care' => (function_exists('physio_enabled') && physio_enabled()) ? [
+				['title' => mp_label('customer').'s', 'desc' => mp_label('customer').' register & profiles', 'icon' => 'fa-heartbeat', 'url' => 'mobile/patients', 'physio_perm' => 'patients_view', 'color' => 'teal'],
+				['title' => 'Appointments', 'desc' => 'Clinic bookings & arrivals', 'icon' => 'fa-calendar', 'url' => 'mobile/appointments', 'physio_perm' => 'appointments_view', 'color' => 'purple'],
+				['title' => 'Care Queue', 'desc' => 'Check-in & patient flow', 'icon' => 'fa-list-ol', 'url' => 'mobile/care_queue', 'physio_perm' => 'care_queue_view', 'color' => 'teal'],
+				['title' => 'Sessions', 'desc' => 'Treatment session diary', 'icon' => 'fa-clock-o', 'url' => 'mobile/sessions', 'physio_perm' => 'sessions_view', 'color' => 'orange'],
+				['title' => 'Admissions', 'desc' => 'Inpatient stays & beds', 'icon' => 'fa-bed', 'url' => 'mobile/admissions', 'physio_perm' => 'admissions_view', 'color' => 'blue'],
+				['title' => 'Ward Tasks', 'desc' => 'Nursing & porter work', 'icon' => 'fa-tasks', 'url' => 'mobile/ward_tasks', 'physio_perm' => 'nursing_tasks_view', 'color' => 'teal'],
+				['title' => 'Porter Tasks', 'desc' => 'Movement & transfers', 'icon' => 'fa-dolly', 'url' => 'mobile/ward_tasks', 'physio_perm' => 'porter_tasks_view', 'color' => 'purple'],
+				['title' => 'Register '.mp_label('customer'), 'desc' => 'New '.strtolower(mp_label('customer')).' record', 'icon' => 'fa-user-plus', 'url' => 'mobile/patient_form', 'physio_perm' => 'patients_add', 'color' => 'green'],
+			] : [],
 			'Suppliers' => [
 				['title' => 'Suppliers', 'desc' => 'Supplier directory', 'icon' => 'fa-truck', 'url' => 'mobile/suppliers', 'perm' => 'suppliers_view', 'color' => 'yellow'],
 				['title' => 'Add Supplier', 'desc' => 'Register a new supplier', 'icon' => 'fa-plus-circle', 'url' => 'mobile/add_supplier', 'perm' => 'suppliers_add', 'color' => 'yellow'],
@@ -3648,6 +4260,45 @@ class Mobile extends MY_Controller {
 		],
 		];
 
+		if($is_physio){
+			unset($menu_groups['Sales'], $menu_groups['Purchase'], $menu_groups['Inventory'],
+				$menu_groups['Online Store'], $menu_groups['Marketing'], $menu_groups['Customers'],
+				$menu_groups['Operations']);
+			$menu_groups['Procurement'] = $menu_groups['Suppliers'] ?? array();
+			unset($menu_groups['Suppliers']);
+			$menu_groups['Finance'] = [
+				['title' => 'Patient Accounts', 'desc' => 'Billing, funds and reservations', 'icon' => 'fa-file-text-o', 'url' => 'patient_funds', 'physio_perm' => 'patient_funds_view', 'color' => 'green'],
+				['title' => 'Patient Billing', 'desc' => 'Charges, invoices and balances', 'icon' => 'fa-credit-card', 'url' => 'patient_billing', 'physio_perm' => 'patient_billing_view', 'color' => 'blue'],
+				['title' => 'Opening Positions', 'desc' => 'Review and approve migrated balances', 'icon' => 'fa-sign-in', 'url' => 'patient_funds/openings', 'physio_perm' => 'opening_positions_view', 'color' => 'orange'],
+				['title' => 'Payment Methods', 'desc' => 'Accepted clinic payment modes', 'icon' => 'fa-money', 'url' => 'payment_modes', 'perm' => 'payment_modes_view', 'color' => 'teal'],
+			];
+			$menu_groups['Reports'] = [
+				['title' => 'Appointments & arrivals', 'desc' => 'Clinic schedule and attendance', 'icon' => 'fa-calendar', 'url' => 'appointments', 'physio_perm' => 'appointments_view', 'color' => 'blue'],
+				['title' => 'Session utilization', 'desc' => 'Treatment sessions and entitlements', 'icon' => 'fa-stethoscope', 'url' => 'sessions', 'physio_perm' => 'sessions_view', 'color' => 'green'],
+				['title' => 'Inpatient occupancy', 'desc' => 'Admissions and bed activity', 'icon' => 'fa-bed', 'url' => 'inpatient/beds', 'physio_perm' => 'admissions_view', 'color' => 'orange'],
+			];
+			$menu_groups['Administration'] = [
+				['title' => 'Facility settings', 'desc' => 'Store identity, contacts and branding', 'icon' => 'fa-building-o', 'url' => 'business_profile', 'perm' => 'business_setup', 'color' => 'blue'],
+				['title' => 'Store profile', 'desc' => 'Address, phone and receipt identity', 'icon' => 'fa-id-card-o', 'url' => 'store_profile/update/'.get_current_store_id(), 'perm' => 'store_edit', 'color' => 'blue'],
+				['title' => 'Branches', 'desc' => 'Clinic locations and access scope', 'icon' => 'fa-map-marker', 'url' => 'warehouse', 'perm' => 'warehouse_view', 'feature' => 'warehouse', 'color' => 'teal'],
+				['title' => 'Features & subscription', 'desc' => 'Business type, enabled modules and limits', 'icon' => 'fa-toggle-on', 'url' => 'business_profile', 'perm' => 'business_setup', 'color' => 'purple'],
+				['title' => 'Users & staff', 'desc' => 'Staff accounts and branch assignments', 'icon' => 'fa-users', 'url' => 'mobile/users', 'perm' => 'users_view', 'color' => 'yellow'],
+				['title' => 'Roles & permissions', 'desc' => 'Clinical grants and administrator access', 'icon' => 'fa-shield', 'url' => 'roles/view', 'perm' => 'roles_view', 'color' => 'purple'],
+				['title' => 'Site & printing settings', 'desc' => 'Invoice, receipt and clinic defaults', 'icon' => 'fa-print', 'url' => 'site', 'admin_role_only' => true, 'color' => 'blue'],
+				['title' => 'Security & approvals', 'desc' => 'Approval thresholds and independent review', 'icon' => 'fa-lock', 'url' => 'approvals/settings', 'perm' => 'approval_settings_edit', 'feature' => 'manager_approvals', 'color' => 'orange'],
+				['title' => 'Assessment templates', 'desc' => 'Versioned clinical forms', 'icon' => 'fa-clipboard', 'url' => 'assessment_templates', 'physio_perm' => 'assessment_templates_manage', 'feature' => 'clinical_assessments', 'color' => 'teal'],
+				['title' => 'Consent forms', 'desc' => 'Issue, verify and manage consent evidence', 'icon' => 'fa-file-text-o', 'url' => 'consents', 'physio_perm' => 'patient_docs_view', 'feature' => 'patient_documents', 'color' => 'green'],
+				['title' => 'Services & packages', 'desc' => 'Treatment catalog and session packages', 'icon' => 'fa-stethoscope', 'url' => 'service_packages', 'perm' => 'service_packages_view', 'feature' => 'packages', 'color' => 'orange'],
+				['title' => 'Wards & beds', 'desc' => 'Admission locations and bed setup', 'icon' => 'fa-bed', 'url' => 'inpatient/beds', 'physio_perm' => 'beds_manage', 'feature' => 'inpatient_care', 'color' => 'blue'],
+				['title' => 'Billing policies', 'desc' => 'Daily billing and financial controls', 'icon' => 'fa-calculator', 'url' => 'inpatient/billing_setup', 'physio_perm' => 'daily_billing_view', 'feature' => 'inpatient_care', 'color' => 'green'],
+				['title' => 'Email settings', 'desc' => 'Clinic sender and delivery provider', 'icon' => 'fa-envelope-o', 'url' => 'email_settings', 'perm' => 'smtp_settings', 'admin_role_only' => true, 'color' => 'purple'],
+				['title' => 'Patient portal', 'desc' => 'Invites, policy and released reports', 'icon' => 'fa-user-circle', 'url' => 'portal', 'physio_perm' => 'portal_manage', 'feature' => 'patient_portal', 'color' => 'teal'],
+				['title' => 'Website leads', 'desc' => 'Enquiry capture and conversion to patients', 'icon' => 'fa-globe', 'url' => 'leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'blue'],
+				['title' => 'Legacy imports', 'desc' => 'Reconciliation, exceptions and rollback', 'icon' => 'fa-database', 'url' => 'imports', 'physio_perm' => 'imports_view', 'color' => 'orange'],
+				['title' => 'Audit trail', 'desc' => 'Configuration, clinical and finance events', 'icon' => 'fa-history', 'url' => 'audit_trail', 'perm' => 'audit_trail_view', 'color' => 'yellow'],
+			];
+		}
+
 		if(!mp_feature_enabled('online_store')){
 			unset($menu_groups['Online Store']);
 		} elseif(!mp_feature_enabled('qr_ordering') && isset($menu_groups['Online Store'])){
@@ -3660,12 +4311,17 @@ class Mobile extends MY_Controller {
 		foreach($menu_groups as $group => $items){
 			$visible = [];
 			foreach($items as $item){
+				if(!empty($item['admin_role_only']) && $this->session->userdata('role_id') != 1 && !is_store_admin()) continue;
 				if(!empty($item['feature'])){
 					$feature_ok = false;
 					foreach((array)$item['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
 					if(!$feature_ok) continue;
 				}
 				if(!empty($item['admin_only']) && !special_access()) continue;
+				if(!empty($item['physio_perm'])){
+					if(function_exists('physio_can') && physio_can($item['physio_perm'])){ $visible[] = $item; }
+					continue;
+				}
 			if(empty($item['perm']) || $this->permissions($item['perm'])){
 					$visible[] = $item;
 				}
@@ -5841,6 +6497,27 @@ class Mobile extends MY_Controller {
 		} else {
 			echo 'failed';
 		}
+	}
+
+	// Payment reconciliation — mobile view of the exception queue.
+	public function reconcile()
+	{
+		if(!$this->permissions('payments_reconcile') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
+			$this->show_access_denied_page(); return;
+		}
+		$this->load->model('payment_reconcile_model','recon');
+		$store_id = get_current_store_id();
+		$status = $this->input->get('status', TRUE) ?: 'open';
+		if(!in_array($status, array('open','acknowledged','resolved','dismissed','all'), true)){ $status = 'open'; }
+		$data = $this->data;
+		$data['page_title'] = 'Reconciliation';
+		$data['back_url'] = base_url('mobile/more');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['counts'] = $this->recon->counts($store_id);
+		$data['exceptions'] = $this->recon->get_exceptions($store_id, $status, null, 100);
+		$data['f_status'] = $status;
+		$data['can_edit'] = true;
+		$this->load->view('mobile/reconcile', $data);
 	}
 
 	public function quotations()

@@ -37,6 +37,9 @@ $total_outstanding = $outstanding_row ? ($outstanding_row->total - $ob_paid) : 0
   <?php if ($CI->permissions('import_customers')): ?>
     <a href="<?= base_url('import/customers'); ?>" class="mp-qa-btn orange"><i class="fa fa-arrow-circle-o-down"></i> Import Customers</a>
   <?php endif; ?>
+  <?php if ($CI->permissions('export_customers')): ?>
+    <a href="<?= base_url('customers/export_csv'); ?>" class="mp-qa-btn blue"><i class="fa fa-download"></i> Export Customers</a>
+  <?php endif; ?>
 </div>
 
 <div class="mp-kpi-grid">

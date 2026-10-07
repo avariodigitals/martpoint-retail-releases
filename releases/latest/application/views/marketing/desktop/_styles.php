@@ -47,7 +47,7 @@ textarea.mp-form-control{min-height:80px!important;resize:vertical!important}
 .input-group.date .form-control{border-left:none!important;border-radius:0 10px 10px 0!important}
 
 /* ===== MODERN TABLES (DataTables override) ===== */
-.mp-table-wrap{background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;border-radius:16px!important;overflow:visible!important;width:100%!important;box-sizing:border-box!important;box-shadow:var(--mp-shadow-sm)!important}
+.mp-table-wrap{background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;border-radius:16px!important;overflow-x:auto!important;width:100%!important;box-sizing:border-box!important;box-shadow:var(--mp-shadow-sm)!important;-webkit-overflow-scrolling:touch}
 .mp-table-wrap .box-body{padding:0!important;overflow:visible!important}
 .mp-dt-scroll{overflow-x:auto!important;width:100%!important;-webkit-overflow-scrolling:touch}
 

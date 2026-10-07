@@ -1,24 +1,27 @@
-<!DOCTYPE html>
-<html>
-<head>
-<?php $this->load->view('comman/code_css.php');?>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-<?php $this->load->view('sidebar.php');?>
-<div class="content-wrapper">
-<section class="content-header">
-<h1><?=$page_title;?><small>Generate size &times; colour combinations in one click</small></h1>
-<ol class="breadcrumb">
-<li><a href="<?=base_url('dashboard');?>"><i class="fa fa-dashboard"></i> Home</a></li>
-<li><a href="<?=base_url('variants/view');?>"><?= $this->lang->line('variants_list'); ?></a></li>
-<li class="active"><?=$page_title;?></li>
-</ol>
-</section>
-<section class="content">
+<?php
+/**
+ * Variant matrix builder — CONTENT ONLY (rendered inside mp_layout).
+ * The inline preview/generate script is unchanged; only the legacy document
+ * chrome was removed.
+ */
+?>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?=$page_title;?></h2>
+      <div class="mp-page-sub">Generate size &times; colour combinations in one click</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?= base_url('variants/view'); ?>" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        Back to <?= $this->lang->line('variants_list'); ?>
+      </a>
+    </div>
+  </div>
+</div>
+<section class="mp-section">
 <div class="row">
 <div class="col-md-12">
-<div class="box box-info">
+<div class="box box-info mp-items-box">
 <div class="box-header with-border">
 <h3 class="box-title"><i class="fa fa-th text-purple"></i> Variant Matrix Builder</h3>
 </div>
@@ -64,7 +67,7 @@
 
 </div>
 
-<div class="box-footer">
+<div class="box-footer mp-form-actions">
 <div class="col-sm-8 col-sm-offset-2 text-center">
 <div class="col-md-3 col-md-offset-3">
 <button type="button" id="generate" class="btn btn-block btn-success"><i class="fa fa-magic"></i> Generate Variants</button>
@@ -79,12 +82,10 @@
 </div>
 </div>
 </section>
-</div>
-<?php $this->load->view('footer.php');?>
-<div class="control-sidebar-bg"></div>
-</div>
-<?php $this->load->view('comman/code_js_sound.php');?>
-<?php $this->load->view('comman/code_js.php');?>
+<style>
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>
 <script type="text/javascript">
 var base_url=$("#base_url").val();
 function parse_list(val){
@@ -138,5 +139,3 @@ $("#generate").on("click",function(){
 });
 </script>
 <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-</body>
-</html>

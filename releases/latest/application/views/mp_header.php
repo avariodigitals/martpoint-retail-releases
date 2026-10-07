@@ -60,17 +60,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans
 .mp-status-pill{display:inline-flex!important;align-items:center!important;gap:8px!important;padding:10px 14px!important;border:1px solid var(--mp-border)!important;border-radius:24px!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;font-size:13px!important;font-weight:600!important}
 .mp-status-dot{width:10px!important;height:10px!important;border-radius:50%!important;background:var(--mp-success)!important;box-shadow:0 0 0 3px rgba(5,150,105,.15)!important}
 .mp-status-pill.offline .mp-status-dot{background:#A8A29E!important;box-shadow:none!important}
+/* .mp-toast* styles moved to mp_footer.php — the clinic shell does not
+   load this file, so toasts rendered unstyled there. */
 .mp-status-pill.offline{color:var(--mp-muted)!important}
-.mp-toast-container{position:fixed!important;top:20px!important;right:20px!important;z-index:10000!important;display:flex!important;flex-direction:column!important;gap:10px!important;pointer-events:none!important}
-.mp-toast{background:var(--mp-surface)!important;color:var(--mp-text)!important;border:1px solid var(--mp-border)!important;border-radius:12px!important;box-shadow:var(--mp-shadow)!important;padding:14px 16px!important;min-width:300px!important;max-width:420px!important;display:flex!important;align-items:flex-start!important;gap:12px!important;transform:translateX(120%)!important;opacity:0!important;transition:all .45s cubic-bezier(.16,1,.3,1)!important;pointer-events:auto!important}
-.mp-toast.show{transform:translateX(0)!important;opacity:1!important}
-.mp-toast.hide{transform:translateX(-120%)!important;opacity:0!important}
-.mp-toast-icon{width:32px!important;height:32px!important;border-radius:10px!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;background:#D1FAE5!important;color:var(--mp-success)!important}
-.mp-toast.danger .mp-toast-icon{background:#FEE2E2!important;color:var(--mp-danger)!important}
-.mp-toast.warning .mp-toast-icon{background:#FEF3C7!important;color:#B45309!important}
-.mp-toast-content{flex:1!important;min-width:0!important}
-.mp-toast-title{font-size:14px!important;font-weight:700!important;margin:0 0 2px!important;color:var(--mp-ink)!important}
-.mp-toast-message{font-size:13px!important;color:var(--mp-muted)!important;line-height:1.35!important}
 .mp-toast-close{width:24px!important;height:24px!important;border:none!important;background:transparent!important;color:var(--mp-muted)!important;font-size:20px!important;line-height:22px!important;cursor:pointer!important;border-radius:6px!important;flex-shrink:0!important}
 .mp-toast-close:hover{background:var(--mp-bg)!important}
 .mp-lang-item{display:block!important;padding:8px 12px!important;border-radius:8px!important;font-size:13px!important;font-weight:500!important;color:var(--mp-ink)!important;text-decoration:none!important;cursor:pointer!important}
@@ -452,6 +444,48 @@ body > .mp-support-modal{z-index:10000!important}
 .mp-main .box-header{border-bottom:1px solid var(--mp-border)!important;padding:18px 20px 14px!important}
 .mp-main .box-title{font-size:15px!important;font-weight:700!important;color:var(--mp-text)!important}
 
+/* ===== LEGACY BOOTSTRAP GRID NORMALISER =====
+   The shell is flex/grid based, but hundreds of legacy views (fleet, settings,
+   forms) still use Bootstrap 3's float grid: .row + .col-xs-* / .col-sm-* /
+   .col-md-*. Bootstrap 3 columns are float:left with NEGATIVE .row margins and
+   no gutters in this theme, so inside the new shell they overlapped, wrapped
+   unpredictably and produced a "scattered" layout (worst on the Fleet screen).
+   Make .row a flex row with a real gap and give every column box-sizing + a
+   sane flex basis. This is scoped to .mp-main so client pages that rely on old
+   AdminLTE behaviour elsewhere are untouched. */
+.mp-main .row{display:flex!important;flex-wrap:wrap!important;gap:16px!important;margin-left:0!important;margin-right:0!important}
+.mp-main .row:before,.mp-main .row:after{display:none!important;content:none!important}
+.mp-main .row > [class*="col-"]{
+    float:none!important;position:static!important;width:auto!important;
+    min-width:0!important;flex:1 1 0!important;max-width:100%!important;
+    padding-left:0!important;padding-right:0!important
+}
+/* Explicit spans keep their intended proportion instead of stretching */
+.mp-main .row > .col-xs-1,.mp-main .row > .col-sm-1,.mp-main .row > .col-md-1,.mp-main .row > .col-lg-1{flex:0 0 calc(8.3333% - 14.67px)!important}
+.mp-main .row > .col-xs-2,.mp-main .row > .col-sm-2,.mp-main .row > .col-md-2,.mp-main .row > .col-lg-2{flex:0 0 calc(16.6667% - 13.33px)!important}
+.mp-main .row > .col-xs-3,.mp-main .row > .col-sm-3,.mp-main .row > .col-md-3,.mp-main .row > .col-lg-3{flex:0 0 calc(25% - 12px)!important}
+.mp-main .row > .col-xs-4,.mp-main .row > .col-sm-4,.mp-main .row > .col-md-4,.mp-main .row > .col-lg-4{flex:0 0 calc(33.3333% - 10.67px)!important}
+.mp-main .row > .col-xs-5,.mp-main .row > .col-sm-5,.mp-main .row > .col-md-5,.mp-main .row > .col-lg-5{flex:0 0 calc(41.6667% - 9.33px)!important}
+.mp-main .row > .col-xs-6,.mp-main .row > .col-sm-6,.mp-main .row > .col-md-6,.mp-main .row > .col-lg-6{flex:0 0 calc(50% - 8px)!important}
+.mp-main .row > .col-xs-7,.mp-main .row > .col-sm-7,.mp-main .row > .col-md-7,.mp-main .row > .col-lg-7{flex:0 0 calc(58.3333% - 6.67px)!important}
+.mp-main .row > .col-xs-8,.mp-main .row > .col-sm-8,.mp-main .row > .col-md-8,.mp-main .row > .col-lg-8{flex:0 0 calc(66.6667% - 5.33px)!important}
+.mp-main .row > .col-xs-9,.mp-main .row > .col-sm-9,.mp-main .row > .col-md-9,.mp-main .row > .col-lg-9{flex:0 0 calc(75% - 4px)!important}
+.mp-main .row > .col-xs-10,.mp-main .row > .col-sm-10,.mp-main .row > .col-md-10,.mp-main .row > .col-lg-10{flex:0 0 calc(83.3333% - 2.67px)!important}
+.mp-main .row > .col-xs-11,.mp-main .row > .col-sm-11,.mp-main .row > .col-md-11,.mp-main .row > .col-lg-11{flex:0 0 calc(91.6667% - 1.33px)!important}
+.mp-main .row > .col-xs-12,.mp-main .row > .col-sm-12,.mp-main .row > .col-md-12,.mp-main .row > .col-lg-12{flex:0 0 100%!important}
+/* Legacy form controls inside the shell */
+.mp-main .form-group{margin-bottom:14px!important}
+.mp-main .form-control{border:1px solid var(--mp-border)!important;border-radius:10px!important;box-shadow:none!important;font-size:14px!important;color:var(--mp-text)!important;background:var(--mp-surface)!important;height:auto!important;padding:9px 12px!important}
+.mp-main .form-control.input-sm{padding:7px 10px!important;font-size:13px!important;border-radius:8px!important}
+.mp-main .form-control:focus{border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px rgba(0,87,255,.1)!important}
+.mp-main label{font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;margin-bottom:5px!important}
+.mp-main h3,.mp-main h4{color:var(--mp-text)!important}
+@media(max-width:991px){
+  .mp-main .row > .col-md-1,.mp-main .row > .col-md-2,.mp-main .row > .col-md-3,.mp-main .row > .col-md-4,
+  .mp-main .row > .col-md-5,.mp-main .row > .col-md-6,.mp-main .row > .col-md-7,.mp-main .row > .col-md-8,
+  .mp-main .row > .col-md-9,.mp-main .row > .col-md-10,.mp-main .row > .col-md-11{flex:1 1 100%!important}
+}
+
 /* Table row action dropdowns — consistent across business types */
 .table .btn-group .dropdown-toggle,
 .dataTable .btn-group .dropdown-toggle,
@@ -510,34 +544,63 @@ body > .mp-support-modal{z-index:10000!important}
 </head>
 <body>
 <?php $CI =& get_instance(); ?>
-<?php $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator'; ?>
+<?php
+// MUST mirror mp_sidebar.php exactly. $is_central here means "slim = hide
+// retail chrome". The switch is db_sitesettings.central_slim_menu (the
+// "Slim menu (hide retail menus)" checkbox on the Central Dashboard).
+//
+// DEFAULT IS 0 = FULL MENU. A fresh Central shows everything, including the
+// POS button and subscription badge, because it still behaves like a normal
+// install until the vendor ticks Slim. If this default ever diverges from
+// mp_sidebar.php the sidebar and header disagree — e.g. a slim sidebar next
+// to a POS button.
+$is_central = false;
+if (function_exists('mp_is_central') && mp_is_central() && isset($CI) && is_object($CI)) {
+  $slim = 0;
+  try {
+    if ($CI->db->field_exists('central_slim_menu', 'db_sitesettings')) {
+      $row = $CI->db->select('central_slim_menu')->where('id', 1)->get('db_sitesettings')->row();
+      $slim = $row ? (int) $row->central_slim_menu : 0;
+    }
+  } catch (Exception $e) { $slim = 0; }
+  $is_central = ($slim === 1);
+}
+$is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
+?>
 
 <!-- ===== HEADER ===== -->
 <header class="mp-header">
-  <a href="<?= base_url('dashboard'); ?>" class="mp-brand">
-    <h1><?= htmlspecialchars($this->session->userdata('store_name') ?: 'MartPoint'); ?></h1>
-    <div class="sub"><?= $page_title ?? 'Dashboard'; ?></div>
+  <a href="<?= base_url($is_central ? 'fleet' : 'dashboard'); ?>" class="mp-brand">
+    <h1><?= htmlspecialchars($is_central ? 'MartPoint Central' : ($this->session->userdata('store_name') ?: 'MartPoint')); ?></h1>
+    <div class="sub"><?= $page_title ?? ($is_central ? 'Fleet Manager' : 'Dashboard'); ?></div>
   </a>
   <div class="mp-intelligence">
-    <div class="mp-intel-label"><i class="fa fa-lightbulb-o"></i> Insights</div>
+    <div class="mp-intel-label"><i class="fa fa-lightbulb-o"></i> <?= $is_central ? 'Status' : 'Insights'; ?></div>
     <div class="mp-marquee"><div class="mp-marquee-track" id="intelTrack">
-      <?php if(!empty($insights)): foreach(array_slice($insights, 0, 6) as $ins): ?>
+      <?php if($is_central): ?>
+        <span class="mp-marquee-item">Vendor console — Fleet, Manifest and Release tooling.</span>
+      <?php elseif(!empty($insights)): foreach(array_slice($insights, 0, 6) as $ins): ?>
         <span class="mp-marquee-item"><?= htmlspecialchars(strip_tags($ins)); ?></span>
       <?php endforeach; else: ?>
         <span class="mp-marquee-item">Keep selling to receive business insights.</span>
       <?php endif; ?>
-      <?php if(!empty($insights)): foreach(array_slice($insights, 0, 6) as $ins): ?>
+      <?php if(!$is_central && !empty($insights)): foreach(array_slice($insights, 0, 6) as $ins): ?>
         <span class="mp-marquee-item"><?= htmlspecialchars(strip_tags($ins)); ?></span>
       <?php endforeach; endif; ?>
     </div></div>
   </div>
   <div class="mp-header-actions">
     <span class="mp-offline-badge" id="mpOfflineBadge"><i class="fa fa-wifi"></i> OFFLINE</span>
-    <?php if($CI->permissions('pos') && !$is_creator): ?>
+    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator): ?>
     <button class="mp-hbtn" id="syncOfflineBtn" title="Sync Items for Offline Use"><i class="fa fa-refresh"></i> <span class="hidden-xs">Sync</span><span id="pendingSalesBadge" style="display:none;background:var(--mp-danger);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;">0</span></button>
     <?php endif; ?>
     <?php
-    if($CI->db->table_exists('db_subscription_license')){
+    // NOTE: there is deliberately NO extra "store menu" toggle in the header.
+    // $_is_central here means "slim = hide retail menus", and the switch that
+    // controls it is the "Slim menu (hide retail menus)" checkbox on the
+    // Central Dashboard (/dashboard -> central_dashboard.php), which posts to
+    // Fleet::toggle_menu(). One control, in one place.
+    if(!$is_central && $CI->db->table_exists('db_subscription_license')){
       $CI->load->model('subscription_license_model','sub_lic');
       $sub_status = $CI->sub_lic->get_status();
       if($sub_status['status'] !== 'NOT_ACTIVATED'):
@@ -554,10 +617,10 @@ body > .mp-support-modal{z-index:10000!important}
       <span class="mp-status-dot"></span>
       <span class="mp-status-text">Online</span>
     </div>
-    <?php if(!is_store_admin()): ?>
+    <?php if(!is_store_admin() && !$is_central): ?>
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
     <?php endif; ?>
-    <?php if($CI->permissions('pos') && !$is_creator): ?>
+    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator): ?>
     <a class="mp-hbtn primary" href="<?= base_url('pos'); ?>"><i class="fa fa-plus-square"></i> POS</a>
     <?php endif; ?>
     <div class="mp-user-menu">

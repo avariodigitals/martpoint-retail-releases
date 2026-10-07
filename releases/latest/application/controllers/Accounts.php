@@ -85,8 +85,13 @@ class Accounts extends MY_Controller {
 		$data['ledger'] = $this->dashboard_model->get_cash_ledger($from_date, $to_date);
 		$data['accounts'] = $accounts;
 		$data['cash_account_id'] = $cash_account_id;
-		$this->load->view('accounts/cash_ledger', $data);
-	}
+                // Render inside the shared shell — this was the only method in
+                // Accounts still emitting the legacy AdminLTE document while
+                // index/book/cash_transactions/add/update were already on
+                // mp_layout (mp_layout dispatches to physio_layout on clinics).
+                $data['content'] = $this->load->view('accounts/cash_ledger', $data, TRUE);
+                $this->load->view('mp_layout', $data);
+        }
 
 	public function add()
 	{

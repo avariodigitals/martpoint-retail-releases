@@ -3,14 +3,113 @@
   let modalProduct = null;
   let modalQty = 1;
 
+  // Persisted-cart token — identifies this browser session server-side so
+  // the merchant can list and recover abandoned checkouts. Always 128-bit
+  // crypto-random; browsers without crypto.getRandomValues simply don't
+  // persist a cart (server rejects weak formats anyway).
+  function mpCartToken(){
+    try{
+      let t = localStorage.getItem('sf_cart_token_' + STORE_ID);
+      if(!t || !/^[0-9a-f]{32,64}$/.test(t)){
+        if(!(window.crypto && crypto.getRandomValues)) return '';
+        t = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2,'0')).join('');
+        localStorage.setItem('sf_cart_token_' + STORE_ID, t);
+      }
+      return t;
+    }catch(e){ return ''; }
+  }
+
+  // Stable per-event id — dedups client retries against server records.
+  function mpEvtId(){
+    try{
+      return 'evt_' + Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2,'0')).join('');
+    }catch(e){ return 'evt_' + Date.now().toString(16) + Math.random().toString(16).slice(2, 10); }
+  }
+
+  // Consent state re-read on every call — withdrawal stops tracking
+  // immediately even if a tracker script is already loaded.
+  function mpTrackingAllowed(){
+    if(!window.MP_NEED_CONSENT) return true;
+    return !!(window.mpTrackConsent && window.mpTrackConsent.granted());
+  }
+
+  // Forward a shopping event to whichever third-party pixels are loaded.
+  // eventId lets platforms dedupe retries; purchase uses 'purchase_<code>'.
+  function mpFirePixels(type, itemId, value, eventId){
+    if(!mpTrackingAllowed()) return;
+    try{
+      const meta = {value: value, currency: (window.SF_CURRENCY || 'NGN')};
+      if(itemId) meta.content_ids = [String(itemId)];
+      if(window.gtag) gtag('event', type, {value: value, currency: meta.currency, items: itemId ? [{item_id: String(itemId)}] : undefined});
+      if(window.fbq){
+        const m = {view_item:'ViewContent', add_to_cart:'AddToCart', begin_checkout:'InitiateCheckout', purchase:'Purchase'}[type];
+        if(m) fbq('track', m, meta, eventId ? {eventID: eventId} : undefined);
+      }
+      if(window.ttq){
+        const m = {view_item:'ViewContent', add_to_cart:'AddToCart', begin_checkout:'InitiateCheckout', purchase:'CompletePayment'}[type];
+        if(m) ttq.track(m, {content_id: itemId ? String(itemId) : undefined, value: value, currency: meta.currency, event_id: eventId});
+      }
+    }catch(e){}
+  }
+
+  // First-party funnel event. Dispatched only when the consent policy
+  // allows — required consent that was never granted sends nothing.
+  function mpTrackEvent(type, itemId, value, eventId){
+    if(!mpTrackingAllowed()) return;
+    const eid = eventId || mpEvtId();
+    mpFirePixels(type, itemId, value, eid);
+    try{
+      const body = new URLSearchParams({
+        store_id: STORE_ID, event: type, event_id: eid,
+        '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>',
+        consent: (window.mpTrackConsent && window.mpTrackConsent.granted()) ? '1' : '0',
+        page: window.location.pathname,
+        cart_token: mpCartToken()
+      });
+      if(itemId) body.set('item_id', itemId);
+      if(value !== undefined) body.set('value', value);
+      fetch('<?= base_url('storefront/track_event'); ?>', {method:'POST', body:body.toString(),
+        headers:{'Content-Type':'application/x-www-form-urlencoded'}, keepalive:true}).catch(()=>{});
+    }catch(e){}
+  }
+
+  // Debounced server-side cart snapshot — powers abandoned-cart recovery.
+  let _mpCartSaveTimer = null;
+  function mpSaveCart(extra){
+    if(_mpCartSaveTimer) clearTimeout(_mpCartSaveTimer);
+    _mpCartSaveTimer = setTimeout(function(){
+      try{
+        const items = (typeof cartData !== 'undefined' ? cartData : cart) || [];
+        if(!items.length) return;
+        const body = new URLSearchParams({
+          store_id: STORE_ID, cart_token: mpCartToken(),
+          '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>',
+          items_json: JSON.stringify(items)
+        });
+        if(extra) for(const k in extra) body.set(k, extra[k]);
+        fetch('<?= base_url('storefront/save_cart'); ?>', {method:'POST', body:body.toString(),
+          headers:{'Content-Type':'application/x-www-form-urlencoded'}})
+          .then(r => r.json())
+          .then(res => {
+            // Server rejected the token format (e.g. upgraded client) —
+            // clear it so the next save mints a fresh crypto token.
+            if(res && res.message === 'bad_token'){
+              try{ localStorage.removeItem('sf_cart_token_' + STORE_ID); }catch(e){}
+            }
+          }).catch(()=>{});
+      }catch(e){}
+    }, 800);
+  }
+
   function saveCart(){
     localStorage.setItem('sf_cart_' + STORE_ID, JSON.stringify(cart));
     updateCartUI();
+    mpSaveCart();
   }
 
   function updateCartUI(){
     let qty = 0, total = 0;
-    cart.forEach(i => { qty += i.qty; total += i.price * i.qty; });
+    cart.forEach(i => { qty += i.qty; total += (typeof sfCartLineTotal === 'function' ? sfCartLineTotal(i) : i.price * i.qty); });
     const cartCountEl = document.getElementById('cart-count');
     if(cartCountEl) cartCountEl.textContent = qty;
     const headerAmt = document.getElementById('header-cart-amount');
@@ -38,34 +137,45 @@
       showToast('Please choose an option first');
       const pk = document.querySelector('.sf-variant-picker');
       if(pk) pk.scrollIntoView({behavior:'smooth', block:'center'});
-      return;
+      return false;
     }
-    const isPhysical = (type === 'product' || type === 'physical');
+    const cartType = type === 'physical' ? 'product' : type;
+    const isPhysical = (cartType === 'product');
     if(isPhysical && stock !== undefined && stock <= 0 && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
-      showToast('Out of stock'); return;
+      showToast('Out of stock'); return false;
     }
-    const key = type + '_' + id;
+    const addonPanel = document.querySelector('.mp-product-addons[data-parent-type="'+cartType+'"][data-parent-id="'+id+'"]');
+    const addons = addonPanel ? Array.from(addonPanel.querySelectorAll('.mp-addon-choice:checked')).map(input=>({id:parseInt(input.value,10),qty:Math.min(parseInt(input.dataset.max,10)||1,Math.max(1,parseInt(input.closest('.mp-product-addon').querySelector('.mp-addon-qty').value,10)||1)),name:input.dataset.name||'',price:parseFloat(input.dataset.price)||0})) : [];
+    const addonKey = addons.map(addon=>addon.id+'x'+addon.qty).join(',');
+    const key = cartType + '_' + id + (addonKey ? '_' + addonKey : '');
     const existing = cart.find(i => i.key === key);
     if(existing){
       if(isPhysical && stock !== undefined && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
-        if(existing.qty + qty > stock){ showToast('Not enough stock'); return; }
+        if(existing.qty + qty > stock){ showToast('Not enough stock'); return false; }
       }
       existing.qty += qty;
     } else {
-      cart.push({key, id, type, name, price, image, qty: qty, stock: stock ?? 999});
+      cart.push({key, id, type:cartType, name, price, image, qty: qty, stock: stock ?? 999, addons:addons});
     }
     saveCart();
+    const unitPrice = price + addons.reduce((sum,addon)=>sum+(addon.price*addon.qty),0);
+    mpTrackEvent('add_to_cart', id, unitPrice * qty);
     showToast(name + ' added to cart');
+    return true;
   }
 
-  function openProductModal(id, name, price, image, desc, stock, oldPrice){
-    modalProduct = {id, name, price, image, desc, stock};
+  function openProductModal(id, name, price, image, desc, stock, oldPrice, type){
+    modalProduct = {id, name, price, image, desc, stock, type: type || 'product'};
     modalQty = 1;
     document.getElementById('modal-title').textContent = name;
     document.getElementById('modal-price').innerHTML = formatMoney(price) + (oldPrice > 0 ? ' <span style="text-decoration:line-through;font-size:16px;color:#94A3B8;margin-left:8px;">' + formatMoney(oldPrice) + '</span>' : '');
     document.getElementById('modal-desc').textContent = desc || '';
     document.getElementById('modal-img').src = image ? '<?= base_url(); ?>' + image : '';
     document.getElementById('modal-qty').textContent = '1';
+    const mPhys = (modalProduct.type === 'product' || modalProduct.type === 'physical');
+    const mOos = mPhys && stock !== undefined && stock <= 0 && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>;
+    const mAdd = document.getElementById('modal-add-btn');
+    if(mAdd){ mAdd.disabled = mOos; mAdd.textContent = mOos ? 'Out of Stock' : 'Add to Cart'; mAdd.style.opacity = mOos ? '.5' : ''; mAdd.style.cursor = mOos ? 'not-allowed' : ''; }
     document.getElementById('product-modal').classList.add('show');
   }
 
@@ -80,8 +190,7 @@
 
   function addModalToCart(){
     if(!modalProduct) return;
-    addToCart(modalProduct.id, 'product', modalProduct.name, modalProduct.price, modalProduct.image, modalQty, modalProduct.stock);
-    closeModal();
+    if(addToCart(modalProduct.id, modalProduct.type || 'product', modalProduct.name, modalProduct.price, modalProduct.image, modalQty, modalProduct.stock)) closeModal();
   }
 
   // Shared variant-picker contract: sfPickVariant records the chosen child

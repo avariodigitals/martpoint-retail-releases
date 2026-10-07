@@ -175,7 +175,11 @@ $img = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($
         <?php else: ?>
         <div class="dc-detail-actions">
           <button class="dc-btn dc-btn-outline" disabled style="opacity:0.6;cursor:not-allowed;">Out of Stock</button>
+          <?php if($waNumber): ?>
+          <a class="dc-btn dc-btn-wa" href="https://wa.me/<?= $waNumber; ?>?text=<?= rawurlencode('Hello, is ' . $p->item_name . ' back in stock?'); ?>" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;justify-content:center;text-decoration:none;">Ask about availability</a>
+          <?php endif; ?>
         </div>
+        <?php $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $p->id]); ?>
         <?php endif; ?>
 
         <div class="dc-detail-meta">

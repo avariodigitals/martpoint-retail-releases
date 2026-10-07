@@ -1,35 +1,11 @@
-<?php $shift = $detail['shift']; $counts = $detail['counts']; $CI =& get_instance(); ?>
-<!DOCTYPE html>
-<html>
-<head>
-<?php include"comman/code_css.php"; ?>
-<style>
-  .cs-card { background:#fff; border:1px solid #E2E8F0; border-radius:12px; padding:24px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-  .cs-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .cs-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:20px; }
-  .cs-kpi { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px; }
-  .cs-kpi .lbl { font-size:11px; color:#64748B; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
-  .cs-kpi .val { font-size:18px; font-weight:700; color:#1E293B; }
-  .cs-kpi .val.pos { color:#10B981; }
-  .cs-kpi .val.neg { color:#EF4444; }
-  @media print {
-    .main-header, .main-sidebar, .cs-actions, .btn { display:none !important; }
-    .content-wrapper { margin-left:0 !important; }
-  }
-</style>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-  <?php include"sidebar.php"; ?>
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?=$page_title;?><small></small></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?=base_url('cashier_shifts');?>"><?=$this->lang->line('z_report');?></a></li>
-        <li class="active"><?=htmlspecialchars($shift->shift_code);?></li>
-      </ol>
-    </section>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2>Cashier Shifts</h2>
+      <div class="mp-page-sub">Shift history</div>
+    </div>
+  </div>
+</div>
 
     <section class="content">
       <div class="row">
@@ -121,14 +97,14 @@
         </div>
       </div>
     </section>
-  </div>
-  <?php include"footer.php"; ?>
-  <div class="control-sidebar-bg"></div>
-</div>
-<?php include"comman/code_js_sound.php"; ?>
-<?php include"comman/code_js.php"; ?>
 <?php include"comman/code_js_export.php"; ?>
 <script src="<?php echo $theme_link; ?>js/sheetjs.js" type="text/javascript"></script>
 <script>$(".report-z-active-li").addClass("active");</script>
-</body>
-</html>
+
+<style>
+/* The page JS appends its loading .overlay to $(".box"), so the .box wrapper
+   must stay; only its own frame is stripped so the card is not flush against
+   a second border. */
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>

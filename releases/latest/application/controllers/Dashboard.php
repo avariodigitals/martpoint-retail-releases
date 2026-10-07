@@ -24,6 +24,10 @@ class Dashboard extends MY_Controller {
 		}
 		// The vendor's central domain gets a SaaS fleet-analytics dashboard —
 		// the retail dashboard is meaningless there (no sales data lives here).
+		// central_dashboard.php hosts the fleet KPIs, the Central-vs-channel
+		// version line and the "Slim menu (hide retail menus)" checkbox that
+		// mp_sidebar.php reads. Without this branch Central falls through to
+		// the retail dashboard and that screen is orphaned.
 		if(function_exists('mp_is_central') && mp_is_central()){
 			$this->centralConsole();
 			return;
@@ -34,6 +38,11 @@ class Dashboard extends MY_Controller {
 			if(($bp['industry_type'] ?? '') === 'creator'){
 				redirect(base_url('creator'));
 			}
+		}
+		if(!function_exists('physio_enabled')) $this->load->helper('physio');
+		if(physio_enabled()){
+			$this->clinicDashboard();
+			return;
 		}
 		$this->load->model('dashboard_model');//Model
 
@@ -121,9 +130,8 @@ class Dashboard extends MY_Controller {
 			$data['content'] = $this->load->view('dashboard',$data, TRUE);
 			$this->load->view('mp_layout', $data);
 		}
-
+		
 	}
-
 	/**
 	 * Central-only landing page — SaaS analytics over the fleet registry.
 	 * Everything derives from db_fleet_installs rows written by install
@@ -290,7 +298,7 @@ class Dashboard extends MY_Controller {
 		            $this->db->where("store_id",$row->id); 
 		            $this->db->select("COALESCE(sum(grand_total),0)-COALESCE(sum(paid_amount),0) AS sales_due_total");
 		            $this->db->from("db_sales");
-		            $this->db->where("sales_status='Final'");
+		            $this->db->where("sales_status IN ('Final','Opening')");
 		            $sales_due_total=$this->db->get()->row()->sales_due_total;
 
 		            /*EXPENSE */
@@ -580,6 +588,203 @@ class Dashboard extends MY_Controller {
 		$data['page_title'] = 'Support';
 		$data['content'] = $this->load->view('support', $data, TRUE);
 		$this->load->view('mp_layout', $data);
+	}
+
+
+	/** Clinical landing page; every destination keeps its controller permission gate. */
+	private function clinicDashboard(){
+		$access = array(
+			'patients' => physio_can('patients_view'),
+			'appointments' => physio_can('appointments_view'),
+			'queue' => physio_can('care_queue_view'),
+			'sessions' => physio_can('sessions_view'),
+			'nursing' => physio_can_any(array('nursing_tasks_view','porter_tasks_view')),
+			'ward' => physio_can('admissions_view'),
+			'accounts' => physio_can_any(array('patient_billing_view','patient_funds_view')),
+			'procurement' => $this->permissions('suppliers_view') || $this->permissions('purchase_view'),
+			'administration' => $this->permissions('business_setup') || $this->permissions('store_edit')
+				|| $this->permissions('users_view') || $this->permissions('roles_view')
+				|| physio_can_any(array('assessment_templates_manage','imports_view','portal_manage')),
+		);
+		if(!in_array(true, $access, true)){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Clinic overview';
+		$data['clinic_access'] = $access;
+		$data['clinic_stats'] = $this->clinicStats($access);
+		$data['clinic_activity'] = $this->clinicActivity($access);
+		/*
+		 * The shell shows business insights in the topbar. Every other business
+		 * type gets them from dashboard_model; the clinic branch returned early
+		 * and never set them, so the band was permanently empty.
+		 * get_insights() reads sales/profit figures, so it is only consulted for
+		 * a viewer who may see the dashboard at all.
+		 */
+		$data['insights'] = array();
+		if($this->permissions('dashboard_view')){
+			$this->load->model('dashboard_model');
+			$data['insights'] = $this->dashboard_model->get_insights('');
+		}
+		$data['content'] = $this->load->view('physio_dashboard', array_merge($data, array(
+			'clinic_access' => $access,
+		)), TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+
+	/**
+	 * Clinical KPI figures for the clinic dashboard.
+	 *
+	 * Every figure is read from the same table the corresponding screen uses,
+	 * and a figure is only computed when the user holds the grant for that
+	 * screen — a role that cannot see billing is never shown billing totals.
+	 * Counts are store-scoped; the user's branch scope is applied on the
+	 * screens themselves so the dashboard never widens access.
+	 */
+	private function clinicStats(array $access){
+		$storeId = (int)get_current_store_id();
+		$out = array();
+		$count = function($table, array $where = array()) use ($storeId){
+			if(!$this->db->table_exists($table)) return null;
+			$this->db->where('store_id', $storeId);
+			foreach($where as $k => $v){ $this->db->where($k, $v); }
+			return (int)$this->db->count_all_results($table);
+		};
+
+		if($access['patients']){
+			$row = $this->db->select('COUNT(*) total, SUM(status=1 AND deceased=0) active, SUM(deceased=1) deceased')
+				->where('store_id', $storeId)->get('db_patients')->row();
+			$out['patients'] = array(
+				'label' => 'Active patients',
+				'value' => (int)($row->active ?? 0),
+				'sub'   => number_format((int)($row->total ?? 0)) . ' on register',
+				'url'   => 'patients',
+				'icon'  => 'fa-address-book-o',
+			);
+		}
+		if($access['appointments']){
+			$out['appointments'] = array(
+				'label' => 'Booked today',
+				'value' => (int)$this->db->where('store_id', $storeId)
+					->where('DATE(scheduled_at)', date('Y-m-d'))->count_all_results('db_appointments'),
+				'sub'   => 'appointments in the diary',
+				'url'   => 'appointments',
+				'icon'  => 'fa-calendar',
+			);
+		}
+		if($access['queue']){
+			$queue = $this->db->select('queue_stage, COUNT(*) n')->where('store_id', $storeId)
+				->where('queue_stage IS NOT NULL', null, false)->where('queue_stage !=', 'closed')
+				->group_by('queue_stage')->get('db_encounters')->result();
+			$total = 0; foreach($queue as $q){ $total += (int)$q->n; }
+			$out['queue'] = array(
+				'label' => 'In care queue',
+				'value' => $total,
+				'sub'   => $total ? 'awaiting triage, treatment or payment' : 'queue is clear',
+				'url'   => 'care_queue',
+				'icon'  => 'fa-list-ol',
+				'alert' => $total > 0,
+			);
+		}
+		if($access['sessions'] && $this->db->table_exists('db_treatment_sessions')){
+			$today = (int)$this->db->where('store_id', $storeId)
+				->where('DATE(scheduled_at)', date('Y-m-d'))->count_all_results('db_treatment_sessions');
+			$upcoming = (int)$this->db->where('store_id', $storeId)->where('status', 'scheduled')
+				->count_all_results('db_treatment_sessions');
+			$out['sessions'] = array(
+				'label' => 'Sessions today',
+				'value' => $today,
+				'sub'   => number_format($upcoming) . ' scheduled overall',
+				'url'   => 'sessions',
+				'icon'  => 'fa-stethoscope',
+			);
+		}
+		if($access['nursing'] && $this->db->table_exists('db_nursing_tasks')){
+			$open = (int)$this->db->where('store_id', $storeId)->where('status', 'open')
+				->count_all_results('db_nursing_tasks');
+			$overdue = (int)$this->db->where('store_id', $storeId)->where('status', 'open')
+				->where('due_at <', date('Y-m-d H:i:s'))->count_all_results('db_nursing_tasks');
+			$out['tasks'] = array(
+				'label' => 'Ward tasks open',
+				'value' => $open,
+				'sub'   => $overdue ? $overdue . ' overdue right now' : 'nothing overdue',
+				'url'   => 'inpatient/tasks',
+				'icon'  => 'fa-heartbeat',
+				'alert' => $overdue > 0,
+			);
+		}
+		if($access['ward']){
+			$beds = $count('db_beds');
+			$inUse = $this->db->table_exists('db_bed_occupancy')
+				? (int)$this->db->where('store_id', $storeId)->where('to_at IS NULL', null, false)
+					->count_all_results('db_bed_occupancy') : 0;
+			if($beds !== null){
+				$out['beds'] = array(
+					'label' => 'Beds free',
+					'value' => max(0, $beds - $inUse),
+					'sub'   => $inUse . ' of ' . $beds . ' occupied',
+					'url'   => 'inpatient/beds',
+					'icon'  => 'fa-bed',
+				);
+			}
+		}
+		// Money figures keep the same split as the screens: billing data belongs
+		// to patient_billing_view, held funds to patient_funds_view. Each KPI
+		// links to a route its own grant can actually open, so no figure is
+		// ever presented behind a locked door.
+		if(physio_can('patient_billing_view')){
+			$due = (float)$this->db->select('COALESCE(SUM(s.grand_total - s.paid_amount),0) AS due', false)
+				->from('db_sales s')
+				->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
+				->where('s.store_id', $storeId)
+				->where('(s.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
+				->where('s.grand_total > s.paid_amount', null, false)
+				->get()->row()->due;
+			$out['due'] = array(
+				'label' => 'Bills outstanding',
+				'value' => $this->currency($due, true),
+				'sub'   => 'across patient accounts',
+				'url'   => 'patient_billing',
+				'icon'  => 'fa-file-text-o',
+				'money' => true,
+			);
+		}
+		if(physio_can('patient_funds_view') && $this->db->table_exists('db_fund_reservations')){
+			$reserved = (float)$this->db->select('COALESCE(SUM(amount_reserved - amount_consumed),0) AS s', false)
+				->where('store_id', $storeId)->where('status', 'active')
+				->get('db_fund_reservations')->row()->s;
+			$out['funds'] = array(
+				'label' => 'Funds held',
+				'value' => $this->currency($reserved, true),
+				'sub'   => 'reserved against treatment plans',
+				'url'   => 'patient_funds',
+				'icon'  => 'fa-money',
+				'money' => true,
+			);
+		}
+		return $out;
+	}
+
+	/** Recent clinical activity — the day's arrivals and latest registrations. */
+	private function clinicActivity(array $access){
+		$storeId = (int)get_current_store_id();
+		$feed = array();
+		if($access['patients'] && $this->db->table_exists('db_patients')){
+			$rows = $this->db->select('p.id, p.patient_code, p.created_date, c.customer_name')
+				->from('db_patients p')
+				->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+				->where('p.store_id', $storeId)->order_by('p.id', 'desc')->limit(5)->get()->result();
+			foreach($rows as $r){
+				$feed[] = array(
+					'icon'  => 'fa-user-plus',
+					'title' => trim((string)$r->customer_name) ?: ('Patient #' . $r->id),
+					'meta'  => 'Registered ' . ($r->created_date ? date('M j, Y', strtotime($r->created_date)) : '—'),
+				);
+			}
+		}
+		return $feed;
 	}
 
 }

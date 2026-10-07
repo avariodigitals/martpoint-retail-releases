@@ -40,14 +40,10 @@
               <?php
                 $pb_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
                 $pb_is_perfumery = (($pb_profile['industry_type'] ?? '') === 'perfume_shop');
-                $pb_is_skincare  = (($pb_profile['industry_type'] ?? '') === 'skincare');
               ?>
               <?php if ($pb_is_perfumery): ?>
               <option value="blending" <?= (!isset($edit_batch) || $edit_batch->batch_type=='blending')?'selected':''; ?>>Blending</option>
               <option value="bottling" <?= (isset($edit_batch) && $edit_batch->batch_type=='bottling')?'selected':''; ?>>Bottling Run</option>
-              <?php elseif ($pb_is_skincare): ?>
-              <option value="formulation" <?= (!isset($edit_batch) || $edit_batch->batch_type=='formulation')?'selected':''; ?>>Formulation</option>
-              <option value="filling" <?= (isset($edit_batch) && $edit_batch->batch_type=='filling')?'selected':''; ?>>Filling Run</option>
               <?php else: ?>
               <option value="bakery" <?= (isset($edit_batch) && $edit_batch->batch_type=='bakery')?'selected':''; ?>>Bakery</option>
               <option value="kitchen" <?= (isset($edit_batch) && $edit_batch->batch_type=='kitchen')?'selected':''; ?>>Kitchen</option>
@@ -305,18 +301,12 @@ $('#btn-save').on('click', function(){
   }, 'json').fail(function(){ toastr.error('Server error'); $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Save Batch'); });
 });
 
-<?php if ($pb_is_perfumery || $pb_is_skincare): ?>
-// Short-run types have their own pipeline — rebuild the status list when the type changes
+<?php if ($pb_is_perfumery): ?>
+// A Bottling Run has its own short pipeline — rebuild the status list when the type changes
 var pbStatusSets = {
-<?php if ($pb_is_skincare): ?>
-  formulation: [['planned','Planned'],['sourcing','Sourcing Materials'],['mixing','Mixing'],['cooling','Cooling'],['filling','Filling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']],
-  filling: [['planned','Planned'],['filling','Filling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']],
-  general:  [['planned','Planned'],['sourcing','Sourcing Materials'],['mixing','Mixing'],['cooling','Cooling'],['filling','Filling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']]
-<?php else: ?>
   blending: [['planned','Planned'],['sourcing','Sourcing Materials'],['blending','Blending'],['macerating','Macerating'],['filtering','Filtering'],['bottling','Bottling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']],
   bottling: [['planned','Planned'],['bottling','Bottling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']],
   general:  [['planned','Planned'],['sourcing','Sourcing Materials'],['blending','Blending'],['macerating','Macerating'],['filtering','Filtering'],['bottling','Bottling'],['ready','Ready'],['completed','Completed'],['cancelled','Cancelled']]
-<?php endif; ?>
 };
 $('#batch_type').on('change', function(){
   var set = pbStatusSets[$(this).val()] || pbStatusSets.general;

@@ -1,32 +1,19 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-<!-- TABLES CSS CODE -->
-<?php include"comman/code_css.php"; ?>
-</head>
-
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-
-  <!-- Left side column. contains the logo and sidebar -->
-  
-  <?php include"sidebar.php"; ?>
-
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <h1>
-        <?= $this->lang->line('tax_list'); ?>
-        <small>View/Search <?= $this->lang->line('tax'); ?></small>
-      </h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class="active"><?= $this->lang->line('tax_list'); ?></li>
-        
-      </ol>
-    </section>
+<?php
+/**
+ * Tax list — CONTENT ONLY (rendered inside mp_layout).
+ * Legacy chrome (doctype/code_css/sidebar/footer/code_js) removed. The
+ * DataTable config and the #taxgroup-modal stay exactly as they were;
+ * tax-group.js is enqueued by the controller via $data['extra_js_files'].
+ */
+?>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $this->lang->line('tax_list'); ?></h2>
+      <div class="mp-page-sub">View/Search <?= $this->lang->line('tax'); ?></div>
+    </div>
+  </div>
+</div>
 
     <!-- **********************MODALS***************** -->
     <div class="modal fade" id="taxgroup-modal">
@@ -38,7 +25,7 @@
     <!-- Main content -->
     <?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
     <input type="hidden" id='base_url' value="<?=$base_url;?>">
-    <section class="content">
+    <section class="mp-section">
       <div class="row">
         <!-- ********** ALERT MESSAGE START******* -->
           <?php include"comman/code_flashdata.php"; ?>
@@ -122,22 +109,8 @@
     </section>
     <!-- /.content -->
     <?= form_close();?>
-  </div>
-  <!-- /.content-wrapper -->
-  <?php include"footer.php"; ?>
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
-</div>
-<!-- ./wrapper -->
 
-<!-- SOUND CODE -->
-<?php include"comman/code_js_sound.php"; ?>
-<!-- TABLES CODE -->
-<?php include"comman/code_js.php"; ?>
-
-
-<script src="<?php echo $theme_link; ?>js/tax.js"></script>
+<!-- tax.js and tax-group.js are enqueued by the controller via extra_js_files -->
 <script type="text/javascript">
 $(document).ready(function() {
     //datatables
@@ -207,11 +180,14 @@ $(document).ready(function() {
     new $.fn.dataTable.FixedHeader( table );
 });
 </script>
+</section>
+<style>
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+</style>
 <script type="text/javascript">
 $(document).ready(function() {
     //datatables
    var table = $('#example3').DataTable({ 
-
       /* FOR EXPORT BUTTONS START*/
   dom:'<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr><"pull-right margin-left-10 "B>>>tip',
  /* dom:'<"row"<"col-sm-12"<"pull-left"B><"pull-right">>> <"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr>>>tip',*/
@@ -276,8 +252,5 @@ $(document).ready(function() {
     new $.fn.dataTable.FixedHeader( table );
 });
 </script>
-<!-- Make sidebar menu hughlighter/selector -->
+<!-- Make sidebar menu highlighter/selector -->
 <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-		
-</body>
-</html>

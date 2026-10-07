@@ -545,6 +545,38 @@ class Roles_model extends CI_Model {
                     'leads_edit',
                     'leads_delete',
 
+                    // Physiotherapy & Rehabilitation — clinical permissions are
+                    // explicit grants only (checked via physio_can(), no admin bypass)
+                    'patients_view','patients_add','patients_edit','patients_merge','patients_export',
+                    'episodes_view','episodes_add','episodes_edit','episodes_close',
+                    'appointments_view','appointments_add','appointments_edit','appointments_cancel',
+                    'care_queue_view','care_checkin',
+                    'vitals_view','vitals_add',
+                    'encounters_view','encounters_add','encounters_finalize','encounters_amend',
+                    'assessments_view','assessments_add','assessments_finalize',
+                    'investigations_view','investigations_request','investigations_result_enter','investigations_review',
+                    'plans_view','plans_add','plans_amend',
+                    'sessions_view','sessions_checkin','sessions_complete',
+                    'admissions_view','admissions_manage','beds_manage',
+                    'nursing_tasks_view','nursing_tasks_complete','nursing_notes_add',
+                    'porter_tasks_view','porter_tasks_complete',
+                    'referrals_view','referrals_manage',
+                    'meals_view','meals_manage',
+                    'leave_manage','leave_approve',
+                    'daily_billing_view','daily_billing_run',
+                    'deceased_record',
+                    'discharge_recommend','discharge_decide',
+                    'patient_docs_view','patient_docs_upload','patient_docs_release','patient_docs_clinical_view',
+                    'patient_funds_view','patient_funds_add','payment_evidence_verify',
+                    'funds_adjust_request','refund_request',
+                    'patient_billing_view','patient_billing_add',
+                    'opening_positions_view','opening_positions_enter','opening_positions_review',
+                    'patient_feedback_view','patient_feedback_manage','testimonial_publish',
+                    'portal_manage','assessment_templates_manage',
+                    'imports_view','imports_run','imports_rollback',
+                    'clinical_reports_view','clinical_export','clinical_cross_branch',
+                    'md_authority',
+
                     'audit_trail_view',
 
                     // Store management
@@ -607,6 +639,30 @@ class Roles_model extends CI_Model {
 		$this->db->trans_begin();		
 
 		//BEFORE SAVING DELETE ALL PERSMISSIONS OF THE SPESIFIED ROLE
+		// Record deliberate revocations first: any key the admin leaves
+		// unchecked is logged so the additive physio role sync never re-adds it.
+		$old = $this->db->select('permissions')->where('role_id', $role_id)
+			->where('store_id', $store_id)->get('db_permissions')->result_array();
+		$old_keys = array_map('strval', array_column($old, 'permissions'));
+		$new_keys = array_map('strval', array_column($result, 'permissions'));
+		$removed = array_values(array_diff($old_keys, $new_keys));
+		$this->load->helper('physio');
+		foreach($removed as $perm){
+			if($this->db->table_exists('db_permission_revocations')){
+				$this->db->query(
+					'INSERT INTO db_permission_revocations (store_id, role_id, permissions, revoked_by, revoked_at)
+					 VALUES (?,?,?,?,NOW())
+					 ON DUPLICATE KEY UPDATE revoked_at=NOW()',
+					array((int)$store_id, (int)$role_id, $perm, $this->session->userdata('inv_username') ?: 'system'));
+			}
+		}
+		// Re-granted keys clear their revocation so a later sync can restore
+		// them if they are ever removed again.
+		if($this->db->table_exists('db_permission_revocations') && !empty($new_keys)){
+			$this->db->where('role_id', $role_id)->where('store_id', $store_id)
+				->where_in('permissions', $new_keys)->delete('db_permission_revocations');
+		}
+
 		$this->db->where("role_id",$role_id);
 		$this->db->where("store_id",$store_id);
 		$this->db->delete('db_permissions');

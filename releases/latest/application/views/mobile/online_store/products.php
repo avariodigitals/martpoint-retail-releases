@@ -189,6 +189,60 @@
         <button class="batch-btn indigo" onclick="batchAction('unmark_new')"><i class="fa fa-star-o"></i> Un-New</button>
         <button class="batch-btn blue" onclick="batchAction('mark_featured')"><i class="fa fa-thumbs-up"></i> Feature</button>
         <button class="batch-btn blue" onclick="batchAction('unmark_featured')"><i class="fa fa-thumbs-o-down"></i> Un-Feature</button>
+        <button class="batch-btn indigo" onclick="openBulkEdit()"><i class="fa fa-edit"></i> Edit Fields</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk field edit sheet (preview → apply) -->
+  <div id="beOverlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(15,23,42,.45);" onclick="if(event.target===this)closeBulkEdit()">
+    <div id="beSheet" style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + var(--safe-bottom));max-height:85vh;overflow-y:auto;max-width:430px;margin:0 auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;font-size:16px;">Bulk Edit Products</h3>
+        <button type="button" onclick="closeBulkEdit()" style="border:none;background:none;font-size:22px;color:var(--mp-muted);cursor:pointer;">&times;</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <select class="mp-select be-mp" id="be_price_field">
+          <option value="">Price — do not change</option>
+          <option value="sales_price">Sales price</option>
+          <option value="price">Purchase price</option>
+          <option value="online_price">Online price</option>
+        </select>
+        <div style="display:flex;gap:8px;">
+          <select class="mp-select be-mp" id="be_price_mode" style="flex:1;">
+            <option value="set">Set to</option>
+            <option value="increase_pct">Increase by %</option>
+            <option value="decrease_pct">Decrease by %</option>
+            <option value="increase_amt">Increase by amt</option>
+            <option value="decrease_amt">Decrease by amt</option>
+          </select>
+          <input type="number" step="0.01" min="0" id="be_price_value" placeholder="Value" style="width:100px;padding:12px;border:1px solid var(--mp-border);border-radius:12px;font-size:15px;">
+        </div>
+        <select class="mp-select be-mp" id="be_category_id">
+          <option value="">Category — do not change</option>
+          <?php foreach($categories as $cat): ?>
+          <option value="<?= (int)$cat->id; ?>"><?= htmlspecialchars($cat->category_name); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <input type="number" step="1" min="0" id="be_alert_qty" placeholder="Stock alert threshold (leave empty to keep)" style="padding:12px 14px;border:1px solid var(--mp-border);border-radius:12px;font-size:15px;">
+        <div style="display:flex;gap:8px;">
+          <select class="mp-select be-mp" id="be_stock_mode" style="flex:1;">
+            <option value="">Stock qty — keep</option>
+            <option value="set">Set stock to</option>
+            <option value="increase_amt">Increase stock by</option>
+            <option value="decrease_amt">Decrease stock by</option>
+          </select>
+          <input type="number" step="1" min="0" id="be_stock_value" placeholder="Qty" style="width:90px;padding:12px;border:1px solid var(--mp-border);border-radius:12px;font-size:15px;">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--mp-muted);margin:10px 0;">
+        <i class="fa fa-info-circle"></i> Stock changes go through the adjustment ledger. Items edited elsewhere after preview are skipped as conflicts.
+      </div>
+      <div id="be_preview_area" style="display:none;margin-bottom:10px;"></div>
+      <div id="be_result_area" style="display:none;margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="be_preview_btn" onclick="bulkEditPreview()" style="flex:1;padding:13px;border-radius:12px;border:1px solid var(--mp-border);background:#fff;font-weight:600;cursor:pointer;"><i class="fa fa-eye"></i> Preview</button>
+        <button type="button" id="be_apply_btn" onclick="bulkEditApply()" disabled style="flex:1;padding:13px;border-radius:12px;border:none;background:var(--mp-success);color:#fff;font-weight:600;cursor:pointer;"><i class="fa fa-check"></i> Apply</button>
       </div>
     </div>
   </div>
@@ -218,7 +272,7 @@
       for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
       mpFetchJson('<?= base_url('online_store/update_online_price'); ?>', {method:'POST', body:fd})
         .then(d => showToast(d.message || 'Done', d.status !== 'success'))
-        .catch(err => showToast(mpErrorText(err), true));
+        .catch(err => showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true));
     }
     function toggleOnline(id, btn){
       btn.disabled = true;
@@ -236,7 +290,7 @@
           }
           btn.disabled = false;
         })
-        .catch(err => { showToast(mpErrorText(err), true); btn.disabled = false; });
+        .catch(err => { showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true); btn.disabled = false; });
     }
     function toggleNewArrival(id, btn){
       btn.disabled = true;
@@ -253,7 +307,7 @@
           }
           btn.disabled = false;
         })
-        .catch(err => { showToast(mpErrorText(err), true); btn.disabled = false; });
+        .catch(err => { showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true); btn.disabled = false; });
     }
     function toggleFeatured(id, btn){
       btn.disabled = true;
@@ -270,7 +324,7 @@
           }
           btn.disabled = false;
         })
-        .catch(err => { showToast(mpErrorText(err), true); btn.disabled = false; });
+        .catch(err => { showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true); btn.disabled = false; });
     }
     function syncAllOnline(){
       if(!confirm('This will publish ALL eligible offline products to your online store (respecting your plan quota). Continue?')) return;
@@ -294,7 +348,7 @@
         .catch(err => {
           btn.disabled = false;
           btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
-          showToast(mpErrorText(err), true);
+          showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true);
         });
     }
 
@@ -348,8 +402,83 @@
             showToast(d.message || 'The update could not be applied. Please try again.', true);
           }
         })
-        .catch(err => showToast(mpErrorText(err), true));
+        .catch(err => showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true));
     }
+    // === Bulk field edit (preview → apply) ===
+    var beHashes = {};
+    function openBulkEdit(){
+      if(getSelectedIds().length === 0){ showToast('No products selected', true); return; }
+      beHashes = {};
+      document.getElementById('be_preview_area').style.display = 'none';
+      document.getElementById('be_result_area').style.display = 'none';
+      document.getElementById('be_apply_btn').disabled = true;
+      document.getElementById('beOverlay').style.display = 'block';
+    }
+    function closeBulkEdit(){ document.getElementById('beOverlay').style.display = 'none'; }
+    function beFormData(url){
+      var fd = new FormData();
+      getSelectedIds().forEach(function(id){ fd.append('product_ids[]', id); });
+      fd.append('price_field', document.getElementById('be_price_field').value);
+      fd.append('price_mode', document.getElementById('be_price_mode').value);
+      fd.append('price_value', document.getElementById('be_price_value').value);
+      fd.append('category_id', document.getElementById('be_category_id').value);
+      fd.append('alert_qty', document.getElementById('be_alert_qty').value);
+      fd.append('stock_mode', document.getElementById('be_stock_mode').value);
+      fd.append('stock_value', document.getElementById('be_stock_value').value);
+      for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
+      return fd;
+    }
+    function beEsc(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function beDescribe(changes){
+      var labels = {sales_price:'Sales price',price:'Purchase price',online_price:'Online price',category_id:'Category',alert_qty:'Alert qty'};
+      var parts = [];
+      for(var k in changes){
+        var v = changes[k];
+        if(k === '_stock_error'){ parts.push('<span style="color:#991B1B;">Stock: '+beEsc(v)+'</span>'); continue; }
+        if(k === '_stock_delta'){ parts.push('Stock: '+v.from+' → '+v.to); continue; }
+        parts.push((labels[k]||k)+': '+v.from+' → '+v.to);
+      }
+      return parts.length ? parts.join('<br>') : '<span style="color:#64748B;">no change</span>';
+    }
+    function bulkEditPreview(){
+      var btn = document.getElementById('be_preview_btn'); btn.disabled = true;
+      mpFetchJson('<?= base_url('online_store/batch_edit_preview'); ?>', {method:'POST', body:beFormData()})
+        .then(d => {
+          btn.disabled = false;
+          if(d.status !== 'success'){ showToast(d.message || 'Preview failed', true); return; }
+          beHashes = {};
+          var html = '';
+          d.items.forEach(function(it){
+            if(it.hash){ beHashes[it.id] = it.hash; }
+            html += '<div style="padding:8px 0;border-bottom:1px solid var(--mp-border);font-size:13px;"><b>'+beEsc(it.name)+'</b><br><span style="color:var(--mp-muted);">'+beDescribe(it.changes)+'</span></div>';
+          });
+          document.getElementById('be_preview_area').innerHTML = html;
+          document.getElementById('be_preview_area').style.display = 'block';
+          document.getElementById('be_apply_btn').disabled = false;
+        })
+        .catch(err => { btn.disabled = false; showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true); });
+    }
+    function bulkEditApply(){
+      var btn = document.getElementById('be_apply_btn'); btn.disabled = true;
+      var fd = beFormData();
+      for(var id in beHashes){ fd.append('expect['+id+']', beHashes[id]); }
+      mpFetchJson('<?= base_url('online_store/batch_edit_apply'); ?>', {method:'POST', body:fd})
+        .then(d => {
+          btn.disabled = false;
+          if(d.status !== 'success'){ showToast(d.message || 'Apply failed', true); return; }
+          var colors = {ok:'#065F46',conflict:'#92400E',skipped:'#64748B',error:'#991B1B'};
+          var html = '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">'+d.ok+' updated, '+d.conflicts+' conflicts, '+d.skipped+' skipped, '+d.errors+' errors</div>';
+          d.results.forEach(function(r){
+            html += '<div style="padding:6px 0;border-bottom:1px solid var(--mp-border);font-size:12px;"><b>'+beEsc(r.name)+'</b> — <span style="color:'+(colors[r.status]||'#333')+';">'+r.status+'</span><br><span style="color:var(--mp-muted);">'+beEsc(r.detail)+'</span></div>';
+          });
+          document.getElementById('be_preview_area').style.display = 'none';
+          document.getElementById('be_result_area').innerHTML = html;
+          document.getElementById('be_result_area').style.display = 'block';
+          if(d.ok > 0){ setTimeout(() => window.location.reload(), 2500); }
+        })
+        .catch(err => { btn.disabled = false; showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true); });
+    }
+
     // Select all
     document.addEventListener('DOMContentLoaded', function(){
       var selAll = document.getElementById('selectAllMobile');
@@ -400,7 +529,7 @@
               sel.selectedIndex = idx;
               updateTrigger();
               list.classList.remove('open');
-              form.submit();
+              if(sel.id === 'categoryFilter'){ form.submit(); }
             });
             list.appendChild(div);
           });

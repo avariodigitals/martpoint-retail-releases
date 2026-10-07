@@ -26,7 +26,9 @@ class Perfume extends MY_Controller {
             $d['enable_url']      = base_url('business_profile');
             $d['back_url']        = base_url('dashboard');
             $d['content']         = $this->load->view('operations/feature_not_activated.php', $d, TRUE);
-            $this->load->view('mp_layout', $d);
+            // Echo before exit — a bare load->view() only fills CI_Output,
+            // which exit discards, producing a blank 200.
+            echo $this->load->view('mp_layout', $d, TRUE);
             exit;
         }
     }

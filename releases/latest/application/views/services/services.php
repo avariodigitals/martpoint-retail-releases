@@ -1,14 +1,24 @@
-<!DOCTYPE html>
-<html>
-   <head>
-  <!-- TABLES CSS CODE -->
-  <?php $this->load->view('comman/code_css.php');?>
-  <!-- </copy> -->  
-  </head>
-   <body class="hold-transition skin-blue  sidebar-mini">
-      <div class="wrapper">
-      <?php $this->load->view('sidebar');?>
-      <?php
+<?php
+/**
+ * Services form — CONTENT ONLY.
+ *
+ * Rendered by Services::add()/update() as:
+ *   $data['content'] = $this->load->view('services/services', $data, TRUE);
+ *   $this->load->view('mp_layout', $data);
+ *
+ * The legacy document chrome (doctype, <head>, code_css, the old 'sidebar'
+ * shell, footer and code_js) was removed so the page renders inside the
+ * shared MartPoint shell. mp_layout already provides Bootstrap 3, select2,
+ * DataTables, toastr and jQuery via mp_header/code_js, and dispatches to
+ * physio_layout automatically on clinical stores — so this one view now
+ * serves retail AND the clinic.
+ *
+ * Controls intentionally keep their historic ids (#items-form, #save/#update,
+ * .box) and the Bootstrap-3 grid classes, because theme/js/services/services.js
+ * binds to them by name.
+ */
+?>
+<?php
          if(!isset($item_name)){
          $item_name=$sku=$opening_stock=$brand_id=$category_id=$gst_percentage=$tax_type=
          $sales_price=$purchase_price=$profit_margin=$unit_id=$price=$alert_qty=$lot_number=$store_id="";
@@ -36,30 +46,29 @@
          $new_opening_stock ='';
          $CI =& get_instance();
          ?>
-      <!-- Content Wrapper. Contains page content -->
-      <div class="content-wrapper">
-         <!-- Content Header (Page header) -->
-         <section class="content-header">
-            <h1>
-               <?= $page_title;?>
-               <small>Add/Update Services</small>
-            </h1>
-            <ol class="breadcrumb">
-               <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i>Home</a></li>
-               <li><a href="<?php echo $base_url; ?>items"><?= $this->lang->line('items_list'); ?></a></li>
-               <li class="active"><?= $page_title;?></li>
-            </ol>
-         </section>
-         <!-- Main content -->
-         <section class="content">
-            <div class="row">
-               <!-- ********** ALERT MESSAGE START******* -->
-               <?php $this->load->view('comman/code_flashdata');?>
-               <!-- ********** ALERT MESSAGE END******* -->
-               <!-- right column -->
-               <div class="col-md-12">
-                  <!-- Horizontal Form -->
-                  <div class="box box-primary ">
+<!-- Page head -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title;?></h2>
+      <div class="mp-page-sub">Add/Update Services</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?= base_url('items'); ?>" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        Back to <?= $this->lang->line('items_list'); ?>
+      </a>
+    </div>
+  </div>
+</div>
+
+<section class="mp-section">
+  <div class="row">
+    <!-- right column -->
+    <div class="col-md-12">
+      <!-- Horizontal Form -->
+      <!-- .box is REQUIRED: services.js appends its loading .overlay here.
+           Its frame is stripped so the card isn't flush against a second border. -->
+      <div class="box box-primary mp-items-box">
                      
                       <?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
                         <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
@@ -250,7 +259,7 @@
 
                            <!-- /row -->
                            <!-- /.box-body -->
-                           <div class="box-footer">
+                           <div class="box-footer mp-form-actions">
                               <div class="col-sm-8 col-sm-offset-2 text-center">
                                  <!-- <div class="col-sm-4"></div> -->
                                  <?php
@@ -281,26 +290,23 @@
                      <?= form_close(); ?>
                      </div>
                      <!-- /.box -->
-                  </div>
-                  <!--/.col (right) -->
-               </div>
-               
-         </section>
-         <!-- /.content -->
-         </div>
-         <!-- /.content-wrapper -->
-         <?php $this->load->view('footer');?>
-         <!-- Add the sidebar's background. This div must be placed
-            immediately after the control sidebar -->
-         <div class="control-sidebar-bg"></div>
-      </div>
-      <!-- ./wrapper -->
-      <!-- SOUND CODE -->
-      <?php $this->load->view('comman/code_js_sound');?>
-      <!-- TABLES CODE -->
-      <?php $this->load->view('comman/code_js.php');?>
-      <script src="<?php echo $theme_link; ?>js/services/services.js"></script>
-      <script type="text/javascript">
+    </div>
+    <!--/.col (right) -->
+  </div>
+</div>
+</section>
+
+<!-- services.js is enqueued by the controller via $data['extra_js_files']
+     so it loads from mp_layout before this content. -->
+<style>
+/* .box is required by services.js (it appends its loading .overlay), but the
+   card sections inside carry their own chrome — strip the outer frame. */
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+
+/* Form actions bar — same pattern as the item/category forms */
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>
+<script type="text/javascript">
          $("#discount_type").val('<?=$discount_type; ?>');
         <?php if(isset($q_id)){ ?>
           $("#store_id").attr('readonly',true);
@@ -318,8 +324,5 @@
             toggleCommissionValue();
          });
       </script>
-      <!-- Make sidebar menu hughlighter/selector -->
+      <!-- Make sidebar menu highlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-     
-   </body>
-</html>

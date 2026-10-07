@@ -223,7 +223,7 @@
                       'pos_retail_button','pos_wholesale_button','manual_shipping'
                     ],
                     'Products & Inventory' => [
-                      'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','bundles','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','perfumery_workflow','digital_products','courses'
+                      'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','item_variants','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','perfumery_workflow','digital_products','courses'
                     ],
                     'Services & Appointments' => [
                       'appointments','service_workflow','custom_orders','packages','memberships'
@@ -236,6 +236,28 @@
                     ],
                     'Management' => [
                       'payplan','customer_notes','manager_approvals','cashier_shifts'
+                    ],
+                    /*
+                     * Customer / service register flags. These were declared in
+                     * mp_get_feature_flags() and are enforced by controllers, but
+                     * were never listed here — so the only way to turn them on was
+                     * a manual DB edit, and the gate page told the operator to
+                     * "Enable it in Business Profile settings" pointing at a screen
+                     * with no such toggle.
+                     */
+                    'Customers & Service' => [
+                      'customer_contacts','customer_sites','equipment_register','service_jobs'
+                    ],
+                    /*
+                     * Clinical flags — the same problem, and worse: this is the
+                     * whole physiotherapy set. 'patient_registry' gates Patients,
+                     * Care queue, Assessments, Investigations, Consents and the
+                     * mobile clinical screens, so a clinic whose flag was off had
+                     * no way to enable it from the UI at all.
+                     */
+                    'Clinical (Physiotherapy & Rehab)' => [
+                      'patient_registry','clinical_encounters','clinical_assessments','treatment_plans',
+                      'patient_wallet','patient_documents','inpatient_care','patient_portal','patient_experience'
                     ],
                   ];
                   foreach ($feature_groups as $group_name => $keys): 
@@ -270,6 +292,13 @@
                     ?>
                       <div class="col-md-4 col-sm-6 col-xs-12 bp-flag-col" data-feature-key="<?= $key; ?>">
                         <div class="bp-flag-item">
+                          <?php /*
+                            Marker: an unchecked checkbox posts NOTHING, so
+                            without this the server cannot tell "the admin
+                            switched this off" from "the form never rendered
+                            it" — and used to zero every unrendered flag.
+                          */ ?>
+                          <input type="hidden" name="feature_flags_seen[<?= $key; ?>]" value="1">
                           <input type="checkbox" name="feature_flags[<?= $key; ?>]" id="ff_<?= $key; ?>" value="1" <?= $checked; ?>>
                           <span class="bp-flag-switch <?= $is_checked ? 'on' : ''; ?>" onclick="bpToggle('ff_<?= $key; ?>', this)"></span>
                           <label for="ff_<?= $key; ?>" onclick="bpToggle('ff_<?= $key; ?>', document.getElementById('ff_<?= $key; ?>').nextElementSibling); return false;"><?= $label; ?></label>

@@ -1,40 +1,38 @@
-<!DOCTYPE html>
-<html>
-   <head>
-      <!-- TABLES CSS CODE -->
-      <?php $this->load->view('comman/code_css.php');?>
-      <!-- </copy> -->  
-   </head>
-   <body class="hold-transition skin-blue sidebar-mini">
-      <div class="wrapper">
-         <?php $this->load->view('sidebar');?>
+<?php
+/**
+ * Variants form — CONTENT ONLY (rendered inside mp_layout).
+ * See application/views/services/services.php for the porting notes:
+ * the legacy doctype/head/code_css/sidebar/footer/code_js chrome is gone,
+ * mp_layout supplies Bootstrap 3 + select2 + DataTables, and it dispatches
+ * to physio_layout on clinical stores. Control ids are unchanged because
+ * theme/js/variants/variants.js binds to them by name.
+ */
+?>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?=$page_title;?></h2>
+      <div class="mp-page-sub">Add/Update Variant</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?= base_url('variants/view'); ?>" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        Back to <?= $this->lang->line('variants_list'); ?>
+      </a>
+    </div>
+  </div>
+</div>
          <?php
          $CI =& get_instance();
             if(!isset($variant_name)){
                  $variant_code=$variant_name=$description=$store_id="";
             }
             ?>
-         <!-- Content Wrapper. Contains page content -->
-         <div class="content-wrapper">
-            <!-- Content Header (Page header) -->
-            <section class="content-header">
-               <h1>
-                  <?=$page_title;?>
-                  <small>Add/Update Variant</small>
-               </h1>
-               <ol class="breadcrumb">
-                  <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-                  <li><a href="<?php echo $base_url; ?>variants/view"><?= $this->lang->line('variants_list'); ?></a></li>
-                  <li class="active"><?=$page_title;?></li>
-               </ol>
-            </section>
-            <!-- Main content -->
-            <section class="content">
-               <div class="row">
+<section class="mp-section">
+            <div class="row">
                   <!-- right column -->
                   <div class="col-md-12">
                      <!-- Horizontal Form -->
-                     <div class="box box-info ">
+                     <div class="box box-info mp-items-box">
                         <div class="box-header with-border">
                            <h3 class="box-title">Please Enter Valid Data</h3>
                         </div>
@@ -85,7 +83,7 @@
                               </div>
                            </div>
                            <!-- /.box-footer -->
-                           <div class="box-footer">
+                           <div class="box-footer mp-form-actions">
                               <div class="col-sm-8 col-sm-offset-2 text-center">
                                  <!-- <div class="col-sm-4"></div> -->
                                  <?php
@@ -120,27 +118,17 @@
                   <!--/.col (right) -->
                </div>
                <!-- /.row -->
-            </section>
-            <!-- /.content -->
-         </div>
-         <!-- /.content-wrapper -->
-         <?php $this->load->view('footer');?>
-         <!-- Add the sidebar's background. This div must be placed
-            immediately after the control sidebar -->
-         <div class="control-sidebar-bg"></div>
-      </div>
-      <!-- ./wrapper -->
-      <!-- SOUND CODE -->
-      <?php $this->load->view('comman/code_js_sound');?>
-      <!-- TABLES CODE -->
-      <?php $this->load->view('comman/code_js');?>
-      <script src="<?php echo $theme_link; ?>js/variants/variants.js"></script>
+</section>
+
+<!-- variants.js is enqueued by the controller via $data['extra_js_files'] -->
+<style>
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>
       <script type="text/javascript">
         <?php if(isset($q_id)){ ?>
           $("#store_id").attr('readonly',true);
         <?php }?>
       </script>
-      <!-- Make sidebar menu hughlighter/selector -->
+      <!-- Make sidebar menu highlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-   </body>
-</html>

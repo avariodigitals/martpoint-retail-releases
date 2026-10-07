@@ -117,7 +117,7 @@
         </label>
         <div class="mp-form-hint" style="margin-top:6px;">When on, customers pick their delivery city at checkout and the fee below is added automatically — it replaces the shipping methods list above.</div>
       </div>
-      <div class="mp-form-group"><label>Delivery Cities &amp; States</label><div class="mp-form-hint" style="margin-bottom:10px;">List every city you deliver to. State is optional but helps customers find their city faster.</div>
+      <div class="mp-form-group"><label>Delivery Cities &amp; States</label><div class="mp-form-hint" style="margin-bottom:10px;">List every city you deliver to. State is optional but helps customers find their city faster. Use city <strong>*</strong> as a catch-all for other areas. Optional per-zone rules: <strong>Min order</strong> blocks small orders for that zone; <strong>Free over</strong> waives the fee above a subtotal.</div>
         <div id="city-zones-container">
           <?php
             $savedZones = json_decode($settings->city_shipping_json ?? '', true);
@@ -128,8 +128,10 @@
           ?>
           <div class="os-ship-row city-zone-row">
             <input type="text" class="os-ship-name cz-state" name="cz_state[]" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="State (e.g. Lagos)">
-            <input type="text" class="os-ship-name cz-city" name="cz_city[]" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja)">
-            <input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee 0.00">
+            <input type="text" class="os-ship-name cz-city" name="cz_city[]" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja, or * for other areas)">
+            <input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee 0.00" title="Delivery fee">
+            <input type="number" step="0.01" min="0" class="os-ship-fee cz-minorder" name="cz_min_order[]" value="<?= htmlspecialchars($z['min_order'] ?? ''); ?>" placeholder="Min order" title="Minimum order subtotal for this zone">
+            <input type="number" step="0.01" min="0" class="os-ship-fee cz-freeover" name="cz_free_over[]" value="<?= htmlspecialchars($z['free_over'] ?? ''); ?>" placeholder="Free over" title="Free delivery when subtotal reaches this amount">
             <button type="button" class="os-ship-rm cz-remove" onclick="removeCityZone(this)"><i class="fa fa-trash"></i></button>
           </div>
           <?php endforeach; ?>
@@ -145,6 +147,24 @@
         <label><input type="checkbox" id="show_categories" name="show_categories" <?= ($settings->show_categories ?? 1) ? 'checked' : ''; ?>> Show Category Chips</label>
         <label><input type="checkbox" id="show_whatsapp_cta" name="show_whatsapp_cta" <?= ($settings->show_whatsapp_cta ?? 1) ? 'checked' : ''; ?>> Show WhatsApp CTA Button</label>
       </div>
+      <div class="os-form-grid" style="margin-top:12px;">
+        <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="cart_recovery_enabled" name="cart_recovery_enabled" value="1" <?= ($settings->cart_recovery_enabled ?? 1) ? 'checked' : ''; ?>> Track Abandoned Carts</label><div class="mp-form-hint" style="margin-top:6px;">Stores cart snapshots so you can see and follow up on abandoned checkouts.</div></div>
+        <div class="mp-form-group"><label for="abandoned_after_hours">Consider abandoned after (hours)</label><input type="number" min="1" max="720" class="mp-form-control" id="abandoned_after_hours" name="abandoned_after_hours" value="<?= (int)($settings->abandoned_after_hours ?? 24); ?>"><div class="mp-form-hint">A cart with customer contact details older than this appears on the Abandoned Carts page.</div></div>
+      </div>
+      <?php if(isset($settings->auto_recovery_enabled)): ?>
+      <div class="os-section-title" style="font-size:13px;margin-top:14px;"><i class="fa fa-paper-plane"></i> Automated Recovery</div>
+      <div class="os-form-grid">
+        <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="auto_recovery_enabled" name="auto_recovery_enabled" value="1" <?= ($settings->auto_recovery_enabled ?? 0) ? 'checked' : ''; ?>> Auto-send recovery reminders</label><div class="mp-form-hint" style="margin-top:6px;">The scheduled job (cron/cart_recovery) emails or texts customers about abandoned carts — max 3 reminders, 24h apart, and customers can opt out. Reminder clicks are tracked on the Abandoned Carts page.</div></div>
+        <div class="mp-form-group"><label for="auto_recovery_channel">Send via</label>
+          <select class="mp-form-control" id="auto_recovery_channel" name="auto_recovery_channel">
+            <option value="email" <?= ($settings->auto_recovery_channel ?? 'email') === 'email' ? 'selected' : ''; ?>>Email — uses your configured email provider</option>
+            <option value="sms" <?= ($settings->auto_recovery_channel ?? 'email') === 'sms' ? 'selected' : ''; ?>>SMS / WhatsApp API — uses your configured SMS provider</option>
+          </select>
+          <div class="mp-form-hint"><b>Provider cost:</b> each reminder is sent through your own email provider (SMTP/Resend) or SMS/WhatsApp provider (SMS API, Twilio, Brevo, Sendchamp…). Provider charges per message apply and are billed by them, not MartPoint. Nothing is sent until a provider is configured in Communication settings.</div>
+        </div>
+        <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="auto_recovery_test" name="auto_recovery_test" value="1" <?= ($settings->auto_recovery_test ?? 1) ? 'checked' : ''; ?>> Test mode — send to store owner only</label><div class="mp-form-hint" style="margin-top:6px;">While on, reminders are redirected to your store email/phone so you can verify delivery without messaging customers. Turn off for live sends.</div></div>
+      </div>
+      <?php endif; ?>
 
       <div class="os-section-title"><i class="fa fa-instagram"></i> Instagram Integration</div>
       <div class="os-form-grid">
@@ -258,8 +278,10 @@ function addCityZone(){
   row.className = 'os-ship-row city-zone-row';
   row.innerHTML = ''
     + '<input type="text" class="os-ship-name cz-state" name="cz_state[]" value="" placeholder="State (e.g. Lagos)">'
-    + '<input type="text" class="os-ship-name cz-city" name="cz_city[]" value="" placeholder="City (e.g. Ikeja)">'
-    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="" placeholder="Fee 0.00">'
+    + '<input type="text" class="os-ship-name cz-city" name="cz_city[]" value="" placeholder="City (e.g. Ikeja, or * for other areas)">'
+    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="" placeholder="Fee 0.00" title="Delivery fee">'
+    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-minorder" name="cz_min_order[]" value="" placeholder="Min order" title="Minimum order subtotal for this zone">'
+    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-freeover" name="cz_free_over[]" value="" placeholder="Free over" title="Free delivery when subtotal reaches this amount">'
     + '<button type="button" class="os-ship-rm cz-remove" onclick="removeCityZone(this)"><i class="fa fa-trash"></i></button>';
   container.appendChild(row);
 }

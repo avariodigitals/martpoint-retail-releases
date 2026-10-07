@@ -226,6 +226,405 @@ class Default_data_model extends CI_Model {
         return $added;
     }
 
+    /**
+     * Clinical grant keys a "full control" role must hold.
+     *
+     * Store administrators (Admin / Business Owner / Store Admin) are meant to
+     * have every capability — the per-role presets exist for the *staff* roles
+     * beneath them. Clinical permissions are checked with physio_can(), which
+     * deliberately has NO inv_userid 1/2 bypass, so an administrator whose role
+     * was seeded from a retail preset holds none of the clinical keys and lands
+     * on a clinic rail with no clinical screens at all (the clinic links are
+     * gated on clinical grants). This is the exact key set the clinic rail and
+     * clinical screens read.
+     *
+     * 'clinical_reports_view' / 'clinical_export' / 'clinical_cross_branch' are
+     * included so the administrator can see every branch and every report.
+     */
+    public function get_clinical_admin_permissions() {
+        return array(
+            // Register, episodes, appointments and the care queue
+            'patients_view','patients_add','patients_edit','patients_merge','patients_export',
+            'episodes_view','episodes_add','episodes_edit','episodes_close',
+            'appointments_view','appointments_add','appointments_edit','appointments_cancel',
+            'care_queue_view','care_checkin',
+            'vitals_view','vitals_add',
+            // Encounters, assessments, investigations
+            'encounters_view','encounters_add','encounters_finalize','encounters_amend',
+            'assessments_view','assessments_add','assessments_finalize',
+            'investigations_view','investigations_request',
+            'investigations_result_enter','investigations_review',
+            // Plans and treatment sessions
+            'plans_view','plans_add','plans_amend',
+            'sessions_view','sessions_checkin','sessions_complete',
+            // Ward, nursing and portering
+            'admissions_view','admissions_manage','beds_manage',
+            'nursing_tasks_view','nursing_tasks_complete','nursing_notes_add',
+            'porter_tasks_view','porter_tasks_complete',
+            'referrals_view','referrals_manage',
+            'meals_view','meals_manage',
+            'leave_manage','leave_approve',
+            'daily_billing_view','daily_billing_run',
+            'deceased_record',
+            'discharge_recommend','discharge_decide',
+            // Documents, money and opening positions
+            'patient_docs_view','patient_docs_upload','patient_docs_release','patient_docs_clinical_view',
+            'patient_funds_view','patient_funds_add','payment_evidence_verify',
+            'funds_adjust_request','refund_request',
+            'patient_billing_view','patient_billing_add',
+            'opening_positions_view','opening_positions_enter','opening_positions_review',
+            // Experience, portal, templates and imports
+            'patient_feedback_view','patient_feedback_manage','testimonial_publish',
+            'portal_manage','assessment_templates_manage',
+            'imports_view','imports_run','imports_rollback',
+            // Clinical administration
+            'clinical_reports_view','clinical_export','clinical_cross_branch',
+            'md_authority',
+        );
+    }
+
+    /**
+     * Owner-level ADMINISTRATION grants for a store's owner role.
+     *
+     * Separate from the clinical set above. A store provisioned with its own
+     * role preset (the clinic: Physiotherapist, Nurse, Receptionist ... Partner,
+     * Business Owner) can end up with a Business Owner role that is outranked by
+     * its own Partner role — on this install the clinic's Partner held
+     * business_setup / approval_settings_edit / payment_modes_* while its
+     * Business Owner held none of them, and no role held roles_view, so the
+     * owner could not open Staff & permissions either.
+     *
+     * Every key below is held by an existing owner-class role on a known-good
+     * store, so this invents no new vocabulary:
+     *   store 2 'Business Owner' (32)  -> roles_view / roles_add / roles_edit
+     *   store 1 'Store Admin'    (2)   -> smtp_settings, roles_*
+     *   store 1/2 'Partner'      (36/38)-> business_setup, approval_settings_edit
+     *   paystack_settings              -> held by the payment-configuring roles
+     *
+     * Deliberately EXCLUDED: roles_delete. Store 2's Business Owner does not hold
+     * it either — deleting a role is a destructive act that stays with the
+     * install-level admin.
+     */
+    public function get_store_owner_permissions() {
+        return array(
+            // Staff, roles and permissions
+            'roles_view','roles_add','roles_edit',
+            // Business setup, store profile, expiry rules
+            'business_setup','store_view','expiry_settings',
+            // Payments configuration
+            'paystack_settings','payment_modes_view','payment_modes_add',
+            'payment_modes_edit','payment_modes_delete',
+            // Notifications, email and approval authority
+            'smtp_settings','approval_settings_edit',
+        );
+    }
+
+    /**
+     * Give a store's owner role(s) the owner-administration grants.
+     *
+     * Additive and idempotent — inserts only what the role does not already hold,
+     * never deletes, never overwrites an admin's deliberate revoke of a key it
+     * already lacks... it only ever ADDS the keys in
+     * get_store_owner_permissions(), so a role that already holds them is a
+     * no-op on re-run.
+     *
+     * @param int  $store_id
+     * @param bool $apply  false = report the diff without writing
+     * @return array role => ['role_id'=>int,'added'=>int,'missing'=>array]
+     */
+    public function sync_store_owner_permissions($store_id, $apply = true) {
+        $store_id = (int)$store_id;
+        if (empty($store_id)) {
+            return array();
+        }
+        return $this->grant_to_roles(
+            $store_id,
+            $this->get_store_owner_permissions(),
+            $apply
+        );
+    }
+
+    /**
+     * Shared worker for owner grants: insert only the keys the store's owner
+     * role(s) do not already hold. Roles are matched by the same name list the
+     * owner gate uses (store_owner_role_names()), so the gate and the grant can
+     * never drift apart.
+     */
+    private function grant_to_roles($store_id, array $wanted, $apply) {
+        $out = array();
+        if (empty($wanted) || !function_exists('store_owner_role_ids')) {
+            return $out;
+        }
+
+        // Match on the store's own owner-class roles. store_owner_role_ids()
+        // resolves by name within the store, so a store with no such role
+        // simply yields nothing to update.
+        $role_ids = store_owner_role_ids($store_id);
+        if (empty($role_ids)) {
+            return $out;
+        }
+
+        $roles = $this->db->where_in('id', $role_ids)->get('db_roles')->result();
+        foreach ($roles as $role) {
+            $existing = $this->db->select('permissions')->where('role_id', $role->id)
+                ->get('db_permissions')->result_array();
+            $held = array_map('strval', array_column($existing, 'permissions'));
+            $missing = array_values(array_diff($wanted, $held));
+
+            $added = 0;
+            if ($apply && !empty($missing)) {
+                $added = $this->assign_permissions($role->id, $store_id, $missing);
+            }
+            $out[trim((string)$role->role_name)] = array(
+                'role_id' => (int)$role->id,
+                'added'   => (int)$added,
+                'missing' => $missing,
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Give the store's full-control roles the clinical grant set.
+     *
+     * A store administrator keeps working exactly as before in retail modules
+     * (their role already holds those) — this only adds the clinical keys their
+     * role preset never contained. Strictly additive: existing rows are left
+     * untouched, so an administrator's deliberate edits are not clobbered, and
+     * re-running changes nothing.
+     *
+     * @param int $store_id
+     * @param bool $apply  false = report the diff without writing
+     * @return array role => ['role_id'=>int,'added'=>int,'missing'=>array]
+     */
+    public function sync_clinical_admin_permissions($store_id, $apply = true) {
+        $store_id = (int)$store_id;
+        if (empty($store_id)) {
+            return array();
+        }
+        return $this->grant_clinical_to_roles(
+            "store_id = ? AND UPPER(role_name) IN ('ADMIN','STORE ADMIN','BUSINESS OWNER')",
+            array($store_id),
+            $store_id,
+            $apply
+        );
+    }
+
+    /**
+     * The vendor/install-level administrator roles (db_store 1 — "SAAS ADMIN").
+     *
+     * These are the platform operator roles: they exist once for the whole
+     * install, not per store, and are meant to hold every capability. They need
+     * the clinical grants for the same reason a store administrator does — an
+     * install admin who switches a store to the physiotherapy business type
+     * must not land on a clinic rail with no clinical screens.
+     *
+     * @param bool $apply
+     * @return array role => ['role_id'=>int,'added'=>int,'missing'=>array]
+     */
+    public function sync_install_admin_permissions($apply = true) {
+        return $this->grant_clinical_to_roles(
+            "UPPER(role_name) IN ('ADMIN','STORE ADMIN') AND store_id = (SELECT id FROM db_store ORDER BY id LIMIT 1)",
+            array(),
+            (int)$this->db->select('id')->order_by('id', 'asc')->limit(1)
+                ->get('db_store')->row()->id,
+            $apply
+        );
+    }
+
+    /**
+     * Shared worker for the two admin grant syncs: insert only the clinical
+     * keys the matched roles do not already hold.
+     */
+    private function grant_clinical_to_roles($where, array $params, $store_id, $apply) {
+        $out = array();
+        if (empty($store_id)) {
+            return $out;
+        }
+        $wanted = $this->get_clinical_admin_permissions();
+        $roles = $this->db->query("SELECT id, role_name FROM db_roles WHERE {$where}", $params)
+            ->result();
+        foreach ($roles as $role) {
+            $existing = $this->db->select('permissions')->where('role_id', $role->id)
+                ->get('db_permissions')->result_array();
+            $held = array_map('strval', array_column($existing, 'permissions'));
+            $missing = array_values(array_diff($wanted, $held));
+
+            $added = 0;
+            if ($apply && !empty($missing)) {
+                $added = $this->assign_permissions($role->id, $store_id, $missing);
+            }
+            $out[trim((string)$role->role_name)] = array(
+                'role_id' => (int)$role->id,
+                'added'   => (int)$added,
+                'missing' => $missing,
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Align a store's stored feature flags with its industry preset.
+     *
+     * Why this is needed: changing a store's business type only rewrites the
+     * industry setting. The store keeps whichever feature_flags_json it already
+     * had, so a store converted from a retail preset keeps that preset's flags
+     * and every capability the NEW industry depends on reads back as 0 —
+     * mp_feature_enabled() consults the stored flag first. The visible symptom
+     * on a converted clinic is a rail missing Ward, Investigates, Sessions and
+     * Documents even though the role holds every clinical grant.
+     *
+     * Policy: only flags that the industry preset requires and that are
+     * currently OFF are turned ON, and every change is reported so the operator
+     * sees exactly what moved. Flags outside the preset are never touched, so a
+     * merchant's deliberate opt-out of an optional capability is preserved.
+     * Running it twice changes nothing.
+     *
+     * @param int  $store_id
+     * @param bool $apply  false = report the diff without writing
+     * @return array ['industry'=>string,'changed'=>array,'already'=>int,
+     *                'unknown'=>int]
+     */
+    public function sync_industry_feature_flags($store_id, $apply = true) {
+        $out = array('industry' => '', 'changed' => array(), 'already' => 0, 'unknown' => 0);
+        $store_id = (int) $store_id;
+        if (empty($store_id) || !$this->db->table_exists('db_store_industry_settings')) {
+            return $out;
+        }
+
+        $row = $this->db->select('industry_type, feature_flags_json')
+            ->where('store_id', $store_id)->get('db_store_industry_settings')->row();
+        if (!$row || empty($row->industry_type)) {
+            return $out;
+        }
+        $out['industry'] = $row->industry_type;
+
+        if (!function_exists('mp_get_business_presets')) {
+            $this->load->helper('business_profile');
+        }
+        // Read the industry preset, NOT mp_get_store_profile(). The profile
+        // folds the store's OWN stored flags into 'features' (see the
+        // feature_flags_json merge inside mp_get_store_profile), so using it
+        // here is self-referential: a flag the store has explicitly set to
+        // "0" is removed from 'features' and would never be re-enabled. That
+        // silently reduced 20 preset flags to the 9 leftover retail ones.
+        $presets = mp_get_business_presets();
+        $preset = isset($presets[$row->industry_type])
+            ? $presets[$row->industry_type]
+            : (isset($presets['general_retail']) ? $presets['general_retail'] : array());
+        $wanted = $preset['features'] ?? array();
+        if (empty($wanted)) {
+            return $out;
+        }
+
+        $flags = json_decode((string) $row->feature_flags_json, true);
+        if (!is_array($flags)) { $flags = array(); }
+
+        foreach ($wanted as $flag) {
+            // A flag that is absent is treated as "not yet set for this
+            // industry" and enabled; a flag that is explicitly on is left alone.
+            $current = $flags[$flag] ?? null;
+            if ((string) $current === '1') { $out['already']++; continue; }
+            $out['changed'][$flag] = array('from' => $current, 'to' => '1');
+            $flags[$flag] = '1';
+        }
+
+        // Anything the preset does not mention is left exactly as it was.
+        foreach ($flags as $k => $v) {
+            if (!in_array($k, $wanted, true)) { $out['unknown']++; }
+        }
+
+        if ($apply && !empty($out['changed'])) {
+            $this->db->where('store_id', $store_id)
+                ->update('db_store_industry_settings', array(
+                    'feature_flags_json' => json_encode($flags),
+                ));
+        }
+        return $out;
+    }
+
+    /**
+     * Additively sync a store's physiotherapy role presets with the current
+     * role map.
+     *
+     * create_physio_roles() only creates MISSING roles, and
+     * reseed_missing_permissions() deliberately skips any role that already
+     * holds permissions (so admin edits survive). That leaves roles seeded
+     * from an older preset with a partial permission set. This method closes
+     * that gap for the physio presets only:
+     *
+     *  - matching is by role name (case-insensitive) within the store;
+     *  - only permission keys in the preset that the role does NOT already
+     *    hold are inserted — nothing is ever removed or overwritten, so any
+     *    extra permissions an admin granted are preserved;
+     *  - pass $apply = false to preview the diff without writing.
+     *
+     * @return array role => ['role_id'=>int,'added'=>int,'missing'=>array]
+     */
+    public function sync_physio_role_permissions($store_id, $apply = true) {
+        $out = array();
+        if (empty($store_id)) {
+            return $out;
+        }
+        foreach ($this->get_physio_role_map() as $role_name => $config) {
+            $role = $this->db->query(
+                "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = UPPER(?)",
+                array($store_id, $role_name)
+            )->row();
+            if (!$role) {
+                $out[$role_name] = array('role_id' => null, 'added' => 0,
+                    'missing' => array(), 'note' => 'role not present');
+                continue;
+            }
+            $existing = $this->db->select('permissions')->where('role_id', $role->id)
+                ->get('db_permissions')->result_array();
+            $existing_keys = array_map('strval', array_column($existing, 'permissions'));
+            // Never resurrect a grant an admin deliberately removed.
+            $revoked = $this->revoked_keys($store_id, (int) $role->id);
+            $missing = array_values(array_diff($config['permissions'], $existing_keys));
+            $missing = array_values(array_diff($missing, $revoked));
+            $added = 0;
+            if ($apply && !empty($missing)) {
+                $added = $this->assign_permissions($role->id, $store_id, $missing);
+            }
+            $out[$role_name] = array(
+                'role_id' => (int) $role->id,
+                'added'   => (int) $added,
+                'missing' => $missing,
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Recall a previously-recorded revocation (re-grant). Clears the ledger
+     * entry so a future sync may restore the preset key.
+     */
+    public function clear_revocation($store_id, $role_id, $perm) {
+        $this->db->where('store_id', (int)$store_id)->where('role_id', (int)$role_id)
+            ->where('permissions', (string)$perm)->delete('db_permission_revocations');
+        return true;
+    }
+
+    /** Record a deliberate revocation so additive sync never re-adds it. */
+    public function record_revocation($store_id, $role_id, $perm, $by = null) {
+        if(!$this->db->table_exists('db_permission_revocations')) return false;
+        $this->db->query(
+            'INSERT INTO db_permission_revocations (store_id, role_id, permissions, revoked_by, revoked_at)
+             VALUES (?,?,?,?,NOW())
+             ON DUPLICATE KEY UPDATE revoked_at=NOW()',
+            array((int)$store_id, (int)$role_id, (string)$perm, $by ?: 'system'));
+        return true;
+    }
+
+    /** Permission keys recorded as deliberately revoked for a role. */
+    private function revoked_keys($store_id, $role_id) {
+        if(!$this->db->table_exists('db_permission_revocations')) return array();
+        $rows = $this->db->where('store_id', (int)$store_id)->where('role_id', (int)$role_id)
+            ->get('db_permission_revocations')->result();
+        return array_map('strval', array_column($rows, 'permissions'));
+    }
+
     // ============================================================
     // PERMISSION MAPPINGS
     // ============================================================
@@ -263,7 +662,7 @@ class Default_data_model extends CI_Model {
             'import_suppliers',
             // Customers
             'customers_add','customers_edit','customers_delete','customers_view',
-            'import_customers',
+            'import_customers','export_customers',
             // Purchases
             'purchase_add','purchase_edit','purchase_delete','purchase_view',
             'purchase_return_add','purchase_return_edit','purchase_return_delete','purchase_return_view',
@@ -272,7 +671,7 @@ class Default_data_model extends CI_Model {
             // Sales
             'sales_add','sales_edit','sales_delete','sales_view',
             'sales_return_add','sales_return_edit','sales_return_delete','sales_return_view',
-            'sales_payment_view','sales_payment_add','sales_payment_delete',
+            'sales_payment_view','sales_payment_add','sales_payment_delete','payments_reconcile',
             'sales_return_payment_view','sales_return_payment_add','sales_return_payment_delete',
             // POS
             'pos',
@@ -340,6 +739,8 @@ class Default_data_model extends CI_Model {
             // Scientific-ops reports
             'quotation_report','procurement_report','warranty_report',
             'equipment_report','service_jobs_report','calibration_report',
+            // Debt reminders (view + configure)
+            'debt_reminder_view','debt_reminder_manage',
         );
     }
 
@@ -372,7 +773,7 @@ class Default_data_model extends CI_Model {
             'import_suppliers',
             // Customers
             'customers_add','customers_edit','customers_delete','customers_view',
-            'import_customers',
+            'import_customers','export_customers',
             // Purchases
             'purchase_add','purchase_edit','purchase_delete','purchase_view',
             'purchase_return_add','purchase_return_edit','purchase_return_delete','purchase_return_view',
@@ -381,7 +782,7 @@ class Default_data_model extends CI_Model {
             // Sales
             'sales_add','sales_edit','sales_delete','sales_view',
             'sales_return_add','sales_return_edit','sales_return_delete','sales_return_view',
-            'sales_payment_view','sales_payment_add','sales_payment_delete',
+            'sales_payment_view','sales_payment_add','sales_payment_delete','payments_reconcile',
             'sales_return_payment_view','sales_return_payment_add','sales_return_payment_delete',
             // POS
             'pos',
@@ -501,7 +902,7 @@ class Default_data_model extends CI_Model {
             // Sales (view only)
             'sales_view',
             'sales_return_view',
-            'sales_payment_view',
+            'sales_payment_view','payments_reconcile',
             'sales_return_payment_view',
             // Purchases (view only)
             'purchase_view',
@@ -643,6 +1044,198 @@ class Default_data_model extends CI_Model {
         );
     }
 
+    // ============================================================
+    // PHYSIOTHERAPY & REHABILITATION ROLES
+    // Explicit clinical grants only — physio roles get no delete/approve/
+    // export/release rights unless listed. MD authority is a separate key.
+    // Checked via physio_can() — the inv_userid 1/2 bypass does not apply.
+    // ============================================================
+
+    private function get_physiotherapist_permissions() {
+        return array(
+            'dashboard_view',
+            'services_view',
+            'patients_view','patients_add','patients_edit',
+            'episodes_view','episodes_add','episodes_edit',
+            'appointments_view','appointments_add','appointments_edit','appointments_cancel',
+            'care_queue_view',
+            'vitals_view','vitals_add',
+            'encounters_view','encounters_add','encounters_finalize','encounters_amend',
+            'assessments_view','assessments_add','assessments_finalize',
+            'investigations_view','investigations_request','investigations_review',
+            'plans_view','plans_add','plans_amend',
+            'sessions_view','sessions_checkin','sessions_complete',
+            'admissions_view',
+            'referrals_view','referrals_manage',
+            'leave_manage',
+            'meals_view',
+            'discharge_recommend',
+            'patient_docs_view','patient_docs_upload','patient_docs_clinical_view',
+            'patient_funds_view',
+            'patient_feedback_view',
+        );
+    }
+
+    private function get_nurse_permissions() {
+        return array(
+            'dashboard_view',
+            'patients_view',
+            'care_queue_view',
+            'vitals_view','vitals_add',
+            'encounters_view',
+            'admissions_view',
+            'nursing_tasks_view','nursing_tasks_complete','nursing_notes_add',
+            'meals_view','meals_manage',
+            'leave_manage',
+            'patient_docs_view','patient_docs_clinical_view',
+        );
+    }
+
+    private function get_receptionist_permissions() {
+        return array(
+            'dashboard_view',
+            'leads_view','leads_add','leads_edit',
+            'patients_view','patients_add','patients_edit',
+            'appointments_view','appointments_add','appointments_edit','appointments_cancel',
+            'care_queue_view','care_checkin',
+            'sessions_view','sessions_checkin',
+            'patient_funds_view','patient_billing_view',
+            'patient_docs_view','patient_docs_upload',
+            'portal_manage',
+        );
+    }
+
+    private function get_finance_officer_permissions() {
+        return array(
+            'dashboard_view',
+            'patient_funds_view','patient_funds_add','payment_evidence_verify',
+            'funds_adjust_request','refund_request',
+            'patient_billing_view','patient_billing_add',
+            'opening_positions_view','opening_positions_enter',
+            'sessions_view','plans_view','admissions_view',
+            'daily_billing_view','daily_billing_run',
+            'debt_reminder_view','debt_reminder_manage',
+            'sales_view','sales_payment_view','sales_payment_add','payments_reconcile',
+            'cust_adv_payments_view','cust_adv_payments_add',
+            'expense_view','accounts_view','money_deposit_view',
+            'sales_payments_report','receivables_aging_report','cash_flow_report',
+            'approval_logs_view',
+        );
+    }
+
+    private function get_auditor_permissions() {
+        return array(
+            'dashboard_view',
+            'audit_trail_view','approval_logs_view',
+            'patient_funds_view','patient_billing_view',
+            'debt_reminder_view',
+            'opening_positions_view',
+            'sales_report','sales_payments_report','receivables_aging_report','cash_flow_report',
+        );
+    }
+
+    private function get_porter_permissions() {
+        return array(
+            'porter_tasks_view','porter_tasks_complete',
+        );
+    }
+
+    private function get_clinical_director_permissions() {
+        return array_merge(
+            $this->get_physiotherapist_permissions(),
+            array(
+                'md_authority','can_approve',
+                'clinical_cross_branch','clinical_reports_view','clinical_export',
+                'investigations_result_enter',
+                'admissions_manage','beds_manage',
+                'nursing_tasks_view','nursing_notes_add',
+                'leave_approve','deceased_record',
+                'meals_manage','daily_billing_view',
+                'discharge_decide',
+                'patient_docs_release',
+                'patient_funds_add','payment_evidence_verify','funds_adjust_request','refund_request',
+                'patient_billing_view','patient_billing_add',
+                'opening_positions_view','opening_positions_enter','opening_positions_review',
+                'debt_reminder_view',
+                'patient_feedback_manage','testimonial_publish',
+                'portal_manage','assessment_templates_manage',
+                'imports_view','imports_run','imports_rollback',
+            )
+        );
+    }
+
+    /**
+     * Physiotherapy role map — name => permission set. Seeded by
+     * create_physio_roles() when the store selects the
+     * physiotherapy_rehabilitation business type; also registered in
+     * get_role_default_permissions() so reseed can backfill empty roles.
+     */
+    private function get_physio_role_map() {
+        return array(
+            'Clinical Director (MD)' => array(
+                'description' => 'Medical Director / senior clinician. Clinical decisions, approvals and escalations.',
+                'permissions' => $this->get_clinical_director_permissions(),
+            ),
+            'Physiotherapist' => array(
+                'description' => 'Assessments, investigations, plans, treatment notes, referrals, discharge recommendations.',
+                'permissions' => $this->get_physiotherapist_permissions(),
+            ),
+            'Nurse' => array(
+                'description' => 'Vitals, observations, assigned care tasks and nursing handover. No financial or discharge authority.',
+                'permissions' => $this->get_nurse_permissions(),
+            ),
+            'Receptionist' => array(
+                'description' => 'Leads, registration, appointments, queue/check-in and short tickets. No clinical or discount authority.',
+                'permissions' => $this->get_receptionist_permissions(),
+            ),
+            'Finance Officer' => array(
+                'description' => 'Charges, invoices, payment verification, patient funds, statements, reconciliation. Cannot approve own restricted changes.',
+                'permissions' => $this->get_finance_officer_permissions(),
+            ),
+            'Auditor' => array(
+                'description' => 'Read-only financial and audit review with discrepancy flags and exports. No clinical access.',
+                'permissions' => $this->get_auditor_permissions(),
+            ),
+            'Porter' => array(
+                'description' => 'Patient movement tasks only — destination and assistance instructions. No clinical or finance access.',
+                'permissions' => $this->get_porter_permissions(),
+            ),
+        );
+    }
+
+    /**
+     * Create the physiotherapy role presets for a store. Idempotent — skips
+     * roles that already exist. Called when the store selects the
+     * physiotherapy_rehabilitation business type.
+     */
+    public function create_physio_roles($store_id) {
+        $results = array('count' => 0, 'errors' => array());
+        if (empty($store_id)) {
+            return $results;
+        }
+        foreach ($this->get_physio_role_map() as $role_name => $config) {
+            $exists = $this->db->query(
+                "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = UPPER(?)",
+                array($store_id, $role_name)
+            )->num_rows();
+            if ($exists > 0) {
+                continue;
+            }
+            if ($this->db->insert('db_roles', array(
+                'store_id'    => $store_id,
+                'role_name'   => $role_name,
+                'description' => $config['description'],
+                'status'      => 1,
+            ))) {
+                $this->assign_permissions($this->db->insert_id(), $store_id, $config['permissions']);
+                $results['count']++;
+            } else {
+                $results['errors'][] = "Failed to create role: {$role_name}";
+            }
+        }
+        return $results;
+    }
+
     /**
      * Partner: Implementation and setup partner.
      * Full setup access (users, roles, business setup, master data) plus operational view.
@@ -679,7 +1272,7 @@ class Default_data_model extends CI_Model {
             'suppliers_add','suppliers_edit','suppliers_delete','suppliers_view',
             'import_suppliers',
             'customers_add','customers_edit','customers_delete','customers_view',
-            'import_customers',
+            'import_customers','export_customers',
             // Purchases / Sales (view and manage)
             'purchase_add','purchase_edit','purchase_delete','purchase_view',
             'purchase_return_add','purchase_return_edit','purchase_return_delete','purchase_return_view',
@@ -687,7 +1280,7 @@ class Default_data_model extends CI_Model {
             'purchase_return_payment_view','purchase_return_payment_add','purchase_return_payment_delete',
             'sales_add','sales_edit','sales_delete','sales_view',
             'sales_return_add','sales_return_edit','sales_return_delete','sales_return_view',
-            'sales_payment_view','sales_payment_add','sales_payment_delete',
+            'sales_payment_view','sales_payment_add','sales_payment_delete','payments_reconcile',
             'sales_return_payment_view','sales_return_payment_add','sales_return_payment_delete',
             // Stock / Warehouse
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
@@ -817,6 +1410,13 @@ class Default_data_model extends CI_Model {
             'Production Operator'   => $this->get_production_operator_permissions(),
             'Service Engineer'      => $this->get_service_engineer_permissions(),
             'Admin'          => $this->get_business_owner_permissions(),
+            'Clinical Director' => $this->get_clinical_director_permissions(),
+            'Physiotherapist' => $this->get_physiotherapist_permissions(),
+            'Nurse'          => $this->get_nurse_permissions(),
+            'Receptionist'   => $this->get_receptionist_permissions(),
+            'Finance Officer'=> $this->get_finance_officer_permissions(),
+            'Auditor'        => $this->get_auditor_permissions(),
+            'Porter'         => $this->get_porter_permissions(),
         );
 
         foreach ($maps as $name => $perms) {
@@ -967,6 +1567,7 @@ class Default_data_model extends CI_Model {
             'clinic'               => 'healthcare_services',
             'hospital'             => 'healthcare_services',
             'diagnostic_centre'    => 'healthcare_services',
+            'physiotherapy_rehabilitation' => 'physio',
             'perfume_shop'         => 'perfume',
             'skincare'             => 'skincare',
             'jewellery_store'      => 'jewellery',
@@ -1402,6 +2003,26 @@ class Default_data_model extends CI_Model {
                     'Follow-up Visit'     => array('price' => 5000,  'duration' => '15 min',  'appointment' => 1),
                 ),
             ),
+            'physio' => array(
+                'units' => array(
+                    'Session' => array('SESS', null, 1, 1),
+                    'Day'     => array('DAY',  null, 1, 0),
+                    'Piece'   => array('PCS',  null, 1, 0),
+                    'Pack'    => array('PACK', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Rehab Aids & Supports' => 'Braces, splints, crutches, supports and mobility aids',
+                    'Physio Consumables'    => 'Tapes, bandages, gels, electrodes and treatment consumables',
+                    'Exercise Equipment'    => 'Resistance bands, balls, weights and home-exercise items',
+                ),
+                'services' => array(
+                    'Initial Assessment'        => array('price' => 0, 'duration' => '60 min', 'appointment' => 1, 'description' => 'First-visit clinical assessment and treatment plan'),
+                    'Physiotherapy Session'     => array('price' => 20000, 'duration' => '45 min', 'appointment' => 1, 'description' => 'Standard outpatient treatment session'),
+                    'Review / Re-assessment'    => array('price' => 0, 'duration' => '30 min', 'appointment' => 1),
+                    'Home Visit'                => array('price' => 0, 'duration' => '60 min', 'appointment' => 1, 'description' => 'Physiotherapy delivered at the patient\'s home'),
+                    'Inpatient Day Care'        => array('price' => 0, 'duration' => '',         'appointment' => 0, 'description' => 'Daily inpatient care charge line'),
+                ),
+            ),
             'perfume' => array(
                 'units' => array(
                     'Litre'      => array('L',   null, 1,        0),
@@ -1805,6 +2426,12 @@ class Default_data_model extends CI_Model {
                 }
                 $sort++;
             }
+        }
+
+        // --- Physiotherapy role presets (explicit clinical permission grants) ---
+        if ($industry_type === 'physiotherapy_rehabilitation') {
+            $role_results = $this->create_physio_roles($store_id);
+            $results['physio_roles_created'] = $role_results['count'];
         }
 
         return $results;

@@ -120,13 +120,15 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <button onclick="adjustDetailQty(1)">+</button>
         </div>
 
+        <?php $msOos = (int)$product->stock <= 0 && empty($settings->allow_backorder); ?>
         <div class="ms-pd-actions">
-          <button class="ms-btn ms-btn-primary" onclick="addDetailToCart()">Add to Cart</button>
-          <button class="ms-btn ms-btn-outline" onclick="addDetailToCart();window.location.href='<?= base_url('store/' . $slug . '/cart'); ?>'">Buy It Now</button>
+          <button class="ms-btn ms-btn-primary" <?= $msOos ? 'disabled style="opacity:.5;cursor:not-allowed;"' : ''; ?> onclick="addDetailToCart()"><?= $msOos ? 'Out of Stock' : 'Add to Cart'; ?></button>
+          <button class="ms-btn ms-btn-outline" <?= $msOos ? 'disabled style="opacity:.5;cursor:not-allowed;"' : ''; ?> onclick="if(addDetailToCart())window.location.href='<?= base_url('store/' . $slug . '/cart'); ?>'">Buy It Now</button>
           <?php if(!empty($settings->whatsapp_number)): ?>
-          <button class="ms-btn ms-btn-wa" onclick="sendDetailWhatsApp()">Order via WhatsApp</button>
+          <button class="ms-btn ms-btn-wa" onclick="sendDetailWhatsApp()"><?= $msOos ? 'Ask about availability' : 'Order via WhatsApp'; ?></button>
           <?php endif; ?>
         </div>
+        <?php if($msOos) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="ms-pd-related">
@@ -175,13 +177,22 @@ $hasDiscount = $product->original_price > $product->effective_price;
     if(img && v.image) img.src = '<?= base_url(); ?>' + v.image;
     const price = document.getElementById('detail-price');
     if(price) price.textContent = formatMoney(v.price);
+    const vOos = v.stock <= 0 && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>;
+    const vStock = document.querySelector('.ms-pd-stock');
+    if(vStock){ vStock.classList.toggle('out', vOos); vStock.innerHTML = vOos ? 'Out of stock' : 'In stock &middot; Crafted with care'; }
+    document.querySelectorAll('.ms-pd-actions .ms-btn-primary, .ms-pd-actions .ms-btn-outline, .ms-pd-actions .ms-btn-wa').forEach(function(b){
+      if(!b.classList.contains('ms-btn-wa')){ b.disabled = vOos; b.style.opacity = vOos ? '.5' : ''; b.style.cursor = vOos ? 'not-allowed' : ''; }
+      if(b.classList.contains('ms-btn-primary')) b.textContent = vOos ? 'Out of Stock' : 'Add to Cart';
+      if(b.classList.contains('ms-btn-wa')) b.textContent = vOos ? 'Ask about availability' : 'Order via WhatsApp';
+    });
   });
   function adjustDetailQty(d){ detailQty = Math.max(1, detailQty + d); document.getElementById('detail-qty').textContent = detailQty; }
   function addDetailToCart(){
-    if(needsVariant && !window.sfPickedVariant){ showToast('Please choose an option'); return; }
-    addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock);
+    if(needsVariant && !window.sfPickedVariant){ showToast('Please choose an option'); return false; }
+    return addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock);
   }
   function sendDetailWhatsApp(){
+    if(typeof detailProduct !== 'undefined' && detailProduct.stock !== undefined && detailProduct.stock <= 0 && (!detailProduct.type || detailProduct.type === 'product' || detailProduct.type === 'physical') && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){ const wnum2 = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>'; if(wnum2) window.open('https://wa.me/' + wnum2 + '?text=' + encodeURIComponent('Hello, is ' + detailProduct.name + ' back in stock?'), '_blank'); return; }
     let msg = 'Hello, I am interested in: ' + detailProduct.name + ' — ' + formatMoney(detailProduct.price);
     const wnum = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
     if(wnum) window.open('https://wa.me/' + wnum + '?text=' + encodeURIComponent(msg), '_blank');

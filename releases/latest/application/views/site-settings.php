@@ -25,6 +25,18 @@
                         <div class="box-body">
                            <div class="row">
                               <div class="col-md-5">
+                                 <?php
+                                   /*
+                                    * site_name is db_sitesettings.site_name — ONE row for the
+                                    * whole installation (MY_Controller reads it as
+                                    * $SITE_TITLE, which every shell and the login page render).
+                                    * It is not a per-store value, so a client store admin must
+                                    * not be able to rename the platform for every tenant.
+                                    * Only the vendor's central install sees this field.
+                                    */
+                                   $mp_can_edit_site_name = function_exists('mp_is_central') && mp_is_central();
+                                 ?>
+                                 <?php if($mp_can_edit_site_name): ?>
                                  <div class="form-group">
                                     <label for="site_name" class="col-sm-4 control-label"><?= $this->lang->line('site_name'); ?><label class="text-danger">*</label></label>
                                     <div class="col-sm-8">
@@ -32,6 +44,12 @@
                                        <span id="site_name_msg" style="display:none" class="text-danger"></span>
                                     </div>
                                  </div>
+                                 <?php else: ?>
+                                 <?php /* The value still has to be submitted: update_site() validates
+                                          site_name as required and Site_model writes the whole row, so
+                                          the current value is carried through unchanged. */ ?>
+                                 <input type="hidden" name="site_name" value="<?= htmlspecialchars($site_name); ?>">
+                                 <?php endif; ?>
                                  <div class="form-group">
                                     <label for="sales_target" class="col-sm-4 control-label">Daily Sales Target</label>
                                     <div class="col-sm-8">

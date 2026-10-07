@@ -86,6 +86,16 @@ class Approval_settings_model extends CI_Model {
 			'purchase_price_override' => 'Purchase Price Override',
 			'hold_delete' => 'Delete Hold Invoice',
 			'bnpl' => 'PayPlan / Installment Plan',
+			// Physiotherapy / clinical-financial approval types (.60/.64)
+			'clinical_discharge' => 'Clinical Discharge',
+			'plan_material_change' => 'Treatment Plan Material Change',
+			'refund_wallet' => 'Patient Wallet Refund',
+			'credit_override' => 'Credit Exception',
+			'invoice_cancellation' => 'Invoice Cancellation',
+			'md_discount' => 'MD Discount Approval',
+			'wallet_adjustment' => 'Wallet Adjustment',
+			'leave_transfer' => 'Leave Transfer',
+			'opening_position' => 'Opening Position Approval',
 		];
 	}
 

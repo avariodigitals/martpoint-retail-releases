@@ -1,37 +1,25 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-<!-- TABLES CSS CODE -->
-<?php $this->load->view('comman/code_css.php');?>
-</head>
-
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-
-  <!-- Left side column. contains the logo and sidebar -->
-  
-  <?php $this->load->view('sidebar');?>
+<?php
+/**
+ * Variants list — CONTENT ONLY (rendered inside mp_layout).
+ * The DataTable markup and the server-side ajax wiring are unchanged; only
+ * the legacy document chrome was removed. variants.js is enqueued by
+ * Variants::index() via $data['extra_js_files'].
+ */
+?>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?=$page_title;?></h2>
+      <div class="mp-page-sub">View/Search Items Variant</div>
+    </div>
+  </div>
+</div>
   <?php $CI =& get_instance(); ?>
-
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <h1>
-        <?=$page_title;?>
-        <small>View/Search Items Variant</small>
-      </h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class="active"><?=$page_title;?></li>
-      </ol>
-    </section>
 
     <!-- Main content -->
     <?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
     <input type="hidden" id='base_url' value="<?=$base_url;?>">
-    <section class="content">
+<section class="mp-section">
       <div class="row">
         <!-- ********** ALERT MESSAGE START******* -->
         <?php $this->load->view('comman/code_flashdata');?>
@@ -78,19 +66,6 @@
     </section>
     <!-- /.content -->
     <?= form_close();?>
-  </div>
-  <!-- /.content-wrapper -->
-  <?php $this->load->view('footer');?>
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
-</div>
-<!-- ./wrapper -->
-
-<!-- SOUND CODE -->
-<?php $this->load->view('comman/code_js_sound');?>
-<!-- TABLES CODE -->
-<?php $this->load->view('comman/code_js');?>
 
 <script type="text/javascript">
 $(document).ready(function() {
@@ -161,8 +136,5 @@ $(document).ready(function() {
     new $.fn.dataTable.FixedHeader( table );
 });
 </script>
-<script src="<?php echo $theme_link; ?>js/variants/variants.js"></script>
-<!-- Make sidebar menu hughlighter/selector -->
+<!-- Make sidebar menu highlighter/selector -->
 <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
-</body>
-</html>

@@ -144,6 +144,14 @@
         <div class="mp-form-group"><label for="meta_keywords">Meta Keywords</label><input type="text" class="mp-form-control" id="meta_keywords" name="meta_keywords" value="<?= htmlspecialchars($settings->meta_keywords ?? ''); ?>" placeholder="products, shop, online store"></div>
         <div class="mp-form-group"><label for="google_analytics_id">Google Analytics ID</label><input type="text" class="mp-form-control" id="google_analytics_id" name="google_analytics_id" value="<?= htmlspecialchars($settings->google_analytics_id ?? ''); ?>" placeholder="G-XXXXXXXXXX or UA-XXXXX-X"></div>
         <div class="mp-form-group"><label for="facebook_pixel_id">Facebook Pixel ID</label><input type="text" class="mp-form-control" id="facebook_pixel_id" name="facebook_pixel_id" value="<?= htmlspecialchars($settings->facebook_pixel_id ?? ''); ?>" placeholder="1234567890"></div>
+        <div class="mp-form-group"><label for="tiktok_pixel_id">TikTok Pixel ID</label><input type="text" class="mp-form-control" id="tiktok_pixel_id" name="tiktok_pixel_id" value="<?= htmlspecialchars($settings->tiktok_pixel_id ?? ''); ?>" placeholder="C4A8BC1D77U9M2MG0P50"></div>
+        <div class="mp-form-group"><label for="require_tracking_consent">Visitor Consent for Trackers</label>
+          <select class="mp-form-control" id="require_tracking_consent" name="require_tracking_consent">
+            <option value="1" <?= ($settings->require_tracking_consent ?? 1) == 1 ? 'selected' : ''; ?>>Required — load analytics only after visitor accepts</option>
+            <option value="0" <?= ($settings->require_tracking_consent ?? 1) == 0 ? 'selected' : ''; ?>>Not required — trackers load immediately</option>
+          </select>
+          <div class="mp-form-hint">When required, a consent banner is shown and Google Analytics / Meta Pixel only load after the visitor accepts.</div>
+        </div>
         <div class="mp-form-group"><label for="robots_index">Allow Search Indexing</label>
           <select class="mp-form-control" id="robots_index" name="robots_index">
             <option value="1" <?= ($settings->robots_index ?? '1') == '1' ? 'selected' : ''; ?>>Yes — index, follow</option>

@@ -12,6 +12,8 @@
   $can_sales_list = $is_cashier && $CI->permissions('sales_view');
   $can_purchase = $CI->permissions('purchase_view') && !$is_cashier;
   $can_more = !$is_cashier;
+  if(!function_exists('physio_enabled')) $CI->load->helper('physio');
+  $is_physio = function_exists('physio_enabled') && physio_enabled();
   $user_id = get_current_user_id();
   $store_id = get_current_store_id();
   $display_name = $CI->session->userdata('display_name') ?: $CI->session->userdata('username') ?: 'User';
@@ -75,6 +77,9 @@
     text-decoration: none;
   }
   .mp-mobile-bottom-nav .nav-item .icon { font-size: 22px; }
+  .physio-mobile-bottom-nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(40px,1fr)); gap:1px; padding:6px 2px 0; }
+  .physio-mobile-bottom-nav .nav-item { min-width:0; gap:3px; padding:5px 1px; font-size:8px; }
+  .physio-mobile-bottom-nav .nav-item .icon { font-size:15px; }
   .mp-mobile-bottom-nav .nav-item.active { color: #0057FF; }
   .mp-mobile-bottom-nav .nav-item.hold {
     background: #FFF7ED;
@@ -150,11 +155,101 @@
     .mp-mobile-footer { display: none !important; }
     .screen { padding-bottom: 24px !important; }
   }
+
+  /* ===== In-app select (mp-select) hardening =====
+  .mp-select-wrap { position: relative; width: 100%; max-width: 100%; min-width: 0; }
+  .mp-select-trigger { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .mp-select-trigger > span,
+  .mp-select-trigger .mp-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-select-options { box-sizing: border-box; max-width: 100%; }
+  .mp-select-option { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Grid columns must be allowed to shrink (default min-width:auto sizes a
+     track to its content and overflows the form). */
+  .form-row, .mp-form-row { min-width: 0; }
+  .form-row > *, .mp-form-row > * { min-width: 0; }
+
+  /* ===== Mobile header: stop the title being crushed =====
+     The topbar is back button + titles + page action + injected Clock In +
+     avatar. On a phone that stack overflowed the bar, and because
+     .topbar-titles was the only flexible child it absorbed ALL the squeeze:
+     measured on /mobile/patients at 390px the title had 42px for a heading
+     that needs 62px (clipped), and at 320px it was 0px — the screen name
+     vanished entirely.
+     Rules, in order of what gives way first:
+       1. the store name is dropped (it is repeated in the account menu)
+       2. Clock In becomes an icon-only target
+       3. the page action (+ Register) collapses to its icon if it has one
+       4. the title gets a guaranteed minimum and ellipsises rather than clipping
+     Only the title is allowed to grow, so the layout can never redistribute the
+     squeeze onto a control the user needs to tap. */
+  .topbar-titles { flex: 1 1 auto !important; min-width: 0 !important; }
+  .topbar h1 { min-width: 0; }
+  .topbar .back, .topbar .clock-btn, .topbar .mp-avatar-wrap { flex: 0 0 auto; }
+
+  @media (max-width: 480px) {
+    /* The store name is already in the account menu, so it is the first thing
+       to give way. */
+    .topbar .store-name { display: none !important; }
+    .topbar h1 { font-size: 17px !important; }
+  }
+  @media (max-width: 460px) {
+    /* Clock In becomes icon-only, keeping a comfortable 44px tap target. */
+    .topbar .clock-btn { padding: 0 12px !important; min-height: 40px; gap: 0 !important; }
+    .topbar .clock-btn .clock-label { display: none !important; }
+    .topbar .clock-btn i { font-size: 15px !important; }
+    .topbar .mp-avatar-wrap { margin-left: 8px !important; }
+  }
+  @media (max-width: 360px) {
+    .topbar { gap: 6px !important; }
+    .topbar .add, .topbar .topbar-action { padding: 8px 10px !important; font-size: 12px !important; }
+  }
+
+  /* ===== In-app select (mp-select) hardening =====
+     Every mobile form builds its own mp-select from the same snippet, and the
+     custom control replaces a hidden <select>. Two failure modes made fields
+     look "folded" or cut off, so both are corrected once, here, for all of
+     them:
+       1. The custom control is a plain div, so it does NOT inherit the width
+          the hidden <select> would have taken. Inside a CSS grid the track
+          then sized to the longest option text, overflowing the column and
+          clipping content. Pin the wrapper and trigger to the column width.
+       2. A long option (e.g. a country or state name) was clamped to one line
+          with no ellipsis, so it spilled past the field edge. Give the label
+          an ellipsis instead of letting it clip.
+     Fixing it here beats editing 39 near-identical copies. */
 </style>
 <div id="mpPullRefresh" aria-hidden="true"><i class="fa fa-refresh"></i></div>
 <?php $this->load->view('comman/incident_banner', ['context' => 'mobile']); ?>
 <div class="mp-mobile-footer">
-  <nav class="mp-mobile-bottom-nav">
+  <nav class="mp-mobile-bottom-nav <?= $is_physio ? 'physio-mobile-bottom-nav' : ''; ?>" aria-label="Mobile workspace navigation">
+  <?php if($is_physio): ?>
+    <?php if(physio_can_any(array('patients_view','appointments_view','care_queue_view','admissions_view'))): ?><a href="<?= base_url('dashboard'); ?>" class="nav-item <?= $active === 'home' ? 'active' : ''; ?>"><i class="fa fa-inbox icon"></i><span>Home</span></a><?php endif; ?>
+    <?php if(physio_can('patients_view')): ?><a href="<?= base_url('mobile/patients'); ?>" class="nav-item <?= $active === 'patients' ? 'active' : ''; ?>"><i class="fa fa-address-book-o icon"></i><span>Patients</span></a><?php endif; ?>
+    <?php if(physio_can('care_queue_view')): ?><a href="<?= base_url('mobile/care_queue'); ?>" class="nav-item <?= $active === 'care_queue' ? 'active' : ''; ?>"><i class="fa fa-list-ol icon"></i><span>Queue</span></a><?php endif; ?>
+    <?php if(physio_can('sessions_view')): ?><a href="<?= base_url('mobile/sessions'); ?>" class="nav-item <?= $active === 'sessions' ? 'active' : ''; ?>"><i class="fa fa-stethoscope icon"></i><span>Sessions</span></a><?php endif; ?>
+    <?php
+      /*
+       * Ward tasks entry.
+       *
+       * One screen serves both boards, but a PORTER was shown the label
+       * "Nursing" with a heartbeat icon — so the one person whose job is moving
+       * patients could not find their own work. The label and icon now follow
+       * the viewer's primary duty: a porter-only role sees "Porter" with the
+       * exchange icon, anyone with nursing duties sees "Nursing".
+       */
+      $wardCanNurse  = physio_can('nursing_tasks_view');
+      $wardCanPorter = physio_can('porter_tasks_view');
+      if($wardCanNurse || $wardCanPorter):
+        $wardIcon  = $wardCanNurse ? 'fa-heartbeat' : 'fa-exchange';
+        $wardLabel = $wardCanNurse ? 'Nursing' : 'Porter';
+    ?>
+    <a href="<?= base_url('mobile/ward_tasks'); ?>" class="nav-item <?= $active === 'ward_tasks' ? 'active' : ''; ?>"><i class="fa <?= $wardIcon; ?> icon"></i><span><?= $wardLabel; ?></span></a>
+    <?php endif; ?>
+    <?php if(physio_can('admissions_view')): ?><a href="<?= base_url('mobile/admissions'); ?>" class="nav-item <?= $active === 'admissions' ? 'active' : ''; ?>"><i class="fa fa-bed icon"></i><span>Beds</span></a><?php endif; ?>
+    <?php if(physio_can_any(array('patient_billing_view','patient_funds_view'))): ?><a href="<?= base_url('patient_funds'); ?>" class="nav-item <?= $active === 'accounts' ? 'active' : ''; ?>"><i class="fa fa-file-text-o icon"></i><span>Accounts</span></a><?php endif; ?>
+    <?php if($can_more): ?><a href="<?= base_url('mobile/more'); ?>" class="nav-item <?= $active === 'more' ? 'active' : ''; ?>"><i class="fa fa-ellipsis-h icon"></i><span>More</span></a><?php endif; ?>
+  <?php else: ?>
   <?php if($can_home): ?>
   <a href="<?= base_url('mobile'); ?>" class="nav-item <?= ($active == 'home') ? 'active' : ''; ?>">
     <i class="fa fa-home icon"></i>
@@ -196,9 +291,10 @@
     <span>More</span>
   </a>
   <?php endif; ?>
+  <?php endif; ?>
 </nav>
 <footer class="mp-mobile-copyright">
-  &copy; <?= date('Y'); ?> <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.
+  &copy; <?= date('Y'); ?> <?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.
 </footer>
 </div>
 
@@ -208,7 +304,10 @@
   <?php if(!is_store_admin()): ?>
   <a href="<?= base_url('mobile/clock'); ?>" class="clock-btn <?= $needs_clock_out ? 'out' : ''; ?>">
     <i class="fa <?= $needs_clock_out ? 'fa-sign-out' : 'fa-sign-in'; ?>"></i>
-    <?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?>
+    <?php /* Wrapped in a span so it can be hidden on a narrow phone — a bare
+             text node cannot be targeted by CSS, which is why the label stayed
+             visible and kept crushing the screen title. */ ?>
+    <span class="clock-label"><?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?></span>
   </a>
   <?php endif; ?>
   <div class="mp-avatar-wrap">

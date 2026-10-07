@@ -121,6 +121,7 @@
             <option value="failed" <?= $order->payment_status=='failed'?'selected':''; ?>>Failed</option>
             <option value="refunded" <?= $order->payment_status=='refunded'?'selected':''; ?>>Refunded</option>
           </select>
+          <small style="display:block;margin-top:6px;color:var(--mp-muted,#64748b);">Refunds are full-order only (<?= $CI->currency($order->grand_total); ?>). Marking an order refunded records <strong>bookkeeping only — it does not return money</strong>. You must enter the refund reference from your payment provider and confirm the money was actually sent. Stock is only restocked when the goods came back or the order never shipped. Partial returns/refunds are not supported.</small>
         </div>
       </div>
     </div>
@@ -131,18 +132,55 @@
 function updateStatus(type){
   var url = type === 'order' ? '<?=base_url("online_store/update_order_status");?>' : '<?=base_url("online_store/update_payment_status");?>';
   var status = type === 'order' ? $('#order_status').val() : $('#payment_status').val();
-  $.post(url, {
+  var payload = {
     order_id: <?= (int)$order->id; ?>,
     status: status,
     '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'
-  }, function(res){
+  };
+  if(type === 'payment' && status === 'refunded'){
+    if(!confirm('Confirming this records a FULL-ORDER refund of <?= $CI->currency($order->grand_total); ?> in MartPoint.\n\nIt does NOT send money back. Only continue if you have already refunded the customer through your payment provider.')){
+      $('#payment_status').val('<?= $order->payment_status; ?>');
+      return;
+    }
+    var ref = prompt('External refund reference / transaction ID from your payment provider (required):', '');
+    if(ref === null){ $('#payment_status').val('<?= $order->payment_status; ?>'); return; }
+    ref = (ref || '').trim();
+    if(!ref){ toastr.error('A provider refund reference is required.'); $('#payment_status').val('<?= $order->payment_status; ?>'); return; }
+    var disp = prompt('What happened to the goods? Type one: returned / not_shipped / kept\n\nreturned    = goods came back — restock\nnot_shipped = fulfilment cancelled — restock\nkept        = customer keeps the goods — do NOT restock', '');
+    if(disp === null){ $('#payment_status').val('<?= $order->payment_status; ?>'); return; }
+    disp = (disp || '').trim().toLowerCase();
+    if(['returned','not_shipped','kept'].indexOf(disp) === -1){
+      toastr.error('Enter returned, not_shipped or kept.');
+      $('#payment_status').val('<?= $order->payment_status; ?>');
+      return;
+    }
+    payload.refund_reference = ref;
+    payload.refund_disposition = disp;
+  }
+  $.post(url, payload, function(res){
     if(res.status === 'success'){
       toastr.success(res.message);
-      setTimeout(function(){ location.reload(); }, 800);
+      setTimeout(function(){ location.reload(); }, 1200);
     } else {
       toastr.error(res.message);
+      if(type === 'payment'){ $('#payment_status').val('<?= $order->payment_status; ?>'); }
     }
   }, 'json');
 }
 </script>
+<?php if(!empty($order->refund_confirmed_at)): ?>
+<script>
+(function(){
+  var box = document.createElement('div');
+  box.style.cssText = 'margin-top:12px;padding:12px 14px;border:1px solid #E2E8F0;border-radius:8px;background:#F8FAFC;font-size:13px;line-height:1.6;color:#334155;';
+  box.innerHTML = '<strong>External refund recorded</strong><br>Provider reference: <code><?= htmlspecialchars((string)$order->refund_reference, ENT_QUOTES, 'UTF-8'); ?></code><br>'
+    + 'Amount: <?= $CI->currency($order->refund_amount); ?><br>'
+    + 'Goods: <?= htmlspecialchars((string)$order->refund_disposition, ENT_QUOTES, 'UTF-8'); ?> — '
+    + <?= !empty($order->refund_restocked) ? "'stock was returned to inventory.'" : "'stock was NOT restocked.'" ; ?> + '<br>'
+    + 'Confirmed by <?= htmlspecialchars((string)($order->refund_confirmed_by ?? 'system'), ENT_QUOTES, 'UTF-8'); ?> at <?= htmlspecialchars((string)$order->refund_confirmed_at, ENT_QUOTES, 'UTF-8'); ?>';
+  var form = document.querySelector('.mp-card-form .mp-card-body');
+  if(form) form.appendChild(box);
+})();
+</script>
+<?php endif; ?>
 <script>$(".online_store-orders-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

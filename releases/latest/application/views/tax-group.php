@@ -1,39 +1,32 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-<!-- TABLES CSS CODE -->
-<?php include"comman/code_css.php"; ?>
-<!-- </copy> -->  
-</head>
-
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-
- <?php include"sidebar.php"; ?>
+<?php
+/**
+ * Tax group form — CONTENT ONLY (rendered inside mp_layout).
+ * Legacy chrome (doctype/code_css/sidebar/footer/code_js) removed; mp_layout
+ * supplies Bootstrap 3 + select2 + DataTables and dispatches to physio_layout
+ * on clinical stores. #tax-form / #save,#update / .box ids are unchanged —
+ * theme/js/tax-group.js binds to them.
+ */
+?>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $this->lang->line('tax'); ?></h2>
+      <div class="mp-page-sub">Add/Update Tax</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?= base_url('tax'); ?>" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        Back to <?= $this->lang->line('tax_list'); ?>
+      </a>
+    </div>
+  </div>
+</div>
  <?php
 	if(!isset($tax)){
       $tax_name=$tax=$q_id=$subtax_ids=$store_id="";
   }
  ?>
 
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <h1>
-        <?= $this->lang->line('tax'); ?>
-        <small>Add/Update Tax</small>
-      </h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?php echo $base_url; ?>tax"><?= $this->lang->line('tax_list'); ?></a></li>
-        <li class="active"><?= $this->lang->line('tax'); ?></li>
-      </ol>
-    </section>
-
-    <!-- Main content -->
-    <section class="content">
+<section class="mp-section">
       <div class="row">
         <!-- ********** ALERT MESSAGE START******* -->
           <?php include"comman/code_flashdata.php"; ?>
@@ -41,7 +34,7 @@
         <!-- right column -->
         <div class="col-md-12">
           <!-- Horizontal Form -->
-          <div class="box box-primary ">
+          <div class="box box-primary mp-items-box">
             <!-- /.box-header -->
             <!-- form start -->
             <form class="form-horizontal" id="tax-form" >
@@ -138,26 +131,11 @@
       </div>
       <!-- /.row -->
 
-    </section>
-    <!-- /.content -->
-  </div>
-  <!-- /.content-wrapper -->
-
- <?php include"footer.php"; ?>
-
-
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
-</div>
-<!-- ./wrapper -->
-
-<!-- SOUND CODE -->
-<?php include"comman/code_js_sound.php"; ?>
-<!-- TABLES CODE -->
-<?php include"comman/code_js.php"; ?>
-
-<script src="<?php echo $theme_link; ?>js/tax-group.js"></script>
+</section>
+<style>
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+</style>
+<!-- tax-group.js is enqueued by the controller via $data['extra_js_files'] -->
 <script type="text/javascript">
   $("#subtax_ids").on("change",function(event) {
         var tax_total =0;
@@ -172,7 +150,5 @@
           $("#store_id").attr('readonly',true);
         <?php }?>
       </script>
-<!-- Make sidebar menu hughlighter/selector -->
+<!-- Make sidebar menu highlighter/selector -->
 <script>$(".tax-active-li").addClass("active");</script>
-</body>
-</html>

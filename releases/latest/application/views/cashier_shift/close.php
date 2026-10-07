@@ -1,51 +1,11 @@
-<?php $CI =& get_instance(); ?>
-<!DOCTYPE html>
-<html>
-<head>
-<?php include"comman/code_css.php"; ?>
-<style>
-  .cs-card { background:#fff; border:1px solid #E2E8F0; border-radius:12px; padding:24px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-  .cs-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .cs-method-row { display:grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid #F1F5F9; }
-  .cs-method-row:last-child { border-bottom:none; }
-  .cs-method-row .lbl { font-weight:600; color:#1E293B; }
-  .cs-method-row .sub { font-size:11px; color:#94A3B8; }
-  .cs-method-row input { border-radius:8px; }
-  .cs-variance { font-weight:700; text-align:right; }
-  .cs-variance.pos { color:#10B981; }
-  .cs-variance.neg { color:#EF4444; }
-  .cs-variance.zero { color:#64748B; }
-  .cs-totals { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin-top:16px; }
-  .cs-totals .row-line { display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
-  .cs-totals .row-line.big { font-size:18px; font-weight:700; border-top:1px solid #E2E8F0; margin-top:6px; padding-top:10px; }
-
-  .cs-cash-denomination { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin-top:16px; }
-  .cs-cash-denomination h5 { margin:0 0 14px; font-weight:700; color:#1E293B; }
-  .cs-denom-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
-  @media (max-width: 640px) { .cs-denom-grid { grid-template-columns: repeat(2, 1fr); } }
-  .cs-denom-item { background:#fff; border:1px solid #E2E8F0; border-radius:8px; padding:10px; }
-  .cs-denom-item .denom-lbl { font-size:12px; color:#64748B; margin-bottom:4px; }
-  .cs-denom-item input { width:100%; border-radius:8px; border:1px solid #D1D5DB; padding:8px; font-size:14px; text-align:right; }
-  .cs-denom-total { margin-top:14px; padding-top:12px; border-top:1px solid #E2E8F0; font-size:16px; font-weight:700; text-align:right; color:#1E293B; }
-
-  @media (max-width: 640px) {
-    .cs-method-row { grid-template-columns: 1fr 1fr; gap:6px; }
-    .cs-method-row .lbl { grid-column: 1 / -1; }
-  }
-</style>
-</head>
-<body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
-  <?php include"sidebar.php"; ?>
-  <div class="content-wrapper">
-    <section class="content-header">
-      <h1><?=$page_title;?><small></small></h1>
-      <ol class="breadcrumb">
-        <li><a href="<?php echo $base_url; ?>dashboard"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li><a href="<?=base_url('cashier_shifts/manage');?>"><?=$this->lang->line('cashier_shifts');?></a></li>
-        <li class="active">Close Shift</li>
-      </ol>
-    </section>
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2>Close Shift</h2>
+      <div class="mp-page-sub">Close the open shift</div>
+    </div>
+  </div>
+</div>
 
     <section class="content">
       <div class="row">
@@ -118,13 +78,11 @@
         </div>
       </div>
     </section>
-  </div>
-  <?php include"footer.php"; ?>
-  <div class="control-sidebar-bg"></div>
-</div>
-<?php include"comman/code_js_sound.php"; ?>
-<?php include"comman/code_js.php"; ?>
 <script>
+// $CI was used below without ever being defined in this view — any request that
+// reached close_form() with an open shift fataled on an undefined variable.
+// Define it like the other ported views do.
+<?php $CI =& get_instance(); ?>
 var base_url = "<?=base_url();?>";
 var expectedData = <?=json_encode($expected);?>;
 var can_view_report = <?= $CI->permissions('z_report') ? 'true' : 'false' ?>;
@@ -252,5 +210,11 @@ $("#close-btn").on("click", function(){
 renderMethods();
 </script>
 <script>$(".cashier-shift-close-active-li").addClass("active");</script>
-</body>
-</html>
+
+<style>
+/* The page JS appends its loading .overlay to $(".box"), so the .box wrapper
+   must stay; only its own frame is stripped so the card is not flush against
+   a second border. */
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>

@@ -108,7 +108,10 @@ class Pos_model extends CI_Model {
           $effective_batch = $batch->batch_lot;
         }
       }
-      if($selected_unit){
+		if(!empty($res1->is_bundle)){
+			$this->load->model('Extras_model', 'extras_model');
+			$effective_price = $this->extras_model->bundleUnitPrice($res1, $res1->store_id);
+		} elseif($selected_unit){
           $unit_price = ($price_type == 'wholesale' && !empty($selected_unit->wholesale_price) && $selected_unit->wholesale_price > 0)
                             ? $selected_unit->wholesale_price
                             : $selected_unit->selling_price;
@@ -144,7 +147,10 @@ class Pos_model extends CI_Model {
           }
       } catch (Exception $e) { /* Promotions module not ready */ }
 
-	      $warehouse_stock = total_available_qty_items_of_warehouse($this->input->post('warehouse_id'),null,$item_id);
+	      $warehouse_id = $this->input->post('warehouse_id');
+	      $warehouse_stock = !empty($res1->is_bundle)
+			? $this->extras_model->bundleAvailability($item_id, $res1->store_id, $warehouse_id)
+			: total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
 
       $purchase_price = $res1->purchase_price;
       $original_sales_price = $res1->sales_price;
@@ -267,7 +273,10 @@ class Pos_model extends CI_Model {
 	        foreach($q2->result() as $res2){
 	        	if($res2->item_group=='Variants'){continue;}
             if(isset($item_batch_map[$res2->id])){ $res2->expire_date = $item_batch_map[$res2->id]['expire_date']; $res2->batch_lot = $item_batch_map[$res2->id]['batch_lot']; }
-	        	$w_stock = total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res2->id);
+				if(!empty($res2->is_bundle) && !isset($this->extras_model)) $this->load->model('Extras_model', 'extras_model');
+				$w_stock = !empty($res2->is_bundle)
+					? $this->extras_model->bundleAvailability($res2->id, $store_id, $warehouse_id)
+					: total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res2->id);
 	        	$item_code = $res2->item_code;
 	        	$item_tax_type = $res2->tax_type;
 	        	$item_tax_id = $res2->tax_id;
@@ -296,7 +305,11 @@ class Pos_model extends CI_Model {
 	        			    ? $default_unit->wholesale_price
 	        			    : $default_unit->selling_price)
 	        		: (($price_type == 'retail' && !empty($res2->mrp) && $res2->mrp > 0) ? $res2->mrp : $res2->sales_price);
-	        	$item_sales_price = get_price_level_price($customer_id,$display_price);
+				if(!empty($res2->is_bundle)){
+					if(!isset($this->extras_model)) $this->load->model('Extras_model', 'extras_model');
+					$display_price = $this->extras_model->bundleUnitPrice($res2, $store_id);
+				}
+				$item_sales_price = get_price_level_price($customer_id,$display_price);
 				$item_sales_price = number_format($item_sales_price,decimals(),'.','');
 
 	        	$item_cost = ($default_unit && !empty($default_unit->purchase_price)) ? $default_unit->purchase_price : $res2->purchase_price;
@@ -531,27 +544,35 @@ class Pos_model extends CI_Model {
 		    				->where('end_date >=', date('Y-m-d'))
 		    				->get('db_promotions')->row();
 					if($promo){
+						$subtotal = 0;
+						// Try cart array (mobile POS / desktop POS JSON payload)
+						$cart_json = $this->input->post('cart', TRUE);
+						if(!empty($cart_json)){
+							$cart_items = is_array($cart_json) ? $cart_json : json_decode($cart_json, true);
+							if(is_array($cart_items)){
+								foreach($cart_items as $ci){
+									$subtotal += (float)$ci['price'] * (float)$ci['qty'];
+								}
+							}
+						}
+						// Fallback: try td_data_*_9 fields (legacy POS form)
+						if($subtotal == 0){
+							foreach($this->input->post() as $k => $v){
+								if(strpos($k, 'td_data_') === 0 && substr($k, -2) === '_9'){
+									$subtotal += (float)$v;
+								}
+							}
+						}
+						// Atomic claim — serializes concurrent redemptions so
+						// usage limits cannot be exceeded by racing checkouts.
+						$this->load->model('Promotions_model','promotions_m');
+						$claim = $this->promotions_m->claim_redemption($promo->id, $customer_id, $subtotal, $store_id);
+						if(!$claim['ok']){
+							$this->db->trans_rollback();
+							return "Promotion code rejected: " . $claim['message'];
+						}
 						// Recalculate coupon_discount_amt from the promotion if not provided
 						if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
-							$subtotal = 0;
-							// Try cart array (mobile POS / desktop POS JSON payload)
-							$cart_json = $this->input->post('cart', TRUE);
-							if(!empty($cart_json)){
-								$cart_items = is_array($cart_json) ? $cart_json : json_decode($cart_json, true);
-								if(is_array($cart_items)){
-									foreach($cart_items as $ci){
-										$subtotal += (float)$ci['price'] * (float)$ci['qty'];
-									}
-								}
-							}
-							// Fallback: try td_data_*_9 fields (legacy POS form)
-							if($subtotal == 0){
-								foreach($this->input->post() as $k => $v){
-									if(strpos($k, 'td_data_') === 0 && substr($k, -2) === '_9'){
-										$subtotal += (float)$v;
-									}
-								}
-							}
 							if($promo->discount_type == 'Percentage'){
 								$coupon_discount_amt = $subtotal * ($promo->discount_value / 100);
 							} else {
@@ -790,10 +811,24 @@ class Pos_model extends CI_Model {
 				}
 
 				
-				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
-				if($current_stock_of_item<$sales_qty && $service_bit==0){
+				$this->load->model('Extras_model', 'extras_model');
+				$qtyError = $this->extras_model->qtyRuleError($item_details, $sales_qty);
+				if($qtyError){
 					$this->db->trans_rollback();
-					return $item_name." has only ".$current_stock_of_item." in Stock!!";
+					return $qtyError;
+				}
+				if(!empty($item_details->is_bundle)){
+					$availableBundles = $this->extras_model->bundleAvailability($item_id, $store_id, $warehouse_id);
+					if($availableBundles === null || $availableBundles < $sales_qty){
+						$this->db->trans_rollback();
+						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
+					}
+				} else {
+					$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+					if($current_stock_of_item<$sales_qty && $service_bit==0){
+						$this->db->trans_rollback();
+						return $item_name." has only ".$current_stock_of_item." in Stock!!";
+					}
 				}
 				
 				$salesitems_entry = array(
@@ -850,8 +885,14 @@ class Pos_model extends CI_Model {
 					mp_register_equipment_from_sale($sales_id, $sale_items_id, $customer_id);
 				}
 
-				$q11=$this->update_items_quantity($item_id);
-				if(!$q11){
+				if(empty($item_details->is_bundle)){
+					$q11=$this->update_items_quantity($item_id);
+					if(!$q11){
+						$this->db->trans_rollback();
+						return "failed";
+					}
+				} else if(!$this->extras_model->deplete_bundle_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
+					$this->db->trans_rollback();
 					return "failed";
 				}
 

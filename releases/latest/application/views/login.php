@@ -1,9 +1,54 @@
+<?php
+/**
+ * Login / logged-out landing page.
+ *
+ * The logged-out page must not describe the wrong business. The staff session
+ * is already destroyed here, so branding resolves from durable sources only:
+ * an explicit ?store=<id> (a store's own login URL), then the most recently
+ * added active store, then the vendor row. Clinical stores get clinical copy —
+ * a physiotherapy clinic must never be shown sales/POS/inventory marketing.
+ */
+$ld_store_id = (int) $this->input->get('store');
+if (empty($ld_store_id)) {
+    // A single-store install (the normal client deployment) shows that store's
+    // own branding. Multi-store installs fall back to the vendor/default row,
+    // and any store can be addressed explicitly with ?store=<id>.
+    $ld_active = $this->db->select('id')->where('status', 1)->order_by('id')->get('db_store')->result();
+    $ld_store_id = (count($ld_active) === 1) ? (int) $ld_active[0]->id : 1;
+}
+if (!function_exists('mp_get_store_profile')) { $this->load->helper('business_profile'); }
+$ld_profile  = mp_get_store_profile($ld_store_id);
+$ld_industry = is_array($ld_profile) ? ($ld_profile['industry_type'] ?? 'general_retail') : 'general_retail';
+$ld_clinical = ($ld_industry === 'physiotherapy_rehabilitation');
+$ld_store    = $this->db->select('store_name')->where('id', $ld_store_id)->get('db_store')->row();
+$ld_brand    = trim(($ld_store->store_name ?? '')) ?: (trim($SITE_TITLE ?? '') ?: 'MartPoint');
+
+$ld_features = $ld_clinical ? array(
+    array('fa-user-md', 'Clinical Records', 'Patients, assessments and treatment plans in one clinical record.'),
+    array('fa-calendar-check-o', 'Reception & Appointments', 'Bookings, arrivals, care queue and check-in for the day.'),
+    array('fa-bed', 'Inpatient & Ward Care', 'Wards, beds, nursing tasks, meals and discharge.'),
+    array('fa-money', 'Patient Accounts', 'Bills, patient funds, payment evidence and statements.'),
+) : array(
+    array('fa-line-chart', 'Real-time Insights', 'Track sales, stock and performance in real time.'),
+    array('fa-cubes', 'Inventory Control', 'Maintain the right stock levels with better inventory visibility.'),
+    array('fa-credit-card', 'Flexible Payment Options', 'Accept cash, card, bank transfer and more.'),
+    array('fa-users', 'Manage Your Team', 'Roles, permissions and staff access—all in one place.'),
+);
+$ld_sectors = $ld_clinical
+    ? array(array('fa-heartbeat', 'Physiotherapy'), array('fa-hospital-o', 'Rehabilitation'),
+            array('fa-user-md', 'Specialist Clinics'), array('fa-bed', 'Inpatient Care'),
+            array('fa-wheelchair', 'Home Care'), array('fa-stethoscope', 'Outpatient'))
+    : array(array('fa-shopping-cart', 'Retail'), array('fa-medkit', 'Pharmacy'),
+            array('fa-cutlery', 'Restaurant'), array('fa-shopping-bag', 'Boutique'),
+            array('fa-laptop', 'Electronics'), array('fa-tint', 'Laundry'),
+            array('fa-cubes', 'Wholesale'), array('fa-wrench', 'Hardware'));
+?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title><?php print $SITE_TITLE; ?> | Log in</title>
+  <title><?php echo htmlspecialchars($ld_brand); ?> | Log in</title>
   <link rel="icon" type="image/webp" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
   <link rel="alternate icon" type="image/png" href="<?php echo base_url('uploads/site/icon-192.png'); ?>">
   <link rel="manifest" href="<?php echo base_url('manifest.json'); ?>">
@@ -699,82 +744,46 @@
     <!-- LEFT: Branding -->
     <div class="mp-login-left">
       <div class="brand">
-        <img src="<?php echo base_url(get_site_logo());?>" onerror="this.onerror=null; this.src='<?php echo base_url('uploads/site/default.png'); ?>';" alt="MartPoint Retail">
+        <img src="<?php echo base_url(get_site_logo());?>" onerror="this.onerror=null; this.src='<?php echo base_url('uploads/site/default.png'); ?>';" alt="<?= htmlspecialchars($ld_brand); ?>">
       </div>
 
       <div class="hero">
+        <?php if($ld_clinical): ?>
+        <h1>Care for patients.<br><span class="accent">Run the clinic.</span></h1>
+        <p class="lead">
+          Manage patient records, appointments, treatment plans, inpatient care and patient accounts from one clinical platform.
+        </p>
+        <?php else: ?>
         <h1>Run your business.<br><span class="accent">Grow without limits.</span></h1>
         <p class="lead">
           Manage sales, inventory, payments, customers, staff and every branch from one powerful platform.
         </p>
+        <?php endif; ?>
 
         <div class="mp-login-features">
+          <?php foreach($ld_features as $f): ?>
           <div class="mp-login-feature">
-            <div class="icon"><i class="fa fa-line-chart"></i></div>
+            <div class="icon"><i class="fa <?= htmlspecialchars($f[0]); ?>"></i></div>
             <div class="text">
-              <div class="title">Real-time Insights</div>
-              <div class="desc">Track sales, stock and performance in real time.</div>
+              <div class="title"><?= htmlspecialchars($f[1]); ?></div>
+              <div class="desc"><?= htmlspecialchars($f[2]); ?></div>
             </div>
           </div>
-          <div class="mp-login-feature">
-            <div class="icon"><i class="fa fa-cubes"></i></div>
-            <div class="text">
-              <div class="title">Inventory Control</div>
-              <div class="desc">Maintain the right stock levels with better inventory visibility.</div>
-            </div>
-          </div>
-          <div class="mp-login-feature">
-            <div class="icon"><i class="fa fa-credit-card"></i></div>
-            <div class="text">
-              <div class="title">Flexible Payment Options</div>
-              <div class="desc">Accept cash, card, bank transfer and more.</div>
-            </div>
-          </div>
-          <div class="mp-login-feature">
-            <div class="icon"><i class="fa fa-users"></i></div>
-            <div class="text">
-              <div class="title">Manage Your Team</div>
-              <div class="desc">Roles, permissions and staff access—all in one place.</div>
-            </div>
-          </div>
+          <?php endforeach; ?>
         </div>
       </div>
 
       <div class="mp-login-sectors">
-        <span class="label">Join businesses across different industries using MartPoint today.</span>
+        <span class="label"><?= $ld_clinical
+            ? 'Trusted across physiotherapy, rehabilitation and specialist clinics.'
+            : 'Join businesses across different industries using MartPoint today.'; ?></span>
         <div class="grid">
+          <?php foreach($ld_sectors as $s): ?>
           <div class="sector">
-            <div class="icon"><i class="fa fa-shopping-cart"></i></div>
-            <div class="name">Retail</div>
+            <div class="icon"><i class="fa <?= htmlspecialchars($s[0]); ?>"></i></div>
+            <div class="name"><?= htmlspecialchars($s[1]); ?></div>
           </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-medkit"></i></div>
-            <div class="name">Pharmacy</div>
-          </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-cutlery"></i></div>
-            <div class="name">Restaurant</div>
-          </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-shopping-bag"></i></div>
-            <div class="name">Boutique</div>
-          </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-laptop"></i></div>
-            <div class="name">Electronics</div>
-          </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-tint"></i></div>
-            <div class="name">Laundry</div>
-          </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-cubes"></i></div>
-            <div class="name">Wholesale</div>
-          </div>
-          <div class="sector">
-            <div class="icon"><i class="fa fa-wrench"></i></div>
-            <div class="name">Hardware</div>
-          </div>
+          <?php endforeach; ?>
         </div>
       </div>
     </div>
@@ -786,13 +795,13 @@
       </div>
 
       <div class="mp-login-mobile-brand">
-        <img src="<?php echo base_url(get_site_logo());?>" onerror="this.onerror=null; this.src='<?php echo base_url('uploads/site/default.png'); ?>';" alt="MartPoint Retail">
+        <img src="<?php echo base_url(get_site_logo());?>" onerror="this.onerror=null; this.src='<?php echo base_url('uploads/site/default.png'); ?>';" alt="<?= htmlspecialchars($ld_brand); ?>">
       </div>
 
       <div class="mp-login-card">
         <div class="mp-login-card-header">
           <h2>Welcome back</h2>
-          <p>Sign in to your MartPoint Retail account</p>
+          <p>Sign in to your <?= htmlspecialchars($ld_brand); ?> account</p>
         </div>
 
         <?php if($this->input->get('reason') === 'idle'){ ?>

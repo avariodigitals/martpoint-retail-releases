@@ -135,9 +135,10 @@ $hasDiscount = $product->original_price > $product->effective_price;
           <button class="pcr-btn pcr-btn-amber" onclick="addDetailToCart()">Add to Cart</button>
           <button class="pcr-btn pcr-btn-outline" onclick="addDetailToCart();window.location.href='<?= base_url('store/' . $slug . '/cart'); ?>'">Buy It Now</button>
           <?php if(!empty($settings->whatsapp_number)): ?>
-          <button class="pcr-btn pcr-btn-wa" onclick="sendDetailWhatsApp()">Order via WhatsApp</button>
+          <button class="pcr-btn pcr-btn-wa" onclick="sendDetailWhatsApp()"><?= (int)$product->stock <= 0 && empty($settings->allow_backorder) ? 'Ask about availability' : 'Order via WhatsApp'; ?></button>
           <?php endif; ?>
         </div>
+        <?php if((int)$product->stock <= 0 && empty($settings->allow_backorder)) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
 
         <?php if(!empty($related_products)): ?>
         <div class="pcr-pd-related">
@@ -180,6 +181,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
   function adjustDetailQty(d){ detailQty = Math.max(1, detailQty + d); document.getElementById('detail-qty').textContent = detailQty; }
   function addDetailToCart(){ addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock); }
   function sendDetailWhatsApp(){
+    if(typeof detailProduct !== 'undefined' && detailProduct.stock !== undefined && detailProduct.stock <= 0 && (!detailProduct.type || detailProduct.type === 'product' || detailProduct.type === 'physical') && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){ const wnum2 = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>'; if(wnum2) window.open('https://wa.me/' + wnum2 + '?text=' + encodeURIComponent('Hello, is ' + detailProduct.name + ' back in stock?'), '_blank'); return; }
     let msg = 'Hello, I am interested in: ' + detailProduct.name + ' — ' + formatMoney(detailProduct.price);
     const wnum = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
     if(wnum) window.open('https://wa.me/' + wnum + '?text=' + encodeURIComponent(msg), '_blank');

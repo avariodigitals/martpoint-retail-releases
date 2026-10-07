@@ -6,38 +6,50 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — My Profile</title>
+  <title><?php
+    /* AGENTS.md requires the STORE name in the header/title, but $SITE_TITLE is
+       db_sitesettings.site_name — the installation's app name ("MartPoint
+       Retail" on every tenant), not the store. The store's real name is already
+       in the session. Prefer it and fall back to $SITE_TITLE. */
+    $mp_store_name = $this->session->userdata('store_name');
+    if (empty($mp_store_name)) { $mp_store_name = $SITE_TITLE ?? 'MartPoint'; }
+    echo htmlspecialchars($mp_store_name); ?> — My Profile</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
   <style>
+    /* Physiotherapy & rehabilitation palette — kept identical to
+       mobile/clinic_home.php so this screen reads as part of the same clinic
+       app rather than the retail shell. */
     :root {
-      --mp-primary: #0057FF;
-      --mp-primary-dark: #0044CC;
-      --mp-bg: #F1F5F9;
+      --mp-primary: #176753;
+      --mp-primary-dark: #104d40;
+      --mp-bg: #eef3f0;
       --mp-surface: #FFFFFF;
-      --mp-text: #0F172A;
-      --mp-muted: #64748B;
-      --mp-border: #E2E8F0;
-      --mp-success: #10B981;
-      --mp-danger: #EF4444;
-      --mp-warning: #F59E0B;
+      --mp-text: #1e2d28;
+      --mp-ink: #1e2d28;
+      --mp-muted: #687a72;
+      --mp-border: #d8e2dc;
+      --mp-success: #176753;
+      --mp-danger: #c95f49;
+      --mp-warning: #a96e24;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-    #app { max-width: 100%; margin: 0; background: var(--mp-surface); min-height: 100vh; position: relative; }
+    html, body { margin: 0; padding: 0; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    #app { max-width: 430px; margin: 0 auto; background: var(--mp-bg); min-height: 100vh; position: relative; }
     .screen { padding: 16px 16px 120px; min-height: 100vh; }
     .topbar { display: flex; align-items: center; gap: 12px; padding: 16px; }
     .topbar .back { color: var(--mp-primary); font-size: 20px; text-decoration: none; }
-    .topbar h1 { font-size: 22px; font-weight: 700; margin: 0; }
+    .topbar h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 23px; margin: 0; }
     .profile-card { background: linear-gradient(135deg, var(--mp-primary) 0%, var(--mp-primary-dark) 100%); border-radius: 20px; padding: 28px 20px; text-align: center; color: #fff; margin-bottom: 20px; }
     .profile-card .avatar { width: 70px; height: 70px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 14px; overflow: hidden; }
     .profile-card .avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .profile-card .name { font-size: 20px; font-weight: 700; margin: 0; }
+    .profile-card .name { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
     .profile-card .sub { font-size: 14px; opacity: 0.85; margin-top: 4px; }
-    .card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid var(--mp-border); }
-    .section-title { font-size: 15px; font-weight: 600; margin: 0 0 14px; color: var(--mp-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .card { background: var(--mp-surface); border-radius: 14px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--mp-border); }
+    .section-title { font-size: 12px; font-weight: 700; margin: 0 0 14px; color: var(--mp-muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .menu-item { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--mp-border); text-decoration: none; color: var(--mp-ink); }
     .menu-item:last-child { border-bottom: none; }
     .menu-item .icon { width: 36px; height: 36px; border-radius: 10px; background: var(--mp-bg); color: var(--mp-primary); display: flex; align-items: center; justify-content: center; font-size: 16px; }
@@ -56,14 +68,12 @@
     #toast.active { transform: translateX(-50%) translateY(0); opacity: 1; }
     #toast.error { background: var(--mp-danger); }
     #toast.success { background: var(--mp-success); }
-    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; max-width: 100%; transform: none; background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-top: 1px solid var(--mp-border); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + var(--safe-bottom)); z-index: 100; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; max-width: 430px; margin: 0 auto; background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-top: 1px solid var(--mp-border); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + var(--safe-bottom)); z-index: 100; }
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 16px; border: none; background: transparent; color: var(--mp-muted); font-size: 11px; font-weight: 500; text-decoration: none; }
     .nav-item .icon { font-size: 22px; }
     .nav-item.active { color: var(--mp-primary); }
-    @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .bottom-nav { max-width: 100%; left: 0; right: 0; transform: none; } .screen { padding: 24px 24px 130px; } }
-    @media (min-width: 1024px) { .screen { padding: 32px 48px 150px; } }
     .topbar .topbar-titles { flex: 1; min-width: 0; }
-    .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+    .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
   </style>
 </head>
 <body>
@@ -71,7 +81,7 @@
     <div class="topbar">
       <a href="<?= base_url('mobile'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
       <div class="topbar-titles">
-        <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+        <div class="store-name"><?= htmlspecialchars($mp_store_name); ?></div>
         <h1>My Profile</h1>
       </div>
     </div>

@@ -458,7 +458,7 @@ foreach($orderedSections as $sectionKey => $section):
         $sPrice = $s->effective_price ?? $s->sales_price ?? $s->price ?? 0;
         $sImg = (!empty($s->item_image) && file_exists($s->item_image)) ? mp_minified_image_url($s->item_image, 400) : (!empty($s->service_image) && file_exists($s->service_image) ? mp_minified_image_url($s->service_image, 400) : '');
       ?>
-      <div class="fm-product-card" onclick="openProductModal(<?= $s->id; ?>, '<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>', <?= $sPrice; ?>, '<?= $s->item_image ?? $s->service_image ?? ''; ?>', '<?= htmlspecialchars(addslashes($s->description ?? '')); ?>', 999, 0)">
+      <div class="fm-product-card" onclick="openProductModal(<?= $s->id; ?>, '<?= htmlspecialchars(addslashes($s->item_name ?? $s->service_name ?? '')); ?>', <?= $sPrice; ?>, '<?= $s->item_image ?? $s->service_image ?? ''; ?>', '<?= htmlspecialchars(addslashes($s->description ?? '')); ?>', 999, 0, 'service')">
         <div class="fm-product-media">
           <?php if($sImg): ?>
           <img src="<?= $sImg; ?>" alt="<?= htmlspecialchars($s->item_name ?? $s->service_name ?? ''); ?>" loading="lazy">

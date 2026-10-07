@@ -151,8 +151,13 @@ class Paystack extends MY_Controller {
 			// Online-store order: verify signature with THAT store's keys.
 			$settings = $this->paystack->get_settings($order->store_id);
 		} else {
-			// POS / sales payment: single-store legacy lookup.
-			$settings = $this->paystack->get_settings();
+			// POS / sales payment or unmatched reference. Webhooks carry no
+			// session so get_current_store_id() is empty — resolve the store
+			// from the local payment link first, else from the signature.
+			$known = $this->paystack->get_payment_by_reference($reference);
+			$settings = ($known && !empty($known->store_id))
+				? $this->paystack->get_settings($known->store_id)
+				: $this->paystack->resolve_webhook_settings($input);
 		}
 		if(!$settings || empty($settings->secret_key)){
 			http_response_code(500);
@@ -193,6 +198,25 @@ class Paystack extends MY_Controller {
 					]);
 					if($claimed){
 						$this->storefront_model->adjustStock($order->id);
+						$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_webhook');
+					} else {
+						// Payment verified but the order is no longer claimable
+						// (cancelled / reservation released / refunded). The
+						// money is real — surface it instead of swallowing it.
+						$this->load->model('payment_reconcile_model','recon');
+						$this->recon->queue_late_payment($order->store_id, array(
+							'provider'        => 'paystack',
+							'reference'       => $reference,
+							'order_id'        => $order->id,
+							'amount'          => $verify['amount'],
+							'expected_amount' => $order->grand_total,
+							'currency'        => $verify['currency'] ?? null,
+							'detail'          => 'Verified payment received for order ' . $order->order_code
+								. ' which is already ' . $order->order_status . '/' . $order->payment_status
+								. ' (stock ' . ($order->stock_state ?? 'n/a') . '). Refund the customer or reinstate the order.',
+							'detected_by'     => 'webhook',
+							'payload'         => $data,
+						));
 					}
 					// Idempotent, self-healing: runs for the claim winner and
 					// retries on later webhooks if fulfilment died mid-flight.
@@ -200,6 +224,7 @@ class Paystack extends MY_Controller {
 				}
 			} else {
 				// Update paystack payment record
+				$known = $this->paystack->get_payment_by_reference($reference);
 				$this->paystack->update_payment_status($reference, $status, array(
 					'channel' => $channel,
 					'paid_at' => $paid_at
@@ -207,7 +232,62 @@ class Paystack extends MY_Controller {
 
 				// Confirm the sales payment if linked
 				$this->paystack->confirm_sales_payment($reference);
+
+				// Reconciliation: a verified charge matching no local payment
+				// link or order is an unmatched exception; a settled amount
+				// that disagrees with the initiated amount is a discrepancy.
+				if($status === 'success'){
+					$this->load->model('payment_reconcile_model','recon');
+					if(!$known){
+						$this->recon->queue(isset($settings->store_id) ? (int)$settings->store_id : get_current_store_id(), array(
+							'exception_type' => 'unmatched',
+							'provider'       => 'paystack',
+							'reference'      => $reference,
+							'amount'         => $amount,
+							'currency'       => $data['currency'] ?? null,
+							'detail'         => 'Charge succeeded at provider but matches no local order or payment link',
+							'detected_by'    => 'webhook',
+							'payload'        => $data,
+						));
+					} else {
+						$currency_mismatch = !empty($data['currency']) && !empty($known->currency)
+							&& strtoupper($data['currency']) !== strtoupper($known->currency);
+						if(abs((float)$amount - (float)$known->amount) > 0.01 || $currency_mismatch){
+							$this->recon->queue((int)$known->store_id, array(
+								'exception_type'  => 'discrepancy',
+								'provider'        => 'paystack',
+								'reference'       => $reference,
+								'sales_id'        => $known->sales_id,
+								'amount'          => $amount,
+								'expected_amount' => $known->amount,
+								'currency'        => $data['currency'] ?? $known->currency,
+								'detail'          => $currency_mismatch
+									? 'Settled currency differs from initiated currency'
+									: 'Settled amount differs from initiated amount',
+								'detected_by'     => 'webhook',
+							));
+						}
+					}
+				}
 			}
+		}
+
+		// Chargeback/dispute events → dispute exception on the matching record.
+		if(strpos($event['event'], 'charge.dispute') === 0){
+			$this->load->model('payment_reconcile_model','recon');
+			$known = $this->paystack->get_payment_by_reference($reference);
+			$exc_store = $known ? (int)$known->store_id : ($order ? (int)$order->store_id : get_current_store_id());
+			$this->recon->queue($exc_store, array(
+				'exception_type' => 'dispute',
+				'provider'       => 'paystack',
+				'reference'      => $reference,
+				'sales_id'       => $known->sales_id ?? null,
+				'order_id'       => $order->id ?? null,
+				'amount'         => isset($event['data']['amount']) ? $event['data']['amount'] / 100 : null,
+				'detail'         => 'Provider dispute event: '.$event['event'],
+				'detected_by'    => 'webhook',
+				'payload'        => $event['data'],
+			));
 		}
 
 		http_response_code(200);

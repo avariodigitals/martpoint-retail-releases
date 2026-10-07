@@ -71,22 +71,52 @@ class Business_profile extends MY_Controller {
             $storefront_theme_key = $existingKey ?: (isset($allowed[$preset['theme_key'] ?? '']) ? $preset['theme_key'] : (array_keys($allowed)[0] ?? 'general_retail'));
         }
 
-        // Feature flags JSON — use submitted values if the form sent any, otherwise the preset
+        // Feature flags JSON.
+        //
+        // Three cases, because a checkbox that is OFF posts nothing and is
+        // therefore indistinguishable from a flag the form never rendered:
+        //   1. the form rendered it (marker present) -> submitted value wins,
+        //      so an admin can deliberately switch a preset capability off;
+        //   2. not rendered but already stored          -> preserve, so saving
+        //      one tab can't silently drop flags (a store with a 24-key profile
+        //      would otherwise be rewritten down to the rendered subset);
+        //   3. never stored                             -> default to the
+        //      business-type preset, which is what makes selecting
+        //      Physiotherapy turn patient_registry & the clinical set on.
         $flags = $this->input->post('feature_flags');
-        $feature_flags_json = null;
-        if (!is_null($flags) && is_array($flags)) {
-            $clean = [];
-            foreach (mp_get_feature_flags() as $key => $label) {
-                $clean[$key] = isset($flags[$key]) ? '1' : '0';
-            }
-            $feature_flags_json = json_encode($clean);
-        } else {
-            $clean = [];
-            foreach (mp_get_feature_flags() as $key => $label) {
-                $clean[$key] = (isset($preset['features']) && in_array($key, $preset['features'], true)) ? '1' : '0';
-            }
-            $feature_flags_json = json_encode($clean);
+        $flags_seen = $this->input->post('feature_flags_seen');   // markers
+        $stored = array();
+        $existing = $this->db->select('feature_flags_json')
+            ->where('store_id', $store_id)
+            ->get('db_store_industry_settings')->row();
+        if ($existing && !empty($existing->feature_flags_json)) {
+            $decoded = json_decode($existing->feature_flags_json, true);
+            if (is_array($decoded)) { $stored = $decoded; }
         }
+        $flags = is_array($flags) ? $flags : array();
+        $flags_seen = is_array($flags_seen) ? $flags_seen : array();
+        $preset_features = (isset($preset['features']) && is_array($preset['features']))
+            ? $preset['features'] : array();
+
+        $clean = array();
+        foreach (mp_get_feature_flags() as $key => $label) {
+            if (isset($flags_seen[$key])) {
+                $clean[$key] = isset($flags[$key]) ? '1' : '0';
+            } elseif (isset($stored[$key])) {
+                $clean[$key] = $stored[$key];
+            } else {
+                $clean[$key] = in_array($key, $preset_features, true) ? '1' : '0';
+            }
+        }
+        // A store that predates a capability still gets it when its business
+        // type requires it — "select Physiotherapy" must mean the clinical
+        // modules are on, not merely available.
+        foreach ($preset_features as $key) {
+            if (!isset($flags_seen[$key]) && isset($clean[$key]) && $clean[$key] !== '1') {
+                $clean[$key] = empty($stored[$key]) ? '1' : $clean[$key];
+            }
+        }
+        $feature_flags_json = json_encode($clean);
 
         // Label overrides JSON — use submitted values, then merge with preset defaults
         $labels = $this->input->post('label_overrides');

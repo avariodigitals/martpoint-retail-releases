@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — Sign In</title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Sign In</title>
   <link rel="icon" type="image/webp" href="<?= base_url('uploads/site/icon.webp'); ?>">
   <link rel="alternate icon" type="image/png" href="<?= base_url('uploads/site/icon-192.png'); ?>">
   <link rel="manifest" href="<?= base_url('manifest.json'); ?>">
@@ -544,7 +544,7 @@
     </section>
 
     <footer class="copyright-footer">
-      &copy; <?= date('Y'); ?> <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.<br>
+      &copy; <?= date('Y'); ?> <?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.<br>
       Powered by Avario Digitals
     </footer>
 

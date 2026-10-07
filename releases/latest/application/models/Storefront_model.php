@@ -135,6 +135,7 @@ class Storefront_model extends CI_Model {
 					'meta_keywords' => "VARCHAR(255) NULL DEFAULT NULL",
 					'google_analytics_id' => "VARCHAR(50) NULL DEFAULT NULL",
 					'facebook_pixel_id' => "VARCHAR(50) NULL DEFAULT NULL",
+					'require_tracking_consent' => "TINYINT(1) NULL DEFAULT 1",
 					'robots_index' => "TINYINT(1) NULL DEFAULT 1",
 					'custom_head_scripts' => "TEXT NULL DEFAULT NULL",
 					'testimonial_source' => "VARCHAR(20) NULL DEFAULT 'custom'",
@@ -272,6 +273,7 @@ class Storefront_model extends CI_Model {
 			'meta_keywords' => '',
 			'google_analytics_id' => '',
 			'facebook_pixel_id' => '',
+			'require_tracking_consent' => 1,
 			'robots_index' => 1,
 			'custom_head_scripts' => ''
 			];
@@ -358,6 +360,7 @@ class Storefront_model extends CI_Model {
 						'meta_keywords' => '',
 						'google_analytics_id' => '',
 						'facebook_pixel_id' => '',
+						'require_tracking_consent' => 1,
 						'robots_index' => 1,
 						'custom_head_scripts' => ''
 					];
@@ -410,43 +413,53 @@ class Storefront_model extends CI_Model {
 		foreach($rows as $r){
 			if(($r->item_group ?? '') === 'Variants'){ $parentIds[] = (int)$r->id; }
 		}
-		if(empty($parentIds)) return $rows;
-		$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, online_price, discount_type, discount, stock')
-			->from('db_items')
-			->where_in('parent_id', $parentIds)
-			->where('publish_online', 1)
-			->where('(status = 1 OR status IS NULL)', null, false)
-			->where("(not_for_sale IS NULL OR not_for_sale = 0)", null, false)
-			->order_by('id', 'asc')
-			->get()->result();
-		$byParent = [];
-		foreach($children as $c){ $byParent[$c->parent_id][] = $c; }
-		foreach($rows as $r){
-			if(($r->item_group ?? '') !== 'Variants') continue;
-			$kids = $byParent[$r->id] ?? [];
-			$minPrice = null; $stockSum = 0; $img = null;
-			foreach($kids as $c){
-				$eff = $this->getProductEffectivePrice($c);
-				if($minPrice === null || $eff < $minPrice){ $minPrice = $eff; }
-				$stockSum += (int)$c->stock;
-				if(!$img && !empty($c->item_image) && file_exists($c->item_image)){ $img = $c->item_image; }
+		if(!empty($parentIds)){
+			$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, online_price, discount_type, discount, stock')
+				->from('db_items')
+				->where_in('parent_id', $parentIds)
+				->where('publish_online', 1)
+				->where('(status = 1 OR status IS NULL)', null, false)
+				->where("(not_for_sale IS NULL OR not_for_sale = 0)", null, false)
+				->order_by('id', 'asc')
+				->get()->result();
+			$byParent = [];
+			foreach($children as $c){ $byParent[$c->parent_id][] = $c; }
+			foreach($rows as $r){
+				if(($r->item_group ?? '') !== 'Variants') continue;
+				$kids = $byParent[$r->id] ?? [];
+				$minPrice = null; $stockSum = 0; $img = null;
+				foreach($kids as $c){
+					$eff = $this->getProductEffectivePrice($c);
+					if($minPrice === null || $eff < $minPrice){ $minPrice = $eff; }
+					$stockSum += (int)$c->stock;
+					if(!$img && !empty($c->item_image) && file_exists($c->item_image)){ $img = $c->item_image; }
+				}
+				$r->variant_count = count($kids);
+				$r->stock = $stockSum;
+				if($minPrice !== null){
+					$r->sales_price = $minPrice;
+					$r->online_price = null;
+					$r->discount_type = null;
+					$r->discount = null;
+				}
+				if(empty($r->item_image) && $img){ $r->item_image = $img; }
 			}
-			$r->variant_count = count($kids);
-			$r->stock = $stockSum;
-			if($minPrice !== null){
-				$r->sales_price = $minPrice;
-				$r->online_price = null;
-				$r->discount_type = null;
-				$r->discount = null;
+		}
+		$bundleRows = array_values(array_filter($rows, function($r){ return !empty($r->is_bundle); }));
+		if(!empty($bundleRows)){
+			$this->load->model('Extras_model', 'extras_model');
+			foreach($bundleRows as $bundle){
+				$available = $this->extras_model->bundleAvailability($bundle->id, (int)($bundle->store_id ?? get_current_store_id()));
+				$bundle->bundle_available = $available;
+				$bundle->stock = (int)($available ?? 0);
 			}
-			if(empty($r->item_image) && $img){ $r->item_image = $img; }
 		}
 		return $rows;
 	}
 
 	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.item_group, a.parent_id, a.child_bit, b.category_name');
+		$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -473,7 +486,7 @@ class Storefront_model extends CI_Model {
 
 	public function getFeaturedProducts($storeId = null, $limit = 8){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.item_group, a.parent_id, a.child_bit, b.category_name');
+		$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -669,8 +682,29 @@ class Storefront_model extends CI_Model {
 		$data['payment_status'] = 'paid';
 		$data['updated_at'] = date('Y-m-d H:i:s');
 		$this->db->where('id', $orderId)
-			->where_not_in('payment_status', ['paid', 'refunded'])
+			->where('payment_status', 'unpaid')
+			->where('order_status', 'pending');
+		if($this->db->field_exists('stock_state', 'db_online_orders')){
+			$this->db->where_in('stock_state', ['none', 'reserved']);
+		}
+		$this->db
 			->update('db_online_orders', $data);
+		return $this->db->affected_rows() === 1;
+	}
+
+	public function claimFailedOrder($orderId){
+		$data = [
+			'payment_status' => 'failed',
+			'order_status' => 'cancelled',
+			'updated_at' => date('Y-m-d H:i:s'),
+		];
+		$this->db->where('id', (int)$orderId)
+			->where('payment_status', 'unpaid')
+			->where('order_status', 'pending');
+		if($this->db->field_exists('stock_state', 'db_online_orders')){
+			$this->db->where_in('stock_state', ['none', 'reserved']);
+		}
+		$this->db->update('db_online_orders', $data);
 		return $this->db->affected_rows() === 1;
 	}
 
@@ -703,6 +737,7 @@ class Storefront_model extends CI_Model {
 		if(!$order){
 			return false;
 		}
+		$this->db->trans_begin();
 		// Explicit lifecycle: commit moves 'reserved' (already decremented at
 		// order time) or 'none' (legacy order without a reservation) to
 		// 'committed'. Only the 'none' path needs to decrement stock.
@@ -717,19 +752,62 @@ class Storefront_model extends CI_Model {
 				->update('db_online_orders', ['stock_adjusted' => 1]);
 		}
 		if($this->db->affected_rows() !== 1){
+			$this->db->trans_rollback();
 			return false; // already committed/released — no double mutation
 		}
 		if($wasReserved){
+			$this->db->trans_commit();
 			return true; // stock already moved at reservation time
 		}
-		$items = $this->getOrderItems($orderId);
-		foreach($items as $item){
-			if($item->item_type !== 'product') continue; // skip services
-			$qty = (int)$item->qty;
-			if($qty <= 0) continue;
-			$this->db->set('stock', 'stock - ' . $qty, false);
-			$this->db->where('id', $item->item_id);
-			$this->db->update('db_items');
+		$draws = [];
+		foreach($this->getOrderItems($orderId) as $item){
+			if(!in_array($item->item_type, ['product', 'bundle_component'], true)) continue;
+			$draws[] = ['item_id' => (int)$item->item_id, 'qty' => (float)$item->qty];
+		}
+		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $draws, -1, 'commit') || $this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+
+	private function _writeOrderStockLedger($orderId, $storeId, array $lines, $direction, $action){
+		if(empty($lines)) return true;
+		$warehouseId = function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null;
+		if(!$this->db->insert('db_stockadjustment', [
+			'store_id' => (int)$storeId,
+			'warehouse_id' => $warehouseId,
+			'reference_no' => 'ONLINE-' . strtoupper($action) . '-' . (int)$orderId,
+			'adjustment_date' => date('Y-m-d'),
+			'adjustment_note' => 'Online order ' . $action . ' #' . (int)$orderId,
+			'created_date' => date('Y-m-d'),
+			'created_time' => date('H:i:s'),
+			'created_by' => 'Storefront',
+			'system_ip' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+			'system_name' => 'Storefront',
+			'status' => 1,
+		])) return false;
+		$adjustmentId = (int)$this->db->insert_id();
+		$itemIds = [];
+		foreach($lines as $line){
+			$itemId = (int)($line['item_id'] ?? 0);
+			$qty = abs((float)($line['qty'] ?? 0));
+			if($itemId <= 0 || $qty <= 0) continue;
+			if(!$this->db->insert('db_stockadjustmentitems', [
+				'store_id' => (int)$storeId,
+				'warehouse_id' => $warehouseId,
+				'adjustment_id' => $adjustmentId,
+				'item_id' => $itemId,
+				'adjustment_qty' => $qty * (int)$direction,
+				'description' => 'Online order #' . (int)$orderId . ' ' . $action,
+				'status' => 1,
+			])) return false;
+			$itemIds[$itemId] = true;
+		}
+		$this->load->model('pos_model');
+		foreach(array_keys($itemIds) as $itemId){
+			if(!$this->pos_model->update_items_quantity($itemId)) return false;
 		}
 		return true;
 	}
@@ -748,30 +826,50 @@ class Storefront_model extends CI_Model {
 			if(($item['item_type'] ?? '') !== 'product') continue;
 			$qty = (int)$item['qty'];
 			if($qty <= 0) continue;
+			$reserved[] = ['item_id' => (int)$item['item_id'], 'qty' => $qty];
+		}
+		if(empty($reserved)) return true;
+
+		$this->db->trans_begin();
+		$order = $this->getOrder($orderId);
+		if(!$order){
+			$this->db->trans_rollback();
+			return false;
+		}
+		if(isset($order->stock_state)){
+			$this->db->where('id', (int)$orderId)->where('stock_state', 'none')
+				->update('db_online_orders', [
+					'stock_adjusted' => 1,
+					'stock_state' => 'reserved',
+					'stock_reserved_at' => date('Y-m-d H:i:s'),
+				]);
+		} else {
+			$this->db->where('id', (int)$orderId)->where('stock_adjusted', 0)
+				->update('db_online_orders', ['stock_adjusted' => 1]);
+		}
+		if($this->db->affected_rows() !== 1){
+			$this->db->trans_rollback();
+			return false;
+		}
+
+		foreach($reserved as $r){
+			$qty = $r['qty'];
 			$this->db->set('stock', 'stock - ' . $qty, false);
-			$this->db->where('id', (int)$item['item_id']);
+			$this->db->where('id', $r['item_id']);
 			if(!$allowBackorder){
 				$this->db->where('stock >=', $qty);
 			}
 			$this->db->update('db_items');
-			if(!$allowBackorder && $this->db->affected_rows() !== 1){
-				// Roll back the units already reserved by this call.
-				foreach($reserved as $r){
-					$this->db->set('stock', 'stock + ' . $r['qty'], false);
-					$this->db->where('id', $r['item_id']);
-					$this->db->update('db_items');
-				}
+			if($this->db->affected_rows() !== 1){
+				$this->db->trans_rollback();
 				return false;
 			}
-			$reserved[] = ['item_id' => (int)$item['item_id'], 'qty' => $qty];
 		}
-		if(!empty($reserved)){
-			$this->db->where('id', $orderId)->update('db_online_orders', [
-				'stock_adjusted' => 1,
-				'stock_state' => 'reserved',
-				'stock_reserved_at' => date('Y-m-d H:i:s'),
-			]);
+		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $reserved, -1, 'reserve') || $this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return false;
 		}
+		$this->db->trans_commit();
 		return true;
 	}
 
@@ -786,14 +884,19 @@ class Storefront_model extends CI_Model {
 		if(!$order){
 			return false;
 		}
+		if(isset($order->stock_state) && $order->stock_state === 'none') return true;
+		if(!isset($order->stock_state) && empty($order->stock_adjusted)) return true;
+		$this->db->trans_begin();
 		if(isset($order->stock_state)){
 			$this->db->where('id', $orderId)
 				->where_in('stock_state', ['reserved', 'committed'])
 				->update('db_online_orders', ['stock_state' => 'released', 'stock_adjusted' => 0]);
 			if($this->db->affected_rows() !== 1){
+				$this->db->trans_rollback();
 				return false;
 			}
 			if(!in_array($order->stock_state, ['reserved', 'committed'], true)){
+				$this->db->trans_commit();
 				return true; // nothing held — e.g. 'none' orders
 			}
 		} else {
@@ -801,18 +904,24 @@ class Storefront_model extends CI_Model {
 				->where('stock_adjusted', 1)
 				->update('db_online_orders', ['stock_adjusted' => 0]);
 			if($this->db->affected_rows() !== 1){
+				$this->db->trans_rollback();
 				return false;
 			}
 		}
-		$items = $this->getOrderItems($orderId);
-		foreach($items as $item){
-			if($item->item_type !== 'product') continue;
-			$qty = (int)$item->qty;
-			if($qty <= 0) continue;
-			$this->db->set('stock', 'stock + ' . $qty, false);
-			$this->db->where('id', $item->item_id);
-			$this->db->update('db_items');
+		$releaseLines = [];
+		foreach($this->getOrderItems($orderId) as $item){
+			if(!in_array($item->item_type, ['product', 'bundle_component'], true)) continue;
+			$releaseLines[] = ['item_id' => (int)$item->item_id, 'qty' => (float)$item->qty];
 		}
+		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $releaseLines, 1, 'release')){
+			$this->db->trans_rollback();
+			return false;
+		}
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->trans_commit();
 		return true;
 	}
 
@@ -852,6 +961,11 @@ class Storefront_model extends CI_Model {
 					'payment_status' => 'failed',
 					'order_status' => 'cancelled',
 				]);
+				// Dead order — release its coupon claim so usage limits
+				// recover (column arrives with migration 4.0.9.69).
+				if($this->db->field_exists('order_id', 'db_promotion_usage')){
+					$this->db->where('order_id', $o->id)->delete('db_promotion_usage');
+				}
 			}
 		}
 		return $released;
@@ -968,14 +1082,22 @@ class Storefront_model extends CI_Model {
 	}
 
 	public function getProductEffectivePrice($product){
-		// Use online_price if set, otherwise sales_price
-		$price = $product->online_price > 0 ? $product->online_price : $product->sales_price;
-		// Apply discount if any
-		if($product->discount > 0){
-			if($product->discount_type == 'Percentage'){
-				$price = $price - ($price * $product->discount / 100);
+		if(!is_object($product) && !is_array($product)) return 0.0;
+		$prod = (object)$product;
+		if(!empty($prod->is_bundle)){
+			$this->load->model('Extras_model', 'extras_model');
+			return $this->extras_model->bundleUnitPrice($prod, (int)($prod->store_id ?? get_current_store_id()));
+		}
+		$onlinePrice = isset($prod->online_price) ? (float)$prod->online_price : 0.0;
+		$salesPrice = isset($prod->sales_price) ? (float)$prod->sales_price : 0.0;
+		$price = $onlinePrice > 0 ? $onlinePrice : $salesPrice;
+		$discount = isset($prod->discount) ? (float)$prod->discount : 0.0;
+		if($discount > 0){
+			$discountType = strtolower((string)($prod->discount_type ?? ''));
+			if($discountType === 'percentage'){
+				$price = $price - ($price * ($discount / 100));
 			} else {
-				$price = $price - $product->discount;
+				$price = $price - $discount;
 			}
 		}
 		return max(0, round($price, 2));
@@ -1454,7 +1576,7 @@ class Storefront_model extends CI_Model {
 		$expiryClause = $this->_expiredWhere('i2', $storeId);
 		// Orders store the purchased child item; roll children up to their
 		// variant parent so best sellers rank real products, not SKU rows.
-		$rows = $this->db->query("SELECT i2.id, i2.item_name, i2.item_image, i2.sales_price, i2.online_price, i2.discount_type, i2.discount, i2.stock, i2.description, i2.product_type, i2.is_new_arrival, i2.is_featured, i2.item_group, i2.parent_id, i2.child_bit, SUM(oi.qty) as sold_count
+		$rows = $this->db->query("SELECT i2.id, i2.store_id, i2.item_name, i2.item_image, i2.sales_price, i2.online_price, i2.discount_type, i2.discount, i2.stock, i2.description, i2.product_type, i2.is_new_arrival, i2.is_featured, i2.is_bundle, i2.bundle_pricing, i2.item_group, i2.parent_id, i2.child_bit, SUM(oi.qty) as sold_count
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
@@ -1471,7 +1593,7 @@ class Storefront_model extends CI_Model {
 		// Prefer manually flagged "New Arrival" products (is_new_arrival=1).
 		// Fall back to most recently added published products if none are flagged.
 		$buildQuery = function($storeId, $limit, $flaggedOnly) {
-			$this->db->select('a.id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.item_group, a.parent_id, a.child_bit, b.category_name');
+			$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 			$this->db->where('a.store_id', $storeId);
@@ -1626,7 +1748,30 @@ class Storefront_model extends CI_Model {
 			$this->db->where('store_id', $storeId);
 			if($enabledOnly) $this->db->where('is_enabled', 1);
 			$this->db->order_by('sort_order', 'asc');
-			return $this->db->get('db_storefront_testimonials')->result();
+			$rows = $this->db->get('db_storefront_testimonials')->result();
+			// Clinical (physio) testimonials — separate consent + moderation
+			// pipeline. Only approved, consented, non-withdrawn rows surface,
+			// and withdrawal removes them on the very next query.
+			if($this->db->table_exists('db_patient_testimonials')){
+				$pt = $this->db->select('t.id,t.body,t.rating,t.display_mode,t.display_name,c.customer_name')
+					->from('db_patient_testimonials t')
+					->join('db_patients p','p.id = t.patient_id','left')
+					->join('db_customers c','c.id = p.customer_id','left')
+					->where('t.store_id',$storeId)->where('t.status','approved')
+					->where('t.publish_consent',1)->get()->result();
+				foreach($pt as $t){
+					$name = 'Verified patient';
+					if($t->display_mode === 'first_name' && $t->customer_name) $name = strtok($t->customer_name, ' ');
+					elseif($t->display_mode === 'custom' && $t->display_name) $name = $t->display_name;
+					elseif($t->display_mode === 'anonymous') $name = 'Anonymous patient';
+					$rows[] = (object)array(
+						'id' => 'pt'.$t->id, 'customer_name' => $name,
+						'testimonial_text' => $t->body, 'rating' => $t->rating ?: 5,
+						'customer_photo' => null,
+					);
+				}
+			}
+			return $rows;
 		} catch(Exception $e){ return []; }
 	}
 
@@ -1835,7 +1980,7 @@ class Storefront_model extends CI_Model {
 	 */
 	public function fulfilPaidOrder($orderId){
 		$order = $this->getOrder($orderId);
-		if(!$order || $order->payment_status !== 'paid'){
+		if(!$order || $order->payment_status !== 'paid' || (isset($order->stock_state) && $order->stock_state === 'released')){
 			return false;
 		}
 		if(!empty($order->fulfilled_at)){
@@ -1851,5 +1996,315 @@ class Storefront_model extends CI_Model {
 		}
 		$this->db->where('id', $orderId)->update('db_online_orders', ['fulfilled_at' => date('Y-m-d H:i:s')]);
 		return true;
+	}
+
+	// ============== SHOPPING EVENTS (first-party, consent-gated) ==============
+
+	/**
+	 * Record a storefront shopping event. The caller asserts consent; the
+	 * consented flag is stored so diagnostics can distinguish gated traffic.
+	 */
+	public function recordEvent($storeId, array $data){
+		if(!$this->db->table_exists('db_storefront_events')) return false;
+		$allowed = array('view_item','add_to_cart','begin_checkout','order_placed','purchase');
+		if(!in_array($data['event_type'] ?? '', $allowed, true)) return false;
+		$eventId = substr(preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)($data['event_id'] ?? '')), 0, 64);
+		// Deduplicate: the same logical event may arrive from the browser and
+		// the server (or twice via retries). event_id makes it idempotent.
+		if($eventId !== '' && $this->db->field_exists('event_id', 'db_storefront_events')){
+			$dupe = $this->db->where('store_id', (int)$storeId)
+				->where('event_type', $data['event_type'])
+				->where('event_id', $eventId)
+				->count_all_results('db_storefront_events');
+			if($dupe) return 'duplicate';
+		}
+		return $this->db->insert('db_storefront_events', array(
+			'store_id'   => (int)$storeId,
+			'session_id' => substr((string)($data['session_id'] ?? ''), 0, 100) ?: null,
+			'event_type' => $data['event_type'],
+			'event_id'   => $eventId !== '' ? $eventId : null,
+			'item_id'    => !empty($data['item_id']) ? (int)$data['item_id'] : null,
+			'order_id'   => !empty($data['order_id']) ? (int)$data['order_id'] : null,
+			'value'      => isset($data['value']) ? (float)$data['value'] : null,
+			'meta'       => isset($data['meta']) ? substr(is_string($data['meta']) ? $data['meta'] : json_encode($data['meta']), 0, 5000) : null,
+			'consented'  => !empty($data['consented']) ? 1 : 0,
+		));
+	}
+
+	/**
+	 * Record the paid conversion for an order. Called only from verified
+	 * payment transitions (provider verification or merchant-confirmed
+	 * payment) — order creation alone never emits this. The event_id is
+	 * stable per order so retries, duplicate webhooks and a browser-side
+	 * confirmation all collapse to one record.
+	 */
+	public function recordPurchaseEvent($order, $source = 'provider'){
+		if(!$this->db->table_exists('db_storefront_events')) return false;
+		if(is_numeric($order)) $order = $this->getOrder((int)$order);
+		if(!$order) return false;
+		return $this->recordEvent($order->store_id, array(
+			'event_type' => 'purchase',
+			'event_id'   => 'purchase_' . $order->order_code,
+			'order_id'   => (int)$order->id,
+			'value'      => (float)$order->grand_total,
+			'session_id' => '',
+			'consented'  => 1,
+			'meta'       => json_encode(array('source' => $source, 'payment_method' => $order->payment_method ?? null)),
+		));
+	}
+
+	/**
+	 * Funnel counts per event type over a window — powers the diagnostics
+	 * panel on the analytics page.
+	 */
+	public function getEventFunnel($storeId, $days = 30){
+		if(!$this->db->table_exists('db_storefront_events')) return array();
+		$start = date('Y-m-d 00:00:00', strtotime('-'.(int)$days.' days'));
+		$rows = $this->db->select('event_type, COUNT(*) AS hits, SUM(consented) AS consented_hits')
+			->where('store_id', (int)$storeId)->where('created_at >=', $start)
+			->group_by('event_type')->get('db_storefront_events')->result();
+		$out = array();
+		foreach($rows as $r){ $out[$r->event_type] = $r; }
+		return $out;
+	}
+
+	public function getRecentEvents($storeId, $limit = 25){
+		if(!$this->db->table_exists('db_storefront_events')) return array();
+		return $this->db->where('store_id', (int)$storeId)
+			->order_by('id', 'desc')->limit((int)$limit)
+			->get('db_storefront_events')->result();
+	}
+
+	// ============== PERSISTED CARTS ==============
+
+	/**
+	 * Upsert a storefront cart snapshot keyed by (store_id, cart_token).
+	 * Returns the cart row id or false.
+	 */
+	public function saveCart($storeId, $token, array $data){
+		if(!$this->db->table_exists('db_storefront_carts')) return false;
+		// Only accept client tokens in the crypto-random format the storefront
+		// issues (32+ lowercase hex chars from crypto.getRandomValues). Weak
+		// legacy/fallback tokens are rejected so the client regenerates.
+		if(!preg_match('/^[0-9a-f]{32,64}$/', (string)$token)) return false;
+		$token = (string)$token;
+		$row = array(
+			'customer_name'  => substr((string)($data['customer_name'] ?? ''), 0, 191) ?: null,
+			'customer_phone' => substr((string)($data['customer_phone'] ?? ''), 0, 50) ?: null,
+			'customer_email' => substr((string)($data['customer_email'] ?? ''), 0, 191) ?: null,
+			'items_json'     => isset($data['items_json']) ? (string)$data['items_json'] : null,
+			'subtotal'       => isset($data['subtotal']) ? (float)$data['subtotal'] : null,
+			'coupon_code'    => substr((string)($data['coupon_code'] ?? ''), 0, 64) ?: null,
+			'session_id'     => substr((string)($data['session_id'] ?? ''), 0, 100) ?: null,
+			'last_activity'  => date('Y-m-d H:i:s'),
+		);
+		// Rolling expiry — recovery links die 7 days after last activity.
+		if($this->db->field_exists('expires_at', 'db_storefront_carts')){
+			$row['expires_at'] = date('Y-m-d H:i:s', time() + 7 * 86400);
+		}
+		// Keep merchant decision flags (status/reminders) on update.
+		$existing = $this->db->where('store_id', (int)$storeId)->where('cart_token', $token)->get('db_storefront_carts')->row();
+		if($existing){
+			if(in_array($existing->status, array('ordered'), true)) return (int)$existing->id;
+			$this->db->where('id', $existing->id)->update('db_storefront_carts', $row);
+			return (int)$existing->id;
+		}
+		$row['store_id'] = (int)$storeId;
+		$row['cart_token'] = $token;
+		$row['created_at'] = date('Y-m-d H:i:s');
+		$this->db->insert('db_storefront_carts', $row);
+		return (int)$this->db->insert_id();
+	}
+
+	public function getCartByToken($storeId, $token){
+		if(!$this->db->table_exists('db_storefront_carts')) return null;
+		if(!preg_match('/^[0-9a-f]{32,64}$/', (string)$token)) return null;
+		return $this->db->where('store_id', (int)$storeId)->where('cart_token', (string)$token)
+			->get('db_storefront_carts')->row();
+	}
+
+	/** Merchant-side cart fetch by id (contact details allowed here). */
+	public function getCartById($cartId, $storeId){
+		if(!$this->db->table_exists('db_storefront_carts')) return null;
+		return $this->db->where('id', (int)$cartId)->where('store_id', (int)$storeId)
+			->get('db_storefront_carts')->row();
+	}
+
+	/**
+	 * Public restoration payload — deliberately excludes saved contact fields
+	 * (name/phone/email stay merchant-side) and revalidates every item
+	 * against the live catalogue so stale prices, removed products and
+	 * out-of-stock lines never reach the order form.
+	 */
+	public function getRestorableCart($storeId, $token){
+		$cart = $this->getCartByToken($storeId, $token);
+		if(!$cart || $cart->status === 'ordered') return null;
+		$now = date('Y-m-d H:i:s');
+		$expiry = !empty($cart->expires_at) ? $cart->expires_at : date('Y-m-d H:i:s', strtotime($cart->created_at . ' +7 days'));
+		if($expiry <= $now) return null;
+		$items = json_decode((string)$cart->items_json, true);
+		if(!is_array($items)) $items = array();
+		return $this->revalidateCartItems($storeId, $items);
+	}
+
+	/**
+	 * Re-resolve every saved cart line against current catalogue data:
+	 * live effective price, current stock, availability. Returns
+	 * ['items' => restored lines, 'dropped' => names that can't be restored].
+	 */
+	public function revalidateCartItems($storeId, array $items){
+		$settings = $this->getSettings($storeId);
+		$out = array('items' => array(), 'dropped' => array());
+		foreach(array_slice($items, 0, 100) as $item){
+			$id  = (int)($item['id'] ?? 0);
+			$qty = max(1, (int)($item['qty'] ?? 1));
+			$type = ($item['type'] ?? 'product') === 'service' ? 'service' : 'product';
+			if(!$id) continue;
+			if($type === 'service'){
+				$service = $this->getOnlineService($id, $storeId);
+				if(!$service){ $out['dropped'][] = $item['name'] ?? ('#'.$id); continue; }
+				$out['items'][] = array('key' => 'service_'.$id, 'id' => $id, 'type' => 'service',
+					'name' => $service->service_name, 'price' => (float)$this->getServiceEffectivePrice($service),
+					'image' => $service->service_image, 'qty' => $qty, 'stock' => 999);
+			} else {
+				$product = $this->getOnlineProduct($id, $storeId);
+				// Variant parents are shells — the saved child id is what restores.
+				if(!$product || ($product->item_group ?? '') === 'Variants'){ $out['dropped'][] = $item['name'] ?? ('#'.$id); continue; }
+				$price = (float)$this->getProductEffectivePrice($product);
+				$stock = (int)($product->stock ?? 0);
+				if(($product->product_type ?? 'physical') === 'physical' && $stock <= 0 && empty($settings->allow_backorder)){
+					$out['dropped'][] = $product->item_name; continue;
+				}
+				$out['items'][] = array('key' => 'product_'.$id, 'id' => $id, 'type' => 'product',
+					'name' => $product->item_name, 'price' => $price,
+					'image' => $product->item_image, 'qty' => $qty, 'stock' => $stock);
+			}
+		}
+		return $out;
+	}
+
+	/** Customer opt-out — suppresses the cart from all recovery surfaces. */
+	public function optOutCart($storeId, $token){
+		if(!$this->db->field_exists('opt_out', 'db_storefront_carts')) return false;
+		$cart = $this->getCartByToken($storeId, $token);
+		if(!$cart) return false;
+		$this->db->where('id', $cart->id)->update('db_storefront_carts', array('opt_out' => 1));
+		return true;
+	}
+
+	/**
+	 * Mark a persisted cart converted once its order is placed. Called from
+	 * place_order after the order transaction commits.
+	 */
+	public function markCartOrdered($storeId, $token, $orderId){
+		$cart = $this->getCartByToken($storeId, $token);
+		if(!$cart || $cart->status === 'ordered') return;
+		$this->db->where('id', $cart->id)->update('db_storefront_carts', array(
+			'status' => 'ordered', 'order_id' => (int)$orderId,
+		));
+	}
+
+	/**
+	 * Abandoned carts: still active, stale beyond the merchant's threshold,
+	 * and carrying some way to reach the customer. Reminder suppression keeps
+	 * carts off the list once nudged 3+ times.
+	 */
+	public function getAbandonedCarts($storeId, $hours = 24, $limit = 100){
+		if(!$this->db->table_exists('db_storefront_carts')) return array();
+		$cutoff = date('Y-m-d H:i:s', time() - max(1, (int)$hours) * 3600);
+		$this->db->where('store_id', (int)$storeId)
+			->where('status', 'active')
+			->where('last_activity <', $cutoff)
+			->where('items_json IS NOT NULL', null, false)
+			->where('(customer_phone IS NOT NULL OR customer_email IS NOT NULL)', null, false)
+			->where('reminder_count <', 3);
+		if($this->db->field_exists('opt_out', 'db_storefront_carts')){
+			$this->db->where('opt_out', 0);
+		}
+		return $this->db->order_by('last_activity', 'desc')->limit((int)$limit)
+			->get('db_storefront_carts')->result();
+	}
+
+	/**
+	 * Cross-store abandoned carts for the automated-recovery cron. Same
+	 * rules as the merchant list; caller still re-checks eligibility per
+	 * cart at send time.
+	 */
+	public function getAbandonedCartsForRecovery($hours = 24, $limit = 500){
+		if(!$this->db->table_exists('db_storefront_carts')) return array();
+		$cutoff = date('Y-m-d H:i:s', time() - max(1, (int)$hours) * 3600);
+		$this->db->where('status', 'active')
+			->where('last_activity <', $cutoff)
+			->where('items_json IS NOT NULL', null, false)
+			->where('(customer_phone IS NOT NULL OR customer_email IS NOT NULL)', null, false)
+			->where('reminder_count <', 3);
+		if($this->db->field_exists('opt_out', 'db_storefront_carts')){
+			$this->db->where('opt_out', 0);
+		}
+		return $this->db->order_by('last_activity', 'desc')->limit((int)$limit)
+			->get('db_storefront_carts')->result();
+	}
+
+	/**
+	 * Re-check a cart's recovery eligibility at nudge time — not just list
+	 * time. Returns true only when the cart is still active, not opted out,
+	 * under the reminder cap, and outside the 24h spacing window.
+	 */
+	public function cartReminderEligible($cart, $hours = 24){
+		if(!$cart || $cart->status !== 'active') return false;
+		if(!empty($cart->opt_out)) return false; // column absent pre-.73 → field never set → falsy, fine
+
+		if((int)$cart->reminder_count >= 3) return false;
+		if(empty($cart->customer_phone) && empty($cart->customer_email)) return false;
+		$now = time();
+		if(strtotime((string)$cart->last_activity) > $now - max(1, (int)$hours) * 3600) return false;
+		if(!empty($cart->reminder_sent_at) && strtotime((string)$cart->reminder_sent_at) > $now - 86400) return false;
+		return true;
+	}
+
+	/**
+	 * Atomically claim the next reminder slot and write the audit row.
+	 * Returns false when another request already claimed the slot or the
+	 * cart no longer qualifies, so a nudge can never be double-counted.
+	 */
+	public function claimCartReminder($cartId, $storeId, $channel, $mode, $recipient, $detail, $actor){
+		if(!$this->db->table_exists('db_storefront_carts')) return false;
+		$now = date('Y-m-d H:i:s');
+		$this->db->where('id', (int)$cartId)->where('store_id', (int)$storeId)
+			->where('status', 'active')
+			->where('reminder_count <', 3)
+			->where('(reminder_sent_at IS NULL OR reminder_sent_at <= DATE_SUB(NOW(), INTERVAL 24 HOUR))', null, false)
+			->set('reminder_count', 'reminder_count + 1', false)
+			->set('reminder_sent_at', $now);
+		if($this->db->field_exists('opt_out', 'db_storefront_carts')){
+			$this->db->where('opt_out', 0);
+		}
+		$this->db->update('db_storefront_carts');
+		if($this->db->affected_rows() !== 1) return false;
+		if($this->db->table_exists('db_storefront_cart_reminders')){
+			$this->db->insert('db_storefront_cart_reminders', array(
+				'store_id' => (int)$storeId,
+				'cart_id'  => (int)$cartId,
+				'channel'  => substr((string)$channel, 0, 20) ?: 'whatsapp',
+				'mode'     => $mode === 'auto' ? 'auto' : 'manual',
+				'recipient'=> substr((string)$recipient, 0, 191) ?: null,
+				'detail'   => substr((string)$detail, 0, 255) ?: null,
+				'actor'    => substr((string)$actor, 0, 60) ?: null,
+				'created_at' => $now,
+			));
+		}
+		return true;
+	}
+
+	/** Record a send attempt (auto-recovery retries, capped at 3). */
+	public function recordCartSendAttempt($cartId, $storeId){
+		if(!$this->db->table_exists('db_storefront_carts')) return false;
+		if(!$this->db->field_exists('send_attempts', 'db_storefront_carts')) return false;
+		$this->db->where('id', (int)$cartId)->where('store_id', (int)$storeId)
+			->where('send_attempts <', 3)
+			->set('send_attempts', 'send_attempts + 1', false)
+			->set('last_send_attempt_at', date('Y-m-d H:i:s'))
+			->update('db_storefront_carts');
+		return $this->db->affected_rows() === 1;
 	}
 }

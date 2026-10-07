@@ -53,7 +53,7 @@ class Storefront extends CI_Controller {
 		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 		foreach($allProducts as &$p){
 			$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
-			$p->original_price = $p->sales_price;
+			$p->original_price = !empty($p->is_bundle) ? $p->effective_price : $p->sales_price;
 			$p->sold_count = $soldCounts[$p->id] ?? 0;
 		}
 		$data = [
@@ -128,7 +128,7 @@ class Storefront extends CI_Controller {
 
 		foreach($products as &$p){
 			$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
-			$p->original_price = $p->sales_price;
+			$p->original_price = !empty($p->is_bundle) ? $p->effective_price : $p->sales_price;
 			$p->sold_count = $soldCounts[$p->id] ?? 0;
 		}
 
@@ -227,6 +227,7 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
+		$this->load->model('Extras_model', 'extras_model');
 
 		$product = $this->storefront_model->getOnlineProduct($productId, $storeId);
 		if(!$product){
@@ -235,8 +236,9 @@ class Storefront extends CI_Controller {
 		}
 		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 		$product->effective_price = $this->storefront_model->getProductEffectivePrice($product);
-		$product->original_price = $product->sales_price;
+		$product->original_price = !empty($product->is_bundle) ? $product->effective_price : $product->sales_price;
 		$product->sold_count = $soldCounts[$product->id] ?? 0;
+		$productAddons = $this->extras_model->getAddonsForItem($productId, $storeId);
 
 		$productImage = $product->item_image && file_exists($product->item_image) ? base_url($product->item_image) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'));
 
@@ -262,7 +264,7 @@ class Storefront extends CI_Controller {
 		$relatedProducts = $this->storefront_model->getOnlineProducts($storeId, $product->category_id, '', 4);
 		foreach($relatedProducts as &$rp){
 			$rp->effective_price = $this->storefront_model->getProductEffectivePrice($rp);
-			$rp->original_price = $rp->sales_price;
+				$rp->original_price = !empty($rp->is_bundle) ? $rp->effective_price : $rp->sales_price;
 			$rp->sold_count = $soldCounts[$rp->id] ?? 0;
 		}
 
@@ -270,6 +272,7 @@ class Storefront extends CI_Controller {
 			'settings' => $settings,
 			'store' => $store,
 			'product' => $product,
+			'product_addons' => $productAddons,
 			'product_variants' => $product_variants,
 			'related_products' => $relatedProducts,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
@@ -297,7 +300,40 @@ class Storefront extends CI_Controller {
 				]
 			]
 		];
+		if(!empty($settings->reviews_enabled)){
+			$this->load->model('Reviews_model', 'reviews_model');
+			$data['product_reviews_enabled'] = true;
+			$data['product_reviews'] = $this->reviews_model->getPublicReviews($storeId, $productId);
+			$data['product_review_aggregate'] = $this->reviews_model->getAggregate($storeId, $productId);
+			$data['product_review_post_url'] = base_url('store/' . $settings->store_slug . '/product/' . (int)$productId . '/review');
+			$data['review_csrf_name'] = $this->security->get_csrf_token_name();
+			$data['review_csrf_hash'] = $this->security->get_csrf_hash();
+		}
 		$this->theme_engine->view('product_detail', $data);
+	}
+
+	public function submit_product_review($storeSlug = '', $productId = 0){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		if(empty($settings->reviews_enabled)){
+			show_404();
+			return;
+		}
+		$this->load->model('Reviews_model', 'reviews_model');
+		$data = $this->input->post(NULL, TRUE);
+		$data['settings'] = $settings;
+		$result = $this->reviews_model->submitReview(
+			(int)$settings->store_id,
+			(int)$productId,
+			$data,
+			$this->input->ip_address()
+		);
+		$this->output->set_content_type('application/json')->set_output(json_encode([
+			'status' => $result[1] === null,
+			'message' => $result[1] ?: (($result[2] ?? '') === 'pending' ? 'Thanks. Your review is awaiting approval.' : 'Thanks for your review.'),
+			'review_status' => $result[2] ?? null,
+			'verified' => $result[3] ?? false,
+			'csrf_hash' => $this->security->get_csrf_hash(),
+		]));
 	}
 
 	/**
@@ -321,12 +357,15 @@ class Storefront extends CI_Controller {
 			return;
 		}
 		$service->effective_price = $this->storefront_model->getServiceEffectivePrice($service);
+		$this->load->model('Extras_model', 'extras_model');
+		$serviceAddons = $this->extras_model->getAddonsForService($serviceId, $storeId);
 
 		$serviceImage = $service->item_image && file_exists($service->item_image) ? base_url($service->item_image) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'));
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'service' => $service,
+			'service_addons' => $serviceAddons,
 			'related_services' => $this->storefront_model->getOnlineServices($storeId, $service->category_id, '', 4),
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'logo_url' => $this->theme_engine->logoUrl(),
@@ -389,7 +428,7 @@ class Storefront extends CI_Controller {
 			$products = $this->storefront_model->getOnlineProducts($storeId, $categoryId, $search, $limit, $offset);
 			foreach($products as &$p){
 				$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
-				$p->original_price = $p->sales_price;
+				$p->original_price = !empty($p->is_bundle) ? $p->effective_price : $p->sales_price;
 			}
 		}
 		if($showServices){
@@ -922,10 +961,37 @@ class Storefront extends CI_Controller {
 		$hasCourse = false;
 		$hasMembership = false;
 		$hasServices = false;
+		$orderQty = 0;
 		$itemsToInsert = [];
+		$bundleComponentsByLine = [];
+		$addonsByParentLine = [];
+		$this->load->model('Extras_model', 'extras_model');
+		$appendAddons = function($parentType, $parentId, $parentQty, $parentLineIndex, $selections) use (&$addonsByParentLine, &$subtotal, &$hasPhysical, $storeId){
+			if(!is_array($selections) || empty($selections)) return null;
+			list($addons, $error) = $this->extras_model->resolveAddonSelections($parentType, $parentId, $selections, $storeId);
+			if($error) return $error;
+			foreach($addons as $addon){
+				$lineQty = (int)$addon->resolved_qty * (int)$parentQty;
+				$linked = $addon->linked_item ?? null;
+				$itemType = $linked ? 'product' : 'addon';
+				$addonsByParentLine[$parentLineIndex][] = [
+					'item_type' => $itemType,
+					'item_id' => $linked ? (int)$linked->id : (int)$addon->id,
+					'item_name' => (string)$addon->name,
+					'item_image' => $linked->item_image ?? '',
+					'qty' => $lineQty,
+					'unit_price' => (float)$addon->price,
+					'total_price' => (float)$addon->price * $lineQty,
+					'service_note' => 'Add-on',
+				];
+				$subtotal += (float)$addon->price * $lineQty;
+				if($linked) $hasPhysical = true;
+			}
+			return null;
+		};
 
 		foreach($cart as $item){
-			$type = $item['type'];
+			$type = (string)($item['type'] ?? '');
 			$id = (int)$item['id'];
 			$qty = max(1, (int)($item['qty'] ?? 1));
 
@@ -938,13 +1004,30 @@ class Storefront extends CI_Controller {
 					echo json_encode(['status' => false, 'message' => 'Please choose an option for ' . $product->item_name, 'csrf_hash' => $this->security->get_csrf_hash()]);
 					return;
 				}
+				$qtyError = $this->extras_model->qtyRuleError($product, $qty);
+				if($qtyError){
+					echo json_encode(['status' => false, 'message' => $qtyError, 'csrf_hash' => $this->security->get_csrf_hash()]);
+					return;
+				}
 				$product_type = $product->product_type ?? 'physical';
+				$isBundle = !empty($product->is_bundle);
+				$bundleComponents = [];
 				$hasProducts = true;
 				if($product_type === 'physical'){
-					$hasPhysical = true;
-					if($product->stock < $qty && !$settings->allow_backorder){
-						echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock', 'csrf_hash' => $this->security->get_csrf_hash()]);
-						return;
+					if($isBundle){
+						$bundleComponents = $this->extras_model->getBundleComponents($id, $storeId);
+						$bundleAvailable = $this->extras_model->bundleAvailability($id, $storeId);
+						if(empty($bundleComponents) || $bundleAvailable === null || ($bundleAvailable < $qty && !$settings->allow_backorder)){
+							echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock or has no configured components', 'csrf_hash' => $this->security->get_csrf_hash()]);
+							return;
+						}
+						$hasPhysical = true;
+					} else {
+						$hasPhysical = true;
+						if($product->stock < $qty && !$settings->allow_backorder){
+							echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock', 'csrf_hash' => $this->security->get_csrf_hash()]);
+							return;
+						}
 					}
 				} else if($product_type === 'digital'){
 					$hasDigital = true;
@@ -953,9 +1036,12 @@ class Storefront extends CI_Controller {
 				} else if($product_type === 'membership'){
 					$hasMembership = true;
 				}
-				$price = $this->storefront_model->getProductEffectivePrice($product);
+				$price = $isBundle
+					? $this->extras_model->bundleUnitPrice($product, $storeId)
+					: $this->storefront_model->getProductEffectivePrice($product);
+				$lineIndex = count($itemsToInsert);
 				$itemsToInsert[] = [
-					'item_type' => in_array($product_type, ['digital','course','membership']) ? $product_type : 'product',
+					'item_type' => $isBundle ? 'bundle' : (in_array($product_type, ['digital','course','membership']) ? $product_type : 'product'),
 					'item_id' => $id,
 					'item_name' => $product->item_name,
 					'item_image' => $product->item_image,
@@ -964,12 +1050,24 @@ class Storefront extends CI_Controller {
 					'total_price' => $price * $qty,
 					'service_note' => ''
 				];
+				if($isBundle){
+					$bundleComponentsByLine[$lineIndex] = array_values(array_filter($bundleComponents, function($component){
+						return (int)($component->service_bit ?? 0) !== 1;
+					}));
+				}
+				$addonError = $appendAddons('product', $id, $qty, $lineIndex, $item['addons'] ?? []);
+				if($addonError){
+					echo json_encode(['status' => false, 'message' => $addonError, 'csrf_hash' => $this->security->get_csrf_hash()]);
+					return;
+				}
 				$subtotal += $price * $qty;
+				$orderQty += $qty;
 			} else if($type == 'service'){
 				$service = $this->storefront_model->getOnlineService($id, $storeId);
 				if(!$service) continue;
 				$price = $this->storefront_model->getServiceEffectivePrice($service);
 				$hasServices = true;
+				$lineIndex = count($itemsToInsert);
 				$itemsToInsert[] = [
 					'item_type' => 'service',
 					'item_id' => $id,
@@ -980,12 +1078,23 @@ class Storefront extends CI_Controller {
 					'total_price' => $price * $qty,
 					'service_note' => $item['note'] ?? ''
 				];
+				$addonError = $appendAddons('service', $id, $qty, $lineIndex, $item['addons'] ?? []);
+				if($addonError){
+					echo json_encode(['status' => false, 'message' => $addonError, 'csrf_hash' => $this->security->get_csrf_hash()]);
+					return;
+				}
 				$subtotal += $price * $qty;
+				$orderQty += $qty;
 			}
 		}
 
 		if(empty($itemsToInsert)){
 			echo json_encode(['status' => false, 'message' => 'No valid items in cart', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		$orderMinQty = max(0, (int)($settings->min_order_qty ?? 0));
+		if($orderMinQty > 0 && $orderQty < $orderMinQty){
+			echo json_encode(['status' => false, 'message' => 'This order requires at least ' . $orderMinQty . ' items.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
@@ -1011,24 +1120,65 @@ class Storefront extends CI_Controller {
 		$shippingFee = 0;
 		$deliveryQuotePending = 0;
 		$cityZones = json_decode($settings->city_shipping_json ?? '', true);
-		$cityShippingOn = !$hasOnlyDigital && !$tableNumber && !empty($settings->city_shipping_enabled) && is_array($cityZones) && count($cityZones) > 0;
+		// Pickup is exempt from city-zone resolution: when the posted method
+		// is an enabled pickup-type method, no delivery city is required and
+		// the fee is whatever that method charges (usually free).
+		$isPickupMethod = false;
+		if(preg_match('/pick\s*up|collect/i', (string)$shippingMethod)){
+			$smList = json_decode($settings->shipping_methods_json ?? '', true);
+			if(is_array($smList)){
+				foreach($smList as $sm){
+					if(($sm['name'] ?? '') === $shippingMethod && !empty($sm['enabled'])){
+						$isPickupMethod = true;
+						$shippingFee = !empty($sm['quote']) ? 0 : (float)($sm['fee'] ?? 0);
+						if(!empty($sm['quote'])) $deliveryQuotePending = 1;
+						break;
+					}
+				}
+			}
+			// Unrecognised pickup name → not a real method; fall through to
+			// normal zone/method resolution so it can't skip delivery fees.
+			if(!$isPickupMethod) $shippingMethod = '';
+		}
+		$cityShippingOn = !$isPickupMethod && !$hasOnlyDigital && !$tableNumber && !empty($settings->city_shipping_enabled) && is_array($cityZones) && count($cityZones) > 0;
 
 		if($cityShippingOn){
 			$selectedCity = trim((string)$this->input->post('shipping_city'));
 			$zoneMatch = null;
+			$wildcard = null;
 			foreach($cityZones as $z){
 				$zoneKey = trim($z['city'] ?? '') . '|' . trim($z['state'] ?? '');
+				// A '*' city is the catch-all zone for unlisted destinations.
+				if(trim($z['city'] ?? '') === '*'){ $wildcard = $z; continue; }
 				if($zoneKey !== '|' && strcasecmp($zoneKey, $selectedCity) === 0){
 					$zoneMatch = $z;
 					break;
 				}
 			}
+			// The customer may pick the '*' zone directly ("Other areas"), and
+			// an unlisted city also resolves to the wildcard when configured.
+			if(!$zoneMatch){
+				$zoneMatch = $wildcard;
+			}
 			if(!$zoneMatch){
 				echo json_encode(['status' => false, 'message' => 'Please select your delivery city', 'csrf_hash' => $this->security->get_csrf_hash()]);
 				return;
 			}
+			// Per-zone order minimum — zones can be gated to viable baskets.
+			$zoneMinOrder = (float)($zoneMatch['min_order'] ?? 0);
+			if($zoneMinOrder > 0 && $subtotal < $zoneMinOrder){
+				echo json_encode(['status' => false, 'message' => 'Delivery to this area requires a minimum order of ' . store_number_format($zoneMinOrder) . '.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
 			$shippingFee = (float)($zoneMatch['fee'] ?? 0);
-			$zoneLabel = trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : ''));
+			// Per-zone free-delivery threshold.
+			$zoneFreeOver = (float)($zoneMatch['free_over'] ?? 0);
+			if($zoneFreeOver > 0 && $subtotal >= $zoneFreeOver){
+				$shippingFee = 0;
+			}
+			$zoneLabel = (trim($zoneMatch['city'] ?? '') === '*')
+				? 'Other areas'
+				: trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : ''));
 			$shippingMethod = mb_substr('Delivery - ' . $zoneLabel, 0, 100);
 		} else {
 			// Resolve shipping method fee from store settings
@@ -1045,7 +1195,32 @@ class Storefront extends CI_Controller {
 				}
 			}
 		}
-		$grandTotal = $subtotal + $shippingFee;
+		// Storefront coupon — reuses the existing promotion engine. The code is
+		// resolved server-side (store scope, active flag, date window); the
+		// discount mirrors the POS coupon_amt semantics (% of cart subtotal or
+		// fixed amount) and the usage claim runs atomically inside the order
+		// transaction below so usage limits cannot be raced.
+		$couponCode = strtoupper(trim((string)$this->input->post('coupon_code', TRUE)));
+		$promo = null;
+		$couponDiscount = 0;
+		if($couponCode !== ''){
+			$promo = $this->db->where('store_id', $storeId)
+				->where('status', 1)
+				->where('UPPER(promotion_code)', $couponCode)
+				->where('start_date <=', date('Y-m-d'))
+				->where('end_date >=', date('Y-m-d'))
+				->get('db_promotions')->row();
+			if(!$promo){
+				echo json_encode(['status' => false, 'message' => 'Coupon code is invalid or expired', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$couponDiscount = ($promo->discount_type == 'Percentage')
+				? $subtotal * ((float)$promo->discount_value / 100)
+				: (float)$promo->discount_value;
+			$couponDiscount = max(0, min(round($couponDiscount, 4), $subtotal));
+		}
+
+		$grandTotal = max(0, $subtotal + $shippingFee - $couponDiscount);
 
 		$orderData = [
 			'store_id' => $storeId,
@@ -1067,6 +1242,12 @@ class Storefront extends CI_Controller {
 			'ip_address' => $this->input->ip_address(),
 			'user_agent' => $this->input->user_agent()
 		];
+		// Coupon columns arrive with migration 4.0.9.69 — omit on older schemas.
+		if($this->db->field_exists('coupon_code', 'db_online_orders')){
+			$orderData['coupon_code'] = $couponCode !== '' ? $couponCode : null;
+			$orderData['coupon_discount'] = $couponDiscount ?: null;
+			$orderData['promotion_id'] = $promo ? (int)$promo->id : null;
+		}
 
 		// Set initial status based on payment method. WhatsApp is an order
 		// CHANNEL — the payment arrangement stays unpaid until the merchant
@@ -1096,21 +1277,90 @@ class Storefront extends CI_Controller {
 			$this->db->where('id', $orderId)->update('db_online_orders', ['customer_id' => $customerId]);
 		}
 
-		foreach($itemsToInsert as $item){
+		// Atomic coupon claim — promotion row is locked FOR UPDATE inside this
+		// transaction, so usage limits hold under concurrent checkouts. A
+		// rejected claim rolls the order back entirely (no orphan reservation).
+		if($promo){
+			$this->load->model('Promotions_model','promotions_m');
+			$claim = $this->promotions_m->claim_redemption($promo->id, $customerId, $subtotal, $storeId);
+			if(!$claim['ok']){
+				$this->db->trans_rollback();
+				echo json_encode(['status' => false, 'message' => 'Coupon cannot be applied: ' . $claim['message'], 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$this->promotions_m->record_usage($promo->id, $customerId, null, $storeId, $orderId);
+		}
+
+		$bundleDraws = [];
+		$reservationItems = [];
+		foreach($itemsToInsert as $lineIndex => $item){
 			$item['order_id'] = $orderId;
 			$this->storefront_model->addOrderItem($item);
+			$parentLineId = (int)$this->db->insert_id();
+			$reservationItems[] = $item;
+			foreach($addonsByParentLine[$lineIndex] ?? [] as $addonLine){
+				$addonLine['order_id'] = $orderId;
+				$addonLine['parent_line_id'] = $parentLineId;
+				$this->storefront_model->addOrderItem($addonLine);
+				if($addonLine['item_type'] === 'product') $reservationItems[] = $addonLine;
+			}
+			foreach($bundleComponentsByLine[$lineIndex] ?? [] as $component){
+				$componentQty = (float)$component->qty * (int)$item['qty'];
+				if($componentQty <= 0) continue;
+				$componentLine = [
+					'order_id' => $orderId,
+					'parent_line_id' => $parentLineId,
+					'item_type' => 'bundle_component',
+					'item_id' => (int)$component->component_item_id,
+					'item_name' => $component->item_name,
+					'item_image' => $component->item_image,
+					'qty' => $componentQty,
+					'unit_price' => 0,
+					'total_price' => 0,
+					'service_note' => 'Bundle component of order line ' . $parentLineId,
+				];
+				$this->storefront_model->addOrderItem($componentLine);
+				$bundleDraws[] = ['item_id' => (int)$component->component_item_id, 'qty' => $componentQty];
+			}
 		}
 
 		// Reserve stock for physical items atomically so concurrent orders
 		// cannot oversell the same units. The reservation is held until the
 		// order is paid/confirmed (commit) or cancelled/failed (release).
-		if(!$this->storefront_model->reserveOrderItems($orderId, $itemsToInsert, !empty($settings->allow_backorder))){
+		if(!$this->storefront_model->reserveOrderItems($orderId, $reservationItems, !empty($settings->allow_backorder))){
 			$this->db->trans_rollback();
 			echo json_encode(['status' => false, 'message' => 'An item in your cart just sold out. Please review your cart and try again.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
+		if(!empty($bundleDraws)){
+			if($this->extras_model->reserveBundleComponents($bundleDraws, $orderId, !empty($settings->allow_backorder), $storeId) === false){
+				$this->db->trans_rollback();
+				echo json_encode(['status' => false, 'message' => 'A bundle component just sold out. Please review your cart and try again.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$this->db->where('id', $orderId)->update('db_online_orders', [
+				'stock_adjusted' => 1,
+				'stock_state' => 'reserved',
+				'stock_reserved_at' => date('Y-m-d H:i:s'),
+			]);
+		}
 
 		$this->db->trans_complete();
+
+		// Convert the persisted cart + record the funnel's terminal event.
+		// order_placed is transactional truth, recorded server-side so the
+		// funnel never depends on a browser callback firing.
+		$cartToken = (string)$this->input->post('cart_token');
+		if($cartToken !== ''){
+			$this->storefront_model->markCartOrdered($storeId, $cartToken, $orderId);
+		}
+		$this->storefront_model->recordEvent($storeId, array(
+			'event_type' => 'order_placed',
+			'event_id'   => 'order_' . $orderId,
+			'order_id'   => $orderId,
+			'value'      => $grandTotal,
+			'consented'  => $this->input->post('consent') === '1',
+		));
 
 		$order = $this->storefront_model->getOrder($orderId);
 
@@ -1148,6 +1398,234 @@ class Storefront extends CI_Controller {
 			'message' => 'Order placed successfully!',
 			'csrf_hash' => $this->security->get_csrf_hash(),
 		]);
+	}
+
+	public function cart_upsells(){
+		$storeId = (int)$this->input->post('store_id');
+		$settings = $storeId ? $this->storefront_model->getSettings($storeId) : null;
+		$cartIds = json_decode((string)$this->input->post('cart_ids'), true);
+		if(!$settings || $settings->store_status !== 'active' || (isset($settings->upsells_enabled) && !(int)$settings->upsells_enabled) || !is_array($cartIds)){
+			$this->output->set_content_type('application/json')->set_output(json_encode(['items' => []]));
+			return;
+		}
+		$this->load->model('Extras_model', 'extras_model');
+		$items = $this->extras_model->getUpsellsForCart($cartIds, $storeId, 4);
+		$result = [];
+		foreach($items as $item){
+			$image = !empty($item->item_image) ? base_url($item->item_image) : '';
+			$result[] = [
+				'id' => (int)$item->id,
+				'name' => (string)$item->item_name,
+				'price' => (float)$item->effective_price,
+				'image' => $image,
+				'stock' => (float)$item->stock,
+			];
+		}
+		$this->output->set_content_type('application/json')->set_output(json_encode(['items' => $result]));
+	}
+
+	/**
+	 * Coupon preview (AJAX). Validates the code against db_promotions
+	 * (store scope, active, date window, min spend) and returns the discount
+	 * the customer would get. Usage limits are enforced at order time via
+	 * claim_redemption() — this preview never consumes a redemption.
+	 */
+	public function validate_coupon(){
+		$storeId = (int)$this->input->post('store_id');
+		$code = strtoupper(trim((string)$this->input->post('coupon_code', TRUE)));
+		$subtotal = (float)$this->input->post('subtotal');
+		$out = function($arr){ $arr['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($arr); };
+
+		if(!$storeId || $code === ''){ $out(['status'=>false,'message'=>'Enter a coupon code']); return; }
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(!$settings || $settings->store_status != 'active'){ $out(['status'=>false,'message'=>'Store not active']); return; }
+
+		$promo = $this->db->where('store_id', $storeId)
+			->where('status', 1)
+			->where('UPPER(promotion_code)', $code)
+			->get('db_promotions')->row();
+		if(!$promo){ $out(['status'=>false,'message'=>'Invalid coupon code']); return; }
+		if($promo->start_date > date('Y-m-d')){ $out(['status'=>false,'message'=>'This coupon starts on '.show_date($promo->start_date)]); return; }
+		if($promo->end_date < date('Y-m-d')){ $out(['status'=>false,'message'=>'This coupon expired on '.show_date($promo->end_date)]); return; }
+		if(!empty($promo->min_spend) && $subtotal < (float)$promo->min_spend){
+			$out(['status'=>false,'message'=>'Minimum spend of '.store_number_format($promo->min_spend).' required']); return;
+		}
+		$discount = ($promo->discount_type == 'Percentage')
+			? $subtotal * ((float)$promo->discount_value / 100)
+			: (float)$promo->discount_value;
+		$out(array('status'=>true,'promo_name'=>$promo->promotion_name,'discount'=>max(0,min(round($discount,4),$subtotal))));
+	}
+
+	/**
+	 * Shopping-event intake (AJAX). First-party funnel events — the client
+	 * only sends when the merchant's consent policy allows it; the asserted
+	 * consent flag is stored so diagnostics stay honest. When the store
+	 * requires tracking consent and the request doesn't assert it, the event
+	 * is dropped rather than recorded.
+	 */
+	public function track_event(){
+		$storeId = (int)$this->input->post('store_id');
+		$event   = trim((string)$this->input->post('event', TRUE));
+		$out = function($arr){ $arr['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($arr); };
+		if(!$storeId || $event === ''){ $out(['status'=>false]); return; }
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(!$settings || $settings->store_status != 'active'){ $out(['status'=>false]); return; }
+
+		$needConsent = ((int)($settings->require_tracking_consent ?? 1) === 1);
+		$consented   = $this->input->post('consent') === '1';
+		if($needConsent && !$consented){ $out(['status'=>false,'message'=>'consent_required']); return; }
+
+		// A client-reported 'purchase' only lands if the referenced order is
+		// already paid — otherwise forged events would occupy the dedup slot
+		// before the real verified-payment record arrives.
+		if($event === 'purchase'){
+			$orderId = (int)$this->input->post('order_id');
+			$code = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$this->input->post('event_id'));
+			if(!$orderId && strpos($code, 'purchase_') === 0){
+				$o = $this->storefront_model->getOrderByCode(substr($code, 9), $storeId);
+				$orderId = $o ? (int)$o->id : 0;
+			}
+			$order = $orderId ? $this->storefront_model->getOrder($orderId) : null;
+			if(!$order || (int)$order->store_id !== $storeId || $order->payment_status !== 'paid'){
+				$out(['status'=>false,'message'=>'unverified']); return;
+			}
+		}
+
+		$ok = $this->storefront_model->recordEvent($storeId, array(
+			'event_type' => $event,
+			'event_id'   => substr(preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$this->input->post('event_id')), 0, 64) ?: null,
+			'item_id'    => (int)$this->input->post('item_id'),
+			'order_id'   => (int)$this->input->post('order_id') ?: null,
+			'value'      => $this->input->post('value'),
+			'session_id' => session_id() ?: '',
+			'consented'  => $needConsent ? $consented : 1,
+			'meta'       => json_encode(array(
+				'page'       => substr((string)$this->input->post('page'), 0, 500) ?: null,
+				'cart_token' => substr(preg_replace('/[^a-zA-Z0-9]/', '', (string)$this->input->post('cart_token')), 0, 64) ?: null,
+			)),
+		));
+		$out(['status' => $ok ? true : false, 'deduped' => $ok === 'duplicate']);
+	}
+
+	/**
+	 * Persist a cart snapshot (AJAX). Lets the merchant see and recover
+	 * abandoned checkouts. Token is client-generated and localStorage-held;
+	 * it identifies the browser session, never an account.
+	 */
+	public function save_cart(){
+		$storeId = (int)$this->input->post('store_id');
+		$token   = (string)$this->input->post('cart_token');
+		$out = function($arr){ $arr['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($arr); };
+		if(!$storeId || $token === ''){ $out(['status'=>false]); return; }
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(!$settings || $settings->store_status != 'active'){ $out(['status'=>false]); return; }
+		if(empty($settings->cart_recovery_enabled)){ $out(['status'=>false,'message'=>'disabled']); return; }
+
+		$items = json_decode((string)$this->input->post('items_json'), true);
+		if(!is_array($items)){ $items = array(); }
+		if(!preg_match('/^[0-9a-f]{32,64}$/', $token)){ $out(['status'=>false,'message'=>'bad_token']); return; }
+
+		$id = $this->storefront_model->saveCart($storeId, $token, array(
+			'customer_name'  => $this->input->post('customer_name', TRUE),
+			'customer_phone' => $this->input->post('customer_phone', TRUE),
+			'customer_email' => $this->input->post('customer_email', TRUE),
+			'items_json'     => json_encode(array_slice($items, 0, 100)),
+			'subtotal'       => $this->input->post('subtotal'),
+			'coupon_code'    => $this->input->post('coupon_code', TRUE),
+			'session_id'     => session_id() ?: '',
+		));
+		$out(array('status' => $id !== false));
+	}
+
+	/**
+	 * Fetch a persisted cart for recovery (AJAX). Token is a 128-bit
+	 * crypto-random store-scoped value that expires 7 days after last
+	 * activity. The response contains only revalidated catalogue items —
+	 * saved contact details are never returned to the public caller.
+	 */
+	public function get_cart(){
+		$storeId = (int)$this->input->post('store_id');
+		$token   = (string)$this->input->post('cart_token');
+		$out = function($arr){ $arr['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($arr); };
+		if(!$storeId || !preg_match('/^[0-9a-f]{32,64}$/', (string)$token)){ $out(['status'=>false]); return; }
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(!$settings || $settings->store_status != 'active' || empty($settings->cart_recovery_enabled)){ $out(['status'=>false]); return; }
+		$cart = $this->storefront_model->getRestorableCart($storeId, $token);
+		if(!$cart){ $out(['status'=>false]); return; }
+		// Saved coupon code is revalidated live before the response.
+		$coupon = null;
+		$savedCart = $this->storefront_model->getCartByToken($storeId, $token);
+		if($savedCart && !empty($savedCart->coupon_code)){
+			$subtotal = 0; foreach($cart['items'] as $i){ $subtotal += $i['price'] * $i['qty']; }
+			$promo = $this->db->where('store_id', $storeId)
+				->where('status', 1)
+				->where('UPPER(promotion_code)', strtoupper($savedCart->coupon_code))
+				->where('start_date <=', date('Y-m-d'))
+				->where('end_date >=', date('Y-m-d'))
+				->get('db_promotions')->row();
+			if($promo && (empty($promo->min_spend) || $subtotal >= (float)$promo->min_spend)){
+				$coupon = $savedCart->coupon_code;
+			}
+		}
+		$out(array('status' => true, 'items' => $cart['items'], 'dropped' => $cart['dropped'], 'coupon' => $coupon));
+	}
+
+	/**
+	 * Back-in-stock subscription (public). One row per (store,item,email);
+	 * notified by the cron when the item's stock returns above zero.
+	 */
+	public function notify_restock(){
+		$storeId = (int)$this->input->post('store_id');
+		$itemId  = (int)$this->input->post('item_id');
+		$email   = trim((string)$this->input->post('email', TRUE));
+		$out = function($arr){ $arr['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($arr); };
+		$settings = $storeId ? $this->storefront_model->getSettings($storeId) : null;
+		if(!$settings || $settings->store_status != 'active' || !$itemId || !filter_var($email, FILTER_VALIDATE_EMAIL)){
+			$out(['status'=>false,'message'=>'Enter a valid email']); return;
+		}
+		$item = $this->storefront_model->getOnlineProduct($itemId, $storeId);
+		if(!$item){ $out(['status'=>false,'message'=>'Item not found']); return; }
+		$this->load->model('Marketing_model','marketing_m');
+		$ok = $this->marketing_m->subscribeStockAlert($storeId, $itemId, $item->item_name, $email);
+		$out(['status' => (bool)$ok, 'message' => $ok ? 'We will email you when it is back in stock.' : 'Could not subscribe']);
+	}
+
+	/**
+	 * One-click campaign unsubscribe (token in link). Writes an
+	 * authoritative suppression row so pending AND future campaign sends
+	 * to this recipient/channel are skipped at dispatch time.
+	 */
+	public function campaign_unsubscribe($token = ''){
+		$this->load->model('marketing_model', 'marketing_m');
+		$send = $this->marketing_m->unsubscribeByToken($token);
+		$ok = !empty($send);
+		echo '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h2>' .
+			($ok ? 'Unsubscribed' : 'Link expired') . '</h2><p>' .
+			($ok ? 'You will not receive further ' . htmlspecialchars($send->channel === 'sms' ? 'SMS ' : 'email ') . 'messages from this store.' : 'This unsubscribe link is invalid or already used.') .
+			'</p></body></html>';
+	}
+
+	/** One-click unsubscribe for stock alerts (token in link). */
+	public function stock_unsubscribe($token = ''){
+		$this->load->model('Marketing_model','marketing_m');
+		$ok = $this->marketing_m->unsubscribeStockAlert($token);
+		echo '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h2>' .
+			($ok ? 'Unsubscribed' : 'Link expired') . '</h2><p>' .
+			($ok ? 'You will no longer receive back-in-stock alerts for this item.' : 'This unsubscribe link is invalid or already used.') .
+			'</p></body></html>';
+	}
+
+	/**
+	 * Customer opt-out from cart recovery (public, token-scoped). Sets
+	 * opt_out so the cart disappears from the merchant list and the
+	 * automated sender skips it.
+	 */
+	public function cart_optout(){
+		$storeId = (int)$this->input->post('store_id');
+		$token   = (string)$this->input->post('cart_token');
+		$out = function($arr){ $arr['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($arr); };
+		if(!$storeId || !preg_match('/^[0-9a-f]{32,64}$/', (string)$token)){ $out(['status'=>false]); return; }
+		$out(['status' => (bool)$this->storefront_model->optOutCart($storeId, $token)]);
 	}
 
 	/**
@@ -1301,10 +1779,31 @@ class Storefront extends CI_Controller {
 			// Commit the stock reservation (reserved -> committed; no second
 			// decrement — units already moved at order time).
 			$this->storefront_model->adjustStock($order->id);
+			// Paid conversion — recorded only on the verified transition;
+			// deduped by event_id across callback/webhook/browser retries.
+			$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_verify');
 			$items = $this->storefront_model->getOrderItems($order->id);
 			$settings = $this->storefront_model->getSettings($order->store_id);
 			$store = get_store_details($order->store_id);
 			$this->_send_digital_delivery_email($order, $items, $store, $settings);
+		} else {
+			// Payment verified but the order can no longer be claimed — e.g.
+			// the reservation was already released and the order cancelled.
+			// The money is real, so record a visible reconciliation exception
+			// rather than letting a late payment disappear.
+			$this->load->model('payment_reconcile_model','recon');
+			$this->recon->queue_late_payment($order->store_id, array(
+				'provider'        => 'paystack',
+				'reference'       => $reference,
+				'order_id'        => $order->id,
+				'amount'          => $verify['amount'],
+				'expected_amount' => $order->grand_total,
+				'currency'        => $verify['currency'] ?? null,
+				'detail'          => 'Verified payment received for order ' . $order->order_code
+					. ' which is already ' . $order->order_status . '/' . $order->payment_status
+					. ' (stock ' . ($order->stock_state ?? 'n/a') . '). Refund the customer or reinstate the order.',
+				'detected_by'     => 'storefront_verify',
+			));
 		}
 		// Fulfilment is separate from the claim and idempotent: it runs for
 		// the winner now, and self-heals here on any later verify/callback
@@ -1335,8 +1834,17 @@ class Storefront extends CI_Controller {
 		} else {
 			// Failed verification releases the stock reservation (once).
 			if($order->payment_status === 'unpaid'){
-				$this->storefront_model->updatePaymentStatus($order->id, 'failed');
-				$this->storefront_model->restoreStock($order->id);
+				$this->db->trans_begin();
+				if($this->storefront_model->claimFailedOrder($order->id)){
+					if(!$this->storefront_model->restoreStock($order->id) || $this->db->trans_status() === FALSE){
+						$this->db->trans_rollback();
+						log_message('error', 'Paystack failed callback could not atomically release order ' . (int)$order->id);
+					} else {
+						$this->db->trans_commit();
+					}
+				} else {
+					$this->db->trans_rollback();
+				}
 			}
 			$data = ['success' => false, 'message' => 'Payment was not successful. Please try again.', 'reference' => $reference];
 		}

@@ -291,9 +291,17 @@ class Sales_model extends CI_Model {
 		    				->where('end_date >=', date('Y-m-d'))
 		    				->get('db_promotions')->row();
 		    			if($promo){
+		    				$tot_subtotal_amt = (float)$this->input->post_get('tot_subtotal_amt', TRUE);
+		    				// Atomic claim — serializes concurrent redemptions so
+		    				// usage limits cannot be exceeded by racing checkouts.
+		    				$this->load->model('Promotions_model','promotions_m');
+		    				$claim = $this->promotions_m->claim_redemption($promo->id, $customer_id, $tot_subtotal_amt, $store_id);
+		    				if(!$claim['ok']){
+		    					$this->db->trans_rollback();
+		    					return "Promotion code rejected: " . $claim['message'];
+		    				}
 		    				// Recalculate coupon_discount_amt from the promotion if not provided
 		    				if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
-		    					$tot_subtotal_amt = (float)$this->input->post_get('tot_subtotal_amt', TRUE);
 		    					if($tot_subtotal_amt > 0){
 		    						if($promo->discount_type == 'Percentage'){
 		    							$coupon_discount_amt = $tot_subtotal_amt * ($promo->discount_value / 100);
@@ -587,7 +595,19 @@ class Sales_model extends CI_Model {
 				}
 				$base_unit_qty = $sales_qty * $conversion_factor;
 				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
-				if($current_stock_of_item<$base_unit_qty && $service_bit==0){
+				$this->load->model('Extras_model', 'extras_model');
+				$qtyError = $this->extras_model->qtyRuleError($item_details, $sales_qty);
+				if($qtyError){
+					$this->db->trans_rollback();
+					return $qtyError;
+				}
+				if(!empty($item_details->is_bundle)){
+					$availableBundles = $this->extras_model->bundleAvailability($item_id, $store_id, $warehouse_id);
+					if($availableBundles === null || $availableBundles < $sales_qty){
+						$this->db->trans_rollback();
+						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
+					}
+				} else if($current_stock_of_item<$base_unit_qty && $service_bit==0){
 					return $item_name." has only ".$current_stock_of_item." in Stock!!";exit;
 				}
 				
@@ -663,9 +683,15 @@ class Sales_model extends CI_Model {
 				
 				//UPDATE itemS QUANTITY IN itemS TABLE
 				$this->load->model('pos_model');				
-				$q6=$this->pos_model->update_items_quantity($item_id);
-				if(!$q6){
-					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+				if(empty($item_details->is_bundle)){
+					$q6=$this->pos_model->update_items_quantity($item_id);
+					if(!$q6){
+						$this->db->trans_rollback();
+						return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+					}
+				} else if(!$this->extras_model->deplete_bundle_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
+					$this->db->trans_rollback();
+					return 'Failed to deplete bundle components.';
 				}
 				
 			}
@@ -949,7 +975,7 @@ class Sales_model extends CI_Model {
 							paid_amount=$sum_of_payments 
 							where id='$sales_id'");
 		//$customer_id =$this->db->query("select customer_id from db_sales where id=$sales_id")->row()->customer_id;
-		$q12 = $this->db->query("update db_customers set sales_due=(select COALESCE(SUM(grand_total),0)-COALESCE(SUM(paid_amount),0) from db_sales where customer_id='$customer_id' and sales_status='Final') where id=$customer_id");
+		$q12 = $this->db->query("update db_customers set sales_due=(select COALESCE(SUM(grand_total),0)-COALESCE(SUM(paid_amount),0) from db_sales where customer_id='$customer_id' and sales_status IN ('Final','Opening')) where id=$customer_id");
 		if(!$q7)
 		{
 			return false;

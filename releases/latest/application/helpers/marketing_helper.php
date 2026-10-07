@@ -143,6 +143,33 @@ if (!function_exists('marketing_menu_items')) {
                 'url_mobile'  => 'mobile/store_credit',
                 'url_desktop' => 'store_credit',
             ],
+            [
+                'title' => 'Customer Segments',
+                'desc'  => 'Audience groups for campaigns',
+                'icon'  => 'fa-users',
+                'perm'  => 'customers_view',
+                'color' => 'teal',
+                'url_mobile'  => 'marketing/segments',
+                'url_desktop' => 'marketing/segments',
+            ],
+            [
+                'title' => 'Campaigns',
+                'desc'  => 'Email & SMS campaigns',
+                'icon'  => 'fa-bullhorn',
+                'perm'  => 'send_email',
+                'color' => 'primary',
+                'url_mobile'  => 'marketing/campaigns',
+                'url_desktop' => 'marketing/campaigns',
+            ],
+            [
+                'title' => 'Stock Alerts',
+                'desc'  => 'Back-in-stock subscribers',
+                'icon'  => 'fa-bell',
+                'perm'  => 'customers_view',
+                'color' => 'yellow',
+                'url_mobile'  => 'marketing/stock_alerts',
+                'url_desktop' => 'marketing/stock_alerts',
+            ],
         ];
 
         $result = [];

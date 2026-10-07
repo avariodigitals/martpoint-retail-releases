@@ -121,6 +121,9 @@ $aboutUs = $settings->footer_about_us ?? '';
 
   <div class="mp-footer-bottom">
     &copy; <?= date('Y'); ?> <?= htmlspecialchars($store->store_name ?? 'Store'); ?>. All rights reserved. Business operations powered by MartPoint.
+    <?php if((int)($settings->require_tracking_consent ?? 1) === 1): ?>
+    &nbsp;&middot;&nbsp;<a href="#" onclick="if(window.mpTrackConsent){mpTrackConsent.showBar();}return false;" style="color:inherit;text-decoration:underline;">Tracking preferences</a>
+    <?php endif; ?>
   </div>
 </div>
 

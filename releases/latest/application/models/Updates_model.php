@@ -71,19 +71,53 @@ class Updates_model extends CI_Model {
 			'4.0.9.53' => '4.0.9.53_nylon_polythene.sql',
 			'4.0.9.55' => '4.0.9.55_city_shipping.sql',
 			'4.0.9.56' => '4.0.9.56_skincare.sql',
+			'4.0.9.60' => '4.0.9.60_physiotherapy_foundation.sql',
+			'4.0.9.61' => '4.0.9.61_physiotherapy_intake_queue.sql',
+			'4.0.9.62' => '4.0.9.62_physiotherapy_clinical.sql',
+			'4.0.9.63' => '4.0.9.63_tracker_consent.sql',
+			'4.0.9.64' => '4.0.9.64_physiotherapy_plans_funds.sql',
+			'4.0.9.65' => '4.0.9.65_feature_coverage_variants.sql',
+			'4.0.9.66' => '4.0.9.66_customer_import.sql',
+			'4.0.9.67' => '4.0.9.67_physiotherapy_stage4_hardening.sql',
+			'4.0.9.68' => '4.0.9.68_payment_reconciliation.sql',
+			'4.0.9.69' => '4.0.9.69_storefront_coupons.sql',
+			'4.0.9.70' => '4.0.9.70_physiotherapy_inpatient.sql',
+			'4.0.9.71' => '4.0.9.71_storefront_events_carts.sql',
+			'4.0.9.73' => '4.0.9.73_storefront_phase2_hardening.sql',
+			'4.0.9.72' => '4.0.9.72_physiotherapy_portal_feedback.sql',
+			'4.0.9.74' => '4.0.9.74_physiotherapy_imports.sql',
+			'4.0.9.75' => '4.0.9.75_phase3_segments_campaigns.sql',
+			'4.0.9.76' => '4.0.9.76_physiotherapy_approval_binding.sql',
+			'4.0.9.77' => '4.0.9.77_phase3_hardening.sql',
+			'4.0.9.78' => '4.0.9.78_phase4_commerce.sql',
+			'4.0.9.79' => '4.0.9.79_refund_traceability.sql',
 		];
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $files){
 			if(version_compare($this->db_version, $target_version, '<')){
+				$migration_failed = false;
 				foreach((array)$files as $file){
 					$migration_file = FCPATH . 'updates/migrations/' . $file;
-					if(file_exists($migration_file)){
-						$this->_run_sql_file($migration_file);
-						$latest_applied = $target_version;
-					} else {
+					if(!file_exists($migration_file)){
+						// A registered migration that is missing on disk is a
+						// release defect — log it AND record a failed job row so
+						// it surfaces in System Updates → Recent Jobs instead of
+						// being silently skipped.
 						log_message('error', 'MartPoint migration file not found: ' . $migration_file);
+						$this->_record_migration_failure($target_version, $file, 'Registered migration file is missing on disk.');
+						$migration_failed = true;
+						break;
+					}
+					if(!$this->_run_sql_file($migration_file)){
+						$this->_record_migration_failure($target_version, $file, 'Migration SQL failed; the database version was not advanced.');
+						$migration_failed = true;
+						break;
 					}
 				}
+				if($migration_failed){
+					break;
+				}
+				$latest_applied = $target_version;
 			}
 		}
 		if(version_compare($this->db_version, $latest_applied, '<')){
@@ -96,27 +130,126 @@ class Updates_model extends CI_Model {
 		$sql = file_get_contents($path);
 		if($sql === false){
 			log_message('error', 'Failed to read migration file: ' . $path);
-			return;
+			return false;
 		}
-		// Use the underlying mysqli connection to execute multi-statements.
 		$conn = $this->db->conn_id;
 		if(!$conn || !($conn instanceof mysqli)){
 			log_message('error', 'Migration runner could not access mysqli connection.');
-			return;
+			return false;
 		}
-		$conn->query("SET FOREIGN_KEY_CHECKS = 0");
-		$conn->query("SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES'");
-		if($conn->multi_query($sql)){
-			do {
-				if($res = $conn->store_result()) $res->free();
-			} while($conn->more_results() && $conn->next_result());
+		$file = basename($path);
+		$failed = 0;
+		try{
+			$conn->query("SET FOREIGN_KEY_CHECKS = 0");
+			$conn->query("SET SESSION SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ALLOW_INVALID_DATES'");
+			// Demote row-size failures to warnings where permitted (MariaDB and
+			// privileged MySQL 8 users); a silent no-op on locked-down hosts.
+			@$conn->query("SET SESSION innodb_strict_mode = OFF");
+		} catch(mysqli_sql_exception $e){
+			$failed++;
+			log_message('error', "Migration {$file} session setup failed: {$e->getMessage()}");
 		}
-		if($conn->error){
-			log_message('error', '4.0.2 migration error: ' . $conn->error);
+		// Execute statements one at a time so a single failure cannot drop the
+		// rest of the file (multi_query aborts remaining statements silently).
+		foreach($this->_split_sql_statements($sql) as $stmt){
+			try{
+				$ok = $conn->query($stmt);
+				$error = $conn->error;
+			} catch(mysqli_sql_exception $e){
+				$ok = false;
+				$error = $e->getMessage();
+			}
+			if(!$ok){
+				$failed++;
+				log_message('error', "Migration {$file} statement failed: {$error} | " . substr(preg_replace('/\s+/', ' ', $stmt), 0, 300));
+			}
+		}
+		try{
+			$conn->query("SET FOREIGN_KEY_CHECKS = 1");
+		} catch(mysqli_sql_exception $e){
+			$failed++;
+			log_message('error', "Migration {$file} could not restore foreign-key checks: {$e->getMessage()}");
+		}
+		if($failed){
+			log_message('error', "Migration {$file} completed with {$failed} failed statement(s).");
 		} else {
-			log_message('info', '4.0.2 migration completed successfully.');
+			log_message('info', "Migration {$file} completed successfully.");
 		}
-		$conn->query("SET FOREIGN_KEY_CHECKS = 1");
+		return $failed === 0;
+	}
+
+	/**
+	 * Split a multi-statement migration file on top-level semicolons,
+	 * respecting quotes, backtick identifiers and -- / /*-comments.
+	 */
+	private function _split_sql_statements($sql){
+		$statements = array();
+		$current = '';
+		$len = strlen($sql);
+		$in_quote = false; $quote_char = '';
+		$in_line_comment = false; $in_block_comment = false;
+		for ($i = 0; $i < $len; $i++) {
+			$char = $sql[$i];
+			$next = ($i + 1 < $len) ? $sql[$i + 1] : '';
+			if ($in_block_comment) {
+				$current .= $char;
+				if ($char === '*' && $next === '/') { $current .= $next; $in_block_comment = false; $i++; }
+				continue;
+			}
+			if ($in_line_comment) {
+				$current .= $char;
+				if ($char === "\n") { $in_line_comment = false; }
+				continue;
+			}
+			if ($in_quote) {
+				$current .= $char;
+				if ($char === $quote_char && ($i === 0 || $sql[$i - 1] !== '\\')) { $in_quote = false; $quote_char = ''; }
+				continue;
+			}
+			if ($char === '/' && $next === '*') { $current .= $char . $next; $in_block_comment = true; $i++; continue; }
+			if ($char === '-' && $next === '-' && ($next === '-' && ($i + 2 >= $len || $sql[$i + 2] === ' ' || $sql[$i + 2] === "\n"))) { $current .= $char . $next; $in_line_comment = true; $i++; continue; }
+			if ($char === "'" || $char === '"' || $char === '`') { $current .= $char; $in_quote = true; $quote_char = $char; continue; }
+			if ($char === ';') {
+				$trimmed = trim($current);
+				if ($trimmed !== '') { $statements[] = $trimmed; }
+				$current = '';
+				continue;
+			}
+			$current .= $char;
+		}
+		$trimmed = trim($current);
+		if ($trimmed !== '') { $statements[] = $trimmed; }
+		return $statements;
+	}
+
+	/**
+	 * Record a failed registered migration in db_system_updates (deduplicated)
+	 * so incomplete upgrades surface in System Updates → Recent Jobs.
+	 */
+	private function _record_migration_failure($target_version, $file, $reason){
+		try{
+			if(!$this->db->table_exists('db_system_updates')){ return; }
+			$storeId = function_exists('get_current_store_id') ? get_current_store_id() : 1;
+			$msg = $reason . ' File: ' . $file;
+			$exists = $this->db->where('to_version', $target_version)
+				->where('status', 'failed')
+				->like('error_message', $msg)
+				->count_all_results('db_system_updates');
+			if(!$exists){
+				$this->db->insert('db_system_updates', [
+					'store_id' => $storeId ?: 1,
+					'from_version' => (string)$this->get_current_version_of_db(),
+					'to_version' => $target_version,
+					'status' => 'failed',
+					'step_label' => 'Migrations',
+					'error_message' => $msg,
+					'completed_at' => date('Y-m-d H:i:s'),
+				]);
+			}
+		} catch(Exception $e){
+			// Never let failure reporting break the migration run itself.
+			log_message('error', 'Could not record missing-migration job row: ' . $e->getMessage());
+		}
 	}
 
 }

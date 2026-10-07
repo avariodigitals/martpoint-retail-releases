@@ -100,7 +100,7 @@
           ['payment_modes_add','Add'], ['payment_modes_edit','Edit'], ['payment_modes_delete','Delete'], ['payment_modes_view','View'],
         ]],
         ['Store Settings', 'store', [
-          ['store_add','Add'], ['store_edit','Edit'], ['store_delete','Delete'], ['store_view','View'],
+          ['store_edit','Edit'],
         ]],
         ['Business Setup', 'business_setup', [
           ['business_setup','Can configure'],
@@ -122,9 +122,6 @@
         ]],
         ['Variants', 'variant', [
           ['variant_add','Add'], ['variant_edit','Edit'], ['variant_delete','Delete'], ['variant_view','View'],
-        ]],
-        ['Attributes', 'attributes', [
-          ['attributes_add','Add'], ['attributes_edit','Edit'], ['attributes_delete','Delete'], ['attributes_view','View'],
         ]],
         ['Suppliers', 'suppliers', [
           ['suppliers_add','Add'], ['suppliers_edit','Edit'], ['suppliers_delete','Delete'], ['suppliers_view','View'], ['import_suppliers','Import'],
@@ -178,27 +175,11 @@
         ['Treatment Notes', 'treatment_notes', [
           ['treatment_notes_add','Add'], ['treatment_notes_edit','Edit'], ['treatment_notes_delete','Delete'], ['treatment_notes_view','View'],
         ]],
-        ['Medical Notes', 'medical_notes', [
-          ['medical_notes_add','Add'], ['medical_notes_delete','Delete'], ['medical_notes_view','View'],
-        ]],
-        ['Promotions', 'promotions', [
-          ['promotions_manage','Manage'],
-        ]],
         ['Custom Orders', 'custom_orders', [
           ['custom_orders_add','Add'], ['custom_orders_edit','Edit'], ['custom_orders_delete','Delete'], ['custom_orders_view','View'],
         ]],
-        ['Equipment Register', 'equipment', [
-          ['equipment_add','Add'], ['equipment_edit','Edit'], ['equipment_view','View'],
-        ]],
-        ['Service Jobs', 'service_jobs', [
-          ['service_jobs_add','Add'], ['service_jobs_edit','Edit'], ['service_jobs_view','View'],
-        ]],
         ['Production Batches', 'production_batches', [
           ['production_batches_add','Add'], ['production_batches_edit','Edit'], ['production_batches_delete','Delete'], ['production_batches_view','View'],
-        ]],
-        ['Nylon Production', 'nylon', [
-          ['nylon_view','View'], ['nylon_jobs_add','Add Jobs'], ['nylon_jobs_edit','Edit Jobs'], ['nylon_jobs_delete','Delete Jobs'],
-          ['nylon_report','Report Output'], ['nylon_approve','Approve / QC'], ['nylon_artwork','Artwork'], ['nylon_costing','Costing'], ['nylon_settings','Settings'],
         ]],
         ['Recipes', 'recipes', [
           ['recipes_add','Add'], ['recipes_edit','Edit'], ['recipes_delete','Delete'], ['recipes_view','View'],
@@ -213,13 +194,7 @@
           ['money_deposit_add','Add'], ['money_deposit_edit','Edit'], ['money_deposit_delete','Delete'], ['money_deposit_view','View'],
         ]],
         ['Cash Transactions', 'cash_transactions', [
-          ['cash_transactions','View'], ['cash_delete','Delete'],
-        ]],
-        ['Tills', 'tills', [
-          ['tills_add','Add'], ['tills_edit','Edit'], ['tills_delete','Delete'], ['tills_view','View'],
-        ]],
-        ['Cashier Shifts', 'cashier_shifts', [
-          ['cashier_shifts_manage','Manage'], ['z_report','Z Report'],
+          ['cash_transactions','View'],
         ]],
         ['Discount Coupons', 'discount_coupon', [
           ['discountCouponAdd','Add'], ['discountCouponEdit','Edit'], ['discountCouponDelete','Delete'], ['discountCouponView','View'],
@@ -239,6 +214,62 @@
         ['Leads / CRM', 'leads', [
           ['leads_view','View'], ['leads_add','Add'], ['leads_edit','Edit'], ['leads_delete','Delete'],
         ]],
+        ['Patients', 'patients', [
+          ['patients_view','View'], ['patients_add','Register'], ['patients_edit','Edit'],
+          ['patients_merge','Merge Duplicates'], ['patients_export','Export'],
+        ]],
+        ['Care Episodes', 'episodes', [
+          ['episodes_view','View'], ['episodes_add','Open'], ['episodes_edit','Edit'], ['episodes_close','Close'],
+        ]],
+        ['Appointments & Queue', 'appointments', [
+          ['appointments_view','View'], ['appointments_add','Book'], ['appointments_edit','Edit'], ['appointments_cancel','Cancel'],
+          ['care_queue_view','Queue View'], ['care_checkin','Check-in'],
+        ]],
+        ['Clinical Records', 'clinical', [
+          ['vitals_view','Vitals View'], ['vitals_add','Vitals Record'],
+          ['encounters_view','Encounters View'], ['encounters_add','Encounters Add'],
+          ['encounters_finalize','Finalise Notes'], ['encounters_amend','Amend Finalised'],
+          ['assessments_view','Assessments View'], ['assessments_add','Assessments Add'], ['assessments_finalize','Finalise Assessment'],
+          ['investigations_view','Investigations View'], ['investigations_request','Request'], ['investigations_result_enter','Enter Result'], ['investigations_review','Review Result'],
+        ]],
+        ['Plans & Sessions', 'plans_sessions', [
+          ['plans_view','Plans View'], ['plans_add','Plans Add'], ['plans_amend','Amend Plan'],
+          ['sessions_view','Sessions View'], ['sessions_checkin','Session Check-in'], ['sessions_complete','Complete Session'],
+        ]],
+        ['Inpatient Care', 'inpatient', [
+          ['admissions_view','Admissions View'], ['admissions_manage','Manage Admissions'], ['beds_manage','Manage Beds'],
+          ['nursing_tasks_view','Nursing Tasks View'], ['nursing_tasks_complete','Complete Nursing Task'], ['nursing_notes_add','Record Nursing Note'],
+          ['porter_tasks_view','Porter Tasks View'], ['porter_tasks_complete','Complete Porter Task'],
+          ['meals_view','Meals View'], ['meals_manage','Manage Meals'],
+          ['leave_manage','Manage Leave'], ['leave_approve','Approve Leave'],
+          ['daily_billing_view','Daily Billing View'], ['daily_billing_run','Run Daily Billing'],
+          ['deceased_record','Record Deceased'],
+        ]],
+        ['Referrals & Discharge', 'discharge', [
+          ['referrals_view','Referrals View'], ['referrals_manage','Manage Referrals'],
+          ['discharge_recommend','Recommend Discharge'], ['discharge_decide','Decide Discharge'],
+        ]],
+        ['Patient Documents', 'patient_docs', [
+          ['patient_docs_view','View'], ['patient_docs_upload','Upload'], ['patient_docs_release','Release to Patient'], ['patient_docs_clinical_view','View Clinical Docs'],
+        ]],
+        ['Patient Funds & Billing', 'patient_funds', [
+          ['patient_funds_view','Funds View'], ['patient_funds_add','Record Funding'],
+          ['payment_evidence_verify','Verify Payment Evidence'],
+          ['funds_adjust_request','Request Adjustment'], ['refund_request','Request Refund'],
+          ['patient_billing_view','Billing View'], ['patient_billing_add','Post Charge'],
+        ]],
+        ['Opening Positions', 'opening_positions', [
+          ['opening_positions_view','View'], ['opening_positions_enter','Enter'], ['opening_positions_review','Review/Approve'],
+        ]],
+        ['Patient Experience & Portal', 'patient_experience', [
+          ['patient_feedback_view','Feedback View'], ['patient_feedback_manage','Manage Feedback'], ['testimonial_publish','Publish Testimonials'],
+          ['portal_manage','Manage Portal Access'], ['assessment_templates_manage','Manage Assessment Templates'],
+          ['imports_view','View Imports'], ['imports_run','Run Imports'], ['imports_rollback','Roll Back Imports'],
+        ]],
+        ['Clinical Administration', 'clinical_admin', [
+          ['clinical_reports_view','Clinical Reports'], ['clinical_export','Export Clinical Data'], ['clinical_cross_branch','Cross-Branch Access'],
+          ['md_authority','MD Authority'],
+        ]],
         ['Installments', 'installments', [
           ['installment_plans','Plans'], ['installment_payment','Payment'], ['installment_report','Report'],
         ]],
@@ -255,10 +286,10 @@
           ['approval_settings_edit','Settings'], ['approval_logs_view','Logs'], ['can_approve','Can Approve'],
         ]],
         ['SMS', 'sms', [
-          ['send_sms','Send'], ['sms_template_add','Template Add'], ['sms_template_edit','Template Edit'], ['sms_template_delete','Template Delete'], ['sms_template_view','Template View'], ['sms_api_view','API View'], ['sms_api_edit','API Edit'], ['sms_settings','Settings'],
+          ['send_sms','Send'], ['sms_template_edit','Template Edit'], ['sms_template_view','Template View'], ['sms_api_view','API View'], ['sms_api_edit','API Edit'], ['sms_settings','Settings'],
         ]],
         ['Email', 'email', [
-          ['send_email','Send'], ['email_template_add','Template Add'], ['email_template_edit','Template Edit'], ['email_template_delete','Template Delete'], ['email_template_view','Template View'], ['smtp_settings','SMTP Settings'],
+          ['send_email','Send'], ['email_template_edit','Template Edit'], ['email_template_view','Template View'], ['smtp_settings','SMTP Settings'],
         ]],
         ['Dashboard', 'dashboard', [
           ['dashboard_view','View'], ['dashboard_info_box_1','Box 1'], ['dashboard_info_box_2','Box 2'],
@@ -279,12 +310,6 @@
           ['gstr_1_report','FSTR-1'], ['gstr_2_report','FSTR-2'],
           ['customer_orders_report','Customer Orders'], ['load_sheet_report','Load Sheet'],
           ['delivery_sheet_report','Delivery Sheet'], ['sales_return_payments','Sales Return Payments'],
-          ['cash_flow_report','Cash Flow'], ['inventory_aging_report','Inventory Aging'],
-          ['receivables_aging_report','Receivables Aging'], ['reorder_suggestion_report','Reorder Suggestions'],
-          ['sell_through_report','Sell Through'], ['variant_attribute_report','Variant/Attribute'],
-          ['quotation_report','Outstanding Quotations'], ['procurement_report','Awaiting Procurement'],
-          ['warranty_report','Warranty'], ['equipment_report','Equipment Register'],
-          ['service_jobs_report','Service Jobs'], ['calibration_report','Calibration Due'],
           ['show_purchase_price','Show Purchase Price'],
         ]],
         ['Cross-User Visibility', 'cross_user', [
@@ -296,10 +321,7 @@
           ['debt_reminder_view','View'], ['debt_reminder_edit','Edit'],
         ]],
         ['Subscription', 'subscription', [
-          ['subscription','View'], ['subscription_delete','Delete'],
-        ]],
-        ['Database Backup', 'database_backup', [
-          ['database_backup','Backup'],
+          ['subscription','View'],
         ]],
         ['Expiry Settings', 'expiry_settings', [
           ['expiry_settings','Settings'],

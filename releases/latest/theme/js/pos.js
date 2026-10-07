@@ -1,30 +1,4 @@
 
-/* Translate a failed AJAX request into a plain-English message.
-   Never leaks HTTP codes, HTML pages or PHP output to the cashier. */
-window.posAjaxError = function(xhr, fallback){
-	if(!xhr) return fallback || 'Something went wrong. Please try again.';
-	if(xhr.status === 0 || xhr.statusText === 'timeout'){
-		return 'Could not reach the server. Check your internet connection and try again.';
-	}
-	var body = xhr.responseText || '';
-	var msg = null;
-	if(xhr.responseJSON && xhr.responseJSON.message){ msg = xhr.responseJSON.message; }
-	else if(body){
-		try { var j = JSON.parse(body); if(j && j.message) msg = j.message; } catch(e){}
-		if(!msg && body.indexOf('<') === -1 && body.length < 300){ msg = body; }
-	}
-	if(msg) return msg;
-	if(xhr.status === 403){
-		if(/action you have requested is not allowed/i.test(body)){
-			return 'Your security check has expired. Please reload the page and try again.';
-		}
-		return 'You do not have permission for this action. Please contact your administrator.';
-	}
-	if(xhr.status === 404) return 'That action was not found. Please reload the page and try again.';
-	if(xhr.status >= 500) return 'The server hit a problem and could not finish. Please try again.';
-	return fallback || 'The server returned an unexpected response. Please try again.';
-};
-
 // WhatsApp share flag
 var pos_sale_just_saved = false;
 var pos_saved_customer_id = '';
@@ -479,8 +453,9 @@ function doSave(print=false,pay_all=false){
 					toastr['error']("Network error. Please check your connection and try again.");
 				}
 			} else {
-				// Server rejected the request — show the reason in plain English
-				toastr['error'](posAjaxError(xhr, 'The sale could not be saved. Please check the details and try again.'));
+				// Server error - show the actual error message
+				var errorMsg = xhr.responseText || "Server error occurred";
+				toastr['error']("Error: " + errorMsg);
 			}
 		}
 	});

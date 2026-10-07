@@ -37,6 +37,8 @@ class Leads extends MY_Controller {
 		$storeId = get_current_store_id();
 		$status = trim($this->input->get('status', TRUE) ?: '');
 		$search = trim($this->input->get('search', TRUE) ?: '');
+		if(!function_exists('physio_enabled')) $this->load->helper('physio');
+		$physio = physio_enabled();
 		$data = array_merge($this->data, [
 			'page_title' => 'Leads',
 			'leads' => $this->leads->getLeads($storeId, $status, $search),
@@ -44,6 +46,10 @@ class Leads extends MY_Controller {
 			'status_filter' => $status,
 			'search' => $search,
 			'can_edit' => $this->_can_edit(),
+			'physio_active' => $physio,
+			'can_convert_patient' => $physio && physio_can('patients_add'),
+			'can_book_appt' => $physio && physio_can('appointments_add'),
+			'staff' => $physio ? $this->db->select('id, username')->where('store_id', $storeId)->where('status', 1)->get('db_users')->result() : array(),
 		]);
 		$data['content'] = $this->load->view('leads/index', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -51,6 +57,71 @@ class Leads extends MY_Controller {
 
 	// ============== SAVE (add / edit) ==============
 
+        /**
+         * Integrator — the embed snippet and store key for this store.
+         *
+         * GET  /leads/integrator         view the snippet + key
+         * POST /leads/integrator         rotate the key (owner only)
+         *
+         * Per fleet: the key belongs to db_store, so every store on the install
+         * gets its own, and a snippet copied from one store can only ever write
+         * leads to that store — Intake::_storeByKey() resolves the store FROM
+         * the key, and never trusts a store id sent by the page.
+         */
+        public function integrator(){
+                if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
+                $storeId = get_current_store_id();
+
+                // Key always shown masked; the owner is the only role allowed to
+                // reveal or rotate it, because anyone holding it can write leads.
+                $isOwner = ($this->session->userdata('role_id') == 1 || is_store_admin());
+
+                if(strtoupper($this->input->method()) === 'POST'){
+                    if(!$isOwner){
+                        echo json_encode(array('status' => 'error', 'message' => 'Only the store owner can rotate the store key.'));
+                        return;
+                    }
+                    if(!$this->db->field_exists('intake_key', 'db_store')){
+                        echo json_encode(array('status' => 'error', 'message' => 'Run the latest migration first (db_store.intake_key is missing).'));
+                        return;
+                    }
+                    $key = bin2hex(random_bytes(24)); // 48 hex chars, within the 16-64 the intake endpoint accepts
+                    $this->db->where('id', $storeId)->update('db_store', array('intake_key' => $key));
+                    if(function_exists('mp_audit_log')){
+                        mp_audit_log('leads', 'update', 'store', 'Rotated the store intake key');
+                    }
+                    echo json_encode(array('status' => 'success', 'message' => 'New store key generated. Any page still using the old key will stop working.', 'key' => $key));
+                    return;
+                }
+
+                // Only select columns that actually exist: db_store has no
+                // subdomain/domain column on this schema, and naming a missing
+                // column makes the whole statement fail.
+                $cols = array('id', 'store_name');
+                if($this->db->field_exists('intake_key', 'db_store')){ $cols[] = 'intake_key'; }
+                $row = $this->db->select(implode(',', $cols))
+                        ->where('id', $storeId)->get('db_store')->row();
+                $key = (string)($row->intake_key ?? '');
+
+                if(!function_exists('mp_feature_enabled_for_store')){ $this->load->helper('business_profile'); }
+
+                $data = array_merge($this->data, array(
+                        'page_title'    => 'Booking integrator',
+                        'store_id'      => $storeId,
+                        'store_name'    => $row->store_name ?? '',
+                        'intake_key'    => $key,
+                        'key_masked'    => $key === '' ? '' : (substr($key, 0, 6) . str_repeat('•', 18) . substr($key, -4)),
+                        'key_set'       => $key !== '',
+                        'leads_enabled' => mp_feature_enabled_for_store('leads', $storeId),
+                        'is_owner'      => $isOwner,
+                        'intake_url'    => base_url('intake/lead'),
+                        'store_slug'    => '',
+                        'book_url'      => base_url('appointments/save'),
+                        'has_key_column'=> $this->db->field_exists('intake_key', 'db_store'),
+                ));
+                $data['content'] = $this->load->view('leads/integrator', $data, TRUE);
+                $this->load->view('mp_layout', $data);
+        }
 	public function save(){
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
@@ -132,6 +203,58 @@ class Leads extends MY_Controller {
 			echo json_encode(['status' => 'success', 'message' => 'Lead deleted']);
 		} catch(Exception $e){
 			echo json_encode(['status' => 'error', 'message' => 'Error: '.$e->getMessage()]);
+		}
+	}
+
+	// ============== ASSIGN / FOLLOW-UP (stage 2) ==============
+
+	public function assign($id = 0){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
+		}
+		$userId = (int)$this->input->post('assigned_to');
+		$follow = trim($this->input->post('next_followup_at', TRUE) ?: '');
+		$follow = preg_match('/^\d{4}-\d{2}-\d{2}/', $follow) ? $follow : null;
+		if($this->leads->assign((int)$id, $userId ?: null, $follow, get_current_store_id())){
+			echo json_encode(['status' => 'success', 'message' => 'Lead assigned']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Could not update lead']);
+		}
+	}
+
+	public function log_activity($id = 0){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
+		}
+		$type = trim($this->input->post('activity_type', TRUE) ?: 'note');
+		$note = trim($this->input->post('note', TRUE) ?: '');
+		if($note === ''){ echo json_encode(['status' => 'error', 'message' => 'Note is required']); return; }
+		$allowed = ['note','call','whatsapp','email','visit','followup'];
+		if(!in_array($type, $allowed)) $type = 'note';
+		$this->leads->addActivity((int)$id, $type, $note, null, get_current_store_id());
+		echo json_encode(['status' => 'success', 'message' => 'Activity logged']);
+	}
+
+	public function activities($id = 0){
+		if(!$this->_can_view()){ echo json_encode(['status' => 'error', 'message' => 'Access denied']); return; }
+		$rows = $this->leads->getActivities((int)$id, get_current_store_id());
+		echo json_encode(['status' => 'success', 'activities' => $rows]);
+	}
+
+	// ============== CONVERT TO PATIENT (physio only) ==============
+
+	public function convert_to_patient($id = 0){
+		if(!function_exists('physio_enabled')) $this->load->helper('physio');
+		if(!physio_enabled() || !physio_can('patients_add')){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
+		}
+		$result = $this->leads->convertToPatient((int)$id, get_current_store_id());
+		if(isset($result['error'])){
+			echo json_encode(['status' => 'error', 'message' => $result['error']]);
+		} else {
+			echo json_encode(['status' => 'success',
+				'message' => !empty($result['already']) ? 'Lead already linked to this patient' : 'Lead converted to patient',
+				'patient_id' => $result['patient_id']]);
 		}
 	}
 
