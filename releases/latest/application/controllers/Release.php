@@ -355,6 +355,17 @@ class Release extends MY_Controller {
 
         $stateFile = FCPATH . 'release_build/publish-state.json';
         $state = is_file($stateFile) ? json_decode((string) @file_get_contents($stateFile), true) : null;
+
+        // A state file written by an older build can carry tree entries GitHub
+        // refuses (e.g. the old "sha": null deletes, which fail the whole tree
+        // with 422 GitRPC::BadObjectState). Resuming such a state replays the
+        // bad entries forever. Stamp the state with a schema version and
+        // discard anything older, forcing a clean diff.
+        $stateSchema = 2;
+        if (is_array($state) && (int) ($state['schema'] ?? 0) !== $stateSchema) {
+            $state = null;
+        }
+
         if (!is_array($state) || ($state['version'] ?? '') !== $manifest['version']) {
             // Fresh run: diff local manifest against the repo's current one.
             $remoteHashes = [];
@@ -381,6 +392,10 @@ class Release extends MY_Controller {
                 $pending[] = 'migrations/' . $m;
             }
             // Paths tracked by the old manifest but gone now → delete remotely.
+            //
+            // GitHub's tree API deletes an entry by sending sha = null WITH
+            // mode + type. A bare {path} entry is rejected with
+            // "Must supply either tree.sha or tree.content" (verified).
             foreach (array_keys($remoteHashes) as $gone) {
                 $entries[] = ['path' => "releases/latest/{$gone}", 'mode' => '100644', 'type' => 'blob', 'sha' => null];
             }
@@ -391,6 +406,7 @@ class Release extends MY_Controller {
             }
             $pending[] = 'release-manifest.json';
             $state = [
+                'schema'  => $stateSchema,
                 'version' => $manifest['version'],
                 'pending' => array_values(array_unique($pending)),
                 'entries' => $entries,
@@ -438,20 +454,59 @@ class Release extends MY_Controller {
             return;
         }
         $headCommit = $this->ghApi('GET', "/repos/{$repo}/git/commits/{$headSha}", null, $token);
-        $tree = $this->ghApi('POST', "/repos/{$repo}/git/trees", [
-            'base_tree' => $headCommit['tree']['sha'] ?? null,
-            'tree' => $state['entries'],
-        ], $token);
+        $baseTree = $headCommit['tree']['sha'] ?? null;
+
+        // --- Sanitise the entry list before sending it -----------------------
+        // GitHub rejects the WHOLE tree (422) if any single entry is invalid:
+        //   · a delete (sha = null) for a path that does not exist in the repo
+        //     -> docs: "Returns an error if you try to delete a file that does
+        //     not exist", surfaced as GitRPC::BadObjectState
+        //   · an entry with neither sha nor content
+        //     -> "Must supply either tree.sha or tree.content"
+        // Rather than let one bad entry poison a 122-file publish, drop the
+        // invalid ones and report what was skipped.
+        $existing = $this->ghTreePaths($repo, $baseTree, $token);
+        $clean = [];
+        $droppedDeletes = 0;
+        $droppedEmpty = 0;
+        foreach ($state['entries'] as $e) {
+            $path = (string) ($e['path'] ?? '');
+            if ($path === '') { $droppedEmpty++; continue; }
+            $isDelete = array_key_exists('sha', $e) && $e['sha'] === null;
+            if ($isDelete) {
+                // Only delete what actually exists in the base tree.
+                if ($existing === null || isset($existing[$path])) {
+                    $clean[] = ['path' => $path, 'mode' => '100644', 'type' => 'blob', 'sha' => null];
+                } else {
+                    $droppedDeletes++;
+                }
+                continue;
+            }
+            if (empty($e['sha'])) { $droppedEmpty++; continue; }
+            $clean[] = ['path' => $path, 'mode' => '100644', 'type' => 'blob', 'sha' => $e['sha']];
+        }
+
+        $treeBody = ['tree' => $clean];
+        if ($baseTree) { $treeBody['base_tree'] = $baseTree; }
+
+        $tree = $this->ghApi('POST', "/repos/{$repo}/git/trees", $treeBody, $token);
         if (empty($tree['sha'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Tree creation failed on GitHub.']);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Tree creation failed on GitHub.'
+                    . ($this->ghLastError ? ' Reason: ' . $this->ghLastError : ''),
+                'entries' => count($clean),
+                'dropped_deletes' => $droppedDeletes,
+                'dropped_empty' => $droppedEmpty,
+                'base_tree' => $baseTree ?: '(none — empty branch)',
+            ]);
             return;
         }
         $commit = $this->ghApi('POST', "/repos/{$repo}/git/commits", [
             'message' => 'Release ' . $state['version'] . ' — published from MartPoint Central',
             'tree' => $tree['sha'],
             'parents' => [$headSha],
-        ], $token);
-        if (empty($commit['sha'])) {
+        ], $token);        if (empty($commit['sha'])) {
             echo json_encode(['status' => 'error', 'message' => 'Commit creation failed on GitHub.']);
             return;
         }
@@ -495,12 +550,51 @@ class Release extends MY_Controller {
         }
         $resp = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
         curl_close($ch);
+
+        // Record WHY a call failed. Without this the caller can only report a
+        // generic "Tree creation failed" and the real GitHub reason (bad SHA,
+        // invalid path, permission, rate limit) is lost — which makes a YAML-
+        // level bug unguessable from the outside.
+        $this->ghLastError = null;
+        if ($curlErr !== '') {
+            $this->ghLastError = 'cURL: ' . $curlErr;
+        } elseif ($code < 200 || $code >= 300) {
+            $d = json_decode((string) $resp, true);
+            $this->ghLastError = 'HTTP ' . $code . ': ' . (string) ($d['message'] ?? substr((string) $resp, 0, 300));
+        }
+
         if ($raw) {
             return ($code === 200 && $resp !== false) ? $resp : null;
         }
         $data = json_decode((string) $resp, true);
         return ($code >= 200 && $code < 300 && is_array($data)) ? $data : null;
+    }
+
+    /** Last GitHub API failure reason, or null. @var string|null */
+    private $ghLastError = null;
+
+    /**
+     * Every blob path present in a tree, as a path => true set.
+     *
+     * Used to guard deletions: GitHub's tree API errors if you delete a path
+     * that does not exist, and one bad entry fails the entire tree. Returns
+     * null when the listing could not be read (caller then keeps all deletes
+     * rather than silently dropping them).
+     */
+    private function ghTreePaths(string $repo, ?string $treeSha, string $token) {
+        if (!$treeSha) { return null; }
+        // Recursive so nested paths come back as full paths ('releases/latest/x').
+        $t = $this->ghApi('GET', "/repos/{$repo}/git/trees/{$treeSha}?recursive=1", null, $token);
+        if (!is_array($t) || empty($t['tree'])) { return null; }
+        $paths = [];
+        foreach ($t['tree'] as $node) {
+            if (($node['type'] ?? '') === 'blob' && !empty($node['path'])) {
+                $paths[(string) $node['path']] = true;
+            }
+        }
+        return $paths;
     }
 
     private function rrmdir(string $dir) {

@@ -354,6 +354,13 @@ class Fleet extends MY_Controller {
                 'db_pass'    => $dbPass,
                 'admin_pass' => $adminPass,
                 'cron_key'   => $cronKey,
+                // Fleet callback details. The install's Updater reads
+                // db_sitesettings.fleet_url / fleet_key to POST heartbeats
+                // back here. Without them the install never phones home and
+                // this install sits at PROVISIONING forever — so Central must
+                // hand them over at provision time.
+                'fleet_url'  => rtrim((string) base_url(), '/') . '/',
+                'fleet_key'  => $this->getSetting('fleet_key'),
             ], true) . ";");
 
             // Cron jobs — same cPanel account, so they can be scheduled now.

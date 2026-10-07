@@ -32,6 +32,32 @@ class Manifest extends MY_Controller {
         $this->load->view('mp_layout', $data);
     }
 
+    /**
+     * Central's public base URL — where installs must phone home.
+     *
+     * Prefers the configured central_domain so installs always reach the
+     * canonical host rather than whatever host happened to serve the request.
+     * Always trailing-slashed, so the install can append 'fleet/heartbeat'.
+     */
+    private function fleetUrl(): string {
+        $domain = trim((string) $this->config->item('central_domain'));
+        if ($domain !== '') {
+            return 'https://' . rtrim($domain, '/') . '/';
+        }
+        return rtrim(base_url(), '/') . '/';
+    }
+
+    /** Read a fleet setting from db_sitesettings. Missing column -> empty. */
+    private function fleetSetting(string $key): string {
+        try {
+            if (!$this->db->field_exists($key, 'db_sitesettings')) { return ''; }
+            $row = $this->db->select($key)->where('id', 1)->get('db_sitesettings')->row();
+            return (string) ($row->{$key} ?? '');
+        } catch (Exception $e) {
+            return '';
+        }
+    }
+
     public function generate() {
         $version = trim($this->input->post('version'));
         $previous = trim($this->input->post('previous_version'));
@@ -138,6 +164,13 @@ class Manifest extends MY_Controller {
             'version' => $version,
             'previous_version' => $previous,
             'release_date' => date('Y-m-d'),
+            // Fleet callback details. An install learns where Central lives
+            // ONLY from the manifest — without fleet_url it never phones home,
+            // so it never appears in the registry and Central shows it stuck at
+            // PROVISIONING forever. Both are read back by the install's cron
+            // wake-up, which POSTs to {fleet_url}/fleet/heartbeat.
+            'fleet_url' => $this->fleetUrl(),
+            'fleet_key' => $this->fleetSetting('fleet_key'),
             'files' => $files,
             'migrations' => $migrations,
             'protected_paths' => [

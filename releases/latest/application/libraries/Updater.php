@@ -46,6 +46,7 @@ class Updater {
         $this->CI->load->library('BackupManager');
         $this->backupManager = $this->CI->backupmanager;
         $this->CI->load->helper('file');
+        $this->CI->config->load('updater', false, true);
 
         $this->tempDir = FCPATH . 'updates/temp';
         if (!is_dir($this->tempDir)) {
@@ -110,17 +111,1171 @@ class Updater {
             ];
         }
 
+        if (!$this->verifyManifestSignature($manifest)) {
+            return [
+                'available' => false,
+                'error' => 'Release manifest signature verification failed. The update channel may be compromised or misconfigured — update refused.',
+                'installed_version' => $installed,
+                'remote_version' => null,
+            ];
+        }
+
+        // Manifest is trusted at this point — let it (re)point installs at the
+        // central fleet registry so heartbeat endpoints can move without a
+        // per-customer settings change.
+        $this->applyManifestSettings($manifest);
+
         $remote = $manifest['version'] ?? '0.0';
         $available = version_compare($remote, $installed, '>');
 
+        $blockReason = null;
+        if ($available) {
+            $blockReason = $this->phpVersionAllowed($manifest);
+            if ($blockReason === null && !$this->licenseAllowsUpdate()) {
+                $blockReason = 'Subscription expired or suspended — renew the subscription to receive updates.';
+            }
+        }
+
         return [
             'available' => $available,
+            'blocked' => $blockReason !== null,
+            'block_reason' => $blockReason,
+            'auto_update' => $this->autoUpdateEnabled(),
             'installed_version' => $installed,
             'remote_version' => $remote,
             'release_date' => $manifest['release_date'] ?? null,
             'changelog' => $manifest['changelog'] ?? 'No changelog provided.',
             'manifest' => $manifest,
         ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Auto-update orchestration (cron / lazy login check)               */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Run the whole update pipeline server-side within a wall-clock budget.
+     * Safe to call repeatedly — the persisted state resumes mid-update, so a
+     * daily cron or the login-time lazy check can each do a slice of work.
+     */
+    public function runAutoUpdate(int $budgetSeconds = 45): array {
+        if (!$this->autoUpdateEnabled()) {
+            return ['status' => 'skipped', 'message' => 'Auto-update is disabled.'];
+        }
+
+        $check = $this->checkForUpdate();
+        if (!empty($check['error'])) {
+            return ['status' => 'error', 'message' => $check['error']];
+        }
+        $state = $this->readState();
+        $resuming = !empty($state) && empty($state['done']) && empty($state['failed']);
+
+        if (empty($check['available']) && !$resuming) {
+            return ['status' => 'ok', 'done' => true, 'message' => 'No update available.'];
+        }
+        if (!$resuming && !empty($check['blocked'])) {
+            return ['status' => 'blocked', 'message' => $check['block_reason']];
+        }
+
+        $manifest = $check['manifest'] ?? ($state['manifest'] ?? []);
+        if (empty($manifest)) {
+            return ['status' => 'error', 'message' => 'No manifest available to run update.'];
+        }
+        $preview = $this->previewChanges($manifest);
+
+        $deadline = microtime(true) + $budgetSeconds;
+        $last = null;
+        for ($i = 0; $i < 2000; $i++) {
+            $state = $this->readState();
+            $step = (!empty($state['step'])) ? (int) $state['step'] : 1;
+            $last = $this->runStep($step, $manifest, $preview);
+
+            if (($last['status'] ?? '') === 'error' || !empty($last['failed'])) {
+                return ['status' => 'error', 'message' => $last['message'] ?? 'Update failed.', 'step' => $step];
+            }
+            if (!empty($last['done']) && (int) ($last['step'] ?? $step) >= 8) {
+                $this->sendHeartbeat();
+                return ['status' => 'ok', 'done' => true, 'message' => 'Updated to ' . ($check['remote_version'] ?? ($state['to_version'] ?? 'latest')) . '.'];
+            }
+            if (microtime(true) >= $deadline) {
+                return [
+                    'status' => 'ok',
+                    'done' => false,
+                    'message' => 'Update in progress — will resume on the next run.',
+                    'step' => (int) ($last['step'] ?? $step),
+                    'step_label' => $last['step_label'] ?? '',
+                ];
+            }
+            usleep(100000);
+        }
+        return ['status' => 'ok', 'done' => false, 'message' => 'Update still in progress.'];
+    }
+
+    /**
+     * Whether unattended updates are allowed on this install.
+     * Defaults to enabled; missing column (pre-migration install) is treated
+     * as enabled so an update delivering this code is never self-blocking.
+     */
+    public function autoUpdateEnabled(): bool {
+        try {
+            if (!$this->CI->db->field_exists('auto_update_enabled', 'db_sitesettings')) {
+                return true;
+            }
+            $row = $this->CI->db->select('auto_update_enabled')
+                ->from('db_sitesettings')->where('id', 1)->get()->row();
+            return !$row || (int) $row->auto_update_enabled === 1;
+        } catch (Throwable $e) {
+            return true;
+        }
+    }
+
+    /**
+     * Throttle for the login-time lazy check (default: every 6 hours).
+     * Returns true immediately when an update is mid-flight so it resumes.
+     */
+    public function shouldAutoCheck(int $intervalSeconds = 21600, string $stampName = 'auto-check.stamp'): bool {
+        $state = $this->readState();
+        if (!empty($state) && empty($state['done']) && empty($state['failed'])) {
+            return true;
+        }
+        $stamp = $this->tempDir . '/' . $stampName;
+        if (!file_exists($stamp)) {
+            return true;
+        }
+        return (time() - (int) @file_get_contents($stamp)) >= $intervalSeconds;
+    }
+
+    public function touchAutoCheck(string $stampName = 'auto-check.stamp'): void {
+        if (!is_dir($this->tempDir)) {
+            @mkdir($this->tempDir, 0755, true);
+        }
+        @file_put_contents($this->tempDir . '/' . $stampName, (string) time());
+    }
+
+    /**
+     * Report this install to the central fleet registry. Fire-and-forget —
+     * failures are logged but never affect the caller.
+     */
+    public function sendHeartbeat(): void {
+        // Status feed sync is independent of fleet config — installs with no
+        // fleet_url still get incident banners from the status backend.
+        $this->syncStatusFeed();
+        try {
+            // Central is the registry, not a member — never register itself.
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return;
+            }
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            if (empty($fleetUrl)) {
+                return;
+            }
+            $payload = [
+                'key'         => $this->getSitesetting('fleet_key'),
+                'install_url' => base_url(),
+                'install_key' => $this->installKey(),
+                'version'     => $this->getInstalledVersion(),
+                'php_version' => PHP_VERSION,
+                'license_code' => $this->getLicenseCode(),
+                'cron_key'    => $this->cronKey(),
+            ];
+            $meta = $this->storeMeta();
+            $payload['store_name']    = $meta['store_name'];
+            $payload['store_city']    = $meta['city'];
+            $payload['store_state']   = $meta['state'];
+            $payload['store_country'] = $meta['country'];
+            $summary = $this->licenseUsageSummary();
+            if ($summary) {
+                $payload['license_status'] = $summary['status'] ?? '';
+                $payload['plan_name']      = $summary['plan_name'] ?? '';
+                $payload['days_left']      = (string) ($summary['days_left'] ?? '');
+                $payload['usage_json']     = json_encode($summary['quotas'] ?? []);
+            }
+            $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
+        } catch (Throwable $e) {
+            log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Poll the public status API on the MartPoint backend (martpoint.com.ng —
+     * a Next.js service, not this codebase) and mirror its incident state
+     * into db_sitesettings. This is the ONLY remote trigger for the banner —
+     * a real incident must exist on the status backend for it to show.
+     * Runs inside sendHeartbeat() so it rides the existing ~15-min check-in
+     * (auto_tick + cron fleet_ping) with no extra schedule; self-throttled
+     * via its own stamp file.
+     * Fail-open: an unreachable API keeps the last known state — a backend
+     * outage is exactly when the banner should keep showing.
+     * Contract: GET {feed} → 200 JSON { incident: { active, severity,
+     * message, url, started_at } } — see AGENTS.md "Service status".
+     */
+    public function syncStatusFeed(): void {
+        try {
+            if (!$this->shouldAutoCheck(900, 'status-feed.stamp')) {
+                return;
+            }
+            $this->touchAutoCheck('status-feed.stamp');
+            $url = $this->getSitesetting('status_feed_url');
+            if ($url === '') {
+                $url = 'https://www.martpoint.com.ng/api/status';
+            }
+            $resp = $this->httpGet($url, 6);
+            if ($resp === null) {
+                return;
+            }
+            $data = json_decode($resp, true);
+            if (is_array($data) && isset($data['incident']) && is_array($data['incident'])) {
+                $this->applyIncidentState($data['incident']);
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Updater syncStatusFeed failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mirror the status backend's incident/banner state into db_sitesettings.
+     * active=1 always wins (platform notice outranks a local one); active=0
+     * only clears an incident this install got from the feed — a store's own
+     * locally-set notice is left alone.
+     */
+    public function applyIncidentState(array $inc): array {
+        try {
+            if (!function_exists('mp_get_incident') || !function_exists('mp_set_incident')) {
+                return ['ok' => false, 'message' => 'Incident helpers missing on this build.'];
+            }
+            $cur = mp_get_incident();
+            $active = !empty($inc['active']);
+            if (!$active && $cur['source'] !== 'central') {
+                return ['ok' => true, 'message' => 'All clear (local notice untouched).'];
+            }
+            $ok = mp_set_incident([
+                'active'     => $active ? 1 : 0,
+                'severity'   => (string) ($inc['severity'] ?? 'investigating'),
+                'message'    => (string) ($inc['message'] ?? ''),
+                'url'        => (string) ($inc['url'] ?? ''),
+                'started_at' => (string) ($inc['started_at'] ?? ''),
+            ], 'central');
+            return ['ok' => (bool) $ok, 'message' => $ok
+                ? ($active ? 'Incident banner activated.' : 'Incident cleared.')
+                : 'Could not write incident state.'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Incident apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Store identity + location for the fleet registry — read straight from
+     * db_store. city/state/country power Central's installs-by-region stats.
+     */
+    protected function storeMeta(): array {
+        $meta = ['store_name' => '', 'city' => '', 'state' => '', 'country' => ''];
+        try {
+            if ($this->CI->db->table_exists('db_store')) {
+                $cols = array_intersect(
+                    ['store_name', 'city', 'state', 'country'],
+                    $this->CI->db->list_fields('db_store')
+                );
+                if ($cols) {
+                    $storeId = $this->resolveStoreId(); // before the chain — it runs its own query
+                    $s = $this->CI->db->select(implode(',', $cols))
+                        ->where('id', $storeId)->get('db_store')->row();
+                    if ($s) {
+                        foreach ($cols as $c) {
+                            $meta[$c] = substr((string) ($s->{$c} ?? ''), 0, 150);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+        }
+        return $meta;
+    }
+
+    /**
+     * Per-install secret — generated once and kept in db_sitesettings. Sent
+     * with the heartbeat so central can authenticate command polling; it is
+     * never exposed in the UI or the (public) release manifest.
+     */
+    protected function installKey(): string {
+        $key = $this->getSitesetting('install_key');
+        if ($key !== '') {
+            return $key;
+        }
+        try {
+            if (!$this->CI->db->field_exists('install_key', 'db_sitesettings')) {
+                return '';
+            }
+            $key = 'ik_' . bin2hex(random_bytes(20));
+            $this->CI->db->where('id', 1)->update('db_sitesettings', ['install_key' => $key]);
+            return $key;
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Ask central for pending commands for this install, execute them, and
+     * post the results back. Lets the vendor trigger actions (e.g. update now)
+     * from the Fleet panel without logging into this install.
+     */
+    public function pollFleetCommands(): array {
+        try {
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return [];
+            }
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            $installKey = $this->installKey();
+            // fleet_key alone is sufficient auth — installs missing the
+            // install_key column/value must still be able to poll.
+            if (empty($fleetUrl) || $this->getSitesetting('fleet_key') === '') {
+                return [];
+            }
+            $base = rtrim($fleetUrl, '/');
+            $resp = $this->httpPost($base . '/fleet/commands', [
+                'key'         => $this->getSitesetting('fleet_key'),
+                'install_url' => base_url(),
+                'install_key' => $installKey,
+            ], 8);
+            if ($resp === null) {
+                return [];
+            }
+            $data = json_decode($resp, true);
+            $results = [];
+            foreach (($data['commands'] ?? []) as $cmd) {
+                $id = (int) ($cmd['id'] ?? 0);
+                $command = (string) ($cmd['command'] ?? '');
+                try {
+                    $result = $this->executeFleetCommand($command, (string) ($cmd['payload'] ?? ''));
+                } catch (Throwable $e) {
+                    // One faulty command must never take down the whole poll
+                    // (or blank-500 the wake ping) — report it and move on.
+                    $result = ['ok' => false, 'message' => get_class($e) . ': ' . $e->getMessage()
+                        . ' @ ' . basename($e->getFile()) . ':' . $e->getLine()];
+                }
+                $this->httpPost($base . '/fleet/command_result', [
+                    'key'         => $this->getSitesetting('fleet_key'),
+                    'install_url' => base_url(),
+                    'install_key' => $installKey,
+                    'command_id'  => $id,
+                    'status'      => $result['ok'] ? 'done' : 'failed',
+                    'result'      => substr((string) $result['message'], 0, 2000),
+                ], 8);
+                $results[] = ['command' => $command] + $result;
+            }
+            return $results;
+        } catch (Throwable $e) {
+            log_message('error', 'Updater pollFleetCommands failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    protected function executeFleetCommand(string $command, string $payload = ''): array {
+        switch ($command) {
+            case 'update_now':
+                $r = $this->runAutoUpdate(90);
+                return [
+                    'ok' => in_array($r['status'] ?? '', ['ok', 'skipped'], true),
+                    'message' => ($r['status'] ?? '?') . ': ' . ($r['message'] ?? ''),
+                ];
+            case 'report_status':
+                return ['ok' => true, 'message' => 'v' . $this->getInstalledVersion() . ' / PHP ' . PHP_VERSION];
+            case 'set_license':
+                return $this->applyPushedLicense($payload);
+            case 'request_license_otp':
+                return $this->pushLicenseOtp();
+            case 'suspend':
+                return $this->setSubscriptionSuspended(true, $payload);
+            case 'resume':
+                return $this->setSubscriptionSuspended(false);
+            case 'set_email':
+                return $this->applyEmailSettings($payload);
+            case 'set_cron_key':
+                return $this->applyCronKey($payload);
+            case 'set_settings':
+                return $this->applyPushedSettings($payload);
+            case 'run_backup':
+                return $this->runDatabaseBackup();
+            case 'push_file':
+                return $this->applyPushedFile($payload);
+            default:
+                return ['ok' => false, 'message' => 'Unknown command: ' . $command];
+        }
+    }
+
+    /**
+     * Effective cron secret — same fallback the Cron controller uses, so the
+     * value reported to central always matches what the endpoint expects.
+     */
+    protected function cronKey(): string {
+        $k = (string) $this->CI->config->item('cron_secret_key');
+        return $k !== '' ? $k : 'martpoint_cron_2024';
+    }
+
+    /**
+     * Apply email/provider settings pushed from central. Writes whichever
+     * whitelisted columns exist in db_email_settings (and mirrors legacy
+     * smtp_* columns in db_store_notification_settings when present).
+     */
+    protected function applyEmailSettings(string $payload): array {
+        $fields = json_decode($payload, true);
+        if (!is_array($fields) || empty($fields)) {
+            return ['ok' => false, 'message' => 'Invalid email payload.'];
+        }
+        $allowed = [
+            'email_provider', 'email_from_name', 'email_from_email', 'email_reply_to',
+            'smtp_crypto', 'resend_api_key', 'resend_from_email', 'resend_from_name',
+            'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_status',
+        ];
+        $storeId = $this->resolveStoreId();
+        $written = 0;
+        try {
+            foreach (['db_email_settings', 'db_store_notification_settings'] as $table) {
+                if (!$this->CI->db->table_exists($table)) {
+                    continue;
+                }
+                $data = [];
+                foreach ($allowed as $k) {
+                    if (isset($fields[$k]) && $fields[$k] !== '' && $this->CI->db->field_exists($k, $table)) {
+                        $data[$k] = $fields[$k];
+                    }
+                }
+                if (empty($data)) {
+                    continue;
+                }
+                $exists = $this->CI->db->where('store_id', $storeId)->get($table)->row();
+                if ($exists) {
+                    $this->CI->db->where('store_id', $storeId)->update($table, $data);
+                } else {
+                    $data['store_id'] = $storeId;
+                    $this->CI->db->insert($table, $data);
+                }
+                $written++;
+            }
+            return [
+                'ok' => $written > 0,
+                'message' => $written > 0
+                    ? 'Email settings applied (' . ($fields['email_provider'] ?? 'resend') . ').'
+                    : 'No matching email columns on this install.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Email apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Set this install's cron_secret_key in config.php — central generates a
+     * unique key per install so it can schedule the cPanel cron lines.
+     */
+    protected function applyCronKey(string $payload): array {
+        $key = trim($payload);
+        if (!preg_match('/^[A-Za-z0-9_\-]{6,64}$/', $key)) {
+            return ['ok' => false, 'message' => 'Invalid cron key format.'];
+        }
+        $path = FCPATH . 'application/config/config.php';
+        try {
+            if (!is_writable($path)) {
+                return ['ok' => false, 'message' => 'config.php not writable — set permissions and retry.'];
+            }
+            $code = (string) file_get_contents($path);
+            $line = "\$config['cron_secret_key'] = '" . $key . "';";
+            if (strpos($code, "cron_secret_key") !== false) {
+                $code = preg_replace("/\\\$config\['cron_secret_key'\]\s*=\s*'[^']*';/", $line, $code, 1);
+            } else {
+                $code = rtrim($code) . "\n\n" . $line . "\n";
+            }
+            $ok = file_put_contents($path, $code) !== false;
+            return ['ok' => $ok, 'message' => $ok ? 'Cron key set.' : 'Could not write config.php.'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Cron key error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Push a group of operational settings from Central — payload:
+     * {"scope":"assist|paystack|monnify|nin|debt_reminder|audit","fields":{...}}
+     * Each scope maps to a whitelisted table + column set; anything else is
+     * rejected. Store-keyed tables upsert on this install's store row.
+     */
+    protected function applyPushedSettings(string $payload): array {
+        $in = json_decode($payload, true);
+        $scope = is_array($in) ? (string) ($in['scope'] ?? '') : '';
+        $fields = is_array($in) && is_array($in['fields'] ?? null) ? $in['fields'] : [];
+        if ($fields === []) {
+            return ['ok' => false, 'message' => 'No settings fields in payload.'];
+        }
+        $storeId = $this->resolveStoreId();
+        try {
+            switch ($scope) {
+                case 'assist':
+                    return $this->writeSettingFields('db_sitesettings', ['id' => 1], [
+                        'assist_ai_enabled', 'assist_ai_provider', 'assist_ai_endpoint',
+                        'assist_ai_model', 'assist_ai_key',
+                    ], $fields, 'Assist AI');
+
+                case 'paystack':
+                    return $this->writeSettingFields('db_paystack_settings', ['store_id' => $storeId], [
+                        'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
+                    ], $fields, 'Paystack', true);
+
+                case 'monnify':
+                    return $this->writeSettingFields('db_monnify_settings', ['store_id' => $storeId], [
+                        'enabled', 'api_key', 'secret_key', 'contract_code',
+                        'wallet_account_number', 'disbursements_enabled', 'test_mode',
+                    ], $fields, 'Monnify', true);
+
+                case 'nin':
+                    return $this->writeSettingFields('db_store', ['id' => $storeId], [
+                        'nin_api_enabled', 'nin_api_url', 'nin_api_key', 'nin_api_provider',
+                        'nin_provider', 'bvn_provider',
+                        'interswitch_client_id', 'interswitch_client_secret',
+                    ], $fields, 'NIN verification');
+
+                case 'debt_reminder':
+                    return $this->writeSettingFields('db_debt_reminder_settings',
+                        ['store_id' => $storeId, 'customer_id' => 0], [
+                        'enabled', 'frequency', 'max_reminders', 'send_email', 'send_sms',
+                    ], $fields, 'Debt reminders', true);
+
+                case 'audit':
+                    // Column self-heals so this works even before the audit
+                    // toggle migration reaches this install.
+                    if (!$this->CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) {
+                        $this->CI->db->query("ALTER TABLE `db_sitesettings` ADD COLUMN `audit_trail_enabled` TINYINT(1) NOT NULL DEFAULT 1");
+                    }
+                    return $this->writeSettingFields('db_sitesettings', ['id' => 1],
+                        ['audit_trail_enabled'], $fields, 'Audit trail');
+            }
+            return ['ok' => false, 'message' => 'Unknown settings scope: ' . $scope];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Settings error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Filter the pushed fields to a whitelist of existing columns and write
+     * them — update when the row exists, insert (with the where values) when
+     * the table is keyed per-store and has none yet.
+     */
+    protected function writeSettingFields(string $table, array $where, array $allowed, array $fields, string $label, bool $upsert = false): array {
+        if (!$this->CI->db->table_exists($table)) {
+            return ['ok' => false, 'message' => $label . ' table missing on this install.'];
+        }
+        $data = [];
+        foreach ($allowed as $col) {
+            if (array_key_exists($col, $fields) && $this->CI->db->field_exists($col, $table)) {
+                $v = $fields[$col];
+                $data[$col] = is_scalar($v) ? substr((string) $v, 0, 2000) : (string) json_encode($v);
+            }
+        }
+        if ($data === []) {
+            return ['ok' => false, 'message' => 'No writable ' . $label . ' fields — the install may need an update for these settings.'];
+        }
+        $exists = $this->CI->db->where($where)->get($table)->num_rows() > 0;
+        if ($exists) {
+            $this->CI->db->where($where)->update($table, $data);
+        } elseif ($upsert) {
+            $this->CI->db->insert($table, $where + $data);
+        } else {
+            return ['ok' => false, 'message' => $label . ' row not found.'];
+        }
+        if (function_exists('mp_audit_log')) {
+            // Column names only — never log pushed values (keys/secrets).
+            mp_audit_log('fleet', 'settings_push', null,
+                'Central pushed ' . $label . ' settings: ' . implode(', ', array_keys($data)));
+        }
+        return ['ok' => true, 'message' => $label . ' settings updated (' . count($data) . ' fields).'];
+    }
+
+    /**
+     * Write a single file pushed from Central — payload {"path","content_b64"}.
+     * Paths are restricted to application/ and theme/ and config, lock and
+     * root files are refused, so a push can never take the install offline
+     * or overwrite credentials. Writes are atomic (tmp file + rename).
+     */
+    protected function applyPushedFile(string $payload): array {
+        $f = json_decode($payload, true);
+        $path = trim(str_replace('\\', '/', (string) ($f['path'] ?? '')));
+        $b64  = (string) ($f['content_b64'] ?? '');
+        if ($path === '' || strpos($path, '..') !== false || strpos($path, "\0") !== false
+            || !preg_match('#^(application|theme)/#i', $path)) {
+            return ['ok' => false, 'message' => 'Path not allowed (must be under application/ or theme/): ' . $path];
+        }
+        static $deny = [
+            'application/config/config.php', 'application/config/database.php',
+            'application/config/constants.php', 'application/config/installed.lock',
+            'index.php', '.htaccess',
+        ];
+        if (in_array(strtolower($path), $deny, true)) {
+            return ['ok' => false, 'message' => 'Refusing to overwrite protected file: ' . $path];
+        }
+        if (!preg_match('/\.(php|js|css|sql|json|htm|html|txt|xml|map|png|jpe?g|gif|svg|ico|woff2?|ttf|eot)$/i', $path)) {
+            return ['ok' => false, 'message' => 'File type not allowed: ' . $path];
+        }
+        $content = base64_decode($b64, true);
+        if ($content === false) {
+            return ['ok' => false, 'message' => 'Bad content payload.'];
+        }
+        $abs = FCPATH . $path;
+        try {
+            $dir = dirname($abs);
+            if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+                return ['ok' => false, 'message' => 'Cannot create directory: ' . dirname($path)];
+            }
+            $tmp = $abs . '.fleet-tmp';
+            if (file_put_contents($tmp, $content) === false || !rename($tmp, $abs)) {
+                @unlink($tmp);
+                return ['ok' => false, 'message' => 'Write failed — check permissions on ' . dirname($path)];
+            }
+            @chmod($abs, 0644);
+            if (function_exists('mp_audit_log')) {
+                mp_audit_log('fleet', 'file_push', null,
+                    'Central pushed file: ' . $path . ' (' . strlen($content) . ' B)');
+            }
+            return ['ok' => true, 'message' => $path . ' written (' . round(strlen($content) / 1024, 1) . ' KB).'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'File write error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Run a full database backup on this install via the existing
+     * BackupManager — lands in dbbackup/ like the update-time backups.
+     */
+    protected function runDatabaseBackup(): array {
+        try {
+            $this->CI->load->library('BackupManager');
+            $path = $this->CI->backupmanager->backupDatabase();
+            if (!$path || !is_file($path)) {
+                return ['ok' => false, 'message' => 'Backup produced no file.'];
+            }
+            return [
+                'ok' => true,
+                'message' => basename($path) . ' (' . round(filesize($path) / 1048576, 1) . ' MB)',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Backup error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * License status + quota usage for the fleet heartbeat. Returns null when
+     * the helper or license tables aren't present on this install.
+     */
+    protected function licenseUsageSummary(): ?array {
+        try {
+            $this->healMisplacedLicense();
+            if (function_exists('mp_get_license_usage_summary')) {
+                $storeId = $this->resolveStoreId();
+                $s = mp_get_license_usage_summary($storeId);
+                // NOT_ACTIVATED for the resolved store while a license row
+                // exists elsewhere (single-store installs whose license sits
+                // on another store_id) — report the store that has it.
+                if (is_array($s) && empty($s['has_license']) && $this->CI->db->table_exists('db_subscription_license')) {
+                    $lic = $this->CI->db->query('SELECT store_id FROM db_subscription_license WHERE license_code IS NOT NULL AND license_code <> "" ORDER BY id DESC LIMIT 1')->row();
+                    if ($lic && (int) $lic->store_id !== $storeId) {
+                        $alt = mp_get_license_usage_summary((int) $lic->store_id);
+                        if (is_array($alt) && !empty($alt['has_license'])) { $s = $alt; }
+                    }
+                }
+                if (is_array($s)) {
+                    return $s;
+                }
+            }
+            // Fallback — installs whose custom_helper.php predates the summary
+            // helper would otherwise report nothing and show "unknown" in the
+            // fleet. Read the license record directly; quotas stay empty.
+            if ($this->CI->db->table_exists('db_subscription_license')) {
+                $storeId = $this->resolveStoreId();
+                $rec = $this->CI->db->where('store_id', $storeId)
+                    ->get('db_subscription_license')->row();
+                if (!$rec) {
+                    // License may sit on another store_id on this install —
+                    // report the most recent row rather than nothing.
+                    $rec = $this->CI->db->order_by('id', 'desc')->limit(1)
+                        ->get('db_subscription_license')->row();
+                }
+                if ($rec) {
+                    $status = (string) ($rec->subscription_status ?? 'NOT_ACTIVATED');
+                    $daysLeft = null;
+                    if (!empty($rec->subscription_end_date)) {
+                        $daysLeft = (int) floor((strtotime($rec->subscription_end_date) - time()) / 86400);
+                        if ($status === 'ACTIVE' && $daysLeft < 0) {
+                            $status = 'EXPIRED';
+                        } elseif ($status === 'ACTIVE' && $daysLeft <= 30) {
+                            $status = 'EXPIRING_SOON';
+                        }
+                    }
+                    return [
+                        'status' => $status,
+                        'days_left' => max(0, (int) $daysLeft),
+                        'end_date' => $rec->subscription_end_date ?? null,
+                        'plan_name' => (string) ($rec->plan_name ?? ''),
+                        'license_code' => $rec->license_code ?? null,
+                        'has_license' => !empty($rec->license_code),
+                        'quotas' => [],
+                    ];
+                }
+            }
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Suspend/resume this install's subscription from a central fleet command.
+     * SUSPENDED is enforced by MY_Controller::enforce_subscription() — every
+     * page except dashboard/subscription/login is blocked.
+     */
+    protected function setSubscriptionSuspended(bool $suspend, string $payload = ''): array {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return ['ok' => false, 'message' => 'License table missing on this install.'];
+            }
+            $data = [
+                'store_id'            => $this->resolveStoreId(),
+                'subscription_status' => $suspend ? 'SUSPENDED' : 'ACTIVE',
+            ];
+            if ($this->CI->db->field_exists('suspension_reason', 'db_subscription_license')) {
+                $reason = trim($payload);
+                $data['suspension_reason'] = $suspend
+                    ? ($reason !== '' ? substr($reason, 0, 255) : 'Suspended by vendor.')
+                    : null;
+            }
+            if ($suspend) {
+                // get_status() returns NOT_ACTIVATED when no end date exists —
+                // stamp one so the SUSPENDED flag actually gates the install.
+                $this->CI->load->model('subscription_license_model', 'mp_lic_susp');
+                $rec = $this->CI->mp_lic_susp->get_by_store($data['store_id']);
+                if (!$rec || empty($rec->subscription_end_date)) {
+                    $data['subscription_end_date'] = date('Y-m-d');
+                }
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+            $ok = $this->CI->mp_lic_cmd->save($data);
+            return [
+                'ok' => (bool) $ok,
+                'message' => $ok
+                    ? ($suspend ? 'Subscription suspended.' : 'Subscription resumed.')
+                    : 'Status save failed.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Suspend error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Apply a license/subscription pushed from central. Replicates the local
+     * Subscription_license::activate flow — decode the MP- key (authoritative
+     * quotas), domain-check it, archive the replaced license to history, then
+     * activate(). Columns are still field_exists-filtered so older installs
+     * can't SQL-error.
+     */
+    protected function applyPushedLicense(string $payload): array {
+        $lic = json_decode($payload, true);
+        if (!is_array($lic) || empty($lic['subscription_end_date'])) {
+            return ['ok' => false, 'message' => 'Invalid license payload.'];
+        }
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return ['ok' => false, 'message' => 'License table missing on this install.'];
+            }
+            if (!function_exists('decode_license_key')) {
+                $this->CI->load->helper('custom');
+            }
+            $this->healMisplacedLicense();
+            $storeId = $this->resolveStoreId();
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+
+            // OTP gate — two accepted forms:
+            //  a) otp_proof — HMAC(otp|domain, fleet_key) from Central's own
+            //     OTP generator (Central emails it to the vendor address).
+            //  b) a local 'activate' OTP row in db_license_otps (the flow the
+            //     install's Subscription page uses).
+            $otp = strtoupper(trim((string) ($lic['otp_code'] ?? '')));
+            $proof = (string) ($lic['otp_proof'] ?? '');
+            $ownDomain = (string) parse_url(base_url(), PHP_URL_HOST);
+            if ($proof !== '') {
+                $expected = hash_hmac('sha256', $otp . '|' . $ownDomain, $this->getSitesetting('fleet_key'));
+                if ($otp === '' || !hash_equals($expected, $proof)) {
+                    return ['ok' => false, 'message' => 'OTP rejected: invalid vendor proof.'];
+                }
+            } else {
+                if ($otp === '') {
+                    return ['ok' => false, 'message' => 'OTP required. Use Request OTP in Central — it is emailed to the authorized address.'];
+                }
+                $otpCheck = $this->CI->mp_lic_cmd->validate_otp($storeId, $otp, 'activate');
+                if ($otpCheck !== true) {
+                    return ['ok' => false, 'message' => 'OTP rejected: ' . $otpCheck];
+                }
+            }
+
+            // Prefer the signed key's own decoded data — same source of truth
+            // a store admin gets when pasting the key locally.
+            $decoded = (!empty($lic['license_code']) && function_exists('decode_license_key'))
+                ? decode_license_key($lic['license_code'])
+                : false;
+            if ($decoded !== false && !empty($decoded['domain'])) {
+                $own = (string) parse_url(base_url(), PHP_URL_HOST);
+                if ($decoded['domain'] !== $own) {
+                    return ['ok' => false, 'message' => 'License key is locked to ' . $decoded['domain'] . ' — this install is ' . $own . '.'];
+                }
+            }
+
+            $saveData = ['store_id' => $storeId];
+            if ($decoded !== false) {
+                foreach ([
+                    'plan_name', 'subscription_start_date', 'subscription_end_date',
+                    'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                    'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                    'storefront_limit', 'custom_domain_limit', 'whatsapp_number',
+                    'renewal_amount', 'client_name',
+                ] as $k) {
+                    $saveData[$k] = $decoded[$k];
+                }
+                $saveData['license_code'] = $lic['license_code'];
+            } else {
+                // Legacy payload without a usable key — honour posted fields.
+                foreach ([
+                    'license_code', 'plan_name', 'subscription_start_date', 'subscription_end_date',
+                    'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                    'invoice_limit', 'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                    'storefront_limit', 'custom_domain_limit', 'whatsapp_number', 'renewal_amount',
+                    'client_name',
+                ] as $k) {
+                    if (isset($lic[$k])) {
+                        $saveData[$k] = $lic[$k];
+                    }
+                }
+            }
+            $saveData['domain'] = (string) parse_url(base_url(), PHP_URL_HOST);
+            $saveData['last_renewal_date'] = date('Y-m-d');
+            $saveData['suspension_reason'] = null;
+            foreach ($saveData as $k => $v) {
+                if ($k !== 'store_id' && !$this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    unset($saveData[$k]);
+                }
+            }
+
+            // Archive the license being replaced — mirrors activate()/extend().
+            $existing = $this->CI->mp_lic_cmd->get_by_store($storeId);
+            if ($existing && !empty($existing->license_code)) {
+                $this->CI->mp_lic_cmd->add_history(
+                    $storeId, $existing->license_code,
+                    $existing->plan_name ?? '', $existing->domain ?? '', 'active'
+                );
+            }
+
+            // Reset reminder flags like the renew flow does.
+            $reset = [
+                'reminder_90_sent' => 0, 'reminder_60_sent' => 0,
+                'reminder_30_last_sent' => null, 'reminder_10_last_sent' => null,
+                'expiry_notice_sent' => 0, 'expired_followup_count' => 0,
+                'expired_followup_last_sent' => null,
+            ];
+            foreach ($reset as $k => $v) {
+                if ($this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    $this->CI->db->where('store_id', $storeId)->update('db_subscription_license', [$k => $v]);
+                }
+            }
+
+            $ok = $this->CI->mp_lic_cmd->activate($storeId, $saveData);
+            return [
+                'ok' => (bool) $ok,
+                'message' => $ok
+                    ? 'License activated: ' . ($saveData['plan_name'] ?? '') . ' until ' . $saveData['subscription_end_date']
+                    : 'License activation failed.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'License apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Generate a license-activation OTP on this install and email it to the
+     * authorized vendor address — mirrors Subscription_license::request_otp
+     * + _send_otp_email, but triggered by a Central fleet command instead of
+     * a logged-in session. The returned OTP is what a set_license payload
+     * must carry to activate.
+     */
+    protected function pushLicenseOtp(): array {
+        try {
+            if (!$this->CI->db->table_exists('db_license_otps')) {
+                return ['ok' => false, 'message' => 'OTP table missing on this install — run the database update.'];
+            }
+            $storeId = $this->resolveStoreId();
+
+            // Same 60-second rate limit as the local request_otp endpoint.
+            $recent = $this->CI->db->where('store_id', $storeId)
+                ->where('otp_type', 'activate')
+                ->where('created_at >', date('Y-m-d H:i:s', strtotime('-60 seconds')))
+                ->get('db_license_otps')->row();
+            if ($recent) {
+                return ['ok' => false, 'message' => 'An OTP was already sent less than 60 seconds ago — check the authorized email.'];
+            }
+
+            $this->CI->load->model('subscription_license_model', 'mp_lic_otp');
+            $otp = $this->CI->mp_lic_otp->generate_otp($storeId, 'activate');
+
+            // Same recipient + audit body as _send_otp_email().
+            $storeName = '';
+            if ($this->CI->db->table_exists('db_store')) {
+                $s = $this->CI->db->where('id', $storeId)->get('db_store')->row();
+                $storeName = (string) ($s->store_name ?? '');
+            }
+            $domain = (string) parse_url(base_url(), PHP_URL_HOST);
+            $subject = "MartPoint License OTP: Activate - {$storeName}";
+            $html = "<h3>MartPoint Retail License OTP</h3>
+<p><strong>Business:</strong> " . htmlspecialchars($storeName) . "</p>
+<p><strong>Domain:</strong> {$domain}</p>
+<p><strong>Action:</strong> Activate</p>
+<p><strong>OTP:</strong> <span style='font-size:24px; font-weight:bold; color:#2563EB;'>{$otp}</span></p>
+<p><em>This OTP expires in 10 minutes and can only be used once.</em></p>
+<hr>
+<p><strong>Request Details (Audit)</strong></p>
+<ul>
+  <li><strong>User:</strong> MartPoint Central (fleet command)</li>
+  <li><strong>IP Address:</strong> " . htmlspecialchars($_SERVER['REMOTE_ADDR'] ?? 'cron') . "</li>
+  <li><strong>Time:</strong> " . date('Y-m-d H:i:s') . "</li>
+</ul>
+<hr>
+<p style='color:#94A3B8; font-size:12px;'>MartPoint Retail License Security</p>";
+            $text = "MartPoint Retail License OTP\nBusiness: {$storeName}\nDomain: {$domain}\nAction: Activate\nOTP: {$otp}\nExpires in 10 minutes, single use.\nRequested by: MartPoint Central (fleet command)\nTime: " . date('Y-m-d H:i:s');
+
+            $this->CI->load->model('email_service');
+            $result = $this->CI->email_service->sendRaw('rapheal@avariodigitals.com', $subject, $html, $text, [
+                'template_key' => 'license_otp',
+                'from_name' => 'MartPoint Retail',
+                'send_copy_to_owner' => false,
+            ]);
+            // Always surface the OTP in the command result — Central is a
+            // vendor-only panel, it can display/forward it even when this
+            // install's email isn't configured.
+            if (!empty($result['success'])) {
+                return ['ok' => true, 'message' => "OTP {$otp} — emailed to the authorized address."];
+            }
+            return ['ok' => true, 'message' => "OTP {$otp} — install email failed, Central will forward it."];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'OTP error: ' . $e->getMessage()];
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Gates                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Returns null when the host PHP satisfies the manifest's declared bounds,
+     * otherwise a human-readable refusal reason.
+     */
+    protected function phpVersionAllowed(array $manifest): ?string {
+        $min = $manifest['requires_php_min'] ?? null;
+        $max = $manifest['requires_php_max'] ?? null;
+        if ($min && version_compare(PHP_VERSION, $min, '<')) {
+            return "This release requires PHP {$min}+; this server runs " . PHP_VERSION . '. Change the PHP handler first.';
+        }
+        if ($max && version_compare(PHP_VERSION, $max, '>')) {
+            return "This release requires PHP up to {$max}; this server runs " . PHP_VERSION . ' (e.g. PHP 8 breaks the CI3 core — set the handler to 7.4).';
+        }
+        return null;
+    }
+
+    /**
+     * License gate for updates. Expired/suspended subscriptions stop receiving
+     * code; NOT_ACTIVATED and missing tables stay allowed so fresh or very old
+     * installs can always reach the version that introduced licensing.
+     */
+    protected function licenseAllowsUpdate(): bool {
+        try {
+            // The vendor's own console must always take updates — it ships them.
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return true;
+            }
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return true;
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_upd');
+            $status = $this->CI->mp_lic_upd->get_status($this->resolveStoreId());
+            $s = strtoupper($status['status'] ?? '');
+            return !in_array($s, ['EXPIRED', 'SUSPENDED'], true);
+        } catch (Throwable $e) {
+            return true;
+        }
+    }
+
+    // Session store in web context; the primary store when run from cron/CLI
+    // where no session exists.
+    protected function resolveStoreId(): int {
+        $storeId = (int) get_current_store_id();
+        if ($storeId > 0) {
+            return $storeId;
+        }
+        static $primary = null;
+        if ($primary !== null) {
+            return $primary;
+        }
+        try {
+            // Plain queries (not query-builder) so this can never merge into a
+            // caller's pending select chain.
+            $db = $this->CI->db;
+            $primary = 0;
+            // Store id 1 is the installer's "SAAS ADMIN" placeholder whenever
+            // other stores exist — never the client's business.
+            $cnt = $db->query('SELECT COUNT(*) AS c FROM db_store')->row();
+            $multi = (int) ($cnt->c ?? 0) > 1;
+            // 1. The store that holds the subscription license — the client's
+            //    store by definition on a licensed install.
+            if ($db->table_exists('db_subscription_license')) {
+                $sql = 'SELECT store_id FROM db_subscription_license' . ($multi ? ' WHERE store_id > 1' : '') . ' ORDER BY id DESC LIMIT 1';
+                $row = $db->query($sql)->row();
+                $primary = (int) ($row->store_id ?? 0);
+            }
+            // 2. Otherwise the first real store.
+            if ($primary <= 0 && $multi) {
+                $row = $db->query("SELECT MIN(id) AS id FROM db_store WHERE id > 1 AND store_name <> 'SAAS ADMIN'")->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+            if ($primary <= 0) {
+                $row = $db->query('SELECT MIN(id) AS id FROM db_store')->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+        } catch (Throwable $e) {
+            $primary = 0;
+        }
+        return $primary;
+    }
+
+    /**
+     * Older builds resolved the placeholder store (id 1) on cron runs and
+     * activated pushed licenses there — the client's store stayed EXPIRED.
+     * Move such a stray license onto the real store when it is the newer one.
+     */
+    protected function healMisplacedLicense(): void {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
+        try {
+            $db = $this->CI->db;
+            if (!$db->table_exists('db_subscription_license')) { return; }
+            $client = $this->resolveStoreId();
+            if ($client <= 1) { return; }
+            $stray = $db->query('SELECT * FROM db_subscription_license WHERE store_id = 1 ORDER BY id DESC LIMIT 1')->row();
+            if (!$stray) { return; }
+            $own = $db->query('SELECT * FROM db_subscription_license WHERE store_id = ' . (int) $client . ' ORDER BY id DESC LIMIT 1')->row();
+            $strayEnd = strtotime((string) ($stray->subscription_end_date ?? '')) ?: 0;
+            $ownEnd = $own ? (strtotime((string) ($own->subscription_end_date ?? '')) ?: 0) : 0;
+            if ($strayEnd <= $ownEnd) { return; } // nothing better on the placeholder
+            if (!$own) {
+                $db->where('id', $stray->id)->update('db_subscription_license', ['store_id' => $client]);
+                $licId = (int) $stray->id;
+            } else {
+                $data = (array) $stray;
+                unset($data['id'], $data['store_id'], $data['created_date'], $data['created_time']);
+                $data['updated_date'] = date('Y-m-d');
+                $data['updated_time'] = date('H:i:s');
+                $db->where('id', $own->id)->update('db_subscription_license', $data);
+                $db->where('id', $stray->id)->delete('db_subscription_license');
+                $licId = (int) $own->id;
+            }
+            if ($db->field_exists('current_subscriptionlist_id', 'db_store')) {
+                $db->where('id', $client)->update('db_store', ['current_subscriptionlist_id' => $licId]);
+            }
+            log_message('info', 'Updater: moved misplaced license from placeholder store to store ' . $client);
+        } catch (Throwable $e) {
+            log_message('error', 'Updater healMisplacedLicense: ' . $e->getMessage());
+        }
+    }
+
+    protected function getLicenseCode(): string {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return '';
+            }
+            // Resolve first: resolveStoreId() runs its own query, and calling it
+            // inside the chain merges into the pending select (fatal 500).
+            $storeId = $this->resolveStoreId();
+            $rec = $this->CI->db->select('license_code')
+                ->where('store_id', $storeId)
+                ->get('db_subscription_license')->row();
+            if (!$rec) {
+                // Single-store installs may carry the license on a different
+                // store_id — fall back to the most recent license row.
+                $rec = $this->CI->db->select('license_code')
+                    ->order_by('id', 'desc')->limit(1)
+                    ->get('db_subscription_license')->row();
+            }
+            return $rec ? (string) ($rec->license_code ?? '') : '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Verify the manifest's ed25519 signature against the public key in
+     * config/updater.php. When no public key is configured the check passes —
+     * signing is opt-in hardening; once configured it is strictly enforced.
+     */
+    protected function verifyManifestSignature(array $manifest): bool {
+        $pubkey = (string) $this->CI->config->item('update_pubkey');
+        if ($pubkey === '') {
+            return true;
+        }
+        $sig = $manifest['signature'] ?? null;
+        if (empty($sig) || !function_exists('sodium_crypto_sign_verify_detached')) {
+            return false;
+        }
+        try {
+            return sodium_crypto_sign_verify_detached(
+                sodium_hex2bin($sig),
+                $this->manifestPayload($manifest),
+                sodium_hex2bin($pubkey)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Canonical payload that gets signed: the manifest without its signature.
+     * Key order is stable because the generator writes the same structure.
+     */
+    protected function manifestPayload(array $manifest): string {
+        unset($manifest['signature']);
+        return json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Let the (verified) manifest point installs at the fleet registry —
+     * fleet_url/fleet_key ship inside the manifest so a channel move or a
+     * first-time rollout reaches every install without manual settings edits.
+     */
+    protected function applyManifestSettings(array $manifest): void {
+        try {
+            $updates = [];
+            if (!empty($manifest['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
+                $updates['fleet_url'] = $manifest['fleet_url'];
+            }
+            if (!empty($manifest['fleet_key']) && $this->CI->db->field_exists('fleet_key', 'db_sitesettings')) {
+                $updates['fleet_key'] = $manifest['fleet_key'];
+            }
+            if (!empty($updates)) {
+                $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Updater applyManifestSettings failed: ' . $e->getMessage());
+        }
+    }
+
+    protected function getSitesetting(string $col): string {
+        try {
+            if (!$this->CI->db->field_exists($col, 'db_sitesettings')) {
+                return '';
+            }
+            $row = $this->CI->db->select($col)->from('db_sitesettings')->where('id', 1)->get()->row();
+            return $row ? (string) ($row->{$col} ?? '') : '';
+        } catch (Throwable $e) {
+            return '';
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -171,7 +1326,7 @@ class Updater {
 
     public function startJob(string $fromVersion, string $toVersion): int {
         $this->CI->db->insert('db_system_updates', [
-            'store_id' => get_current_store_id(),
+            'store_id' => $this->resolveStoreId(),
             'from_version' => $fromVersion,
             'to_version' => $toVersion,
             'status' => 'running',
@@ -330,7 +1485,7 @@ class Updater {
 
             return $result;
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->markJobFailed($e->getMessage());
             $state['failed'] = true;
             $state['message'] = $e->getMessage();
@@ -994,6 +2149,26 @@ class Updater {
         return null;
     }
 
+    // Minimal POST helper for the fleet heartbeat — no retry loop, telemetry
+    // must never hold up the request that triggered it.
+    protected function httpPost(string $url, array $payload, int $timeout = 8): ?string {
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'timeout' => $timeout,
+                'user_agent' => 'MartPointUpdater/1.0',
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'content' => http_build_query($payload),
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+        $data = @file_get_contents($url, false, $ctx);
+        return $data === false ? null : $data;
+    }
+
     protected function getUpdateChannelUrl(): string {
         try {
             $row = $this->CI->db->select('update_channel_url')
@@ -1002,7 +2177,7 @@ class Updater {
                 ->get()
                 ->row();
             $url = $row ? ($row->update_channel_url ?? '') : '';
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $url = '';
         }
         if (empty($url)) {

@@ -1,7 +1,9 @@
 {
     "version": "4.0.9.102",
-    "previous_version": "4.0.9.59",
+    "previous_version": "4.0.9.49",
     "release_date": "2026-10-07",
+    "fleet_url": "https://central.martpoint.com.ng/",
+    "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
     "files": [
         {
             "path": "application/views/sales_mobile.php",
@@ -5985,8 +5987,8 @@
         },
         {
             "path": "application/controllers/Manifest.php",
-            "hash": "6a148885b41261b92a676fb41a07739d8448bba9ff2139f7fdc07e35995cf2f1",
-            "size": 7004
+            "hash": "a420de95e735efc587a3c262f2150544aca10bf5fa3649bbcce0fb2f950e6af6",
+            "size": 8530
         },
         {
             "path": "application/controllers/Consents.php",
@@ -6190,8 +6192,8 @@
         },
         {
             "path": "application/controllers/Release.php",
-            "hash": "2b1e8397ea55831102beac617141aa5b90036ee4cffbdab6e650362b7541a555",
-            "size": 21760
+            "hash": "f2bd96d009df3cc58450306012b311f57428bc1c6795a0bf493e653908e4594c",
+            "size": 26287
         },
         {
             "path": "application/controllers/Tax_group.php",
@@ -6470,8 +6472,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "115bc2536c4b79a5f0e789ba3324368ae33e8f80d1a92cbf0b795ff37a0023f7",
-            "size": 86528
+            "hash": "d175b35de1f61961aed449ceef7de590ff57ab7bc84285994d923d3d9e704100",
+            "size": 87021
         },
         {
             "path": "application/controllers/Updates.php",
@@ -9535,8 +9537,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "9b771fb7e1d1557548d880199c81b3cc8fe5779760fd4eea2765bb3db4d39432",
-            "size": 44423
+            "hash": "014ad1e1410a5d1dbd1746fb619da0f8a70e2756bcf7d4f0f5c18ee7429b2f69",
+            "size": 100360
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
