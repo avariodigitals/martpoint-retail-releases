@@ -178,3 +178,8 @@ $route['users/profile'] = 'users/profile';
    Read-only slot lookup + optional self-booking when the store enables it. */
 $route['intake_slots'] = 'intake_slots/index';
 $route['intake_booking'] = 'intake_slots/book';
+$route['migrate'] = 'migrate/index';
+$route['migrate/upload'] = 'migrate/upload';
+$route['migrate/import'] = 'migrate/import';
+$route['migrate/restore_uploads'] = 'migrate/restore_uploads';
+$route['migrate/cleanup'] = 'migrate/cleanup';

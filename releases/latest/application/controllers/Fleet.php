@@ -746,26 +746,7 @@ class Fleet extends MY_Controller {
             echo json_encode(['status' => 'error', 'message' => 'Install not found.']);
             return;
         }
-        // Installs below 4.0.9.46 can't verify a Central-issued OTP proof —
-        // they only know their own db_license_otps rows. Queue the legacy
-        // request_license_otp command instead: the install generates the OTP
-        // itself and emails the vendor address on its next wake-up.
-        if (version_compare((string) ($install->version ?? '0'), '4.0.9.46', '<')) {
-            $this->db->insert('db_fleet_commands', [
-                'install_id' => $installId,
-                'command' => 'request_license_otp',
-                'payload' => '',
-                'status' => 'pending',
-                'created_at' => date('Y-m-d H:i:s'),
-            ]);
-            $this->pingInstall($installId);
-            echo json_encode([
-                'status' => 'ok',
-                'legacy' => true,
-                'message' => 'This install runs an older release — it is generating the OTP itself and emailing it now. Enter it within 10 minutes.',
-            ]);
-            return;
-        }
+        // Central always generates the OTP — no legacy fallback.
         // 60-second resend limit, same as the local flow.
         if (!empty($install->license_otp_expires)) {
             $created = strtotime($install->license_otp_expires) - 600;

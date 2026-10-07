@@ -1,6 +1,6 @@
 {
     "version": "4.0.9.102",
-    "previous_version": "4.0.9.40",
+    "previous_version": "4.0.9.49",
     "release_date": "2026-10-07",
     "files": [
         {
@@ -180,8 +180,8 @@
         },
         {
             "path": "application/logs/log-2026-10-07.php",
-            "hash": "4273c7b73f89cf78bebc03a51164be78f191ea6cb9810c7d2a38c4e9f5614cfb",
-            "size": 12741
+            "hash": "b4e6d89832e8e1829c0e41f7bd621f0ce18eef59fa253509e98e09d416e1b0cb",
+            "size": 13078
         },
         {
             "path": "application/logs/log-2026-09-25.php",
@@ -5040,8 +5040,8 @@
         },
         {
             "path": "application/views/release-builder.php",
-            "hash": "a32091e7703e30590a0d33deb5036463f115b46cc53b89539174efaa427dd5b3",
-            "size": 3039
+            "hash": "f8cc5310ae8da36df9d29262f4ce9233bfdad50d76ac6bbb9c5f98b88306bad5",
+            "size": 8258
         },
         {
             "path": "application/views/accounts/money_transfer.php",
@@ -5155,8 +5155,8 @@
         },
         {
             "path": "application/config/routes.php",
-            "hash": "0d1fcf7ba26aa798fd8a1efbd304336e0cc7bebb347c405a77e537ee1e33c5a9",
-            "size": 9478
+            "hash": "cad0bb35e17883c90d9f601495a3dc28cec4099d3949e9d3e51f227931198233",
+            "size": 9715
         },
         {
             "path": "application/config/smileys.php",
@@ -6375,8 +6375,8 @@
         },
         {
             "path": "application/controllers/Release.php",
-            "hash": "cbd7ed2062ce690ee0383631da8de4932ccf791fb5eb7f7200d9f3a38376a658",
-            "size": 4161
+            "hash": "2b1e8397ea55831102beac617141aa5b90036ee4cffbdab6e650362b7541a555",
+            "size": 21760
         },
         {
             "path": "application/controllers/Tax_group.php",
@@ -6655,8 +6655,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "d635c51321c230b4de476a90497f5bc433246b73ba6ccbb0615164fbfae3d173",
-            "size": 87477
+            "hash": "115bc2536c4b79a5f0e789ba3324368ae33e8f80d1a92cbf0b795ff37a0023f7",
+            "size": 86528
         },
         {
             "path": "application/controllers/Updates.php",
