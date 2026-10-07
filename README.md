@@ -2,7 +2,7 @@
 
 This repository contains release packages for MartPoint Retail.
 
-## Latest Release: v4.0.9.2
+## Latest Release: v4.0.9.102
 
 ### For Fresh Installations
 Download: `releases/martpoint-4.0.9.zip` (71 MB)
