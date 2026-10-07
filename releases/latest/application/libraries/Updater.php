@@ -1617,6 +1617,33 @@ class Updater {
         $channel = $this->getUpdateChannelUrl();
         $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
 
+        // Drop paths the CURRENT manifest no longer lists. A persisted state
+        // from an earlier run can reference files that have since been removed
+        // from the release (e.g. application/logs/log-*.php after logs were
+        // excluded). Replaying those 404s forever and the update never
+        // advances past step 3.
+        $manifestPaths = [];
+        foreach (($state['manifest']['files'] ?? []) as $f) {
+            if (!empty($f['path'])) { $manifestPaths[$f['path']] = true; }
+        }
+        if (!empty($manifestPaths)) {
+            $before = count($allFiles);
+            $allFiles = array_values(array_filter($allFiles, function ($p) use ($manifestPaths) {
+                return isset($manifestPaths[$p]);
+            }));
+            if (count($allFiles) !== $before) {
+                // A shrunk list invalidates any saved offset.
+                $state['files_to_update'] = array_values(array_filter(
+                    $state['files_to_update'] ?? [], function ($p) use ($manifestPaths) { return isset($manifestPaths[$p]); }
+                ));
+                $state['files_to_add'] = array_values(array_filter(
+                    $state['files_to_add'] ?? [], function ($p) use ($manifestPaths) { return isset($manifestPaths[$p]); }
+                ));
+                $state['batch'] = 0;
+                $this->writeState($state);
+            }
+        }
+
         // Determine resume offset
         $offset = $state['batch'] ?? 0;
         $total = count($allFiles);
@@ -2197,8 +2224,36 @@ class Updater {
 
     // Non-executable content (docs/guides) must never block a code update:
     // a stale or missing doc is skipped with a warning, not fatal.
+    /**
+     * Files whose absence must NOT fail an update.
+     *
+     * If a path cannot be downloaded or written, a critical file means the
+     * release is broken and we abort. But runtime-generated paths (logs,
+     * cache) and documentation are never essential to run the app — aborting
+     * the whole release because one log file 404s is how installs got stuck
+     * failing forever on "Failed to download ... application/logs/log-*.php".
+     *
+     * Logs are the important case: an install running an older build has a
+     * persisted update-state.json that still lists a log file the channel no
+     * longer publishes (logs are excluded from manifests now). Without this,
+     * the resume replays the dead path on every retry and never advances.
+     */
     protected function isNonCritical(string $path): bool {
-        return strpos($path, 'docs/') === 0;
+        foreach ([
+            'docs/',
+            'application/logs/',
+            'application/cache/',
+            'application/sessions/',
+        ] as $prefix) {
+            if (strpos($path, $prefix) === 0) {
+                return true;
+            }
+        }
+        // Any stray log file anywhere (e.g. an old manifest listed one).
+        if (preg_match('#(^|/)log-[0-9]{4}-[0-9]{2}-[0-9]{2}\.php$#', $path)) {
+            return true;
+        }
+        return false;
     }
 
     // A killed request leaves status='running' forever (state was never

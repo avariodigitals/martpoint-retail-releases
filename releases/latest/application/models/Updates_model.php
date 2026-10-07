@@ -152,12 +152,39 @@ class Updates_model extends CI_Model {
 		// Execute statements one at a time so a single failure cannot drop the
 		// rest of the file (multi_query aborts remaining statements silently).
 		foreach($this->_split_sql_statements($sql) as $stmt){
-			try{
-				$ok = $conn->query($stmt);
-				$error = $conn->error;
-			} catch(mysqli_sql_exception $e){
-				$ok = false;
-				$error = $e->getMessage();
+			$ok = false;
+			$error = '';
+			// Deadlocks and lock-wait timeouts are TRANSIENT — InnoDB rolls the
+			// statement back and it will normally succeed on retry. ALTER TABLE
+			// in particular takes an exclusive lock, so on a busy install (or
+			// one where another request holds a lock) a migration can deadlock
+			// even though nothing is wrong. Retrying a few times with a short
+			// pause turns a spurious "Migration failed [deadlock]" into a clean
+			// run, instead of aborting the whole chain on a recoverable blip.
+			$attempts = 0;
+			$maxAttempts = 4;
+			while($attempts < $maxAttempts){
+				$attempts++;
+				try{
+					$ok = $conn->query($stmt);
+					$error = $conn->error;
+				} catch(mysqli_sql_exception $e){
+					$ok = false;
+					$error = $e->getMessage();
+				}
+				if($ok){
+					break;
+				}
+				$retryable = (stripos($error, 'Deadlock') !== false)
+					|| (stripos($error, 'Lock wait timeout') !== false)
+					|| (stripos($error, 'try restarting transaction') !== false);
+				if(!$retryable || $attempts >= $maxAttempts){
+					break;
+				}
+				usleep(250000 * $attempts); // 0.25s, 0.5s, 0.75s
+			}
+			if($attempts > 1 && $ok){
+				log_message('info', "Migration {$file} statement succeeded after {$attempts} attempts (was: deadlock/lock wait).");
 			}
 			if(!$ok){
 				$failed++;

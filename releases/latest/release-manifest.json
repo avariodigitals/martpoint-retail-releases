@@ -1,6 +1,6 @@
 {
     "version": "4.0.9.102",
-    "previous_version": "4.0.9.49",
+    "previous_version": "4.0.9.59",
     "release_date": "2026-10-07",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -5712,8 +5712,8 @@
         },
         {
             "path": "application/models/Updates_model.php",
-            "hash": "6d0d0c7b45edb95bffdb188d98d9f5a9f21c995501c2104820f6cb62c07d2c77",
-            "size": 9903
+            "hash": "f2e633b6f3a547e588b8f76db677b40d9cd0de70998292b7a9bcd27181aee35e",
+            "size": 11026
         },
         {
             "path": "application/models/Production_batches_model.php",
@@ -9537,8 +9537,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "014ad1e1410a5d1dbd1746fb619da0f8a70e2756bcf7d4f0f5c18ee7429b2f69",
-            "size": 100360
+            "hash": "7a04a6b4d362dc256daa94394d3b1a60732d0e3a95880f8a21b4d91319a787de",
+            "size": 102973
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
