@@ -15,6 +15,19 @@ SET @sql = IF(@col_exists = 0,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 2. Existing rows are real selling units, not templates
+--
+-- The guard above can skip the ALTER when the column already exists, but on an
+-- install where it is missing the ALTER may also fail for reasons the guard
+-- cannot detect. This UPDATE would then die on an unknown column — and step 6
+-- aborting is a permanent stall, so re-assert the column first.
+SET @sql_a = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'db_item_selling_units'
+       AND column_name = 'is_template') = 0,
+  'ALTER TABLE `db_item_selling_units` ADD COLUMN `is_template` TINYINT(1) NOT NULL DEFAULT 0',
+  'DO 0'));
+PREPARE stmt_a FROM @sql_a; EXECUTE stmt_a; DEALLOCATE PREPARE stmt_a;
+
 UPDATE `db_item_selling_units` SET `is_template` = 0 WHERE `is_template` IS NULL;
 
 -- 3. Make it faster to distinguish templates from sellable rows

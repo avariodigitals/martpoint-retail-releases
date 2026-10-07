@@ -36,6 +36,23 @@ SET @sql = (SELECT IF(
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Printing stores default to a service-led storefront.
+--
+-- The guard above may SKIP the ALTER (column already present) — but on an
+-- install where it is missing, the ALTER can also fail for reasons the guard
+-- cannot see (a stale information_schema, a restricted account), and this
+-- UPDATE then dies on an unknown column. That is a hard stop: step 6 throws,
+-- the version never advances, and the install is stuck for ever.
+--
+-- Re-assert the column here so this file is self-sufficient and does not rely
+-- on the earlier guarded ALTER having succeeded.
+SET @sql2 = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_storefront_settings'
+       AND COLUMN_NAME = 'catalogue_mode') = 0,
+  'ALTER TABLE `db_storefront_settings` ADD COLUMN `catalogue_mode` VARCHAR(16) NOT NULL DEFAULT ''products''',
+  'DO 0'));
+PREPARE stmt2 FROM @sql2; EXECUTE stmt2; DEALLOCATE PREPARE stmt2;
+
 UPDATE `db_storefront_settings` s
 JOIN `db_store_industry_settings` i ON i.store_id = s.store_id
 SET s.catalogue_mode = 'services'

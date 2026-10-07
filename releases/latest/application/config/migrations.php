@@ -164,4 +164,13 @@ return [
 	// that cannot finish in one request; 'resume' lets Central drive it to
 	// completion instead of closing it as done after 90 seconds.
 	'4.0.9.104v'  => '4.0.9.104_fleet_command_resume.sql',
+
+	// Fleet failure reporting — Central could see an install was outdated but
+	// not WHY. Failed backups and stuck migrations were only visible by
+	// logging into the install.
+	'4.0.9.105v'  => '4.0.9.105_fleet_failure_reporting.sql',
+
+	// Fleet migration-progress reporting — a stalled migration chain blocks an
+	// install for ever and was invisible from Central.
+	'4.0.9.106v'  => '4.0.9.106_fleet_migration_progress.sql',
 ];

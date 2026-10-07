@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.104",
-    "previous_version": "4.0.9.59",
+    "version": "4.0.9.106",
+    "previous_version": "4.0.9.49",
     "release_date": "2026-10-07",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -3522,8 +3522,8 @@
         },
         {
             "path": "application/views/fleet.php",
-            "hash": "9f08f8f02e563fe58862053bd69c862637e3fe5370b91eb2a9675d550857ec8f",
-            "size": 86998
+            "hash": "a0270d270040bb884808ac11f1c387794545481732d7cc4385a12581bbc2bb77",
+            "size": 92153
         },
         {
             "path": "application/views/services/services.php",
@@ -4967,8 +4967,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "8404f373769b24d7ac7e594ceab45bac16388aa671ebb466ef30ed3507dbd291",
-            "size": 8928
+            "hash": "88f20d891f1f3d769f80d4fd9e67f0f000d83b2884ac17d8a5224ef4ce368ed7",
+            "size": 9359
         },
         {
             "path": "application/config/routes.php",
@@ -6472,8 +6472,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "7aa9ec9407bdde1c8b47cd3ef988ba7dd236f84ad6fb7ea421827c087acf8762",
-            "size": 101020
+            "hash": "29e26bc2436b33f6d1f7c0347b529fc8273aac1de9b2578a5aa6c968b4290f9e",
+            "size": 105451
         },
         {
             "path": "application/controllers/Updates.php",
@@ -9537,8 +9537,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "d0be9b94639384791ba8502a8bba782e6e06219643f0f0e78fabebe1a72f7413",
-            "size": 117682
+            "hash": "9ee9049e8ff71f1348795a8dfbfd491de5fa29ec0140fd65a8326b733b79757c",
+            "size": 121783
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -10982,7 +10982,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "8666bd846bc9856957079e47b6347e551a8fa6be7e3ff1f4eee31d0cf3a80496",
+            "hash": "18c8b147fcde89576f8107bbaae7511ae32a0c56df30c3508cfd52cbb95a0d9a",
             "size": 105351
         },
         {
@@ -17221,6 +17221,7 @@
         "4.0.9.102_orphan_table_repair.sql",
         "4.0.9.103_fleet_update_stage.sql",
         "4.0.9.104_fleet_command_resume.sql",
+        "4.0.9.106_fleet_migration_progress.sql",
         "4.0.9.10_stock_state.sql",
         "4.0.9.11_leads_crm.sql",
         "4.0.9.12_industry_modules.sql",
@@ -17313,5 +17314,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.104"
+    "changelog": "Release 4.0.9.106"
 }

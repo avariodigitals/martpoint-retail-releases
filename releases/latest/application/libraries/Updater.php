@@ -414,6 +414,22 @@ class Updater {
             $payload['update_stage']  = $stage['stage'];
             $payload['update_step']   = (string) $stage['step'];
             $payload['update_detail'] = $stage['detail'];
+
+            // Migration progress — a stalled chain is the worst failure and
+            // was previously invisible from Central.
+            $mig = $this->migrationProgress();
+            $payload['migrations_applied'] = (string) $mig['applied'];
+            $payload['migration_newest']   = $mig['newest'];
+
+            // The last failed job, so Central can show WHY an install is stuck
+            // instead of only that it is outdated. Without this the only way to
+            // find a failed backup or migration was to log into the install.
+            $fail = $this->lastFailure();
+            if ($fail) {
+                $payload['last_fail_label']   = $fail['label'];
+                $payload['last_fail_message'] = $fail['message'];
+                $payload['last_fail_at']      = $fail['at'];
+            }
             $meta = $this->storeMeta();
             $payload['store_name']    = $meta['store_name'];
             $payload['store_city']    = $meta['city'];
@@ -640,6 +656,70 @@ class Updater {
             log_message('error', 'Updater migrationStatus failed: ' . $e->getMessage());
         }
         return $out;
+    }
+
+    /**
+     * Migration progress, for the fleet heartbeat.
+     *
+     * A stuck migration is the worst failure in the system: the chain breaks
+     * at one file, every later migration queues behind it, and the install can
+     * never advance. From Central it looked identical to a healthy install
+     * that was simply behind — the only way to find it was to log in.
+     *
+     * Reporting "42 of 103 applied, newest <file>" makes the stall visible:
+     * a count that stops moving while the release ships 103 files is the
+     * signal.
+     */
+    public function migrationProgress(): array {
+        $out = ['applied' => 0, 'newest' => ''];
+        try {
+            if (!$this->CI->db->table_exists('db_schema_migrations')) {
+                return $out;
+            }
+            $out['applied'] = (int) $this->CI->db->count_all_results('db_schema_migrations');
+            $row = $this->CI->db->select('filename')->order_by('id', 'DESC')->limit(1)
+                ->get('db_schema_migrations')->row();
+            $out['newest'] = $row ? (string) $row->filename : '';
+        } catch (Throwable $e) {
+            // Non-fatal — the heartbeat simply reports 0.
+        }
+        return $out;
+    }
+
+    /**
+     * The last FAILED job from db_system_updates, for the fleet heartbeat.
+     *
+     * An install whose update died at step 1 (a failed DB backup, a bad
+     * migration) looks identical to a healthy-but-outdated one from Central:
+     * both just read "outdated". The reason lives in db_system_updates on the
+     * install, visible only by logging in — which is exactly the per-install
+     * hunting this is meant to remove.
+     *
+     * Reporting it lets the fleet show WHY an install is stuck, not just that
+     * it is.
+     */
+    public function lastFailure(): ?array {
+        try {
+            if (!$this->CI->db->table_exists('db_system_updates')) {
+                return null;
+            }
+            $job = $this->CI->db->where('status', 'failed')
+                ->order_by('id', 'DESC')->limit(1)
+                ->get('db_system_updates')->row();
+            if (!$job) {
+                return null;
+            }
+            return [
+                'step'    => (int) ($job->current_step ?? 0),
+                'label'   => substr((string) ($job->step_label ?? ''), 0, 120),
+                'message' => substr((string) ($job->error_message ?? ''), 0, 200),
+                'at'      => (string) ($job->completed_at ?? ''),
+                'from'    => (string) ($job->from_version ?? ''),
+                'to'      => (string) ($job->to_version ?? ''),
+            ];
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -1850,7 +1930,17 @@ class Updater {
 
         $path = $this->backupManager->backupDatabase();
         if (!$path) {
-            throw new Exception('Database backup failed. Check backups/ folder permissions.');
+            // Say what is actually knowable instead of guessing. The old text
+            // blamed folder permissions, but the real cause on a live store is
+            // almost always the dump exceeding memory/time — which sent
+            // diagnosis in the wrong direction.
+            $last = error_get_last();
+            $why = ($last && !empty($last['message'])) ? ' Last PHP error: ' . $last['message'] : '';
+            throw new Exception(
+                'Database backup failed — the updater cannot proceed without one. '
+                . 'Most common cause: the dump ran out of memory or time on a large database.'
+                . $why
+            );
         }
 
         // Save the backup path in the job record for restore

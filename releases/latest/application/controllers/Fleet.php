@@ -144,6 +144,13 @@ class Fleet extends MY_Controller {
         if (is_file($manifestFile)) {
             $m = json_decode((string) @file_get_contents($manifestFile), true);
             $data['latest_version'] = $m['version'] ?? null;
+            // How many migrations the current release ships — the denominator
+            // for each install's migration progress bar. Without it the count
+            // alone says nothing: 42 applied is fine if 42 exist and stalled
+            // if 103 do.
+            $data['migration_total'] = isset($m['migrations']) ? count($m['migrations']) : 0;
+        } else {
+            $data['migration_total'] = 0;
         }
 
         $data['stats'] = [
@@ -598,12 +605,24 @@ class Fleet extends MY_Controller {
             'store_country'  => 150,
             'usage_json'     => 4000,
             'update_detail'  => 255,
+            'last_fail_label'   => 120,
+            'last_fail_message' => 200,
+            'last_fail_at'      => 20,
+            'migration_newest'  => 160,
         ] as $field => $max) {
             if ($this->db->field_exists($field, 'db_fleet_installs')) {
                 $val = substr((string) $this->input->post($field), 0, $max);
                 if ($val !== '') {
                     $data[$field] = $val;
                 }
+            }
+        }
+        // Migration count must be able to go back to 0/absent, and 0 is
+        // meaningful (no ledger yet) — write it unconditionally.
+        if ($this->db->field_exists('migrations_applied', 'db_fleet_installs')) {
+            $ma = $this->input->post('migrations_applied');
+            if ($ma !== null) {
+                $data['migrations_applied'] = max(0, (int) $ma);
             }
         }
         // Stage is the one field that must be able to go BACK to idle after an
@@ -1426,16 +1445,71 @@ class Fleet extends MY_Controller {
                 $latest = $m['version'] ?? null;
             }
 
+            // ---- Bootstrap: every install must be running the CURRENT
+            // Updater before it can be asked to update.
+            //
+            // An install on an older build has an Updater that cannot finish a
+            // large release — it runs one ~90s slice of a 5387-file update,
+            // reports success, and stops. Telling it to "update now" is
+            // therefore useless: it will always no-op. The only thing that can
+            // replace a broken updater is Central placing the file, so do that
+            // FIRST, as part of the same round, instead of leaving it as a
+            // manual step that is easy to skip and impossible to remember.
+            $bootstrapped = 0;
+            $bootstrapIds = [];
+            $updaterSrc = FCPATH . 'application/libraries/Updater.php';
+            if (is_file($updaterSrc)) {
+                $b64 = base64_encode((string) @file_get_contents($updaterSrc));
+                foreach ($ids as $id) {
+                    $row = $this->db->select('id, version')->where('id', $id)
+                        ->get('db_fleet_installs')->row();
+                    if (!$row) { continue; }
+                    // Already on the latest release → its Updater is current.
+                    $current = $latest && !empty($row->version)
+                        && version_compare($row->version, $latest, '>=');
+                    if ($current) { continue; }
+
+                    // Never stack bootstrap pushes — one outstanding per install.
+                    $pendingPush = $this->db->where('install_id', $id)
+                        ->where('command', 'push_file')
+                        ->where_in('status', ['pending', 'resumed'])
+                        ->count_all_results('db_fleet_commands');
+                    if ($pendingPush > 0) { continue; }
+
+                    $this->db->insert('db_fleet_commands', [
+                        'install_id' => $id,
+                        'command'    => 'push_file',
+                        'payload'    => json_encode([
+                            'path'        => 'application/libraries/Updater.php',
+                            'content_b64' => $b64,
+                        ]),
+                        'status'     => 'pending',
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $bootstrapped++;
+                    $bootstrapIds[] = (int) $row->id;
+                }
+            }
+
             // Who still needs work this round?
+            //
+            // `update_stage` only exists after migration 4.0.9.103. Selecting
+            // a column that isn't there makes the query builder return false,
+            // and ->row() then fatals ("Call to a member function row() on
+            // bool"). Build the select list from what actually exists so this
+            // endpoint keeps working on a Central that has not migrated yet —
+            // it just cannot see stages, which is the honest degradation.
+            $hasStage = $this->db->field_exists('update_stage', 'db_fleet_installs');
             $need = [];
             $remainIds = [];
             foreach ($ids as $id) {
-                $row = $this->db->select('id, version, update_stage')->where('id', $id)
+                $sel = $hasStage ? 'id, version, update_stage' : 'id, version';
+                $row = $this->db->select($sel)->where('id', $id)
                     ->get('db_fleet_installs')->row();
                 if (!$row) { continue; }
                 $behind = $latest && !empty($row->version)
                     && version_compare($row->version, $latest, '<');
-                $stage = strtolower((string) ($row->update_stage ?? ''));
+                $stage = $hasStage ? strtolower((string) ($row->update_stage ?? '')) : '';
                 if ($behind || in_array($stage, ['stalled', 'failed'], true)) {
                     $remainIds[] = (int) $row->id;
                     // Only queue for installs that are not already mid-flight —
@@ -1463,15 +1537,20 @@ class Fleet extends MY_Controller {
                 $queued++;
             }
 
-            $woke = $need ? $this->wakeInstalls($need) : 0;
+            // Wake everyone we just touched — bootstrap pushes AND update
+            // commands — so a round makes progress on the wire, not just in
+            // the queue.
+            $wakeIds = array_values(array_unique(array_merge($need, $bootstrapIds)));
+            $woke = $wakeIds ? $this->wakeInstalls($wakeIds) : 0;
 
             echo json_encode([
-                'status'    => 'ok',
-                'latest'    => $latest,
-                'queued'    => $queued,
-                'woke'      => $woke,
-                'remaining' => count($remainIds),
-                'total'     => count($ids),
+                'status'      => 'ok',
+                'latest'      => $latest,
+                'queued'      => $queued,
+                'bootstrapped' => $bootstrapped,
+                'woke'        => $woke,
+                'remaining'   => count($remainIds),
+                'total'       => count($ids),
             ]);
         } catch (Throwable $e) {
             log_message('error', 'Fleet update_round failed: ' . $e->getMessage());

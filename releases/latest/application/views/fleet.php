@@ -146,6 +146,14 @@
     overflow: hidden; max-width: 180px;
   }
   .fleet-stage-bar > span { display: block; height: 100%; background: #1D4ED8; }
+
+/* Migration progress bar — a stalled chain is the worst failure, so the count
+   and the bar make "stopped climbing" visible at a glance. */
+.fleet-migbar {
+  height: 4px; background: #E7E5E4; border-radius: 2px; margin-top: 4px;
+  overflow: hidden; max-width: 200px;
+}
+.fleet-migbar > span { display: block; height: 100%; background: #059669; }
 .fleet-bulkbar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: #F5F5F4; border: 1px solid #E7E5E4; border-radius: 8px;
@@ -406,15 +414,31 @@
 
             $cmdStatus = strtolower((string) ($cmd->status ?? ''));
             $cmdText   = trim((string) ($cmd->result ?? ''));
+            // A recorded failed job is its own reason for attention, even
+            // when the stage reads idle. An install whose backup or migration
+            // failed looks perfectly calm from every other column — that is
+            // precisely how it stayed invisible.
+            $hasFail = trim((string) ($i->last_fail_message ?? '')) !== ''
+                || trim((string) ($i->last_fail_label ?? '')) !== '';
+
+            // A migration chain that has stopped climbing is its own alarm —
+            // the install can never advance until it is fixed, however healthy
+            // everything else looks.
+            $mAppliedRow = (int) ($i->migrations_applied ?? 0);
+            $mTotalRow   = isset($migration_total) ? (int) $migration_total : 0;
+            $migStalled  = $mTotalRow > 0 && $mAppliedRow > 0 && $mAppliedRow < $mTotalRow;
+
             $needsAttention = in_array($stage, ['stalled', 'failed'], true)
-                || $outdated || $licStatus === 'EXPIRED' || $suspended || $cmdStatus === 'failed';
+                || $outdated || $licStatus === 'EXPIRED' || $suspended
+                || $cmdStatus === 'failed' || $hasFail || $migStalled;
 
             // Row accent: red beats amber. Uses the same severity the badge
             // shows so the colour and the word never disagree.
             $rowCls = '';
-            if (in_array($stage, ['stalled', 'failed'], true) || $licStatus === 'EXPIRED' || $suspended || $cmdStatus === 'failed') {
+            if (in_array($stage, ['stalled', 'failed'], true) || $licStatus === 'EXPIRED'
+                || $suspended || $cmdStatus === 'failed' || $hasFail) {
               $rowCls = 'is-bad';
-            } elseif ($outdated || $st !== null && $st[3] === 'busy') {
+            } elseif ($outdated || $migStalled || $st !== null && $st[3] === 'busy') {
               $rowCls = 'is-warn';
             }
 
@@ -430,7 +454,7 @@
                data-hay="<?= htmlspecialchars($haystack, ENT_QUOTES) ?>"
                data-attn="<?= $needsAttention ? '1' : '0' ?>"
                data-outdated="<?= $outdated ? '1' : '0' ?>"
-               data-stuck="<?= in_array($stage, ['stalled', 'failed'], true) ? '1' : '0' ?>"
+               data-stuck="<?= (in_array($stage, ['stalled', 'failed'], true) || $hasFail) ? '1' : '0' ?>"
                data-lic="<?= htmlspecialchars($licStatus ?: 'UNKNOWN', ENT_QUOTES) ?>">
             <div class="fleet-row <?= $rowCls ?>">
               <div class="fleet-row-main" onclick="toggleRow(this)">
@@ -517,6 +541,63 @@
                       <?php endif; ?>
                     </div>
                   </div>
+
+                  <?php
+                    // Migration progress. A stuck chain is the worst failure —
+                    // the install can never advance — and it used to be
+                    // invisible from here. A count that stops climbing while
+                    // the release ships more migrations IS the stall signal.
+                    $mApplied = (int) ($i->migrations_applied ?? 0);
+                    $mNewest  = trim((string) ($i->migration_newest ?? ''));
+                    $mTotal   = isset($migration_total) ? (int) $migration_total : 0;
+                  ?>
+                  <?php if ($mApplied > 0 || $mNewest !== ''): ?>
+                    <div class="fleet-detail-box">
+                      <h5>Migrations</h5>
+                      <div class="kv">
+                        <?php if ($mTotal > 0): ?>
+                          <?php $mPct = min(100, (int) round($mApplied / max(1, $mTotal) * 100)); ?>
+                          <b><?= $mApplied ?></b> of <?= $mTotal ?> applied
+                          <span class="fleet-count">(<?= $mPct ?>%)</span>
+                          <div class="fleet-migbar" title="<?= $mApplied ?> of <?= $mTotal ?> migrations applied">
+                            <span style="width:<?= $mPct ?>%"></span>
+                          </div>
+                          <?php if ($mApplied < $mTotal): ?>
+                            <div class="text-muted" style="margin-top:4px">
+                              <?= $mTotal - $mApplied ?> behind — <?= $mPct < 60 ? 'chain may be stalled' : 'catching up' ?>
+                            </div>
+                          <?php endif; ?>
+                        <?php else: ?>
+                          <b><?= $mApplied ?></b> applied
+                        <?php endif; ?>
+                        <?php if ($mNewest !== ''): ?>
+                          <div class="fleet-longtext" style="margin-top:5px">newest: <?= htmlspecialchars($mNewest) ?></div>
+                        <?php endif; ?>
+                      </div>
+                    </div>
+                  <?php endif; ?>
+
+                  <?php
+                    // Why the last update failed, straight from the install's
+                    // own db_system_updates. Without this the reason was only
+                    // visible by logging into the install — which is exactly
+                    // the per-install hunting this panel exists to remove.
+                    $failLabel = trim((string) ($i->last_fail_label ?? ''));
+                    $failMsg   = trim((string) ($i->last_fail_message ?? ''));
+                    $failAt    = trim((string) ($i->last_fail_at ?? ''));
+                  ?>
+                  <?php if ($failLabel !== '' || $failMsg !== ''): ?>
+                    <div class="fleet-detail-box" style="border-color:#FCA5A5;background:#FEF2F2">
+                      <h5 style="color:#B91C1C">Why the last update failed</h5>
+                      <div class="kv">
+                        <?php if ($failLabel !== ''): ?><b><?= htmlspecialchars($failLabel) ?></b><br><?php endif; ?>
+                        <?php if ($failMsg !== ''): ?>
+                          <div class="fleet-longtext"><?= htmlspecialchars($failMsg) ?></div>
+                        <?php endif; ?>
+                        <?php if ($failAt !== ''): ?><span class="text-muted"><?= htmlspecialchars($failAt) ?></span><?php endif; ?>
+                      </div>
+                    </div>
+                  <?php endif; ?>
 
                   <div class="fleet-detail-box">
                     <h5>Licence &amp; usage</h5>
@@ -1008,6 +1089,7 @@ function updateFleet() {
       $('#fleetUpdateMsg').html(
         'Round ' + round + ' — <b>' + rem + '</b> of ' + res.total + ' still behind'
         + ' · queued ' + res.queued + ', woken ' + res.woke
+        + (res.bootstrapped ? ' · <b>fixing ' + res.bootstrapped + ' stale updater(s)</b>' : '')
         + (res.latest ? ' · target v' + res.latest : '')
       );
 
@@ -1015,11 +1097,16 @@ function updateFleet() {
 
       // No movement between rounds means the installs are not being reached —
       // stop and say so rather than looping on nothing.
-      if (rem >= last && res.queued === 0 && res.woke === 0) {
+      //
+      // A round that queued a bootstrap push counts as progress even though
+      // nothing has landed yet: the installs must receive the new updater and
+      // report before they can move.
+      var madeProgress = res.queued > 0 || res.woke > 0 || res.bootstrapped > 0;
+      if (rem >= last && !madeProgress) {
         stalled++;
         if (stalled >= 3) {
           finish('No progress for 3 rounds — ' + rem + ' install(s) are not responding to wake pings. '
-            + 'Their cron may be unset, or they are offline. Check the Status column, or use Push a file to ALL.', true);
+            + 'Their cron may be unset, or they are offline. Check the Status column.', true);
           return;
         }
       } else { stalled = 0; }

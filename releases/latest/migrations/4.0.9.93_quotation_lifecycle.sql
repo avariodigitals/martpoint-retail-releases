@@ -95,6 +95,28 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- Backfill: everything already issued keeps behaving as issued. Anything
 -- already accepted (revision accepted) is marked accepted so the new
 -- lifecycle agrees with the existing acceptance data.
+-- Backfill, with the columns re-asserted first.
+--
+-- Every column above is added through a guard that can skip the ALTER, and the
+-- ALTER itself can fail in ways the guard cannot see. Referencing a column that
+-- does not exist makes step 6 throw, which stalls the install permanently — so
+-- guarantee each one here rather than trusting the guard above.
+SET @sql_q1 = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_quotation'
+       AND COLUMN_NAME = 'lifecycle_status') = 0,
+  'ALTER TABLE `db_quotation` ADD COLUMN `lifecycle_status` VARCHAR(24) NOT NULL DEFAULT ''issued''',
+  'DO 0'));
+PREPARE stmt_q1 FROM @sql_q1; EXECUTE stmt_q1; DEALLOCATE PREPARE stmt_q1;
+
+SET @sql_q2 = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_print_jobs'
+       AND COLUMN_NAME = 'quote_lifecycle_status') = 0,
+  'ALTER TABLE `db_print_jobs` ADD COLUMN `quote_lifecycle_status` VARCHAR(24) NOT NULL DEFAULT ''none''',
+  'DO 0'));
+PREPARE stmt_q2 FROM @sql_q2; EXECUTE stmt_q2; DEALLOCATE PREPARE stmt_q2;
+
 UPDATE `db_quotation` SET `lifecycle_status` = 'issued' WHERE `lifecycle_status` IS NULL OR `lifecycle_status` = '';
 UPDATE `db_print_jobs` SET `quote_lifecycle_status` = 'accepted'
   WHERE `quotation_revision_accepted` IS NOT NULL AND `quote_lifecycle_status` = 'issued';
