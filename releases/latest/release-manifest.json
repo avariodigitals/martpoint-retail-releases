@@ -3522,8 +3522,8 @@
         },
         {
             "path": "application/views/fleet.php",
-            "hash": "c254331455e44832bd7f31a3a0cc84eb99b1028577666dbce369978d0e40dc04",
-            "size": 81894
+            "hash": "9f08f8f02e563fe58862053bd69c862637e3fe5370b91eb2a9675d550857ec8f",
+            "size": 86998
         },
         {
             "path": "application/views/services/services.php",
@@ -6252,8 +6252,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "f69ae3d86c336a003061f3760f63805239e5d7dfd034650200df075c6259dfcf",
-            "size": 37246
+            "hash": "a578509cd2e367c8bf51d403e512fc5d899184152e0ccb36b23bc30595ef7689",
+            "size": 37428
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -6472,8 +6472,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "92b1cf64240fbe2d1ce02d188abe1006517c0914e2b2ea8f9aab0ec6b2c738c2",
-            "size": 95859
+            "hash": "7aa9ec9407bdde1c8b47cd3ef988ba7dd236f84ad6fb7ea421827c087acf8762",
+            "size": 101020
         },
         {
             "path": "application/controllers/Updates.php",
@@ -9537,8 +9537,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "b645f0543a0e49e608ac3318d21ce6ffb8249ce46f2acff1bc6642bd1fd59e40",
-            "size": 114969
+            "hash": "d0be9b94639384791ba8502a8bba782e6e06219643f0f0e78fabebe1a72f7413",
+            "size": 117682
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",

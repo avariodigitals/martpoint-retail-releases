@@ -27,8 +27,16 @@ class Updater {
     ];
 
     // How many files to download/verify/apply in one PHP request.
-    // Keeps each request under ~5-10 seconds on shared hosting.
-    protected $batchSize = 50;
+    //
+    // This used to be a flat 50, which made a full release take ~69 requests.
+    // Driven by cron every 30 minutes that is a 34-hour update — the "why is
+    // nothing happening?" problem. The per-step budget below is what actually
+    // protects against host timeouts, and it is HONOURED: the download loop
+    // breaks out when the budget is spent. So a larger batch does not risk a
+    // killed request — it just gets cut short and resumes, which is the
+    // design working. Raised so a full release is a handful of slices
+    // instead of dozens.
+    protected $batchSize = 400;
 
     // Wall-clock budget per run_step request. Host request limits (FPM,
     // LiteSpeed, mod_php) kill a request that runs too long — and a killed
@@ -209,6 +217,57 @@ class Updater {
     /* ------------------------------------------------------------------ */
     /*  Auto-update orchestration (cron / lazy login check)               */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * Drive an update to COMPLETION within this request, chaining internally.
+     *
+     * runAutoUpdate() runs a bounded slice and returns — which is correct for
+     * a cron tick, but means a large release needs many ticks. With a 30-min
+     * schedule that is hours per install, and it looks identical to "nothing
+     * is happening".
+     *
+     * This loops the slice runner back-to-back until the update finishes,
+     * fails, or the wall-clock budget runs out — so one call does as much as
+     * the host will allow. Callers that can afford the time (a wake ping from
+     * Central, an admin-triggered update) use this instead.
+     *
+     * Safe to interrupt: every slice checkpoints to the state file, so a
+     * request killed at the budget resumes exactly where it stopped.
+     *
+     * @return array{status:string,done:bool,message:string,step?:int,slices?:int}
+     */
+    public function runUpdateToCompletion(int $budgetSeconds = 110): array {
+        $started = microtime(true);
+        $slices = 0;
+        $last = ['status' => 'ok', 'done' => false, 'message' => 'Nothing to do.'];
+
+        // Keep going while there is time for another meaningful slice. 12s is
+        // the floor — below that a slice cannot finish even one download pass
+        // and we would spend the budget on setup.
+        while ((microtime(true) - $started) < ($budgetSeconds - 12)) {
+            $remaining = (int) ($budgetSeconds - (microtime(true) - $started));
+            $slice = $this->runAutoUpdate(max(12, min(35, $remaining)));
+            $slices++;
+            $last = $slice;
+
+            if (!empty($slice['done'])) {
+                return $slice + ['done' => true, 'slices' => $slices];
+            }
+            // A hard stop — blocked licence, PHP gate, exhausted retries.
+            // Chaining would just repeat the same failure.
+            if (in_array($slice['status'] ?? '', ['error', 'blocked', 'skipped'], true)) {
+                return $slice + ['slices' => $slices];
+            }
+            // No progress recorded between slices means we are spinning.
+            // Bail rather than burn the whole budget going nowhere.
+            if (empty($slice['step']) && empty($slice['step_label'])) {
+                return $slice + ['done' => false, 'slices' => $slices,
+                    'message' => ($slice['message'] ?? '') . ' (no further progress this run)'];
+            }
+        }
+
+        return $last + ['done' => false, 'slices' => $slices];
+    }
 
     /**
      * Run the whole update pipeline server-side within a wall-clock budget.
@@ -681,19 +740,15 @@ class Updater {
     protected function executeFleetCommand(string $command, string $payload = ''): array {
         switch ($command) {
             case 'update_now':
-                // An update is a multi-minute, resumable pipeline — it cannot
-                // finish inside one request. runAutoUpdate() returns
-                // {status:ok, done:false} when it runs out of budget with the
-                // work checkpointed, which is PROGRESS, not completion.
-                //
-                // Treating "ok" as success marked the command done after a
-                // 90-second slice, so Central showed a green tick while the
-                // install was still millions of bytes behind — and because the
-                // command was closed, nothing ever re-queued it. Report the
-                // real outcome instead, and let the caller keep pushing.
-                $r = $this->runAutoUpdate(90);
+                // Run to completion within this request rather than a single
+                // bounded slice. A fleet-triggered update should finish in
+                // minutes, not wait for the next 30-minute cron tick.
+                $r = $this->runUpdateToCompletion(110);
                 $finished = !empty($r['done']);
                 $msg = ($r['status'] ?? '?') . ': ' . ($r['message'] ?? '');
+                if (!empty($r['slices'])) {
+                    $msg .= ' (' . (int) $r['slices'] . ' slice' . ($r['slices'] == 1 ? '' : 's') . ')';
+                }
                 if (!empty($r['step']) && !empty($r['step_label'])) {
                     $msg .= ' [step ' . (int) $r['step'] . '/8 — ' . $r['step_label'] . ']';
                 }

@@ -677,10 +677,10 @@ class Cron extends CI_Controller {
 			}
 			$update = null;
 			if ($wantsUpdate) {
-				// Short slice — this request may be Central's 5s curl, which
-				// disconnects early. ignore_user_abort keeps it running to
-				// the budget so the work is not wasted.
-				$update = $this->updater->runAutoUpdate(25);
+				// Run to completion, not one slice. This request may be Central's
+				// 5s curl, which disconnects early — ignore_user_abort (set above)
+				// keeps the work running to the budget so it is not wasted.
+				$update = $this->updater->runUpdateToCompletion(110);
 				$this->updater->sendHeartbeat();
 			}
 
@@ -714,7 +714,9 @@ class Cron extends CI_Controller {
 			// even if the update pipeline below stalls on a slow channel fetch.
 			$this->updater->sendHeartbeat();
 			$commands = $this->updater->pollFleetCommands();
-			$result = $this->updater->runAutoUpdate(90);
+			// auto_update is the scheduled full-update path. Run it to
+			// completion so a */30 schedule does not mean a 34-hour update.
+			$result = $this->updater->runUpdateToCompletion(110);
 			// Report the post-update state back immediately.
 			$this->updater->sendHeartbeat();
 		} catch (Throwable $e) {

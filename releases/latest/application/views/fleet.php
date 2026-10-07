@@ -156,6 +156,16 @@
   width: auto; display: inline-block; height: 28px; padding: 3px 8px; font-size: 12px;
 }
 .fleet-bulkbar .fleet-bulk-progress { color: #78716C; }
+
+/* Fleet-wide update progress — a long-running operation must say what it is
+   doing and how far along, or it reads as a hang. */
+.fleet-updatebar {
+  display: flex; align-items: center; gap: 10px;
+  background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px;
+  padding: 9px 12px; margin-bottom: 10px; font-size: 12px; color: #065F46;
+}
+.fleet-updatebar.done { background: #F0FDF4; border-color: #86EFAC; }
+.fleet-updatebar.warn { background: #FFFBEB; border-color: #FDE68A; color: #92400E; }
 </style>
 
 <div class="mp-page-head">
@@ -264,8 +274,18 @@
     <div class="mp-card fleet-card">
       <div class="mp-card-body">
         <h3><i class="fa fa-globe"></i> Registered Installs (<?= count($installs) ?>)
-          <button class="btn btn-default btn-xs pull-right" onclick="syncCronKeys()" title="Verify each install's live cron key and rewrite its cPanel cron lines (removes duplicates and stale keys)"><i class="fa fa-refresh"></i> Sync &amp; repair cron</button>
+          <span class="pull-right" style="display:flex;gap:6px">
+            <button class="btn btn-success btn-xs" id="fleetUpdateAll" onclick="updateFleet()"
+                    title="Drive every outdated install to <?= htmlspecialchars($latest_version ?: 'latest') ?> — runs until they are all current, no further clicks">
+              <i class="fa fa-rocket"></i> Update fleet to <?= htmlspecialchars($latest_version ?: 'latest') ?>
+            </button>
+            <button class="btn btn-default btn-xs" onclick="syncCronKeys()" title="Verify each install's live cron key and rewrite its cPanel cron lines (removes duplicates and stale keys)"><i class="fa fa-refresh"></i> Sync &amp; repair cron</button>
+          </span>
         </h3>
+        <div class="fleet-updatebar" id="fleetUpdateBar" style="display:none">
+          <i class="fa fa-refresh fa-spin"></i>
+          <span id="fleetUpdateMsg">Starting…</span>
+        </div>
         <div class="fleet-bulkbar">
           <span class="fleet-sel-count" id="bulkCount">Tick installs to run a command on all of them</span>
           <select id="bulkAction" class="form-control">
@@ -941,6 +961,96 @@ function reportStatus(id) {
       toastr.warning('No reply yet — the install has not checked in. Status will appear once it does.');
     }
   }, 6000);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Fleet-wide update driver                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Drive every outdated install to the latest version, unattended.
+ *
+ * One round = queue + wake + report how many are still behind. Rounds repeat
+ * until nothing is behind, or a safety cap is hit. The page must stay open —
+ * this is the browser supplying the repetition that cron cannot.
+ *
+ * Progress is shown at every round, because a long operation that says
+ * nothing is indistinguishable from one that has hung. That was the actual
+ * complaint: 25 minutes of silence.
+ */
+var fleetUpdating = false;
+function updateFleet() {
+  if (fleetUpdating) return;
+  var ids = fleetSelIds();
+  var scopeAll = ids.length === 0;
+  if (scopeAll) {
+    // Nothing ticked means "the whole fleet" — that is the common case and
+    // demanding a tick first would be busywork.
+    ids = $('#fleetList .fleet-sel').map(function () { return parseInt(this.value, 10); }).get();
+  }
+  if (!ids.length) { toastr.error('No installs to update.'); return; }
+  if (!confirm('Drive ' + ids.length + ' install(s) to the latest version?\n\n'
+      + 'Keep this page open — Central will keep pushing each install until it is current.\n'
+      + 'Installs already up to date are skipped.')) return;
+
+  fleetUpdating = true;
+  $('#fleetUpdateAll').prop('disabled', true);
+  $('#fleetUpdateBar').removeClass('done warn').show();
+
+  var round = 0, maxRounds = 40, last = 0, stalled = 0;
+  function step() {
+    round++;
+    $('#fleetUpdateMsg').text('Round ' + round + ' — checking ' + ids.length + ' install(s)…');
+    fleetPost('<?= base_url('fleet/update_round'); ?>', { install_ids: ids }, function (res) {
+      if (res.status !== 'ok') { finish(res.message || 'Failed', true); return; }
+
+      var rem = res.remaining || 0;
+      $('#fleetUpdateMsg').html(
+        'Round ' + round + ' — <b>' + rem + '</b> of ' + res.total + ' still behind'
+        + ' · queued ' + res.queued + ', woken ' + res.woke
+        + (res.latest ? ' · target v' + res.latest : '')
+      );
+
+      if (rem === 0) { finish(null, false); return; }
+
+      // No movement between rounds means the installs are not being reached —
+      // stop and say so rather than looping on nothing.
+      if (rem >= last && res.queued === 0 && res.woke === 0) {
+        stalled++;
+        if (stalled >= 3) {
+          finish('No progress for 3 rounds — ' + rem + ' install(s) are not responding to wake pings. '
+            + 'Their cron may be unset, or they are offline. Check the Status column, or use Push a file to ALL.', true);
+          return;
+        }
+      } else { stalled = 0; }
+      last = rem;
+
+      if (round >= maxRounds) {
+        finish(rem + ' install(s) are still behind after ' + maxRounds + ' rounds. They may be offline or stuck mid-step — check their Status column.', true);
+        return;
+      }
+      // Give the installs time to run their slice before the next round.
+      setTimeout(step, 12000);
+    }, function () {
+      finish('Server error during round ' + round + '.', true);
+    });
+  }
+
+  function finish(message, bad) {
+    fleetUpdating = false;
+    $('#fleetUpdateAll').prop('disabled', false);
+    if (bad) {
+      $('#fleetUpdateBar').addClass('warn').removeClass('done');
+      $('#fleetUpdateMsg').html('<i class="fa fa-exclamation-triangle"></i> ' + $('<i>').text(message).html());
+      toastr.warning(message, '', { timeOut: 20000 });
+    } else {
+      $('#fleetUpdateBar').addClass('done').removeClass('warn');
+      $('#fleetUpdateMsg').html('<i class="fa fa-check"></i> All ' + ids.length + ' install(s) are on the latest version.');
+      toastr.success('Fleet is up to date.', '', { timeOut: 8000 });
+      setTimeout(function () { location.reload(); }, 3000);
+    }
+  }
+  step();
 }
 
 /* ------------------------------------------------------------------ */

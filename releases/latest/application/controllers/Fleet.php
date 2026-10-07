@@ -1381,6 +1381,108 @@ class Fleet extends MY_Controller {
         }
     }
 
+    /* ------------------------------------------------------------------ */
+    /*  Bulk update driver                                                */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * AJAX: keep the whole fleet updating until every install is current.
+     *
+     * One call does one ROUND: it queues `update_now` for any selected
+     * install, wakes them, then reports how many are still behind. The
+     * browser calls this in a loop until `remaining` is 0.
+     *
+     * Why a loop rather than one big request: an install can only make
+     * progress while it is actually running. Waking 200 installs at once and
+     * hoping they all finish would need a request that outlives every host
+     * limit on both sides. A round keeps each call short and observable, and
+     * every round is real progress.
+     *
+     * Bucketed by need so a fleet where 3 installs are behind does not
+     * re-trigger the other 197.
+     */
+    public function update_round() {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+        try {
+            $ids = $this->input->post('install_ids');
+            if (!is_array($ids)) {
+                $ids = preg_split('/[\s,]+/', (string) $ids, -1, PREG_SPLIT_NO_EMPTY);
+            }
+            $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', (array) $ids)))), 0, 500);
+            if (empty($ids)) {
+                echo json_encode(['status' => 'error', 'message' => 'No installs selected.']);
+                return;
+            }
+            if (!$this->db->table_exists('db_fleet_commands')) {
+                echo json_encode(['status' => 'error', 'message' => 'Commands table missing — run the latest migration.']);
+                return;
+            }
+
+            $latest = null;
+            $mf = FCPATH . 'release_build/release-manifest.json';
+            if (is_file($mf)) {
+                $m = json_decode((string) @file_get_contents($mf), true);
+                $latest = $m['version'] ?? null;
+            }
+
+            // Who still needs work this round?
+            $need = [];
+            $remainIds = [];
+            foreach ($ids as $id) {
+                $row = $this->db->select('id, version, update_stage')->where('id', $id)
+                    ->get('db_fleet_installs')->row();
+                if (!$row) { continue; }
+                $behind = $latest && !empty($row->version)
+                    && version_compare($row->version, $latest, '<');
+                $stage = strtolower((string) ($row->update_stage ?? ''));
+                if ($behind || in_array($stage, ['stalled', 'failed'], true)) {
+                    $remainIds[] = (int) $row->id;
+                    // Only queue for installs that are not already mid-flight —
+                    // stacking duplicate commands on a working install is how a
+                    // fleet ends up with 40 queued updates for one box.
+                    if (!in_array($stage, ['ready', 'downloading', 'verifying', 'applying', 'migrating', 'finalizing', 'cleanup'], true)) {
+                        $pending = $this->db->where('install_id', $id)
+                            ->where('command', 'update_now')
+                            ->where_in('status', ['pending', 'resumed'])
+                            ->count_all_results('db_fleet_commands');
+                        if ($pending === 0) { $need[] = (int) $row->id; }
+                    }
+                }
+            }
+
+            $queued = 0;
+            foreach ($need as $id) {
+                $this->db->insert('db_fleet_commands', [
+                    'install_id' => $id,
+                    'command'    => 'update_now',
+                    'payload'    => null,
+                    'status'     => 'pending',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+                $queued++;
+            }
+
+            $woke = $need ? $this->wakeInstalls($need) : 0;
+
+            echo json_encode([
+                'status'    => 'ok',
+                'latest'    => $latest,
+                'queued'    => $queued,
+                'woke'      => $woke,
+                'remaining' => count($remainIds),
+                'total'     => count($ids),
+            ]);
+        } catch (Throwable $e) {
+            log_message('error', 'Fleet update_round failed: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Bulk operations                                                   */
+    /* ------------------------------------------------------------------ */
+
     private function doQueueBulk() {
         set_time_limit(180);
         $command = (string) $this->input->post('command');
@@ -1500,7 +1602,12 @@ class Fleet extends MY_Controller {
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_CONNECTTIMEOUT => 2,
-                    CURLOPT_TIMEOUT => 5,
+                    // The wake runs a real update slice when `update_now` is
+                    // queued (see Cron::fleet_ping). A 5s cap would abandon
+                    // that work on the wire — the install keeps going because
+                    // it sets ignore_user_abort, but Central would not learn
+                    // the outcome. Long enough for a slice to report back.
+                    CURLOPT_TIMEOUT => 20,
                     CURLOPT_SSL_VERIFYPEER => true,
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_MAXREDIRS => 2,
