@@ -23,8 +23,21 @@ class Printing extends MY_Controller {
     }
 
     private function _check_feature() {
-        if (!mp_feature_enabled('printing_workflow')) {
-            $this->show_feature_not_activated('printing_workflow',
+        // Gated on `production_workflow`, which is what the printing preset
+        // declares (business_profile_helper: 'printing' => [... 'production_workflow' ...]).
+        //
+        // This used to read `printing_workflow`, a flag key that exists NOWHERE
+        // in the codebase — not in mp_get_feature_flags() (67 keys), not in any
+        // preset. mp_feature_enabled() falls through to its default arm and
+        // looks the key up in the store's feature list, so the answer was
+        // permanently false: the entire printing workspace was unreachable for
+        // every store, and _check_feature() would have shown "not activated"
+        // even on a correctly configured print shop.
+        //
+        // Accept EITHER key so an install that has somehow stored the old
+        // spelling keeps working — but the preset's real flag is the gate.
+        if (!mp_feature_enabled('production_workflow') && !mp_feature_enabled('printing_workflow')) {
+            $this->show_feature_not_activated('production_workflow',
                 'Enable the Printing module from Business Profile, then pick category presets.');
         }
     }
@@ -89,7 +102,266 @@ class Printing extends MY_Controller {
             'can_costing' => $this->permissions('print_costing'),
             'can_referral' => $this->permissions('print_referral'),
         ];
+
+        // Intelligence Report. Loaded here and not in the view so the queries
+        // sit beside every other figure on this dashboard, and because a
+        // non-printing storefront never reaches this method at all.
+        // Wrapped defensively: an insight engine must never be able to take the
+        // dashboard down with it.
+        $data['intel'] = [];
+        try {
+            $this->load->model('intelligence_model', 'intel');
+            $data['intel'] = $this->intel->for_printing($store_id);
+        } catch (Throwable $e) {
+            log_message('error', 'Printing dashboard: intelligence failed — ' . $e->getMessage());
+        }
+
         $this->_render('Printing', 'printing/dashboard', $data);
+    }
+
+    /* ============================ invoice ================================== */
+
+    /**
+     * Build the invoice lines for a job, honouring its invoice_style.
+     *
+     * The two styles are a GROUPING of the same rows, never a different set of
+     * rows — so switching a job between them cannot lose detail, and a job can
+     * be re-styled at any point without rebuilding its quotation.
+     *
+     *   combined  → one line for the whole job
+     *   detailed  → one line per catalogue line
+     *
+     * Either way the totals are identical, because both sum the same line_total
+     * values. That is the property worth preserving: a presentation switch must
+     * never change what the customer owes.
+     */
+    private function _invoice_lines($job, $lines) {
+        $style = strtolower((string) ($job->invoice_style ?? 'combined'));
+        if (!in_array($style, ['combined', 'detailed'], true)) $style = 'combined';
+
+        // db_print_job_lines carries unit_id, NOT unit_name — get_lines() does
+        // not join db_units. Resolve the names once, in one query, rather than
+        // reading an undefined property per line (which would print a PHP
+        // warning and a blank unit on every row).
+        $unit_names = [];
+        $unit_ids = array_filter(array_map(function ($l) { return (int) ($l->unit_id ?? 0); }, $lines));
+        if ($unit_ids) {
+            foreach ($this->db->select('id, unit_name')->where_in('id', array_unique($unit_ids))
+                         ->get('db_units')->result() as $u) {
+                $unit_names[(int) $u->id] = (string) $u->unit_name;
+            }
+        }
+        $unit_of = function ($line) use ($unit_names) {
+            return $unit_names[(int) ($line->unit_id ?? 0)] ?? '';
+        };
+        $qty_fmt = function ($line) use ($unit_of) {
+            $unit = $unit_of($line);
+            return rtrim(rtrim(number_format((float) $line->qty, 2), '0'), '.')
+                 . ($unit !== '' ? ' ' . $unit : '');
+        };
+
+        $out = [];
+        if ($style === 'detailed') {
+            foreach ($lines as $ln) {
+                $out[] = [
+                    'job_code'   => (string) $job->job_code,
+                    'title'      => (string) ($job->title ?? ''),
+                    'label'      => (string) ($ln->description ?: 'Print item'),
+                    'meta'       => trim((string) ($this->print->line_spec_summary($ln) ?? '')),
+                    'qty_label'  => $qty_fmt($ln),
+                    'unit_price' => (float) $ln->unit_price,
+                    'line_total' => (float) $ln->line_total,
+                ];
+            }
+            return $out;
+        }
+
+        // combined — one row for the job. The qty shown is the number of
+        // catalogue lines, because the job has no single meaningful quantity:
+        // 500 flyers and 20 banners have no common unit, and inventing one
+        // would print a number that means nothing.
+        $total = 0.0;
+        foreach ($lines as $ln) $total += (float) $ln->line_total;
+        $n = count($lines);
+
+        $first = $lines ? (string) ($lines[0]->description ?: 'Print job') : 'Print job';
+        $label = $n === 1 ? $first : ($n . ' print items');
+
+        $out[] = [
+            'job_code'   => (string) $job->job_code,
+            'title'      => (string) ($job->title ?? ''),
+            'label'      => $label,
+            'meta'       => $n === 1
+                ? trim((string) ($this->print->line_spec_summary($lines[0]) ?? ''))
+                : implode(' · ', array_slice(array_filter(array_map(function ($l) {
+                      return (string) ($l->description ?: '');
+                  }, $lines)), 0, 3)) . ($n > 3 ? ' …' : ''),
+            'qty_label'  => $n === 1 ? $qty_fmt($lines[0]) : $n . ' items',
+            'unit_price' => $n === 1 ? (float) $lines[0]->unit_price : 0.0,
+            'line_total' => $total,
+        ];
+        return $out;
+    }
+
+    /** The invoice for a job. */
+    public function invoice($job_id = 0) {
+        $this->_check_feature();
+        $this->permission_check('sales_add');
+        $store_id = (int) get_current_store_id();
+        $job_id = (int) $job_id;
+
+        // Cast both sides. get_current_store_id() returns the session value,
+        // which is a STRING; comparing that to (int) $job->store_id with !==
+        // is a strict type mismatch (2 !== '2'), so every job looked like it
+        // belonged to another store and the screen 404'd on valid input.
+        $job = $this->print->get_job($job_id);
+        if (!$job || (int) $job->store_id !== $store_id) {
+            show_error('That print job is not on this store.', 404, 'Job not found');
+            return;
+        }
+
+        $lines = $this->print->get_lines($job_id);
+        $built = $this->_invoice_lines($job, $lines);
+
+        $subtotal = 0.0; $tax = 0.0; $disc = 0.0;
+        foreach ($lines as $ln) {
+            $subtotal += (float) $ln->line_total;
+            $tax      += (float) ($ln->tax_amt ?? 0);
+            $disc     += (float) ($ln->discount_amt ?? 0);
+        }
+        $grand = round($subtotal - $disc + $tax, 2);
+
+        $customer = $job->customer_id
+            ? $this->db->where('id', (int) $job->customer_id)->where('store_id', $store_id)
+                  ->get('db_customers')->row()
+            : null;
+
+        // An existing invoice for this job is edited rather than duplicated —
+        // two invoices for one job is how a customer gets billed twice.
+        $existing = $this->db->where('quotation_id', (int) ($job->quotation_id ?? 0))
+            ->where('store_id', $store_id)->get('db_sales')->row();
+
+        $this->_render('Print Invoice', 'printing/invoice', [
+            'job'            => $job,
+            'job_id'         => $job_id,
+            'lines'          => $built,
+            'customer'       => $customer,
+            'sales_id'       => $existing ? (int) $existing->id : 0,
+            'quotation_id'   => (int) ($job->quotation_id ?? 0),
+            'sales_date'     => $existing ? $existing->sales_date : date('Y-m-d'),
+            'payment_status' => $existing ? $existing->payment_status : 'Unpaid',
+            'paid_amount'    => $existing ? $existing->paid_amount : '0.00',
+            'sales_note'     => $existing ? $existing->sales_note : '',
+            'subtotal'       => $subtotal,
+            'discount_total' => $disc,
+            'tax_total'      => $tax,
+            'grand_total'    => $grand,
+        ]);
+    }
+
+    /**
+     * Switch a job between combined and detailed invoice lines.
+     *
+     * Deliberately does NOT touch the quotation. The two styles group the same
+     * rows, so changing one is reversible at any time and re-issuing is not
+     * needed — which matters because re-issuing a quotation after acceptance
+     * would force the customer to re-accept.
+     */
+    public function invoice_style_set() {
+        $this->_check_feature();
+        $this->permission_check('print_quote');
+        $store_id = (int) get_current_store_id();
+
+        $job_id = (int) $this->input->post('job_id');
+        $style  = strtolower(trim((string) $this->input->post('style')));
+
+        if (!in_array($style, ['combined', 'detailed'], true)) {
+            $this->_json(['status' => 'error', 'message' => 'Unknown invoice style.']);
+            return;
+        }
+
+        // Cast both sides — same strict-comparison trap as invoice(), see there.
+        $job = $this->print->get_job($job_id);
+        if (!$job || (int) $job->store_id !== $store_id) {
+            $this->_json(['status' => 'error', 'message' => 'That print job is not on this store.']);
+            return;
+        }
+
+        if (!$this->db->field_exists('invoice_style', 'db_print_jobs')) {
+            $this->_json(['status' => 'error', 'message' => 'This install has not run migration 4.0.9.116.']);
+            return;
+        }
+
+        $this->db->where('id', $job_id)->update('db_print_jobs', ['invoice_style' => $style]);
+
+        $this->_json([
+            'status'  => 'ok',
+            'style'   => $style,
+            'message' => $style === 'combined'
+                ? 'This job will invoice as one line.'
+                : 'This job will itemise each line.',
+        ]);
+    }
+
+    /** Save the print invoice — creates the real sales record from the quote. */
+    public function invoice_save() {
+        $this->_check_feature();
+        $this->permission_check('sales_add');
+        $store_id = (int) get_current_store_id();
+
+        $job_id = (int) $this->input->post('job_id');
+        $job = $this->print->get_job($job_id);
+        if (!$job || (int) $job->store_id !== $store_id) {
+            $this->_json(['status' => 'error', 'message' => 'That print job is not on this store.']);
+            return;
+        }
+
+        // The invoice is built from the ACCEPTED QUOTATION, not from anything
+        // posted here. There is deliberately no amount in this request: if the
+        // browser could send a total, the invoice could disagree with what the
+        // client accepted — which is the one thing this flow exists to prevent.
+        $res = $this->print->create_invoice_from_quotation($job_id);
+
+        if (empty($res['success'])) {
+            $this->_json(['status' => 'error', 'message' => $res['message'] ?? 'Could not create the invoice.']);
+            return;
+        }
+
+        // Optional payment already received — recorded against the invoice, not
+        // folded into the quote. Blank leaves the invoice Unpaid.
+        //
+        // The comparison figure comes from the QUOTATION, not from the job row:
+        // db_print_jobs carries no grand total, and reading the amount the client
+        // actually accepted is the only comparison that means anything here.
+        $paid = $this->input->post('paid_amount');
+        if ($paid !== null && trim((string) $paid) !== '' && !empty($res['sales_id'])) {
+            $amount = (float) $paid;
+            if ($amount > 0) {
+                $q = $this->print->quotation_for_job($job_id);
+                $grand = (float) ($q->grand_total ?? 0);
+                $status = ($grand > 0 && $amount >= $grand) ? 'Paid' : 'Partially paid';
+                if ($this->db->field_exists('paid_amount', 'db_sales')) {
+                    $this->db->where('id', (int) $res['sales_id'])->update('db_sales', [
+                        'paid_amount'    => $amount,
+                        'payment_status' => $status,
+                    ]);
+                }
+            }
+        }
+
+        // The note is a free-text annotation on the invoice, safe to take from
+        // the form because it is not a figure.
+        $note = trim((string) $this->input->post('sales_note'));
+        if ($note !== '' && !empty($res['sales_id'])) {
+            $this->db->where('id', (int) $res['sales_id'])->update('db_sales', ['sales_note' => $note]);
+        }
+
+        $this->_json([
+            'status'    => 'ok',
+            'message'   => $res['message'] ?? 'Invoice created.',
+            'sales_id'  => (int) ($res['sales_id'] ?? 0),
+            'redirect'  => base_url('sales/invoice/' . (int) ($res['sales_id'] ?? 0)),
+        ]);
     }
 
     /* ============================ list views =============================== */

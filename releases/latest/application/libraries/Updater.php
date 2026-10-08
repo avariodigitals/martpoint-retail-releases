@@ -1489,8 +1489,10 @@ class Updater {
             // caller's pending select chain.
             $db = $this->CI->db;
             $primary = 0;
-            // Store id 1 is the installer's "SAAS ADMIN" placeholder whenever
-            // other stores exist — never the client's business.
+            // Store id 1 is the installer's placeholder row. Newer installers
+            // name row 1 after the customer's own store, so a name match is no
+            // longer a reliable way to spot a placeholder — the id is. Row 1 is
+            // only the real store on a single-store install.
             $cnt = $db->query('SELECT COUNT(*) AS c FROM db_store')->row();
             $multi = (int) ($cnt->c ?? 0) > 1;
             // 1. The store that holds the subscription license — the client's
@@ -1500,9 +1502,15 @@ class Updater {
                 $row = $db->query($sql)->row();
                 $primary = (int) ($row->store_id ?? 0);
             }
-            // 2. Otherwise the first real store.
+            // 2. Otherwise the first real store. Legacy installs still carry the
+            //    literal 'SAAS ADMIN' placeholder, so that name is skipped in
+            //    both spellings rather than assumed.
             if ($primary <= 0 && $multi) {
-                $row = $db->query("SELECT MIN(id) AS id FROM db_store WHERE id > 1 AND store_name <> 'SAAS ADMIN'")->row();
+                $row = $db->query("SELECT MIN(id) AS id FROM db_store WHERE id > 1 AND store_name NOT IN ('SAAS ADMIN', 'My Store')")->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+            if ($primary <= 0 && $multi) {
+                $row = $db->query('SELECT MIN(id) AS id FROM db_store WHERE id > 1')->row();
                 $primary = (int) ($row->id ?? 0);
             }
             if ($primary <= 0) {

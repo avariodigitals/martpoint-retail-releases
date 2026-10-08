@@ -1,0 +1,55 @@
+-- ============================================================================
+-- MartPoint 4.0.9.120 — rail fixes: dropdown bug, renames, sub-grouping
+--
+-- No schema change. Navigation only. Scoped to the printing rail.
+--
+-- 1. THE DROPDOWN BUG — introduced by .119, found by the operator
+--
+-- .119's rewrite of the printing rail dropped
+-- `onclick="this.classList.toggle('open')"` from all five new Daily Work
+-- groups. The CSS is:
+--
+--     .mp-nav-submenu                       { display: none }
+--     .mp-nav-group.open .mp-nav-submenu    { display: block }
+--
+-- Visibility depends ENTIRELY on that class, so with no click handler the five
+-- groups rendered collapsed and could not be opened — the menus were
+-- unreachable. The retail groups below were unaffected because they kept their
+-- handlers, which is why only printing broke.
+--
+-- Fixed by restoring the handler on every group. Verified programmatically:
+-- 5 true group openers in the printing rail, 0 without a toggle handler.
+--
+-- 2. RENAMES
+--
+--   Online Store -> "Online Print Requests"  (printing only)
+--     A print shop's storefront takes ENQUIRIES, not shop orders — every job is
+--     quoted before it is printed. Same screens; the name now says what arrives.
+--     Every other industry keeps "Online Store".
+--
+--   Administration -> "Settings"  (all industries)
+--     The group is configuration — profiles, users, tax, payment modes,
+--     integrations. "Administration" described a role, not a purpose.
+--
+-- 3. SUB-GROUPING for the two oversized groups
+--
+--   Marketing (15 items) -> Leads & Segments | Campaigns & Promotions |
+--                           Loyalty & Rewards
+--   Online Print Requests (16) -> Overview & Analytics |
+--                           Enquiries & Requests | Services & Materials |
+--                           Content & Appearance | Configuration
+--
+-- Uses the existing .mp-nav-subhead style already present in the creator rail,
+-- so this reuses a proven pattern rather than inventing a second one.
+--
+-- STILL NOT DONE — needs the mapping, not a guess
+--
+--   Settings has 37 items. Per instruction they must be mapped INDIVIDUALLY
+--   before moving, with the mapping visible first. Moving 37 destinations blind
+--   risks hiding a screen an operator depends on, and the failure would be
+--   silent — the item simply would not be there. The label is corrected; the
+--   contents are untouched.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

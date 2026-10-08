@@ -2624,7 +2624,19 @@ class Printing_model extends CI_Model {
      * Post signed stock moves through db_stockadjustment (same engine as Nylon).
      * $moves = [ ['item_id'=>x, 'qty'=>±n, 'description'=>..], ... ].
      * Returns adjustment id (0 = nothing to post), false = error.
+     *
+     * PUBLIC posting entry point for the machine-consumables and customer-custody
+     * workflows (Printing_ops_model).
+     *
+     * Deliberately a thin wrapper rather than a second implementation: there is
+     * exactly ONE place in the application that writes stock for printing, so a
+     * change to the posting rules can never miss a caller. The ops module must
+     * never grow its own deduction logic.
      */
+    public function post_stock_moves_public($reference, array $moves, $note, $warehouse_id = null) {
+        return $this->post_stock_moves($reference, $moves, $note, $warehouse_id);
+    }
+
     private function post_stock_moves($reference, array $moves, $note, $warehouse_id = null) {
         $moves = array_values(array_filter($moves, function ($m) { return !empty($m['item_id']) && (float)$m['qty'] != 0.0; }));
         if (empty($moves)) return 0;
@@ -3627,5 +3639,154 @@ class Printing_model extends CI_Model {
             $out[] = ['date' => $d, 'label' => date('d M', strtotime($d)), 'amount' => $amt];
         }
         return $out;
+    }
+
+    /* ============================ print invoice =========================== */
+
+    /**
+     * Turn an accepted quotation into a real sales invoice, and mark the
+     * quotation Converted — the same end state the shared retail path produces.
+     *
+     * WHY THIS IS NOT JUST `redirect('sales/quotation/…')`
+     *
+     * The shared screen builds an invoice from post data the operator types.
+     * For a print job the figures already exist and were already accepted, so
+     * re-entering them is not only wasted work — it is a chance to bill a
+     * different amount than the client agreed to. This reads the quotation.
+     *
+     * WHAT IT WRITES
+     *
+     *   db_sales        one row, quotation_id set, totals from the quotation
+     *   db_salesitems   one row per quotation item (mapped 1:1, so the invoice
+     *                   detail always reconciles to the quote)
+     *   db_quotation    sales_status = 'Converted', so it cannot be converted twice
+     *
+     * All three are written in ONE transaction. A half-written conversion is
+     * the worst outcome available here: an invoice with no lines, or a quote
+     * marked Converted with no invoice behind it, would both be very hard to
+     * unpick by hand.
+     *
+     * The line PRESENTATION (combined / detailed) is deliberately not part of
+     * the write. Both styles group the same rows, so the stored invoice is
+     * identical either way and the switch stays freely reversible.
+     *
+     * @return array {success, message, sales_id?}
+     */
+    public function create_invoice_from_quotation($job_id) {
+        $store_id = (int) get_current_store_id();
+        $job = $this->get_job((int) $job_id);
+        if (!$job) return ['success' => false, 'message' => 'Print job not found.'];
+        if ((int) $job->store_id !== $store_id) return ['success' => false, 'message' => 'That job is not on this store.'];
+
+        $q = $this->quotation_for_job((int) $job_id);
+        if (!$q) return ['success' => false, 'message' => 'This job has no quotation to bill.'];
+
+        // Already billed? Return the existing invoice rather than making a second.
+        $existing = $this->db->select('id')->where('quotation_id', (int) $q->id)
+            ->where('store_id', $store_id)->get('db_sales')->row();
+        if ($existing) {
+            return ['success' => true, 'sales_id' => (int) $existing->id,
+                    'message' => 'This job already has an invoice.', 'already' => true];
+        }
+
+        if ($q->sales_status === 'Converted') {
+            return ['success' => false, 'message' => 'That quotation is already marked as converted.'];
+        }
+
+        // The gate that makes the whole quote-first flow meaningful: a quote
+        // that changed after acceptance must be re-accepted before it is billed.
+        if ($this->quotation_change_requires_reacceptance((int) $job_id)) {
+            return ['success' => false, 'message' => 'The quotation changed since it was accepted. Obtain customer reacceptance before invoicing.'];
+        }
+
+        $items = $this->quotation_items((int) $q->id);
+        if (empty($items)) return ['success' => false, 'message' => 'The quotation has no lines to invoice.'];
+
+        if (!$this->db->table_exists('db_sales') || !$this->db->table_exists('db_salesitems')) {
+            return ['success' => false, 'message' => 'The sales module is not available on this install.'];
+        }
+
+        $this->db->trans_begin();
+
+        try {
+            $init  = get_init_code('sales', $store_id, true);
+            $count = get_count_id('db_sales', $store_id);
+            $code  = $init . $count;
+
+            $sales = [
+                'store_id'      => $store_id,
+                'warehouse_id'  => (int) ($job->warehouse_id ?? 0) ?: null,
+                'init_code'     => $init,
+                'count_id'      => $count,
+                'sales_code'    => $code,
+                'reference_no'  => (string) $job->job_code,
+                'sales_date'    => date('Y-m-d'),
+                'due_date'      => null,
+                'sales_status'  => 'Final',
+                'customer_id'   => (int) ($q->customer_id ?: $job->customer_id),
+                'quotation_id'  => (int) $q->id,
+                'subtotal'      => (float) $q->subtotal,
+                'round_off'     => (float) ($q->round_off ?? 0),
+                'grand_total'   => (float) $q->grand_total,
+                'tot_discount_to_all_amt' => (float) ($q->tot_discount_to_all_amt ?? 0),
+                'other_charges_amt'       => (float) ($q->other_charges_amt ?? 0),
+                'payment_status' => 'Unpaid',
+                'paid_amount'    => 0,
+                'sales_note'     => trim((string) ($job->title ?? '')),
+                'created_date'   => date('Y-m-d'),
+                'created_time'   => date('h:i:s a'),
+                'created_by'     => $this->session->userdata('inv_username') ?: 'System',
+                'system_ip'      => $_SERVER['SERVER_ADDR'] ?? '',
+                'system_name'    => gethostname() ?: '',
+                'status'         => 1,
+            ];
+            // table_id is NOT NULL with a default; supply it so the insert is
+            // explicit rather than relying on the column default.
+            if ($this->db->field_exists('table_id', 'db_sales')) $sales['table_id'] = 0;
+
+            $this->db->insert('db_sales', $sales);
+            $sales_id = (int) $this->db->insert_id();
+            if (!$sales_id) throw new Exception('db_sales insert produced no id.');
+
+            foreach ($items as $it) {
+                $this->db->insert('db_salesitems', [
+                    'store_id'       => $store_id,
+                    'sales_id'       => $sales_id,
+                    'sales_status'   => 'Final',
+                    'item_id'        => (int) ($it->item_id ?? 0) ?: null,
+                    'description'    => (string) ($it->description ?? ''),
+                    'sales_qty'      => (float) ($it->quotation_qty ?? 0),
+                    'price_per_unit' => (float) ($it->price_per_unit ?? 0),
+                    'tax_type'       => $it->tax_type ?? null,
+                    'tax_id'         => $it->tax_id ?? null,
+                    'tax_amt'        => (float) ($it->tax_amt ?? 0),
+                    'discount_input' => (float) ($it->discount_input ?? 0),
+                    'discount_amt'   => (float) ($it->discount_amt ?? 0),
+                    'discount_type'  => $it->discount_type ?? null,
+                    'unit_total_cost'=> (float) ($it->unit_total_cost ?? 0),
+                    'total_cost'     => (float) ($it->total_cost ?? 0),
+                    // No tier on a print invoice. The column is kept for
+                    // historical rows but is not a choice here — see .117.
+                    'price_type'     => 'retail',
+                    'status'         => 1,
+                ]);
+            }
+
+            $this->db->set('sales_status', 'Converted')->where('id', (int) $q->id)->update('db_quotation');
+
+            if ($this->db->trans_status() === false) {
+                throw new Exception('A write in the conversion transaction failed.');
+            }
+            $this->db->trans_commit();
+
+            return ['success' => true, 'sales_id' => $sales_id,
+                    'sales_code' => $code,
+                    'message' => 'Invoice ' . $code . ' created from the accepted quotation.'];
+
+        } catch (Throwable $e) {
+            $this->db->trans_rollback();
+            log_message('error', 'Print invoice conversion failed for job ' . (int) $job_id . ': ' . $e->getMessage());
+            return ['success' => false, 'message' => 'Could not create the invoice: ' . $e->getMessage()];
+        }
     }
 }

@@ -19,11 +19,11 @@
   <p class="lead">Need help? Reach the MartPoint team through any channel. The support portal is the best place to submit and track requests.</p>
 
   <div class="mp-contact-grid">
-    <a href="tel:08036028069" class="mp-contact-card">
+    <a href="tel:08037978230" class="mp-contact-card">
       <div class="icon"><i class="fa fa-phone"></i></div>
       <div class="text">
         <div class="title">Call us</div>
-        <div class="desc">0803 602 8069</div>
+        <div class="desc">0803 797 8230</div>
       </div>
     </a>
 
@@ -35,7 +35,7 @@
       </div>
     </a>
 
-    <a href="https://wa.me/2348036028069?text=Hi%20MartPoint%20Support" target="_blank" rel="noopener" class="mp-contact-card">
+    <a href="https://wa.me/2348037978230?text=Hi%20MartPoint%20Support" target="_blank" rel="noopener" class="mp-contact-card">
       <div class="icon"><i class="fa fa-whatsapp"></i></div>
       <div class="text">
         <div class="title">WhatsApp</div>

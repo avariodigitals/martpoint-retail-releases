@@ -91,6 +91,23 @@ $range_label = $range_labels[$range] ?? 'Today';
   </div>
 </div>
 
+<?php
+  /*
+   * Intelligence Report — print signals.
+   *
+   * $intel is prepared in Printing::index() rather than here so the view stays
+   * presentation-only and the queries sit beside the other print figures.
+   *
+   * The card renders nothing at all when the model has nothing evidenced to
+   * say; see comman/intelligence_card.php.
+   */
+  $this->load->view('comman/intelligence_card', [
+    'intel'          => $intel ?? [],
+    'intel_title'    => 'Intelligence Report',
+    'intel_subtitle' => 'What needs attention on the floor, and what your job history is showing.',
+  ]);
+?>
+
 <!-- LICENSE & USAGE -->
 <?php $lic_summary = function_exists('mp_get_license_usage_summary') ? mp_get_license_usage_summary() : null;
 if ($lic_summary):

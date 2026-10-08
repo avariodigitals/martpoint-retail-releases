@@ -15,7 +15,18 @@
 $slug = $settings->store_slug ?? '';
 $wa   = preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? '');
 $svcs = $featured_services ?? [];
-$accent = $settings->primary_color ?: '#0E7490';
+
+/**
+ * Accent resolution goes through Theme_engine, not `$settings->primary_color`.
+ *
+ * Reading the raw column meant this theme always painted the store's stored
+ * colour — which is seeded to '#3B82F6' on every settings row, so a PrintWorks
+ * shop that never touched Appearance came up retail-blue instead of its own
+ * designed accent. resolveBrandColor() gives a deliberate merchant override
+ * priority while letting the theme's design govern otherwise.
+ */
+$theEngine = $this->theme_engine ?? null;
+$accent = $theEngine ? $theEngine->resolveBrandColor('primary') : '#0E7490';
 
 /**
  * The hero and closing band need a calm, DARK ink.
@@ -76,11 +87,6 @@ $svc_url = base_url('store/' . $slug . '/services');
 /* ---------- hero: a deep neutral anchor, one accent hairline ---------- */
 .pw-hero{position:relative;overflow:hidden;border-radius:22px;margin-top:22px;
   background:var(--pw-ink);color:#fff;padding:56px 52px 0}
-/* A single restrained accent edge instead of a colour wash — a wash over a
-   large dark area reads as a stain on screen. */
-.pw-hero:before{content:"";position:absolute;left:0;right:0;top:0;height:3px;
-  background:linear-gradient(90deg,var(--pw-accent) 0%,var(--pw-accent) 34%,transparent 34%);
-  opacity:.95}
 .pw-hero-inner{position:relative;display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center}
 .pw-kicker{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:800;
   letter-spacing:.16em;text-transform:uppercase;color:#fff;opacity:.82;margin-bottom:16px}

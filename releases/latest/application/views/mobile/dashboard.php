@@ -339,9 +339,44 @@
       </div>
       </a>
 
+      <?php if(!empty($intel)): ?>
+      <?php
+        /* Intelligence Report — the reasoned set from Intelligence_model, the
+           SAME source the desktop dashboards use, so the phone cannot tell a
+           different story. The plain $insights list below still follows as the
+           "today at a glance" summary; the two serve different purposes and
+           neither replaces the other. */
+        $intel_tone = function ($tone) {
+            switch ($tone) {
+              case 'good': return ['#15803D', '#F0FDF4'];
+              case 'warn': return ['#B45309', '#FFFBEB'];
+              default:     return ['#0E7490', '#ECFEFF'];
+            }
+        };
+      ?>
+      <div class="intelligence-card">
+        <div class="section-title" style="margin:0 0 10px;"><i class="fa fa-lightbulb-o" style="color:#B45309;"></i> Intelligence Report</div>
+        <?php foreach($intel as $item): [$fg, $bg] = $intel_tone($item['tone'] ?? 'info'); ?>
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">
+          <div style="flex:0 0 26px;height:26px;border-radius:7px;background:<?= $bg ?>;color:<?= $fg ?>;display:flex;align-items:center;justify-content:center;">
+            <i class="fa <?= htmlspecialchars($item['icon'] ?? 'fa-info-circle'); ?>" style="font-size:12px;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;line-height:1.55;"><?= htmlspecialchars($item['text'] ?? ''); ?></div>
+            <?php if(!empty($item['action']['url'])): ?>
+            <a href="<?= htmlspecialchars($item['action']['url']); ?>" style="display:inline-block;margin-top:4px;font-size:12px;font-weight:600;color:<?= $fg ?>;">
+              <?= htmlspecialchars($item['action']['label'] ?? 'Open'); ?> &rarr;
+            </a>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+
       <?php if(!empty($insights)): ?>
       <div class="intelligence-card">
-        <div class="section-title" style="margin:0 0 10px;">Intelligence Report</div>
+        <div class="section-title" style="margin:0 0 10px;">Today at a Glance</div>
         <ul>
           <?php foreach($insights as $insight): ?>
             <li><?= $insight; ?></li>

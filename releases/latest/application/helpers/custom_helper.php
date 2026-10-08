@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.106';
+    return '4.0.9.123';
   }
   function required_php_version(){
     return 7.4;
@@ -1718,12 +1718,27 @@
     }
 
     // Build quota list — each entry: key, label, used, limit, pct, unit
+    //
+    // Labels follow the business type. The LIMITS are unchanged and enforced
+    // exactly as before — only the noun changes, so a print shop does not read
+    // "Products / Variants / Online Store" for three things it calls materials.
+    //
+    // This is the DASHBOARD copy of the same figures; the licence screen has its
+    // own labels. Both were hard-coded retail, and fixing only the licence
+    // screen left the dashboard still saying "Products" — which is why the
+    // labels live in one place per screen rather than being patched one at a
+    // time.
+    $lic_ind = function_exists('mp_get_store_profile')
+      ? ((mp_get_store_profile($store_id ?: null)['industry_type'] ?? '') ?: '')
+      : '';
+    $lic_is_print = ($lic_ind === 'printing');
+
     $quota_defs = [
-      ['key'=>'user_limit',                'label'=>'Users',         'usage_fn'=>'get_user_usage',              'unit'=>''],
-      ['key'=>'product_limit',             'label'=>'Products',      'usage_fn'=>'get_product_usage',           'unit'=>''],
-      ['key'=>'sku_limit',                 'label'=>'Variants',      'usage_fn'=>'get_sku_usage',               'unit'=>''],
-      ['key'=>'online_product_limit',      'label'=>'Online Store',  'usage_fn'=>'get_online_product_usage',    'unit'=>''],
-      ['key'=>'media_storage_limit_mb',    'label'=>'Media Storage', 'usage_fn'=>'get_media_storage_usage_mb',  'unit'=>'MB'],
+      ['key'=>'user_limit',             'label'=>'Users',         'usage_fn'=>'get_user_usage',              'unit'=>''],
+      ['key'=>'product_limit',          'label'=>$lic_is_print ? 'Materials'      : 'Products',     'usage_fn'=>'get_product_usage',        'unit'=>''],
+      ['key'=>'sku_limit',              'label'=>$lic_is_print ? 'Material variants' : 'Variants',  'usage_fn'=>'get_sku_usage',            'unit'=>''],
+      ['key'=>'online_product_limit',   'label'=>$lic_is_print ? 'Catalogue items'  : 'Online Store','usage_fn'=>'get_online_product_usage', 'unit'=>''],
+      ['key'=>'media_storage_limit_mb', 'label'=>'Media Storage', 'usage_fn'=>'get_media_storage_usage_mb',  'unit'=>'MB'],
     ];
 
     foreach($quota_defs as $qd){

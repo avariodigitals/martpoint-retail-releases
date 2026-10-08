@@ -87,7 +87,14 @@ $this->load->view('admin/desktop/_styles');
     <div class="mp-section">
       <div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;width:100%;box-sizing:border-box;">
         <div class="mp-quick-actions">
-          <?php if(!$is_creator): ?><a href="<?=base_url('pos');?>" class="mp-qa-btn green"><i class="fa fa-shopping-cart"></i> New Sale</a>
+          <?php
+            // The quick action follows the same rule as the header button: for a
+            // print shop /pos is not a till, so calling this "New Sale" would
+            // name a screen the store does not have. A print job starts as a
+            // job, which is what this now offers.
+            $qa_printing = (mp_get_store_profile()['industry_type'] ?? '') === 'printing';
+          ?>
+          <?php if(!$is_creator): ?><a href="<?= base_url($qa_printing ? 'printing/job' : 'pos'); ?>" class="mp-qa-btn green"><i class="fa <?= $qa_printing ? 'fa-print' : 'fa-shopping-cart'; ?>"></i> <?= $qa_printing ? 'New Print Job' : 'New Sale'; ?></a>
           <a href="<?=base_url('customers/add');?>" class="mp-qa-btn blue"><i class="fa fa-user-plus"></i> Add <?= $customer_label; ?></a>
           <a href="<?=base_url('expense/add');?>" class="mp-qa-btn orange"><i class="fa fa-minus-square"></i> Add Expense</a>
           <?php if($is_product_business): ?><a href="<?=base_url('purchase/add');?>" class="mp-qa-btn purple"><i class="fa fa-plus-square"></i> Purchase Stock</a><?php endif; ?>
@@ -280,6 +287,31 @@ $this->load->view('admin/desktop/_styles');
               endif;
           } catch (Exception $e) { /* Expiry table not ready yet */ }
       endif;
+      ?>
+
+      <!-- SECTION 1a: INTELLIGENCE REPORT
+           Placed at the TOP of the dashboard, immediately before License &
+           Usage, so the owner reads what the numbers MEAN before reading the
+           licence counters. It sits here rather than at the bottom because an
+           insight nobody scrolls to is an insight nobody acts on.
+
+           The plain insights list still lives in the header marquee. This is
+           the reasoned set: stock cover at the real selling rate, payment
+           behaviour, tied-up cash — not a restatement of today's counters.
+           Renders nothing and takes no space when the model has no evidenced
+           insight to give. -->
+      <?php
+        /* The subtitle follows the insight set actually rendered. A print shop
+           reaching this dashboard gets print insights, so promising "trends,
+           risks and cash" in retail terms would mislabel its own numbers. */
+        $intel_is_print = function_exists('mp_is_print_shop') && mp_is_print_shop();
+        $this->load->view('comman/intelligence_card', [
+          'intel'          => $intel ?? [],
+          'intel_title'    => 'Intelligence Report',
+          'intel_subtitle' => $intel_is_print
+            ? 'What needs attention on the floor, and what your job history is showing.'
+            : 'What your own records are showing — trends, risks and where cash is tied up.',
+        ]);
       ?>
 
       <!-- SECTION 1b: LICENSE & USAGE -->
@@ -688,8 +720,6 @@ $this->load->view('admin/desktop/_styles');
           </div>
         </div>
       </div>
-
-      <!-- SECTION 6: INSIGHTS (removed per request - insights shown in header marquee) -->
 
       <!-- Fashion Intelligence Widget (conditional) - removed per request -->
 

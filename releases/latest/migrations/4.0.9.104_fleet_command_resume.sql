@@ -21,7 +21,9 @@
 SET @db := DATABASE();
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_commands') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_commands'
        AND COLUMN_NAME = 'resume_count') = 0,
   'ALTER TABLE `db_fleet_commands` ADD COLUMN `resume_count` SMALLINT UNSIGNED NOT NULL DEFAULT 0',
@@ -29,7 +31,9 @@ SET @sql := (SELECT IF(
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_commands') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_commands'
        AND COLUMN_NAME = 'resumed_at') = 0,
   'ALTER TABLE `db_fleet_commands` ADD COLUMN `resumed_at` DATETIME NULL DEFAULT NULL',

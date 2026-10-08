@@ -11,7 +11,7 @@ foreach($homepage_sections as $key => $section){
     case 'best_sellers': include(APPPATH.'views/themes/shared/sections/best_sellers.php'); break;
     case 'new_arrivals': include(APPPATH.'views/themes/shared/sections/new_arrivals.php'); break;
     case 'store_info': include(APPPATH.'views/themes/shared/sections/store_info.php'); break;
-    case 'contact_section': include(APPPATH.'views/themes/shared/sections/contact.php'); break;
+    case 'contact_section': /* removed — no backend */ break;
     case 'whatsapp_cta': include(APPPATH.'views/themes/shared/sections/whatsapp_cta.php'); break;
     case 'newsletter': include(APPPATH.'views/themes/shared/sections/newsletter.php'); break;
     case 'store_hours': include(APPPATH.'views/themes/shared/sections/store_hours.php'); break;

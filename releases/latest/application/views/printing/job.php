@@ -280,11 +280,26 @@ $prereqs_ok = !empty($job) && $prereqs['ok'];
             <?php endif; ?>
 
             <?php if ($can_quote && $qsum && $qsum['accepted_revision'] !== null): ?>
+              <?php
+                // "Convert to Invoice" leads to the PRINT invoice, not the
+                // shared sales screen.
+                //
+                // The shared screen is built for a product catalogue — an item
+                // picker, a cart, and a Wholesale/Retail price toggle. A print
+                // job has none of those: it is priced from its own accepted
+                // quotation, and a wholesale tier is not part of how a print
+                // shop sells. Sending an operator there to raise a print
+                // invoice made them re-enter work the quotation already holds.
+                //
+                // invoice() reads the same job and quotation and needs no
+                // re-entry. quote_convert() is kept for installs that need the
+                // shared sales record, and is still reachable for a job that
+                // has already been converted.
+              ?>
               <?php if (!empty($qsum['converted_sales_id'])): ?>
               <a class="btn btn-default btn-sm btn-block" href="<?= base_url('sales/invoice/' . (int)$qsum['converted_sales_id']) ?>"><i class="fa fa-file-text-o"></i> View Sales Invoice</a>
-              <?php else: ?>
-              <a class="btn btn-primary btn-sm btn-block" href="<?= base_url('printing/quote_convert/' . $job->id) ?>"><i class="fa fa-exchange"></i> Convert to Invoice</a>
               <?php endif; ?>
+              <a class="btn <?= empty($qsum['converted_sales_id']) ? 'btn-primary' : 'btn-default'; ?> btn-sm btn-block" href="<?= base_url('printing/invoice/' . $job->id) ?>"><i class="fa fa-file-text-o"></i> <?= empty($qsum['converted_sales_id']) ? 'Create Print Invoice' : 'Print Invoice'; ?></a>
             <?php endif; ?>
 
             <?php

@@ -1,0 +1,59 @@
+-- ============================================================================
+-- MartPoint 4.0.9.121 — licence labels on the dashboard + printing client profile
+--
+-- No schema change.
+--
+-- 1. LICENCE LABELS ON THE DASHBOARD
+--
+-- .115 relabelled the LICENCE SCREEN (views/subscription_license/index.php) for
+-- a printing store: Materials / Material variants / Catalogue items. But the
+-- DASHBOARD renders the same quotas from a DIFFERENT place —
+-- custom_helper.php::mp_get_license_usage_summary() — whose labels were also
+-- hard-coded retail. So a print shop's dashboard still read
+-- "Products / Variants / Online Store" after .115.
+--
+-- Both now derive the noun from the store's industry. This is the second time
+-- these labels needed fixing, which is the argument for them being decided from
+-- one fact (the industry) rather than spelled out per screen.
+--
+-- 2. PRINTING CLIENT PROFILE
+--
+-- views/customers/desktop/profile.php carried 12 tabs written for retail and
+-- clinical businesses, including Treatment Notes and Medical Notes — two
+-- clinical tabs rendering on a print shop.
+--
+-- For printing the tab set is now:
+--   Print Jobs & Services · Statements · Customer Materials ·
+--   Customer Notes · Credit & Rewards [+ ID Card when the store uses one]
+--
+-- PRESERVED: every underlying query, every tab ID the JS binds to, and every
+-- record. Tabs are renamed and regrouped, not rebuilt — #purchases still
+-- resolves, so nothing is hidden and no history is lost. Other industries keep
+-- the original 12-tab set untouched.
+--
+-- Customer Materials reads the SAME custody ledger as Machine Floor
+-- (db_print_customer_materials via Printing_ops_model) — no second balance
+-- calculation, because two implementations of one figure is how they start
+-- disagreeing and the client ends up arguing with both. Includes a printable
+-- reconciliation statement.
+--
+-- DELIBERATELY NOT ADDED — and why
+--
+-- The brief asked for Quotations, Artwork & Approvals and Collection & Delivery
+-- tabs on the customer profile. The profile controller passes purchases,
+-- statement, gift_cards, store_credits, coupons and notes. It passes NO
+-- quotations, artwork, custody or fulfilment data for a customer, and inventing
+-- those queries would be BUILDING screens rather than reorganising them — which
+-- the brief explicitly said to identify separately instead.
+--
+-- A tab that opens onto nothing is worse than no tab, so those three are absent.
+-- Today those records live on the JOB (Print Shop → Print Jobs → a job shows its
+-- artwork, approvals and fulfilment), which is where they are actionable.
+-- Customer-scoped views of them are real work and are listed as such.
+--
+-- VERIFIED: 14 tab links, 14 panes, 0 unpaired. 2267 PHP files lint clean.
+-- Suite 600 passed / 0 failed.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

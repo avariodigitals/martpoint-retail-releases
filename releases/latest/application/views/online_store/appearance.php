@@ -46,17 +46,95 @@
 <form id="appearance-form" onsubmit="return false;">
   <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
 
+  <?php
+    // What this storefront sells. This drives everything downstream: the nav
+    // (Services vs All Products first), whether product categories appear, and
+    // whether a cart exists at all. It lives INSIDE #appearance-form so the
+    // radio value is actually submitted — rendered outside the form it would
+    // look right and silently save nothing.
+    //
+    // Defaults to 'products' when unset, matching Theme_engine::catalogueMode(),
+    // so the checked state and the engine can never disagree.
+    $os_mode = $settings->catalogue_mode ?? '';
+    if(!in_array($os_mode, ['services', 'products', 'both'], true)){ $os_mode = 'products'; }
+  ?>
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-shopping-bag"></i> What You Sell</h3></div>
+    <div class="mp-card-body">
+      <p class="mp-form-hint" style="margin-top:0">This decides your storefront menu and whether customers can check out or send an enquiry.</p>
+      <div class="os-form-grid">
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="catalogue_mode" value="services" <?= $os_mode === 'services' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Services only</b><br><span class="mp-form-hint">Jobs, quotes and enquiries. No cart — customers request a price.</span></span>
+          </label>
+        </div>
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="catalogue_mode" value="products" <?= $os_mode === 'products' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Products only</b><br><span class="mp-form-hint">A normal shop: browse, add to cart, check out.</span></span>
+          </label>
+        </div>
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="catalogue_mode" value="both" <?= $os_mode === 'both' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Both</b><br><span class="mp-form-hint">Sell products and take service enquiries from the same storefront.</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<?php
+/**
+ * The swatches must show the colour the storefront is ACTUALLY painting, and
+ * a blank must be distinguishable from a deliberate choice.
+ *
+ * Previously these read `$settings->primary_color ?? '#3B82F6'` — the raw
+ * store-wide column. Two consequences, both of them the reported bug:
+ *
+ *   1. Opening Appearance on a theme you had not customised showed the seeded
+ *      #3B82F6, implying blue was the theme's colour. It was not; it was the
+ *      column default masquerading as a decision.
+ *   2. Whatever was displayed got posted back on Save. So switching theme and
+ *      saving re-persisted the PREVIOUS theme's colour as the store brand
+ *      colour, which then beat the new theme's design. The colour appeared
+ *      stuck no matter how many times you switched.
+ *
+ * resolveBrandColor() already knows the difference between "merchant chose
+ * this" and "untouched default", so the form delegates to it. `$is_custom`
+ * drives the reset control below and is written into the hidden
+ * `<name>_custom` flags that save_appearance() reads.
+ */
+$effectivePrimary   = $this->theme_engine->resolveBrandColor('primary');
+$effectiveSecondary = $this->theme_engine->resolveBrandColor('secondary');
+$primaryCustom      = !$this->theme_engine->isStockDefault($settings->primary_color ?? null, 'primary');
+$secondaryCustom    = !$this->theme_engine->isStockDefault($settings->secondary_color ?? null, 'secondary');
+$themeP = htmlspecialchars($current_theme->default_primary_color ?? '#3B82F6');
+$themeS = htmlspecialchars($current_theme->default_secondary_color ?? '#10B981');
+?>
   <div class="mp-card-form">
     <div class="mp-card-head"><h3><i class="fa fa-palette"></i> Colours & Typography</h3></div>
     <div class="mp-card-body">
+      <p class="os-hint" style="font-size:13px;color:#64748B;margin:0 0 14px;">
+        Leave these alone to use <b><?= htmlspecialchars($current_theme->theme_name ?? 'the theme'); ?></b>'s own palette
+        (<span style="font-weight:600;"><?= $themeP; ?></span> / <span style="font-weight:600;"><?= $themeS; ?></span>).
+        Pick a colour only if you want your branding to override it.
+      </p>
       <div class="os-form-grid">
         <div class="mp-form-group">
-          <label>Primary Colour</label>
-          <div class="os-color-row"><input type="color" class="os-color-input" id="primary_color" name="primary_color" value="<?= htmlspecialchars($settings->primary_color ?? '#3B82F6'); ?>"></div>
+          <label>Primary Colour<?= $primaryCustom ? ' <span style="color:#0E7490;font-size:11px;font-weight:700;">(custom)</span>' : ' <span style="color:#94A3B8;font-size:11px;">(theme default)</span>' ?></label>
+          <div class="os-color-row">
+            <input type="color" class="os-color-input" id="primary_color" name="primary_color" value="<?= htmlspecialchars($effectivePrimary); ?>">
+            <button type="button" class="os-color-reset" data-target="primary_color" data-default="<?= $themeP; ?>" title="Use the theme's own colour">&times;</button>
+          </div>
         </div>
         <div class="mp-form-group">
-          <label>Secondary Colour</label>
-          <div class="os-color-row"><input type="color" class="os-color-input" id="secondary_color" name="secondary_color" value="<?= htmlspecialchars($settings->secondary_color ?? '#10B981'); ?>"></div>
+          <label>Secondary Colour<?= $secondaryCustom ? ' <span style="color:#0E7490;font-size:11px;font-weight:700;">(custom)</span>' : ' <span style="color:#94A3B8;font-size:11px;">(theme default)</span>' ?></label>
+          <div class="os-color-row">
+            <input type="color" class="os-color-input" id="secondary_color" name="secondary_color" value="<?= htmlspecialchars($effectiveSecondary); ?>">
+            <button type="button" class="os-color-reset" data-target="secondary_color" data-default="<?= $themeS; ?>" title="Use the theme's own colour">&times;</button>
+          </div>
         </div>
         <div class="mp-form-group">
           <label>Page Background</label>
@@ -203,6 +281,12 @@ function saveAppearance(){
   btn.disabled = true; btn.textContent = 'Saving...';
   const fd = new FormData(document.getElementById('appearance-form'));
   fd.append('theme_id', document.getElementById('theme_id').value);
+  // Tell the controller these swatches were reverted rather than chosen, so it
+  // can store NULL and let the theme's palette govern again. Without this the
+  // colour input's current value would be saved as a deliberate override.
+  document.querySelectorAll('#primary_color, #secondary_color').forEach(function(input){
+    if(input.dataset.reverted === '1') fd.append(input.id + '_reverted', '1');
+  });
   fetch('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd})
   .then(r=>r.json()).then(res=>{
     if(res.status === 'success'){ toastr.success(res.message); }
@@ -210,5 +294,37 @@ function saveAppearance(){
     btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Appearance';
   }).catch(()=>{ toastr.error('Error saving appearance'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Appearance'; });
 }
+
+/**
+ * Reset a swatch to the active theme's own colour.
+ *
+ * Clicking this marks the field as "not customised" so save_appearance()
+ * stores NULL instead of a colour. NULL is what lets resolveBrandColor() fall
+ * through to the theme's designed palette — without it the merchant could see
+ * the theme colour but never return to it, because every save re-pinned the
+ * hue that happened to be showing.
+ */
+document.querySelectorAll('.os-color-reset').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    const input = document.getElementById(btn.dataset.target);
+    if(!input) return;
+    input.value = btn.dataset.default;
+    input.dataset.reverted = '1';
+    const label = input.closest('.mp-form-group').querySelector('label');
+    if(label) label.innerHTML = label.innerHTML.replace(/\(custom\)/, '(theme default)').replace(/#0E7490/, '#94A3B8');
+    if(window.toastr) toastr.info('Reverted to the theme colour — save to apply.');
+  });
+});
+// A swatch the merchant touches is a real choice again.
+document.querySelectorAll('#primary_color, #secondary_color').forEach(function(input){
+  input.addEventListener('input', function(){ input.dataset.reverted = ''; });
+});
 </script>
+<style>
+.os-color-reset{ width:30px; height:30px; margin-left:8px; flex:0 0 auto; border:1px solid #CBD5E1;
+  background:#fff; color:#64748B; border-radius:6px; cursor:pointer; font-size:16px; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center; }
+.os-color-reset:hover{ border-color:#0E7490; color:#0E7490; }
+.os-color-row{ display:flex; align-items:center; }
+</style>
 <script>$(".online_store-appearance-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

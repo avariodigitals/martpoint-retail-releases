@@ -99,14 +99,37 @@
           </div>
           <div class="row">
             <div class="col-md-6">
+              <?php
+                // Limit labels follow the business type.
+                //
+                // Every install used to read "Product Limit", "SKU Limit",
+                // "Online Product Limit" — retail vocabulary served to a
+                // printing, clinical or creator business. The LIMITS themselves
+                // are unchanged and still enforced exactly as before; only the
+                // noun changes, and it comes from the store's own label
+                // overrides (mp_label) so an industry that has named its
+                // catalogue something else sees that word here too.
+                //
+                // A print shop's items ARE its materials, and it has no SKUs or
+                // online product catalogue, so it reads "Materials" rather than
+                // three synonyms for a product.
+                $lic_is_printing = (mp_get_store_profile()['industry_type'] ?? '') === 'printing';
+                $lic_item   = $lic_is_printing ? 'Materials' : 'Products';
+                $lic_sku    = $lic_is_printing ? 'Material variants' : 'SKUs';
+                $lic_online = $lic_is_printing ? 'Catalogue items' : 'Online products';
+              ?>
               <div class="form-group">
-                <label>Product Limit <small class="text-muted">(top-level items)</small></label>
+                <label><?= htmlspecialchars($lic_item); ?> Limit
+                  <small class="text-muted"><?= $lic_is_printing ? '(materials you stock)' : '(top-level items)'; ?></small>
+                </label>
                 <input type="number" name="product_limit" class="form-control limit-input" min="1" value="500" readonly>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
-                <label>SKU Limit <small class="text-muted">(total incl. variants)</small></label>
+                <label><?= htmlspecialchars($lic_sku); ?> Limit
+                  <small class="text-muted"><?= $lic_is_printing ? '(sizes, stocks, finishes)' : '(total incl. variants)'; ?></small>
+                </label>
                 <input type="number" name="sku_limit" class="form-control limit-input" min="1" value="10000" readonly>
               </div>
             </div>
@@ -114,13 +137,15 @@
           <div class="row">
             <div class="col-md-6">
               <div class="form-group">
-                <label>Online Product Limit <small class="text-muted">(storefront)</small></label>
+                <label><?= htmlspecialchars($lic_online); ?> Limit
+                  <small class="text-muted">(<?= $lic_is_printing ? 'shown on your storefront' : 'storefront'; ?>)</small>
+                </label>
                 <input type="number" name="online_product_limit" class="form-control limit-input" min="1" value="500" readonly>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
-                <label>Service Limit</label>
+                <label><?= $lic_is_printing ? 'Print job types' : 'Service'; ?> Limit</label>
                 <input type="number" name="service_limit" class="form-control limit-input" min="1" value="100" readonly>
               </div>
             </div>
@@ -541,13 +566,13 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label>Product Limit</label>
+              <label><?= htmlspecialchars($lic_item ?? 'Products'); ?> Limit</label>
               <input type="number" id="edit_product_limit" class="form-control" min="1" value="<?= $license->product_limit ?? 500; ?>">
             </div>
           </div>
           <div class="col-md-6">
             <div class="form-group">
-              <label>SKU Limit <small class="text-muted">(total incl. variants)</small></label>
+              <label><?= htmlspecialchars($lic_sku ?? 'SKUs'); ?> Limit <small class="text-muted">(total incl. variants)</small></label>
               <input type="number" id="edit_sku_limit" class="form-control" min="1" value="<?= $license->sku_limit ?? 10000; ?>">
             </div>
           </div>
@@ -555,13 +580,13 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label>Online Product Limit <small class="text-muted">(storefront)</small></label>
+              <label><?= htmlspecialchars($lic_online ?? 'Online products'); ?> Limit <small class="text-muted">(storefront)</small></label>
               <input type="number" id="edit_online_product_limit" class="form-control" min="1" value="<?= $license->online_product_limit ?? 500; ?>">
             </div>
           </div>
           <div class="col-md-6">
             <div class="form-group">
-              <label>Service Limit</label>
+              <label><?= !empty($lic_is_printing) ? 'Print job types' : 'Service'; ?> Limit</label>
               <input type="number" id="edit_service_limit" class="form-control" min="1" value="<?= $license->service_limit ?? 100; ?>">
             </div>
           </div>

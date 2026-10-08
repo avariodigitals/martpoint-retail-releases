@@ -173,4 +173,72 @@ return [
 	// Fleet migration-progress reporting — a stalled migration chain blocks an
 	// install for ever and was invisible from Central.
 	'4.0.9.106v'  => '4.0.9.106_fleet_migration_progress.sql',
+
+	// Printing physical operations. .107 is the machine register, counter
+	// readings and the run-level machine confirmation columns; .108 is the
+	// consumable issuance lifecycle, maintenance visits and the customer-owned
+	// material custody ledger. Both are printing-scoped and idempotent.
+	'4.0.9.107v'  => '4.0.9.107_printing_machines.sql',
+	'4.0.9.108v'  => '4.0.9.108_printing_ops.sql',
+	// .109 restores print_works as the fourth printing theme. .97 retired it
+	// in favour of a three-theme set; that decision is reversed, so the theme
+	// is switched back on. No store is moved back onto it — see the file.
+	'4.0.9.109v'  => '4.0.9.109_restore_print_works_theme.sql',
+	// .110 carries the service-led storefront nav and the Appearance
+	// "What You Sell" control. No schema change beyond re-asserting
+	// catalogue_mode and normalising unreadable values.
+	'4.0.9.110v'  => '4.0.9.110_storefront_nav_catalogue.sql',
+	// .111 makes the printing workspace reachable: /dashboard routes printing
+	// stores to /printing, and the module gate no longer reads a flag key that
+	// exists nowhere. Backfills production_workflow for printing stores.
+	'4.0.9.111v'  => '4.0.9.111_printing_workspace_reachability.sql',
+	// .112 gives the printing workspace a sidebar rail. The module was reachable
+	// but unnavigable — no menu entry existed for any of its 13 screens.
+	'4.0.9.112v'  => '4.0.9.112_printing_sidebar_rail.sql',
+	// .113 ships the Machine Floor screens (machines, readings, maintenance,
+	// consumables, customer custody). The tables and model existed since
+	// .107/.108 but had no controller or view — only the suite used them.
+	'4.0.9.113v'  => '4.0.9.113_printing_machine_floor.sql',
+	// .114 restores the shared business menus on the printing rail, renames
+	// Online Store to Leads Hub there, sends /pos to the new-job builder, and
+	// makes Customer Materials answer "what came in / what remains".
+	'4.0.9.114v'  => '4.0.9.114_printing_rail_and_pos.sql',
+	// .115 Pass A: industry-aware licence labels, Operations off for printing,
+	// Reports merged into Insights, Client Segments linked, Quick Job button.
+	'4.0.9.115v'  => '4.0.9.115_industry_labels_and_menu_tidy.sql',
+	// .116 Pass B: per-job invoice style (combined / detailed) plus the
+	// Equipment Report. Adds db_print_jobs.invoice_style only.
+	'4.0.9.116v'  => '4.0.9.116_print_invoice_style.sql',
+	// .117 removes the Wholesale/Retail price switch from the sales screen,
+	// which also removes it from the quotation→invoice path.
+	'4.0.9.117v'  => '4.0.9.117_remove_wholesale_toggle.sql',
+	// .118 completes the print quote→invoice write (the last piece of Pass B).
+	'4.0.9.118v'  => '4.0.9.118_print_invoice_create.sql',
+	// .119 Printing rail reorganisation — navigation only. Reorders into Daily
+	// Work / Business Management, removes duplicate destinations, moves suppliers
+	// and customer materials, renames Reports and Online Store.
+	'4.0.9.119v'  => '4.0.9.119_printing_rail_reorg.sql',
+	// .120 Rail fixes: restores the group toggle handlers .119 dropped (five
+	// printing menus could not be opened), renames to Online Print Requests and
+	// Settings, and sub-groups Marketing and the storefront group.
+	'4.0.9.120v'  => '4.0.9.120_rail_fixes.sql',
+	// .121 Dashboard licence labels (second hard-coded copy) + printing client
+	// profile tabs.
+	'4.0.9.121v'  => '4.0.9.121_dashboard_labels_and_client_profile.sql',
+	// .122 HOTFIX — clients on .106 could not save ordinary sales at all:
+	// "Duplicate entry '0' for key 'idx_quotation_sales_unique'". A blank
+	// quotation field posted '' (coerced to 0) and the column carried DEFAULT 0,
+	// so the one-to-one index added in .88 rejected every unlinked sale after
+	// the first. Normalises stranded 0 links to NULL and drops DEFAULT 0.
+	// Write path fixed in Sales_model::verify_save_and_update().
+	'4.0.9.122v'  => '4.0.9.122_quotation_id_zero_repair.sql',
+        // .123 Orphan-table repair: 15 tables the code queries were created only
+        // by 4.0.9.43 / .53 / .54, all BELOW the installer stamp (4.0.9.59), so a
+        // FRESH install never created them: the Nylon Factory and the equipment /
+        // service-job screens failed with "Table doesn't exist", and the Central
+        // fleet registry (db_fleet_installs / db_fleet_commands — which Central
+        // itself needs, since it also installs at the stamp) plus institutional
+        // customer contacts were silently absent.
+        // CREATE TABLE IF NOT EXISTS only: a no-op on every existing install.
+        '4.0.9.123v'  => '4.0.9.123_orphan_table_repair_fresh_install.sql',
 ];

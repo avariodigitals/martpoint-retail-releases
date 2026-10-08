@@ -56,24 +56,67 @@ $social = $social_links ?? [];
     <?php endif; ?>
 
     <div class="mp-header-actions">
+      <?php // The cart is only meaningful when this storefront actually sells products.
+            // A printing shop was showing a cart (and a Products nav) it could never
+            // fill. $cart_enabled is the composed answer (mode + allow_products_online
+            // + service-industry); $is_service_store is the raw industry fact, kept
+            // here because theme authors gate on it directly.
+            $is_service_store = !empty($is_service_store);
+            ?>
+      <?php if(!empty($cart_enabled)): ?>
       <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="mp-header-cart mp-header-btn" aria-label="Cart">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         <span class="mp-cart-count" id="cart-count">0</span>
         <span class="cart-amount" id="header-cart-amount"><?= isset($store_currency) && $store_currency['placement'] === 'Right' ? store_number_format(0) . ' ' . $store_currency['symbol'] : ($store_currency['symbol'] ?? '') . ' ' . store_number_format(0); ?></span>
       </a>
+      <?php endif; ?>
     </div>
   </div>
 </div>
 
 <!-- Navigation -->
+<?php
+  // Nav composition. Three facts decide the menu, resolved once here so the
+  // desktop and mobile menus can never disagree:
+  //
+  //   $nav_sells_products  — the store sells products (catalogue mode)
+  //   $nav_is_service      — the store is service-led (services/both, or a
+  //                          service industry such as printing)
+  //
+  // A service storefront leads with Services and never shows product
+  // categories: they are a retail browsing aid, and a print shop's nav
+  // offering "Paper", "Ink", "Binding" as shop categories is noise. A
+  // product-only store keeps All Products first, because that IS its
+  // catalogue.
+  $nav_sells_products = !empty($sells_products);
+  $nav_sells_services = !empty($sells_services) || !empty($settings->allow_services);
+  $nav_is_service     = $nav_sells_services && !$nav_sells_products;
+  $nav_products_url   = base_url('store/' . $slug . '/products');
+  $nav_services_url   = base_url('store/' . $slug . '/services');
+  $nav_contact_url    = base_url('store/' . $slug . '/contact');
+?>
 <div class="mp-nav" id="mp-nav">
   <div class="mp-nav-inner">
-    <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="mp-nav-link">All Products</a>
-    <?php if(!empty($categories)): foreach(array_slice($categories, 0, 6) as $cat): ?>
+    <?php if($nav_is_service): ?>
+    <a href="<?= $nav_services_url; ?>" class="mp-nav-link">Services</a>
+    <?php if($nav_sells_products): ?>
+    <a href="<?= $nav_products_url; ?>" class="mp-nav-link">All Products</a>
+    <?php endif; ?>
+    <?php else: ?>
+    <a href="<?= $nav_products_url; ?>" class="mp-nav-link">All Products</a>
+    <?php // Categories are a retail browsing aid — only where products are the catalogue. ?>
+    <?php if($nav_sells_products && !empty($categories)): foreach(array_slice($categories, 0, 6) as $cat): ?>
     <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="mp-nav-link"><?= htmlspecialchars($cat->category_name); ?></a>
     <?php endforeach; endif; ?>
-    <?php if($settings->allow_services ?? false): ?>
-    <a href="<?= base_url('store/' . $slug . '/services'); ?>" class="mp-nav-link">Services</a>
+    <?php if($nav_sells_services): ?>
+    <a href="<?= $nav_services_url; ?>" class="mp-nav-link">Services</a>
+    <?php endif; ?>
+    <?php endif; ?>
+    <?php // A service storefront's next step is a conversation, not a checkout.
+          // The enquiry link is added for service stores only — a product store
+          // already has its catalogue as the primary action. ?>
+    <?php if($nav_is_service): ?>
+    <a href="<?= base_url('store/' . $slug . '/contact'); ?>" class="mp-nav-link">Request a Quote</a>
     <?php endif; ?>
   </div>
 </div>
@@ -84,9 +127,18 @@ $social = $social_links ?? [];
   <div style="font-weight:800; font-size:18px; margin-bottom:24px; color:var(--mp-primary);"><?= htmlspecialchars($store->store_name ?? 'Menu'); ?></div>
   <div style="display:flex; flex-direction:column; gap:16px;">
     <a href="<?= base_url('store/' . $slug); ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Home</a>
-    <a href="<?= base_url('store/' . $slug . '/products'); ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">All Products</a>
-    <?php if($settings->allow_services ?? false): ?>
-    <a href="<?= base_url('store/' . $slug . '/services'); ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Services</a>
+    <?php // Same order as the desktop nav, from the same two facts. ?>
+    <?php if($nav_is_service): ?>
+    <a href="<?= $nav_services_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Services</a>
+    <?php if($nav_sells_products): ?>
+    <a href="<?= $nav_products_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">All Products</a>
+    <?php endif; ?>
+    <a href="<?= $nav_contact_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Request a Quote</a>
+    <?php else: ?>
+    <a href="<?= $nav_products_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">All Products</a>
+    <?php if($nav_sells_services): ?>
+    <a href="<?= $nav_services_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Services</a>
+    <?php endif; ?>
     <?php endif; ?>
     <hr style="border:none; border-top:1px solid var(--mp-border); margin:8px 0;">
     <?php if(!empty($settings->store_phone)): ?>

@@ -34,6 +34,23 @@ $is_central = $hide_retail_menus;
 $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
 $is_car = $industry === 'car_dealership';
 $is_creator = $industry === 'creator';
+// A print shop gets its own rail. The workspace lives at /printing (the
+// dashboard redirects there), so the sidebar must offer its screens rather than
+// the retail set — otherwise the module is reachable but unnavigable, which is
+// exactly how it behaved before: /printing loaded and the menu showed Sales,
+// Inventory and Clients.
+$is_printing = ($industry === 'printing') && function_exists('mp_feature_enabled') && mp_feature_enabled('production_workflow');
+// NOTE on $is_printing: it adds the printing GROUPS (Print Shop, Machine
+// Floor) and reorders the top of the rail. It does NOT hide the shared
+// business groups.
+//
+// An earlier attempt did hide them, guarding every group with a $hide_retail
+// flag. That was wrong: a print shop's own feature set includes accounts,
+// warehouse, online_store, promotions, custom_orders, leads, staff assignment
+// and delivery scheduling, so hiding those groups removed Promotions, Catalog,
+// Finance, Marketing, Reports, Operations, Purchases and Clients — menus the
+// business actually uses. The only thing printing genuinely should not show is
+// a cart-led shop experience, and that is decided by the storefront, not here.
 // SVG icon set (Feather-style, matching prototype)
 $mp_icons = [
   'dashboard' => '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -62,12 +79,136 @@ $mp_icons = [
       <?php if($is_creator): ?>
       <a href="<?= base_url('creator'); ?>" class="mp-nav-item active creator-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
       <a href="<?= base_url('dashboard?classic=1'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Business Overview</a>
+      <?php elseif($is_printing): ?>
+      <a href="<?= base_url('printing'); ?>" class="mp-nav-item printing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Printing Overview</a>
       <?php else: ?>
       <a href="<?= base_url('dashboard'); ?>" class="mp-nav-item active"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
       <?php endif; ?>
     </div>
 
+    <?php
+      /*
+       * Helpers shared by EVERY rail — defined before any industry branch.
+       *
+       * These used to be declared inside the `if($is_printing)` block, but they
+       * are called from shared markup further down ("Business Management"), so
+       * the moment a store was switched AWAY from printing the closure did not
+       * exist and the call threw "Function name must be a string". That killed
+       * the whole sidebar on every page — the header rendered and nothing else.
+       *
+       * A helper used by shared markup must be defined in shared scope, above
+       * the branch that happens to be the first to use it.
+       */
+      // Which route is open right now — used to open the owning group.
+      $mp_here = trim((string) $CI->uri->uri_string(), '/');
+      $mp_open = function ($prefixes) use ($mp_here) {
+          foreach ((array) $prefixes as $p) {
+              if ($p !== '' && strpos($mp_here, $p) === 0) return true;
+          }
+          return false;
+      };
+      // $sec() prints a section caption in the rail.
+      $sec = function ($label) { echo '<div class="mp-nav-label">' . htmlspecialchars($label) . '</div>'; };
+    ?>
+
     <?php if(!$is_central): ?>
+    <?php if($is_printing): ?>
+    <!-- ===== PRINTING WORKSPACE MENUS =====
+         Order follows the actual working day, not the module layout:
+         Daily Work (quote → job → production → machines → materials),
+         then Business Management (sales, customers, catalogue, purchasing,
+         stock, finance), then Growth (reports, marketing, storefront), then
+         System (help, settings).
+
+         Section labels are small captions, not groups — they cannot be
+         collapsed and hold no links, so they add orientation without another
+         click. Groups start collapsed EXCEPT the one containing the current
+         page, so the rail opens showing where you are rather than a wall of
+         fifteen expanded menus.
+
+         Every link keeps the permission the controller itself checks, so a
+         destination and its gate cannot disagree. -->
+    <?php $sec('Daily Work'); ?>
+
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['sales']; ?></span> Quotations <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <?php if($CI->permissions('print_quote')): ?>
+        <a href="<?= base_url('printing/new_quotation'); ?>" class="mp-nav-item printing-new_quotation-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Quote</a>
+        <?php endif; ?>
+        <?php if($CI->permissions('print_quote')): ?>
+        <a href="<?= base_url('printing/unlinked_quotations'); ?>" class="mp-nav-item printing-unlinked_quotations-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Awaiting a Job</a>
+        <?php endif; ?>
+        <?php if($CI->permissions('quotation_view')): ?>
+        <a href="<?= base_url('quotation'); ?>" class="mp-nav-item quotation-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> All Quotes</a>
+        <?php endif; ?>
+      </div>
+    </div></div>
+
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0E7490;"><?= $mp_icons['ops']; ?></span> Print Jobs <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <?php // No "Overview" here. It pointed at /printing — the same route as
+              // the Printing Overview link at the top of the rail, so it was a
+              // second door to one room. ?>
+        <?php if($CI->permissions('print_view')): ?>
+        <a href="<?= base_url('printing/jobs'); ?>" class="mp-nav-item printing-jobs-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('service_order'); ?>s</a>
+        <?php endif; ?>
+        <?php if($CI->permissions('print_artwork')): ?>
+        <a href="<?= base_url('printing/artworks'); ?>" class="mp-nav-item printing-artworks-active-li"><span class="mp-nav-icon"><?= $mp_icons['catalog']; ?></span> Artwork</a>
+        <?php endif; ?>
+        <?php if($CI->permissions('print_authorize')): ?>
+        <a href="<?= base_url('printing/authorizations'); ?>" class="mp-nav-item printing-authorizations-active-li"><span class="mp-nav-icon"><?= $mp_icons['admin']; ?></span> Authorisations</a>
+        <?php endif; ?>
+        <?php if($CI->permissions('print_payments')): ?>
+        <a href="<?= base_url('printing/payments'); ?>" class="mp-nav-item printing-payments-active-li"><span class="mp-nav-icon"><?= $mp_icons['finance']; ?></span> Job Payments</a>
+        <?php endif; ?>
+      </div>
+    </div></div>
+
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#2563EB;"><?= $mp_icons['inventory']; ?></span> Production <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <?php if($CI->permissions('print_view')): ?>
+        <a href="<?= base_url('printing/production'); ?>" class="mp-nav-item printing-production-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Production Floor</a>
+        <?php endif; ?>
+        <?php /* Collection & Delivery has no screen — Printing::fulfil() is a
+                 POST endpoint that records a handover, not a page. Listed as
+                 separate work rather than linked, because a menu item pointing
+                 at a write endpoint is what caused the old Stage Report bug. */ ?>
+      </div>
+    </div></div>
+
+    <?php if($CI->permissions('print_view')): ?>
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0891B2;"><?= $mp_icons['ops']; ?></span> Machines &amp; Maintenance <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('printing_ops/machines'); ?>" class="mp-nav-item operations-machines-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Machines</a>
+        <a href="<?= base_url('printing_ops/readings'); ?>" class="mp-nav-item operations-readings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Counter Readings</a>
+        <a href="<?= base_url('printing_ops/maintenance'); ?>" class="mp-nav-item operations-maintenance-active-li"><span class="mp-nav-icon"><?= $mp_icons['ops']; ?></span> Maintenance</a>
+        <a href="<?= base_url('printing_ops/supplies'); ?>" class="mp-nav-item operations-supplies-active-li"><span class="mp-nav-icon"><?= $mp_icons['purchase']; ?></span> Consumables</a>
+      </div>
+    </div></div>
+
+    <?php /* Customer materials is NOT under machines. A client can hand over
+             their own stock for a job that never touches a press — and the
+             material is theirs, not the shop's asset. Filing it under equipment
+             implied both. */ ?>
+    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#C026D3;"><?= $mp_icons['customers']; ?></span> Customer Materials <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('printing_ops/custody'); ?>" class="mp-nav-item operations-custody-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Materials Held</a>
+        <?php /* Receipts, allocations and returns are sections INSIDE this
+                 screen, not separate destinations — the model exposes
+                 get_customer_materials / unallocated_materials /
+                 breakdown_mismatches and the view renders all three. */ ?>
+      </div>
+    </div></div>
+    <?php endif; /* end printing-only rail */ ?>
+    <?php endif; /* end if(!$is_central) — the shared business groups below render for printing too */ ?>
+
+    <?php $sec('Business Management'); ?>
+
     <?php if($is_creator): ?>
     <!-- ===== CREATOR WORKSPACE MENUS ===== -->
     <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
@@ -115,7 +256,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Sales -->
-    <?php if(!$is_creator && ($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view'))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['sales']; ?></span> Sales <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -124,15 +265,23 @@ $mp_icons = [
         <?php if($CI->permissions('sales_payment_view')): ?><a href="<?= base_url('sales_payments/'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Payments</a><?php endif; ?>
         <?php if($CI->permissions('installment_plans') && mp_feature_enabled('payplan')): ?><a href="<?= base_url('installments'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Installments</a><?php endif; ?>
         <?php if($CI->permissions('sales_return_view')): ?><a href="<?= base_url('sales_return'); ?>" class="mp-nav-item sales-returns-active-li sales-return-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Returns</a><?php endif; ?>
-        <?php if($CI->permissions('quotation_add')): ?><a href="<?= base_url('quotation/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Quotation</a><?php endif; ?>
-        <?php if($CI->permissions('quotation_view')): ?><a href="<?= base_url('quotation'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Quotation History</a><?php endif; ?>
+        <?php // "New Quotation" and "Quotation History" were removed from here.
+              // Both pointed at routes the Quotations group already owns
+              // (quotation/add and quotation), so the same two screens appeared
+              // under two menus. One destination, one home.
+              //
+              // NOTE for a PRINT shop: Job Payments (Money against a JOB,
+              // db_print_payments) and Sales Payments (money against an
+              // INVOICE, sales_payments) are deliberately BOTH kept. They are
+              // different tables recording different events, not two views of
+              // one ledger. ?>
         <?php if(mp_feature_enabled('manual_shipping') && $CI->permissions('sales_view')): ?><a href="<?= base_url('shipping_fees'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><i class="fa fa-truck"></i></span> Shipping Fees</a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>
 
     <!-- Catalog (hidden for creator) -->
-    <?php if(!$is_creator && ($CI->permissions('items_add') || $CI->permissions('items_view') || $CI->permissions('items_category_view') || $CI->permissions('brand_view') || $CI->permissions('attributes_view') || $CI->permissions('print_labels') || $CI->permissions('import_items') || $CI->permissions('services_add') || $CI->permissions('services_view') || $CI->permissions('service_packages_view') || $CI->permissions('variant_view') || (mp_feature_enabled('price_catalogue') && (is_admin() || is_store_admin())))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('items_add') || $CI->permissions('items_view') || $CI->permissions('items_category_view') || $CI->permissions('brand_view') || $CI->permissions('attributes_view') || $CI->permissions('print_labels') || $CI->permissions('import_items') || $CI->permissions('services_add') || $CI->permissions('services_view') || $CI->permissions('service_packages_view') || $CI->permissions('variant_view') || (mp_feature_enabled('price_catalogue') && (is_admin() || is_store_admin())))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#2563EB;"><?= $mp_icons['catalog']; ?></span> Catalog <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -170,7 +319,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Promotions -->
-    <?php if(!$is_creator && $CI->permissions('promotions_manage')): ?>
+    <?php if((!$is_creator) && $CI->permissions('promotions_manage')): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#E11D48;"><?= $mp_icons['promo']; ?></span> Promotions <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -181,19 +330,24 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Purchases -->
-    <?php if(!$is_creator && ($CI->permissions('purchase_add') || $CI->permissions('purchase_view') || $CI->permissions('purchase_return_view'))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('purchase_add') || $CI->permissions('purchase_view') || $CI->permissions('purchase_return_view') || $CI->permissions('suppliers_view') || $CI->permissions('suppliers_add') || $CI->permissions('import_suppliers'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
-      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['purchase']; ?></span> <?= $is_car ? 'Vehicle Purchases' : 'Purchases'; ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['purchase']; ?></span> <?= $is_car ? 'Vehicle Purchases &amp; Sellers' : 'Purchases &amp; Suppliers'; ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if($CI->permissions('purchase_add')): ?><a href="<?= base_url('purchase/add'); ?>" class="mp-nav-item purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?></a><?php endif; ?>
         <?php if($CI->permissions('purchase_view')): ?><a href="<?= base_url('purchase'); ?>" class="mp-nav-item purchase-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?> History</a><?php endif; ?>
         <?php if($CI->permissions('purchase_return_view')): ?><a href="<?= base_url('purchase_return'); ?>" class="mp-nav-item purchase-returns-active-li purchase-returns-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?> Returns</a><?php endif; ?>
+        <?php // Suppliers live here, beside what they supply. They were under
+              // Customers, filed by "is a company" rather than by purpose. ?>
+        <?php if($CI->permissions('suppliers_add')): ?><a href="<?= base_url('suppliers/add'); ?>" class="mp-nav-item suppliers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Seller' : 'Supplier'; ?></a><?php endif; ?>
+        <?php if($CI->permissions('suppliers_view')): ?><a href="<?= base_url('suppliers'); ?>" class="mp-nav-item suppliers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Seller' : 'Supplier'; ?> List</a><?php endif; ?>
+        <?php if($CI->permissions('import_suppliers')): ?><a href="<?= base_url('import/suppliers'); ?>" class="mp-nav-item import_suppliers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import <?= $is_car ? 'Sellers' : 'Suppliers'; ?></a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>
 
     <!-- Inventory -->
-    <?php if(!$is_creator && ($CI->permissions('stock_adjustment_view') || $CI->permissions('stock_transfer_view'))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('stock_adjustment_view') || $CI->permissions('stock_transfer_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F59E0B;"><?= $mp_icons['inventory']; ?></span> Inventory <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -207,17 +361,19 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Customers -->
-    <?php if(!$is_creator && ($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view') || (mp_feature_enabled('leads') && $CI->permissions('leads_view')))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view') || (mp_feature_enabled('leads') && $CI->permissions('leads_view')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['customers']; ?></span> <?= mp_label('customer'); ?>s <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if($CI->permissions('customers_add')): ?><a href="<?= base_url('customers/add'); ?>" class="mp-nav-item customers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('customer'); ?></a><?php endif; ?>
         <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('customer'); ?> List</a><?php endif; ?>
         <?php if(mp_feature_enabled('leads') && ($CI->permissions('leads_view') || is_store_admin() || $this->session->userdata('role_id') == 1)): ?><a href="<?= base_url('leads'); ?>" class="mp-nav-item leads-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Leads</a><?php endif; ?>
-        <?php if($CI->permissions('suppliers_add')): ?><a href="<?= base_url('suppliers/add'); ?>" class="mp-nav-item suppliers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Seller' : 'Supplier'; ?></a><?php endif; ?>
-        <?php if($CI->permissions('suppliers_view')): ?><a href="<?= base_url('suppliers'); ?>" class="mp-nav-item suppliers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Seller' : 'Supplier'; ?> List</a><?php endif; ?>
+        <?php // Suppliers moved to the Purchases group. A supplier is who you
+              // BUY from, so it belongs beside purchasing — under Customers it
+              // was filed by "is a person/company" rather than by what the
+              // record is for, which is why it read oddly next to client
+              // advances. See the Purchases block for the links themselves. ?>
         <?php if($CI->permissions('import_customers')): ?><a href="<?= base_url('import/customers'); ?>" class="mp-nav-item import_customers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import Customers</a><?php endif; ?>
-        <?php if($CI->permissions('import_suppliers')): ?><a href="<?= base_url('import/suppliers'); ?>" class="mp-nav-item import_suppliers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Import <?= $is_car ? 'Sellers' : 'Suppliers'; ?></a><?php endif; ?>
         <?php if($CI->permissions('cust_adv_payments_add')): ?><a href="<?= base_url('customers_advance/add'); ?>" class="mp-nav-item customers_advance_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Advance</a><?php endif; ?>
         <?php if($CI->permissions('cust_adv_payments_view')): ?><a href="<?= base_url('customers_advance'); ?>" class="mp-nav-item customers_advance_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Advance List</a><?php endif; ?>
       </div>
@@ -225,7 +381,12 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Finance -->
-    <?php if((($CI->permissions('accounts_add') || $CI->permissions('accounts_view') || $CI->permissions('journal_add') || $CI->permissions('journal_view') || $CI->permissions('money_transfer_view') || $CI->permissions('money_deposit_view') || $CI->permissions('cash_transactions')) && accounts_module()) || $CI->permissions('expense_view') || $CI->permissions('expense_category_view') || $CI->permissions('tills_view')): ?>
+    <?php // The whole permission list is wrapped in ONE paren group, and it must
+          // stay that way. `&&` binds tighter than `||`, so without the group
+          // this reads as (!$is_creator && accounts_add) || expense_view || ...
+          // — every permission after the first escapes the guard, and the group
+          // shows for anyone holding it. ?>
+    <?php if((!$is_creator) && ((($CI->permissions('accounts_add') || $CI->permissions('accounts_view') || $CI->permissions('journal_add') || $CI->permissions('journal_view') || $CI->permissions('money_transfer_view') || $CI->permissions('money_deposit_view') || $CI->permissions('cash_transactions')) && accounts_module()) || $CI->permissions('expense_view') || $CI->permissions('expense_category_view') || $CI->permissions('tills_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#E11D48;"><?= $mp_icons['finance']; ?></span> Finance <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -244,18 +405,34 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Marketing -->
-    <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit'))): ?>
+    <?php if((!$is_creator) && (($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#C026D3;"><?= $mp_icons['marketing']; ?></span> Marketing <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
+        <?php /* Sub-grouped: 15 items in one list is a wall. Three short lists
+                 — who you talk to, what you run, what you give back — read in
+                 one glance. Same content, same order within each list. */ ?>
+        <div class="mp-nav-subhead">Leads &amp; Segments</div>
         <a href="<?= base_url('marketing'); ?>" class="mp-nav-item marketing-overview-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Marketing Overview</a>
+        <?php
+          // Client segmentation. db_customer_segments and Marketing::segments()
+          // have existed for a while, but nothing linked them — the screen was
+          // reachable only by typing the URL, exactly like the printing module
+          // was. A saved segment is how a print shop answers "who are my repeat
+          // trade clients", so it belongs on the rail.
+        ?>
+        <?php if($CI->permissions('customers_view')): ?>
+        <a href="<?= base_url('marketing/segments'); ?>" class="mp-nav-item marketing-segments-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Client Segments</a>
+        <?php endif; ?>
         <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) && !is_admin()): ?>
+          <div class="mp-nav-subhead">Campaigns &amp; Promotions</div>
           <?php if($CI->permissions('customerCouponAdd')): ?><a href="<?= base_url('customer_coupon/generate'); ?>" class="mp-nav-item createCoupon-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Create Customer Coupon</a><?php endif; ?>
           <?php if($CI->permissions('customerCouponView')): ?><a href="<?= base_url('customer_coupon'); ?>" class="mp-nav-item customerCouponsList-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Coupons</a><?php endif; ?>
           <?php if($CI->permissions('discountCouponAdd')): ?><a href="<?= base_url('discount_coupon/add'); ?>" class="mp-nav-item createDiscountCoupon-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Create Discount Coupon</a><?php endif; ?>
           <?php if($CI->permissions('discountCouponView')): ?><a href="<?= base_url('discount_coupon/view'); ?>" class="mp-nav-item discountCoupon-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Discount Coupons</a><?php endif; ?>
         <?php endif; ?>
         <?php if($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')): ?>
+          <div class="mp-nav-subhead">Loyalty &amp; Rewards</div>
           <a href="<?= base_url('loyalty'); ?>" class="mp-nav-item loyalty-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Loyalty Dashboard</a>
           <a href="<?= base_url('loyalty/settings'); ?>" class="mp-nav-item loyalty-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Loyalty Settings</a>
           <a href="<?= base_url('loyalty/tiers'); ?>" class="mp-nav-item loyalty-tiers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Tiers</a>
@@ -271,7 +448,13 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Reports -->
-    <?php if($CI->permissions('sales_report') || $CI->permissions('profit_report') || $CI->permissions('stock_report') || $CI->permissions('expense_report') || $CI->permissions('purchase_report') || $CI->permissions('item_sales_report') || $CI->permissions('expired_items_report') || $CI->permissions('dashboard_view')): ?>
+    <?php // NOTE: the permission list MUST stay wrapped in its own paren group.
+          // `&&` binds tighter than `||`, so without it this reads as
+          // (!$is_creator && sales_report) || profit_report || ... — any other
+          // permission then wins and the group shows regardless of the guard. ?>
+    <?php // A print shop gets these screens inside Insights instead, so the two
+          // groups do not duplicate one another on that rail. ?>
+    <?php if((!$is_creator) && !$is_printing && ($CI->permissions('sales_report') || $CI->permissions('profit_report') || $CI->permissions('stock_report') || $CI->permissions('expense_report') || $CI->permissions('purchase_report') || $CI->permissions('item_sales_report') || $CI->permissions('expired_items_report') || $CI->permissions('dashboard_view'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['reports']; ?></span> Reports <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -313,26 +496,38 @@ $mp_icons = [
     </div></div>
     <?php endif; ?>
 
-    <!-- Online Store -->
-    <?php if(($CI->permissions('online_store_view') || $CI->permissions('online_store_orders') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')): ?>
+    <!-- Online Store / Leads Hub -->
+    <?php
+      // A print shop's storefront takes ENQUIRIES, not shop orders — every job
+      // is quoted before it is printed, so the online side is a request desk.
+      // The screens are unchanged; the name now says what arrives there. Every
+      // other industry keeps "Online Store".
+      $online_label = $is_printing ? 'Online Print Requests' : 'Online Store';
+    ?>
+    <?php if((!$is_creator) && ($CI->permissions('online_store_view') || $CI->permissions('online_store_orders') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
-      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['online']; ?></span> Online Store <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['online']; ?></span> <?= $online_label ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
+        <?php /* Sub-grouped so 16 items read as four short lists rather than one
+                 wall — the same fix applied to Marketing and Settings. */ ?>
         <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
+          <div class="mp-nav-subhead">Overview &amp; Analytics</div>
           <a href="<?= base_url('online_store'); ?>" class="mp-nav-item online_store-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Store Dashboard</a>
           <a href="<?= base_url('online_store/analytics'); ?>" class="mp-nav-item online_store-analytics-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Analytics</a>
           <a href="<?= base_url('online_store/subscribers'); ?>" class="mp-nav-item online_store-subscribers-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Subscribers</a>
         <?php endif; ?>
         <?php if($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
+          <div class="mp-nav-subhead"><?= $is_printing ? 'Enquiries &amp; Requests' : 'Enquiries &amp; Orders'; ?></div>
           <a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Orders</a>
         <?php endif; ?>
         <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
+          <div class="mp-nav-subhead"><?= $is_printing ? 'Services &amp; Materials' : 'Catalogue'; ?></div>
           <a href="<?= base_url('online_store/products_online'); ?>" class="mp-nav-item online_store-products-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Online Products</a>
           <a href="<?= base_url('online_store/services'); ?>" class="mp-nav-item online_store-services-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Services</a>
           <?php if(mp_feature_enabled('qr_ordering')): ?><a href="<?= base_url('online_store/qr_codes'); ?>" class="mp-nav-item online_store-qr-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> QR Codes</a><?php endif; ?>
         <?php endif; ?>
         <?php if($CI->permissions('online_store_edit') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
-          <div class="mp-nav-subhead">Storefront Content</div>
+          <div class="mp-nav-subhead">Content &amp; Appearance</div>
           <a href="<?= base_url('online_store/homepage_builder'); ?>" class="mp-nav-item online_store-homepage_builder-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Homepage Builder</a>
           <a href="<?= base_url('online_store/banners'); ?>" class="mp-nav-item online_store-banners-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Banners</a>
           <a href="<?= base_url('online_store/brands'); ?>" class="mp-nav-item online_store-brands-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Brands</a>
@@ -356,7 +551,18 @@ $mp_icons = [
       $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
       $has_tables = mp_feature_enabled('table_management') && (is_admin() || is_store_admin());
     ?>
-    <?php if($has_ops || $has_staff || $has_tables): ?>
+    <?php
+      // Operations is a PRODUCTION rail, and a print shop now has its own.
+      //
+      // Its flags are production_workflow, recipe_tracking, delivery_scheduling,
+      // custom_orders, equipment_register, service_jobs — every one of which
+      // Print Shop and Machine Floor already cover, in the language of print
+      // rather than generic manufacturing. Leaving it visible gave a print shop
+      // two menus for one job and the wrong vocabulary in one of them.
+      //
+      // Suppressed for printing only. Every other industry still gets it.
+    ?>
+    <?php if((!$is_creator) && !$is_printing && ($has_ops || $has_staff || $has_tables)): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['ops']; ?></span> Operations <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -385,7 +591,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Creator tools for non-creator businesses that switched the flags on -->
-    <?php if(!$is_creator && (mp_feature_enabled('digital_products') || mp_feature_enabled('courses'))): ?>
+    <?php if((!$is_creator) && (mp_feature_enabled('digital_products') || mp_feature_enabled('courses'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['online']; ?></span> Creator <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -413,7 +619,7 @@ $mp_icons = [
 
     <!-- Administration -->
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
-      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#78716C;"><?= $mp_icons['admin']; ?></span> Administration <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#78716C;"><?= $mp_icons['admin']; ?></span> Settings <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <a href="<?= base_url('admin'); ?>" class="mp-nav-item admin-dashboard-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Admin Dashboard</a>
         <?php if($CI->permissions('store_edit')): ?><a href="<?= base_url('store_profile/update/'.$this->session->userdata('store_id')); ?>" class="mp-nav-item store_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Store Profile</a><?php endif; ?>

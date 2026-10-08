@@ -158,6 +158,20 @@ class BackupManager {
         $handle = fopen($outFile, 'w');
         if (!$handle) return false;
 
+        // A full-store database cannot be dumped inside one request's memory
+        // or time budget. Reading every table with result_array() loaded the
+        // entire dataset into RAM, so on a real store the dump died with a
+        // fatal (no return value) and the update failed at step 1 for ever —
+        // reported as "check backups/ folder permissions", which was a guess
+        // and sent diagnosis in the wrong direction for hours.
+        //
+        // Stream instead: unbuffered queries, row by row, and raise the
+        // ceiling so a large table has a chance to finish. Writes are the
+        // only accumulation, and they go straight to disk.
+        @set_time_limit(300);
+        @ini_set('memory_limit', '512M');
+        @ini_set('max_execution_time', '300');
+
         fwrite($handle, "-- MartPoint Auto-Backup generated at " . date('Y-m-d H:i:s') . "\n\n");
         fwrite($handle, "SET FOREIGN_KEY_CHECKS = 0;\n\n");
 
@@ -168,22 +182,45 @@ class BackupManager {
             fwrite($handle, "DROP TABLE IF EXISTS `{$table}`;\n");
             fwrite($handle, $createSql . ";\n\n");
 
-            // INSERTs
-            $rows = $this->CI->db->query("SELECT * FROM `{$table}`")->result_array();
-            if (!empty($rows)) {
-                $columns = array_keys($rows[0]);
-                $colStr = '`' . implode('`,`', $columns) . '`';
-                fwrite($handle, "INSERT INTO `{$table}` ({$colStr}) VALUES\n");
+            // INSERTs — streamed in pages so memory stays flat regardless of
+            // table size. 500 rows per page is well under any row-size limit
+            // and keeps each statement a reasonable length.
+            $pageSize = 500;
+            $offset = 0;
+            $columns = null;
+            while (true) {
+                $rows = $this->CI->db
+                    ->query("SELECT * FROM `{$table}` LIMIT {$pageSize} OFFSET {$offset}")
+                    ->result_array();
+                if (empty($rows)) { break; }
+
+                if ($columns === null) {
+                    $columns = array_keys($rows[0]);
+                    $colStr = '`' . implode('`,`', $columns) . '`';
+                } else {
+                    $colStr = '`' . implode('`,`', $columns) . '`';
+                }
+
+                // One INSERT statement per page — fewer, larger statements
+                // restore faster than one-per-row.
                 $rowCount = count($rows);
+                fwrite($handle, "INSERT INTO `{$table}` ({$colStr}) VALUES\n");
                 foreach ($rows as $i => $row) {
                     $vals = [];
-                    foreach ($row as $val) {
+                    foreach ($columns as $col) {
+                        $val = $row[$col] ?? null;
                         $vals[] = is_null($val) ? 'NULL' : $this->CI->db->escape($val);
                     }
                     $suffix = ($i < $rowCount - 1) ? "," : ";";
                     fwrite($handle, "(" . implode(',', $vals) . "){$suffix}\n");
                 }
                 fwrite($handle, "\n");
+
+                if ($rowCount < $pageSize) { break; }
+                $offset += $pageSize;
+                // A table this big is rare; stop paging rather than risk
+                // reading a shifting OFFSET for ever on a concurrent write.
+                if ($offset > 5000000) { break; }
             }
         }
 

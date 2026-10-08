@@ -28,7 +28,9 @@
 SET @db := DATABASE();
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs'
        AND COLUMN_NAME = 'update_stage') = 0,
   'ALTER TABLE `db_fleet_installs` ADD COLUMN `update_stage` VARCHAR(32) NULL DEFAULT NULL',
@@ -36,7 +38,9 @@ SET @sql := (SELECT IF(
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs'
        AND COLUMN_NAME = 'update_step') = 0,
   'ALTER TABLE `db_fleet_installs` ADD COLUMN `update_step` TINYINT UNSIGNED NOT NULL DEFAULT 0',
@@ -44,7 +48,9 @@ SET @sql := (SELECT IF(
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs'
        AND COLUMN_NAME = 'update_detail') = 0,
   'ALTER TABLE `db_fleet_installs` ADD COLUMN `update_detail` VARCHAR(255) NULL DEFAULT NULL',
@@ -53,8 +59,25 @@ PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- The fleet view filters and sorts on stage — index it so a 500-install list
 -- stays fast.
+--
+-- GUARDED ON THE TABLE EXISTING FIRST. This file adds columns and an index to
+-- db_fleet_installs, a registry table created by 4.0.9.43. That version sits
+-- BELOW the installer's stamp (4.0.9.59), so a FRESH install never runs it —
+-- and the fleet tables are not in the installer schema either, because they are
+-- vendor-console (Central) tables that a client install does not have and does
+-- not need (Dashboard.php guards its own read with table_exists()).
+--
+-- Without the table check the guard reads "0 columns found", concludes the
+-- column is missing, and runs ALTER TABLE against a table that is not there —
+-- error 1146, which Updater::applyMigrations() does NOT treat as benign, so the
+-- whole migration chain would stop part-way on a fresh install.
+--
+-- With it, the statement simply no-ops where the table is absent (client) and
+-- behaves exactly as before where it exists (Central).
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.STATISTICS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs') = 1
+  AND (SELECT COUNT(*) FROM information_schema.STATISTICS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs'
        AND INDEX_NAME = 'idx_update_stage') = 0,
   'ALTER TABLE `db_fleet_installs` ADD INDEX `idx_update_stage` (`update_stage`)',

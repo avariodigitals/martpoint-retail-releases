@@ -142,10 +142,14 @@ $aboutUs = $settings->footer_about_us ?? '';
       <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
       Search
     </button>
+    <?php // Mobile cart entry — only where a cart exists. A service storefront
+          // must not offer a cart it can never fill.
+          if(!empty($cart_enabled)): ?>
     <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="mp-mobile-nav-item">
       <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
       Cart
     </a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -161,16 +165,22 @@ $aboutUs = $settings->footer_about_us ?? '';
 </a>
 <?php endif; ?>
 
-<!-- Sticky Cart Bar -->
-<div class="mp-sticky-cart" id="sticky-cart">
-  <div class="mp-sticky-cart-inner">
-    <div class="mp-sticky-cart-info">
-      <span class="mp-sticky-cart-items"><span id="sticky-qty">0</span> items</span>
-      <span class="mp-sticky-cart-total" id="sticky-total"><?= sf_currency(0, $store_currency ?? null); ?></span>
+<!-- Sticky Cart Bar — products only. A service storefront has nothing to
+       put in it, and an empty sticky cart bar is worse than none.
+       $is_service_store is the industry fact; $cart_enabled is the composed
+       answer (catalogue mode + allow_products_online + industry). -->
+  <?php $is_service_store = !empty($is_service_store); ?>
+  <?php if(!empty($cart_enabled)): ?>
+  <div class="mp-sticky-cart" id="sticky-cart">
+    <div class="mp-sticky-cart-inner">
+      <div class="mp-sticky-cart-info">
+        <span class="mp-sticky-cart-items"><span id="sticky-qty">0</span> items</span>
+        <span class="mp-sticky-cart-total" id="sticky-total"><?= sf_currency(0, $store_currency ?? null); ?></span>
+      </div>
+      <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="mp-sticky-cart-btn">View Cart</a>
     </div>
-    <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="mp-sticky-cart-btn">View Cart</a>
   </div>
-</div>
+  <?php endif; ?>
 
 <!-- Product Modal -->
 <div class="mp-modal-overlay" id="product-modal">

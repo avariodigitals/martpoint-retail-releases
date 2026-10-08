@@ -4,17 +4,35 @@
  *
  * The logged-out page must not describe the wrong business. The staff session
  * is already destroyed here, so branding resolves from durable sources only:
- * an explicit ?store=<id> (a store's own login URL), then the most recently
- * added active store, then the vendor row. Clinical stores get clinical copy —
- * a physiotherapy clinic must never be shown sales/POS/inventory marketing.
+ * an explicit ?store=<id> (a store's own login URL), then the cookie Logout
+ * sets on the way out, then the most recently added active store, then the
+ * vendor row. Clinical stores get clinical copy — a physiotherapy clinic must
+ * never be shown sales/POS/inventory marketing.
+ *
+ * The cookie exists because the store id used to ride in the URL as
+ * /login?store=2, which looked like an internal detail leaking into the
+ * address bar. The id is the same fact either way; a cookie just keeps it out
+ * of the way. An explicit ?store= still wins, so a store's own login URL
+ * keeps working exactly as before.
  */
 $ld_store_id = (int) $this->input->get('store');
+if (empty($ld_store_id)) {
+    $ld_cookie = (int) $this->input->cookie('mp_login_store');
+    if ($ld_cookie > 0) {
+        $ld_store_id = $ld_cookie;
+    }
+}
 if (empty($ld_store_id)) {
     // A single-store install (the normal client deployment) shows that store's
     // own branding. Multi-store installs fall back to the vendor/default row,
     // and any store can be addressed explicitly with ?store=<id>.
     $ld_active = $this->db->select('id')->where('status', 1)->order_by('id')->get('db_store')->result();
     $ld_store_id = (count($ld_active) === 1) ? (int) $ld_active[0]->id : 1;
+}
+// A stale cookie pointing at a deleted store must not blank the page.
+if ($ld_store_id > 0) {
+    $ld_exists = $this->db->select('id')->where('id', $ld_store_id)->count_all_results('db_store');
+    if (!$ld_exists) { $ld_store_id = 1; }
 }
 if (!function_exists('mp_get_store_profile')) { $this->load->helper('business_profile'); }
 $ld_profile  = mp_get_store_profile($ld_store_id);

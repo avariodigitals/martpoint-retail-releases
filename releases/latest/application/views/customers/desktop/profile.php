@@ -143,24 +143,76 @@
 
   <!-- Right Main -->
   <div>
+    <?php
+      // A print shop's client profile answers four questions: what did they
+      // order, what do they owe, what did they approve, and what property of
+      // theirs are we still holding.
+      //
+      // The retail/clinical tab set answered none of those well and leaked two
+      // clinical tabs (Treatment Notes, Medical Notes) onto a print shop. The
+      // tabs below are the printing set; every other industry keeps the
+      // original list unchanged.
+      //
+      // WHAT IS PRESERVED: the underlying queries, the tab IDs the JS binds to,
+      // and every record. Tabs are renamed and reordered — not rebuilt — so a
+      // bookmarked #purchases anchor still resolves and no history is hidden.
+      $cust_ind = function_exists('mp_get_store_profile')
+        ? ((mp_get_store_profile()['industry_type'] ?? '') ?: '') : '';
+      $cust_is_print = ($cust_ind === 'printing');
+      // ID cards are an identification feature, not a print-shop one. Shown only
+      // when the store actually uses identification cards.
+      $cust_uses_idcard = mp_feature_enabled('id_card') || mp_feature_enabled('customer_id_cards');
+    ?>
     <div class="mp-card">
       <ul class="nav nav-tabs" role="tablist">
-        <li class="active"><a href="#purchases" data-toggle="tab"><i class="fa fa-shopping-cart"></i> Purchase History</a></li>
-        <li><a href="#payments" data-toggle="tab"><i class="fa fa-money"></i> Statements</a></li>
-        <?php if (!empty($service_history)): ?>
-        <li><a href="#services" data-toggle="tab"><i class="fa fa-inbox"></i> Service History</a></li>
+        <?php if($cust_is_print): ?>
+          <?php
+            /* Printing order: the working day first (jobs, quotes, material),
+               then the money, then the extras.
+
+               These three tabs are customer-scoped views of records that also
+               live on the job. They exist because a print client asks "what did
+               I ask for, what did I approve, and what is ready to collect?"
+               about THEMSELVES, and making them open every job to answer that is
+               the wrong shape for the question.
+
+               Each one reads the SAME tables the job screens read, filtered by
+               customer — no parallel tables, no second status vocabulary. Where
+               a figure already has a canonical owner (the custody ledger, the
+               deposit gate) the tab calls that owner rather than recomputing it,
+               so the two can never disagree.
+            */
+          ?>
+          <li class="active"><a href="#purchases" data-toggle="tab"><i class="fa fa-print"></i> Print Jobs &amp; Services</a></li>
+          <li><a href="#quotations" data-toggle="tab"><i class="fa fa-file-text-o"></i> Quotations</a></li>
+          <li><a href="#artwork" data-toggle="tab"><i class="fa fa-picture-o"></i> Artwork &amp; Approvals</a></li>
+          <li><a href="#collection" data-toggle="tab"><i class="fa fa-truck"></i> Collection &amp; Delivery</a></li>
+          <li><a href="#payments" data-toggle="tab"><i class="fa fa-money"></i> Statements</a></li>
+          <li><a href="#customer_materials" data-toggle="tab"><i class="fa fa-cubes"></i> Customer Materials</a></li>
+          <li><a href="#notes" data-toggle="tab"><i class="fa fa-sticky-note"></i> Customer Notes</a></li>
+          <li><a href="#credit_rewards" data-toggle="tab"><i class="fa fa-credit-card"></i> Credit &amp; Rewards</a></li>
+          <?php if($cust_uses_idcard): ?>
+          <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
+          <?php endif; ?>
+        <?php else: ?>
+          <?php /* Every other industry: the original tab set, unchanged. */ ?>
+          <li class="active"><a href="#purchases" data-toggle="tab"><i class="fa fa-shopping-cart"></i> Purchase History</a></li>
+          <li><a href="#payments" data-toggle="tab"><i class="fa fa-money"></i> Statements</a></li>
+          <?php if (!empty($service_history)): ?>
+          <li><a href="#services" data-toggle="tab"><i class="fa fa-inbox"></i> Service History</a></li>
+          <?php endif; ?>
+          <li><a href="#giftcards" data-toggle="tab"><i class="fa fa-ticket"></i> Gift Cards</a></li>
+          <li><a href="#storecredit" data-toggle="tab"><i class="fa fa-credit-card"></i> Store Credit</a></li>
+          <li><a href="#coupons" data-toggle="tab"><i class="fa fa-tags"></i> Coupons</a></li>
+          <li><a href="#memberships" data-toggle="tab"><i class="fa fa-id-card"></i> Memberships</a></li>
+          <li><a href="#notes" data-toggle="tab"><i class="fa fa-sticky-note"></i> Customer Notes</a></li>
+          <li><a href="#treatment_notes" data-toggle="tab"><i class="fa fa-file-text-o"></i> Treatment Notes</a></li>
+          <?php if (!empty($medical_notes)): ?>
+          <li><a href="#medical_notes" data-toggle="tab"><i class="fa fa-file-medical-o"></i> Medical Notes</a></li>
+          <?php endif; ?>
+          <li><a href="#custom_orders" data-toggle="tab"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
+          <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
         <?php endif; ?>
-        <li><a href="#giftcards" data-toggle="tab"><i class="fa fa-ticket"></i> Gift Cards</a></li>
-        <li><a href="#storecredit" data-toggle="tab"><i class="fa fa-credit-card"></i> Store Credit</a></li>
-        <li><a href="#coupons" data-toggle="tab"><i class="fa fa-tags"></i> Coupons</a></li>
-        <li><a href="#memberships" data-toggle="tab"><i class="fa fa-id-card"></i> Memberships</a></li>
-        <li><a href="#notes" data-toggle="tab"><i class="fa fa-sticky-note"></i> Customer Notes</a></li>
-        <li><a href="#treatment_notes" data-toggle="tab"><i class="fa fa-file-text-o"></i> Treatment Notes</a></li>
-        <?php if (!empty($medical_notes)): ?>
-        <li><a href="#medical_notes" data-toggle="tab"><i class="fa fa-file-medical-o"></i> Medical Notes</a></li>
-        <?php endif; ?>
-        <li><a href="#custom_orders" data-toggle="tab"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
-        <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
       </ul>
 
       <div class="tab-content">
@@ -193,6 +245,281 @@
             </tbody>
           </table>
         </div>
+
+        <?php if($cust_is_print): ?>
+        <!-- Quotations — every quote this client has been sent -->
+        <div class="tab-pane" id="quotations" style="padding:20px;">
+          <?php
+            /* Reads db_quotation — the SAME table the Quotations screen and the
+               quote→invoice path use. No print-specific quote store exists and
+               none is created here: db_quotation is the one authoritative source
+               of issued prices. Filtered by customer_id, newest first.
+
+               The status vocabulary is the quotation module's own
+               (quotation_status), not the job's — a quote can be accepted while
+               its job has not yet started, and showing the job's status here
+               would misreport that. */
+            $q_rows = [];
+            if (function_exists('get_instance') && isset($CI) && $CI->db->table_exists('db_quotation')) {
+              $q_rows = $CI->db->select('q.id, q.quotation_code, q.reference_no, q.quotation_date, q.expire_date, q.quotation_status, q.grand_total, q.sales_status, q.revision_no, j.id AS job_id, j.job_code')
+                ->from('db_quotation q')
+                ->join('db_print_jobs j', 'j.quotation_id = q.id', 'left')
+                ->where('q.customer_id', (int) $customer->id)
+                ->order_by('q.id', 'desc')->limit(100)->get()->result();
+            }
+            $quotation_tone = function ($st) {
+              switch (strtolower((string) $st)) {
+                case 'accepted': case 'converted': return '#15803D';
+                case 'declined': case 'rejected': return '#B91C1C';
+                case 'expired':  return '#78716C';
+                default:         return '#B45309';
+              }
+            };
+          ?>
+          <p class="text-muted" style="font-size:12.5px;margin-top:0">
+            Every quotation sent to this client, with the job it became. Prices are the issued quotation totals.
+          </p>
+          <?php if (empty($q_rows)): ?>
+            <div class="mp-empty-state">No quotations on record for this customer.</div>
+          <?php else: ?>
+          <table class="mp-static-table">
+            <thead>
+              <tr>
+                <th>Quotation</th>
+                <th>Issued</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Job</th>
+                <th style="text-align:right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($q_rows as $q): ?>
+              <tr>
+                <td>
+                  <b><?= htmlspecialchars($q->quotation_code ?: ('#' . $q->id)) ?></b>
+                  <?php if (!empty($q->revision_no) && (int) $q->revision_no > 1): ?>
+                    <small class="text-muted">rev <?= (int) $q->revision_no ?></small>
+                  <?php endif; ?>
+                  <?php if (!empty($q->reference_no)): ?><div style="font-size:11px;color:#78716C">ref <?= htmlspecialchars($q->reference_no) ?></div><?php endif; ?>
+                </td>
+                <td><?= !empty($q->quotation_date) ? show_date($q->quotation_date) : '—' ?></td>
+                <td><?= !empty($q->expire_date) ? show_date($q->expire_date) : '—' ?></td>
+                <td>
+                  <span style="font-size:11px;font-weight:600;color:<?= $quotation_tone($q->quotation_status) ?>">
+                    <?= htmlspecialchars(ucwords(str_replace('_', ' ', (string) ($q->quotation_status ?: 'draft')))) ?>
+                  </span>
+                  <?php /* sales_status is the conversion outcome; it is distinct
+                           from quotation_status (the document's own state) and
+                           both are shown when they differ. */ ?>
+                  <?php if (!empty($q->sales_status) && strtolower($q->sales_status) !== 'converted'): ?>
+                    <div style="font-size:11px;color:#78716C"><?= htmlspecialchars($q->sales_status) ?></div>
+                  <?php endif; ?>
+                </td>
+                <td>
+                  <?php if (!empty($q->job_id)): ?>
+                    <a href="<?= base_url('printing/job/' . (int) $q->job_id) ?>"><?= htmlspecialchars($q->job_code ?: ('#' . $q->job_id)) ?></a>
+                  <?php else: ?>
+                    <span class="text-muted">not yet a job</span>
+                  <?php endif; ?>
+                </td>
+                <td style="text-align:right"><b><?= store_number_format($q->grand_total ?? 0) ?></b></td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+          <?php endif; ?>
+        </div>
+
+        <!-- Artwork & Approvals — what the client supplied and whether they approved it -->
+        <div class="tab-pane" id="artwork" style="padding:20px;">
+          <?php
+            /* db_print_artworks has no customer_id — artwork belongs to a JOB.
+               It is reached by joining the customer's jobs, which is also the
+               only correct way to read it: an artwork row is meaningless without
+               the job whose specification it satisfies.
+
+               Both approval states are surfaced because they are genuinely
+               different gates and the shop acts on them separately:
+                 status            = the shop's own review of the file
+                 customer_approved = the client's sign-off on the proof
+               A file can be shop-approved but not yet customer-approved; showing
+               only one would misreport whether production may start. */
+            $aw_rows = [];
+            if (function_exists('get_instance') && isset($CI) && $CI->db->table_exists('db_print_artworks')) {
+              $aw_rows = $CI->db->select('a.id, a.version_no, a.file_name, a.file_path, a.status, a.customer_approved, a.customer_approved_at, a.note, a.uploaded_by, a.approved_by, a.created_at, j.id AS job_id, j.job_code, j.title AS job_title, j.artwork_status')
+                ->from('db_print_artworks a')
+                ->join('db_print_jobs j', 'j.id = a.job_id', 'inner')
+                ->where('j.customer_id', (int) $customer->id)
+                ->order_by('a.id', 'desc')->limit(100)->get()->result();
+            }
+          ?>
+          <p class="text-muted" style="font-size:12.5px;margin-top:0">
+            Files this client has supplied, the shop's review of each, and whether the client has signed the proof off.
+          </p>
+          <?php if (empty($aw_rows)): ?>
+            <div class="mp-empty-state">No artwork on record for this customer.</div>
+          <?php else: ?>
+          <table class="mp-static-table">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Job</th>
+                <th>Version</th>
+                <th>Shop review</th>
+                <th>Client approval</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($aw_rows as $a):
+              $review = strtolower((string) ($a->status ?? 'pending'));
+              $review_colour = $review === 'approved' ? '#15803D' : ($review === 'rejected' ? '#B91C1C' : '#B45309');
+              $cust_ok = !empty($a->customer_approved);
+            ?>
+              <tr>
+                <td>
+                  <b><?= htmlspecialchars($a->file_name ?: 'file') ?></b>
+                  <?php if (!empty($a->note)): ?><div style="font-size:11px;color:#78716C"><?= htmlspecialchars($a->note) ?></div><?php endif; ?>
+                </td>
+                <td>
+                  <a href="<?= base_url('printing/job/' . (int) $a->job_id) ?>"><?= htmlspecialchars($a->job_code ?: ('#' . $a->job_id)) ?></a>
+                  <?php if (!empty($a->job_title)): ?><div style="font-size:11px;color:#78716C"><?= htmlspecialchars($a->job_title) ?></div><?php endif; ?>
+                </td>
+                <td>v<?= (int) ($a->version_no ?: 1) ?></td>
+                <td><span style="font-size:11px;font-weight:600;color:<?= $review_colour ?>"><?= htmlspecialchars(ucfirst($review)) ?></span></td>
+                <td>
+                  <?php if ($cust_ok): ?>
+                    <span style="font-size:11px;font-weight:600;color:#15803D"><i class="fa fa-check"></i> Approved</span>
+                    <?php if (!empty($a->customer_approved_at)): ?><div style="font-size:11px;color:#78716C"><?= show_date($a->customer_approved_at) ?></div><?php endif; ?>
+                  <?php else: ?>
+                    <span style="font-size:11px;color:#B45309">Awaiting client</span>
+                  <?php endif; ?>
+                </td>
+                <td>
+                  <?php /* The job screen is where artwork is actioned (download,
+                           approve, request changes) — this tab reports state and
+                           links there rather than duplicating the controls, so a
+                           single place enforces the approval gate. */ ?>
+                  <a href="<?= base_url('printing/job/' . (int) $a->job_id) ?>" class="mp-qa-btn teal" style="padding:6px 12px;"><i class="fa fa-external-link"></i></a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+          <?php endif; ?>
+        </div>
+
+        <!-- Collection & Delivery — what is ready, what is owed on it -->
+        <div class="tab-pane" id="collection" style="padding:20px;">
+          <?php
+            /* Derived from db_print_jobs.fulfilment_status — the same column the
+               Print Shop's fulfilment board and the job screen use. Filtered to
+               jobs that have reached production, because a job still awaiting a
+               deposit or artwork is not "ready to collect" and listing it would
+               promise the client something the shop has not produced.
+
+               Money owed is read through the model's own net_verified_payments()
+               so this agrees with the deposit gate. It is NOT
+               quote_amount - deposit_amount: deposits can be reversed, and that
+               shortcut would show a paid-up client as owing money. */
+            $col_rows = [];
+            $col_summary = ['ready' => 0, 'out' => 0, 'owed' => 0.0];
+            if (function_exists('get_instance') && isset($CI)) {
+              $CI->load->model('printing_model', 'print_col');
+              $jobs = $CI->db->select('id, job_code, title, due_date, planned_qty, production_status, fulfilment_status, payment_status, quote_amount')
+                ->where('customer_id', (int) $customer->id)
+                ->where_not_in('fulfilment_status', ['cancelled'])
+                ->order_by('due_date', 'asc')->limit(100)->get('db_print_jobs')->result();
+
+              foreach ($jobs as $j) {
+                $fst = strtolower((string) ($j->fulfilment_status ?? ''));
+                $pst = strtolower((string) ($j->production_status ?? ''));
+                // In flight = produced or being made. Excludes jobs that never
+                // started, which the client cannot collect anyway.
+                $in_flight = in_array($pst, ['completed', 'in_progress'], true)
+                          || in_array($fst, ['ready', 'ready_for_collection', 'partially_collected', 'delivered', 'collected'], true);
+                if (!$in_flight) { continue; }
+
+                $net = (float) $CI->print_col->net_verified_payments((int) $j->id);
+                $owed = max(0, (float) $j->quote_amount - $net);
+                $is_ready = in_array($fst, ['ready', 'ready_for_collection'], true);
+
+                if ($is_ready) { $col_summary['ready']++; }
+                if (!in_array($fst, ['collected', 'delivered'], true)) { $col_summary['out']++; }
+                $col_summary['owed'] += $owed;
+
+                $col_rows[] = (object) [
+                  'job'      => $j,
+                  'net'      => $net,
+                  'owed'     => $owed,
+                  'is_ready' => $is_ready,
+                  'fst'      => $fst,
+                ];
+              }
+            }
+          ?>
+          <div class="mp-kpi-grid" style="grid-template-columns:repeat(3,1fr)!important;margin-bottom:20px;">
+            <div class="mp-kpi-card summary">
+              <div class="mp-kpi-label">Ready to collect</div>
+              <div class="mp-kpi-value"><?= (int) $col_summary['ready'] ?></div>
+            </div>
+            <div class="mp-kpi-card">
+              <div class="mp-kpi-label">Still with us</div>
+              <div class="mp-kpi-value"><?= (int) $col_summary['out'] ?></div>
+            </div>
+            <div class="mp-kpi-card">
+              <div class="mp-kpi-label">Balance outstanding</div>
+              <div class="mp-kpi-value" style="color:<?= $col_summary['owed'] > 0 ? '#B45309' : '#15803D' ?>"><?= store_number_format($col_summary['owed']) ?></div>
+            </div>
+          </div>
+          <p class="text-muted" style="font-size:12.5px;margin-top:0">
+            Finished work waiting for this client, work still in hand, and what is owed on it before release.
+          </p>
+          <?php if (empty($col_rows)): ?>
+            <div class="mp-empty-state">Nothing in production or awaiting collection for this customer.</div>
+          <?php else: ?>
+          <table class="mp-static-table">
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Due</th>
+                <th>Stage</th>
+                <th>Fulfilment</th>
+                <th style="text-align:right">Balance</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($col_rows as $r): $j = $r->job; ?>
+              <tr>
+                <td>
+                  <b><?= htmlspecialchars($j->job_code ?: ('#' . $j->id)) ?></b>
+                  <?php if (!empty($j->title)): ?><div style="font-size:11px;color:#78716C"><?= htmlspecialchars($j->title) ?></div><?php endif; ?>
+                </td>
+                <td><?= !empty($j->due_date) ? show_date($j->due_date) : '—' ?></td>
+                <td><?= htmlspecialchars(ucwords(str_replace('_', ' ', (string) ($j->production_status ?: '—')))) ?></td>
+                <td>
+                  <?php if ($r->is_ready): ?>
+                    <span style="font-size:11px;font-weight:700;background:#DCFCE7;color:#15803D;border-radius:20px;padding:2px 9px;white-space:nowrap">Ready</span>
+                  <?php else: ?>
+                    <span style="font-size:11px;color:#78716C"><?= htmlspecialchars(ucwords(str_replace('_', ' ', (string) ($r->fst ?: 'in production')))) ?></span>
+                  <?php endif; ?>
+                </td>
+                <td style="text-align:right">
+                  <b style="color:<?= $r->owed > 0 ? '#B45309' : '#15803D' ?>"><?= store_number_format($r->owed) ?></b>
+                  <?php if ($r->owed > 0): ?><div style="font-size:11px;color:#78716C">settle before release</div><?php endif; ?>
+                </td>
+                <td>
+                  <a href="<?= base_url('printing/job/' . (int) $j->id) ?>" class="mp-qa-btn teal" style="padding:6px 12px;"><i class="fa fa-external-link"></i></a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+          <?php endif; ?>
+        </div>
+        <?php endif; ?>
 
         <!-- Statements -->
         <div class="tab-pane" id="payments" style="padding:20px;">
@@ -271,6 +598,73 @@
               <?php endforeach; ?>
             </tbody>
           </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if($cust_is_print): ?>
+        <!-- Customer Materials — the client's own stock, from the custody ledger -->
+        <div class="tab-pane" id="customer_materials" style="padding:20px;">
+          <?php
+            // Reads the SAME custody ledger the Machine Floor screens use —
+            // db_print_customer_materials via Printing_ops_model. No second
+            // balance calculation: two implementations of one figure is how they
+            // start disagreeing, and the client ends up arguing with both.
+            $cm_rows = [];
+            if (function_exists('get_instance') && isset($CI)) {
+              $CI->load->model('printing_ops_model', 'ops_cust');
+              $cm_rows = $CI->ops_cust->get_customer_materials(get_current_store_id(), ['customer_id' => $customer->id]);
+            }
+            $fmt_q = function ($v) { return rtrim(rtrim(number_format((float) $v, 2), '0'), '.'); };
+          ?>
+          <p class="text-muted" style="font-size:12.5px;margin-top:0">
+            Stock this client has placed with us — what came in, where it is now, and what remains.
+          </p>
+          <?php if (empty($cm_rows)): ?>
+            <div class="mp-empty-state">No client-owned material on record for this customer.</div>
+          <?php else: ?>
+          <table class="mp-static-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Job</th>
+                <th>Brought in</th>
+                <th>Where it is now</th>
+                <th style="text-align:right">Remaining</th>
+              </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($cm_rows as $m):
+              $states = array_filter([
+                'custody'       => (float) ($m->qty_custody ?? 0),
+                'in production' => (float) ($m->qty_in_production ?? 0),
+                'finished'      => (float) ($m->qty_finished ?? 0),
+                'damaged'       => (float) ($m->qty_damaged ?? 0),
+              ], function ($v) { return $v > 0; });
+              $done = (float) ($m->qty_returned ?? 0) + (float) ($m->qty_collected_finished ?? 0) + (float) ($m->qty_consumed ?? 0);
+              $remaining = array_sum($states);
+            ?>
+              <tr>
+                <td>
+                  <b><?= htmlspecialchars($m->material_name ?? '—') ?></b>
+                  <?php if (!empty($m->unit_label)): ?> <small class="text-muted"><?= htmlspecialchars($m->unit_label) ?></small><?php endif; ?>
+                </td>
+                <td><?= !empty($m->job_code) ? '<a href="' . base_url('printing/job/' . (int) $m->job_id) . '">' . htmlspecialchars($m->job_code) . '</a>' : '<span class="text-muted">unallocated</span>' ?></td>
+                <td><?= $fmt_q($m->qty_received ?? 0) ?></td>
+                <td>
+                  <?php if ($states): foreach ($states as $lbl => $q): ?>
+                    <span style="display:inline-block;font-size:11px;background:#E0F2FE;color:#0E7490;border-radius:20px;padding:2px 8px;margin:1px 3px 1px 0;white-space:nowrap"><?= $fmt_q($q) ?> <?= htmlspecialchars($lbl) ?></span>
+                  <?php endforeach; else: ?><span class="text-muted">nothing left with us</span><?php endif; ?>
+                  <?php if ($done > 0): ?><div style="font-size:11px;color:#78716C"><?= $fmt_q($done) ?> returned / collected / used</div><?php endif; ?>
+                </td>
+                <td style="text-align:right"><b style="color:<?= $remaining > 0 ? '#0E7490' : '#78716C' ?>"><?= $fmt_q($remaining) ?></b></td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+          <div style="margin-top:12px">
+            <a class="btn btn-default btn-sm" href="<?= base_url('printing_ops/custody_statement/' . (int) $customer->id) ?>"><i class="fa fa-file-text-o"></i> Printable Reconciliation Statement</a>
+          </div>
+          <?php endif; ?>
         </div>
         <?php endif; ?>
 
@@ -393,6 +787,79 @@
             </tbody>
           </table>
         </div>
+
+        <?php if($cust_is_print): ?>
+        <!-- Credit & Rewards — the enabled rewards, in one place.
+             Store Credit, Gift Cards and Coupons keep their OWN panes and their
+             own IDs (#storecredit, #giftcards, #coupons) so the existing JS and
+             any bookmark still binds; this tab simply gathers them under one
+             heading so a client's credits are one click, not three separate
+             tabs competing with jobs and statements. -->
+        <div class="tab-pane" id="credit_rewards" style="padding:20px;">
+          <p class="text-muted" style="font-size:12.5px;margin-top:0">
+            What this client holds with us as value — credit, gift cards and coupons.
+          </p>
+
+          <h4 style="font-size:13px;font-weight:700;margin:16px 0 6px">Store Credit</h4>
+          <?php if (empty($store_credits)): ?>
+            <div class="mp-empty-state" style="padding:14px">No store credit.</div>
+          <?php else: ?>
+            <table class="mp-static-table">
+              <thead><tr><th>Date</th><th>Amount</th><th>Used</th><th>Balance</th><th>Note</th></tr></thead>
+              <tbody>
+              <?php foreach ($store_credits as $sc): ?>
+                <tr>
+                  <td><?= !empty($sc->created_date) ? show_date($sc->created_date) : '—' ?></td>
+                  <td><?= $CI->currency((float) ($sc->credit_amount ?? $sc->amount ?? 0), true) ?></td>
+                  <td><?= $CI->currency((float) ($sc->used_amount ?? 0), true) ?></td>
+                  <td><b><?= $CI->currency((float) (($sc->credit_amount ?? $sc->amount ?? 0) - ($sc->used_amount ?? 0)), true) ?></b></td>
+                  <td style="font-size:12px"><?= htmlspecialchars($sc->note ?? '') ?></td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+
+          <h4 style="font-size:13px;font-weight:700;margin:20px 0 6px">Gift Cards</h4>
+          <?php if (empty($gift_cards)): ?>
+            <div class="mp-empty-state" style="padding:14px">No gift cards.</div>
+          <?php else: ?>
+            <table class="mp-static-table">
+              <thead><tr><th>Card</th><th>Initial</th><th>Balance</th><th>Issued</th><th>Expiry</th></tr></thead>
+              <tbody>
+              <?php foreach ($gift_cards as $gc): ?>
+                <tr>
+                  <td><code><?= htmlspecialchars($gc->card_number ?? '') ?></code></td>
+                  <td><?= $CI->currency((float) ($gc->initial_value ?? 0), true) ?></td>
+                  <td><b><?= $CI->currency((float) ($gc->balance ?? 0), true) ?></b></td>
+                  <td><?= !empty($gc->issue_date) ? show_date($gc->issue_date) : '—' ?></td>
+                  <td><?= !empty($gc->expiry_date) ? show_date($gc->expiry_date) : '—' ?></td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+
+          <h4 style="font-size:13px;font-weight:700;margin:20px 0 6px">Coupons</h4>
+          <?php if (empty($coupons)): ?>
+            <div class="mp-empty-state" style="padding:14px">No coupons.</div>
+          <?php else: ?>
+            <table class="mp-static-table">
+              <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Expiry</th></tr></thead>
+              <tbody>
+              <?php foreach ($coupons as $cp): ?>
+                <tr>
+                  <td><code><?= htmlspecialchars($cp->coupon_code ?? $cp->code ?? '') ?></code></td>
+                  <td><?= htmlspecialchars($cp->coupon_type ?? '') ?></td>
+                  <td><?= htmlspecialchars((string) ($cp->coupon_value ?? $cp->value ?? '')) ?></td>
+                  <td><?= !empty($cp->expire_date) ? show_date($cp->expire_date) : '—' ?></td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+        </div>
+        <?php endif; ?>
 
         <!-- Notes -->
         <div class="tab-pane" id="notes" style="padding:20px;">

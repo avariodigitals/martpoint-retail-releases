@@ -13,8 +13,7 @@ $theme_css_extra = '
 <style>
 :root{--mp-primary:#0E7490;--mp-accent:#F59E0B;}
 .ip-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mp-accent);font-weight:800;margin-bottom:10px}
-.ip-hero{background:linear-gradient(135deg,#0b3a47 0%,#0E7490 55%,#155e75 100%);color:#fff;border-radius:var(--mp-radius);padding:52px 28px;position:relative;overflow:hidden}
-.ip-hero:after{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 2px,transparent 2px 10px);pointer-events:none}
+.ip-hero{background:#0E7490;color:#fff;border-radius:var(--mp-radius);padding:52px 28px;position:relative;overflow:hidden}
 .ip-hero h1{font-size:38px;line-height:1.12;font-weight:800;margin:0 0 14px;letter-spacing:-.02em;max-width:640px}
 .ip-hero p{font-size:16px;opacity:.9;max-width:560px;margin:0 0 24px}
 .ip-btns{display:flex;gap:12px;flex-wrap:wrap}

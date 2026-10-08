@@ -21,6 +21,33 @@ class Pos extends MY_Controller {
 	{
 		$this->permission_check('pos');
 
+		// A PRINT SHOP DOES NOT USE THIS SCREEN.
+		//
+		// The till is built around a product catalogue — scan or search an item,
+		// add it to a cart, take payment. A print shop cannot work that way:
+		// every job is priced from a quotation (size, material, quantity,
+		// finishing all change the price), so there is nothing meaningful to
+		// "add to cart". Operators were landing on a till that could only sell
+		// stocked materials, which is not the business.
+		//
+		// The correct entry point is a NEW PRINT JOB, which is
+		// Printing::job(null) — it already opens the blank job builder. Sent
+		// here rather than building a second till, so there is one place a job
+		// is created and it keeps the quote-first flow.
+		//
+		// ?classic=1 still reaches the till for a print shop that genuinely
+		// sells over the counter (a walk-in sale of a stocked item).
+		if ($this->input->get('classic') === NULL
+			&& function_exists('mp_get_store_profile')
+			&& function_exists('mp_feature_enabled')) {
+			$bp = mp_get_store_profile();
+			if (($bp['industry_type'] ?? '') === 'printing'
+				&& mp_feature_enabled('production_workflow')) {
+				redirect(base_url('printing/job'));
+				return;
+			}
+		}
+
 		if(is_mobile() && !is_tablet() && $this->input->get('mobile') !== '0'){
 			redirect(base_url('mobile/pos'), 'refresh');
 			return;

@@ -12,7 +12,6 @@ $enq  = base_url('store/' . $slug . '/contact');
 :root{--mp-primary:#111827;--mp-accent:#22D3EE;}
 .npn{max-width:1140px;margin:0 auto}
 .npn-hero{background:#111827;color:#fff;border-radius:14px;padding:48px 32px;position:relative;overflow:hidden}
-.npn-hero:before{content:"";position:absolute;top:-130px;right:-110px;width:330px;height:330px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.30),transparent 70%)}
 .npn-hero h1{font-size:36px;line-height:1.14;font-weight:800;margin:0 0 12px;letter-spacing:-.03em;max-width:600px;position:relative;z-index:1}
 .npn-hero h1 span{color:#22D3EE}
 .npn-hero p{font-size:15px;color:#9ca3af;max-width:520px;margin:0 0 22px;line-height:1.7;position:relative;z-index:1}

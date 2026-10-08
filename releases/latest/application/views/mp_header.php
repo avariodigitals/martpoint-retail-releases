@@ -98,6 +98,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans
 .mp-nav-group{margin-bottom:1px!important}
 .mp-nav-group-toggle{display:flex!important;align-items:center!important;gap:12px!important;padding:7px 12px!important;border-radius:10px!important;color:var(--mp-ink)!important;font-size:14px!important;font-weight:500!important;cursor:pointer!important;transition:all .12s ease!important}
 .mp-nav-group-toggle:hover{background:var(--mp-bg)!important}
+/* Section captions in the rail — "Daily Work", "Business Management", etc.
+   A caption, not a control: it holds no links and cannot be collapsed, so it
+   adds orientation without adding a click. Deliberately quieter than a group
+   toggle so the eye skips it when scanning for a menu. */
+.mp-nav-label{padding:18px 12px 6px!important;font-size:10px!important;font-weight:700!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:var(--mp-muted)!important;user-select:none!important}
+.mp-nav-label:first-child{padding-top:8px!important}
 .mp-nav-group-toggle .mp-nav-chevron{margin-left:auto!important;font-size:11px!important;color:var(--mp-muted)!important;transition:transform .2s ease!important}
 .mp-nav-group.open .mp-nav-group-toggle .mp-nav-chevron{transform:rotate(-90deg)!important}
 .mp-nav-submenu{display:none!important;padding-left:20px!important;overflow:hidden!important}
@@ -566,6 +572,12 @@ if (function_exists('mp_is_central') && mp_is_central() && isset($CI) && is_obje
   $is_central = ($slim === 1);
 }
 $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
+// A print shop has its own workspace, so the header action is named for it
+// ("Quick Job" → /printing/job) and the sidebar is composed differently. Kept
+// in step with the same flag in mp_sidebar.php, including the feature gate, so
+// the header and the rail can never disagree about what kind of store this is.
+$is_printing = ((mp_get_store_profile()['industry_type'] ?? '') === 'printing')
+    && function_exists('mp_feature_enabled') && mp_feature_enabled('production_workflow');
 ?>
 
 <!-- ===== HEADER ===== -->
@@ -621,7 +633,20 @@ $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
     <?php endif; ?>
     <?php if(!$is_central && $CI->permissions('pos') && !$is_creator): ?>
-    <a class="mp-hbtn primary" href="<?= base_url('pos'); ?>"><i class="fa fa-plus-square"></i> POS</a>
+    <?php
+      // The header action is labelled per business type.
+      //
+      // A print shop does not have a till — /pos redirects to the new-job
+      // builder there, because every print job is priced from a quotation and
+      // there is nothing to "add to cart". Calling that button "POS" told the
+      // operator one thing and sent them somewhere else. "Quick Job" names what
+      // the button actually does on that rail: start a job now.
+      //
+      // Every other industry keeps "POS" — a shop with a counter genuinely
+      // has a point of sale.
+      $pos_label = $is_printing ? 'Quick Job' : 'POS';
+    ?>
+    <a class="mp-hbtn primary" href="<?= base_url($is_printing ? 'printing/job' : 'pos'); ?>"><i class="fa fa-plus-square"></i> <?= $pos_label ?></a>
     <?php endif; ?>
     <div class="mp-user-menu">
       <div class="mp-user-chip" onclick="document.getElementById('mpUserDropdown').classList.toggle('open')">

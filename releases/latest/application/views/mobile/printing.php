@@ -22,7 +22,6 @@ $store_title = htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint');
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/mobile.css">
   <style>
     :root { /* Printing workspace palette — matches desktop print_layout/mp_header. */
             --mp-primary:#0e7490; --mp-primary-rgb:14,116,144; --mp-primary-dark:#0b5d73;

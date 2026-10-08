@@ -39,6 +39,32 @@ class Dashboard extends MY_Controller {
 				redirect(base_url('creator'));
 			}
 		}
+		// A print shop's workspace is the Printing module, not the retail
+		// dashboard. Its own preset has declared `dashboard_template =>
+		// service_business` all along, but /dashboard had no branch for it, so
+		// switching a store to printing changed nothing on screen — the store
+		// said "printing" and the dashboard still showed retail sales, stock
+		// and profit.
+		//
+		// Redirected the same way Creator is, and for the same reason: the
+		// printing workspace owns its own layout and navigation, so it is a
+		// destination rather than a branch rendered in place. `?classic=1`
+		// still gives the retail dashboard for anyone who wants it (Creator
+		// honours the same escape hatch).
+		//
+		// Gated on `production_workflow`, the flag the printing preset actually
+		// declares — NOT `printing_workflow`, which exists nowhere and would
+		// have made this redirect permanently dead. The feature check stays in
+		// Printing::_check_feature() too, so an unactivated module explains
+		// itself instead of dead-ending.
+		if(function_exists('mp_get_store_profile') && $this->input->get('classic') === NULL){
+			$bp_print = mp_get_store_profile();
+			if(($bp_print['industry_type'] ?? '') === 'printing'
+				&& function_exists('mp_feature_enabled')
+				&& mp_feature_enabled('production_workflow')){
+				redirect(base_url('printing'));
+			}
+		}
 		if(!function_exists('physio_enabled')) $this->load->helper('physio');
 		if(physio_enabled()){
 			$this->clinicDashboard();
@@ -105,6 +131,26 @@ class Dashboard extends MY_Controller {
 		$data['cash_in_hand']    = $this->dashboard_model->get_cash_in_hand($selected_branch);
 		$data['recent_activities'] = $this->dashboard_model->get_recent_activities($selected_branch);
 		$data['insights']        = $this->dashboard_model->get_insights($selected_branch);
+
+		// Intelligence Report. Distinct from $insights above: get_insights()
+		// restates what is happening now, whereas Intelligence_model reasons over
+		// the store's history to say what is about to happen and why — stock
+		// cover at the real selling rate, customer payment behaviour, tied-up
+		// cash. Kept as its own key so neither has to compromise its wording.
+		// Wrapped so an insight failure can never take the dashboard down.
+		$data['intel'] = [];
+		try {
+			$this->load->model('intelligence_model', 'intel');
+			// A print shop that reaches the retail dashboard still gets print
+			// insights. Decided by mp_is_print_shop() (the same flag the printing
+			// module gates on) rather than the industry label, which can drift
+			// from what the store actually does.
+			$data['intel'] = mp_is_print_shop()
+				? $this->intel->for_printing(get_current_store_id())
+				: $this->intel->for_retail(get_current_store_id());
+		} catch (Throwable $e) {
+			log_message('error', 'Dashboard: intelligence failed — ' . $e->getMessage());
+		}
 		$data['branch_performance'] = $this->dashboard_model->get_branch_performance($range);
 		$data['best_selling_variant'] = $this->dashboard_model->get_best_selling_variant($selected_branch, $range);
 		// Range-aware invoice + new-customer counts (respond to the date filter)

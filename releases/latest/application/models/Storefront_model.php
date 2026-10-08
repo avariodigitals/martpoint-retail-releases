@@ -1207,6 +1207,17 @@ class Storefront_model extends CI_Model {
 	/**
 	 * Normalize a theme industry value to a canonical lowercase key.
 	 */
+	/**
+	 * Canonical theme-industry name for a raw industry/business-profile value.
+	 *
+	 * Public because Theme_engine has to make the same judgement when deciding
+	 * whether a stored theme is legitimate for a store's industry, and two
+	 * copies of this mapping would drift.
+	 */
+	public function normalizeThemeIndustry($industry){
+		return $this->_normalizeThemeIndustry($industry);
+	}
+
 	private function _normalizeThemeIndustry($industry){
 		$industry = strtolower(trim($industry));
 		$industry = preg_replace('/[^a-z0-9]/', '', $industry);

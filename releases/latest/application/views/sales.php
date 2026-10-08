@@ -175,11 +175,8 @@
 /* Item search */
 .search-card { padding: 18px 20px; }
 .search-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.price-toggle { display: flex; border: 1px solid var(--mp-border); border-radius: 10px; overflow: hidden; }
-.price-toggle .pt-btn {
-  border: none; background: var(--mp-surface); color: var(--mp-muted); padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
-}
-.price-toggle .pt-btn.active { background: var(--mp-primary); color: #fff; }
+/* .price-toggle / .pt-btn were the Wholesale–Retail switch. Removed with it —
+   the price comes from the quotation, not from a tier chosen at the till. */
 .search-input { flex: 1; min-width: 220px; position: relative; }
 .search-input input { padding-left: 40px; }
 .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--mp-muted); }
@@ -394,11 +391,21 @@
           <!-- Item search -->
           <div class="card search-card">
             <div class="search-row">
-              <input type="hidden" id="price_type" name="price_type" value="<?= (!isset($price_type) || $price_type == "wholesale") ? "wholesale" : "retail"; ?>">
-              <div class="price-toggle">
-                <button type="button" class="pt-btn <?= (!isset($price_type) || $price_type == 'wholesale') ? 'active' : ''; ?>" data-val="wholesale" onclick="setPriceType(this)">Wholesale</button>
-                <button type="button" class="pt-btn <?= (isset($price_type) && $price_type == 'retail') ? 'active' : ''; ?>" data-val="retail" onclick="setPriceType(this)">Retail</button>
-              </div>
+              <?php
+                // The Wholesale / Retail price switch is deliberately NOT shown.
+                //
+                // It offered two price tiers for the same item, which is a
+                // retail idea: a shopkeeper picks the trade price for a bulk
+                // buyer. In print the price is not chosen from a tier at all —
+                // it comes from the quotation, which the client has already
+                // accepted. Showing a tier here let an operator bill at a
+                // price the client never agreed to.
+                //
+                // The hidden field stays so the save path keeps working
+                // unchanged; it simply always carries 'retail', which is what
+                // the line items are actually priced at.
+              ?>
+              <input type="hidden" id="price_type" name="price_type" value="<?= (isset($price_type) && $price_type === 'wholesale') ? 'wholesale' : 'retail'; ?>">
               <div class="search-input">
                 <span class="search-icon"><i class="fa fa-search"></i></span>
                 <input type="text" id="item_search" placeholder="Scan barcode, type item name or code..." autocomplete="off">
@@ -704,12 +711,14 @@ if(isset($sales_id)){
     if(!mp_currency){ return raw; }
     return (mp_currency_placement === 'Left') ? (mp_currency + ' ' + raw) : (raw + ' ' + mp_currency);
   }
-  
-function setPriceType(btn){
-  $('#price_type').val($(btn).data('val'));
-  $(btn).siblings().removeClass('active');
-  $(btn).addClass('active');
-}
+
+/*
+ * setPriceType() removed with the Wholesale/Retail switch it drove.
+ *
+ * #price_type is now a hidden field that always carries the tier the line items
+ * are actually priced at, so nothing needs to flip it at runtime. Leaving the
+ * function behind would have kept a dead control that looks callable.
+ */
 
 function loadCustomerTrends(customer_id){
   if(!customer_id){ resetCustomerTrends(); return; }

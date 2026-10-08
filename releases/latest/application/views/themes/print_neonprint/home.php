@@ -12,8 +12,6 @@ $theme_css_extra = '
 <style>
 :root{--mp-primary:#111827;--mp-accent:#22D3EE;}
 .np-hero{background:#111827;color:#fff;border-radius:var(--mp-radius);padding:54px 30px;position:relative;overflow:hidden}
-.np-hero:before{content:"";position:absolute;top:-120px;right:-120px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.35),transparent 70%)}
-.np-hero:after{content:"";position:absolute;bottom:-140px;left:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.18),transparent 70%)}
 .np-hero .inner{position:relative;z-index:1}
 .np-tag{display:inline-block;border:1px solid #22D3EE;color:#22D3EE;border-radius:999px;padding:5px 14px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px}
 .np-hero h1{font-size:42px;line-height:1.08;font-weight:800;margin:0 0 14px;letter-spacing:-.03em;max-width:660px}

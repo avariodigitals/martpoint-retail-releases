@@ -164,6 +164,49 @@ class Sales_model extends CI_Model {
 		return $this->security->xss_clean(html_escape($input));
 	}
 
+	/**
+	 * Repair db_sales.quotation_id so the one-to-one unique index
+	 * (idx_quotation_sales_unique) distinguishes "no quotation" from
+	 * "quotation 0".
+	 *
+	 * MySQL counts every NULL as distinct in a UNIQUE index but 0 as a real
+	 * value, so a single 0-valued row permanently blocks every later unlinked
+	 * sale with:
+	 *   Duplicate entry '0' for key 'idx_quotation_sales_unique'
+	 *
+	 * Migration 4.0.9.88 normalised the legacy 0s once, but nothing stopped new
+	 * ones: the column carried DEFAULT 0 on some installs, and the sales save
+	 * path inserted '' (coerced to 0) whenever the quotation field was blank.
+	 * The write path is fixed; this clears rows already stranded and removes the
+	 * DEFAULT 0 that would recreate them.
+	 *
+	 * Idempotent and self-limiting — both statements are no-ops on a clean
+	 * install. Any failure is logged and swallowed: failing to repair must never
+	 * be the reason a sale cannot be saved.
+	 */
+	private function _heal_quotation_id_zero_rows(){
+		if(!$this->db->field_exists('quotation_id','db_sales')){
+			return;
+		}
+		try{
+			// Stranded 0s → NULL. Only touch rows that are actually 0.
+			$this->db->query("UPDATE db_sales SET quotation_id = NULL WHERE quotation_id = 0");
+			// Drop DEFAULT 0 if present, so inserts that omit the column do not
+			// silently reintroduce a colliding 0.
+			$col = $this->db->query(
+				"SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS
+				  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_sales'
+				    AND COLUMN_NAME = 'quotation_id'"
+			)->row();
+			if($col && $col->COLUMN_DEFAULT !== null && (string)$col->COLUMN_DEFAULT !== ''
+			   && (int)$col->COLUMN_DEFAULT === 0){
+				$this->db->query("ALTER TABLE db_sales MODIFY COLUMN quotation_id INT(11) NULL DEFAULT NULL");
+			}
+		}catch(Throwable $e){
+			log_message('error', 'quotation_id self-heal skipped: ' . $e->getMessage());
+		}
+	}
+
 	//Save Sales
 	public function verify_save_and_update(){
 		$CUR_DATE = date('Y-m-d');
@@ -201,7 +244,28 @@ class Sales_model extends CI_Model {
 		$coupon_code = $this->input->post('coupon_code', TRUE);
 		$coupon_discount_amt = parse_amount($this->input->post_get('coupon_discount_amt', TRUE));
 		$invoice_terms = mp_post_text('invoice_terms');
-		$quotation_id = $this->input->post('quotation_id', TRUE);
+		// A quotation link is optional. Normalise it to NULL here, ONCE, so every
+		// later use is safe.
+		//
+		// Why this cannot be left as the raw post value: db_sales has a UNIQUE
+		// index on quotation_id (idx_quotation_sales_unique) so a quotation can
+		// be converted only once. MySQL treats every NULL as DISTINCT in a
+		// unique index, but `0` is a real value — so a second unlinked sale
+		// carrying 0 collides and the insert dies with
+		// "Duplicate entry '0' for key 'idx_quotation_sales_unique'".
+		//
+		// `$this->input->post('quotation_id')` returns '' for a blank field, and
+		// '' is SET, so the old `isset()` below happily inserted '' — which MySQL
+		// coerces to the integer 0. Pos_model already guards with `> 0`; this is
+		// the same rule applied to the shared retail path.
+		$quotation_id = (int) $this->input->post('quotation_id', TRUE);
+		if($quotation_id <= 0){ $quotation_id = null; }
+		// Self-heal: an install that ran 4.0.9.88 before this fix can still be
+		// carrying 0-valued links. NULL them out once per request so the unique
+		// index stops rejecting ordinary sales, and drop a DEFAULT 0 on the
+		// column (a DEFAULT 0 re-creates the collision on every insert that
+		// omits the column). Cheap, idempotent, and harmless once clean.
+		$this->_heal_quotation_id_zero_rows();
 		$has_shipaddr_col = $this->db->field_exists('shippingaddress_id','db_sales');
 		$shippingaddress_id = $has_shipaddr_col ? (int)$this->input->post('shippingaddress_id', TRUE) : 0;
 		if($shippingaddress_id<=0){ $shippingaddress_id = null; }
@@ -385,7 +449,7 @@ class Sales_model extends CI_Model {
 		    				'system_name' 				=> $SYSTEM_NAME,
 		    				'status' 					=> 1,
 		    			);
-		    if(isset($quotation_id)){
+		    if($quotation_id !== null){
 				$sales_entry['quotation_id'] = $quotation_id;
 			}
 			if($has_shipaddr_col){
@@ -412,12 +476,21 @@ class Sales_model extends CI_Model {
 				$this->db->trans_rollback();
 				return 'Failed to save sale (no insert_id): ' . ($err['message'] ?? 'unknown error');
 			}
-			//SET QUOTATION STATUS
-			if(isset($quotation_id)){
-				$q11 = $this->db->set("sales_status",'Converted')->where("id",$quotation_id)->update("db_quotation");
-			    	if(!$q11){
-			    		return false;
-			    	}
+			//SET QUOTATION STATUS — only when a real quotation is linked, and only
+			// for a quotation on the store this sale is being written to. Using
+			// `!== null` here (not isset) keeps a blank posting from being read as
+			// quotation 0 and marking an unrelated row Converted.
+			if($quotation_id !== null){
+				$belongs = $this->db->select('id')->from('db_quotation')
+					->where('id', $quotation_id)
+					->where('store_id', $sales_entry['store_id'])
+					->get()->row();
+				if($belongs){
+					$q11 = $this->db->set("sales_status",'Converted')->where("id",$quotation_id)->update("db_quotation");
+				    	if(!$q11){
+				    		return false;
+				    	}
+				}
 			}
 
 		}
@@ -1242,7 +1315,11 @@ class Sales_model extends CI_Model {
 	
 	public function reset_quotation_sales_status_to_null($sales_ids){
 			$this->db->where("id in($sales_ids)");
-			$this->db->where("quotation_id!=''");
+			// `quotation_id != ''` also matches 0 (and NULL, depending on the
+			// column), which would clear the status of quotation 0 / ship a
+			// meaningless `id in(0)`. Only real links count.
+			$this->db->where("quotation_id IS NOT NULL");
+			$this->db->where("quotation_id > 0");
 			$this->db->select("quotation_id");
 			$quotation_ids = $this->db->get("db_sales");
 

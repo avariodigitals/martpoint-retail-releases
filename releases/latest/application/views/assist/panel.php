@@ -97,7 +97,7 @@
     <a class="mp-fab-menu-item" href="https://www.martpoint.com.ng/support" target="_blank" rel="noopener">
       <i class="fa fa-globe"></i> <span>Support Portal</span>
     </a>
-    <a class="mp-fab-menu-item" href="https://wa.me/2348036028069?text=Hi%20MartPoint%20Support" target="_blank">
+    <a class="mp-fab-menu-item" href="https://wa.me/2348037978230?text=Hi%20MartPoint%20Support" target="_blank">
       <i class="fa fa-whatsapp"></i> <span>WhatsApp Support</span>
     </a>
     <button class="mp-fab-menu-item mp-fab-cancel" onclick="MPAssist.closeMenu()">

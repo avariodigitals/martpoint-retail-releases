@@ -20,7 +20,9 @@
 SET @db := DATABASE();
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs'
        AND COLUMN_NAME = 'migrations_applied') = 0,
   'ALTER TABLE `db_fleet_installs` ADD COLUMN `migrations_applied` INT UNSIGNED NOT NULL DEFAULT 0',
@@ -28,7 +30,9 @@ SET @sql := (SELECT IF(
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 SET @sql := (SELECT IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
+  (SELECT COUNT(*) FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs') = 1
+  AND (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'db_fleet_installs'
        AND COLUMN_NAME = 'migration_newest') = 0,
   'ALTER TABLE `db_fleet_installs` ADD COLUMN `migration_newest` VARCHAR(160) NULL DEFAULT NULL',

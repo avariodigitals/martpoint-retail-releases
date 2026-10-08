@@ -612,7 +612,16 @@ if (!function_exists('mp_get_business_presets')) {
             'car_dealership'        => 'auto_modern',
             'bookshop'              => 'general_retail',
             'furniture'             => 'general_retail',
-            'printing'              => 'service_pro',
+            // Printing has its own four-theme set (print_works, print_inkpress,
+            // print_papercraft, print_neonprint), all with industry = 'printing'.
+            //
+            // This used to point at 'service_pro'. Because the storefront theme
+            // picker resolves a store's theme GROUP by looking up the base
+            // theme's industry, printing stores were handed the SERVICES group —
+            // so a print shop was offered service_pro and never saw a single one
+            // of its own printing themes. Pointing at a theme whose industry is
+            // 'printing' is what makes the group resolve correctly.
+            'printing'              => 'print_inkpress',
             'tailoring'             => 'service_pro',
         ];
         foreach ($presets as $key => &$preset) {
@@ -741,6 +750,32 @@ if (!function_exists('mp_feature_enabled')) {
                 return in_array('item_variants', $profile_features);
             default: return in_array($flag_key, $profile_features);
         }
+    }
+}
+
+if (!function_exists('mp_is_print_shop')) {
+    /**
+     * Is this store running a print business?
+     *
+     * WHY A FEATURE CHECK AND NOT AN INDUSTRY LABEL
+     * ---------------------------------------------
+     * Deciding this from `industry_type === 'printing'` is too narrow and has
+     * already produced a real bug: a store can legitimately be relabelled (the
+     * dev store reads `fashion`) while still running printing themes with print
+     * jobs against it. The industry string then disagrees with reality and every
+     * screen that trusted it shows the wrong thing.
+     *
+     * `production_workflow` is what the printing preset actually declares and
+     * what the printing module itself gates on
+     * (Printing::_check_feature()), so the same flag answers "should this store
+     * see print-shaped screens?" everywhere. One question, one answer.
+     *
+     * The legacy `printing_workflow` spelling is still honoured because it
+     * existed in shipped code before the flag was corrected.
+     */
+    function mp_is_print_shop() {
+        return mp_feature_enabled('production_workflow')
+            || mp_feature_enabled('printing_workflow');
     }
 }
 

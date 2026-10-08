@@ -25,7 +25,6 @@ $theme_link = $theme_link ?? base_url() . 'theme/';
   <title><?= $store_title ?> — Access Denied</title>
   <link rel="shortcut icon" href="<?= base_url('uploads/site/favicon.png'); ?>">
   <link rel="stylesheet" href="<?= base_url('theme/css/font-awesome-4.7.0/css/font-awesome.min.css'); ?>">
-  <link rel="stylesheet" href="<?= base_url('theme/css/mobile.css'); ?>">
   <style>
     body { background: #f4f6fb; margin: 0; }
     .mp-denied-wrap { padding: 18px 16px 28px; }

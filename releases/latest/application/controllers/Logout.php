@@ -57,8 +57,21 @@ class Logout extends MY_Controller {
 		$is_central = function_exists('mp_is_central') && mp_is_central();
 		//CLEAR ALL SESSION FROM VIRTUAL VARIABLES
 		$this->session->sess_destroy();
-		//LOGOUT - return to the logged-out page for this store
-		$target = base_url('login') . (($logout_store && !$is_central) ? '?store=' . $logout_store : '');
-		redirect($target);
+		//LOGOUT - return to the logged-out page for this store.
+		//
+		// The store id travels in a cookie, not the URL. It used to be
+		// /login?store=2, which put an internal id in the address bar for no
+		// reason anyone could see. Same fact, quieter place. The cookie is
+		// non-secret (a store id is not a credential) and Read is scoped to
+		// the login page, so it cannot leak anywhere else.
+		if ($logout_store && !$is_central) {
+			$this->input->set_cookie([
+				'name'   => 'mp_login_store',
+				'value'  => (string) $logout_store,
+				'expire' => 3600,
+				'path'   => '/',
+			]);
+		}
+		redirect(base_url('login'));
 	}
 }

@@ -62,7 +62,15 @@
     requires_note: <?= $service->requires_note ? 'true' : 'false'; ?>
   };
 
+  // Add-to-cart for a service only makes sense when a cart exists on this
+  // storefront. For a pure service business this function is never bound to a
+  // button, but leaving an unconditional redirect here would still bounce a
+  // visitor to an empty cart if anything ever called it.
+  var is_service_store = <?= !empty($is_service_store) ? 'true' : 'false'; ?>;
   function addServiceToCart(){
+    <?php if(empty($cart_enabled)): ?>
+    if (is_service_store) { return; }
+    <?php endif; ?>
     addToCart(serviceDetail.id, 'service', serviceDetail.name, serviceDetail.price, serviceDetail.image, 1, 999);
     setTimeout(() => { window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '') . '/cart'); ?>'; }, 600);
   }

@@ -488,12 +488,52 @@ class Mobile extends MY_Controller {
 		$staff_count = $this->db->get("db_users")->row()->total ?? 0;
 		$data['staff_count'] = $staff_count;
 
+		// Today's attendance — resolved HERE, before it is read.
+		//
+		// The staff insight below reads $data['attendance_count'], but that was
+		// only assigned 30+ lines further down the method, so at this point it
+		// was still null and the line rendered as " of 2 staff on duty today."
+		// — a number that simply was not there. Reading attendance first is the
+		// fix. The later assignment is left in place because other code on this
+		// screen depends on it being set at that point too; re-reading the same
+		// day's attendance twice is harmless and keeps both paths honest.
+		$this->load->model('attendance_model');
+		$today = date('Y-m-d');
+		$attendance = $this->attendance_model->getTodayAttendance($store_id, $today);
+		$data['attendance_count'] = count(is_array($attendance) ? $attendance : []);
+
 		// Staff
 		if($staff_count > 0){
 			$insights[] = $data['attendance_count'] . ' of ' . $staff_count . ' staff on duty today.';
 		}
 
 		$data['insights'] = $insights;
+
+		// Intelligence Report — the same engine the desktop dashboards use.
+		//
+		// The $insights list above restates today's counters in prose ("Sales vs
+		// previous 7 days: up 4%"). It is useful, but it is a summary, and it was
+		// ALSO retail-only: a print shop on a phone was told about sales targets
+		// and top-selling products, neither of which is how a print business
+		// works. Rather than write a third set of heuristics here, the phone now
+		// asks Intelligence_model for whichever set fits this store's industry,
+		// so the phone, the desktop dashboard and the print shop can never
+		// disagree about the same fact.
+		//
+		// Wrapped defensively — an insight failure must not blank the phone's
+		// home screen.
+		$data['intel'] = [];
+		try {
+			$this->load->model('intelligence_model', 'intel');
+			// mp_is_print_shop() rather than an industry string test: a store can
+			// be relabelled while still running printing themes and holding print
+			// jobs, and the industry label would then pick the wrong insight set.
+			$data['intel'] = mp_is_print_shop()
+				? $this->intel->for_printing($store_id)
+				: $this->intel->for_retail($store_id);
+		} catch (Throwable $e) {
+			log_message('error', 'Mobile dashboard: intelligence failed — ' . $e->getMessage());
+		}
 
 		// Today's attendance and clock-in status
 		$this->load->model('attendance_model');
@@ -4407,6 +4447,11 @@ class Mobile extends MY_Controller {
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 
 		$operations = [
+			// Print Shop sits beside the generic Operations tiles: a print shop
+			// carries production_workflow and custom_orders, so without its own
+			// entry the phone offered it batch production and custom orders —
+			// screens written for a factory, not a press shop.
+			['title' => 'Print Shop', 'desc' => 'Jobs, quotes, artwork & collection', 'icon' => 'fa-print', 'url' => 'mobile/printing', 'perm' => 'print_view', 'feature' => 'production_workflow', 'color' => 'teal'],
 			['title' => 'Custom Orders', 'desc' => 'Orders, quotes & deposits', 'icon' => 'fa-pencil-square-o', 'url' => 'operations/custom_orders', 'perm' => 'custom_orders_view', 'feature' => 'custom_orders', 'color' => 'primary'],
 			['title' => 'Production', 'desc' => 'Batches & production schedule', 'icon' => 'fa-industry', 'url' => 'operations/production', 'perm' => 'production_batches_view', 'feature' => 'production_workflow', 'color' => 'orange'],
 			['title' => 'Nylon Factory', 'desc' => 'Extrusion, printing & bag jobs', 'icon' => 'fa-industry', 'url' => 'mobile/nylon', 'perm' => 'nylon_view', 'feature' => ['nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'], 'color' => 'teal'],
@@ -7775,6 +7820,197 @@ class Mobile extends MY_Controller {
 		$this->permission_check($perm);
 		$this->load->model('nylon_model', 'nylon');
 		return true;
+	}
+
+	/* ==================================================================
+	 * MOBILE — PRINTING
+	 * ==================================================================
+	 * The printing views (mobile/printing.php, printing_jobs.php,
+	 * printing_job.php, printing_quotations.php) were written and shipped but
+	 * NEVER ROUTED — no controller method rendered them and no menu linked
+	 * them, so a print shop on a phone fell through to the retail mobile home
+	 * while its own screens sat unreachable. Same class of gap as the printing
+	 * module itself once was: built, then unreachable.
+	 *
+	 * These four methods are the missing routes. They RENDER only — every
+	 * mutation POSTs to the existing printing/* JSON endpoints, so the
+	 * approval, artwork and deposit gates stay server-enforced in
+	 * Printing_model rather than being reimplemented for mobile.
+	 */
+
+	private function _printing_gate($perm = 'print_view')
+	{
+		// Same flag the desktop module gates on. NOT `printing_workflow`, which
+		// exists nowhere and would make every one of these routes unreachable —
+		// exactly the fault found in Printing::_check_feature().
+		if(!mp_feature_enabled('production_workflow') && !mp_feature_enabled('printing_workflow')){
+			$this->show_access_denied_page();
+			return false;
+		}
+		$this->permission_check($perm);
+		$this->load->model('printing_model', 'print');
+		return true;
+	}
+
+	public function printing()
+	{
+		if(!$this->_printing_gate()){ return; }
+		$store_id = get_current_store_id();
+
+		$data = $this->data;
+		$data['page_title']  = 'Print Shop';
+		$data['display_name'] = $this->session->userdata('display_name')
+			?: $this->session->userdata('username') ?: 'User';
+
+		// Counts come from get_jobs() so the phone and the desktop dashboard
+		// cannot disagree about how many jobs are open — one source, two views.
+		$jobs = $this->print->get_jobs($store_id);
+		$kpi = [
+			'open' => 0, 'in_production' => 0, 'awaiting_artwork' => 0,
+			'awaiting_fulfilment' => 0, 'due_soon' => 0, 'overdue' => 0,
+			'collections_due' => 0, 'outstanding_balance' => 0,
+		];
+		$today = date('Y-m-d');
+		$soon  = date('Y-m-d', strtotime('+7 days'));
+		$attention = [];
+
+		foreach ($jobs as $j) {
+			$st = strtolower((string) ($j->production_status ?? ''));
+			if (in_array($st, ['completed', 'cancelled'], true)) {
+				// Still counts as awaiting collection until it is handed over.
+				if ($st === 'completed' && empty($j->fulfilled_at)) $kpi['awaiting_fulfilment']++;
+			} else {
+				$kpi['open']++;
+				if ($st === 'in_progress') $kpi['in_production']++;
+			}
+			if (($j->artwork_status ?? '') !== 'approved' && $st !== 'completed') $kpi['awaiting_artwork']++;
+
+			$due = $j->due_date ?? null;
+			if ($due && !in_array($st, ['completed', 'cancelled'], true)) {
+				if ($due < $today) $kpi['overdue']++;
+				elseif ($due <= $soon) $kpi['due_soon']++;
+			}
+			if (!empty($j->balance_due)) $kpi['outstanding_balance'] += (float) $j->balance_due;
+
+			// The "needs attention" list: overdue, or unpaid and past due.
+			if ($due && $due <= $soon && !in_array($st, ['completed', 'cancelled'], true)) {
+				$attention[] = $j;
+			}
+		}
+		$kpi['collections_due'] = $kpi['awaiting_fulfilment'];
+
+		$data['kpi']       = $kpi;
+		$data['attention'] = array_slice($attention, 0, 8);
+		$data['can_quote'] = $this->permissions('print_quote');
+		$data['can_jobs']  = $this->permissions('print_view');
+		$this->_mobile_render($data + ['_view' => 'printing']);
+	}
+
+	public function printing_jobs($status = '')
+	{
+		if(!$this->_printing_gate()){ return; }
+		$store_id = get_current_store_id();
+		$jobs = $this->print->get_jobs($store_id);
+
+		// Accept either the production status or the collection bucket the hub
+		// links with, so a tile that says "To Collect" lands on a filtered list
+		// rather than an unfiltered one.
+		$want = trim((string) $status);
+		if ($want !== '') {
+			$jobs = array_values(array_filter($jobs, function ($j) use ($want) {
+				$st = strtolower((string) ($j->production_status ?? ''));
+				if ($want === 'completed') return $st === 'completed' && empty($j->fulfilled_at);
+				return $st === strtolower($want);
+			}));
+		}
+
+		$data = $this->data;
+		$data['page_title']    = 'Print Jobs';
+		$data['display_name']  = $this->session->userdata('display_name') ?: 'User';
+		$data['jobs']          = $jobs;
+		$data['status']        = $want;
+		// The view builds its chips from these three together: $statuses drives
+		// the loop, $status_labels the wording, $counts the badge. Omit any one
+		// and the filter row breaks silently — the chips vanish or every count
+		// reads 0, which looks like "no jobs" rather than a wiring mistake.
+		$data['statuses'] = ['planned', 'in_progress', 'on_hold', 'completed', 'cancelled'];
+		$data['status_labels'] = [
+			'' => 'All', 'planned' => 'Planned', 'in_progress' => 'In Production',
+			'on_hold' => 'On Hold', 'completed' => 'To Collect', 'cancelled' => 'Cancelled',
+		];
+		// Counts are taken over the UNFILTERED set so the badges keep showing how
+		// much sits in each bucket while you are looking at one of them.
+		$all = $this->print->get_jobs($store_id);
+		$data['counts'] = [];
+		foreach ($data['statuses'] as $s) { $data['counts'][$s] = 0; }
+		foreach ($all as $a) {
+			$ast = strtolower((string) ($a->production_status ?? ''));
+			if ($ast !== '' && isset($data['counts'][$ast])) { $data['counts'][$ast]++; }
+		}
+		$data['counts']['completed'] = 0;
+		foreach ($all as $a) {
+			if (strtolower((string) ($a->production_status ?? '')) === 'completed'
+				&& empty($a->fulfilled_at)) { $data['counts']['completed']++; }
+		}
+		$data['total_all']     = count($all);
+		$data['active_status'] = $want === '' ? 'all' : $want;
+		$this->_mobile_render($data + ['_view' => 'printing_jobs']);
+	}
+
+	public function printing_job($id = 0)
+	{
+		if(!$this->_printing_gate()){ return; }
+		$store_id = get_current_store_id();
+		$job = $this->print->get_job((int) $id);
+		// Ownership is checked server-side, not by the view — a crafted id must
+		// not expose another store's job, artwork or costing.
+		if (!$job || (int) $job->store_id !== (int) $store_id) {
+			show_error('That print job is not on this store.', 404, 'Job not found');
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title']    = $job->job_code;
+		$data['display_name']  = $this->session->userdata('display_name') ?: 'User';
+		$data['job']           = $job;
+		$data['lines']         = $this->print->get_lines((int) $job->id);
+		// stage_progress(), NOT get_stages(). The view renders a gate stepper and
+		// reads $s['label'] / $s['hint'] / $s['done'] / $s['state'] / $s['blocked'];
+		// get_stages() returns raw db_print_stages rows (stage_label, status,
+		// completed_at), so passing it threw "Cannot use object of type stdClass
+		// as array" and blanked the whole screen.
+		$data['stages']        = $this->print->stage_progress((int) $job->id);
+		$data['artworks']      = $this->print->get_artworks((int) $job->id);
+		$data['status_labels'] = method_exists('Printing_model', 'job_statuses')
+			? Printing_model::job_statuses() : [];
+		// The view computes balance as quote_amount - net_paid, and prints
+		// "Verified paid". Use the model's own definition so the phone cannot
+		// disagree with the deposit/artwork gates: it counts only status
+		// 'verified' and subtracts refunds, both of which a naive SUM(amount)
+		// gets wrong.
+		$data['net_paid'] = $this->print->net_verified_payments((int) $job->id);
+		// Internal costing is NOT exposed on a phone screen anyone might be
+		// holding in front of a client.
+		$data['can_view_cost'] = $this->permissions('print_costing');
+		$this->_mobile_render($data + ['_view' => 'printing_job']);
+	}
+
+	public function printing_quotations()
+	{
+		if(!$this->_printing_gate('print_quote')){ return; }
+		$store_id = get_current_store_id();
+
+		$rows = $this->db->select('q.*, c.customer_name')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.store_id', $store_id)
+			->order_by('q.id', 'desc')->limit(100)->get()->result();
+
+		$data = $this->data;
+		$data['page_title']   = 'Quotations';
+		$data['display_name'] = $this->session->userdata('display_name') ?: 'User';
+		$data['quotations']   = $rows;
+		$this->_mobile_render($data + ['_view' => 'printing_quotations']);
 	}
 
 	public function nylon()

@@ -411,7 +411,11 @@ class Default_data_model extends CI_Model {
     }
 
     /**
-     * The vendor/install-level administrator roles (db_store 1 — "SAAS ADMIN").
+     * The install-level administrator roles (db_store row 1).
+     *
+     * Historically that row was seeded as "SAAS ADMIN" and carried the demo
+     * business name. Newer installers name it after the customer's own store,
+     * so nothing should key off the literal string — the row id is the fact.
      *
      * These are the platform operator roles: they exist once for the whole
      * install, not per store, and are meant to hold every capability. They need

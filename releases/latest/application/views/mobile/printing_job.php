@@ -27,7 +27,6 @@ $bal = max(0, (float)$job->quote_amount - (float)$net_paid);
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/mobile.css">
   <style>
     :root { /* Printing workspace palette — matches desktop print_layout/mp_header. */
             --mp-primary:#0e7490; --mp-primary-rgb:14,116,144; --mp-primary-dark:#0b5d73;
@@ -140,7 +139,7 @@ $bal = max(0, (float)$job->quote_amount - (float)$net_paid);
       <div class="card">
         <div class="top" style="display:flex;justify-content:space-between;gap:10px;">
           <div style="min-width:0;">
-            <div style="font-size:13.5px;font-weight:700;"><?= htmlspecialchars($l->item_name ?: ($l->category_name ?: 'Print item')); ?></div>
+            <div style="font-size:13.5px;font-weight:700;"><?= htmlspecialchars($l->description ?: ($l->category_key ?: 'Print item')); ?></div>
             <?php if(!empty($l->qty)): ?><div class="sub" style="font-size:12px;color:var(--mp-muted);margin-top:2px;">Qty <?= rtrim(rtrim(number_format((float)$l->qty, 2), '0'), '.'); ?></div><?php endif; ?>
           </div>
           <?php if(isset($l->line_total)): ?>

@@ -1486,10 +1486,38 @@ class Online_store extends MY_Controller {
 			}
 		}
 
+		// Colour handling: store what the merchant actually chose, and store
+		// NULL when they expressed no opinion.
+		//
+		// These used to default to the stock palette ('#3B82F6' / '#10B981'),
+		// and the Appearance form pre-filled them with whatever the previous
+		// theme had painted. Together that produced the reported bug: switching
+		// theme and saving re-persisted the OLD theme's colour as the store
+		// brand colour, which then outranked the new theme's design — so the
+		// primary colour appeared frozen across every switch.
+		//
+		// NULL means "no opinion", and resolveBrandColor() then defers to the
+		// active theme's designed palette. A colour the merchant deliberately
+		// picks still wins, which is the requirement: the theme overrides by
+		// default, and an explicit choice overrides the theme.
+		//
+		// The form posts `<field>_reverted=1` from the reset button; those
+		// fields are forced to NULL regardless of what the colour input holds.
+		$reverted = function ($field) {
+			return $this->input->post($field . '_reverted') === '1';
+		};
+		$colorOrNull = function ($field) use ($reverted) {
+			if ($reverted($field)) {
+				return null;
+			}
+			$val = trim((string) $this->input->post($field));
+			return ($val === '' || $val === '#000000' && $field === 'header_text_color') ? null : $val;
+		};
+
 		$data = [
 			'theme_id' => $themeId,
-			'primary_color' => $this->input->post('primary_color') ?: '#3B82F6',
-			'secondary_color' => $this->input->post('secondary_color') ?: '#10B981',
+			'primary_color' => $colorOrNull('primary_color'),
+			'secondary_color' => $colorOrNull('secondary_color'),
 			'background_color' => trim($this->input->post('background_color')),
 			'footer_bg_color' => $this->input->post('footer_bg_color') ?: '#0F172A',
 			'footer_text_color' => $this->input->post('footer_text_color') ?: '#94A3B8',
@@ -1524,6 +1552,19 @@ class Online_store extends MY_Controller {
 		// .73 adds tiktok_pixel_id — drop it on installs not yet migrated.
 		if(!$this->db->field_exists('tiktok_pixel_id', 'db_storefront_settings')){
 			unset($data['tiktok_pixel_id']);
+		}
+
+		// What the storefront sells. Added by migration .96, so guard it the same
+		// way — an install that has not run .96 must not fail to save appearance.
+		//
+		// Whitelisted rather than trusted: an unrecognised value would leave the
+		// theme engine unable to resolve a mode, and every catalogue decision
+		// (nav, cart, which catalogue to show) reads from this column.
+		if($this->db->field_exists('catalogue_mode', 'db_storefront_settings')){
+			$mode = (string) $this->input->post('catalogue_mode');
+			if(in_array($mode, ['services', 'products', 'both'], true)){
+				$data['catalogue_mode'] = $mode;
+			}
 		}
 
 		// Store logo upload → db_storefront_settings.store_logo
