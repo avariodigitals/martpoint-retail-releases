@@ -86,9 +86,22 @@
         } else {
           toastr.error(res.message || 'Build failed');
         }
-      }, 'json').fail(function() {
+      }, 'json').fail(function(xhr) {
         $btn.prop('disabled', false).html('<i class="fa fa-folder-open"></i> Build Release Package');
-        toastr.error('Server error.');
+        // A build that dies mid-copy returns nothing usable, so the old
+        // "Server error." was all anyone saw — no hint that it was a timeout
+        // rather than a real fault, and no idea what to do next.
+        toastr.error(
+          'Build did not finish (HTTP ' + (xhr.status || '?') + '). '
+          + 'The usual cause is the request running out of time while copying '
+          + 'thousands of files, not a problem with the package. '
+          + 'Click "Build Release Package" again — the build restarts cleanly and '
+          + 'will finish if the host allows it. If it fails at the same point every '
+          + 'time, the host is hard-capping request time and the build needs to be '
+          + 'run from the terminal instead.',
+          'Build timed out',
+          { timeOut: 0, extendedTimeOut: 0 }
+        );
       });
     });
 

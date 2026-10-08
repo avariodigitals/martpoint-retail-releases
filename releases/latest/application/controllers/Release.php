@@ -72,6 +72,22 @@ class Release extends MY_Controller {
     }
 
     public function build() {
+        // This is the slowest step in the whole release flow and it had NO time
+        // limit at all — its siblings build_full() and publish() both set one.
+        //
+        // The work is not large in BYTES (≈120 MB) but enormous in OPERATIONS:
+        // delete the previous tree, then ~5,553 copy() calls each with their own
+        // mkdir(). Six thousand-plus filesystem calls in one request blows
+        // through a shared host's default max_execution_time (often 30s), and
+        // the request dies part-way leaving release_upload/ half-populated —
+        // which then looks like "the build failed" with no visible reason.
+        //
+        // set_time_limit(0) matches the scheduler/update paths, and
+        // ignore_user_abort keeps it alive if the browser or a proxy hangs up
+        // mid-copy rather than abandoning work that was nearly done.
+        @set_time_limit(0);
+        @ignore_user_abort(true);
+
         $sourceDir = FCPATH;
         $manifestPath = $sourceDir . 'release_build/release-manifest.json';
         $uploadDir = $sourceDir . 'release_upload';
@@ -99,6 +115,26 @@ class Release extends MY_Controller {
         // Copy manifest
         copy($manifestPath, $latestDir . '/release-manifest.json');
 
+        // Directory creation is cached.
+        //
+        // The loops below previously called @mkdir(dirname($dst), ...) for EVERY
+        // file — ~5,553 mkdir syscalls where a few hundred distinct directories
+        // exist. On shared hosting the syscall overhead is a large share of the
+        // build's wall-clock time, and time is exactly what it runs out of.
+        $madeDirs = [];
+        $ensureDir = function (string $dir) use (&$madeDirs): void {
+            if (isset($madeDirs[$dir])) { return; }
+            if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+            $madeDirs[$dir] = true;
+        };
+
+        // A failed copy() was previously ignored entirely, so a build that ran
+        // out of disk or hit a permission error reported SUCCESS with fewer
+        // files than the manifest lists — and every client update would then
+        // fail its hash check with no clue why. Failures are collected now and
+        // surface as an error.
+        $failed = [];
+
         // Copy migrations
         $migrationCount = 0;
         $sourceMigDir = $sourceDir . 'updates/migrations';
@@ -108,9 +144,12 @@ class Release extends MY_Controller {
                 $src = $sourceMigDir . '/' . $migFile;
                 $dst = $destMigDir . '/' . $migFile;
                 if (file_exists($src)) {
-                    @mkdir(dirname($dst), 0755, true);
-                    copy($src, $dst);
-                    $migrationCount++;
+                    $ensureDir(dirname($dst));
+                    if (@copy($src, $dst)) {
+                        $migrationCount++;
+                    } else {
+                        $failed[] = 'migrations/' . $migFile;
+                    }
                 }
             }
         }
@@ -145,10 +184,29 @@ class Release extends MY_Controller {
             $src = $sourceDir . $relPath;
             $dst = $latestDir . '/' . $relPath;
             if (file_exists($src)) {
-                @mkdir(dirname($dst), 0755, true);
-                copy($src, $dst);
-                $filesCount++;
+                $ensureDir(dirname($dst));
+                if (@copy($src, $dst)) {
+                    $filesCount++;
+                } else {
+                    $failed[] = $relPath;
+                }
             }
+        }
+
+        if (!empty($failed)) {
+            echo json_encode([
+                'status' => 'error',
+                'version' => $version,
+                'files_count' => $filesCount,
+                'migrations_count' => $migrationCount,
+                'skipped_count' => $skippedCount,
+                'failed_count' => count($failed),
+                'failed_sample' => array_slice($failed, 0, 10),
+                'message' => count($failed) . ' file(s) could not be copied — the package is incomplete and must NOT be published. '
+                    . 'Usual cause: not enough disk space in release_upload/, or its permissions. First few: '
+                    . implode(', ', array_slice($failed, 0, 5)),
+            ]);
+            return;
         }
 
         echo json_encode([
@@ -157,6 +215,8 @@ class Release extends MY_Controller {
             'files_count' => $filesCount,
             'migrations_count' => $migrationCount,
             'skipped_count' => $skippedCount,
+            'failed_count' => 0,
+            'dirs_created' => count($madeDirs),
             'output_path' => str_replace(FCPATH, '', $uploadDir),
             'message' => "Release package built with {$filesCount} files and {$migrationCount} migrations.",
         ]);

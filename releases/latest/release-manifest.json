@@ -3582,8 +3582,8 @@
         },
         {
             "path": "application/views/fleet.php",
-            "hash": "52e3ddb9e9fbd141092f7ccb9508b4d09ad5ee2e42bc3c50f0754bf0a1f31fac",
-            "size": 95251
+            "hash": "16463dc7eae5741b6a27897fd050ee2f377491986deca71fa25998ad6d5a61fe",
+            "size": 95873
         },
         {
             "path": "application/views/services/services.php",
@@ -4922,8 +4922,8 @@
         },
         {
             "path": "application/views/release-builder.php",
-            "hash": "f8cc5310ae8da36df9d29262f4ce9233bfdad50d76ac6bbb9c5f98b88306bad5",
-            "size": 8258
+            "hash": "faa2ab564e8665dcb3ea073467a0c273dc5263dfd9f761061b96dad53ed5e4e3",
+            "size": 9068
         },
         {
             "path": "application/views/accounts/money_transfer.php",
@@ -6062,8 +6062,8 @@
         },
         {
             "path": "application/controllers/Manifest.php",
-            "hash": "a420de95e735efc587a3c262f2150544aca10bf5fa3649bbcce0fb2f950e6af6",
-            "size": 8530
+            "hash": "9bf8372bcd3f870181bd1f57da6468f259d28ed03788fcb34d69d8e79ddf3125",
+            "size": 9049
         },
         {
             "path": "application/controllers/Consents.php",
@@ -6272,8 +6272,8 @@
         },
         {
             "path": "application/controllers/Release.php",
-            "hash": "f2bd96d009df3cc58450306012b311f57428bc1c6795a0bf493e653908e4594c",
-            "size": 26287
+            "hash": "2f8eb38173d3a5ca5efe9fba5f53ba8b08d4dae9ff8ea3b49a2d682bc511a351",
+            "size": 29275
         },
         {
             "path": "application/controllers/Tax_group.php",
@@ -6557,8 +6557,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "fb3d27477b4ba3ce518b50aefc84ad206009bfa3e5b27c61a475d62ae5b96154",
-            "size": 109719
+            "hash": "aaf50351d1abda1d3a4e56c2a744e33197d5dbd3e7b5584b13d90a0239ca9a92",
+            "size": 111244
         },
         {
             "path": "application/controllers/Updates.php",
@@ -9622,8 +9622,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "85d7b57ff9da0a4f0c4f05d067710cace7c9a5b4425697cc416a4e4e18944ec0",
-            "size": 127239
+            "hash": "e7b4baa70c10c43b98e2dad74fa42129c9469a450d86aeb786df6bc32b9f5e63",
+            "size": 129445
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",

@@ -126,6 +126,9 @@
 .fleet-badge.bad { background: #FEE2E2; color: #B91C1C; }
 .fleet-badge.off { background: #E7E5E4; color: #57534E; }
 .fleet-badge.info { background: #DBEAFE; color: #1D4ED8; }
+/* Files applied but the database is behind — the quietest, most dangerous
+   state, so it gets its own loud badge rather than hiding in row detail. */
+.fleet-badge.db-behind { background: #FEE2E2; color: #B91C1C; font-weight: 700; }
 /* Update stage badge — the one visual vocabulary shared by the collapsed
    row and the expanded panel, so the colour always means the same thing. */
   .fleet-stage-badge {
@@ -507,6 +510,11 @@
                 <span class="fleet-col fleet-col-ver">
                   <?= htmlspecialchars($i->version) ?>
                   <?php if ($outdated): ?><br><span class="fleet-badge info">outdated</span><?php endif; ?>
+                  <?php if (!empty($i->mp_mig_behind)): ?>
+                    <br><span class="fleet-badge db-behind" title="The files are applied but the database is behind — this install reports the latest version while migrations are still outstanding.">
+                      <i class="fa fa-database"></i> DB behind
+                    </span>
+                  <?php endif; ?>
                 </span>
 
                 <span class="fleet-col fleet-col-stage">

@@ -2434,6 +2434,47 @@ class Updater {
     protected function step7Finalize(array &$state): array {
         $this->resetTimer();
 
+        // REFUSE TO FINALIZE WHILE MIGRATIONS ARE OUTSTANDING.
+        //
+        // This closes the worst failure mode seen in the field. An install
+        // applies its files (step 5), stalls part-way through the migration
+        // chain (step 6) — and still reached here, which stamped `version` and
+        // `status = 'success'` unconditionally. The install then looked
+        // perfectly up to date in the fleet, because the heartbeat reports the
+        // CODE version and step 5 had already advanced that to the new release.
+        // Meanwhile its database silently stayed as many releases behind as the
+        // chain had failed to cover, and NOTHING reported it: not the fleet
+        // list, not the update log, not the install's own Status column.
+        //
+        // Observed for real: three installs parked on
+        //   "Run Database Migrations — Ran migration 1 / 18"
+        // while advertising the newest version and a clean status.
+        //
+        // The pending list is already in state, so this is a local DB check —
+        // no channel fetch. Throwing is deliberate: the caller treats it as a
+        // transient failure, records the reason, and retries from the
+        // checkpoint. So the update can NOT be marked done until the database
+        // is actually current, and if it never gets there the fleet shows a
+        // real failure instead of a false success.
+        $migrations = $state['migrations'] ?? [];
+        $pending = 0;
+        if (!empty($migrations) && $this->CI->db->table_exists('db_schema_migrations')) {
+            $done = array_flip(array_column(
+                $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
+                'filename'
+            ));
+            foreach ($migrations as $m) {
+                if (!isset($done[$m])) { $pending++; }
+            }
+        }
+        if ($pending > 0) {
+            throw new Exception(
+                'Refusing to finalize: ' . $pending . ' of ' . count($migrations)
+                . ' migration(s) have not run, so the database would be left behind the code. '
+                . 'Retrying from the checkpoint.'
+            );
+        }
+
         $newVersion = $state['to_version'] ?? '0.0';
         $this->CI->db->where('id', 1)->update('db_sitesettings', [
             'version' => $newVersion,

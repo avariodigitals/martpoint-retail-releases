@@ -59,6 +59,15 @@ class Manifest extends MY_Controller {
     }
 
     public function generate() {
+        // Hashing 5,000+ files takes far longer than a shared host's default
+        // max_execution_time, and this method — like Release::build() — had no
+        // time limit at all. A timeout here leaves a truncated or absent
+        // release_build/release-manifest.json, which then makes Build Release
+        // Package fail too, so the two failures look unrelated when they are
+        // the same cause: not enough time, not too much data.
+        @set_time_limit(0);
+        @ignore_user_abort(true);
+
         $version = trim($this->input->post('version'));
         $previous = trim($this->input->post('previous_version'));
 

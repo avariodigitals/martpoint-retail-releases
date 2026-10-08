@@ -271,13 +271,39 @@ class Fleet extends MY_Controller {
             $hasFail = trim((string) ($i->last_fail_message ?? '')) !== ''
                 || trim((string) ($i->last_fail_label ?? '')) !== '';
 
+            // The database is behind the code — and the install is not saying so.
+            //
+            // This is the state that hides best: the files were applied, so the
+            // install advertises the newest version, its update stage reads
+            // `idle`, and it looks completely healthy in the list. Only the
+            // migration count disagrees. Observed live as
+            // "Run Database Migrations — Ran migration 1 / 18" on installs
+            // showing the latest version as applied.
+            //
+            // Gated on the install CLAIMING to be current. A merely-outdated
+            // install is also behind on migrations, and flagging that would
+            // mark every install that has not updated yet as stuck — noise
+            // that would train us to ignore the flag.
+            $migTotal      = (int) ($data['migration_total'] ?? 0);
+            $migApplied    = (int) ($i->migrations_applied ?? 0);
+            $latestVersion = (string) ($data['latest_version'] ?? '');
+            $claimsCurrent = $latestVersion === '' || empty($i->version)
+                || version_compare((string) $i->version, $latestVersion, '>=');
+            $migBehind = $claimsCurrent && $migTotal > 0 && $migApplied > 0
+                && $migApplied < $migTotal;
+
             $isStuck    = in_array($stage, ['stalled', 'failed'], true)
                 || ($busy && $silent)
-                || $hasFail;
+                || $hasFail
+                || $migBehind;
             $isUpdating = $busy && !$isStuck;
 
             $i->mp_is_stuck    = $isStuck ? 1 : 0;
             $i->mp_is_updating = $isUpdating ? 1 : 0;
+            $i->mp_mig_behind  = $migBehind ? 1 : 0;
+            $i->mp_mig_text    = $migBehind
+                ? ($migApplied . ' / ' . $migTotal . ' migrations')
+                : '';
 
             if ($isStuck)    $data['stats']['stuck']++;
             if ($isUpdating) $data['stats']['updating']++;
