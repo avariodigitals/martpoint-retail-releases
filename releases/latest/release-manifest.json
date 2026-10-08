@@ -3582,8 +3582,8 @@
         },
         {
             "path": "application/views/fleet.php",
-            "hash": "16463dc7eae5741b6a27897fd050ee2f377491986deca71fa25998ad6d5a61fe",
-            "size": 95873
+            "hash": "aed76ccb6e2ec10ed8cb4915a910369626bff9d8f031e93f33958ae3efa8296f",
+            "size": 97413
         },
         {
             "path": "application/views/services/services.php",
@@ -6557,8 +6557,8 @@
         },
         {
             "path": "application/controllers/Fleet.php",
-            "hash": "aaf50351d1abda1d3a4e56c2a744e33197d5dbd3e7b5584b13d90a0239ca9a92",
-            "size": 111244
+            "hash": "a3b7c296ce861f9a2624bf8c023b090ef7138daaf48495e5611590577cab6869",
+            "size": 119209
         },
         {
             "path": "application/controllers/Updates.php",
@@ -9622,8 +9622,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "e7b4baa70c10c43b98e2dad74fa42129c9469a450d86aeb786df6bc32b9f5e63",
-            "size": 129445
+            "hash": "fd49091291a4d5c24b290a7e9e14abc85bb63841621bdc9228712c27f891f9a3",
+            "size": 132399
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",

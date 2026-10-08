@@ -193,30 +193,93 @@ class Updater {
         $remote = $manifest['version'] ?? '0.0';
         $available = version_compare($remote, $installed, '>');
 
-        $blockReason = null;
-        if ($available) {
-            $blockReason = $this->phpVersionAllowed($manifest);
-            if ($blockReason === null && !$this->licenseAllowsUpdate()) {
-                $blockReason = 'Subscription expired or suspended — renew the subscription to receive updates.';
-            }
-        }
+          // Version equality does NOT mean "up to date".
+          //
+          // getInstalledVersion() reads db_sitesettings.version, which its own
+          // docblock describes as "a record of the last COMPLETED migration run,
+          // which drifts ahead or behind whenever an update is interrupted".
+          // Step 5 advances it before step 6 finishes the migrations, and the
+          // pre-4.0.9.123 finalize wrote it unconditionally. So an install can
+          // report the newest version with its database many releases behind —
+          // and version_compare() then says there is nothing to do, so the
+          // update no-ops for ever.
+          //
+          // That is precisely what stranded fleets on
+          // "Run Database Migrations — Ran migration 1 / 18" while advertising
+          // 4.0.9.123: Central queued the update, the install ran, concluded it
+          // was current, and did nothing. The fleet showed "all up to date" for
+          // the same reason.
+          //
+          // A release that still has migrations this install has not RECORDED is
+          // an update regardless of the version string.
+          $pendingMigrations = 0;
+          if (!$available) {
+              $pendingMigrations = count($this->pendingMigrations($manifest));
+              if ($pendingMigrations > 0) {
+                  $available = true;
+              }
+          }
 
-        return [
-            'available' => $available,
-            'blocked' => $blockReason !== null,
-            'block_reason' => $blockReason,
-            'auto_update' => $this->autoUpdateEnabled(),
-            'installed_version' => $installed,
-            'remote_version' => $remote,
-            'release_date' => $manifest['release_date'] ?? null,
-            'changelog' => $manifest['changelog'] ?? 'No changelog provided.',
-            'manifest' => $manifest,
-        ];
-    }
+          $blockReason = null;
+          if ($available) {
+              $blockReason = $this->phpVersionAllowed($manifest);
+              if ($blockReason === null && !$this->licenseAllowsUpdate()) {
+                  $blockReason = 'Subscription expired or suspended — renew the
+subscription to receive updates.';
+              }
+          }
 
-    /* ------------------------------------------------------------------ */
-    /*  Auto-update orchestration (cron / lazy login check)               */
-    /* ------------------------------------------------------------------ */
+          return [
+              'available' => $available,
+              'blocked' => $blockReason !== null,
+              'block_reason' => $blockReason,
+              'auto_update' => $this->autoUpdateEnabled(),
+              'installed_version' => $installed,
+              'remote_version' => $remote,
+              'pending_migrations' => $pendingMigrations,
+              'release_date' => $manifest['release_date'] ?? null,
+              'changelog' => $manifest['changelog'] ?? 'No changelog provided.',
+              'manifest' => $manifest,
+          ];
+      }
+
+      /**
+       * Which of a release's migrations this install has NOT recorded.
+       *
+       * Compared by FILENAME SET, not by counting rows. Counting is unsafe here:
+       * db_schema_migrations can hold duplicate rows for the same file (this
+       * codebase's own history documents migrations re-running and being
+       * recorded again), so a count can reach — or exceed — the release's total
+       * while migrations are still genuinely missing. A live install reported
+       * "applied: 127" against a 121-migration release with its newest applied
+       * file eight releases old.
+       *
+       * Returns [] on any error, so uncertainty never invents an update.
+       */
+      public function pendingMigrations(array $manifest): array {
+          $list = $manifest['migrations'] ?? [];
+          if (empty($list)) { return []; }
+          try {
+              if (!$this->CI->db->table_exists('db_schema_migrations')) {
+                  return $list;
+              }
+              $done = array_flip(array_column(
+                  $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
+                  'filename'
+              ));
+              $pending = [];
+              foreach ($list as $m) {
+                  if (!isset($done[$m])) { $pending[] = $m; }
+              }
+              return $pending;
+          } catch (Throwable $e) {
+              return [];
+          }
+      }
+
+      /* ------------------------------------------------------------------ */
+      /*  Auto-update orchestration (cron / lazy login check)               */
+      /* ------------------------------------------------------------------ */
 
     /**
      * Drive an update to COMPLETION within this request, chaining internally.

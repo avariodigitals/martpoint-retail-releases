@@ -130,6 +130,116 @@ class Fleet extends MY_Controller {
      * Returns null when the channel is unreachable or unset — the caller then
      * falls back to the local build manifest.
      */
+    /**
+     * The release facts the fleet needs: which version is current, and how many
+     * migrations that release ships.
+     *
+     * ONE source, used by both the page and the update driver.
+     *
+     * They previously disagreed: index() resolved the manifest from the update
+     * CHANNEL (falling back to the local build), while update_round() read only
+     * release_build/release-manifest.json. That file is excluded from
+     * martpoint-central.zip, so on a Central that has not just run Manifest
+     * Generator it is missing or stale — and update_round then computed
+     * `$latest = null, $migration_total = 0`. Every install looked "not behind"
+     * and the button answered "all up to date" while the page header happily
+     * showed the channel's version. Exactly the symptom: nothing changes.
+     *
+     * The channel is authoritative because it is what installs actually
+     * download. The local file is only a fallback for a dev box with no channel
+     * configured.
+     *
+     * @return array{version:?string,migration_total:int,source:string}
+     */
+    private function releaseFacts(): array {
+        $version = null;
+        $total = 0;
+        $newest = '';
+        $source = 'none';
+        $facts = [];
+
+        $manifest = $this->fetchChannelManifest();
+        if (is_array($manifest)) { $source = 'channel'; }
+
+        if (!is_array($manifest)) {
+            $mf = FCPATH . 'release_build/release-manifest.json';
+            if (is_file($mf)) {
+                $decoded = json_decode((string) @file_get_contents($mf), true);
+                if (is_array($decoded) && !empty($decoded['version'])) {
+                    $manifest = $decoded;
+                    $source = 'local build';
+                }
+            }
+        }
+
+        if (is_array($manifest)) {
+            $version = $manifest['version'] ?? null;
+            $list    = $manifest['migrations'] ?? [];
+            $total   = count($list);
+
+            // The NEWEST migration this release ships, found by VERSION rather
+            // than by array position — the manifest's list is not strictly
+            // version-sorted, so `end($list)` is not reliably the newest.
+            $newest = '';
+            $best   = null;
+            foreach ($list as $mig) {
+                $v = preg_replace('/[^0-9.].*$/', '', (string) $mig);
+                $v = trim((string) $v, '.');
+                if ($v === '') { continue; }
+                if ($best === null || version_compare($v, $best, '>')) {
+                    $best   = $v;
+                    $newest = (string) $mig;
+                }
+            }
+            $facts['migration_newest'] = $newest;
+        }
+
+        return ['version' => $version, 'migration_total' => $total,
+                'migration_newest' => $newest, 'source' => $source];
+    }
+
+    /**
+     * Is an install's DATABASE behind the release?
+     *
+     * Counting applied rows is not enough. `migrations_applied` is a COUNT(*)
+     * of db_schema_migrations, and this codebase's own history documents
+     * migrations re-running and being recorded a second time (an earlier build
+     * matched on version as well as filename). Duplicate rows inflate the count
+     * — so an install can report 121 applied with its chain still incomplete,
+     * and a count-only test would call it healthy.
+     *
+     * The newest APPLIED migration filename is real evidence: the chain runs in
+     * order, so if it stopped early the newest applied is an older file than the
+     * release's newest. Comparing them catches the inflated-count case that the
+     * count alone misses.
+     *
+     * Returns false when there is nothing to judge on, so an install that has
+     * not reported (or a Central that cannot see the release) is never accused.
+     */
+    private function migBehind($row, array $facts): bool {
+        if (!$this->db->field_exists('migrations_applied', 'db_fleet_installs')) {
+            return false;
+        }
+        $total  = (int) ($facts['migration_total'] ?? 0);
+        $want   = (string) ($facts['migration_newest'] ?? '');
+        if ($total <= 0) { return false; }
+
+        $applied = (int) ($row->migrations_applied ?? 0);
+        if ($applied <= 0) { return false; }          // cannot tell, not "behind"
+
+        if ($applied < $total) { return true; }
+
+        // Count says complete — verify it with the newest applied filename.
+        $have = trim((string) ($row->migration_newest ?? ''));
+        if ($have === '' || $want === '') { return false; }   // no evidence either way
+
+        $hv = trim((string) preg_replace('/[^0-9.].*$/', '', $have), '.');
+        $wv = trim((string) preg_replace('/[^0-9.].*$/', '', $want), '.');
+        if ($hv === '' || $wv === '') { return false; }
+
+        return version_compare($hv, $wv, '<');
+    }
+
     private function fetchChannelManifest(): ?array {
         try {
             $cacheFile = FCPATH . 'release_build/channel-manifest-cache.json';
@@ -207,21 +317,13 @@ class Fleet extends MY_Controller {
         $data['latest_version'] = null;
         $data['migration_total'] = 0;
 
-        $manifest = $this->fetchChannelManifest();
-        if ($manifest === null) {
-            $manifestFile = FCPATH . 'release_build/release-manifest.json';
-            if (is_file($manifestFile)) {
-                $manifest = json_decode((string) @file_get_contents($manifestFile), true);
-            }
-        }
-        if (is_array($manifest)) {
-            $data['latest_version'] = $manifest['version'] ?? null;
-            // How many migrations the current release ships — the denominator
-            // for each install's migration progress bar. Without it the count
-            // alone says nothing: 42 applied is fine if 42 exist and stalled
-            // if 103 do.
-            $data['migration_total'] = isset($manifest['migrations']) ? count($manifest['migrations']) : 0;
-        }
+        // Same helper the update driver uses, so the header and the button can
+        // never disagree again about which version is current.
+        $facts = $this->releaseFacts();
+        $data['latest_version']   = $facts['version'];
+        $data['migration_total']  = $facts['migration_total'];
+        $data['migration_newest'] = $facts['migration_newest'];
+        $data['release_source']   = $facts['source'];
 
         $data['stats'] = [
             'total'     => count($data['installs']),
@@ -289,8 +391,9 @@ class Fleet extends MY_Controller {
             $latestVersion = (string) ($data['latest_version'] ?? '');
             $claimsCurrent = $latestVersion === '' || empty($i->version)
                 || version_compare((string) $i->version, $latestVersion, '>=');
-            $migBehind = $claimsCurrent && $migTotal > 0 && $migApplied > 0
-                && $migApplied < $migTotal;
+            // Same test the update driver uses, so the badge and the button
+            // can never disagree about who is behind.
+            $migBehind = $claimsCurrent && $this->migBehind($i, $data);
 
             $isStuck    = in_array($stage, ['stalled', 'failed'], true)
                 || ($busy && $silent)
@@ -1558,12 +1661,35 @@ class Fleet extends MY_Controller {
                 return;
             }
 
-            $latest = null;
-            $mf = FCPATH . 'release_build/release-manifest.json';
-            if (is_file($mf)) {
-                $m = json_decode((string) @file_get_contents($mf), true);
-                $latest = $m['version'] ?? null;
-            }
+            // One source of truth, shared with index() — see releaseFacts().
+            // Reading the local build file alone here was why the button could
+            // say "all up to date" while the page showed a newer version.
+            $facts          = $this->releaseFacts();
+            $latest         = $facts['version'];
+            $migrationTotal = $facts['migration_total'];
+
+            // "Up to date" CANNOT be judged on the version alone.
+            //
+            // The heartbeat reports the CODE version, and step 5 (apply files)
+            // advances that BEFORE step 6 (migrations) has finished. So an
+            // install whose migration chain stalled advertises the newest
+            // version while its database is many releases behind — a
+            // version-only test then says "nothing to do" and skips it for
+            // ever. That is exactly how three fleets sat at
+            // "Run Database Migrations — Ran migration 1 / 18" while showing
+            // 4.0.9.123, and why "Update fleet" answered "all up to date".
+            //
+            // migrations_applied only exists after migration 4.0.9.103; when the
+            // column is absent we simply cannot see this, which is the honest
+            // degradation (same approach as update_stage below).
+            $hasMig = $this->db->field_exists('migrations_applied', 'db_fleet_installs');
+            // migration_newest is the stronger evidence (migBehind() compares
+            // it), so request it whenever the column exists.
+            $hasNew = $this->db->field_exists('migration_newest', 'db_fleet_installs');
+            $migCols = ($hasMig ? ', migrations_applied' : '') . ($hasNew ? ', migration_newest' : '');
+            $dbBehind = function ($row) use ($facts) {
+                return $this->migBehind($row, $facts);
+            };
 
             // ---- Bootstrap: every install must be running the CURRENT
             // Updater before it can be asked to update.
@@ -1581,13 +1707,21 @@ class Fleet extends MY_Controller {
             if (is_file($updaterSrc)) {
                 $b64 = base64_encode((string) @file_get_contents($updaterSrc));
                 foreach ($ids as $id) {
-                    $row = $this->db->select('id, version')->where('id', $id)
+                    $bsel = 'id, version' . $migCols;
+                    $row = $this->db->select($bsel)->where('id', $id)
                         ->get('db_fleet_installs')->row();
                     if (!$row) { continue; }
-                    // Already on the latest release → its Updater is current.
+                    // Current release AND a current database → genuinely up to
+                    // date, so its Updater is current too.
+                    //
+                    // The migration half is essential: an install that reports
+                    // the latest version but is stuck mid-chain is still running
+                    // the OLD Updater — the very thing that cannot finish a large
+                    // release. Skipping it on version alone would withhold the
+                    // one file that lets it finish, permanently.
                     $current = $latest && !empty($row->version)
                         && version_compare($row->version, $latest, '>=');
-                    if ($current) { continue; }
+                    if ($current && !$dbBehind($row)) { continue; }
 
                     // Never stack bootstrap pushes — one outstanding per install.
                     $pendingPush = $this->db->where('install_id', $id)
@@ -1622,13 +1756,24 @@ class Fleet extends MY_Controller {
             $hasStage = $this->db->field_exists('update_stage', 'db_fleet_installs');
             $need = [];
             $remainIds = [];
+            $unknownCount = 0;   // applied = 0 → the install has not reported it
             foreach ($ids as $id) {
-                $sel = $hasStage ? 'id, version, update_stage' : 'id, version';
+                $sel = ($hasStage ? 'id, version, update_stage' : 'id, version') . $migCols;
                 $row = $this->db->select($sel)->where('id', $id)
                     ->get('db_fleet_installs')->row();
                 if (!$row) { continue; }
-                $behind = $latest && !empty($row->version)
-                    && version_compare($row->version, $latest, '<');
+                // Applied = 0 is not "current", it is "cannot tell" — the
+                // install has never reported a migration count (an older build
+                // predating that heartbeat field). Counted so the UI can say so
+                // instead of silently treating it as up to date.
+                if ($hasMig && (int) ($row->migrations_applied ?? 0) === 0) { $unknownCount++; }
+                // Behind = older code, OR code current but database behind.
+                // Without the second half a stalled install is invisible here
+                // and the round reports "all up to date" while its database is
+                // still short of the release.
+                $behind = ($latest && !empty($row->version)
+                        && version_compare($row->version, $latest, '<'))
+                    || $dbBehind($row);
                 $stage = $hasStage ? strtolower((string) ($row->update_stage ?? '')) : '';
                 if ($behind || in_array($stage, ['stalled', 'failed'], true)) {
                     $remainIds[] = (int) $row->id;
@@ -1671,6 +1816,13 @@ class Fleet extends MY_Controller {
                 'woke'        => $woke,
                 'remaining'   => count($remainIds),
                 'total'       => count($ids),
+                // Diagnostics — so "all up to date" can never again be a
+                // dead end. If remaining is 0 these fields say WHY: which
+                // source supplied the version, how many migrations the release
+                // ships, and how many installs have not reported a count yet.
+                'release_source'  => $facts['source'],
+                'migration_total' => $migrationTotal,
+                'mig_unknown'     => $unknownCount,
             ]);
         } catch (Throwable $e) {
             log_message('error', 'Fleet update_round failed: ' . $e->getMessage());

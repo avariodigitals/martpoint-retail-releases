@@ -1130,14 +1130,42 @@ function updateFleet() {
       if (res.status !== 'ok') { finish(res.message || 'Failed', true); return; }
 
       var rem = res.remaining || 0;
+      // "0 still behind" is only good news if every install actually REPORTED
+      // its migration count. An install that has never sent one reads as 0 and
+      // is indistinguishable from a healthy one, so say so plainly rather than
+      // declaring the fleet current on no evidence.
+      var unknown = res.mig_unknown || 0;
       $('#fleetUpdateMsg').html(
         'Round ' + round + ' — <b>' + rem + '</b> of ' + res.total + ' still behind'
         + ' · queued ' + res.queued + ', woken ' + res.woke
         + (res.bootstrapped ? ' · <b>fixing ' + res.bootstrapped + ' stale updater(s)</b>' : '')
         + (res.latest ? ' · target v' + res.latest : '')
+        + (unknown ? ' · <b>' + unknown + ' not reporting a migration count</b>' : '')
       );
-
-      if (rem === 0) { finish(null, false); return; }
+      if (!res.latest) {
+        // No release could be resolved, so "nothing is behind" is meaningless —
+        // it is an absence of information, not a clean fleet.
+        finish('Could not determine the current release version on Central, so no install could be '
+          + 'compared. Check the update channel URL in Site Settings, or run Manifest Generator. '
+          + '(source: ' + (res.release_source || 'none') + ')', true);
+        return;
+      }
+      if (res.migration_total === 0) {
+        finish('Release v' + res.latest + ' was found, but it lists 0 migrations — so database '
+          + 'progress cannot be judged. Re-run Manifest Generator on Central so the release '
+          + 'manifest carries its migration list.', true);
+        return;
+      }
+      if (rem === 0) {
+        if (unknown > 0) {
+          finish('Nothing looks behind — but ' + unknown + ' install(s) have never reported a '
+            + 'migration count, so their databases cannot be verified. Click "Sync & repair cron" '
+            + 'so they check in, then run this again.', true);
+          return;
+        }
+        finish(null, false);
+        return;
+      }
 
       // No movement between rounds means the installs are not being reached —
       // stop and say so rather than looping on nothing.
