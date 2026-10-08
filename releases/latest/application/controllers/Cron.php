@@ -650,7 +650,24 @@ class Cron extends CI_Controller {
 			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
 			return;
 		}
-		@set_time_limit(60);
+		// No time limit — the SAME treatment System_updates::run_step gives the
+		// browser path, and for the same reason.
+		//
+		// This used to be set_time_limit(60) while the block below asked
+		// runUpdateToCompletion for a 110-SECOND budget. The request was
+		// therefore guaranteed to be killed part-way through its own slice —
+		// mid-download, or worse mid-file-write. That is a strong candidate for
+		// the "stalled mid-step" reports: the updater believed it had 110s and
+		// the host cut it off at 60s.
+		//
+		// runStep()'s resetTimer() raises the limit to 120 as it goes, but that
+		// only ever papered over the mismatch. A wake ping is a user-triggered
+		// action — someone clicked Update and is waiting — so it should behave
+		// like the browser click, which sets no limit at all.
+		@set_time_limit(0);
+		@ini_set('max_execution_time', '0');
+		// Central's curl gives up after ~6s and the install keeps working.
+		// Without this the whole run is aborted the moment Central hangs up.
 		@ignore_user_abort(true);
 		header('Content-Type: application/json');
 		try {
@@ -659,30 +676,30 @@ class Cron extends CI_Controller {
 			$commands = $this->updater->pollFleetCommands();
 			if(!empty($commands)){ $this->updater->sendHeartbeat(); } // report post-command state (license, suspension…)
 
-			// A queued `update_now` MUST advance here.
+			// NOTE: no second runUpdateToCompletion() here.
 			//
-			// This endpoint is what Central's wake ping hits, and it was
-			// deliberately built to skip the update pipeline so license/OTP
-			// commands answered in seconds. But that also meant "Update now"
-			// was polled, marked done, and then never actually ran the update
-			// — the only thing that advanced an install was the 30-minute
-			// cron. Central said "woken now" while nothing moved.
+			// pollFleetCommands() above ALREADY executes a queued `update_now`
+			// — it calls executeFleetCommand(), which for update_now runs
+			// runUpdateToCompletion(110) itself. The explicit call that used to
+			// sit here was therefore running the update TWICE per wake ping:
+			// up to 220 seconds of work, of which the second pass was usually a
+			// no-op but could silently continue the first.
 			//
-			// The update is resumable by design (persisted state + step
-			// runner), so a bounded slice here is safe: it makes progress
-			// whether or not cron ever fires, and the next ping continues.
-			$wantsUpdate = false;
-			foreach ((array) $commands as $c) {
-				if (($c['command'] ?? '') === 'update_now') { $wantsUpdate = true; break; }
-			}
+			// When that first pass runs out of budget it returns `resume`,
+			// pollFleetCommands reports that to Central, and Central re-queues
+			// the command and wakes the install again — so the update still
+			// drives itself to completion. The duplicate added nothing but
+			// time-to-first-report, which is exactly the delay that made
+			// "Update now" look like it had not started.
 			$update = null;
-			if ($wantsUpdate) {
-				// Run to completion, not one slice. This request may be Central's
-				// 5s curl, which disconnects early — ignore_user_abort (set above)
-				// keeps the work running to the budget so it is not wasted.
-				$update = $this->updater->runUpdateToCompletion(110);
-				$this->updater->sendHeartbeat();
+			foreach ((array) $commands as $c) {
+				if (($c['command'] ?? '') === 'update_now') {
+					$update = $c;
+					unset($update['payload']);
+					break;
+				}
 			}
+			$this->updater->sendHeartbeat(); // final state, now that any update finished
 
 			echo json_encode(['status'=>'ok','commands'=>$commands,'update'=>$update]);
 		} catch (Throwable $e) {
@@ -702,7 +719,21 @@ class Cron extends CI_Controller {
 			return;
 		}
 
-		@set_time_limit(120);
+		// Must cover the WORST case of one tick, not the typical case.
+		//
+		// This request can do two long things back to back: pollFleetCommands()
+		// executes a queued `update_now` (up to 110s), and then the scheduled
+		// runUpdateToCompletion() below gets its own 110s budget. That is 220s
+		// of work against a previously 120s limit — so a tick that had both a
+		// queued command and real update work was killed part-way through the
+		// second pass.
+		//
+		// Deliberately bounded rather than 0: with no concurrency lock in
+		// Updater.php, an unlimited tick could still be running when the next
+		// */30 tick starts, and two runners share one state file. 600s is
+		// comfortably past one tick's work while staying well inside the
+		// schedule.
+		@set_time_limit(600);
 		// Central pings this URL to wake the install for queued commands —
 		// keep running even if the caller disconnects early.
 		@ignore_user_abort(true);

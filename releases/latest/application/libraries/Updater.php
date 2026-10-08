@@ -284,7 +284,19 @@ class Updater {
             return ['status' => 'error', 'message' => $check['error']];
         }
         $state = $this->readState();
-        $resuming = !empty($state) && empty($state['done']) && empty($state['failed']);
+        // A `failed` state file is NOT a reason to refuse work.
+        //
+        // It is set by a thrown step, and nothing ever cleared it. So an
+        // install that hit ONE transient error mid-update was stranded for
+        // ever: `available` stayed true (the update never actually finished)
+        // while `resuming` was false, and this guard returned "No update
+        // available." on every tick. Central's "Update now" did nothing, cron
+        // did nothing, and the only escape was a human clicking Repair.
+        //
+        // The step runner is idempotent and resumes from its checkpoint, so
+        // retrying is safe. Attempts are bounded inside runStep(), which is
+        // what stops a genuinely broken release from looping for ever.
+        $resuming = !empty($state) && empty($state['done']);
 
         if (empty($check['available']) && !$resuming) {
             return ['status' => 'ok', 'done' => true, 'message' => 'No update available.'];
@@ -351,7 +363,10 @@ class Updater {
      */
     public function shouldAutoCheck(int $intervalSeconds = 21600, string $stampName = 'auto-check.stamp'): bool {
         $state = $this->readState();
-        if (!empty($state) && empty($state['done']) && empty($state['failed'])) {
+        // Unfinished work — including a job whose state file says `failed` —
+        // must resume on the next login rather than sitting until the 6-hour
+        // stamp expires. Same reason as the $resuming guard in runAutoUpdate.
+        if (!empty($state) && empty($state['done'])) {
             return true;
         }
         $stamp = $this->tempDir . '/' . $stampName;
@@ -781,7 +796,12 @@ class Updater {
             // not "failed" — and clears itself on the next cron or login.
             $stamp = @filemtime($this->statePath) ?: 0;
             $ageSeconds = $stamp > 0 ? (time() - $stamp) : 0;
-            if ($ageSeconds > 900) {
+            // Same cadence rule as failStalledJobs(): a slice runs every */30,
+            // so a healthy in-flight update is quiet for up to 30 minutes.
+            // Reporting "stalled" at 15 min made Central show a red stalled
+            // badge on installs that were progressing normally — which is why
+            // every fleet looked broken and the instinct was to click Repair.
+            if ($ageSeconds > 3600) {
                 return [
                     'stage'  => 'stalled',
                     'step'   => $step,
@@ -1864,15 +1884,47 @@ class Updater {
             return $result;
 
         } catch (Throwable $e) {
-            $this->markJobFailed($e->getMessage());
-            $state['failed'] = true;
-            $state['message'] = $e->getMessage();
+            // A thrown step is usually TRANSIENT: a channel fetch that timed
+            // out, a 5xx from raw.githubusercontent.com, a request killed by
+            // the host, a shared-host CPU stall. Marking the job terminally
+            // failed on the first throw is what made these installs need a
+            // human — `state['failed']` was never cleared, so auto-update
+            // refused to resume for ever.
+            //
+            // Retry a bounded number of times, then fail for real, so a
+            // genuinely broken release still surfaces instead of looping.
+            //
+            // Returning status 'error' is deliberate: it stops THIS run from
+            // spinning on the same failing step (runAutoUpdate and
+            // runUpdateToCompletion both bail on 'error'), while leaving the
+            // attempt counter below the cap so the next cron tick or Central
+            // wake retries from the checkpoint.
+            $attempts    = (int) ($state['attempts'] ?? 0) + 1;
+            $maxAttempts = 5;
+            $state['attempts'] = $attempts;
+            $state['message']  = $e->getMessage();
+
+            if ($attempts >= $maxAttempts) {
+                $this->markJobFailed($e->getMessage());
+                $state['failed'] = true;
+                $this->writeState($state);
+                return [
+                    'status'  => 'error',
+                    'message' => $e->getMessage() . ' (gave up after ' . $attempts . ' attempts)',
+                    'failed'  => true,
+                    'step'    => $step,
+                ];
+            }
+
+            // Not terminal. Deliberately leave db_system_updates.status alone:
+            // logJob already reported the progress, and the watchdog owns the
+            // abandoned case.
             $this->writeState($state);
             return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'failed' => true,
-                'step' => $step,
+                'status'  => 'error',
+                'message' => $e->getMessage() . ' — transient, will retry automatically (' . $attempts . '/' . $maxAttempts . ').',
+                'failed'  => false,
+                'step'    => $step,
             ];
         }
     }
@@ -2462,6 +2514,19 @@ class Updater {
         $state['message'] = $result['message'] ?? '';
         $state['done'] = $result['done'] ?? false;
 
+        // Reaching here means the step completed without throwing, so clear the
+        // transient-failure counter. Without this a step that fails once per
+        // run would accumulate attempts across a long, otherwise healthy
+        // update and eventually give up on a release that is fine.
+        $state['attempts'] = 0;
+
+        // Also clear a stale `failed` flag. A job can be marked failed and then
+        // still make progress (the browser-driven run_step path ignores the
+        // flag, and so does any build that predates the $resuming fix). If the
+        // flag survives that progress, cron keeps believing the job is dead
+        // and only a human can restart it — the exact loop we are removing.
+        $state['failed'] = false;
+
         if ($result['done']) {
             $state['batch'] = 0; // Reset batch for next step
             $state['step'] = min($state['step'] + 1, 8);
@@ -2662,12 +2727,29 @@ class Updater {
         if (!$this->CI->db->field_exists('updated_at', 'db_system_updates')) {
             return;
         }
-        $staleBefore = date('Y-m-d H:i:s', time() - 600);
+        // The window MUST exceed the cadence that resumes a job.
+        //
+        // An in-flight update advances one slice at a time: ~110s of work per
+        // call, and the next call arrives from the */30 cron or Central's wake
+        // ping. So a perfectly healthy job is legitimately idle for up to 30
+        // minutes between slices.
+        //
+        // The old 600s (10 min) window was SHORTER than that cadence, so every
+        // multi-slice fleet update was marked "Update stalled — the server
+        // stopped responding mid-step" before it could take its next step. The
+        // job then sat failed at whatever step it had reached — classically
+        // step 2, "Backup Files — Files backed up." — and needed a manual
+        // retry. A real release is thousands of files and always needs many
+        // slices, so it always tripped.
+        //
+        // 3600s (60 min) is 2x the cron period: long enough that only a
+        // genuinely abandoned job is caught, short enough to still notice one.
+        $staleBefore = date('Y-m-d H:i:s', time() - 3600);
         $this->CI->db->where('status', 'running')
             ->where('updated_at <', $staleBefore)
             ->update('db_system_updates', [
                 'status' => 'failed',
-                'error_message' => 'Update stalled — the server stopped responding mid-step. Retry the update; it resumes from the last checkpoint.',
+                'error_message' => 'Update stalled — no progress for over an hour. It resumes automatically on the next check-in; retry only if it stays here.',
             ]);
     }
 

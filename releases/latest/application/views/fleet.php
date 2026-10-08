@@ -15,6 +15,14 @@
 .fleet-stat .lbl { font-size: 11px; color: #78716C; text-transform: uppercase; letter-spacing: .4px; }
 .fleet-stat.warn .num { color: #D97706; }
 .fleet-stat.bad .num { color: #DC2626; }
+/* Cards double as filter shortcuts — make that discoverable and keyboardable. */
+.fleet-stat-link { cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
+.fleet-stat-link:hover, .fleet-stat-link:focus-visible {
+  border-color: #A8A29E; box-shadow: 0 2px 6px rgba(0,0,0,.08); transform: translateY(-1px); outline: none;
+}
+.fleet-stat-link:active { transform: translateY(0); }
+.fleet-stat-link:focus-visible { box-shadow: 0 0 0 3px rgba(59,130,246,.35); }
+.fleet-stat-link.is-active { border-color: #3B82F6; box-shadow: 0 0 0 1px #3B82F6 inset; }
 
 /* Keep long keys and the installs table inside their cards */
 .fleet-card { overflow: hidden; }
@@ -181,13 +189,39 @@
 </div>
 
 <div class="fleet-stats">
-  <div class="fleet-stat"><div class="num"><?= (int) $stats['total'] ?></div><div class="lbl">Registered Installs</div></div>
-  <div class="fleet-stat"><div class="num"><?= (int) $stats['active24h'] ?></div><div class="lbl">Seen in 24h</div></div>
-  <div class="fleet-stat<?= $stats['outdated'] ? ' warn' : '' ?>"><div class="num"><?= (int) $stats['outdated'] ?></div><div class="lbl">Outdated<?= $latest_version ? ' (v' . htmlspecialchars($latest_version) . ')' : '' ?></div></div>
-  <div class="fleet-stat<?= $stats['expired'] ? ' warn' : '' ?>"><div class="num"><?= (int) $stats['expired'] ?></div><div class="lbl">Expired</div></div>
-  <div class="fleet-stat<?= $stats['suspended'] ? ' bad' : '' ?>"><div class="num"><?= (int) $stats['suspended'] ?></div><div class="lbl">Suspended</div></div>
-  <div class="fleet-stat<?= $stats['updating'] ? ' warn' : '' ?>"><div class="num"><?= (int) $stats['updating'] ?></div><div class="lbl">Updating now</div></div>
-  <div class="fleet-stat<?= $stats['stuck'] ? ' bad' : '' ?>"><div class="num"><?= (int) $stats['stuck'] ?></div><div class="lbl">Stuck / failed</div></div>
+  <?php
+  // Each card is a filter shortcut: clicking one drives the same
+  // #fleetFilter the dropdown uses, then scrolls to the list. They used to be
+  // plain <div>s, so the numbers were readable but inert — you saw "Stuck /
+  // failed 3" and had no way to find those three without guessing at the
+  // dropdown. "Updating now" had no dropdown entry at all, so its card could
+  // never be acted on.
+  //
+  // $card, $value, $title — $value === null renders a non-clickable card.
+  $cards = [
+      ['num' => $stats['total'],         'lbl' => 'Registered Installs', 'cls' => '',                                       'value' => '',          'title' => 'Show every install'],
+      ['num' => $stats['active24h'],     'lbl' => 'Seen in 24h',        'cls' => '',                                       'value' => null,        'title' => ''],
+      ['num' => $stats['outdated'],      'lbl' => 'Outdated' . ($latest_version ? ' (v' . htmlspecialchars($latest_version) . ')' : ''), 'cls' => $stats['outdated'] ? 'warn' : '', 'value' => 'outdated', 'title' => 'Show installs behind the latest release'],
+      ['num' => $stats['expired'],       'lbl' => 'Expired',            'cls' => $stats['expired'] ? 'warn' : '',          'value' => 'expired',   'title' => 'Show installs with an expired licence'],
+      ['num' => $stats['suspended'],     'lbl' => 'Suspended',          'cls' => $stats['suspended'] ? 'bad' : '',         'value' => 'suspended', 'title' => 'Show suspended installs'],
+      ['num' => $stats['updating'],      'lbl' => 'Updating now',       'cls' => $stats['updating'] ? 'warn' : '',         'value' => 'updating',  'title' => 'Show installs updating right now'],
+      ['num' => $stats['stuck'],         'lbl' => 'Stuck / failed',     'cls' => $stats['stuck'] ? 'bad' : '',             'value' => 'stuck',     'title' => 'Show installs that need attention'],
+  ];
+  foreach ($cards as $c):
+      $clickable = $c['value'] !== null;
+  ?>
+  <div class="fleet-stat<?= $c['cls'] ? ' ' . $c['cls'] : '' ?><?= $clickable ? ' fleet-stat-link' : '' ?>"
+       <?php if ($clickable): ?>
+       role="button" tabindex="0"
+       data-filter="<?= htmlspecialchars($c['value'], ENT_QUOTES) ?>"
+       onclick="fleetFilterBy('<?= $c['value'] ?>')"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fleetFilterBy('<?= $c['value'] ?>');}"
+       title="<?= htmlspecialchars($c['title'], ENT_QUOTES) ?>"
+       <?php endif; ?>>
+    <div class="num"><?= (int) $c['num'] ?></div>
+    <div class="lbl"><?= $c['lbl'] ?></div>
+  </div>
+  <?php endforeach; ?>
 </div>
 
 <div class="row">
@@ -317,6 +351,7 @@
             <option value="">All installs</option>
             <option value="attention">Needs attention</option>
             <option value="outdated">Outdated</option>
+            <option value="updating">Updating now</option>
             <option value="stuck">Stuck / failed</option>
             <option value="active">Licence active</option>
             <option value="expired">Expired</option>
@@ -454,7 +489,8 @@
                data-hay="<?= htmlspecialchars($haystack, ENT_QUOTES) ?>"
                data-attn="<?= $needsAttention ? '1' : '0' ?>"
                data-outdated="<?= $outdated ? '1' : '0' ?>"
-               data-stuck="<?= (in_array($stage, ['stalled', 'failed'], true) || $hasFail) ? '1' : '0' ?>"
+               data-updating="<?= (int) ($i->mp_is_updating ?? 0) ?>"
+               data-stuck="<?= (int) ($i->mp_is_stuck ?? 0) ?>"
                data-lic="<?= htmlspecialchars($licStatus ?: 'UNKNOWN', ENT_QUOTES) ?>">
             <div class="fleet-row <?= $rowCls ?>">
               <div class="fleet-row-main" onclick="toggleRow(this)">
@@ -1166,6 +1202,34 @@ function toggleRow(el, force) {
 var fleetPage = 1, fleetPageSize = 25;
 
 /**
+ * Drive the list from a summary card.
+ *
+ * Cards and the dropdown are one control expressed twice, so this simply sets
+ * the dropdown and lets the existing render path do the work — no second
+ * filter implementation to drift out of sync.
+ */
+function fleetFilterBy(value) {
+  $('#fleetFilter').val(value);
+  fleetPage = 1;
+  fleetRender();
+  syncCardActive();
+  var list = document.getElementById('fleetList');
+  if (list && list.scrollIntoView) {
+    list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+/**
+ * Mirror the current filter onto the cards, so it is obvious which one is
+ * active — including when the filter was changed from the dropdown instead.
+ */
+function syncCardActive() {
+  var f = $('#fleetFilter').val() || '';
+  $('.fleet-stat-link').removeClass('is-active')
+    .filter('[data-filter="' + f + '"]').addClass('is-active');
+}
+
+/**
  * Render the list for the current search + filter + page.
  *
  * Filtering happens on data-* attributes rather than re-parsing the DOM,
@@ -1186,6 +1250,7 @@ function fleetRender() {
       switch (f) {
         case 'attention': ok = $i.data('attn') == 1; break;
         case 'outdated':  ok = $i.data('outdated') == 1; break;
+        case 'updating':  ok = $i.data('updating') == 1; break;
         case 'stuck':     ok = $i.data('stuck') == 1; break;
         case 'active':    ok = $i.data('lic') === 'ACTIVE'; break;
         case 'expired':   ok = $i.data('lic') === 'EXPIRED'; break;
@@ -1228,7 +1293,7 @@ function fleetRender() {
 }
 
 $(document).on('input', '#fleetSearch', function () { fleetPage = 1; fleetRender(); });
-$(document).on('change', '#fleetFilter', function () { fleetPage = 1; fleetRender(); });
+$(document).on('change', '#fleetFilter', function () { fleetPage = 1; fleetRender(); syncCardActive(); });
 
 $('#fleetPageSize').on('click', 'button', function () {
   $('#fleetPageSize button').removeClass('active');

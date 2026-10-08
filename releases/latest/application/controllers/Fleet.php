@@ -243,20 +243,44 @@ class Fleet extends MY_Controller {
             if (($i->license_status ?? '') === 'SUSPENDED') $data['stats']['suspended']++;
             if (($i->license_status ?? '') === 'EXPIRED') $data['stats']['expired']++;
 
-            // "Stuck" = the install told us it stopped, or it claims to be
-            // working but has not checked in since. Both need a human; a
-            // healthy idle install does not.
-            $stage = strtolower(trim((string) ($i->update_stage ?? '')));
-            if (in_array($stage, ['stalled', 'failed'], true)) {
-                $data['stats']['stuck']++;
-            } elseif (in_array($stage, ['ready', 'downloading', 'verifying', 'applying', 'migrating', 'finalizing', 'cleanup'], true)) {
-                $data['stats']['updating']++;
-                // Still "running" but silent for over an hour means the
-                // request died — count it as stuck too.
-                if (empty($i->last_seen) || $i->last_seen < date('Y-m-d H:i:s', time() - 3600)) {
-                    $data['stats']['stuck']++;
-                }
-            }
+            // "Stuck" = the install told us it stopped, it recorded a failure,
+            // or it claims to be working but has not checked in since. All
+            // three need a human; a healthy idle install does not.
+            //
+            // These two flags are computed ONCE, here, and read by the view.
+            // They used to be derived separately — the counter here and the
+            // row's data-stuck attribute in the template — and the two rules
+            // disagreed in both directions:
+            //
+            //   * the row never counted "busy but gone quiet", so a card could
+            //     read 5 while the Stuck / failed filter showed 0;
+            //   * the counter added a silent install to BOTH totals, inflating
+            //     each and making neither trustworthy;
+            //   * there was no per-row "updating" flag at all, so the
+            //     "Updating now" card had nothing to filter by.
+            //
+            // They are now mutually exclusive: a silent install is stuck, not
+            // updating, so clicking either card returns exactly its own count.
+            $stage  = strtolower(trim((string) ($i->update_stage ?? '')));
+            $busy   = in_array($stage, [
+                'ready', 'downloading', 'verifying', 'applying',
+                'migrating', 'finalizing', 'cleanup',
+            ], true);
+            $silent = empty($i->last_seen)
+                || $i->last_seen < date('Y-m-d H:i:s', time() - 3600);
+            $hasFail = trim((string) ($i->last_fail_message ?? '')) !== ''
+                || trim((string) ($i->last_fail_label ?? '')) !== '';
+
+            $isStuck    = in_array($stage, ['stalled', 'failed'], true)
+                || ($busy && $silent)
+                || $hasFail;
+            $isUpdating = $busy && !$isStuck;
+
+            $i->mp_is_stuck    = $isStuck ? 1 : 0;
+            $i->mp_is_updating = $isUpdating ? 1 : 0;
+
+            if ($isStuck)    $data['stats']['stuck']++;
+            if ($isUpdating) $data['stats']['updating']++;
         }
 
         // Provisioning config (cPanel API)
