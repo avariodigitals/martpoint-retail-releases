@@ -212,8 +212,15 @@ class Updater {
           //
           // A release that still has migrations this install has not RECORDED is
           // an update regardless of the version string.
+          //
+          // Guarded on the remote NOT being older. Without that guard the
+          // fallback fires when the channel is BEHIND the install (a build
+          // that was published before this one), and offers a downgrade —
+          // "from 4.0.9.125 to 4.0.9.124". Applying an older release over a
+          // newer one is never wanted, and the migration set difference that
+          // triggered it is just an artefact of the channel lagging.
           $pendingMigrations = 0;
-          if (!$available) {
+          if (!$available && version_compare($remote, $installed, '>=')) {
               $pendingMigrations = count($this->pendingMigrations($manifest));
               if ($pendingMigrations > 0) {
                   $available = true;
@@ -508,7 +515,18 @@ subscription to receive updates.';
         $this->reconcileVersion();
         try {
             // Central is the registry, not a member — never register itself.
-            if (function_exists('mp_is_central') && mp_is_central()) {
+            //
+            // mp_is_central() ALONE IS NOT ENOUGH here, and relying on it alone is
+            // why the vendor's own dev box appeared in the live fleet. It requires
+            // the request host to equal central_domain, so on
+            // martpointretailapp.test — or a staging clone, or a restored dump —
+            // it is false. The box then believes it is a customer, adopts
+            // fleet_url from the release manifest, and registers.
+            //
+            // mp_is_vendor_box() keys off config/central.php, which is vendor-only
+            // and never ships, so it is correct on every hostname.
+            if ((function_exists('mp_is_central') && mp_is_central())
+                || (function_exists('mp_is_vendor_box') && mp_is_vendor_box())) {
                 return;
             }
             $fleetUrl = $this->getSitesetting('fleet_url');
@@ -998,6 +1016,8 @@ subscription to receive updates.';
                 return $this->runDatabaseBackup();
             case 'push_file':
                 return $this->applyPushedFile($payload);
+            case 'repair_schema':
+                return $this->applySchemaRepair();
             default:
                 return ['ok' => false, 'message' => 'Unknown command: ' . $command];
         }
@@ -1193,6 +1213,86 @@ subscription to receive updates.';
      * root files are refused, so a push can never take the install offline
      * or overwrite credentials. Writes are atomic (tmp file + rename).
      */
+    /**
+     * Apply the schema-repair file shipped with the release.
+     *
+     * Adds tables and columns that an install is missing, for installs already
+     * in service. Purely additive — the file contains only
+     * `CREATE TABLE IF NOT EXISTS` and guarded `ADD COLUMN`, and deliberately
+     * no ledger writes and no version stamp, so it can never make an
+     * incomplete install look complete.
+     *
+     * Runs the LOCAL copy from setup/install/, which ships with every release,
+     * rather than accepting SQL in the command payload: no size limits, no
+     * chance of a truncated transfer, and it is exactly the file the release
+     * was tested with.
+     *
+     * Safe to run repeatedly — every statement in it is idempotent.
+     */
+    protected function applySchemaRepair(): array {
+        try {
+            $file = FCPATH . 'setup/install/db_schema_repair.sql';
+            if (!is_file($file)) {
+                return ['ok' => false, 'message' => 'Repair file not present on this install '
+                    . '(setup/install/db_schema_repair.sql). Update the install first, then retry.'];
+            }
+            $sql = (string) @file_get_contents($file);
+            if (trim($sql) === '') {
+                return ['ok' => false, 'message' => 'Repair file is empty.'];
+            }
+
+            $before = $this->schemaCounts();
+            $statements = $this->splitSql($sql);
+            $ran = 0;
+            foreach ($statements as $stmt) {
+                $stmt = trim($stmt);
+                if ($stmt === '') { continue; }
+                $ran++;
+                // NOT wrapped in a transaction: the file is DDL, which commits
+                // implicitly in MySQL, so a transaction would give a false sense
+                // of atomicity. Every statement is guarded instead, which is
+                // what actually makes a partial run safe to repeat.
+                if (@$this->CI->db->query($stmt) === false) {
+                    $err = $this->CI->db->error();
+                    $msg = (string) ($err['message'] ?? '');
+                    $benign = (stripos($msg, 'Duplicate') !== false)
+                           || (stripos($msg, 'already exists') !== false)
+                           || (stripos($msg, 'Duplicate entry') !== false);
+                    if (!$benign) {
+                        return ['ok' => false, 'message' => 'Repair failed at statement ' . $ran . ': ' . $msg];
+                    }
+                }
+            }
+
+            $after = $this->schemaCounts();
+            return [
+                'ok' => true,
+                'message' => 'Schema repair applied (' . $ran . ' statements). '
+                    . 'Tables ' . $before['tables'] . ' -> ' . $after['tables'] . ', '
+                    . 'columns ' . $before['columns'] . ' -> ' . $after['columns'] . '. '
+                    . 'Ledger and version untouched.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Repair error: ' . $e->getMessage()];
+        }
+    }
+
+    /** Table and column counts for this database — used to report repair deltas. */
+    protected function schemaCounts(): array {
+        $out = ['tables' => 0, 'columns' => 0];
+        try {
+            $db = $this->CI->db->database;
+            $q = $this->CI->db->query(
+                "SELECT COUNT(*) n FROM information_schema.TABLES
+                  WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'", [$db]);
+            if ($q) { $out['tables'] = (int) $q->row()->n; }
+            $q = $this->CI->db->query(
+                "SELECT COUNT(*) n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$db]);
+            if ($q) { $out['columns'] = (int) $q->row()->n; }
+        } catch (Throwable $e) {}
+        return $out;
+    }
+
     protected function applyPushedFile(string $payload): array {
         $f = json_decode($payload, true);
         $path = trim(str_replace('\\', '/', (string) ($f['path'] ?? '')));
@@ -1761,6 +1861,16 @@ subscription to receive updates.';
     protected function applyManifestSettings(array $manifest): void {
         try {
             $updates = [];
+            // A VENDOR box must never adopt the fleet callback.
+            //
+            // config/central.php means this is our own code — a dev host, a
+            // staging clone, a restored dump. It is not a customer install, so it
+            // must not be pointed at the registry and must not register. The host
+            // that happens to serve the channel is irrelevant: the vendor's tree
+            // is never a fleet member, on any hostname.
+            if (function_exists('mp_is_vendor_box') && mp_is_vendor_box()) {
+                return;
+            }
             if (!empty($manifest['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
                 $updates['fleet_url'] = $manifest['fleet_url'];
             }

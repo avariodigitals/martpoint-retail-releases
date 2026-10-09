@@ -9,12 +9,148 @@ class System_updates extends MY_Controller {
 
     public function __construct() {
         parent::__construct();
+
+        // auto_tick is a CHECK-IN ENDPOINT, not a panel page — it deliberately
+        // skips load_global() and the admin gate.
+        //
+        // Two reasons, both load-bearing:
+        //
+        //  1. Central's wake ping carries no session. load_global() redirects
+        //     anything unauthenticated to /logout, so gating it here would make
+        //     the keyless wake impossible — which is why it appeared to do
+        //     nothing even once the 404 was fixed.
+        //
+        //  2. It also avoids the DATABASE session lock entirely. Sessions use
+        //     the database driver, so every request takes a per-session lock;
+        //     an endpoint that may run a long update while holding one is the
+        //     deadlock we already hit once. No session, no lock.
+        //
+        // Safety: this endpoint cannot choose what to install. It can only move
+        // this install to the official release already configured in its own
+        // update_channel_url, and that manifest is signature-verified before
+        // anything is applied. Throttling (shouldAutoCheck) stops casual
+        // repeat calls; `force=1` is used by Central, which is already the
+        // authority for this install.
+        if ($this->router->method === 'auto_tick') {
+            $this->load->library('Updater');
+            return;
+        }
+
         $this->load_global();
         if (!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1) {
             echo json_encode(['status' => 'error', 'message' => 'Access denied']);
             exit;
         }
         $this->load->library('Updater');
+    }
+
+    /**
+     * AJAX / wake — one auto-update tick.
+     *
+     * This method had FOUR callers and no implementation: mp_layout posts to it
+     * on every admin page, and Fleet uses it as its keyless wake fallback. It
+     * simply 404'd, so the browser-driven auto-update never started and Central's
+     * keyless wake never landed — the visible symptom was an install that could
+     * not update at all, with a "missing" 404 in the log.
+     *
+     * Return contract (mp_layout depends on it):
+     *   {status:'update',    from, to}   an update is available — the page drives
+     *                                    the steps itself via run_step()
+     *   {status:'blocked',   message}    licence/plan refuses the update
+     *   {status:'available', remote_version}  newer release exists, not auto-applied
+     *   {status:'idle'}                  nothing to do (or throttled)
+     *
+     * Query flags:
+     *   force=1           ignore the throttle
+     *   commands_only=1   run queued fleet commands and stop — no update pipeline
+     */
+    public function auto_tick() {
+        header('Content-Type: application/json');
+        // Must cover a full server-side slice when Central forces one, and the
+        // request may be cut off by the caller while the work continues.
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ignore_user_abort(true);
+        // Release the session lock — on the database session driver a held lock
+        // blocks every other request from the same browser, including the
+        // run_step calls this method may trigger.
+        if (function_exists('session_write_close')) { session_write_close(); }
+
+        $force        = (int) $this->input->get('force') === 1;
+        $commandsOnly = (int) $this->input->get('commands_only') === 1;
+
+        try {
+            // Heartbeat and queued commands first — cheap, and Central's wake
+            // ping expects its commands to have run by the time this returns.
+            $this->updater->sendHeartbeat();
+            $commands = $this->updater->pollFleetCommands();
+            if (!empty($commands)) {
+                $this->updater->sendHeartbeat();
+            }
+
+            if ($commandsOnly) {
+                echo json_encode(['status' => 'ok', 'commands' => $commands]);
+                return;
+            }
+
+            $check = $this->updater->checkForUpdate();
+            if (!empty($check['error'])) {
+                echo json_encode(['status' => 'error', 'message' => $check['error'],
+                    'commands' => $commands]);
+                return;
+            }
+            if (!empty($check['blocked'])) {
+                echo json_encode(['status' => 'blocked',
+                    'message' => (string) ($check['block_reason'] ?? 'Update blocked.'),
+                    'commands' => $commands]);
+                return;
+            }
+            if (empty($check['available'])) {
+                echo json_encode(['status' => 'idle', 'commands' => $commands]);
+                return;
+            }
+
+            $from = (string) ($check['installed_version'] ?? '');
+            $to   = (string) ($check['remote_version'] ?? '');
+
+            if ($force) {
+                // Central asked. Run server-side to completion, because no
+                // browser is present to drive the steps.
+                $r = $this->updater->runUpdateToCompletion(110);
+                $this->updater->sendHeartbeat();
+                echo json_encode([
+                    'status'   => !empty($r['done']) ? 'updated' : 'update',
+                    'from'     => $from,
+                    'to'       => $to,
+                    'message'  => (string) ($r['message'] ?? ''),
+                    'commands' => $commands,
+                ]);
+                return;
+            }
+
+            // Browser path: report availability and let the page drive run_step,
+            // which keeps a live progress bar and survives host time limits.
+            //
+            // Throttled so a page load does not start an update on its own; the
+            // stamp is only touched when there is actually something to do.
+            if (!$this->updater->shouldAutoCheck()) {
+                echo json_encode(['status' => 'idle', 'reason' => 'throttled',
+                    'remote_version' => $to, 'commands' => $commands]);
+                return;
+            }
+            $this->updater->touchAutoCheck();
+
+            echo json_encode([
+                'status'   => 'update',
+                'from'     => $from,
+                'to'       => $to,
+                'commands' => $commands,
+            ]);
+        } catch (Throwable $e) {
+            // Never blank-500 this — mp_layout and Central both parse the body.
+            log_message('error', 'auto_tick failed: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'message' => get_class($e) . ': ' . $e->getMessage()]);
+        }
     }
 
     /**

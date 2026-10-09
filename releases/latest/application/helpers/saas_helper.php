@@ -103,6 +103,48 @@ if ( ! function_exists('mp_is_central')) {
     }
 }
 
+/**
+ * Is this the VENDOR's code, regardless of which hostname it answers on?
+ *
+ * mp_is_central() additionally requires the request host to match
+ * `central_domain`. That is the right gate for exposing the Fleet/Manifest
+ * panels — a leaked copy must not turn a client install into a central server.
+ * But it is the WRONG signal for "is this our own box", because it recognises
+ * exactly one hostname.
+ *
+ * The vendor runs this same tree on a dev host (martpointretailapp.test), a
+ * staging clone, or a restored dump. None of those match central_domain, so
+ * mp_is_central() is false — the box treats itself as a CLIENT, adopts fleet_url
+ * from the release manifest and registers in the live fleet. The vendor's own
+ * machine then appears in the Fleet Manager as a customer install.
+ *
+ * config/central.php is vendor-only and excluded from every release, so its
+ * presence IS the reliable "this is our code" marker — correct on any hostname.
+ *
+ * Deliberately enables NO privileged panel; keep using mp_is_central() for that.
+ *
+ * @return bool
+ */
+if ( ! function_exists('mp_is_vendor_box')) {
+    function mp_is_vendor_box() {
+        static $is_vendor = null;
+        if ($is_vendor !== null) {
+            return $is_vendor;
+        }
+        $is_vendor = false;
+        // The marker file is the switch — same reasoning as mp_is_central().
+        if (is_file(APPPATH . 'config/central.php')) {
+            $is_vendor = true;
+        } else {
+            $CI = get_instance();
+            if (is_object($CI) && $CI->config->item('is_central') !== null) {
+                $is_vendor = true;
+            }
+        }
+        return $is_vendor;
+    }
+}
+
 function store_module(){
     if (function_exists('mp_feature_flag_raw')) {
         $flag = mp_feature_flag_raw('multi_store');
@@ -111,7 +153,7 @@ function store_module(){
         }
     }
     return false;
-  }
+}
 
 function special_access(){
 	if(is_admin()){//is saas admin

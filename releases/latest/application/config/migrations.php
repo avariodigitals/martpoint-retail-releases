@@ -247,4 +247,15 @@ return [
         // generic). Idempotent — CREATE IF NOT EXISTS + information_schema
         // guarded ALTER, silent on re-run.
         '4.0.9.124v'  => '4.0.9.124_sms_otp_module.sql',
+          // .125 Column repair — the COLUMN half of what .123 did for tables.
+          // The installer stamps 4.0.9.59 and the runner resumes ABOVE it, so
+          // ADD COLUMN statements in migrations <= .59 never reach a fresh
+          // install. 41 columns were missing across 12 migrations: the whole
+          // fleet callback (fleet_url/fleet_key/install_key/deploy_key), incident
+          // banners, audit trail, storefront city shipping/testimonials/background,
+          // online-order stock state and fulfilment, custom-order fields,
+          // quotation revisions, and sales/purchase shipping links.
+          // Every guard is information_schema-based, so existing installs are a
+          // complete no-op.
+          '4.0.9.125v'  => '4.0.9.125_fresh_install_column_repair.sql',
 ];
