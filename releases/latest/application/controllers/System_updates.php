@@ -106,7 +106,9 @@ class System_updates extends MY_Controller {
                 return;
             }
             if (empty($check['available'])) {
-                echo json_encode(['status' => 'idle', 'commands' => $commands]);
+                echo json_encode(['status' => 'idle', 'commands' => $commands,
+                    'installed_version' => $check['installed_version'] ?? null,
+                    'remote_version' => $check['remote_version'] ?? null]);
                 return;
             }
 

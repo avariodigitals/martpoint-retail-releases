@@ -647,6 +647,9 @@ subscription to receive updates.';
             // The last failed job, so Central can show WHY an install is stuck
             // instead of only that it is outdated. Without this the only way to
             // find a failed backup or migration was to log into the install.
+            $payload['last_fail_label'] = '';
+            $payload['last_fail_message'] = '';
+            $payload['last_fail_at'] = '';
             $fail = $this->lastFailure();
             if ($fail) {
                 $payload['last_fail_label']   = $fail['label'];
@@ -926,10 +929,12 @@ subscription to receive updates.';
             if (!$this->CI->db->table_exists('db_system_updates')) {
                 return null;
             }
-            $job = $this->CI->db->where('status', 'failed')
+            // A later successful update resolves an earlier failure. Keep the
+            // history locally, but do not report it as a current fleet blocker.
+            $job = $this->CI->db->where_in('status', ['failed', 'success'])
                 ->order_by('id', 'DESC')->limit(1)
                 ->get('db_system_updates')->row();
-            if (!$job) {
+            if (!$job || ($job->status ?? '') !== 'failed') {
                 return null;
             }
             return [
