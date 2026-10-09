@@ -9572,8 +9572,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "cb83fc5f6c5be69b5845f5713dca2d4aa531a5186356076d2b59b36bc5cb643c",
-            "size": 148572
+            "hash": "8359bd1822fd3633a55598fde1e463b579d810e724f16faafed8a9d2bb89f2be",
+            "size": 149700
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",

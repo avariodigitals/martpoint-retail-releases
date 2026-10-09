@@ -2688,7 +2688,7 @@ subscription to receive updates.';
         $creates = [];
         foreach ($this->splitSql($sql) as $stmt) {
             if (stripos(trim($stmt), 'CREATE TABLE') === 0) {
-                $creates[] = trim($stmt);
+                $creates[] = $this->sanitizeCollation(trim($stmt));
             }
         }
 
@@ -2736,6 +2736,29 @@ subscription to receive updates.';
         $state['schema_reconciled'] = true;
         $this->writeState($state);
         return null;
+    }
+
+    /**
+     * Rewrite MySQL 8.0-only collations/charsets to portable equivalents.
+     *
+     * The canonical schema was generated from a MySQL 8.0 database, so it
+     * carries `utf8mb4_0900_*` (and `utf8mb3`) — neither of which exists on
+     * MySQL 5.7 or MariaDB. A fresh install died with:
+     *
+     *   SQL error #1273: Unknown collation: 'utf8mb4_0900_ai_ci'
+     *
+     * This is defence-in-depth on top of sanitizing the shipped files: a
+     * fleet whose local db_schema_catchup.sql is still the poisoned copy
+     * (its update was interrupted before step 5 applied setup/) is healed
+     * here, in memory, at execution time.
+     */
+    protected function sanitizeCollation(string $sql): string {
+        $sql = str_replace('utf8mb4_0900_ai_ci', 'utf8mb4_unicode_ci', $sql);
+        $sql = str_replace('utf8mb4_0900_as_ci', 'utf8mb4_unicode_ci', $sql);
+        $sql = str_replace('utf8mb4_0900_as_cs', 'utf8mb4_unicode_ci', $sql);
+        $sql = str_replace('utf8mb4_0900_bin', 'utf8mb4_bin', $sql);
+        $sql = str_replace('utf8mb3', 'utf8', $sql);
+        return $sql;
     }
 
     protected function step6RunMigrations(array &$state): array {
