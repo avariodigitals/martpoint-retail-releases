@@ -49,6 +49,14 @@ class Updater {
     protected $tempDir;
     protected $lastManifestError = null;
 
+    // Concurrency lock so cron, Central's wake ping and the login-time lazy
+    // check can never race the same state file. Without it two runners can
+    // interleave readState()/writeState(), lose a checkpoint, and re-run the
+    // same migration — the "187 of 123 applied" inflation seen in the field.
+    protected $lockPath;
+    protected $lockHandle = null;
+    protected $lockDepth = 0;
+
     public function __construct() {
         $this->CI =& get_instance();
         $this->CI->load->library('BackupManager');
@@ -61,6 +69,7 @@ class Updater {
             @mkdir($this->tempDir, 0755, true);
         }
         $this->statePath = $this->tempDir . '/update-state.json';
+        $this->lockPath  = $this->tempDir . '/update.lock';
     }
 
     /* ------------------------------------------------------------------ */
@@ -337,6 +346,54 @@ subscription to receive updates.';
       /* ------------------------------------------------------------------ */
 
     /**
+     * Acquire an exclusive, non-blocking lock on the updater.
+     *
+     * cron (auto_update), Central's wake ping (fleet_ping → update_now) and
+     * the login-time lazy check can all fire in the same minute. The state
+     * file is a read-modify-write checkpoint, so two runners interleaving it
+     * can lose a batch, double-run a migration, or corrupt the JSON — the
+     * "187 of 123 applied" inflation seen on live installs.
+     *
+     * Non-blocking on purpose: a request that cannot win the lock bails
+     * immediately instead of stacking 110-second requests against a shared
+     * host's process limit. Re-entrant, so runUpdateToCompletion() can call
+     * the slice runner, which locks again without self-deadlocking.
+     */
+    protected function acquireLock(): bool {
+        if ($this->lockDepth > 0) {
+            $this->lockDepth++;
+            return true;
+        }
+        $handle = @fopen($this->lockPath, 'c');
+        if (!$handle) {
+            return false;
+        }
+        if (!@flock($handle, LOCK_EX | LOCK_NB)) {
+            @fclose($handle);
+            return false;
+        }
+        $this->lockHandle = $handle;
+        $this->lockDepth = 1;
+        return true;
+    }
+
+    /**
+     * Release the updater lock. Balanced calls only — the handle is closed
+     * when the outermost acquire is released.
+     */
+    protected function releaseLock(): void {
+        if ($this->lockDepth <= 0) {
+            return;
+        }
+        $this->lockDepth--;
+        if ($this->lockDepth === 0 && is_resource($this->lockHandle)) {
+            @flock($this->lockHandle, LOCK_UN);
+            @fclose($this->lockHandle);
+            $this->lockHandle = null;
+        }
+    }
+
+    /**
      * Drive an update to COMPLETION within this request, chaining internally.
      *
      * runAutoUpdate() runs a bounded slice and returns — which is correct for
@@ -355,6 +412,10 @@ subscription to receive updates.';
      * @return array{status:string,done:bool,message:string,step?:int,slices?:int}
      */
     public function runUpdateToCompletion(int $budgetSeconds = 110): array {
+        if (!$this->acquireLock()) {
+            return ['status' => 'busy', 'done' => false, 'message' => 'Another update is already running on this install.'];
+        }
+        try {
         $started = microtime(true);
         $slices = 0;
         $last = ['status' => 'ok', 'done' => false, 'message' => 'Nothing to do.'];
@@ -385,6 +446,9 @@ subscription to receive updates.';
         }
 
         return $last + ['done' => false, 'slices' => $slices];
+        } finally {
+            $this->releaseLock();
+        }
     }
 
     /**
@@ -393,6 +457,10 @@ subscription to receive updates.';
      * daily cron or the login-time lazy check can each do a slice of work.
      */
     public function runAutoUpdate(int $budgetSeconds = 45): array {
+        if (!$this->acquireLock()) {
+            return ['status' => 'busy', 'done' => false, 'message' => 'Another update is already running on this install.'];
+        }
+        try {
         if (!$this->autoUpdateEnabled()) {
             return ['status' => 'skipped', 'message' => 'Auto-update is disabled.'];
         }
@@ -455,6 +523,9 @@ subscription to receive updates.';
             usleep(100000);
         }
         return ['status' => 'ok', 'done' => false, 'message' => 'Update still in progress.'];
+        } finally {
+            $this->releaseLock();
+        }
     }
 
     /**
@@ -2552,8 +2623,129 @@ subscription to receive updates.';
         ];
     }
 
+    /**
+     * One-time schema reconciliation, run before migrations.
+     *
+     * WHY THIS EXISTS
+     *
+     * A migration's guarded ALTER (the `information_schema.columns` +
+     * `DO 0` pattern) is safe when the column is missing — but it is NOT
+     * safe when the whole TABLE is missing. The guard counts columns of
+     * `table_name='X'`, sees 0, and builds `ALTER TABLE X ADD COLUMN ...`,
+     * which fatals with "Table 'X' doesn't exist". That fatal is
+     * deterministic: the runner retries 5 times, gives up, and the install
+     * is wedged at that migration FOREVER — it can never reach the later
+     * repair migrations. Observed live:
+     *
+     *   Migration failed [4.0.9.107_printing_machines.sql]:
+     *   Table 'elitewor_rollin_db.db_print_stage_logs' doesn't exist
+     *
+     * The install's ledger recorded 4.0.9.84 (which creates that table) as
+     * applied, but the table itself was missing — so 4.0.9.84 was skipped,
+     * and 4.0.9.107's ALTER died on a table that no longer exists.
+     *
+     * The fix is to reconcile the schema BEFORE running any migration:
+     * replay the canonical `CREATE TABLE IF NOT EXISTS` definitions shipped
+     * with the release (setup/install/includes/db_schema_catchup.sql). Each
+     * is the FULL final table definition, so a missing table is recreated
+     * with every column — after which the later migrations' guarded ALTERs
+     * all become `DO 0` no-ops and can no longer fatal.
+     *
+     * - Idempotent: `IF NOT EXISTS` everywhere, zero `DROP TABLE`.
+     * - Non-destructive and re-runnable.
+     * - Only the CREATE TABLE statements are replayed (the file's raw ALTERs
+     *   assume a fresh install and would duplicate columns on a live one).
+     * - Chunked with a wall-clock budget and checkpointed, so a large schema
+     *   never exceeds a single request's lifetime.
+     *
+     * @return array|null A progress result when chunking (resume next tick),
+     *                    or null when reconciliation is complete/not needed.
+     */
+    protected function reconcileSchema(array &$state): ?array {
+        if (!empty($state['schema_reconciled'])) {
+            return null;
+        }
+
+        $file = FCPATH . 'setup/install/includes/db_schema_catchup.sql';
+        if (!file_exists($file)) {
+            // Pre-4.0.9.106 installs may not carry setup/. Nothing to
+            // reconcile with — the migration chain remains the authority.
+            $state['schema_reconciled'] = true;
+            $this->writeState($state);
+            return null;
+        }
+
+        $sql = @file_get_contents($file);
+        if ($sql === false) {
+            $state['schema_reconciled'] = true;
+            $this->writeState($state);
+            return null;
+        }
+
+        // Keep ONLY the CREATE TABLE statements. They are the full final
+        // definitions and are idempotent. The file's raw ALTERs, ledger
+        // INSERTs and version UPDATE are deliberately skipped (see docblock).
+        $creates = [];
+        foreach ($this->splitSql($sql) as $stmt) {
+            if (stripos(trim($stmt), 'CREATE TABLE') === 0) {
+                $creates[] = trim($stmt);
+            }
+        }
+
+        $total  = count($creates);
+        $offset = (int) ($state['reconcile_offset'] ?? 0);
+
+        $this->resetTimer();
+        // FK checks are session-scoped and each request is a fresh connection,
+        // so re-assert per slice.
+        @$this->CI->db->query('SET FOREIGN_KEY_CHECKS = 0');
+
+        $started = microtime(true);
+        $budget  = 20; // seconds of this slice
+
+        while ($offset < $total) {
+            if ((microtime(true) - $started) > $budget) {
+                $state['reconcile_offset'] = $offset;
+                $this->writeState($state);
+                return [
+                    'status'     => 'ok',
+                    'message'    => 'Reconciling schema… ' . $offset . '/' . $total,
+                    'step_label' => 'Run Database Migrations',
+                    'done'       => false,
+                    'step'       => 6,
+                    'progress'   => $offset,
+                    'total'      => $total,
+                ];
+            }
+
+            $stmt = $creates[$offset];
+            $offset++;
+
+            $result = @$this->CI->db->query($stmt);
+            if ($result === false) {
+                // Never wedge reconciliation. Log the definition for diagnosis;
+                // the migrations that follow remain the loud signal for a
+                // genuinely broken statement.
+                $err = $this->CI->db->error();
+                log_message('error', 'Schema reconciliation: ' . ($err['message'] ?? 'unknown error')
+                    . ' [' . substr($stmt, 0, 100) . ']');
+            }
+        }
+
+        $state['reconcile_offset'] = $total;
+        $state['schema_reconciled'] = true;
+        $this->writeState($state);
+        return null;
+    }
+
     protected function step6RunMigrations(array &$state): array {
         $this->resetTimer();
+
+        // Reconcile the schema once per update, before any migration runs.
+        $recon = $this->reconcileSchema($state);
+        if ($recon !== null) {
+            return $recon;
+        }
 
         $manifest = $state['manifest'] ?? [];
         $migrations = $state['migrations'] ?? [];

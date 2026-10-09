@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.125",
-    "previous_version": "4.0.9.124",
+    "version": "4.0.9.126",
+    "previous_version": "4.0.9.42",
     "release_date": "2026-10-09",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -5012,8 +5012,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "68c183daee7b996e02a802e20baffbfbbbffde70cc056bbbc684e479a698e2c2",
-            "size": 15196
+            "hash": "1fa41071aaa703f5b4c9586a9406ed57fc1125fa0ba1d91d19295f2f783a2ce6",
+            "size": 15569
         },
         {
             "path": "application/config/routes.php",
@@ -9572,8 +9572,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "615f0ca6e65b83fb7ccae43944690c18fef4658d37239b612741778b6c859fd1",
-            "size": 140758
+            "hash": "cb83fc5f6c5be69b5845f5713dca2d4aa531a5186356076d2b59b36bc5cb643c",
+            "size": 148572
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -11017,7 +11017,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "7265a8044820ee359e5b0cdde64dab8c908d593f9550d83869c360862d33e39c",
+            "hash": "82345d6be9dccaf5612ecb6cbeb66a6b1d7eba0164708ebecfd9fba542961331",
             "size": 106208
         },
         {
@@ -17279,6 +17279,7 @@
         "4.0.9.123_orphan_table_repair_fresh_install.sql",
         "4.0.9.124_sms_otp_module.sql",
         "4.0.9.125_fresh_install_column_repair.sql",
+        "4.0.9.126_schema_reconciliation.sql",
         "4.0.9.12_industry_modules.sql",
         "4.0.9.13_storefront_columns.sql",
         "4.0.9.20_marquee_setting.sql",
@@ -17369,5 +17370,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.125"
+    "changelog": "Release 4.0.9.126"
 }

@@ -258,4 +258,9 @@ return [
           // Every guard is information_schema-based, so existing installs are a
           // complete no-op.
           '4.0.9.125v'  => '4.0.9.125_fresh_install_column_repair.sql',
+          // .126 Schema reconciliation — CODE fix (Updater.php now replays the
+          // canonical CREATE TABLE IF NOT EXISTS before migrations, healing any
+          // table that drifted out of an install) + ledger dedupe here (the
+          // "187 of 123 applied" inflation). Safe and idempotent.
+          '4.0.9.126v'  => '4.0.9.126_schema_reconciliation.sql',
 ];
