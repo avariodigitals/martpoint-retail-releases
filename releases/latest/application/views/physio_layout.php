@@ -110,6 +110,7 @@ if(empty($storeName)){ $storeName = $SITE_TITLE ?? 'MartPoint'; }
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/css/responsive.bootstrap.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/css/buttons.bootstrap.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>toastr/toastr.css">
+<link rel="stylesheet" href="<?= $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=15">
@@ -118,6 +119,18 @@ if(empty($storeName)){ $storeName = $SITE_TITLE ?? 'MartPoint'; }
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 :root{--mp-primary:#176753;--mp-primary-dark:#104d40;--mp-bg:#eef3f0;--mp-surface:#fff;--mp-text:#1e2d28;--mp-muted:#687a72;--mp-border:#d8e2dc;--mp-success:#176753;--mp-danger:#c95f49;--mp-warning:#a96e24;--mp-ink:#1e2d28;--mp-shadow-sm:0 1px 3px rgba(27,53,43,.06);--mp-shadow:0 14px 40px rgba(27,53,43,.07)}
+.pace .pace-progress{background:var(--mp-primary)!important;height:3px}
+.pace .pace-progress-inner{box-shadow:0 0 8px var(--mp-primary)!important}
+.pace .pace-activity{display:none!important}
+.physio-shell a:hover,.physio-shell a:focus{color:var(--mp-primary-dark)}
+.physio-shell .physio-rail a:hover,.physio-shell .physio-rail a:focus{color:#fff;background:rgba(255,255,255,.08)}
+.physio-shell .physio-rail a.active:hover,.physio-shell .physio-rail a.active:focus{color:#104d40;background:#dcefe7}
+.physio-shell .btn-primary:hover,.physio-shell .btn-primary:focus,.physio-shell .mp-btn-primary:hover,.physio-shell .mp-btn-primary:focus{color:#fff!important;background:var(--mp-primary-dark)!important;border-color:var(--mp-primary-dark)!important}
+.physio-shell .mp-qa-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--mp-border);border-radius:9px;text-decoration:none;font-weight:600}
+.physio-shell .mp-qa-btn.green,.physio-shell .mp-qa-btn.blue{background:#e3efe9;color:var(--mp-primary-dark)}
+.physio-shell .mp-qa-btn.green:hover,.physio-shell .mp-qa-btn.green:focus,.physio-shell .mp-qa-btn.blue:hover,.physio-shell .mp-qa-btn.blue:focus{background:var(--mp-primary-dark)!important;color:#fff!important;border-color:var(--mp-primary-dark)}
+.physio-shell .dataTables_wrapper{position:relative}
+.physio-shell .dataTables_processing{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%);margin:0!important;width:auto!important;max-width:calc(100% - 32px);height:auto!important;background:#fff!important;color:var(--mp-primary-dark)!important;border:1px solid var(--mp-border)!important;border-radius:9px;padding:14px 20px!important;z-index:5}
 *{box-sizing:border-box!important}html{margin:0!important;min-height:100%!important;overflow-x:hidden!important}body{margin:0!important;min-height:100%!important;background:var(--mp-bg)!important;color:var(--mp-text)!important;font-family:'DM Sans',sans-serif!important;font-size:15.5px!important}body{display:block!important;overflow-y:auto!important;overflow-x:hidden!important;line-height:1.6!important}
 .mp-shell.physio-shell{display:grid!important;grid-template-columns:264px minmax(0,1fr)!important;min-height:100vh!important;align-items:stretch!important}
 /* The rail is a sticky 100vh column, so when the page is taller than the

@@ -44,7 +44,7 @@ $(document).ready(function() {
     },
     "processing": true, "serverSide": true, "order": [],
     "responsive": true,
-    language: { processing: '<div class="text-primary bg-primary" style="position: relative;z-index:100;overflow: visible;">Processing...</div>' },
+    language: { processing: '<span style="display:inline-flex;align-items:center;gap:8px;color:inherit;"><i class="fa fa-spinner fa-spin"></i> Loading...</span>' },
     "ajax": { "url": "<?= site_url('operations/recipe_categories_ajax'); ?>", "type": "POST",
       complete: function(data) {
         $('.column_checkbox').iCheck({ checkboxClass: 'icheckbox_square-orange', radioClass: 'iradio_square-orange', increaseArea: '10%' });

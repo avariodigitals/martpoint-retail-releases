@@ -263,4 +263,5 @@ return [
           // table that drifted out of an install) + ledger dedupe here (the
           // "187 of 123 applied" inflation). Safe and idempotent.
           '4.0.9.126v'  => '4.0.9.126_schema_reconciliation.sql',
+          '4.0.9.127v'  => '4.0.9.127_physio_and_fleet_recovery.sql',
 ];

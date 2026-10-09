@@ -99,6 +99,13 @@ class Updater {
      */
     public function getCodeVersion(): string {
         try {
+            // Read disk: a worker that replaced this helper still has the old
+            // PHP function loaded until its request ends (and OPcache may lag).
+            $helper = APPPATH . 'helpers/custom_helper.php';
+            $source = @file_get_contents($helper);
+            if ($source !== false && preg_match("/function\\s+app_version\\s*\\(\\s*\\)\\s*\\{\\s*return\\s*'([0-9.]+)'/s", $source, $match)) {
+                return $match[1];
+            }
             if (!function_exists('app_version')) {
                 $this->CI->load->helper('custom');
             }
@@ -505,7 +512,8 @@ subscription to receive updates.';
             $last = $this->runStep($step, $manifest, $preview);
 
             if (($last['status'] ?? '') === 'error' || !empty($last['failed'])) {
-                return ['status' => 'error', 'message' => $last['message'] ?? 'Update failed.', 'step' => $step];
+                return ['status' => !empty($last['failed']) ? 'error' : 'retry',
+                    'message' => $last['message'] ?? 'Update failed.', 'step' => $step];
             }
             if (!empty($last['done']) && (int) ($last['step'] ?? $step) >= 8) {
                 $this->sendHeartbeat();
@@ -583,7 +591,7 @@ subscription to receive updates.';
         // Heal a DB version left stale by an interrupted update, so the
         // registry and the install stop disagreeing. Runs before the payload
         // is built so both fields report the same, correct value.
-        $this->reconcileVersion();
+        // Database version is stamped only after migrations complete.
         try {
             // Central is the registry, not a member — never register itself.
             //
@@ -1054,6 +1062,9 @@ subscription to receive updates.';
                 }
                 if ($finished) {
                     return ['ok' => true, 'message' => $msg, 'final' => true];
+                }
+                if (in_array($r['status'] ?? '', ['error', 'blocked', 'skipped'], true)) {
+                    return ['ok' => false, 'message' => $msg, 'final' => true];
                 }
                 // Not finished: hand the command back so Central re-queues it
                 // rather than believing the install is up to date.
@@ -2662,24 +2673,38 @@ subscription to receive updates.';
      *                    or null when reconciliation is complete/not needed.
      */
     protected function reconcileSchema(array &$state): ?array {
-        if (!empty($state['schema_reconciled'])) {
-            return null;
-        }
-
-        $file = FCPATH . 'setup/install/includes/db_schema_catchup.sql';
-        if (!file_exists($file)) {
-            // Pre-4.0.9.106 installs may not carry setup/. Nothing to
-            // reconcile with — the migration chain remains the authority.
-            $state['schema_reconciled'] = true;
-            $this->writeState($state);
-            return null;
-        }
-
+        $relative = 'setup/install/includes/db_schema_catchup.sql';
+        $file = FCPATH . $relative;
         $sql = @file_get_contents($file);
+        // Old interrupted releases may never have shipped setup/. Fetch the
+        // canonical source from the release channel and verify its manifest hash.
         if ($sql === false) {
-            $state['schema_reconciled'] = true;
-            $this->writeState($state);
+            $file = $this->tempDir . '/schema-catchup.sql';
+            $sql = @file_get_contents($file);
+            if ($sql === false) {
+                $manifest = $this->fetchManifest();
+                $hash = null;
+                foreach (($manifest['files'] ?? []) as $entry) {
+                    if (($entry['path'] ?? '') === $relative) { $hash = $entry['hash'] ?? null; break; }
+                }
+                if (!$hash) { throw new Exception('Release does not provide the canonical schema required to resume migrations.'); }
+                $sql = $this->httpGet(rtrim($this->getUpdateChannelUrl(), '/') . '/' . $relative, 30);
+                if ($sql === null || !hash_equals($hash, hash('sha256', $sql))) {
+                    throw new Exception('Canonical schema download failed or did not match the release hash.');
+                }
+                if (@file_put_contents($file, $sql) === false) {
+                    throw new Exception('Cannot save canonical schema in updates/temp.');
+                }
+            }
+        }
+        $schemaHash = hash('sha256', $sql);
+        if (!empty($state['schema_reconciled']) && ($state['schema_hash'] ?? '') === $schemaHash) {
             return null;
+        }
+        if (($state['schema_hash'] ?? '') !== $schemaHash) {
+            $state['schema_hash'] = $schemaHash;
+            $state['reconcile_offset'] = 0;
+            $state['schema_reconciled'] = false;
         }
 
         // Keep ONLY the CREATE TABLE statements. They are the full final
@@ -2703,6 +2728,7 @@ subscription to receive updates.';
         $started = microtime(true);
         $budget  = 20; // seconds of this slice
 
+        try {
         while ($offset < $total) {
             if ((microtime(true) - $started) > $budget) {
                 $state['reconcile_offset'] = $offset;
@@ -2723,13 +2749,16 @@ subscription to receive updates.';
 
             $result = @$this->CI->db->query($stmt);
             if ($result === false) {
-                // Never wedge reconciliation. Log the definition for diagnosis;
-                // the migrations that follow remain the loud signal for a
-                // genuinely broken statement.
                 $err = $this->CI->db->error();
-                log_message('error', 'Schema reconciliation: ' . ($err['message'] ?? 'unknown error')
+                $state['reconcile_offset'] = $offset - 1;
+                $this->writeState($state);
+                throw new Exception('Schema reconciliation failed: ' . ($err['message'] ?? 'unknown error')
                     . ' [' . substr($stmt, 0, 100) . ']');
             }
+        }
+
+        } finally {
+            @$this->CI->db->query('SET FOREIGN_KEY_CHECKS = 1');
         }
 
         $state['reconcile_offset'] = $total;

@@ -127,7 +127,7 @@ $cheque_amount = $CI->db->where('store_id', $store_id)->where('payment_type', ch
       "order": [],
       "responsive": false,
       language: {
-        processing: '<div class="text-primary bg-primary" style="position: relative;z-index:100;overflow: visible;">Processing...</div>'
+        processing: '<span style="display:inline-flex;align-items:center;gap:8px;color:inherit;"><i class="fa fa-spinner fa-spin"></i> Loading...</span>'
       },
       "ajax": {
         "url": "<?= site_url('sales_payments/ajax_list'); ?>",

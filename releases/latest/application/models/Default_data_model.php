@@ -370,6 +370,7 @@ class Default_data_model extends CI_Model {
                 ->get('db_permissions')->result_array();
             $held = array_map('strval', array_column($existing, 'permissions'));
             $missing = array_values(array_diff($wanted, $held));
+            $missing = array_values(array_diff($missing, $this->revoked_keys($store_id, (int) $role->id)));
 
             $added = 0;
             if ($apply && !empty($missing)) {
@@ -453,6 +454,7 @@ class Default_data_model extends CI_Model {
                 ->get('db_permissions')->result_array();
             $held = array_map('strval', array_column($existing, 'permissions'));
             $missing = array_values(array_diff($wanted, $held));
+            $missing = array_values(array_diff($missing, $this->revoked_keys($store_id, (int) $role->id)));
 
             $added = 0;
             if ($apply && !empty($missing)) {
@@ -2436,6 +2438,10 @@ class Default_data_model extends CI_Model {
         if ($industry_type === 'physiotherapy_rehabilitation') {
             $role_results = $this->create_physio_roles($store_id);
             $results['physio_roles_created'] = $role_results['count'];
+            $this->sync_clinical_admin_permissions($store_id);
+            $this->sync_install_admin_permissions();
+            $this->sync_store_owner_permissions($store_id);
+            $this->sync_physio_role_permissions($store_id);
         }
 
         return $results;

@@ -56,7 +56,7 @@ textarea.mp-form-control{min-height:80px!important;resize:vertical!important}
 .mp-dt-table th{font-size:11px!important;text-transform:uppercase!important;font-weight:700!important;color:var(--mp-muted)!important;letter-spacing:.06em!important;border-bottom:1px solid var(--mp-border)!important;padding:14px 16px!important;white-space:nowrap!important;background:var(--mp-bg)!important;background-image:none!important}
 .mp-dt-table td{padding:14px 16px!important;border-bottom:1px solid var(--mp-border)!important;color:var(--mp-text)!important;vertical-align:middle!important}
 .mp-dt-table tr:last-child td{border-bottom:none!important}
-.mp-dt-table tbody tr:hover{background:var(--mp-bg)!important}
+.mp-dt-table tbody tr:hover{background:var(--mp-bg)!important;color:var(--mp-ink)!important}
 .mp-dt-table .row-name{font-weight:600!important;color:var(--mp-ink)!important}
 .mp-dt-table .row-meta{font-size:12px!important;color:var(--mp-muted)!important}
 .mp-dt-table .amt{font-weight:700!important;font-variant-numeric:tabular-nums!important}

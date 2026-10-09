@@ -102,7 +102,7 @@ function load_datatable(){
       "order": [],
       "responsive": false,
       "searching": false,
-      language: { processing: '<div class="text-primary bg-primary" style="position: relative;z-index:100;overflow: visible;">Processing...</div>' },
+      language: { processing: '<span style="display:inline-flex;align-items:center;gap:8px;color:inherit;"><i class="fa fa-spinner fa-spin"></i> Loading...</span>' },
       "ajax": {
           "url": "<?= base_url('account_transactions/ajax_list'); ?>",
           "type": "POST",
