@@ -267,14 +267,62 @@ subscription to receive updates.';
                   $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
                   'filename'
               ));
+
+              // Only migrations released AFTER the newest one this install has
+              // recorded can be outstanding.
+              //
+              // Comparing by SET DIFFERENCE alone is wrong, and two real install
+              // shapes prove it:
+              //
+              //   * FRESH install — the runner resumes above the installer's
+              //     4.0.9.59 stamp, so ~55 older migrations are baked into the
+              //     schema (db.txt) and never recorded. A set difference reports
+              //     all 55 as missing, so every fresh install immediately offers
+              //     itself an update it does not need.
+              //   * the installer also SEEDS a couple of low rows into the
+              //     ledger (4.0.6_b2b_customer_warehouse.sql, db_install_
+              //     extensions.sql), so "oldest recorded version" is not a
+              //     usable baseline either — it reads 4.0.6 on a brand new box.
+              //
+              // The newest RECORDED version is a boundary that holds for both
+              // shapes: a fresh install's newest is the release itself (nothing
+              // pending), while a stalled one — newest recorded 4.0.9.115 against
+              // a 4.0.9.123 release — still reports .116-.123.
+              //
+              // A mid-chain gap would be missed here, but the update it triggers
+              // re-runs the normal previewChanges() path, which diffs on filename
+              // and so picks those up too.
+              $newest = null;
+              foreach ($list as $m) {
+                  if (!isset($done[$m])) { continue; }
+                  $v = $this->migrationVersion($m);
+                  if ($v === '') { continue; }
+                  if ($newest === null || version_compare($v, $newest, '>')) {
+                      $newest = $v;
+                  }
+              }
+
               $pending = [];
               foreach ($list as $m) {
-                  if (!isset($done[$m])) { $pending[] = $m; }
+                  if (isset($done[$m])) { continue; }
+                  // Nothing recorded yet: report everything (a ledger-less
+                  // install genuinely has nothing applied).
+                  if ($newest === null) { $pending[] = $m; continue; }
+                  $v = $this->migrationVersion($m);
+                  // Unparseable names are kept — an unreadable filename is not
+                  // a reason to silently skip a migration.
+                  if ($v === '' || version_compare($v, $newest, '>')) { $pending[] = $m; }
               }
               return $pending;
           } catch (Throwable $e) {
               return [];
           }
+      }
+
+      /** Leading version from a migration filename, or '' if there isn't one. */
+      protected function migrationVersion(string $filename): string {
+          if (!preg_match('/(\d+\.\d+\.\d+(?:\.\d+)?)/', $filename, $m)) { return ''; }
+          return $m[1];
       }
 
       /* ------------------------------------------------------------------ */

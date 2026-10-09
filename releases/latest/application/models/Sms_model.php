@@ -5,22 +5,37 @@ class Sms_model extends CI_Model {
 	public function xss_html_filter($input){
 		return $this->security->xss_clean(html_escape($input));
 	}
+	/**
+	 * Upsert one row per store into a provider credential table.
+	 * Returns false when the query fails so callers can roll back.
+	 */
+	private function _provider_upsert($table, array $data, $store_id){
+		if(!$this->db->table_exists($table)){
+			return false;
+		}
+		$exists = $this->db->select('id')->where('store_id', $store_id)->get($table)->num_rows();
+		if($exists > 0){
+			return (bool)$this->db->where('store_id', $store_id)->update($table, $data);
+		}
+		$data['store_id'] = $store_id;
+		return (bool)$this->db->insert($table, $data);
+	}
+
 	//UPDATE SMS API
 	public function api_update(){
-		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
-		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
-		//echo $whatsAppUrl;exit();
-		//echo $whatsAppUrl;exit;
+		$hidden_rowcount = (int)$this->input->post('hidden_rowcount', TRUE);
 		$store_id = get_current_store_id();
 		$this->db->trans_begin();
+
+		// ---- HTTP/URL provider rows (db_smsapi) ----
 		if($hidden_rowcount>0){
-		$this->db->query("delete from db_smsapi where store_id=".$store_id);
+			$this->db->query("delete from db_smsapi where store_id=".$store_id);
 			for($i=1; $i<=$hidden_rowcount; $i++){
 				if(isset($_POST['info_'.$i])){
 					$info 	 	= $_POST['info_'.$i];
 					$key 	 	= $_POST['key_'.$i];
 					$key_value 	= $_POST['key_val_'.$i];
-					
+
 					$q1=$this->db->query("insert into db_smsapi(
 								info,`key`,key_value,store_id)
 								values(
@@ -30,68 +45,79 @@ class Sms_model extends CI_Model {
 								$store_id
 							)");
 					if(!$q1){
+						$this->db->trans_rollback();
 						return "failed";
 					}
 
 				}//if end()
-			}//for end()	
+			}//for end()
 		}
 
-		$q2=$this->db->query("update db_store set sms_status=$sms_status where id=".$store_id);
-		if(!$q2){
-			return "failed";
+		// ---- Active provider selector ----
+		// Stored in the structured notification settings table; db_store.sms_status
+		// is kept in sync as a fallback for installs that predate that table.
+		$sms_status = (int)$this->input->post('sms_status', TRUE);
+		if($sms_status < 0 || $sms_status > 6){ $sms_status = 0; }
+		if($this->db->table_exists('db_store_notification_settings')){
+			if(!mp_set_store_notification_setting($store_id, 'sms_status', $sms_status)){
+				$this->db->trans_rollback();
+				return "failed";
+			}
+		}
+		if($this->db->field_exists('sms_status', 'db_store')){
+			if(!$this->db->where('id', $store_id)->update('db_store', ['sms_status' => $sms_status])){
+				$this->db->trans_rollback();
+				return "failed";
+			}
 		}
 
-		//save Twilio SMS API
-		$twilio = array('account_sid' => $account_sid,'auth_token'=>$auth_token,'twilio_phone'=>$twilio_phone );
-		$q1=$this->db->select("*")->where("store_id",$store_id)->get("db_twilio");
-        if($q1->num_rows()>0){
-          $q2 = $this->db->where("store_id",$store_id)->update("db_twilio",$twilio);
-        }
-        else{
-        	$twilio = array_merge($twilio,array('store_id' => $store_id));
-        	$q2=$this->db->insert("db_twilio",$twilio);
-        }
+		// ---- Twilio ----
+		$ok = $this->_provider_upsert('db_twilio', [
+			'account_sid'  => (string)$this->input->post('account_sid', TRUE),
+			'auth_token'   => (string)$this->input->post('auth_token', TRUE),
+			'twilio_phone' => (string)$this->input->post('twilio_phone', TRUE),
+		], $store_id);
+		if(!$ok){ $this->db->trans_rollback(); return "failed"; }
 
-        if(!$q2){
-        	return "failed";
-        }
+		// ---- FiveMojo WhatsApp ----
+		$ok = $this->_provider_upsert('db_fivemojo', [
+			'url'         => (string)($this->input->post('whatsAppUrl', TRUE) ?: 'https://app.fivemojo.com/api/send.php'),
+			'token'       => (string)$this->input->post('whatsAppToken', TRUE),
+			'instance_id' => (string)$this->input->post('whatsAppInstanceId', TRUE),
+		], $store_id);
+		if(!$ok){ $this->db->trans_rollback(); return "failed"; }
 
-   	//save Fivemojo WhatsApp API
+		// ---- Brevo ----
+		$ok = $this->_provider_upsert('db_brevo', [
+			'api_key'     => (string)$this->input->post('brevo_api_key', TRUE),
+			'sender_name' => (string)$this->input->post('brevo_sender_name', TRUE),
+		], $store_id);
+		if(!$ok){ $this->db->trans_rollback(); return "failed"; }
 
-		$fivemojo = array('url' => $whatsAppUrl,'token'=>$whatsAppToken,'instance_id'=>$whatsAppInstanceId);
-		
-		$q1=$this->db->select("*")->where("store_id",$store_id)->get("db_fivemojo");
-        if($q1->num_rows()>0){
-          $q2 = $this->db->where("store_id",$store_id)->update("db_fivemojo",$fivemojo);
-        }
-        else{
-        	$fivemojo = array_merge($fivemojo,array('store_id' => $store_id));
-        	$q2=$this->db->insert("db_fivemojo",$fivemojo);
-        }
+		// ---- Sendchamp ----
+		if($this->db->table_exists('db_sendchamp')){
+			$ok = $this->_provider_upsert('db_sendchamp', [
+				'api_key'   => (string)$this->input->post('sendchamp_api_key', TRUE),
+				'sender_id' => (string)($this->input->post('sendchamp_sender_id', TRUE) ?: 'MartPoint'),
+				'route'     => (string)($this->input->post('sendchamp_route', TRUE) ?: 'non_dnd_nigeria'),
+			], $store_id);
+			if(!$ok){ $this->db->trans_rollback(); return "failed"; }
+		}
 
-        if(!$q2){
-        	return "failed";
-        }
+		// ---- BulkSMSNigeria ----
+		if($this->db->table_exists('db_bulksmsng')){
+			$ok = $this->_provider_upsert('db_bulksmsng', [
+				'api_token' => (string)$this->input->post('bulksmsng_api_token', TRUE),
+				'sender_id' => (string)($this->input->post('bulksmsng_sender_id', TRUE) ?: 'BulkSMS'),
+				'base_url'  => rtrim((string)($this->input->post('bulksmsng_base_url', TRUE) ?: 'https://www.bulksmsnigeria.com/api'), '/'),
+				'gateway'   => (string)$this->input->post('bulksmsng_gateway', TRUE),
+			], $store_id);
+			if(!$ok){ $this->db->trans_rollback(); return "failed"; }
+		}
 
-		//save Brevo SMS API
-		$brevo = array('api_key' => $brevo_api_key, 'sender_name' => $brevo_sender_name);
-		$q1 = $this->db->select("*")->where("store_id",$store_id)->get("db_brevo");
-        if($q1->num_rows()>0){
-          $q2 = $this->db->where("store_id",$store_id)->update("db_brevo", $brevo);
-        }
-        else{
-        	$brevo = array_merge($brevo, array('store_id' => $store_id));
-        	$q2 = $this->db->insert("db_brevo", $brevo);
-        }
-
-        if(!$q2){
-        	return "failed";
-        }
-
-			$this->session->set_flashdata('success', 'Record Successfully Saved!!');
-			$this->db->trans_commit();
-		    return "success";
+		$this->session->set_flashdata('success', 'Record Successfully Saved!!');
+		$this->db->trans_commit();
+		return "success";
 	}
 	//Send Messagr
 	public function send_sms($mobile,$message){
@@ -174,8 +200,70 @@ class Sms_model extends CI_Model {
 			$this->load->model('sendchamp_model');
 			return $this->sendchamp_model->index($mobile, $message, $store_id);
 		}
+		if($sms_status==6){
+			//BulkSMSNigeria SMS API
+			$this->load->model('bulksmsng_model');
+			return $this->bulksmsng_model->index($mobile, $message, $store_id);
+		}
 		
 
+	}
+
+	/**
+	 * Send the same message to many recipients.
+	 *
+	 * Where the active provider supports native bulk (a single API call for
+	 * an array of numbers) this uses it, so a campaign costs ONE round trip
+	 * instead of one per recipient. Otherwise it degrades to a per-recipient
+	 * loop and returns a per-recipient result set, matching the shape a
+	 * caller expects from a bulk send.
+	 *
+	 * @return array{total:int,successful:int,failed:int,results:array}
+	 */
+	public function send_bulk(array $recipients, $message, $store_id = null){
+		$store_id = $store_id ?: get_current_store_id();
+		$out = ['total' => count($recipients), 'successful' => 0, 'failed' => 0, 'results' => []];
+		if(empty($recipients)){ return $out; }
+
+		$sms_status = mp_get_store_notification_setting($store_id, 'sms_status', 0);
+		if(empty($sms_status) && $this->db->field_exists('sms_status','db_store')){
+			$rec = $this->db->select('sms_status')->where('id',$store_id)->get('db_store')->row();
+			if($rec){ $sms_status = $rec->sms_status; }
+		}
+
+		// BulkSMSNigeria accepts an array in `to` — one call for everyone.
+		if((int)$sms_status === 6){
+			$this->load->model('bulksmsng_model');
+			$res = $this->bulksmsng_model->send_bulk($recipients, $message, $store_id);
+			if($res['ok']){
+				$out['successful'] = count($recipients);
+				foreach($recipients as $r){
+					$out['results'][] = ['recipient' => $r, 'status' => 'success', 'data' => $res['raw']];
+				}
+			} else {
+				// Provider-level failure applies to every recipient.
+				$out['failed'] = count($recipients);
+				foreach($recipients as $r){
+					$out['results'][] = ['recipient' => $r, 'status' => 'failed', 'error' => $res['error']];
+				}
+			}
+			return $out;
+		}
+
+		foreach($recipients as $r){
+			$resp = $this->send_sms($r, $message);
+			$ok = is_string($resp)
+				? (stripos($resp,'success') !== false || stripos($resp,'sent') !== false)
+				: (bool)$resp;
+			if($ok){
+				$out['successful']++;
+				$out['results'][] = ['recipient' => $r, 'status' => 'success', 'data' => $resp];
+			} else {
+				$out['failed']++;
+				$out['results'][] = ['recipient' => $r, 'status' => 'failed', 'error' => is_string($resp) ? $resp : 'send failed'];
+			}
+		}
+		return $out;
 	}
 
 }

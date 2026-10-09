@@ -95,6 +95,34 @@ class Storefront_model extends CI_Model {
 				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 			}
 
+			// BulkSMSNigeria SMS provider. base_url is stored (not hardcoded) so
+			// the endpoint can be corrected from the UI if the vendor moves it.
+			if(!$this->db->table_exists('db_bulksmsng')){
+				$this->db->query("CREATE TABLE IF NOT EXISTS db_bulksmsng (
+					id INT(11) AUTO_INCREMENT PRIMARY KEY,
+					store_id INT(11) NOT NULL,
+					api_token TEXT NOT NULL,
+					sender_id VARCHAR(50) NOT NULL DEFAULT 'BulkSMS',
+					base_url VARCHAR(255) NOT NULL DEFAULT 'https://www.bulksmsnigeria.com/api',
+					gateway VARCHAR(20) NULL DEFAULT NULL,
+					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+					UNIQUE KEY uk_store (store_id)
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+			} else {
+				// One credential row per store: without this, get_credentials()
+				// uses ->row() and would silently pick the first match, sending
+				// from the wrong sender ID. Added only when no duplicate exists,
+				// so the guard can never abort on a legacy install.
+				$hasUk = $this->db->query("SHOW INDEX FROM db_bulksmsng WHERE Key_name='uk_store'")->num_rows();
+				if(!$hasUk){
+					$dups = $this->db->query("SELECT COUNT(*) c FROM (SELECT store_id FROM db_bulksmsng GROUP BY store_id HAVING COUNT(*) > 1) d")->row();
+					if(!$dups || (int)$dups->c === 0){
+						$this->db->query("ALTER TABLE db_bulksmsng ADD UNIQUE KEY uk_store (store_id)");
+					}
+				}
+			}
+
 			if($this->db->table_exists('db_storefront_settings')){
 				$have = $this->db->list_fields('db_storefront_settings');
 				$need = [

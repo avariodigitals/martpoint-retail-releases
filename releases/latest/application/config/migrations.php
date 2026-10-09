@@ -241,4 +241,10 @@ return [
         // customer contacts were silently absent.
         // CREATE TABLE IF NOT EXISTS only: a no-op on every existing install.
         '4.0.9.123v'  => '4.0.9.123_orphan_table_repair_fresh_install.sql',
+        // .124 SMS / OTP module: db_bulksmsng (BulkSMSNigeria credentials) and
+        // db_storefront_customer_otp.purpose, so OTP codes are scoped to the
+        // flow that requested them (storefront / admin_login / pos_confirm /
+        // generic). Idempotent — CREATE IF NOT EXISTS + information_schema
+        // guarded ALTER, silent on re-run.
+        '4.0.9.124v'  => '4.0.9.124_sms_otp_module.sql',
 ];

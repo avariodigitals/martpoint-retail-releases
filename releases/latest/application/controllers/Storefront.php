@@ -2092,47 +2092,36 @@ class Storefront extends CI_Controller {
 			$phone = preg_replace('/[^0-9]/', '', $phone);
 		}
 
-		$otp = sprintf('%06d', random_int(0, 999999));
-		$expires = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+		// Generate, store and deliver through the shared OTP service so the
+		// store's ACTIVE provider is used (previously this was hardcoded to
+		// Sendchamp, so OTP silently failed for every other provider).
+		$this->load->library('otp_service');
+		$this->otp_service->expiry = 600;          // 10 minutes
+		$this->otp_service->max_attempts = 5;      // unchanged lockout
+		$this->otp_service->resend_cooldown = 0;   // storefront allows resend
 
-		// Clear previous OTPs for this contact
-		$this->storefront_model->cleanupPortalSessions($storeId, $phone, $email);
-
-		$insert = [
-			'store_id' => $storeId,
-			'customer_id' => null,
-			'otp' => $otp,
-			'expires_at' => $expires
+		$opts = [
+			'store_name' => $settings->store_name ?? 'MartPoint',
+			'return_code'=> false,
 		];
 		if($method === 'email'){
-			$insert['email'] = $email;
-			$insert['phone'] = '';
-		} else {
-			$insert['phone'] = $phone;
-			$insert['email'] = '';
-		}
-		$this->db->insert('db_storefront_customer_otp', $insert);
-
-		$message = 'Your ' . ($settings->store_name ?? 'MartPoint') . ' verification code is ' . $otp . '. Valid for 10 minutes.';
-		$sent = false;
-
-		if($method === 'email'){
-			$this->load->model('email_service');
-			$this->email_service->setStoreId($storeId);
-			$html = $this->_buildOtpEmail($otp, $settings, $store, $name);
-			$text = 'Hi ' . ($name ?: 'there') . ',\n\nYour ' . ($settings->store_name ?? 'MartPoint') . ' verification code is ' . $otp . '. It expires in 10 minutes.\n\nIf you did not request this, please ignore it.';
-			$result = $this->email_service->sendRaw($email, 'Your ' . ($settings->store_name ?? 'Store') . ' verification code', $html, $text);
-			if($result['success']){ $sent = true; }
-		} else {
-			$this->load->model('sendchamp_model');
-			$sms = $this->sendchamp_model->index($phone, $message, $storeId);
-			if($sms === 'success'){ $sent = true; }
+			$opts['subject'] = 'Your ' . ($settings->store_name ?? 'Store') . ' verification code';
+			// Keep the storefront's branded email; the service injects the
+			// real generated code so the email can never disagree with the
+			// stored OTP.
+			$opts['html_builder'] = function($code, $minutes) use ($settings, $store, $name) {
+				return $this->_buildOtpEmail($code, $settings, $store, $name);
+			};
+			$opts['text'] = 'Hi ' . ($name ?: 'there') . ",\n\nYour " . ($settings->store_name ?? 'MartPoint')
+				. " verification code is {{OTP}}. It expires in {{MINUTES}} minutes.\n\nIf you did not request this, please ignore it.";
 		}
 
-		if($sent){
+		$sent = $this->otp_service->send('storefront', ($method === 'email' ? 'email' : 'phone'), $contactValue, $storeId, $opts);
+
+		if(!empty($sent['ok'])){
 			echo json_encode(['status' => true, 'message' => 'OTP sent', 'csrf_hash' => $this->security->get_csrf_hash()]);
 		} else {
-			$msg = ($method === 'email') ? 'Could not send email. Please try again or use phone.' : 'Could not send OTP. Please try again or use email.';
+			$msg = $sent['message'] ?? (($method === 'email') ? 'Could not send email. Please try again or use phone.' : 'Could not send OTP. Please try again or use email.');
 			echo json_encode(['status' => false, 'message' => $msg, 'csrf_hash' => $this->security->get_csrf_hash()]);
 		}
 	}
@@ -2154,25 +2143,26 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
-		$this->db->where('store_id', $storeId)->where($contactField, $contactValue)->where('verified', 0)->where('expires_at >', date('Y-m-d H:i:s'));
-		$row = $this->db->order_by('id', 'desc')->get('db_storefront_customer_otp')->row();
-		if(!$row){
-			echo json_encode(['status' => false, 'message' => 'Invalid or expired OTP', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		// Verification (lookup, expiry, attempt limit, single-use) is owned by
+		// the shared service so storefront/admin/POS cannot drift apart.
+		$this->load->library('otp_service');
+		$this->otp_service->max_attempts = 5;
+		$check = $this->otp_service->verify(
+			'storefront',
+			($method === 'email' ? 'email' : 'phone'),
+			$contactValue,
+			$otp,
+			$storeId
+		);
+		if(empty($check['ok'])){
+			echo json_encode([
+				'status' => false,
+				// Preserve the original user-facing wording for the common case.
+				'message' => ($check['message'] === 'Invalid or expired code') ? 'Invalid or expired OTP' : $check['message'],
+				'csrf_hash' => $this->security->get_csrf_hash()
+			]);
 			return;
 		}
-		if($row->attempts >= 5){
-			echo json_encode(['status' => false, 'message' => 'Too many attempts. Request a new OTP.', 'csrf_hash' => $this->security->get_csrf_hash()]);
-			return;
-		}
-
-		if($otp !== $row->otp){
-			$this->db->where('id', $row->id)->set('attempts', 'attempts + 1', false)->update('db_storefront_customer_otp');
-			echo json_encode(['status' => false, 'message' => 'Invalid OTP', 'csrf_hash' => $this->security->get_csrf_hash()]);
-			return;
-		}
-
-		// Mark verified and create customer if missing
-		$this->db->where('id', $row->id)->update('db_storefront_customer_otp', ['verified' => 1]);
 
 		if($method === 'email'){
 			$customer = $this->db->where('store_id', $storeId)->where('email', $email)->get('db_customers')->row();

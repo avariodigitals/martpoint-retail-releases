@@ -20,6 +20,8 @@
             <li><a href="#tab_2" data-toggle="tab">Twilio SMS API</a></li>
             <li><a href="#tab_4" data-toggle="tab">FiveMojo WhatsApp API</a></li>
             <li><a href="#tab_5" data-toggle="tab">Brevo SMS API</a></li>
+            <li><a href="#tab_6" data-toggle="tab">Sendchamp SMS API</a></li>
+            <li><a href="#tab_7" data-toggle="tab">BulkSMSNigeria API</a></li>
             <li><a href="#tab_3" data-toggle="tab">Action</a></li>
          
          </ul>
@@ -323,6 +325,152 @@
             </div>
 
             <!-- /.tab-pane -->
+            <div class="tab-pane" id="tab_6">
+             <?php
+             $sendchamp_api_key = $sendchamp_sender_id = $sendchamp_route ='';
+             if($this->db->table_exists('db_sendchamp')){
+               $q1=$this->db->select("*")->where("store_id",get_current_store_id())->get("db_sendchamp");
+               if($q1->num_rows()>0){
+                 $sendchamp_api_key   = $q1->row()->api_key;
+                 $sendchamp_sender_id = $q1->row()->sender_id;
+                 $sendchamp_route     = $q1->row()->route;
+               }
+             }
+             ?>
+               <div class="row">
+                  <div class="col-md-12">
+                        <div class="box-body">
+                           <div class="row">
+                             <div class="callout callout-info">
+                                 <h4>Sendchamp SMS API</h4>
+                                   Website Link: <a href='https://www.sendchamp.com/' target="_blank">https://www.sendchamp.com/</a>
+                                 <p>Where <b>API Key</b>, <b>Sender ID</b> and <b>Route</b> are neccessary for SMS Sending Feature.</p>
+                               </div>
+                              <div class="col-md-8">
+                                 <div class="form-group">
+                                    <label for="sendchamp_api_key" class="col-sm-4 control-label">API Key</label>
+                                    <div class="col-sm-4">
+                                       <input type="text" class="form-control" id="sendchamp_api_key" name="sendchamp_api_key" placeholder="sendchamp_live_..." value="<?php print $sendchamp_api_key; ?>" >
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col-md-8">
+                                 <div class="form-group">
+                                    <label for="sendchamp_sender_id" class="col-sm-4 control-label">Sender ID</label>
+                                    <div class="col-sm-4">
+                                       <input type="text" class="form-control" id="sendchamp_sender_id" name="sendchamp_sender_id" placeholder="MartPoint" value="<?php print $sendchamp_sender_id; ?>" >
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col-md-8">
+                                 <div class="form-group">
+                                    <label for="sendchamp_route" class="col-sm-4 control-label">Route</label>
+                                    <div class="col-sm-4">
+                                       <select class="form-control" id="sendchamp_route" name="sendchamp_route">
+                                         <option value="non_dnd_nigeria" <?= $sendchamp_route==='non_dnd_nigeria'?'selected':''; ?>>non_dnd_nigeria</option>
+                                         <option value="dnd_nigeria" <?= $sendchamp_route==='dnd_nigeria'?'selected':''; ?>>dnd_nigeria</option>
+                                         <option value="international" <?= $sendchamp_route==='international'?'selected':''; ?>>international</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                  </div>
+               </div>
+            </div>
+
+            <!-- /.tab-pane -->
+            <div class="tab-pane" id="tab_7">
+             <?php
+             $bulksmsng_api_token = $bulksmsng_sender_id = $bulksmsng_gateway ='';
+             $bulksmsng_base_url = 'https://www.bulksmsnigeria.com/api';
+             if($this->db->table_exists('db_bulksmsng')){
+               $q1=$this->db->select("*")->where("store_id",get_current_store_id())->get("db_bulksmsng");
+               if($q1->num_rows()>0){
+                 $bulksmsng_api_token = $q1->row()->api_token;
+                 $bulksmsng_sender_id = $q1->row()->sender_id;
+                 $bulksmsng_base_url  = $q1->row()->base_url ?: $bulksmsng_base_url;
+                 $bulksmsng_gateway   = $q1->row()->gateway;
+               }
+             }
+             ?>
+               <div class="row">
+                  <div class="col-md-12">
+                        <div class="box-body">
+                           <div class="row">
+                             <div class="callout callout-info">
+                                 <h4>BulkSMSNigeria API (v2)</h4>
+                                   Website Link: <a href='https://www.bulksmsnigeria.com/' target="_blank">https://www.bulksmsnigeria.com/</a>
+                                 <p>Get your API token from <a href='https://www.bulksmsnigeria.com/user/api-tokens' target="_blank">/user/api-tokens</a>.</p>
+                                 <p><b>Important:</b> your <b>Sender ID</b> must be registered and <u>approved</u> at
+                                    <a href='https://www.bulksmsnigeria.com/sender-ids' target="_blank">/sender-ids</a> before messages will send.
+                                    Sender IDs are 3&ndash;11 alphanumeric characters (hyphens allowed), max 5 per account.</p>
+                                 <p>Ensure your wallet has sufficient balance &mdash; sending fails with
+                                    <code>BSNG-3000</code> when it does not.</p>
+                                 <p>Phone numbers may be local (<code>08012345678</code>) or international
+                                    (<code>+2348012345678</code>); both are normalised automatically.</p>
+                               </div>
+                              <div class="col-md-9">
+                                 <div class="form-group">
+                                    <label for="bulksmsng_api_token" class="col-sm-4 control-label">API Token</label>
+                                    <div class="col-sm-5">
+                                       <input type="password" class="form-control" id="bulksmsng_api_token" name="bulksmsng_api_token" placeholder="Bearer token" value="<?php print htmlspecialchars($bulksmsng_api_token, ENT_QUOTES); ?>" autocomplete="new-password" >
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col-md-9">
+                                 <div class="form-group">
+                                    <label for="bulksmsng_sender_id" class="col-sm-4 control-label">Sender ID</label>
+                                    <div class="col-sm-5">
+                                       <input type="text" class="form-control" id="bulksmsng_sender_id" name="bulksmsng_sender_id" placeholder="BulkSMS" maxlength="11" value="<?php print htmlspecialchars($bulksmsng_sender_id, ENT_QUOTES); ?>" >
+                                       <p class="help-block" style="margin-bottom:0">3&ndash;11 alphanumeric characters, must be approved.</p>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col-md-9">
+                                 <div class="form-group">
+                                    <label for="bulksmsng_gateway" class="col-sm-4 control-label">Gateway (optional)</label>
+                                    <div class="col-sm-5">
+                                       <select class="form-control" id="bulksmsng_gateway" name="bulksmsng_gateway">
+                                         <option value="" <?= empty($bulksmsng_gateway)?'selected':''; ?>>Auto (best route)</option>
+                                         <option value="mtn" <?= $bulksmsng_gateway==='mtn'?'selected':''; ?>>MTN</option>
+                                         <option value="airtel" <?= $bulksmsng_gateway==='airtel'?'selected':''; ?>>Airtel</option>
+                                         <option value="glo" <?= $bulksmsng_gateway==='glo'?'selected':''; ?>>Glo</option>
+                                         <option value="9mobile" <?= $bulksmsng_gateway==='9mobile'?'selected':''; ?>>9mobile</option>
+                                       </select>
+                                       <p class="help-block" style="margin-bottom:0">Leave on Auto unless you need a specific network.</p>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col-md-9">
+                                 <div class="form-group">
+                                    <label for="bulksmsng_base_url" class="col-sm-4 control-label">API Base URL</label>
+                                    <div class="col-sm-5">
+                                       <input type="text" class="form-control" id="bulksmsng_base_url" name="bulksmsng_base_url" value="<?php print htmlspecialchars($bulksmsng_base_url, ENT_QUOTES); ?>" >
+                                       <p class="help-block" style="margin-bottom:0">Sends to <code>&lt;base&gt;/v2/sms</code>. Only change if the vendor moves the endpoint.</p>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col-md-9">
+                                 <div class="form-group">
+                                    <label class="col-sm-4 control-label">&nbsp;</label>
+                                    <div class="col-sm-5">
+                                       <button type="button" class="btn btn-default" id="bulksmsng_test_btn" onclick="bulksmsngTest();">
+                                          <i class="fa fa-plug"></i> Test connection
+                                       </button>
+                                       <span id="bulksmsng_test_msg" style="margin-left:8px;"></span>
+                                       <p class="help-block">Checks your token by reading the wallet balance &mdash; sends no SMS and spends no credit.</p>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                  </div>
+               </div>
+            </div>
+
+            <!-- /.tab-pane -->
             <div class="tab-pane" id="tab_3">
             
                <div class="row">
@@ -338,7 +486,11 @@
                                      <li>HTTP/URL API : Which will allow to send SMS by using HTTP/URL Based SMS API.</li>
                                      <li>Twilio API : Which will allow to send SMS by using Twilio SMS API.</li>
                                      <li>Brevo API : Which will allow to send SMS by using Brevo SMS API.</li>
+                                     <li>Sendchamp API : Which will allow to send SMS by using Sendchamp SMS API.</li>
+                                     <li>BulkSMSNigeria API : Which will allow to send SMS by using BulkSMSNigeria API v2.</li>
                                    </ul>
+                                   <b>Note:</b> whichever provider is selected here is also used for storefront
+                                   customer OTP and for SMS campaigns.
                                  </p>
                                </div>
                               <div class="col-md-8">
@@ -351,6 +503,8 @@
                                        <option value="2">Twilio API</option>
                                        <option value="3">Fivemojo WhatsApp API</option>
                                        <option value="4">Brevo SMS API</option>
+                                       <option value="5">Sendchamp SMS API</option>
+                                       <option value="6">BulkSMSNigeria API</option>
                                     </select>
                                     </div>
                                  </div>
@@ -394,10 +548,38 @@
    //UPDATE ROW COUNT
    $("#hidden_rowcount").val("<?= $i;?>");
    
-   //UPDATE current sms_status
-     $("#sms_status").val(<?= $store_rec->sms_status;?>).select2();  
-   
-</script>
+   //UPDATE current sms_status — structured notification setting wins, with
+   //db_store as the fallback for installs that predate that table.
+   $("#sms_status").val("<?= (int)(function_exists('mp_get_store_notification_setting') ? mp_get_store_notification_setting(get_current_store_id(),'sms_status',($store_rec->sms_status ?? 0)) : ($store_rec->sms_status ?? 0)); ?>").select2();
+
+   //Test BulkSMSNigeria credentials without spending credit (wallet balance).
+   function bulksmsngTest(){
+     var $btn = $("#bulksmsng_test_btn"), $msg = $("#bulksmsng_test_msg");
+     var endpoint = "<?= base_url('sms/test_bulksmsng_connection'); ?>";
+     $btn.prop('disabled', true);
+     $msg.html('<span class="text-muted">Checking…</span>');
+     $.post(endpoint, {
+       api_token: $("#bulksmsng_api_token").val(),
+       base_url:  $("#bulksmsng_base_url").val(),
+       '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'
+     }, function(res){
+       $btn.prop('disabled', false);
+       try {
+         var d = (typeof res === 'string') ? JSON.parse(res) : res;
+         if(d.status){
+           $msg.html('<span class="text-success"><i class="fa fa-check"></i> ' + d.message + '</span>');
+         } else {
+           $msg.html('<span class="text-danger"><i class="fa fa-times"></i> ' + (d.message || 'Connection failed') + '</span>');
+         }
+       } catch(e){
+         $msg.html('<span class="text-danger">Unexpected response</span>');
+       }
+     }).fail(function(){
+       $btn.prop('disabled', false);
+       $msg.html('<span class="text-danger">Request failed — check the API base URL</span>');
+     });
+   }
+   </script>
 <script type="text/javascript">
    function removerow(id){//id=Rowid
    
