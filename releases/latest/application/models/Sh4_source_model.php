@@ -77,8 +77,9 @@ class Sh4_source_model extends CI_Model {
 	 * availability/number, Card No, Referred By — carried into
 	 * legacy_ids_json + note so nothing is silently dropped.
 	 */
-	public function patients($afterId = 0, $limit = 200){
+	public function patients($afterId = 0, $limit = 200, $asOf = null){
 		$s = $this->src();
+		if($asOf) $s->where('created_at <', date('Y-m-d',strtotime($asOf.' +1 day')));
 		$rows = $s->where('id >', (int)$afterId)->order_by('id')->limit((int)$limit)
 			->get('patients')->result_array();
 		if(!$rows) return array();

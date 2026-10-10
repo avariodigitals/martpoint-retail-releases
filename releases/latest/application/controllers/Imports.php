@@ -4,11 +4,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /**
  * Imports — Stage 7 legacy-migration console (physio business type).
  *
- * SOURCE STATUS: the Smart Hospital 4.0 SQL dump is not yet available.
- * The framework (batches, dedupe, resume, rollback, reconciliation) is
- * complete and tested; the SH4 table extractors are PENDING the dump.
- * The interim intake accepts a normalized JSON extract so a converted
- * export can be imported today without pretending a source mapping.
+ * Accepts a reviewed normalized patient JSON extract. Financial balances,
+ * clinical visits and admissions are outside this endpoint's scope.
  */
 class Imports extends MY_Controller {
 
@@ -35,7 +32,7 @@ class Imports extends MY_Controller {
 				'run'      => physio_can('imports_run'),
 				'rollback' => physio_can('imports_rollback'),
 			),
-			'source_ready'   => false, // SH4 SQL not yet supplied — mapping pending
+			'source_ready'   => true, // Normalized patient mapping reviewed; no SQL is executed here.
 		));
 		$data['content'] = $this->load->view('imports/index', $data, TRUE);
 		$this->load->view('mp_layout', $data);

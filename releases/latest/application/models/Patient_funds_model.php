@@ -124,7 +124,10 @@ class Patient_funds_model extends CI_Model {
 			}
 			return array('ok' => true, 'txn_id' => $existing->id, 'replayed' => true);
 		}
+		$this->load->model('Physio_accounts_model','pa');
+		$physioAccountId=$this->pa->forCustomer($d['customer_id'],$storeId);
 		$this->db->insert('db_patient_wallet_txns', array(
+			'physio_account_id'=> $physioAccountId,
 			'store_id'         => $storeId,
 			'customer_id'      => $d['customer_id'],
 			'patient_id'       => $d['patient_id'] ?? null,

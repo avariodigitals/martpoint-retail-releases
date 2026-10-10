@@ -74,6 +74,7 @@ class Inpatient_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$ward = $this->db->where('id', $wardId)->where('store_id', $storeId)->get('db_wards')->row();
 		if(!$ward) return array('ok' => false, 'error' => 'Ward not found');
+		$this->db->trans_begin();
 		$this->db->insert('db_beds', array(
 			'store_id' => $storeId, 'ward_id' => $wardId, 'bed_label' => trim($label),
 			'daily_rate' => ($dailyRate === '' || $dailyRate === null) ? null : (float)$dailyRate,
@@ -81,14 +82,20 @@ class Inpatient_model extends CI_Model {
 			'created_by' => $this->session->userdata('inv_username'),
 		));
 		$id = $this->db->insert_id();
-		return $id ? array('ok' => true, 'bed_id' => $id) : array('ok' => false, 'error' => 'Bed label exists or insert failed');
+		if(!$id || !$this->db->query('INSERT INTO db_physio_payment_accounts (store_id,account_code,bed_id) VALUES (?,?,?)',array($storeId,'BED-'.$id,$id))){
+			$this->db->trans_rollback(); return array('ok'=>false,'error'=>'Bed or payment account could not be saved');
+		}
+		$this->db->trans_commit();
+		return array('ok'=>true,'bed_id'=>$id);
 	}
 	public function bedBoard(){
 		$storeId = get_current_store_id();
 		$wards = $this->db->where('store_id', $storeId)->where('status', 1)->order_by('name')->get('db_wards')->result();
-		$beds = $this->db->select('b.*, o.id AS occupancy_id, o.admission_id, c.customer_name AS patient_name')
+		$beds = $this->db->select('b.*, ac.id AS payment_account_id, o.id AS occupancy_id, o.admission_id, o.patient_id, a.admission_code, p.patient_code, c.customer_name AS patient_name')
 			->from('db_beds b')
-			->join('db_bed_occupancy o', 'o.bed_id = b.id AND o.to_at IS NULL', 'left')
+			->join('db_physio_payment_accounts ac','ac.bed_id=b.id AND ac.store_id=b.store_id','left')
+			->join('db_bed_occupancy o', 'o.bed_id = b.id AND o.store_id=b.store_id AND o.to_at IS NULL', 'left')
+			->join('db_admissions a', 'a.id=o.admission_id AND a.store_id=b.store_id', 'left')
 			->join('db_patients p', 'p.id = o.patient_id', 'left')
 			->join('db_customers c', 'c.id = p.customer_id', 'left')
 			->where('b.store_id', $storeId)->order_by('b.ward_id, b.bed_label')->get()->result();
@@ -197,7 +204,18 @@ class Inpatient_model extends CI_Model {
 	public function occupancyHistory($admId){
 		return $this->db->select('o.*, b.bed_label, w.name AS ward_name')
 			->from('db_bed_occupancy o')->join('db_beds b','b.id=o.bed_id')->join('db_wards w','w.id=b.ward_id')
-			->where('o.admission_id', $admId)->order_by('o.from_at')->get()->result();
+			->where('o.store_id',$this->_sid())->where('o.admission_id', $admId)->order_by('o.from_at')->get()->result();
+	}
+	public function admissionAccount($admId){
+		$inv=$this->_invoice((int)$admId);
+		if(!$inv) return null;
+		return array('invoice_id'=>(int)$inv->id,'sales_code'=>$inv->sales_code,'grand_total'=>(float)$inv->grand_total,'paid'=>(float)$inv->paid_amount,'outstanding'=>max(0,round($inv->grand_total-$inv->paid_amount,2)));
+	}
+	public function bedTaskSummary(array $admIds){
+		if(!$admIds) return array();
+		$rows=$this->db->select('admission_id,COUNT(*) AS open',false)->where('store_id',$this->_sid())->where_in('admission_id',array_map('intval',$admIds))->where('status','open')->group_by('admission_id')->get('db_nursing_tasks')->result();
+		$out=array();foreach($rows as $r)$out[(int)$r->admission_id]=array('open'=>(int)$r->open);
+		return $out;
 	}
 
 	/**
@@ -207,6 +225,7 @@ class Inpatient_model extends CI_Model {
 	 * Must be called inside an open transaction.
 	 */
 	private function _openOccupancy($admId, $patientId, $bedId, $reason){
+		$this->db->query('SELECT id FROM db_patients WHERE id=? AND store_id=? FOR UPDATE',array((int)$patientId,(int)get_current_store_id()));
 		$bed = $this->db->query('SELECT * FROM db_beds WHERE id = ? FOR UPDATE', array($bedId))->row();
 		if(!$bed || (int)$bed->store_id !== (int)get_current_store_id())
 			return array('ok' => false, 'error' => 'Bed not found');
@@ -589,7 +608,7 @@ class Inpatient_model extends CI_Model {
 		return $any ? (int)$any->id : 0;
 	}
 	/** Append one charge line to the running invoice; recompute totals. */
-	private function _postCharge($adm, $date, $code, $desc, $qty, $amount){
+	private function _postCharge($adm, $date, $code, $desc, $qty, $amount, $bedId = null){
 		// Idempotency first — the unique key is the retry contract.
 		$exists = $this->db->where('admission_id',$adm->id)->where('charge_date',$date)
 			->where('charge_code',$code)->get('db_daily_charges')->row();
@@ -597,16 +616,19 @@ class Inpatient_model extends CI_Model {
 		$inv = $this->_ensureInvoice($adm->id, $adm->customer_id);
 		if(!$inv) return array('ok'=>false,'error'=>'No invoice for admission');
 		$amount = round((float)$amount, 2);
+		$this->load->model('Physio_accounts_model','pa');
+		$accountId=$bedId ? $this->pa->account($this->_sid(),$bedId) : $this->pa->forCustomer($adm->customer_id,$this->_sid());
 		if($amount <= 0){
 			// Zero-value charge still recorded once (audit) but no sale line.
 			$this->db->insert('db_daily_charges', array(
 				'store_id'=>$this->_sid(),'admission_id'=>$adm->id,'charge_date'=>$date,
 				'charge_code'=>$code,'description'=>$desc,'qty'=>$qty,'amount'=>0,
-				'sales_id'=>$inv->id,'posted_at'=>date('Y-m-d H:i:s')));
+				'sales_id'=>$inv->id,'bed_id'=>$bedId,'posted_at'=>date('Y-m-d H:i:s')));
 			return $this->db->insert_id() ? array('ok'=>true,'charge_id'=>$this->db->insert_id()) : array('ok'=>true,'replayed'=>true);
 		}
 		$this->db->insert('db_salesitems', array(
 			'sales_id'=>$inv->id,'store_id'=>$this->_sid(),'sales_status'=>'Final',
+			'physio_account_id'=>$accountId,
 			'item_id'=>$this->_chargeItemId(),'description'=>$desc,'sales_qty'=>$qty,
 			'price_per_unit'=>$amount,'discount_amt'=>0,'unit_total_cost'=>$amount,
 			'total_cost'=>round($qty*$amount,2),'purchase_price'=>0,'status'=>1));
@@ -615,7 +637,7 @@ class Inpatient_model extends CI_Model {
 		$this->db->insert('db_daily_charges', array(
 			'store_id'=>$this->_sid(),'admission_id'=>$adm->id,'charge_date'=>$date,
 			'charge_code'=>$code,'description'=>$desc,'qty'=>$qty,'amount'=>$amount,
-			'sales_id'=>$inv->id,'sales_item_id'=>$siId,'posted_at'=>date('Y-m-d H:i:s')));
+			'sales_id'=>$inv->id,'sales_item_id'=>$siId,'bed_id'=>$bedId,'posted_at'=>date('Y-m-d H:i:s')));
 		if(!$this->db->insert_id()) return array('ok'=>false,'error'=>'Charge record failed');
 		// Recompute invoice totals (additive only; sales row stays Final).
 		$tot = $this->db->select('COALESCE(SUM(total_cost),0) t',false)->where('sales_id',$inv->id)->get('db_salesitems')->row();
@@ -662,8 +684,8 @@ class Inpatient_model extends CI_Model {
 					// Bed transfer mid-day never double-charges: one 'bed'
 					// charge per admission-day, priced at the LAST bed held
 					// that day (override rate if the bed has one).
-					$occ = $this->db->query('SELECT o.bed_id, b.daily_rate FROM db_bed_occupancy o JOIN db_beds b ON b.id=o.bed_id WHERE o.admission_id=? AND o.from_at <= ? ORDER BY o.id DESC LIMIT 1',
-						array($adm->id, $d.' 23:59:59'))->row();
+					$occ = $this->db->query('SELECT o.bed_id, b.daily_rate FROM db_bed_occupancy o JOIN db_beds b ON b.id=o.bed_id AND b.store_id=o.store_id WHERE o.store_id=? AND o.admission_id=? AND o.from_at < ? AND (o.to_at IS NULL OR o.to_at > ?) ORDER BY o.from_at DESC,o.id DESC LIMIT 1',
+						array($storeId, $adm->id, date('Y-m-d',strtotime($d.' +1 day')), $d.' 00:00:00'))->row();
 					if($occ){
 						$rate = $occ->daily_rate !== null ? (object)array('amount'=>$occ->daily_rate) : $this->rateFor('bed',$d);
 						$amt = $rate ? (float)$rate->amount : 0;
@@ -673,7 +695,7 @@ class Inpatient_model extends CI_Model {
 							if($p === 'none'){ $amt = 0; $desc='Bed charge (authorised leave — not charged)'; }
 							elseif($p === 'half'){ $amt = round($amt/2,2); $desc='Bed charge (authorised leave — 50%)'; }
 						}
-						$r = $this->_postCharge($adm,$d,'bed',$desc,1,$amt);
+						$r = $this->_postCharge($adm,$d,'bed',$desc,1,$amt,(int)$occ->bed_id);
 						!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
 					}
 				}
@@ -918,6 +940,7 @@ class Inpatient_model extends CI_Model {
 	// Internals
 	// ------------------------------------------------------------------
 	private function _closeOccupancy($admId, $reason, $at){
+		$this->db->query('SELECT p.id FROM db_patients p JOIN db_admissions a ON a.patient_id=p.id AND a.store_id=p.store_id WHERE a.id=? AND a.store_id=? FOR UPDATE',array((int)$admId,(int)get_current_store_id()));
 		$occ = $this->db->where('admission_id',$admId)->where('to_at IS NULL')->get('db_bed_occupancy')->row();
 		if($occ){
 			$this->db->where('id',$occ->id)->update('db_bed_occupancy', array('to_at'=>$at,'close_reason'=>$reason));

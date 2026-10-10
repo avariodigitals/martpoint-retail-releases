@@ -38,7 +38,8 @@ textarea.imp-json{width:100%!important;min-height:110px;font-family:monospace;fo
 
 <?php if($can['run']): ?>
 <div class="imp-box">
-  <h4>New batch — normalized extract (interim)</h4>
+  <h4>Patient-only import</h4>
+  <p>Imports patient identities and details only. Debts, credits, visits, admissions and documents are excluded.</p>
   <form onsubmit="return impRun(this);">
     <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div style="display:flex;gap:8px;margin-bottom:8px;">
@@ -49,6 +50,7 @@ textarea.imp-json{width:100%!important;min-height:110px;font-family:monospace;fo
       </select>
     </div>
     <textarea class="imp-json" name="extract_json" placeholder='{"patients":[{"legacy_id":"SH-1001","name":"Jane Doe","phone":"080...","dob":"1980-04-12","gender":"female","deceased":0,"inactive":0}]}'></textarea>
+    <label style="display:block;margin-top:8px">Or choose a reviewed patient JSON extract <input type="file" accept=".json,application/json" onchange="impLoadFile(this)"></label>
     <div style="margin-top:8px;">
       <button class="mp-qa-btn blue" type="submit">Run batch</button>
       <small style="color:var(--mp-muted);">Dry run first. Identity columns map to db_customers + db_patients; legacy IDs are kept in legacy_ids_json and db_migration_rows.</small>
@@ -82,6 +84,10 @@ textarea.imp-json{width:100%!important;min-height:110px;font-family:monospace;fo
 </div>
 
 <script>
+function impLoadFile(input){ if(!input.files[0]) return;var reader=new FileReader();
+  reader.onload=function(){try{var data=JSON.parse(reader.result);if(!Array.isArray(data.patients)) throw Error();input.form.extract_json.value=reader.result;}catch(e){alert('Choose a patient JSON extract. SQL files cannot be imported here.');input.value='';}};
+  reader.readAsText(input.files[0]);
+}
 function impRun(f){
   $.post('<?= base_url('imports/run'); ?>', $(f).serialize(), function(r){
     if(r.status==='success'){ toastr.success(r.message); setTimeout(()=>location.href='<?= base_url('imports/batch/'); ?>'+r.batch_id,700); }

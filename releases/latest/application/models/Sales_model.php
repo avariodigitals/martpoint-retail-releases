@@ -711,6 +711,8 @@ class Sales_model extends CI_Model {
 		    			);
 
 				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+				$this->load->model('Physio_accounts_model','pa');
+				$salesitems_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salesitems_entry['store_id']);
 				$q2 = $this->db->insert('db_salesitems', $salesitems_entry);
 				if(!$q2){
 					$err = $this->db->error();
@@ -847,6 +849,8 @@ class Sales_model extends CI_Model {
     				'cheque_status' 	=> "Pending",
 				);
 			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+			$this->load->model('Physio_accounts_model','pa');
+			$salespayments_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salespayments_entry['store_id']);
 			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
 		if(!$q3){
 			$err = $this->db->error();
@@ -1995,6 +1999,8 @@ class Sales_model extends CI_Model {
 			}
 			//end 
 			$salespayments_entry['advance_adjusted'] = $advance_adjusted;
+			$this->load->model('Physio_accounts_model','pa');
+			$salespayments_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salespayments_entry['store_id']);
 			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
 		if(!$q3){
 			$err = $this->db->error();

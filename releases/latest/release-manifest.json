@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.129",
-    "previous_version": "4.0.9.128",
+    "version": "4.0.9.130",
+    "previous_version": "4.0.9.129",
     "release_date": "2026-10-10",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -461,6 +461,11 @@
             "size": 3267
         },
         {
+            "path": "application/views/inpatient/bed_ledger.php",
+            "hash": "90d3b72b3ea7da730b461453dd768e62955bae29f797a0a9ab5800c3feef6f00",
+            "size": 5659
+        },
+        {
             "path": "application/views/inpatient/view.php",
             "hash": "34ad1736eb6c77ba2f86ef3593227fe631c341a6b7fafee51311f949f96d4784",
             "size": 26125
@@ -477,8 +482,8 @@
         },
         {
             "path": "application/views/inpatient/billing_setup.php",
-            "hash": "f48a541737306fd3fc8ae6f1f544d0f3208727d21bcef14a0a9c420a9cdb55aa",
-            "size": 5221
+            "hash": "9ff4b45f75e993e03a839aaadae4dff27050399918cc1873c0f1c4363f82d5a7",
+            "size": 6567
         },
         {
             "path": "application/views/inpatient/debt_reminders.php",
@@ -492,8 +497,8 @@
         },
         {
             "path": "application/views/inpatient/beds.php",
-            "hash": "50aad6e28df74609c19a6304a0213c60544c40d37ee19fc458ba91728a68dae9",
-            "size": 3865
+            "hash": "8a574fae0491b4201b99a2ea675cd821aa719077f67e1f141902cc8311258f85",
+            "size": 4212
         },
         {
             "path": "application/views/report-purchase-payments.php",
@@ -2094,6 +2099,11 @@
             "path": "application/views/mobile/purchase.php",
             "hash": "f723029ca672d199e84ba0fb35e33c0b7436dccf4bb094ee1edd04a9d4220790",
             "size": 14347
+        },
+        {
+            "path": "application/views/mobile/bed_ledger.php",
+            "hash": "7c7148592052cb6896a9e7f6840b2fe2e980b99d270c8faf7c7b14671945dfe1",
+            "size": 959
         },
         {
             "path": "application/views/mobile/quotation_report.php",
@@ -4357,8 +4367,8 @@
         },
         {
             "path": "application/views/imports/index.php",
-            "hash": "b122f84baecb5ff5568275ccbcb08795c2ef951236b45040b9b7d90d7917780c",
-            "size": 5680
+            "hash": "b52932edea4a364fede70028f52383f32d518aceaed7556d36bb7dc5349e214b",
+            "size": 6339
         },
         {
             "path": "application/views/sales_payments/list.php",
@@ -4962,8 +4972,8 @@
         },
         {
             "path": "application/views/physio_layout.php",
-            "hash": "427d1c0d23aaddcb6242e52cb8b88ee63db56946350c9da3b092c61e8b2962ff",
-            "size": 49092
+            "hash": "535686421bc057a387978ebf404bb42f348e382ea755c0a45e165f97fc4763af",
+            "size": 50407
         },
         {
             "path": "application/config/assist_ai.php",
@@ -5012,8 +5022,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "65bc083471f09fe710b1aeba548539152d7b325391f2abc6d48b3e4a16c51748",
-            "size": 15788
+            "hash": "3d3e1c8b3394c783c2e5fff4ae6714fb3467ac8c6796ed015930eeec1a849d22",
+            "size": 15852
         },
         {
             "path": "application/config/routes.php",
@@ -5267,8 +5277,8 @@
         },
         {
             "path": "application/models/Imports_model.php",
-            "hash": "2363e7d10785cce2a1c55d5f02bc5cf268243c2941bdebacf74313740ab48b41",
-            "size": 22002
+            "hash": "2ca52b8199d138fa002057f15355f44dc8ae13a7def82a7216b80d2c52ff4ecb",
+            "size": 21946
         },
         {
             "path": "application/models/Patients_model.php",
@@ -5407,8 +5417,8 @@
         },
         {
             "path": "application/models/Patient_billing_model.php",
-            "hash": "db7c9f74cf872913ae2c6cc7dbc26865777ca768af2aad491575561aa7ef2cc2",
-            "size": 22806
+            "hash": "509b6ae84f8eaede2c3485876c3b725cac33e6912fe57f1ca5362b65539f14bf",
+            "size": 23141
         },
         {
             "path": "application/models/Treatment_notes_model.php",
@@ -5517,8 +5527,8 @@
         },
         {
             "path": "application/models/Sh4_source_model.php",
-            "hash": "3dcffb5e2a4b01ccf84a6a4c8d9493de80ccdae10e6127a0abef33fb9be54f44",
-            "size": 13584
+            "hash": "a27e4269143dbaa0daec0eb9e664558bc37128b020f5b5d8e2aa65ba0e1007b8",
+            "size": 13679
         },
         {
             "path": "application/models/Warehouse_model.php",
@@ -5547,8 +5557,8 @@
         },
         {
             "path": "application/models/Inpatient_model.php",
-            "hash": "56da2669861efbad9d3cb67a8c81e9c5eb731fec757e721e87ed73434b1f165f",
-            "size": 57704
+            "hash": "86ed3a030138baf65b053f8ec5ee1e7e98d72702cb827fecc30ccf317e3029ad",
+            "size": 59785
         },
         {
             "path": "application/models/Stock_adjustment_model.php",
@@ -5807,8 +5817,8 @@
         },
         {
             "path": "application/models/Patient_funds_model.php",
-            "hash": "c6541ccd86f0d6905c1a503bde7501bc098a3cea023543865c193a12598384c3",
-            "size": 40802
+            "hash": "71e74e837c3f0fa86c6beeece3374e0b0f398f9f9fdd6805413f6560a6cbc563",
+            "size": 40968
         },
         {
             "path": "application/models/Storefront_model.php",
@@ -5827,8 +5837,8 @@
         },
         {
             "path": "application/models/Sales_model.php",
-            "hash": "74b7d617dcee76d1a8f31113e8f101ae95c8ebe17a3dd65829cadc543d514ea8",
-            "size": 99514
+            "hash": "6228b6f89475372b98d724977d141b5c16ce528b812748b83fd8ec1a327cab83",
+            "size": 100017
         },
         {
             "path": "application/models/Butchery_model.php",
@@ -5859,6 +5869,11 @@
             "path": "application/models/Twilio_model.php",
             "hash": "845a9bf369959bc97e476a6dc0361f779b4c2738b9ef7fbceac5b80e95ab3a6a",
             "size": 1960
+        },
+        {
+            "path": "application/models/Physio_accounts_model.php",
+            "hash": "27c2e764a7435c3b3f49bd809549af7cee4914613822aa04dfef91c4ea9ade6b",
+            "size": 4620
         },
         {
             "path": "application/models/Course_model.php",
@@ -6287,8 +6302,8 @@
         },
         {
             "path": "application/controllers/Imports.php",
-            "hash": "70e7488d43b4343f1ce274366d0213513304c7ab4c8aecdb05069243a3141ad0",
-            "size": 5344
+            "hash": "18b4eeb10f5b21601d211149b4365e5f310744a57147746c533162fdf491a0ee",
+            "size": 5149
         },
         {
             "path": "application/controllers/Cron.php",
@@ -6517,8 +6532,8 @@
         },
         {
             "path": "application/controllers/Sh4_import.php",
-            "hash": "871546d8d311df61eb05939b4163c626d9349b83d16dcf2377a1551cc366012d",
-            "size": 33450
+            "hash": "b030d63a827f80455ea03387da1d6a239495949aa1c1a0a0b75b64b89642c6e1",
+            "size": 35137
         },
         {
             "path": "application/controllers/Stripe.php",
@@ -6627,8 +6642,8 @@
         },
         {
             "path": "application/controllers/Inpatient.php",
-            "hash": "bf0773363dba62ab457cf9575b78357b0b13a667b3b8b2f915d1488f3f1b5d88",
-            "size": 17205
+            "hash": "270e36483022daae553a6ad9c60c5aa674a54ae2558499a014e9eae0fd4d3eca",
+            "size": 18220
         },
         {
             "path": "application/libraries/Assist_brain.php",
@@ -11017,7 +11032,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "3d6636ed1eed5e3c58cf033bec13db9dfcd8fd4864c9565f07983590acd20fa6",
+            "hash": "a561f1da29320c73b05ecd5efbe97d44c1242514b8e74bbd6dce0e06c882ec7d",
             "size": 106208
         },
         {
@@ -17294,6 +17309,7 @@
         "4.0.9.128_provisioned_admin_login.sql",
         "4.0.9.129_fleet_delivery_and_import_navigation.sql",
         "4.0.9.12_industry_modules.sql",
+        "4.0.9.130_physio_bed_accounts.sql",
         "4.0.9.13_storefront_columns.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
@@ -17383,5 +17399,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.129"
+    "changelog": "Release 4.0.9.130"
 }

@@ -126,10 +126,22 @@ class Inpatient extends MY_Controller {
 			'can'        => array(
 				'manage' => physio_can('beds_manage'),
 				'open'   => physio_can('admissions_view'),
+				'finance'=> physio_can('daily_billing_view'),
 			),
 		));
 		$data['content'] = $this->load->view('inpatient/beds', $data, TRUE);
 		$this->load->view('mp_layout', $data);
+	}
+
+	/** Porter task board + nursing task board. */
+	public function bed_ledger($accountId = 0){
+		if(!physio_can('daily_billing_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('Physio_accounts_model','pa');
+		$data=array_merge($this->data,array('page_title'=>'Bed accounts','accounts'=>$this->pa->accounts(),'ledger'=>$accountId ? $this->pa->ledger((int)$accountId) : null,'recording_enabled'=>$this->pa->enabled()));
+		if($accountId && !$data['ledger']){ $this->show_access_denied_page(); return; }
+		$data['content']=$this->load->view('inpatient/bed_ledger',$data,TRUE);
+		$data['mobile_ledger']=$this->input->get('mobile')==='1' || (is_mobile() && !is_tablet());
+		$this->load->view($data['mobile_ledger'] ? 'mobile/bed_ledger' : 'mp_layout',$data);
 	}
 
 	/** Porter task board + nursing task board. */
@@ -299,7 +311,9 @@ class Inpatient extends MY_Controller {
 	}
 	public function save_policy(){
 		if(!physio_can('daily_billing_run')){ $this->_deny(); return; }
-		$this->ipd->setPolicy($this->input->post('policy_key', TRUE), $this->input->post('policy_value', TRUE));
+		$key=$this->input->post('policy_key', TRUE); $value=$this->input->post('policy_value', TRUE);
+		if($key==='bed_accounts_enabled' && !in_array($value,array('0','1'),true)){ $this->_json(array('status'=>'error','message'=>'Choose on or off')); return; }
+		$this->ipd->setPolicy($key,$value);
 		$this->_json(array('status'=>'success','message'=>'Policy updated'));
 	}
 	public function run_billing(){

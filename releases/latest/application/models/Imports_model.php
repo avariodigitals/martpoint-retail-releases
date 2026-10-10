@@ -4,8 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /**
  * Imports_model — Stage 7 legacy import framework.
  *
- * SOURCE STATUS: the Smart Hospital 4.0 SQL dump is not yet available, so
- * concrete source-table extraction is pending. This model provides the
+ * Smart Hospital patient mapping is provided by Sh4_source_model. This model provides the
  * repeatable, resumable, rollbackable chassis; source-specific extractors
  * feed it normalized row arrays (see importPatient() for the contract).
  *

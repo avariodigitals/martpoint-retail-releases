@@ -15,7 +15,7 @@
 
 <div class="mp-page-head">
   <div><h2>Bed Board</h2>
-  <div class="mp-page-sub">Live ward occupancy — allocation is serialised; a taken bed returns a conflict, never a double booking.</div></div>
+  <div class="mp-page-sub">Ward occupancy, patient admissions and bed accounts.</div></div>
   <div><a class="mp-qa-btn" href="<?= base_url('inpatient'); ?>">Admissions</a></div>
 </div>
 
@@ -32,6 +32,8 @@ foreach($wards as $w): ?>
       <div class="st"><?= htmlspecialchars($b->status); ?></div>
       <?php if($b->patient_name): ?><div style="margin-top:4px"><?= htmlspecialchars($b->patient_name); ?><br><small>ADM #<?= (int)$b->admission_id; ?></small></div><?php endif; ?>
       <?php if($b->daily_rate !== null): ?><div style="margin-top:4px;font-size:10px;color:var(--mp-muted)"><?= $CI->currency($b->daily_rate); ?>/day</div><?php endif; ?>
+      <?php if($b->admission_id && $can['open']): ?><a style="display:block;margin-top:8px" href="<?= base_url('inpatient/view/'.(int)$b->admission_id); ?>">Open admission</a><?php endif; ?>
+      <?php if($can['finance'] && $b->payment_account_id): ?><a style="display:block;margin-top:8px" href="<?= base_url('inpatient/bed_ledger/'.(int)$b->payment_account_id); ?>">Bed account</a><?php endif; ?>
     </div>
     <?php endforeach; ?>
     <?php if(empty($byWard[$w->id])): ?><div style="color:var(--mp-muted);font-size:12px">No beds in this ward.</div><?php endif; ?>

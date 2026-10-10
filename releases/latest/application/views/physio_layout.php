@@ -93,6 +93,14 @@ $userName = $CI->session->userdata('display_name') ?: $CI->session->userdata('in
 $storeName = $CI->session->userdata('store_name');
 if(empty($storeName) && function_exists('get_store_name')){ $storeName = get_store_name(); }
 if(empty($storeName)){ $storeName = $SITE_TITLE ?? 'MartPoint'; }
+$physioLogo = '';
+if($CI->db->table_exists('db_store_theme_settings')){
+	$physioLogo = (string)$CI->db->where('store_id', get_current_store_id())->get('db_store_theme_settings')->row('store_logo');
+}
+if(!$physioLogo){ $physioLogo = (string)(get_store_details()->store_logo ?? ''); }
+if(!$physioLogo){ $physioLogo = function_exists('get_site_logo') ? get_site_logo() : ''; }
+$physioLogo = ltrim($physioLogo, '/');
+if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physioLogo)){ $physioLogo = ''; }
 ?>
 <!doctype html>
 <html lang="en">
@@ -166,7 +174,10 @@ if(empty($storeName)){ $storeName = $SITE_TITLE ?? 'MartPoint'; }
 .physio-rail::-webkit-scrollbar-track{background:transparent}
 .physio-rail::-webkit-scrollbar-thumb{background:rgba(230,244,237,.22);border-radius:4px}
 .physio-rail::-webkit-scrollbar-thumb:hover{background:rgba(230,244,237,.34)}
-.physio-brand{display:flex;align-items:center;gap:11px;padding:2px 10px 20px;border-bottom:1px solid rgba(230,244,237,.14);text-decoration:none;color:inherit}
+.physio-brand{display:flex;align-items:center;gap:11px;padding:2px 10px 20px;text-decoration:none;color:inherit}
+.physio-brand-logo{max-width:100%;width:auto;max-height:52px;object-fit:contain;flex-shrink:0}
+.physio-brand.has-wide-logo{justify-content:center}.physio-brand.has-wide-logo .physio-brand-text{display:none}
+.physio-brand:not(.has-wide-logo) .physio-brand-logo{max-width:52px;max-height:44px}.physio-user{border-top:0!important}.physio-nav-list{gap:2px}.physio-nav-group{margin-bottom:3px}
 .physio-brand-mark{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;background:#b8e0cf;color:#153b32;font-size:17px}
 .physio-brand strong{display:block;font-size:14px;letter-spacing:.03em}.physio-brand small{display:block;margin-top:3px;color:#a9c9bb;font-size:10px;letter-spacing:.1em}
 .physio-nav-label{padding:22px 11px 9px;color:#8eb4a3;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
@@ -185,7 +196,7 @@ if(empty($storeName)){ $storeName = $SITE_TITLE ?? 'MartPoint'; }
 .physio-nav-group-toggle .physio-nav-chevron{margin-left:auto;font-size:11px;color:#8eb4a3;transition:transform .18s ease}
 .physio-nav-group.open .physio-nav-group-toggle{color:#fff}
 .physio-nav-group.open>.physio-nav-group-toggle .physio-nav-chevron{transform:rotate(90deg)}
-.physio-nav-submenu{display:none;padding:4px 0 4px 14px;margin-left:9px;border-left:1px solid rgba(230,244,237,.18)}
+.physio-nav-submenu{display:none;padding:4px 0 8px 14px;margin-left:9px}
 .physio-nav-group.open>.physio-nav-submenu{display:grid;gap:3px}
 .physio-nav-submenu .physio-nav-link{min-height:36px;font-size:13px;padding:0 10px}
 .physio-nav-submenu .physio-nav-link i{font-size:13px;width:17px}
@@ -332,7 +343,10 @@ footer.copyright{margin:0!important;color:var(--mp-muted)!important;background:#
 <body>
 <div class="mp-shell physio-shell">
   <aside class="physio-rail" aria-label="Physiotherapy workspace navigation">
-    <a class="physio-brand" href="<?= base_url('dashboard'); ?>"><span class="physio-brand-mark"><i class="fa fa-heartbeat"></i></span><span><strong><?= htmlspecialchars($storeName); ?></strong><small>PHYSIO + REHABILITATION</small></span></a>
+    <a class="physio-brand" href="<?= base_url('dashboard'); ?>" aria-label="<?= htmlspecialchars($storeName); ?>">
+      <?php if($physioLogo): ?><img class="physio-brand-logo" src="<?= htmlspecialchars(base_url($physioLogo)); ?>" alt="<?= htmlspecialchars($storeName); ?>" onload="this.parentNode.classList.toggle('has-wide-logo',this.naturalWidth/this.naturalHeight>=2)"><?php else: ?><span class="physio-brand-mark"><i class="fa fa-heartbeat"></i></span><?php endif; ?>
+      <span class="physio-brand-text"><strong><?= htmlspecialchars($storeName); ?></strong><small>PHYSIO + REHABILITATION</small></span>
+    </a>
     <div class="physio-nav-label">Clinic</div><nav class="physio-nav-list" aria-label="Clinical workspaces">
       <?= $nav('Reception','dashboard','fa-inbox',physio_can_any(array('patients_view','appointments_view','care_queue_view','admissions_view'))); ?>
       <?= $nav('Patients','patients','fa-address-book-o',physio_can('patients_view'),'patient_registry'); ?>
@@ -356,6 +370,7 @@ footer.copyright{margin:0!important;color:var(--mp-muted)!important;background:#
     <?php if($canWardSection): ?><div class="physio-nav-label">Ward</div><nav class="physio-nav-list" aria-label="Ward workspaces">
       <?= $nav('Admissions','inpatient','fa-bed',$canAdmission,'inpatient_care'); ?>
       <?= $nav('Bed board','inpatient/beds','fa-th',$canAdmission,'inpatient_care'); ?>
+      <?= $nav('Bed accounts','inpatient/bed_ledger','fa-book',physio_can('daily_billing_view'),'inpatient_care'); ?>
       <?php /* One screen, two boards: the query string is what tells them apart, so each link claims its own board. */ ?>
       <?= $nav('Nursing tasks','inpatient/tasks?board=nursing','fa-heartbeat',physio_can('nursing_tasks_view'),'inpatient_care',array('path'=>'inpatient/tasks','get'=>array('board'=>'nursing'))); ?>
       <?= $nav('Porter tasks','inpatient/tasks?board=porter','fa-exchange',physio_can('porter_tasks_view'),'inpatient_care',array('path'=>'inpatient/tasks','get'=>array('board'=>'porter'))); ?>

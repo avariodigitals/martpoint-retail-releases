@@ -58,6 +58,34 @@ class Sh4_import extends CI_Controller {
 	}
 
 	/** Roll back a migration batch (deletes its targets in reverse order). */
+	/** Patient-only cutover: never stage balances, documents or visits. */
+	public function patients_only(){
+		if(!getenv('MP_DB') || !getenv('MP_STORE') || getenv('SH4_ASOF')!=='2026-10-02'){
+			fwrite(STDERR,"Set explicit MP_DB, MP_STORE and SH4_ASOF=2026-10-02 for the approved snapshot.\n"); exit(2);
+		}
+		if(!function_exists('physio_enabled')) $this->load->helper('physio');
+		if(!physio_enabled($this->storeId)){ fwrite(STDERR,"Target must be a Physio workspace.\n"); exit(2); }
+		$this->importPatients();
+	}
+	public function export_patients($path = ''){
+		$path=getenv('SH4_EXPORT_PATH') ?: $path;
+		if(getenv('SH4_ASOF')!=='2026-10-02' || !$path){ fwrite(STDERR,"Supply SH4_ASOF=2026-10-02 and an output path.\n"); exit(2); }
+		$directory=realpath(dirname($path));$webRoot=realpath(FCPATH);
+		if(!$directory || $directory===$webRoot || strpos($directory,$webRoot.DIRECTORY_SEPARATOR)===0){ fwrite(STDERR,"Patient extract must be stored outside the web root.\n"); exit(2); }
+		$rows=array();$after=0;
+		do {
+			$page=$this->sh4_source_model->patients($after,200,'2026-10-02');
+			foreach($page as $r){$rows[]=$r;$after=(int)$r['legacy_id'];}
+		} while($page);
+		$payload=array('source_system'=>'smarthospital4','snapshot_date'=>'2026-10-02','scope'=>'patients_only','patients'=>$rows);
+		$json=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+		umask(0077);
+		if($json===false || file_put_contents($path,$json)===false){ fwrite(STDERR,"Export failed.\n"); exit(2); }
+		chmod($path,0600);
+		echo count($rows)." patients exported; no financial or admission records.\n";
+	}
+
+	/** Roll back a migration batch (deletes its targets in reverse order). */
 	public function rollback($batchId = 0){
 		$batchId = (int)$batchId;
 		$res = $this->imports_model->rollback($batchId);
@@ -71,7 +99,7 @@ class Sh4_import extends CI_Controller {
 		echo "batch #{$batchId}\n";
 		$after = 0; $ok = 0; $skip = 0; $conflict = 0; $fail = 0;
 		while(true){
-			$rows = $this->sh4_source_model->patients($after, 200);
+			$rows = $this->sh4_source_model->patients($after, 200, $this->asOf);
 			if(!$rows) break;
 			foreach($rows as $r){
 				$after = (int)$r['legacy_id'];

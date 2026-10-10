@@ -85,6 +85,8 @@ class Patient_billing_model extends CI_Model {
 
 		$this->db->trans_begin();
 		// Serialise invoice-number generation per store.
+		$this->load->model('Physio_accounts_model','pa');
+		$physioAccountId=$this->pa->forCustomer($plan->customer_id,$storeId);
 		$this->db->query('SELECT 1 FROM db_store WHERE id = ? FOR UPDATE', [(int)$storeId]);
 		$initCode = get_only_init_code('sales');
 		$countId  = autosynch_sales_code();
@@ -122,6 +124,7 @@ class Patient_billing_model extends CI_Model {
 			$lineTotal = $it->qty * $it->unit_price;
 			$this->db->insert('db_salesitems', array(
 				'sales_id'        => $salesId,
+				'physio_account_id'=> $physioAccountId,
 				'store_id'        => $storeId,
 				'sales_status'    => 'Final',
 				'item_id'         => $it->item_id,
@@ -168,6 +171,8 @@ class Patient_billing_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$sale = $this->getBill($salesId);
 		// Link the payment mode so cash-flow/cashier reports classify the row
+		$this->load->model('Physio_accounts_model','pa');
+		$physioAccountId=$this->pa->forCustomer($sale->customer_id,$storeId);
 		// correctly (patient_wallet / wallet_reversal are non-cash modes).
 		$modeId = null;
 		if($this->db->field_exists('payment_mode_id', 'db_salespayments')){
@@ -186,6 +191,7 @@ class Patient_billing_model extends CI_Model {
 			'store_id'       => $storeId,
 			'sales_id'       => $salesId,
 			'payment_date'   => date('Y-m-d'),
+			'physio_account_id'=> $physioAccountId,
 			'payment_type'   => $type,
 			'payment_mode_id'=> $modeId,
 			'payment'        => $amount,

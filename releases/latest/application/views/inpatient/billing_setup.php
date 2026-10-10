@@ -39,6 +39,16 @@
 </div>
 
 <div class="bs-box">
+  <h4>Bed payment accounts</h4>
+  <p>Record service charges and payments against the patient's bed at the time of each transaction. Outpatients use the outpatient account. Transfers affect new transactions; existing ledger history stays on its original account.</p>
+  <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+    <input type="checkbox" <?= ($policies['bed_accounts_enabled'] ?? '0')==='1' ? 'checked' : ''; ?> <?= !$can['run'] ? 'disabled' : ''; ?> onchange="bsBedAccounts(this)">
+    Enable bed accounts for this workspace
+  </label>
+  <p style="color:var(--mp-muted);margin-top:8px">Off by default. Switching off stops new account assignments and preserves recorded history.</p>
+</div>
+
+<div class="bs-box">
   <h4>Charging policies</h4>
   <table class="bs-table">
     <tr><th>Policy</th><th>Value</th><th>Meaning</th></tr>
@@ -62,6 +72,14 @@
 </div>
 
 <script>
+function bsBedAccounts(input){ var before=!input.checked; input.disabled=true;
+  var fd=new FormData(); fd.append('policy_key','bed_accounts_enabled'); fd.append('policy_value',input.checked?'1':'0');
+  if(window.csrfName) fd.append(window.csrfName,window.csrfHash);
+  fetch('<?= base_url('inpatient/save_policy'); ?>',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.status!=='success'){input.checked=before;alert(d.message||'Could not save');}
+    else {location.reload();}
+  }).catch(()=>{input.checked=before;alert('Could not save. Try again.');}).finally(()=>{input.disabled=false;});
+}
 function bsRun(){ var fd = new FormData(); fd.append('date', prompt('Run for date (Y-m-d)','<?= date('Y-m-d'); ?>')||'');
   fetch('<?= base_url('inpatient/run_billing'); ?>', {method:'POST', body:fd})
     .then(r=>r.json()).then(d=>alert(d.message||'')); }
