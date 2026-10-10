@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.127",
-    "previous_version": "4.0.9.126",
+    "version": "4.0.9.128",
+    "previous_version": "4.0.9.127",
     "release_date": "2026-10-10",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -5012,8 +5012,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "c4d66cf6c600a235a3fcc3c7c32c8f976059f81950c7dfcaf823a9ab169b06c3",
-            "size": 15639
+            "hash": "be3a51a218469079fdefcaf205eeafa9ec31b7ba470389d10bb4d1663d6e2ca3",
+            "size": 15707
         },
         {
             "path": "application/config/routes.php",
@@ -11017,7 +11017,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "2a5c8842aa671f89d9e4169411a0e30d10274919bb736e217265996c24183ff3",
+            "hash": "bc18f0fbb4d7b0c4de71943a7cf5cddc0e3dbe5f9984e4067df6ef57f20c7be7",
             "size": 106208
         },
         {
@@ -17291,6 +17291,7 @@
         "4.0.9.125_fresh_install_column_repair.sql",
         "4.0.9.126_schema_reconciliation.sql",
         "4.0.9.127_physio_and_fleet_recovery.sql",
+        "4.0.9.128_provisioned_admin_login.sql",
         "4.0.9.12_industry_modules.sql",
         "4.0.9.13_storefront_columns.sql",
         "4.0.9.20_marquee_setting.sql",
@@ -17381,5 +17382,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.127"
+    "changelog": "Release 4.0.9.128"
 }
