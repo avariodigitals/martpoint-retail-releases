@@ -455,6 +455,7 @@ footer.copyright{margin:0!important;color:var(--mp-muted)!important;background:#
               $CI->permissions('services_view') || $CI->permissions('services_add') || $CI->permissions('items_view')),
         array('Therapy aids & material', 'items', 'fa-cubes',
               $CI->permissions('services_view') || $CI->permissions('services_add') || $CI->permissions('items_view')),
+        array('Import Items', 'import/items', 'fa-upload', $CI->permissions('import_items')),
       ));
       $gSetup .= $group('Finance setup', 'fa-credit-card', array(
         array('Opening positions', 'patient_funds/openings', 'fa-sign-in', physio_can('opening_positions_view')),

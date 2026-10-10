@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.128",
-    "previous_version": "4.0.9.127",
+    "version": "4.0.9.129",
+    "previous_version": "4.0.9.128",
     "release_date": "2026-10-10",
     "fleet_url": "https://central.martpoint.com.ng/",
     "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
@@ -3732,8 +3732,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "962705cb9d9b5a61cd34de772ecf46e27c56583a641d0a6ad5a33814b50f8f02",
-            "size": 88121
+            "hash": "f485bd8f37baa61f29b554517ac70b947b48d9d5fd1f59faa763cbfda11ca119",
+            "size": 88085
         },
         {
             "path": "application/views/report-stock.php",
@@ -4962,8 +4962,8 @@
         },
         {
             "path": "application/views/physio_layout.php",
-            "hash": "d78aaa8dc24161466756011ad6bec674a1f7f65c61adaf5d98d5f33aa4d3e62b",
-            "size": 48998
+            "hash": "427d1c0d23aaddcb6242e52cb8b88ee63db56946350c9da3b092c61e8b2962ff",
+            "size": 49092
         },
         {
             "path": "application/config/assist_ai.php",
@@ -5012,8 +5012,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "be3a51a218469079fdefcaf205eeafa9ec31b7ba470389d10bb4d1663d6e2ca3",
-            "size": 15707
+            "hash": "65bc083471f09fe710b1aeba548539152d7b325391f2abc6d48b3e4a16c51748",
+            "size": 15788
         },
         {
             "path": "application/config/routes.php",
@@ -9572,8 +9572,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "3e927fe35a8501dfce65f24de91a33ebc439a8d8689ec0bdd32f824d8d1aa6f1",
-            "size": 151932
+            "hash": "1dd9dbd0cc92abf1656026735191d4f5e55e006e2f82167c6846c74e581a35d1",
+            "size": 152092
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -11017,7 +11017,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "bc18f0fbb4d7b0c4de71943a7cf5cddc0e3dbe5f9984e4067df6ef57f20c7be7",
+            "hash": "3d6636ed1eed5e3c58cf033bec13db9dfcd8fd4864c9565f07983590acd20fa6",
             "size": 106208
         },
         {
@@ -17292,6 +17292,7 @@
         "4.0.9.126_schema_reconciliation.sql",
         "4.0.9.127_physio_and_fleet_recovery.sql",
         "4.0.9.128_provisioned_admin_login.sql",
+        "4.0.9.129_fleet_delivery_and_import_navigation.sql",
         "4.0.9.12_industry_modules.sql",
         "4.0.9.13_storefront_columns.sql",
         "4.0.9.20_marquee_setting.sql",
@@ -17382,5 +17383,5 @@
         "backups/"
     ],
     "signature": null,
-    "changelog": "Release 4.0.9.128"
+    "changelog": "Release 4.0.9.129"
 }

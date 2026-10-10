@@ -625,6 +625,8 @@ subscription to receive updates.';
                 // fleet list sticks on the old number. Sending the code version
                 // lets the registry reflect what is actually deployed.
                 'code_version' => $this->getCodeVersion(),
+                'updater_hash' => is_file(APPPATH . 'libraries/Updater.php')
+                    ? hash_file('sha256', APPPATH . 'libraries/Updater.php') : '',
                 'php_version' => PHP_VERSION,
                 'license_code' => $this->getLicenseCode(),
                 'cron_key'    => $this->cronKey(),

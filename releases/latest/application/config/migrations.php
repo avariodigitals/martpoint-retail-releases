@@ -265,4 +265,5 @@ return [
           '4.0.9.126v'  => '4.0.9.126_schema_reconciliation.sql',
           '4.0.9.127v'  => '4.0.9.127_physio_and_fleet_recovery.sql',
           '4.0.9.128v'  => '4.0.9.128_provisioned_admin_login.sql',
+          '4.0.9.129v'  => '4.0.9.129_fleet_delivery_and_import_navigation.sql',
 ];
