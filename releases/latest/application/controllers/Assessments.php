@@ -56,9 +56,46 @@ class Assessments extends MY_Controller {
 		$template = $a ? $this->assessments->getTemplate((int)$a->template_id)
 		             : $this->assessments->getTemplate((int)$this->input->get('template_id'));
 		if(!$template){ $this->show_access_denied_page(); return; }
+		if(!$a && !$this->assessments->templateEnabled($template->template_key)){
+			$this->show_access_denied_page(); return;
+		}
 		$patient = $this->db->select('p.*, c.customer_name')
 			->from('db_patients p')->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
 			->where('p.id', (int)$enc->patient_id)->get()->row();
+		$userSelect = 'u.first_name,u.last_name,u.username,r.role_name';
+		if($this->db->field_exists('signature', 'db_users')) $userSelect .= ',u.signature';
+		$physioUser = $this->db->select($userSelect)
+			->from('db_users u')->join('db_roles r','r.id=u.role_id','left')->where('u.id',(int)$this->session->userdata('inv_userid'))->get()->row();
+		$physioName = $physioUser ? trim(($physioUser->first_name ?: '').' '.($physioUser->last_name ?: '')) : '';
+		if($physioName === '') $physioName = $physioUser->username ?? ($this->session->userdata('inv_username') ?: '');
+		$physioRole = trim($physioUser->role_name ?? '') ?: ($this->session->userdata('role_name') ?: 'Physiotherapist');
+		$vitalsSets = $this->encounters->getVitals((int)$enc->id);
+		$vitalsSummary = '';
+		foreach(array_reverse($vitalsSets ?: array()) as $vitalSet){
+			if(($vitalSet->status ?? '') !== 'final') continue;
+			$lines = array();
+			foreach(($vitalSet->entries ?? array()) as $entry){
+				$value = !empty($entry->not_measured) ? 'Not measured' : trim(($entry->value_text ?? '').' '.($entry->unit ?? ''));
+				$lines[] = trim(($entry->label ?: $entry->vital_key).' : '.$value);
+			}
+			$vitalsSummary = 'Nursing vitals set #'.(int)$vitalSet->id.' · finalized '.($vitalSet->finalized_at ?? $vitalSet->created_at ?? '')."\n".implode("\n", $lines);
+			break;
+		}
+		$answers = $a ? (json_decode($a->answers_json, true) ?: array()) : array();
+		// These identity fields come from the live queue and logged-in account;
+		// therapists should not retype or accidentally change them.
+		if(($template->template_key ?? '') === 'physio_initial'){
+			if($vitalsSummary !== '' && (!$a || $a->status === 'draft' || empty($answers['medical_nursing_vitals']))) $answers['medical_nursing_vitals'] = $vitalsSummary;
+			if(!$a || $a->status === 'draft') $answers['administration_patient_name'] = $patient->customer_name ?? '';
+			elseif(empty($answers['administration_patient_name'])) $answers['administration_patient_name'] = $patient->customer_name ?? '';
+			if(!$a || $a->status === 'draft') $answers['administration_physiotherapist'] = $physioName;
+			elseif(empty($answers['administration_physiotherapist'])) $answers['administration_physiotherapist'] = $a->assessor_name ?? $physioName;
+			if(!$a || $a->status === 'draft') $answers['administration_position'] = $physioRole;
+			elseif(empty($answers['administration_position'])) $answers['administration_position'] = $physioRole;
+			if(!$a || $a->status === 'draft') $answers['administration_signature'] = $physioUser->signature ?? '';
+			if(!$a || $a->status === 'draft') $answers['administration_date_of_assessment'] = date('Y-m-d');
+			elseif(empty($answers['administration_date_of_assessment'])) $answers['administration_date_of_assessment'] = !empty($a->created_at) ? date('Y-m-d', strtotime($a->created_at)) : '';
+		}
 		$data = array_merge($this->data, array(
 			'page_title' => $template->name,
 			'enc'        => $enc,
@@ -66,7 +103,8 @@ class Assessments extends MY_Controller {
 			'template'   => $template,
 			'sections'   => $this->assessments->templateSections($template),
 			'assessment' => $a,
-			'answers'    => $a ? (json_decode($a->answers_json, true) ?: array()) : array(),
+			'answers'    => $answers,
+			'physio_user'=> $physioUser,
 			'amendments' => $a ? $this->assessments->amendments((int)$a->id) : array(),
 			'can'        => array(
 				'save'     => physio_can('assessments_add'),
@@ -118,5 +156,29 @@ class Assessments extends MY_Controller {
 		$this->_json($res === true
 			? array('status' => 'success', 'message' => 'Amendment recorded — original preserved')
 			: array('status' => 'error', 'message' => $res['error']));
+	}
+
+	/** Download a saved assessment as a patient-specific PDF copy. */
+	public function download($id = 0){
+		list($a, $err) = $this->_loadAssessment($id);
+		if($err){ $this->show_access_denied_page(); return; }
+		$template = $this->assessments->getTemplate((int)$a->template_id);
+		$enc = $this->encounters->getEncounter((int)$a->encounter_id);
+		$patient = $this->db->select('p.*, c.customer_name, c.mobile, c.email')
+			->from('db_patients p')->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->where('p.id', (int)$a->patient_id)->where('p.store_id', (int)$a->store_id)->get()->row();
+		$view = $this->load->view('assessments/print', array(
+			'assessment' => $a,
+			'template' => $template,
+			'sections' => $this->assessments->templateSections($template),
+			'answers' => json_decode($a->answers_json, true) ?: array(),
+			'patient' => $patient,
+			'enc' => $enc,
+		), TRUE);
+		$this->load->library('pdf');
+		$this->dompdf->loadHtml($view);
+		$this->dompdf->setPaper('A4', 'portrait');
+		$this->dompdf->render();
+		$this->dompdf->stream('physio-assessment-'.$a->id.'.pdf', array('Attachment' => 1));
 	}
 }

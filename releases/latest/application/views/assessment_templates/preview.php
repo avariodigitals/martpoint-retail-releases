@@ -6,9 +6,9 @@
 .pv-f .l{font-size:13px;font-weight:600}.pv-f .t{font-size:11px;color:var(--mp-muted)}
 .req{color:#DC2626}
 </style>
-<div class="mp-page-head"><div><h2>Preview — <?= htmlspecialchars($t->name); ?> v<?= (int)$t->version; ?></h2>
+<div class="mp-page-head"><div><h2>Preview — <?= htmlspecialchars(($t->template_key ?? '') === 'physio_initial' ? 'Physiotherapy Initial Assessment' : $t->name); ?> v<?= (int)$t->version; ?></h2>
   <div class="mp-page-sub"><a href="<?= base_url('assessment_templates'); ?>">&larr; Templates</a>
-    · status: <b><?= $t->status; ?></b><?= $t->provisional ? ' · provisional' : ''; ?></div>
+    · status: <b><?= $t->status; ?></b><?= $t->provisional && ($t->template_key ?? '') !== 'physio_initial' ? ' · provisional' : ''; ?></div>
 </div></div>
 <?php foreach($sections as $sec): ?>
 <div class="pv-card pv-sec">

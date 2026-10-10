@@ -269,4 +269,8 @@ return [
           '4.0.9.130v'  => '4.0.9.130_physio_bed_accounts.sql',
           '4.0.9.131v'  => '4.0.9.131_oil_plant_quotation_sections.sql',
           '4.0.9.132v'  => '4.0.9.132_plant_manual_quote_lines.sql',
+          '4.0.9.133v'  => '4.0.9.133_physio_system_accounts.sql',
+          '4.0.9.134v'  => '4.0.9.134_lagos_location_repair.sql',
+          '4.0.9.135v'  => '4.0.9.135_physio_final_assessment.sql',
+          '4.0.9.136v'  => '4.0.9.136_physio_user_signatures.sql',
 ];

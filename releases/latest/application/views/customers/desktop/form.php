@@ -400,9 +400,9 @@ if (!isset($customer_name)) {
     $("#copy_address").on("ifChanged change", function(event){
       if (event.target.checked) {
         $("#shipping_country").val($("#country").val()).select2();
-        $("#shipping_state").val($("#state").val()).select2();
+        $("#shipping_state").html($("#state").html()).val($("#state").val()).trigger("change.select2");
         $("#shipping_postcode").val($("#postcode").val());
-        $("#shipping_city").val($("#city").val());
+        $("#shipping_city").html($("#city").html()).val($("#city").val()).trigger("change.select2");
         $("#shipping_address").val($("#address").val());
         $("#shipping_location_link").val($("#location_link").val());
       } else {

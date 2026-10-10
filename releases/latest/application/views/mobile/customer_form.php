@@ -375,32 +375,37 @@
         sel.selectedIndex = 0;
       }
       buildMpSelect(sel);
-      sel.dispatchEvent(new Event('change', {bubbles:true}));
       sel.dispatchEvent(new Event('mpupdate', {bubbles:true}));
     }
     function closeAll(){ document.querySelectorAll('.mp-select-wrap.open').forEach(function(w){ w.classList.remove('open'); }); }
     document.addEventListener('click', closeAll);
     document.querySelectorAll('select').forEach(buildMpSelect);
+    function locationOption(value,label){ var o=new Option(label,value); return o.outerHTML; }
     function loadStates(countrySel, stateSel, citySel){
+      var requestId = (stateSel.locationRequestId || 0) + 1; stateSel.locationRequestId=requestId;
+      if(citySel) citySel.locationRequestId=(citySel.locationRequestId||0)+1;
       var selectedText = countrySel.options[countrySel.selectedIndex] ? countrySel.options[countrySel.selectedIndex].text : '';
       if(!countrySel.value || selectedText === 'Select Country' || selectedText === ''){
         setSelectOptions(stateSel, '<option value="">Select State</option>', '');
         if(citySel) setSelectOptions(citySel, '<option value="">Select City</option>', '');
         return;
       }
+      if(citySel){ setSelectOptions(citySel, '<option value="">Select City</option>', ''); }
       var fd = new FormData();
       fd.append(tokenName, token);
       fd.append('country', selectedText);
       mpFetchJson('<?= base_url('site/get_states_by_country'); ?>', {method:'POST', body:fd})
       .then(function(data){
+        if(stateSel.locationRequestId!==requestId) return;
         var html = '<option value="">Select State</option>';
-        data.forEach(function(s){ html += '<option value="'+s.id+'">'+s.state+'</option>'; });
+        data.forEach(function(s){ html += locationOption(s.id,s.state); });
         setSelectOptions(stateSel, html, '');
         if(citySel) setSelectOptions(citySel, '<option value="">Select City</option>', '');
       })
       .catch(function(err){ showToast(mpErrorText(err, 'The state list could not be loaded. Please try again.'), true); });
     }
     function loadCities(stateSel, citySel){
+      var requestId=(citySel.locationRequestId||0)+1; citySel.locationRequestId=requestId;
       var stateId = stateSel.value;
       if(!stateId){ setSelectOptions(citySel, '<option value="">Select City</option>', ''); return; }
       var fd = new FormData();
@@ -408,8 +413,9 @@
       fd.append('state_id', stateId);
       mpFetchJson('<?= base_url('site/get_cities_by_state'); ?>', {method:'POST', body:fd})
       .then(function(data){
+        if(citySel.locationRequestId!==requestId) return;
         var html = '<option value="">Select City</option>';
-        data.forEach(function(c){ html += '<option value="'+c.city+'">'+c.city+'</option>'; });
+        data.forEach(function(c){ html += locationOption(c.city,c.city); });
         setSelectOptions(citySel, html, '');
       })
       .catch(function(err){ showToast(mpErrorText(err, 'The city list could not be loaded. Please try again.'), true); });

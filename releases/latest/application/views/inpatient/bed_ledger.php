@@ -9,6 +9,9 @@
 </nav>
 <?php if(!$ledger): ?><p style="margin-top:20px">Choose a bed to view its account.</p><?php else: $t=$ledger['totals']; ?>
 <h3><?= $esc($ledger['account']->bed_id ? $ledger['account']->ward_name.' / '.$ledger['account']->bed_label : 'Outpatient'); ?> — <?= $esc($ledger['account']->account_code); ?></h3>
+<?php if(!empty($ledger['account']->system_account_id) && $CI->permissions('accounts_view')): ?>
+<p><a href="<?= base_url('accounts/book/'.(int)$ledger['account']->system_account_id); ?>">Open linked system account book</a></p>
+<?php endif; ?>
 <div class="ba-grid">
 <?php foreach(array('billed'=>'Service charges','settled'=>'Invoice payments credited','net_collected'=>'Net money collected','ledger_balance'=>'Charges less invoice payments') as $k=>$label): ?><div class="ba-card"><span class="ba-muted"><?= $label; ?></span><strong><?= $CI->currency($t[$k]); ?></strong></div><?php endforeach; ?>
 </div>

@@ -118,9 +118,8 @@
       <?php if(physio_can('assessments_view')): ?>
       <div class="card">
         <h4>Assessments</h4>
-        <div class="prov">Provisional template — pending the agreed five-page clinical form.</div>
         <?php foreach($assessments as $a): ?>
-          <div class="row"><span><?= htmlspecialchars($a->template_key); ?> v<?= (int)$a->template_version; ?></span>
+          <div class="row"><span><a href="<?= base_url('assessments/form/' . (int)$a->id); ?>"><?= $a->template_key === 'physio_initial' ? 'Physiotherapy Initial Assessment' : htmlspecialchars($a->template_key); ?> · #<?= (int)$a->id; ?></a><br><small><?= htmlspecialchars($a->assessor_name ?: ''); ?> · <?= $a->created_at; ?></small></span>
             <span class="pill <?= $a->status; ?>"><?= $a->status; ?></span></div>
         <?php endforeach; ?>
         <?php if(empty($assessments)): ?><div style="font-size:12px;color:var(--mp-muted);">None — complete on desktop or open this visit there.</div><?php endif; ?>

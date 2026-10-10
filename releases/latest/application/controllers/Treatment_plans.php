@@ -116,6 +116,8 @@ class Treatment_plans extends MY_Controller {
 				'sessions'     => physio_can('sessions_view'),
 			),
 		));
+		$this->load->model('Physio_accounts_model','pa');
+		$data['system_accounts']=$this->pa->systemContext($plan->customer_id,get_current_store_id());
 		$data['content'] = $this->load->view('treatment_plans/view', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}

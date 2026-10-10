@@ -110,7 +110,7 @@ function savePlan(status){
     status: status
   }, function(r){
     if(r.status === 'success'){ location.href = '<?= base_url('treatment_plans/view/'); ?>' + r.plan_id; }
-    else { alert(r.message); }
+    else { toastr.error(r.message || 'Could not save the treatment plan.'); }
   }, 'json');
 }
 </script>

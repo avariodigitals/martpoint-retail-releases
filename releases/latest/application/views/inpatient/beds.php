@@ -46,9 +46,11 @@ foreach($wards as $w): ?>
 <div class="ib-box">
   <h4>Add ward / bed</h4>
   <form style="display:inline" onsubmit="return ibPost(event,'inpatient/save_ward','Ward saved')">
+    <input type="hidden" name="<?= htmlspecialchars($CI->security->get_csrf_token_name(), ENT_QUOTES, 'UTF-8'); ?>" value="<?= htmlspecialchars($CI->security->get_csrf_hash(), ENT_QUOTES, 'UTF-8'); ?>">
     <input class="ib-inp" name="name" placeholder="Ward name" required><button class="mp-qa-btn">Add ward</button>
   </form>
   <form style="display:inline" onsubmit="return ibPost(event,'inpatient/save_bed','Bed saved')">
+    <input type="hidden" name="<?= htmlspecialchars($CI->security->get_csrf_token_name(), ENT_QUOTES, 'UTF-8'); ?>" value="<?= htmlspecialchars($CI->security->get_csrf_hash(), ENT_QUOTES, 'UTF-8'); ?>">
     <select class="ib-inp" name="ward_id" required>
       <?php foreach($wards as $w): ?><option value="<?= (int)$w->id; ?>"><?= htmlspecialchars($w->name); ?></option><?php endforeach; ?>
     </select>
@@ -58,8 +60,23 @@ foreach($wards as $w): ?>
   </form>
 </div>
 <script>
-function ibPost(e, url, ok){ e.preventDefault(); var fd = new FormData(e.target);
-  fetch('<?= base_url(); ?>'+url, {method:'POST', body:fd}).then(r=>r.json())
-    .then(d=>{ alert(d.message||ok); if(d.status==='success') location.reload(); }); return false; }
+function ibPost(e, url, ok){
+  e.preventDefault();
+  var form=e.target, fd=new FormData(form), button=form.querySelector('button');
+  if(button && button.disabled) return false;
+  if(button) button.disabled=true;
+  fetch('<?= base_url(); ?>'+url, {method:'POST', body:fd})
+    .then(function(r){
+      if(!r.ok) throw new Error(r.status===403 ? 'Your session could not be verified. Refresh this page and try again.' : 'Could not save. Please try again.');
+      return r.json();
+    })
+    .then(function(d){
+      if(d.status==='success'){ alert(d.message||ok); location.reload(); }
+      else { alert(d.message||'Could not save. Please check the details and try again.'); }
+    })
+    .catch(function(err){ alert(err.message||'Could not save. Please try again.'); })
+    .finally(function(){ if(button) button.disabled=false; });
+  return false;
+}
 </script>
 <?php endif; ?>

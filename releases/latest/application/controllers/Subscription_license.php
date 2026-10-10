@@ -667,7 +667,8 @@ class Subscription_license extends MY_Controller {
 		$result = $this->email_service->sendRaw($to_email, 'MartPoint Test Email', '<p>This is a test email.</p>', 'This is a test email.', [
 			'template_key' => 'test',
 			'from_name' => 'MartPoint Retail',
-			'send_copy_to_owner' => false
+			'email_scope' => 'platform',
+                'send_copy_to_owner' => false
 		]);
 
 		$diag = [
@@ -740,7 +741,8 @@ class Subscription_license extends MY_Controller {
 		$result = $this->email_service->sendRaw($to_email, $subject, $html, $text, [
 			'template_key' => 'license_otp',
 			'from_name' => 'MartPoint Retail',
-			'send_copy_to_owner' => false
+			'email_scope' => 'platform',
+                'send_copy_to_owner' => false
 		]);
 
 		if(!$result['success']){

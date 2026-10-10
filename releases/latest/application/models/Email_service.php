@@ -10,6 +10,23 @@ class Email_service extends CI_Model {
 	protected $providers = ['smtp' => 'Smtp_provider', 'resend' => 'Resend_provider'];
 	protected $storeId;
 
+	/** Shared sender rules for store mail and provider tests. Platform mail opts out. */
+	protected function senderIdentity(array $settings,array $config,array $options=array()){
+		$platform=($options['email_scope'] ?? '')==='platform'
+			|| ($options['related_module'] ?? '')==='subscription_license'
+			|| strpos($options['template_key'] ?? '', 'subscription_')===0
+			|| ($options['template_key'] ?? '')==='license_otp';
+		$from=array('email'=>!empty($settings['from_email']) ? $settings['from_email'] : ($config['smtp_user'] ?? $config['resend_from_email'] ?? ''),
+			'name'=>$settings['from_name'] ?? '');
+		if(!empty($options['from_email'])) $from['email']=$options['from_email'];
+		if(!empty($options['from_name'])) $from['name']=$options['from_name'];
+		// The configured store mailbox wins over per-message overrides.
+		$reply=(!$platform && !empty($settings['reply_to'])) ? $settings['reply_to']
+			: (!empty($options['reply_to']) ? $options['reply_to'] : (!empty($settings['reply_to']) ? $settings['reply_to'] : $from['email']));
+		return array('from'=>$from,'replyTo'=>array('email'=>$reply,'name'=>$from['name']),
+			'owner_copy_email'=>$platform ? ($settings['from_email'] ?? '') : $reply);
+	}
+
 	/** Mask an email address for safe logging */
 	protected function _maskEmail($email){
 		if(empty($email) || !strpos($email, '@')) return $email;
@@ -138,19 +155,9 @@ class Email_service extends CI_Model {
 			];
 		}
 
-		// Build from / reply-to
-		$from = [
-			'email' => !empty($settings['from_email']) ? $settings['from_email'] : ($providerConfig['smtp_user'] ?? $providerConfig['resend_from_email'] ?? ''),
-			'name'  => !empty($settings['from_name'])  ? $settings['from_name']  : ''
-		];
-		$replyTo = [
-			'email' => !empty($settings['reply_to']) ? $settings['reply_to'] : $from['email'],
-			'name'  => $from['name']
-		];
-
-		if(!empty($options['from_email'])){ $from['email'] = $options['from_email']; }
-		if(!empty($options['from_name'])) { $from['name']  = $options['from_name']; }
-		if(!empty($options['reply_to']))  { $replyTo['email'] = $options['reply_to']; }
+		$identity=$this->senderIdentity($settings,$providerConfig,$options);
+		$from=$identity['from'];
+		$replyTo=$identity['replyTo'];
 
 		$params = [
 			'to'      => $to,
@@ -175,9 +182,9 @@ class Email_service extends CI_Model {
 			);
 
 			// Send copy to owner if configured
-			if(!empty($options['send_copy_to_owner']) && !empty($settings['from_email'])){
+			if(!empty($options['send_copy_to_owner']) && !empty($identity['owner_copy_email'])){
 				$copyParams = $params;
-				$copyParams['to'] = $settings['from_email'];
+				$copyParams['to'] = $identity['owner_copy_email'];
 				$copyParams['subject'] = '[COPY] ' . $subject;
 				$provider->send($copyParams);
 			}
@@ -221,10 +228,8 @@ class Email_service extends CI_Model {
 		}
 
 		$settings = $this->email_settings_model->getSettings($this->storeId);
-		$from = [
-			'email' => !empty($settings['from_email']) ? $settings['from_email'] : ($providerConfig['smtp_user'] ?? $providerConfig['resend_from_email'] ?? ''),
-			'name'  => !empty($settings['from_name']) ? $settings['from_name'] : 'MartPoint Retail'
-		];
+		$identity=$this->senderIdentity($settings,$providerConfig);
+		$from=$identity['from'];
 
 		$params = [
 			'to'      => $testEmail,
@@ -232,7 +237,7 @@ class Email_service extends CI_Model {
 			'html'    => '<h2>Test Email</h2><p>This is a test email from MartPoint Retail using ' . strtoupper($providerKey) . '.</p><p>If you received this, the email provider is working correctly!</p><hr><p style="color:#888;font-size:12px;">Sent at: ' . date('Y-m-d H:i:s') . '</p>',
 			'text'    => "Test Email\n\nThis is a test email from MartPoint Retail using " . strtoupper($providerKey) . ".\n\nSent at: " . date('Y-m-d H:i:s'),
 			'from'    => $from,
-			'replyTo' => $from
+			'replyTo' => $identity['replyTo']
 		];
 
 		$result = $provider->send($params);

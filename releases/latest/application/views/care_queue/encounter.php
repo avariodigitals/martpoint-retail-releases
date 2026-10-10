@@ -81,9 +81,10 @@
   <div class="prov-banner"><i class="fa fa-info-circle"></i> The bundled template is a <b>provisional</b> form pending the agreed five-page clinical assessment.</div>
   <?php foreach($assessments as $a): ?>
     <div class="enc-row">
-      <span><a href="<?= base_url('assessments/form/' . (int)$a->id); ?>"><?= htmlspecialchars($a->template_key); ?> v<?= (int)$a->template_version; ?></a>
+      <span><a href="<?= base_url('assessments/form/' . (int)$a->id); ?>"><?= $a->template_key === 'physio_initial' ? 'Physiotherapy Initial Assessment' : htmlspecialchars($a->template_key); ?> · #<?= (int)$a->id; ?></a>
         <span class="enc-pill <?= $a->status; ?>"><?= $a->status; ?></span><br>
-        <small style="color:#94a3b8;"><?= htmlspecialchars($a->assessor_name ?: ''); ?> · <?= $a->created_at; ?></small></span>
+        <small style="color:#94a3b8;"><?= htmlspecialchars($a->assessor_name ?: ''); ?> · <?= $a->created_at; ?> · v<?= (int)$a->template_version; ?></small></span>
+      <a class="enc-mini-btn" href="<?= base_url('assessments/download/' . (int)$a->id); ?>" target="_blank" title="Download printable copy"><i class="fa fa-print"></i></a>
     </div>
   <?php endforeach; ?>
   <?php if(empty($assessments)): ?><div style="font-size:12px;color:var(--mp-muted);">No assessments yet.</div><?php endif; ?>
@@ -311,7 +312,8 @@ function docLog(id){
   $.get('<?= base_url('patient_docs/log/'); ?>'+id, function(res){
     var msg = (res.versions||[]).map(function(v){ return 'v'+v.version_no+' · '+v.mime+' · '+(v.uploaded_by||'')+' '+v.created_at; }).join('\n');
     msg += '\n\nAccess:\n' + (res.log||[]).map(function(l){ return l.action+' by '+(l.username||'?')+' '+l.created_at; }).join('\n');
-    alert(msg || 'No history');
+    var safe = $('<div>').text(msg || 'No history').html().replace(/\n/g, '<br>');
+    toastr.info(safe, 'Document history', {escapeHtml:false, timeOut:0, extendedTimeOut:0, closeButton:true});
   }, 'json');
 }
 </script>

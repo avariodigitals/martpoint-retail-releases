@@ -1,27 +1,32 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <style>
-.ass-sec{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:16px!important;margin-bottom:14px!important}
+.ass-sec{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:16px!important;margin-bottom:14px!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
 .ass-sec h4{font-size:12px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:var(--mp-muted)!important;margin:0 0 12px 0!important}
+.ass-sec h4{grid-column:1/-1}.ass-field-full{grid-column:1/-1}.ass-signature{display:flex;align-items:center;min-height:54px;padding:8px 12px;border:1px solid var(--mp-border);border-radius:10px;background:#fff}.ass-signature img{max-width:220px;max-height:58px;object-fit:contain}
+.ass-role{font-weight:800!important;text-transform:uppercase;letter-spacing:.2px}
 .ass-req{color:#DC2626!important}
 .ass-lock{background:#F8FAFC!important;border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:10px 12px!important;font-size:12px!important;margin-bottom:8px!important}
 .ass-amend{border-left:3px solid #8B5CF6!important;padding:8px 12px!important;margin:8px 0!important;font-size:12px!important;background:#FAF5FF!important}
 .prov-banner{background:#FEF3C7!important;border:1px solid #F59E0B!important;color:#92400E!important;font-size:12px!important;padding:8px 12px!important;border-radius:8px!important;margin-bottom:14px!important}
 .final-banner{background:#D1FAE5!important;border:1px solid #10B981!important;color:#065F46!important;font-size:12px!important;padding:8px 12px!important;border-radius:8px!important;margin-bottom:14px!important}
+.ass-voice-wrap{position:relative}.ass-voice-wrap textarea,.ass-voice-wrap input{padding-right:104px}.ass-voice{position:absolute;right:8px;top:8px;border:1px solid #b8d5c7;background:#eaf3ee;color:#104d40;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer}.ass-voice.listening{background:#fee2e2;border-color:#fca5a5;color:#991b1b}.ass-voice-note{font-size:11px;color:#64748b;margin:5px 0 12px}
+.ass-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;border:1px solid var(--mp-border);border-radius:9px;background:#fbfdfc}.ass-check{display:flex;align-items:flex-start;gap:7px;font-size:13px;font-weight:500}.ass-check input{margin-top:3px}.amend-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:5px}.amend-check{display:flex;gap:6px;font-size:12px;font-weight:500}@media(max-width:760px){.ass-sec{grid-template-columns:1fr}.ass-check-grid,.amend-check-grid{grid-template-columns:1fr}}
 </style>
 
+<?php $assessmentTitle = ($template->template_key ?? '') === 'physio_initial' ? 'Physiotherapy Initial Assessment' : $template->name; $headerAssessor = $assessment->assessor_name ?? ''; if($headerAssessor === '' && !empty($physio_user)){ $headerAssessor = trim(($physio_user->first_name ?? '').' '.($physio_user->last_name ?? '')) ?: ($physio_user->username ?? ''); } if($headerAssessor === '') $headerAssessor = $this->session->userdata('inv_username'); ?>
 <div class="mp-page-head">
   <div>
-    <h2><?= htmlspecialchars($template->name); ?></h2>
+    <h2><?= htmlspecialchars($assessmentTitle); ?></h2>
     <div class="mp-page-sub">
       <?= htmlspecialchars($patient->customer_name ?? ''); ?> (<?= htmlspecialchars($patient->patient_code ?? ''); ?>)
       · <?= htmlspecialchars($enc->encounter_code); ?>
-      · Assessor: <?= htmlspecialchars($assessment->assessor_name ?? $this->session->userdata('inv_username')); ?>
+      · Assessor: <?= htmlspecialchars($headerAssessor); ?>
     </div>
   </div>
   <a href="<?= base_url('care_queue/encounter/' . (int)$enc->id); ?>" class="mp-qa-btn"><i class="fa fa-arrow-left"></i> Back to visit</a>
 </div>
 
-<?php if($template->provisional): ?>
+<?php if($template->provisional && ($template->template_key ?? '') !== 'physio_initial'): ?>
 <div class="prov-banner"><i class="fa fa-exclamation-triangle"></i>
   <b>Provisional template.</b> This is a stand-in assessment pending the agreed five-page clinical form — do not treat it as the final approved document.</div>
 <?php endif; ?>
@@ -50,12 +55,28 @@
         $k = $sec['key'] . '_' . $f['key'];
         $v = $answers[$k] ?? '';
       ?>
-        <div class="mp-form-group">
-          <label><?= htmlspecialchars($f['label'] ?? $f['key']); ?><?= !empty($f['required']) ? ' <span class="ass-req">*</span>' : ''; ?></label>
+        <?php $compactField = in_array(($f['type'] ?? 'text'), array('text','readonly','signature','select'), true); ?>
+        <?php $fieldLabel = $f['label'] ?? $f['key']; $isRoleLabel = preg_match('/^[A-D]\./', $fieldLabel); ?>
+        <div class="mp-form-group <?= $compactField ? '' : 'ass-field-full'; ?>">
+          <label class="<?= $isRoleLabel ? 'ass-role' : ''; ?>"><?= htmlspecialchars($fieldLabel); ?><?= !empty($f['required']) ? ' <span class="ass-req">*</span>' : ''; ?></label>
           <?php if($isFinal): ?>
-            <div class="ass-lock"><?= $v !== '' ? nl2br(htmlspecialchars((string)$v)) : '<span style="color:#94a3b8;">—</span>'; ?></div>
+            <?php $displayValue = is_array($v) ? implode(', ', $v) : (string)$v; ?>
+            <div class="ass-lock"><?= $displayValue !== '' ? nl2br(htmlspecialchars($displayValue)) : '<span style="color:#94a3b8;">—</span>'; ?></div>
+          <?php elseif(($f['type'] ?? '') === 'readonly'): ?>
+            <div class="ass-lock"><?= $v !== '' ? htmlspecialchars((string)$v) : '<span style="color:#94a3b8;">Filled from the visit</span>'; ?></div>
+            <input type="hidden" name="ans__<?= $k; ?>" value="<?= htmlspecialchars((string)$v); ?>">
+          <?php elseif(($f['type'] ?? '') === 'signature'): ?>
+            <?php if($v): ?><div class="ass-signature"><img src="<?= base_url($v); ?>" alt="Clinician signature"></div><?php else: ?><div class="ass-lock"><span style="color:#94a3b8;">No signature saved in this user profile</span></div><?php endif; ?>
+            <input type="hidden" name="ans__<?= $k; ?>" value="<?= htmlspecialchars((string)$v); ?>">
+          <?php elseif(($f['type'] ?? '') === 'checkboxes'): ?>
+            <?php $selected = is_array($v) ? $v : (($v !== '' && $v !== null) ? array($v) : array()); ?>
+            <div class="ass-check-grid">
+              <?php foreach(($f['options'] ?? array()) as $opt): ?>
+                <label class="ass-check"><input type="checkbox" name="ans__<?= $k; ?>[]" value="<?= htmlspecialchars($opt); ?>" <?= in_array($opt, $selected, true) ? 'checked' : ''; ?>> <span><?= htmlspecialchars($opt); ?></span></label>
+              <?php endforeach; ?>
+            </div>
           <?php elseif(($f['type'] ?? 'text') === 'textarea'): ?>
-            <textarea class="mp-form-control" name="ans__<?= $k; ?>" rows="3"><?= htmlspecialchars((string)$v); ?></textarea>
+            <div class="ass-voice-wrap"><textarea class="mp-form-control" name="ans__<?= $k; ?>" rows="3"><?= htmlspecialchars((string)$v); ?></textarea><button type="button" class="ass-voice" data-target="ans__<?= htmlspecialchars($k, ENT_QUOTES, 'UTF-8'); ?>"><i class="fa fa-microphone"></i> Voice</button></div>
           <?php elseif(($f['type'] ?? '') === 'select'): ?>
             <select class="mp-form-control" name="ans__<?= $k; ?>">
               <option value="">—</option>
@@ -64,7 +85,7 @@
               <?php endforeach; ?>
             </select>
           <?php else: ?>
-            <input type="text" class="mp-form-control" name="ans__<?= $k; ?>" value="<?= htmlspecialchars((string)$v); ?>">
+            <div class="ass-voice-wrap"><input type="text" class="mp-form-control" name="ans__<?= $k; ?>" value="<?= htmlspecialchars((string)$v); ?>"><button type="button" class="ass-voice" data-target="ans__<?= htmlspecialchars($k, ENT_QUOTES, 'UTF-8'); ?>"><i class="fa fa-microphone"></i> Voice</button></div>
           <?php endif; ?>
         </div>
       <?php endforeach; ?>
@@ -77,7 +98,9 @@
   <?php if(!$isFinal && $can['finalize']): ?>
     <button class="mp-qa-btn green" onclick="finalizeAss()"><i class="fa fa-check"></i> Save &amp; Finalise</button>
   <?php endif; ?>
+  <?php if($assessment): ?><a id="downloadLink" class="mp-qa-btn blue" href="<?= base_url('assessments/download/'.(int)$assessment->id); ?>"><i class="fa fa-download"></i> Download copy</a><?php else: ?><a id="downloadLink" class="mp-qa-btn blue" href="#" style="display:none"><i class="fa fa-download"></i> Download copy</a><?php endif; ?>
 </form>
+<div class="ass-voice-note"><i class="fa fa-info-circle"></i> Voice fills the focused narrative field using your browser microphone. Review the transcript before saving.</div>
 
 <?php if($isFinal && $can['amend']): ?>
 <div class="ass-sec">
@@ -86,8 +109,16 @@
     $k = $sec['key'] . '_' . $f['key'];
   ?>
     <div class="mp-form-group">
-      <label><?= htmlspecialchars($f['label'] ?? $f['key']); ?> <small style="color:#94a3b8;">current: <?= htmlspecialchars((string)($answers[$k] ?? '—')); ?></small></label>
-      <input type="text" class="mp-form-control amend-field" data-key="<?= $k; ?>" placeholder="Amended value (leave blank to keep current)">
+      <?php $currentValue = $answers[$k] ?? ''; $currentDisplay = is_array($currentValue) ? implode(', ', $currentValue) : (string)$currentValue; ?>
+      <label><?= htmlspecialchars($f['label'] ?? $f['key']); ?> <small style="color:#94a3b8;">current: <?= htmlspecialchars($currentDisplay !== '' ? $currentDisplay : '—'); ?></small></label>
+      <?php if(($f['type'] ?? '') === 'checkboxes'): ?>
+        <?php $selected = is_array($currentValue) ? $currentValue : (($currentValue !== '' && $currentValue !== null) ? array($currentValue) : array()); ?>
+        <div class="amend-check-grid amend-check-group" data-key="<?= htmlspecialchars($k, ENT_QUOTES, 'UTF-8'); ?>">
+          <?php foreach(($f['options'] ?? array()) as $opt): ?><label class="amend-check"><input type="checkbox" value="<?= htmlspecialchars($opt); ?>" <?= in_array($opt, $selected, true) ? 'checked' : ''; ?>> <?= htmlspecialchars($opt); ?></label><?php endforeach; ?>
+        </div>
+      <?php else: ?>
+        <input type="text" class="mp-form-control amend-field" data-key="<?= $k; ?>" placeholder="Amended value (leave blank to keep current)">
+      <?php endif; ?>
     </div>
   <?php endforeach; endforeach; ?>
   <div class="mp-form-group"><label>Amendment reason *</label><input type="text" class="mp-form-control" id="amendReason"></div>
@@ -104,7 +135,8 @@
       <i><?= htmlspecialchars($am->reason); ?></i>
       <ul style="margin:6px 0 0 16px;">
         <?php foreach(json_decode($am->changes_json, true) ?: array() as $ch): ?>
-          <li><?= htmlspecialchars($ch['label']); ?>: <s><?= htmlspecialchars((string)$ch['from']); ?></s> → <b><?= htmlspecialchars((string)$ch['to']); ?></b></li>
+          <?php $fromValue = is_array($ch['from'] ?? null) ? implode(', ', $ch['from']) : (string)($ch['from'] ?? ''); $toValue = is_array($ch['to'] ?? null) ? implode(', ', $ch['to']) : (string)($ch['to'] ?? ''); ?>
+          <li><?= htmlspecialchars($ch['label']); ?>: <s><?= htmlspecialchars($fromValue); ?></s> → <b><?= htmlspecialchars($toValue); ?></b></li>
         <?php endforeach; ?>
       </ul>
     </div>
@@ -115,18 +147,38 @@
 <script>
 var CSRF_BODY = { '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>' };
 var ASS_ID = <?= (int)($assessment->id ?? 0); ?>;
+var activeRecognition = null;
 
 function collectAnswers(){
   var data = {encounter_id: <?= (int)$enc->id; ?>, template_id: <?= (int)$template->id; ?>, assessment_id: ASS_ID};
-  $('#assForm').find('[name^="ans__"]').each(function(){ data[$(this).attr('name')] = $(this).val(); });
+  $('#assForm').find('[name^="ans__"]').each(function(){
+    var key=$(this).attr('name');
+    if(this.type === 'checkbox'){
+      if(!this.checked) return;
+      if(!Array.isArray(data[key])) data[key]=[];
+      data[key].push($(this).val());
+    } else data[key]=$(this).val();
+  });
   return $.extend({}, CSRF_BODY, data);
 }
 function saveDraft(){
   $.post('<?= base_url('assessments/save'); ?>', collectAnswers(), function(res){
-    if(res.status==='success'){ toastr.success(res.message); if(!ASS_ID){ ASS_ID = res.assessment_id; history.replaceState({},'', '<?= base_url('assessments/form/'); ?>'+ASS_ID); } }
+    if(res.status==='success'){ toastr.success(res.message); if(!ASS_ID){ ASS_ID = res.assessment_id; history.replaceState({},'', '<?= base_url('assessments/form/'); ?>'+ASS_ID); $('#downloadLink').attr('href','<?= base_url('assessments/download/'); ?>'+ASS_ID).show(); } }
     else toastr.error(res.message||'Failed');
   }, 'json');
 }
+$('.ass-voice').on('click', function(){
+  var button=this, target=document.querySelector('[name="'+button.getAttribute('data-target')+'"]');
+  var Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Speech){ toastr.error('Voice input is not supported by this browser. Try Chrome or Safari.'); return; }
+  if(activeRecognition){ activeRecognition.stop(); activeRecognition=null; return; }
+  var recognition=new Speech(); activeRecognition=recognition; recognition.lang='en-NG'; recognition.interimResults=false; recognition.continuous=true;
+  button.classList.add('listening'); button.innerHTML='<i class="fa fa-stop"></i> Stop';
+  recognition.onresult=function(event){ var text=''; for(var i=event.resultIndex;i<event.results.length;i++){ if(event.results[i].isFinal) text+=event.results[i][0].transcript+' '; } if(text){ target.value=(target.value ? target.value.trim()+' ' : '')+text.trim(); target.dispatchEvent(new Event('input',{bubbles:true})); } };
+  recognition.onerror=function(){ toastr.error('Voice input could not start. Check microphone permission.'); };
+  recognition.onend=function(){ button.classList.remove('listening'); button.innerHTML='<i class="fa fa-microphone"></i> Voice'; if(activeRecognition===recognition) activeRecognition=null; };
+  recognition.start();
+});
 function finalizeAss(){
   $.post('<?= base_url('assessments/save'); ?>', collectAnswers(), function(res){
     if(res.status!=='success'){ toastr.error(res.message||'Failed'); return; }
@@ -143,6 +195,10 @@ function doAmend(){
   var data = $.extend({}, CSRF_BODY, {reason:reason});
   var n = 0;
   $('.amend-field').each(function(){ if($(this).val() !== ''){ data['amend['+$(this).data('key')+']'] = $(this).val(); n++; } });
+  $('.amend-check-group').each(function(){
+    var values=[]; $(this).find('input:checked').each(function(){ values.push($(this).val()); });
+    if(values.length){ data['amend['+$(this).data('key')+']'] = values; n++; }
+  });
   if(!n){ toastr.error('No amended values entered'); return; }
   $.post('<?= base_url('assessments/amend/'); ?>'+ASS_ID, data, function(res){
     if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(),700); } else toastr.error(res.message||'Failed');

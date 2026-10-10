@@ -63,6 +63,7 @@
               </div>
               <div class="form-group">
                 <label>Reply-To Email</label>
+                <p class="help-block">Customer replies go to this store mailbox, including replies to test emails. The sending address remains visible in email details. To use this mailbox as From too, authorise its domain with your email provider and configure From Email.</p>
                 <input type="email" class="form-control" id="email_reply_to" value="<?=htmlspecialchars($settings['reply_to']);?>" placeholder="support@yourdomain.com">
               </div>
               <div class="form-group">

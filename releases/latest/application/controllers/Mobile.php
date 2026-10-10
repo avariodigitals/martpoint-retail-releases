@@ -1339,7 +1339,7 @@ class Mobile extends MY_Controller {
 
 		// Patient money — outstanding patient bills and held funds.
 		// Read through the billing/wallet models so the figures match desktop.
-		if(physio_can_any(array('patient_billing_view','patient_funds_view')) && $this->db->table_exists('db_patients')){
+		if(physio_can('patient_billing_view') && $this->db->table_exists('db_patients')){
 			$outstanding = (float)$this->db->select('COALESCE(SUM(s.grand_total - s.paid_amount),0) AS due', false)
 				->from('db_sales s')
 				->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
@@ -1347,11 +1347,45 @@ class Mobile extends MY_Controller {
 				->where('(s.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
 				->where('s.grand_total > s.paid_amount', null, false)
 				->get()->row()->due;
+			$data['clinic']['billing_due'] = $this->currency($outstanding, true);
+		}
+		if(physio_can('patient_funds_view') && $this->db->table_exists('db_fund_reservations')){
 			$held = (float)$this->db->select('COALESCE(SUM(amount_reserved - amount_consumed),0) AS reserved', false)
 				->where('store_id', $storeId)->where('status', 'active')
 				->get('db_fund_reservations')->row()->reserved;
-			$data['clinic']['billing_due'] = $this->currency($outstanding, true);
 			$data['clinic']['funds_reserved'] = $this->currency($held, true);
+		}
+		// Compact dashboard analytics use the same range choices as desktop.
+		$valid_ranges = array('Today','7Days','30Days','ThisMonth','LastMonth','ThisYear');
+		$range = $this->input->get('range', TRUE);
+		if(!in_array($range, $valid_ranges, true)) $range = 'Today';
+		$this->load->model('dashboard_model');
+		$range_info = $this->dashboard_model->get_range_info($range);
+		$analytics = array('inpatient'=>0,'outpatient'=>0,'sales'=>0,'expenses'=>0);
+		if($this->db->table_exists('db_care_episodes')){
+			$episode_rows = $this->db->select('episode_type, COUNT(*) AS n', false)->where('store_id', $storeId)
+				->where('created_date >=', $range_info['from'])->where('created_date <=', $range_info['to'])
+				->group_by('episode_type')->get('db_care_episodes')->result();
+			foreach($episode_rows as $episode){ $analytics[$episode->episode_type] = (int)$episode->n; }
+		}
+		$sales_range = $this->dashboard_model->get_sales_by_range($range);
+		$analytics['sales'] = (float)($sales_range['today'] ?? 0);
+		$analytics['expenses'] = (float)$this->dashboard_model->get_expenses_by_range($range);
+		$data['clinic_range'] = $range;
+		$data['clinic_range_info'] = $range_info;
+		$data['clinic_analytics'] = $analytics;
+		$data['staff_birthdays'] = array();
+		if($this->db->table_exists('db_users')){
+			$staff = $this->db->select('username, first_name, last_name, firstname, lastname, dob')->where('store_id', $storeId)->where('status', 1)->where('dob IS NOT NULL', null, false)->get('db_users')->result();
+			$today = new DateTimeImmutable(date('Y-m-d'));
+			foreach($staff as $person){
+				if(empty($person->dob)) continue;
+				$dob = new DateTimeImmutable(substr($person->dob, 0, 10)); $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d'));
+				if($next < $today) $next = $next->modify('+1 year'); $days = (int)$today->diff($next)->format('%a'); if($days > 90) continue;
+				$name = trim(($person->first_name ?: $person->firstname ?: '').' '.($person->last_name ?: $person->lastname ?: '')); if($name === '') $name = (string)$person->username;
+				$data['staff_birthdays'][] = array('name'=>$name,'date'=>$next->format('M j'),'days'=>$days);
+			}
+			usort($data['staff_birthdays'], function($a,$b){ return $a['days'] <=> $b['days']; }); $data['staff_birthdays'] = array_slice($data['staff_birthdays'], 0, 8);
 		}
 
 		// Tiles the current user may work from — each one is a real route.
@@ -1364,6 +1398,17 @@ class Mobile extends MY_Controller {
 			'accounts'     => physio_can_any(array('patient_billing_view','patient_funds_view')),
 			'imports'      => physio_can_any(array('imports_view','opening_positions_view')),
 		);
+		$data['commercial'] = null;
+		$data['intel'] = array();
+		if(physio_can('patient_billing_view')){
+			try {
+				$this->load->model('workspace_commercial_model', 'workspace_commercial');
+				$data['commercial'] = $this->workspace_commercial->snapshot($storeId, true);
+				$data['intel'] = $this->workspace_commercial->insights($data['commercial'], true, array(), true);
+			} catch(Throwable $e) {
+				log_message('error', 'Mobile clinic commercial dashboard failed: '.$e->getMessage());
+			}
+		}
 		$data['clinic_can_add']  = physio_can('patients_add');
 		$data['display_name']    = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['store_name']      = get_store_name();
@@ -1890,7 +1935,7 @@ class Mobile extends MY_Controller {
 					$this->db->where('id', $q_id)->update('db_customers', array(
 						'nin_bvn' => $nin_bvn,
 						'nin_verified' => (!empty($nin_verified)) ? 1 : 0
-					));
+					), true);
 					$this->session->set_flashdata('success', 'Customer Updated Successfully!');
 					redirect('mobile/customer_profile/' . $q_id);
 				}
@@ -4316,6 +4361,14 @@ class Mobile extends MY_Controller {
 			] : []),
 		],
 		];
+		$this->load->helper('industry_guide');
+		$more_industry_guide = mp_industry_guide();
+		if($more_industry_guide){
+			array_unshift($menu_groups['Help'], ['title' => $more_industry_guide['title'],
+				'desc' => 'Step-by-step industry walkthrough', 'icon' => 'fa-book',
+				'url' => 'docs/product-design/customer-guide/'.$more_industry_guide['file'],
+				'perm' => '', 'color' => 'purple', 'target' => '_blank']);
+		}
 
 		if($is_physio){
 			unset($menu_groups['Sales'], $menu_groups['Purchase'], $menu_groups['Inventory'],
@@ -5699,6 +5752,21 @@ class Mobile extends MY_Controller {
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$this->load->model('Oil_processing_model', 'oil_workspace');
 		$data['plant_stats'] = $this->oil_workspace->dashboard_stats($store_id);
+		$data['can_sales_view'] = $this->permissions('sales_view');
+		$data['commercial'] = null;
+		$data['intel'] = array();
+		try {
+			$this->load->model('workspace_commercial_model', 'workspace_commercial');
+			$data['commercial'] = $data['can_sales_view'] ? $this->workspace_commercial->snapshot($store_id) : null;
+			$data['intel'] = $this->workspace_commercial->insights(
+				$data['commercial'] ?: array('overdue_invoices'=>0, 'billed_today'=>0, 'billed_yesterday'=>0, 'collected_today'=>0),
+				false, array(
+					'low_materials'=>$this->permissions('items_view') ? $data['plant_stats']['low_materials'] : 0,
+					'open_quotes'=>$this->permissions('quotation_view') ? $data['plant_stats']['open_quotes'] : 0,
+				), true);
+		} catch(Throwable $e) {
+			log_message('error', 'Mobile plant commercial dashboard failed: '.$e->getMessage());
+		}
 		$data['open_runs'] = $data['plant_stats']['open_runs'];
 		$data['recent_plant_runs'] = $this->db->table_exists('db_production_batches')
 			? $this->db->where('store_id', $store_id)->order_by('scheduled_date', 'DESC')->order_by('id', 'DESC')->limit(4)->get('db_production_batches')->result()

@@ -312,8 +312,17 @@ class Inpatient extends MY_Controller {
 	public function save_policy(){
 		if(!physio_can('daily_billing_run')){ $this->_deny(); return; }
 		$key=$this->input->post('policy_key', TRUE); $value=$this->input->post('policy_value', TRUE);
-		if($key==='bed_accounts_enabled' && !in_array($value,array('0','1'),true)){ $this->_json(array('status'=>'error','message'=>'Choose on or off')); return; }
-		$this->ipd->setPolicy($key,$value);
+		if(in_array($key,array('bed_accounts_enabled','bed_system_accounts_enabled'),true) && !in_array($value,array('0','1'),true)){ $this->_json(array('status'=>'error','message'=>'Choose on or off')); return; }
+		if($key==='bed_system_accounts_enabled'){
+			$this->load->model('Physio_accounts_model','pa');
+			$this->db->trans_begin();
+			try{
+				if($value==='1') $this->pa->provisionSystemAccounts(get_current_store_id());
+				$this->ipd->setPolicy($key,$value);
+				if(!$this->db->trans_status()) throw new RuntimeException('Could not save the account setting');
+				$this->db->trans_commit();
+			}catch(Exception $e){ $this->db->trans_rollback(); $this->_json(array('status'=>'error','message'=>$e->getMessage())); return; }
+		}else { $this->ipd->setPolicy($key,$value); }
 		$this->_json(array('status'=>'success','message'=>'Policy updated'));
 	}
 	public function run_billing(){

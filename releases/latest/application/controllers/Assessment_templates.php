@@ -22,9 +22,13 @@ class Assessment_templates extends MY_Controller {
 	}
 
 	public function index(){
+		$groups = $this->asm->templateGroups();
+		$enabled = array();
+		foreach($groups as $key => $unused){ $enabled[$key] = $this->asm->templateEnabled($key); }
 		$data = array_merge($this->data, array(
 			'page_title' => 'Assessment Templates',
-			'groups'     => $this->asm->templateGroups(),
+			'groups'     => $groups,
+			'enabled'    => $enabled,
 		));
 		$data['content'] = $this->load->view('assessment_templates/index', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -85,5 +89,13 @@ class Assessment_templates extends MY_Controller {
 		$res = $this->asm->publishTemplate((int)$id);
 		if($res !== true){ $this->_json(array('status'=>'error','message'=>$res['error'])); return; }
 		$this->_json(array('status'=>'success','message'=>'Published — new assessments now use this version; existing assessments keep theirs'));
+	}
+
+	public function toggle(){
+		$key = trim((string)$this->input->post('template_key', TRUE));
+		if($key === ''){ $this->_json(array('status'=>'error','message'=>'Template key is required')); return; }
+		$enabled = (int)$this->input->post('enabled') === 1;
+		$this->asm->setTemplateEnabled($key, $enabled);
+		$this->_json(array('status'=>'success','message'=>$enabled ? 'Template turned on for this clinic' : 'Template turned off for this clinic'));
 	}
 }

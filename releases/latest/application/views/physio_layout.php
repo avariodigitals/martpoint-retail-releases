@@ -513,6 +513,10 @@ footer.copyright{margin:0!important;color:var(--mp-muted)!important;background:#
       <?php endif; ?>
     </nav>
     <?php endif; ?>
+    <div class="physio-nav-label">Help</div>
+    <nav class="physio-nav-list" aria-label="Clinic help">
+      <?= $nav('Help & guides','dashboard/help','fa-question-circle',true); ?>
+    </nav>
     <div class="physio-rail-spacer"></div><div class="physio-user"><i class="fa fa-user-circle"></i><span><?= htmlspecialchars($userName); ?> · <?= htmlspecialchars($CI->session->userdata('role_name') ?: 'Clinic staff'); ?></span></div>
   </aside>
   <main class="physio-main mp-main" id="mp-main">

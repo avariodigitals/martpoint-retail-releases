@@ -25,6 +25,7 @@
   </div>
 </div>
 
+<?php $this->load->view('patient_billing/system_account', get_defined_vars()); ?>
 <div class="pb-box">
   <h4>Itemised lines</h4>
   <table class="pb-table">
@@ -119,7 +120,7 @@ var CSRF = {'<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->securi
 var SID = <?= (int)$bill->id; ?>;
 function pay(){
   $.post('<?= base_url('patient_billing/add_payment/'); ?>'+SID,
-    Object.assign({amount: document.getElementById('pay_amt').value, payment_type: document.getElementById('pay_type').value, payment_ref: document.getElementById('pay_ref').value}, CSRF),
+    Object.assign({amount: document.getElementById('pay_amt').value, payment_type: document.getElementById('pay_type').value, payment_ref: document.getElementById('pay_ref').value, account_id: document.getElementById('physio_account_choice') ? document.getElementById('physio_account_choice').value : ''}, CSRF),
     function(r){ alert(r.message); if(r.status==='success') location.reload(); }, 'json');
 }
 function reqDiscount(){

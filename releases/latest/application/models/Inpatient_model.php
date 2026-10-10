@@ -85,6 +85,9 @@ class Inpatient_model extends CI_Model {
 		if(!$id || !$this->db->query('INSERT INTO db_physio_payment_accounts (store_id,account_code,bed_id) VALUES (?,?,?)',array($storeId,'BED-'.$id,$id))){
 			$this->db->trans_rollback(); return array('ok'=>false,'error'=>'Bed or payment account could not be saved');
 		}
+		$this->load->model('Physio_accounts_model','pa');
+		try{ if($this->pa->systemEnabled($storeId)) $this->pa->provisionSystemAccounts($storeId); }
+		catch(Exception $e){ $this->db->trans_rollback(); return array('ok'=>false,'error'=>$e->getMessage()); }
 		$this->db->trans_commit();
 		return array('ok'=>true,'bed_id'=>$id);
 	}

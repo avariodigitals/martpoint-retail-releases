@@ -665,8 +665,27 @@ class Dashboard extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Clinic overview';
 		$data['clinic_access'] = $access;
-		$data['clinic_stats'] = $this->clinicStats($access);
+		$valid_clinic_ranges = array('Today','7Days','30Days','ThisMonth','LastMonth','ThisYear');
+		$clinic_range = $this->input->get('range', TRUE);
+		if(!in_array($clinic_range, $valid_clinic_ranges, true)) $clinic_range = 'Today';
+		$data['clinic_range'] = $clinic_range;
+		$this->load->model('dashboard_model');
+		$data['clinic_range_info'] = $this->dashboard_model->get_range_info($clinic_range);
+		$data['clinic_stats'] = $this->clinicStats($access, $clinic_range);
 		$data['clinic_activity'] = $this->clinicActivity($access);
+		$data['clinic_analytics'] = $this->clinicAnalytics($clinic_range);
+		$data['staff_birthdays'] = $this->clinicStaffBirthdays();
+		$data['commercial'] = null;
+		$data['intel'] = array();
+		if(physio_can('patient_billing_view')){
+			try {
+				$this->load->model('workspace_commercial_model', 'workspace_commercial');
+				$data['commercial'] = $this->workspace_commercial->snapshot(get_current_store_id(), true, $clinic_range);
+				$data['intel'] = $this->workspace_commercial->insights($data['commercial'], true, array(), false, $data['clinic_range_info']['label']);
+			} catch(Throwable $e) {
+				log_message('error', 'Clinic commercial dashboard failed: '.$e->getMessage());
+			}
+		}
 		/*
 		 * The shell shows business insights in the topbar. Every other business
 		 * type gets them from dashboard_model; the clinic branch returned early
@@ -685,6 +704,54 @@ class Dashboard extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 
+	/** Range-aware patient mix and finance figures for the clinical dashboard. */
+	private function clinicAnalytics($range){
+		$storeId = (int)get_current_store_id();
+		$this->load->model('dashboard_model');
+		$info = $this->dashboard_model->get_range_info($range);
+		$out = array('inpatient'=>0, 'outpatient'=>0, 'sales'=>0, 'expenses'=>0);
+		if($this->db->table_exists('db_care_episodes')){
+			$rows = $this->db->select('episode_type, COUNT(*) AS n', false)
+				->where('store_id', $storeId)->where('created_date >=', $info['from'])
+				->where('created_date <=', $info['to'])->group_by('episode_type')
+				->get('db_care_episodes')->result();
+			foreach($rows as $row){
+				if($row->episode_type === 'inpatient') $out['inpatient'] = (int)$row->n;
+				if($row->episode_type === 'outpatient') $out['outpatient'] = (int)$row->n;
+			}
+		}
+		$sales = $this->dashboard_model->get_sales_by_range($range);
+		$out['sales'] = (float)($sales['today'] ?? 0);
+		$out['expenses'] = (float)$this->dashboard_model->get_expenses_by_range($range);
+		return $out;
+	}
+
+	/** Upcoming birthdays for active staff in this store, ordered by next occurrence. */
+	private function clinicStaffBirthdays(){
+		if(!$this->db->table_exists('db_users')) return array();
+		$storeId = (int)get_current_store_id();
+		$rows = $this->db->select('id, username, first_name, last_name, firstname, lastname, dob')
+			->where('store_id', $storeId)->where('status', 1)->where('dob IS NOT NULL', null, false)
+			->get('db_users')->result();
+		$today = new DateTimeImmutable(date('Y-m-d'));
+		$items = array();
+		foreach($rows as $row){
+			if(empty($row->dob)) continue;
+			$dob = new DateTimeImmutable(substr($row->dob, 0, 10));
+			$year = (int)$today->format('Y');
+			try { $next = new DateTimeImmutable($year.'-'.$dob->format('m-d')); }
+			catch(Exception $e) { continue; }
+			if($next < $today) $next = $next->modify('+1 year');
+			$days = (int)$today->diff($next)->format('%a');
+			if($days > 90) continue;
+			$name = trim(($row->first_name ?: $row->firstname ?: '').' '.($row->last_name ?: $row->lastname ?: ''));
+			if($name === '') $name = (string)$row->username;
+			$items[] = array('name'=>$name, 'date'=>$next->format('M j'), 'days'=>$days);
+		}
+		usort($items, function($a, $b){ return $a['days'] <=> $b['days']; });
+		return array_slice($items, 0, 8);
+	}
+
 
 	/**
 	 * Clinical KPI figures for the clinic dashboard.
@@ -695,8 +762,10 @@ class Dashboard extends MY_Controller {
 	 * Counts are store-scoped; the user's branch scope is applied on the
 	 * screens themselves so the dashboard never widens access.
 	 */
-	private function clinicStats(array $access){
+	private function clinicStats(array $access, $range = '7Days'){
 		$storeId = (int)get_current_store_id();
+		$rangeInfo = $this->dashboard_model->get_range_info($range);
+		$periodLabel = $rangeInfo['label'];
 		$out = array();
 		$count = function($table, array $where = array()) use ($storeId){
 			if(!$this->db->table_exists($table)) return null;
@@ -718,9 +787,9 @@ class Dashboard extends MY_Controller {
 		}
 		if($access['appointments']){
 			$out['appointments'] = array(
-				'label' => 'Booked today',
+				'label' => 'Booked · '.$periodLabel,
 				'value' => (int)$this->db->where('store_id', $storeId)
-					->where('DATE(scheduled_at)', date('Y-m-d'))->count_all_results('db_appointments'),
+					->where('DATE(scheduled_at) >=', $rangeInfo['from'])->where('DATE(scheduled_at) <=', $rangeInfo['to'])->count_all_results('db_appointments'),
 				'sub'   => 'appointments in the diary',
 				'url'   => 'appointments',
 				'icon'  => 'fa-calendar',
@@ -742,11 +811,11 @@ class Dashboard extends MY_Controller {
 		}
 		if($access['sessions'] && $this->db->table_exists('db_treatment_sessions')){
 			$today = (int)$this->db->where('store_id', $storeId)
-				->where('DATE(scheduled_at)', date('Y-m-d'))->count_all_results('db_treatment_sessions');
+				->where('DATE(scheduled_at) >=', $rangeInfo['from'])->where('DATE(scheduled_at) <=', $rangeInfo['to'])->count_all_results('db_treatment_sessions');
 			$upcoming = (int)$this->db->where('store_id', $storeId)->where('status', 'scheduled')
 				->count_all_results('db_treatment_sessions');
 			$out['sessions'] = array(
-				'label' => 'Sessions today',
+				'label' => 'Sessions · '.$periodLabel,
 				'value' => $today,
 				'sub'   => number_format($upcoming) . ' scheduled overall',
 				'url'   => 'sessions',

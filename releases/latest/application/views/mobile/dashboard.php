@@ -157,6 +157,8 @@
         $avatar_src = (!empty($profile_picture) && file_exists(FCPATH . $profile_picture)) ? $profile_picture : '';
         $is_oil_processing = function_exists('mp_get_store_profile')
           && ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant');
+        $this->load->helper('industry_guide');
+        $mobile_industry_guide = mp_industry_guide();
       ?>
       <div class="topbar">
         <div class="topbar-titles">
@@ -224,6 +226,11 @@
         </div>
         <div class="arrow"><i class="fa fa-chevron-right"></i></div>
       </a>
+      <?php if($mobile_industry_guide): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$mobile_industry_guide['file']); ?>" target="_blank" rel="noopener" class="hero-cta guide" style="background:#fff;color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <div class="icon" style="background:#eef2ff;color:var(--mp-primary);"><i class="fa fa-book"></i></div>
+        <div class="text"><div class="title"><?= htmlspecialchars($mobile_industry_guide['title'], ENT_QUOTES, 'UTF-8'); ?></div><div class="sub" style="color:var(--mp-muted);">Step-by-step industry walkthrough</div></div>
+        <div class="arrow" style="color:var(--mp-primary);"><i class="fa fa-chevron-right"></i></div>
+      </a><?php endif; ?>
 
       <div class="quick-actions">
         <?php if(!$is_oil_processing): ?><a href="<?= base_url('mobile/pos'); ?>" class="quick-action blue">

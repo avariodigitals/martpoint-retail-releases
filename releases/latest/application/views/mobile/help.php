@@ -25,6 +25,7 @@
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
     .lead { font-size: 14px; color: var(--mp-muted); margin: 0 0 22px; line-height: 1.5; }
     .folder-grid { display: grid; gap: 14px; }
+    .folder-section { margin: 2px 0 -4px; font-size: 15px; font-weight: 700; color: var(--mp-text); }
     .folder-card { display: flex; align-items: center; gap: 16px; background: #fff; border: 1px solid var(--mp-border); border-radius: 16px; padding: 18px 16px; text-decoration: none; color: var(--mp-text); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
     .folder-card .icon { width: 52px; height: 52px; border-radius: 14px; background: rgba(0,87,255,0.08); color: var(--mp-primary); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
     .folder-card .text { flex: 1; min-width: 0; }
@@ -53,67 +54,61 @@
         </div>
       </div>
 
-      <?php $plant_help = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
-      <p class="lead"><?= $plant_help ? 'Follow the Zonat Processing LTD plant workflow, screen by screen.' : 'Choose the guide that matches your role. Customer guides are for day-to-day use.'; ?></p>
+      <?php $this->load->helper('industry_guide'); $industry_guide = mp_industry_guide(); ?>
+      <?php $industry_type = function_exists('mp_get_store_profile') ? (mp_get_store_profile()['industry_type'] ?? '') : ''; ?>
+      <p class="lead"><?= $industry_guide ? 'Start with your industry walkthrough, then use the standard guides for shared tasks.' : 'Choose the guide that matches your role. Customer guides are for day-to-day use.'; ?></p>
 
       <div class="folder-grid">
-        <?php if($plant_help): ?>
-        <a href="<?= base_url('docs/product-design/customer-guide/oil-processing-plant-zonat.html'); ?>" target="_blank" rel="noopener" class="folder-card">
-          <div class="icon"><i class="fa fa-industry"></i></div>
-          <div class="text"><div class="title">Processing Plant Use Case</div><div class="desc">Zonat procurement, stock, runs, buyer quotations and invoices</div></div>
+        <?php if($industry_guide): ?>
+        <h2 class="folder-section">Your industry walkthrough</h2>
+        <a href="<?= base_url('docs/product-design/customer-guide/'.$industry_guide['file']); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa <?= htmlspecialchars($industry_guide['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i></div>
+          <div class="text"><div class="title"><?= htmlspecialchars($industry_guide['title'], ENT_QUOTES, 'UTF-8'); ?></div><div class="desc"><?= htmlspecialchars($industry_guide['description'], ENT_QUOTES, 'UTF-8'); ?></div></div>
           <div class="arrow"><i class="fa fa-external-link"></i></div>
         </a>
-        <?php else: ?>
-        <a href="<?= base_url('docs/product-design/customer-guide/index.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+        <?php if($industry_guide['pdf']): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$industry_guide['pdf']); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-file-pdf-o"></i></div>
+          <div class="text"><div class="title">Download industry guide (PDF)</div><div class="desc">Printable walkthrough for your team</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a><?php endif; ?>
+        <?php endif; ?>
+        <h2 class="folder-section">Standard guides</h2>
+        <a href="<?= base_url('docs/product-design/customer-guide/index.html?industry='.rawurlencode($industry_type)); ?>" target="_blank" rel="noopener" class="folder-card">
           <div class="icon"><i class="fa fa-users"></i></div>
           <div class="text">
             <div class="title">Customer Guide</div>
-            <div class="desc">User manual, sales, purchase, products, services, reports</div>
+            <div class="desc">General user manual, purchasing, invoices and reports</div>
           </div>
           <div class="arrow"><i class="fa fa-external-link"></i></div>
         </a>
 
+        <?php if($industry_guide): ?>
+        <a href="<?= base_url('docs/product-design/customer-guide/user-manual.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-book"></i></div>
+          <div class="text"><div class="title">User Manual</div><div class="desc">Core MartPoint screens and account tasks</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+        <a href="<?= base_url('docs/product-design/customer-guide/purchase.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-cart-arrow-down"></i></div>
+          <div class="text"><div class="title">Purchasing Guide</div><div class="desc">Suppliers, purchase records and payments</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+        <a href="<?= base_url('docs/product-design/customer-guide/shipping-creation-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-truck"></i></div>
+          <div class="text"><div class="title">Shipping Creation Guide</div><div class="desc">Online delivery methods and in-store shipping fees</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+        <a href="<?= base_url('docs/product-design/customer-guide/reports.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-pie-chart"></i></div>
+          <div class="text"><div class="title">Reports Guide</div><div class="desc">Review activity and balances</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+        <?php else: ?>
         <a href="<?= base_url('docs/product-design/customer-guide/cashier-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
           <div class="icon"><i class="fa fa-calculator"></i></div>
           <div class="text">
             <div class="title">Cashier Guide</div>
             <div class="desc">POS, payment, receipts, holds, returns, password changes</div>
-          </div>
-          <div class="arrow"><i class="fa fa-external-link"></i></div>
-        </a>
-
-        <a href="<?= base_url('docs/product-design/customer-guide/fashion-scenario.html'); ?>" target="_blank" rel="noopener" class="folder-card">
-          <div class="icon"><i class="fa fa-female"></i></div>
-          <div class="text">
-            <div class="title">Fashion Use Case</div>
-            <div class="desc">A day at a boutique — from opening to support</div>
-          </div>
-          <div class="arrow"><i class="fa fa-external-link"></i></div>
-        </a>
-
-        <a href="<?= base_url('docs/product-design/customer-guide/nylon-polythene-customer-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
-          <div class="icon"><i class="fa fa-industry"></i></div>
-          <div class="text">
-            <div class="title">Nylon &amp; Polythene Use Case</div>
-            <div class="desc">A day at a film &amp; bag factory — orders to dispatch</div>
-          </div>
-          <div class="arrow"><i class="fa fa-external-link"></i></div>
-        </a>
-
-        <a href="<?= base_url('docs/product-design/customer-guide/skincare-customer-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
-          <div class="icon"><i class="fa fa-leaf"></i></div>
-          <div class="text">
-            <div class="title">Skincare Use Case</div>
-            <div class="desc">A week at an organic skincare brand — formulas to storefront</div>
-          </div>
-          <div class="arrow"><i class="fa fa-external-link"></i></div>
-        </a>
-
-        <a href="<?= base_url('docs/product-design/customer-guide/electronics-customer-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
-          <div class="icon"><i class="fa fa-laptop"></i></div>
-          <div class="text">
-            <div class="title">Electronics Use Case</div>
-            <div class="desc">A week at a device shop — serials, IMEIs &amp; warranties</div>
           </div>
           <div class="arrow"><i class="fa fa-external-link"></i></div>
         </a>

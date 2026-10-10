@@ -4,6 +4,7 @@
   .mp-help-wrap h2 { margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0F172A; }
   .mp-help-wrap .lead { color: #64748B; margin: 0 0 24px; font-size: 15px; }
   .mp-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-bottom: 24px; }
+  .mp-guide-section-label { grid-column: 1 / -1; margin: 0 0 -8px; font-size: 16px; font-weight: 700; color: #0F172A; }
   .mp-folder-card { display: flex; align-items: center; gap: 16px; padding: 22px; background: #fff; border: 1px solid #E2E8F0; border-radius: 16px; color: #0F172A; text-decoration: none; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: transform .15s, box-shadow .15s; }
   .mp-folder-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,87,255,0.08); border-color: #0057FF; }
   .mp-folder-card .icon { width: 52px; height: 52px; border-radius: 14px; background: rgba(0,87,255,0.08); color: #0057FF; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
@@ -17,26 +18,34 @@
   .mp-support-cta:hover { background: #0044CC; }
 </style>
 
-<?php $plant_help = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
+<?php $this->load->helper('industry_guide'); $industry_guide = mp_industry_guide(); ?>
+<?php $industry_type = function_exists('mp_get_store_profile') ? (mp_get_store_profile()['industry_type'] ?? '') : ''; ?>
 <div class="mp-help-wrap">
   <h2>Help Center</h2>
-  <p class="lead"><?= $plant_help ? 'Processing Plant workflow and support.' : 'Guides and support resources for MartPoint.'; ?></p>
+  <p class="lead"><?= $industry_guide ? 'Start with your industry walkthrough, then use the standard guides for shared tasks.' : 'Guides and support resources for MartPoint.'; ?></p>
 
   <div class="mp-folder-grid">
-    <?php if($plant_help): ?>
-    <a href="<?= base_url('docs/product-design/customer-guide/oil-processing-plant-zonat.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
-      <div class="icon"><i class="fa fa-industry"></i></div>
-      <div class="text"><div class="title">Processing Plant Use Case</div><div class="desc">Zonat Processing LTD: procurement, materials, runs, quotations and invoices, screen by screen.</div></div>
+    <?php if($industry_guide): ?>
+    <h3 class="mp-guide-section-label">Your industry walkthrough</h3>
+    <a href="<?= base_url('docs/product-design/customer-guide/'.$industry_guide['file']); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa <?= htmlspecialchars($industry_guide['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i></div>
+      <div class="text"><div class="title"><?= htmlspecialchars($industry_guide['title'], ENT_QUOTES, 'UTF-8'); ?></div><div class="desc"><?= htmlspecialchars($industry_guide['description'], ENT_QUOTES, 'UTF-8'); ?></div></div>
     </a>
-    <?php else: ?>
-    <a href="<?= base_url('docs/product-design/customer-guide/index.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+    <?php if($industry_guide['pdf']): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$industry_guide['pdf']); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa fa-file-pdf-o"></i></div>
+      <div class="text"><div class="title">Download industry guide (PDF)</div><div class="desc">Printable walkthrough for your team.</div></div>
+    </a><?php endif; ?>
+    <?php endif; ?>
+    <h3 class="mp-guide-section-label">Standard guides</h3>
+    <a href="<?= base_url('docs/product-design/customer-guide/index.html?industry='.rawurlencode($industry_type)); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-users"></i></div>
       <div class="text">
         <div class="title">Customer Guide</div>
-        <div class="desc">User manual, sales, purchase, products, services, and reports.</div>
+        <div class="desc">General user manual, purchasing, invoices and reports for shared tasks.</div>
       </div>
     </a>
 
+    <?php if(!$industry_guide): ?>
     <a href="<?= base_url('docs/product-design/customer-guide/cashier-guide.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-calculator"></i></div>
       <div class="text">
@@ -55,7 +64,6 @@
     <?php endif; ?>
   </div>
 
-  <?php if(!$plant_help): ?>
   <h3 style="font-size:17px;font-weight:700;color:#0F172A;margin:0 0 14px;">Detailed customer guides</h3>
   <div class="mp-folder-grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-bottom: 28px;">
     <a href="<?= base_url('docs/product-design/customer-guide/user-manual.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
@@ -76,32 +84,35 @@
         <div class="title">Purchase</div>
       </div>
     </a>
+    <a href="<?= base_url('docs/product-design/customer-guide/shipping-creation-guide.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa fa-truck"></i></div>
+      <div class="text"><div class="title">Shipping Creation Guide</div><div class="desc">Create online delivery methods and in-store shipping fees.</div></div>
+    </a>
     <a href="<?= base_url('docs/product-design/customer-guide/products.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-cubes"></i></div>
       <div class="text">
         <div class="title">Products &amp; Catalogue</div>
       </div>
     </a>
-    <a href="<?= base_url('docs/product-design/customer-guide/services.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+    <?php if($industry_type !== 'oil_processing_plant'): ?><a href="<?= base_url('docs/product-design/customer-guide/services.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-scissors"></i></div>
       <div class="text">
         <div class="title">Services</div>
       </div>
-    </a>
+    </a><?php endif; ?>
     <a href="<?= base_url('docs/product-design/customer-guide/reports.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-pie-chart"></i></div>
       <div class="text">
         <div class="title">Reports</div>
       </div>
     </a>
-    <a href="<?= base_url('docs/product-design/customer-guide/fashion-scenario.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
-      <div class="icon"><i class="fa fa-female"></i></div>
-      <div class="text">
-        <div class="title">Fashion Use Case</div>
-      </div>
-    </a>
   </div>
-  <?php endif; ?>
 
   <a href="<?= base_url('dashboard/support'); ?>" class="mp-support-cta"><i class="fa fa-life-ring"></i> Go to Support</a>
 </div>
+
+<script>
+if (matchMedia('(max-width:768px)').matches || matchMedia('(max-width:1024px) and (orientation:portrait)').matches) {
+  location.replace(<?= json_encode(base_url('mobile/help')); ?>);
+}
+</script>

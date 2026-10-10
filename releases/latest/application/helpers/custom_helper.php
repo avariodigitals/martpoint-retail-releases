@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.132';
+    return '4.0.9.136';
   }
   function required_php_version(){
     return 7.4;
@@ -1732,12 +1732,14 @@
       ? ((mp_get_store_profile($store_id ?: null)['industry_type'] ?? '') ?: '')
       : '';
     $lic_is_print = ($lic_ind === 'printing');
+    $lic_is_plant = ($lic_ind === 'oil_processing_plant');
+    $lic_is_physio = ($lic_ind === 'physiotherapy_rehabilitation');
 
     $quota_defs = [
       ['key'=>'user_limit',             'label'=>'Users',         'usage_fn'=>'get_user_usage',              'unit'=>''],
-      ['key'=>'product_limit',          'label'=>$lic_is_print ? 'Materials'      : 'Products',     'usage_fn'=>'get_product_usage',        'unit'=>''],
-      ['key'=>'sku_limit',              'label'=>$lic_is_print ? 'Material variants' : 'Variants',  'usage_fn'=>'get_sku_usage',            'unit'=>''],
-      ['key'=>'online_product_limit',   'label'=>$lic_is_print ? 'Catalogue items'  : 'Online Store','usage_fn'=>'get_online_product_usage', 'unit'=>''],
+      ['key'=>'product_limit',          'label'=>$lic_is_print ? 'Materials' : ($lic_is_plant ? 'Materials & products' : ($lic_is_physio ? 'Supplies & equipment' : 'Products')), 'usage_fn'=>'get_product_usage', 'unit'=>''],
+      ['key'=>'sku_limit',              'label'=>$lic_is_print ? 'Material variants' : (($lic_is_plant || $lic_is_physio) ? 'Item variants' : 'Variants'), 'usage_fn'=>'get_sku_usage', 'unit'=>''],
+      ['key'=>'online_product_limit',   'label'=>$lic_is_print ? 'Catalogue items' : (($lic_is_plant || $lic_is_physio) ? 'Online listings' : 'Online Store'), 'usage_fn'=>'get_online_product_usage', 'unit'=>''],
       ['key'=>'media_storage_limit_mb', 'label'=>'Media Storage', 'usage_fn'=>'get_media_storage_usage_mb',  'unit'=>'MB'],
     ];
 

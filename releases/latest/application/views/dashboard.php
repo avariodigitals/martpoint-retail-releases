@@ -19,6 +19,8 @@ $this->load->view('admin/desktop/_styles');
       $dashboard_template = $bp_profile['dashboard_template'] ?? $industry_type;
       $is_creator = $industry_type === 'creator';
     } catch (Exception $e) {}
+    $this->load->helper('industry_guide');
+    $dashboard_guide = mp_industry_guide($industry_type);
     $expiry_rendered = false;
     $dashboard_template_label = '';
     if ($dashboard_template !== 'general_retail' && function_exists('mp_get_dashboard_templates')) {
@@ -102,6 +104,7 @@ $this->load->view('admin/desktop/_styles');
           <?php if($is_service_business): ?><a href="<?=base_url('services/add');?>" class="mp-qa-btn purple"><i class="fa fa-scissors"></i> Add Service</a><?php endif; ?>
           <a href="<?=base_url('sales/add');?>" class="mp-qa-btn red"><i class="fa fa-file-text-o"></i> New Invoice</a>
           <a href="<?=base_url('dashboard/daily_summary');?>" class="mp-qa-btn teal"><i class="fa fa-file-text"></i> Today's Summary</a>
+          <?php if($dashboard_guide): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$dashboard_guide['file']); ?>" target="_blank" rel="noopener" class="mp-qa-btn blue"><i class="fa fa-book"></i> <?= htmlspecialchars($dashboard_guide['title'], ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?>
           <?php else: ?>
           <a href="<?=base_url('creator/create/digital');?>" class="mp-qa-btn green"><i class="fa fa-download"></i> New Digital Product</a>
           <a href="<?=base_url('creator/create/course');?>" class="mp-qa-btn blue"><i class="fa fa-play-circle"></i> New Course</a>

@@ -64,7 +64,7 @@ function error_show(msg){ toastr.error(msg); }
 <!-- Custom JS -->
 <script src="<?php echo $theme_link; ?>js/special_char_check.js"></script>
 <script src="<?php echo $theme_link; ?>js/custom.js"></script>
-<script src="<?php echo $theme_link; ?>js/martpoint-location-cascade.js"></script>
+<script src="<?php echo $theme_link; ?>js/martpoint-location-cascade.js?v=2"></script>
 
 <!-- Pace Loader -->
 <script src="<?php echo $theme_link; ?>plugins/pace/pace.min.js"></script>

@@ -66,7 +66,7 @@ class Patient_billing_model extends CI_Model {
 	 * Plan → itemised bill. One bill per plan version snapshot; a duplicate
 	 * call for the same plan+version replays the existing bill.
 	 */
-	public function createBillFromPlan($planId){
+	public function createBillFromPlan($planId, $accountId = null){
 		$storeId = get_current_store_id();
 		$this->load->model('Treatment_plans_model', 'tpm');
 		$plan = $this->tpm->getPlan($planId);
@@ -83,6 +83,9 @@ class Patient_billing_model extends CI_Model {
 		$items = $this->tpm->currentItems($plan);
 		if(empty($items)) return array('ok' => false, 'error' => 'Plan has no billable lines');
 
+		$this->load->model('Physio_accounts_model','pa');
+		try{ $systemAccountId=$this->pa->resolveSystemAccount($plan->customer_id,$storeId,$accountId); }
+		catch(Exception $e){ return array('ok'=>false,'error'=>$e->getMessage()); }
 		$this->db->trans_begin();
 		// Serialise invoice-number generation per store.
 		$this->load->model('Physio_accounts_model','pa');
@@ -94,7 +97,7 @@ class Patient_billing_model extends CI_Model {
 		$subtotal = 0;
 		foreach($items as $it){ $subtotal += $it->qty * $it->unit_price; }
 
-		$this->db->insert('db_sales', array(
+		$invoice = array(
 			'init_code'      => $initCode,
 			'count_id'       => $countId,
 			'sales_code'     => $initCode . $countId,
@@ -116,7 +119,9 @@ class Patient_billing_model extends CI_Model {
 			'system_ip'      => $this->input->ip_address(),
 			'system_name'    => php_uname(),
 			'status'         => 1,
-		));
+		);
+		if($systemAccountId) $invoice['physio_system_account_id']=$systemAccountId;
+		$this->db->insert('db_sales',$invoice);
 		$salesId = $this->db->insert_id();
 		if(!$salesId){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Bill insert failed'); }
 
@@ -167,7 +172,7 @@ class Patient_billing_model extends CI_Model {
 	// ------------------------------------------------------------------
 
 	/** Insert the db_salespayments row (no status recompute — caller does). */
-	public function insertPaymentRow($salesId, $amount, $type, $note = '', $paymentRef = null){
+	public function insertPaymentRow($salesId, $amount, $type, $note = '', $paymentRef = null, $accountId = null){
 		$storeId = get_current_store_id();
 		$sale = $this->getBill($salesId);
 		// Link the payment mode so cash-flow/cashier reports classify the row
@@ -192,6 +197,7 @@ class Patient_billing_model extends CI_Model {
 			'sales_id'       => $salesId,
 			'payment_date'   => date('Y-m-d'),
 			'physio_account_id'=> $physioAccountId,
+			'account_id'=> $accountId,
 			'payment_type'   => $type,
 			'payment_mode_id'=> $modeId,
 			'payment'        => $amount,
@@ -205,14 +211,20 @@ class Patient_billing_model extends CI_Model {
 			'system_name'    => php_uname(),
 			'status'         => 1,
 		));
-		return $this->db->insert_id();
+		$paymentId=$this->db->insert_id();
+		if($paymentId && $accountId && !in_array($type,array('patient_wallet','wallet_reversal','cust_advance'),true)){
+			$this->load->helper('accounts');
+			$row=$this->db->where('id',$paymentId)->get('db_salespayments')->row();
+			if(!insert_account_transaction(array('transaction_type'=>'SALES PAYMENT','reference_table_id'=>$paymentId,'credit_account_id'=>$accountId,'debit_account_id'=>null,'credit_amt'=>$amount,'debit_amt'=>0,'process'=>'SAVE','note'=>$note,'transaction_date'=>date('Y-m-d'),'payment_code'=>$row->payment_code,'customer_id'=>$sale->customer_id,'supplier_id'=>null))) return false;
+		}
+		return $paymentId;
 	}
 
 	/**
 	 * Receive a payment. $type: cash|transfer|pos|cust_advance|patient_wallet.
 	 * Wallet payments consume funds inside the same transaction.
 	 */
-	public function addPayment($salesId, $amount, $type, $note = '', $paymentRef = null){
+	public function addPayment($salesId, $amount, $type, $note = '', $paymentRef = null, $accountId = null){
 		$storeId = get_current_store_id();
 		$sale = $this->getBill($salesId);
 		if(!$sale) return array('ok' => false, 'error' => 'Bill not found');
@@ -222,6 +234,17 @@ class Patient_billing_model extends CI_Model {
 		}
 		$amount = round((float)$amount, 2);
 		if($amount <= 0) return array('ok' => false, 'error' => 'Amount must be positive');
+		$this->load->model('Physio_accounts_model','pa');
+		// Wallet/store-credit settlement applies existing money, never credits a cash account.
+		$systemAccountId=null;
+		if(!in_array($type,array('patient_wallet','wallet_reversal','cust_advance'),true)){
+			try{
+				$context=$this->pa->systemContext($sale->customer_id,$storeId);
+				$choice=$accountId ?: (!$context['bed'] ? ($sale->physio_system_account_id ?? null) : null);
+				$systemAccountId=$this->pa->resolveSystemAccount($sale->customer_id,$storeId,$choice);
+			}
+			catch(Exception $e){ return array('ok'=>false,'error'=>$e->getMessage()); }
+		}
 		// Idempotency: a used reference replays ONLY the identical request —
 		// same sale, type and amount. Reusing the reference with different
 		// details is a conflict, never a second payment.
@@ -232,7 +255,8 @@ class Patient_billing_model extends CI_Model {
 			if($used){
 				foreach($used as $p){
 					if((int)$p->sales_id === (int)$salesId && $p->payment_type === $type
-						&& round((float)$p->payment, 2) === $amount){
+						&& round((float)$p->payment, 2) === $amount
+						&& (!$this->pa->systemEnabled($storeId) || (int)$p->account_id === (int)$systemAccountId)){
 						return array('ok' => true, 'payment_id' => $p->id, 'replayed' => true);
 					}
 				}
@@ -259,12 +283,13 @@ class Patient_billing_model extends CI_Model {
 			$this->db->where('id', $sp['txn_id'])->update('db_patient_wallet_txns', array('salespayment_id' => $payId));
 		} else {
 			$this->db->trans_begin();
-			$payId = $this->insertPaymentRow($salesId, $amount, $type, $note, $paymentRef);
+			$payId = $this->insertPaymentRow($salesId, $amount, $type, $note, $paymentRef, $systemAccountId);
 			if(!$payId){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Payment row failed'); }
 		}
 		$this->load->model('Sales_model', 'sales_m');
 		$this->sales_m->update_sales_payment_status_by_sales_id($salesId, $sale->customer_id);
 		$this->syncEntitlements($salesId);
+		if(!$this->db->trans_status()){ $this->db->trans_rollback(); return array('ok'=>false,'error'=>'Payment could not be saved'); }
 		$this->db->trans_commit();
 		return array('ok' => true, 'payment_id' => $payId);
 	}

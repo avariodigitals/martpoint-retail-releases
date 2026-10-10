@@ -98,6 +98,7 @@ $store_title = htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint');
       <div class="link-grid">
         <a href="<?= base_url('mobile/printing_jobs'); ?>" class="link-card"><div class="ic ic-indigo"><i class="fa fa-list-alt"></i></div><div class="t">All Jobs</div></a>
         <a href="<?= base_url('mobile/printing_quotations'); ?>" class="link-card"><div class="ic ic-purple"><i class="fa fa-quote-left"></i></div><div class="t">Quotations</div></a>
+        <a href="<?= base_url('docs/product-design/customer-guide/printing-shop-guide.html'); ?>" target="_blank" rel="noopener" class="link-card" style="grid-column:1/-1;"><div class="ic ic-teal"><i class="fa fa-book"></i></div><div class="t">Printing Guide</div></a>
       </div>
 
       <?php if(!empty($kpi['outstanding_balance']) || !empty($kpi['collections_due'])): ?>

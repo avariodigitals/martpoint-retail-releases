@@ -47,6 +47,22 @@ class Oil_processing extends MY_Controller {
         $data['page_title'] = 'Processing Plant';
         $data['stats'] = $stats;
         $data['recent_runs'] = $recent_runs;
+        $data['can_sales_view'] = $this->permissions('sales_view');
+        $data['commercial'] = null;
+        $data['intel'] = array();
+        try {
+            $this->load->model('workspace_commercial_model', 'workspace_commercial');
+            $data['commercial'] = $data['can_sales_view'] ? $this->workspace_commercial->snapshot($store_id) : null;
+            $visible_stats = array(
+                'low_materials' => $this->permissions('items_view') ? $stats['low_materials'] : 0,
+                'open_quotes' => $this->permissions('quotation_view') ? $stats['open_quotes'] : 0,
+            );
+            $data['intel'] = $this->workspace_commercial->insights(
+                $data['commercial'] ?: array('overdue_invoices'=>0, 'billed_today'=>0, 'billed_yesterday'=>0, 'collected_today'=>0),
+                false, $visible_stats);
+        } catch (Throwable $e) {
+            log_message('error', 'Plant commercial dashboard failed: '.$e->getMessage());
+        }
         $data['content'] = $this->load->view('oil_processing/dashboard', $data, TRUE);
         $this->load->view('mp_layout', $data);
     }

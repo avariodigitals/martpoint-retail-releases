@@ -3,6 +3,47 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /** Bed/outpatient cost-centre accounts, separate from bank/cash accounts. */
 class Physio_accounts_model extends CI_Model {
+	public function systemEnabled($storeId = null){
+		$sid=$storeId ?: get_current_store_id();
+		if(!$this->db->field_exists('system_account_id','db_physio_payment_accounts')) return false;
+		return $this->db->query('SELECT policy_value FROM db_inpatient_policies WHERE store_id=? AND policy_key="bed_system_accounts_enabled"',array((int)$sid))->row('policy_value') === '1';
+	}
+	/** Explicit enable provisions every existing bed, without importing old receipts. */
+	public function provisionSystemAccounts($storeId){
+		if(!$this->db->field_exists('system_account_id','db_physio_payment_accounts') || !$this->db->field_exists('physio_system_account_id','db_sales')) throw new RuntimeException('Run migration 4.0.9.133 before enabling system accounts');
+		if(!$this->db->table_exists('ac_accounts') || !$this->db->table_exists('ac_transactions')) throw new RuntimeException('The Accounts module must be installed first');
+		$this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',array((int)$storeId));
+		$beds=$this->db->query('SELECT b.id,b.bed_label,w.name ward_name FROM db_beds b JOIN db_wards w ON w.id=b.ward_id AND w.store_id=b.store_id WHERE b.store_id=?',array((int)$storeId))->result();
+		foreach($beds as $b){
+			$this->db->query('INSERT IGNORE INTO db_physio_payment_accounts (store_id,account_code,bed_id) VALUES (?,?,?)',array((int)$storeId,'BED-'.$b->id,$b->id));
+			$a=$this->db->query('SELECT * FROM db_physio_payment_accounts WHERE store_id=? AND bed_id=? FOR UPDATE',array((int)$storeId,$b->id))->row();
+			if($a->system_account_id) continue;
+			$code='PHYSIO-BED-'.$b->id;
+			if($this->db->where('store_id',$storeId)->where('account_code',$code)->count_all_results('ac_accounts')) throw new RuntimeException('Account code '.$code.' already exists; review it before enabling');
+			$sort=$this->db->select('COALESCE(MAX(id),0)+1 AS next_id',false)->get('ac_accounts')->row()->next_id;
+			if(!$this->db->insert('ac_accounts',array('store_id'=>$storeId,'count_id'=>get_count_id('ac_accounts',$storeId),'account_code'=>$code,'account_name'=>$b->ward_name.' / '.$b->bed_label.' — Collections','sort_code'=>(string)$sort,'parent_id'=>0,'note'=>'Physio bed collections; created when system-account billing was enabled.','created_date'=>date('Y-m-d'),'created_time'=>date('H:i:s'),'created_by'=>$this->session->userdata('inv_username') ?: 'system','status'=>1))) throw new RuntimeException('Could not create bed system account');
+			$id=$this->db->insert_id();
+			if(!$this->db->where('id',$a->id)->where('store_id',$storeId)->update('db_physio_payment_accounts',array('system_account_id'=>$id))) throw new RuntimeException('Could not link bed system account');
+		}
+	}
+	public function systemContext($customerId,$storeId){
+		if(!$this->systemEnabled($storeId)) return array('enabled'=>false,'bed'=>null,'account'=>null,'choices'=>array());
+		$bed=$this->db->query('SELECT b.id,b.bed_label,w.name ward_name,a.system_account_id FROM db_bed_occupancy o JOIN db_patients p ON p.id=o.patient_id AND p.store_id=o.store_id JOIN db_beds b ON b.id=o.bed_id AND b.store_id=o.store_id JOIN db_wards w ON w.id=b.ward_id AND w.store_id=b.store_id LEFT JOIN db_physio_payment_accounts a ON a.bed_id=b.id AND a.store_id=b.store_id WHERE o.store_id=? AND p.customer_id=? AND o.to_at IS NULL ORDER BY o.id DESC LIMIT 1',array((int)$storeId,(int)$customerId))->row();
+		$account=$bed && $bed->system_account_id ? $this->db->where('id',$bed->system_account_id)->where('store_id',$storeId)->where('status',1)->where('delete_bit',0)->get('ac_accounts')->row() : null;
+		$choices=$bed ? array() : $this->db->query('SELECT a.* FROM ac_accounts a WHERE a.store_id=? AND a.status=1 AND a.delete_bit=0 AND NOT EXISTS (SELECT 1 FROM db_physio_payment_accounts p WHERE p.store_id=a.store_id AND p.system_account_id=a.id AND p.bed_id IS NOT NULL) ORDER BY a.account_name',array((int)$storeId))->result();
+		return array('enabled'=>true,'bed'=>$bed,'account'=>$account,'choices'=>$choices);
+	}
+	public function resolveSystemAccount($customerId,$storeId,$selected=null){
+		$c=$this->systemContext($customerId,$storeId);
+		if(!$c['enabled']) return null;
+		if($c['bed']){
+			if(!$c['account']) throw new RuntimeException('The current bed has no active system account. Ask the manager to review its account.');
+			if($selected && (int)$selected !== (int)$c['account']->id) throw new RuntimeException('Inpatient payments must use the current bed account');
+			return (int)$c['account']->id;
+		}
+		foreach($c['choices'] as $a) if((int)$a->id===(int)$selected) return (int)$a->id;
+		throw new RuntimeException('Choose an active outpatient account that is not attached to a bed');
+	}
 	public function enabled($storeId = null){
 		$storeId=$storeId ?: get_current_store_id();
 		return $this->db->query('SELECT policy_value FROM db_inpatient_policies WHERE store_id=? AND policy_key="bed_accounts_enabled"',array((int)$storeId))->row('policy_value') === '1';

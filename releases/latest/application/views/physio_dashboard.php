@@ -63,8 +63,14 @@ if(!empty($clinic_access['procurement']))  $workspaces[] = array('Procurement','
 .clinic-activity-item .m{font-size:12px;color:var(--mp-muted);margin-top:1px;display:block}
 .clinic-empty{padding:18px 0;color:var(--mp-muted);font-size:13px}
 .clinic-note{margin-top:18px;padding:13px 15px;border-left:3px solid #a96e24;background:#f8f0e3;color:#76572e;font-size:13px;border-radius:0 8px 8px 0}
+.clinic-insights-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0 0 18px}
+.clinic-chart{border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);box-shadow:var(--mp-shadow-sm);padding:18px}
+.clinic-chart h2{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mp-muted)}
+.clinic-bar{margin:12px 0}.clinic-bar-head{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:600}.clinic-bar-head span:last-child{color:var(--mp-muted);font-weight:700}.clinic-bar-track{height:9px;margin-top:6px;border-radius:99px;background:#edf2ef;overflow:hidden}.clinic-bar-fill{height:100%;border-radius:99px;background:var(--mp-primary)}.clinic-bar-fill.blue{background:#477ca3}.clinic-chart-sub{margin:0;color:var(--mp-muted);font-size:12px}
+.clinic-birthdays{margin:0 0 18px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);box-shadow:var(--mp-shadow-sm);overflow:hidden}.clinic-birthdays h2{margin:0;padding:15px 18px;border-bottom:1px solid var(--mp-border);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mp-muted)}.clinic-birthday-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 18px}.clinic-birthday{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--mp-border);border-radius:9px}.clinic-birthday-avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#e3efe9;color:var(--mp-primary-dark);font-weight:700;font-size:12px}.clinic-birthday strong{display:block;font-size:13px}.clinic-birthday small{display:block;margin-top:2px;color:var(--mp-muted);font-size:11px}.clinic-birthday-empty{padding:18px;color:var(--mp-muted);font-size:13px}.clinic-range{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 20px;padding:12px 14px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface)}.clinic-range-label{font-size:12px;color:var(--mp-muted)}.clinic-range-links{display:flex;gap:6px;flex-wrap:wrap}.clinic-range-links a{padding:7px 11px;border-radius:8px;color:var(--mp-muted);font-size:12px;font-weight:700;text-decoration:none}.clinic-range-links a.active,.clinic-range-links a:hover{background:#e3efe9;color:var(--mp-primary-dark)}.clinic-range-links a.range-primary{background:#dff0e8;color:#104d40;border:1px solid #8dbba6;padding-inline:15px}
 @media(max-width:1100px){.clinic-columns{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:760px){
+  .clinic-insights-grid{grid-template-columns:minmax(0,1fr)}.clinic-birthday-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .clinic-workspace-grid{grid-template-columns:minmax(0,1fr)}
   .clinic-head h1{font-size:24px}
   .clinic-kpi-value{font-size:25px}
@@ -75,12 +81,18 @@ if(!empty($clinic_access['procurement']))  $workspaces[] = array('Procurement','
 <div class="clinic-head">
   <div>
     <h1>Clinic overview</h1>
-    <p><?= htmlspecialchars(date('l, j F Y')); ?> &middot; today at a glance</p>
+    <p><?= htmlspecialchars(date('l, j F Y')); ?> &middot; <?= htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?> at a glance</p>
+  </div>
+  <div class="clinic-range" aria-label="Dashboard date range">
+    <span class="clinic-range-label">Dashboard period: <strong><?= htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?></strong></span>
+    <nav class="clinic-range-links">
+      <?php foreach(array('Today'=>'Today','7Days'=>'7 Days','30Days'=>'30 Days','ThisMonth'=>'This Month','LastMonth'=>'Last Month','ThisYear'=>'This Year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active ' : ''; ?><?= $value === 'Today' ? 'range-primary' : ''; ?>" href="<?= base_url('dashboard?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?>
+    </nav>
   </div>
 </div>
 
-<?php if($stats): ?>
 <div class="clinic-kpis">
+<?php if($stats): ?>
   <?php foreach($stats as $s):
     $cls = 'clinic-kpi' . (!empty($s['alert']) ? ' alert' : '') . (!empty($s['money']) ? ' money' : ''); ?>
     <a class="<?= $cls; ?>" href="<?= base_url($s['url']); ?>">
@@ -92,8 +104,45 @@ if(!empty($clinic_access['procurement']))  $workspaces[] = array('Procurement','
       <span class="clinic-kpi-sub"><?= htmlspecialchars($s['sub']); ?></span>
     </a>
   <?php endforeach; ?>
-</div>
 <?php endif; ?>
+
+<?php if(!empty($commercial)): ?>
+  <?php $periodLabel = htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?>
+  <a class="clinic-kpi money" href="<?= base_url('patient_billing'); ?>"><span class="clinic-kpi-top"><span class="clinic-kpi-label">Patient billing · <?= $periodLabel; ?></span><span class="clinic-kpi-icon"><i class="fa fa-file-text-o"></i></span></span><span class="clinic-kpi-value"><?= htmlspecialchars(mp_format_money($commercial['billed_today'])); ?></span><span class="clinic-kpi-sub"><?= (int)$commercial['invoices_today']; ?> final patient bills</span></a>
+  <a class="clinic-kpi money" href="<?= base_url('patient_billing'); ?>"><span class="clinic-kpi-top"><span class="clinic-kpi-label">Payments received · <?= $periodLabel; ?></span><span class="clinic-kpi-icon"><i class="fa fa-money"></i></span></span><span class="clinic-kpi-value"><?= htmlspecialchars(mp_format_money($commercial['collected_today'])); ?></span><span class="clinic-kpi-sub">Recorded against final patient bills</span></a>
+  <a class="clinic-kpi <?= $commercial['overdue_invoices'] ? 'alert' : ''; ?>" href="<?= base_url('patient_billing'); ?>"><span class="clinic-kpi-top"><span class="clinic-kpi-label">Overdue patient bills</span><span class="clinic-kpi-icon"><i class="fa fa-clock-o"></i></span></span><span class="clinic-kpi-value"><?= (int)$commercial['overdue_invoices']; ?></span><span class="clinic-kpi-sub">Past due date with an unpaid balance</span></a>
+<?php endif; ?>
+</div>
+
+<?php
+$analytics = isset($clinic_analytics) && is_array($clinic_analytics) ? $clinic_analytics : array();
+$patient_max = max(1, (int)($analytics['inpatient'] ?? 0), (int)($analytics['outpatient'] ?? 0));
+$finance_max = max(1, (float)($analytics['sales'] ?? 0), (float)($analytics['expenses'] ?? 0));
+?>
+<div class="clinic-insights-grid">
+  <section class="clinic-chart" aria-label="Inpatient and outpatient activity">
+    <h2>Patient activity</h2>
+    <p class="clinic-chart-sub">Episodes opened in <?= htmlspecialchars($clinic_range_info['label'] ?? 'this period'); ?></p>
+    <div class="clinic-bar"><div class="clinic-bar-head"><span>Outpatient</span><span><?= (int)($analytics['outpatient'] ?? 0); ?></span></div><div class="clinic-bar-track"><div class="clinic-bar-fill" style="width:<?= round(((int)($analytics['outpatient'] ?? 0) / $patient_max) * 100); ?>%"></div></div></div>
+    <div class="clinic-bar"><div class="clinic-bar-head"><span>Inpatient</span><span><?= (int)($analytics['inpatient'] ?? 0); ?></span></div><div class="clinic-bar-track"><div class="clinic-bar-fill blue" style="width:<?= round(((int)($analytics['inpatient'] ?? 0) / $patient_max) * 100); ?>%"></div></div></div>
+  </section>
+  <section class="clinic-chart" aria-label="Sales and expenses">
+    <h2>Sales vs expenses</h2>
+    <p class="clinic-chart-sub">Financial movement in <?= htmlspecialchars($clinic_range_info['label'] ?? 'this period'); ?></p>
+    <div class="clinic-bar"><div class="clinic-bar-head"><span>Sales</span><span><?= htmlspecialchars(mp_format_money($analytics['sales'] ?? 0)); ?></span></div><div class="clinic-bar-track"><div class="clinic-bar-fill" style="width:<?= round(((float)($analytics['sales'] ?? 0) / $finance_max) * 100); ?>%"></div></div></div>
+    <div class="clinic-bar"><div class="clinic-bar-head"><span>Expenses</span><span><?= htmlspecialchars(mp_format_money($analytics['expenses'] ?? 0)); ?></span></div><div class="clinic-bar-track"><div class="clinic-bar-fill blue" style="width:<?= round(((float)($analytics['expenses'] ?? 0) / $finance_max) * 100); ?>%"></div></div></div>
+  </section>
+</div>
+
+<section class="clinic-birthdays" aria-label="Staff birthdays">
+  <h2>Staff birthdays · next 90 days</h2>
+  <?php if(!empty($staff_birthdays)): ?><div class="clinic-birthday-list">
+    <?php foreach($staff_birthdays as $birthday): ?><div class="clinic-birthday"><span class="clinic-birthday-avatar"><?= htmlspecialchars(strtoupper(substr($birthday['name'], 0, 1))); ?></span><span><strong><?= htmlspecialchars($birthday['name']); ?></strong><small><?= htmlspecialchars($birthday['date']); ?><?= $birthday['days'] === 0 ? ' · Today' : ' · in '.(int)$birthday['days'].' days'; ?></small></span></div><?php endforeach; ?>
+  </div><?php else: ?><div class="clinic-birthday-empty">No staff birthdays recorded in the next 90 days.</div><?php endif; ?>
+</section>
+
+<?php $this->load->view('comman/license_usage_card'); ?>
+<?php $this->load->view('comman/workspace_intelligence', array('intel'=>$intel ?? array())); ?>
 
 <div class="clinic-columns">
   <section class="clinic-panel">

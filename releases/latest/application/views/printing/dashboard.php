@@ -21,6 +21,7 @@ $range_label = $range_labels[$range] ?? 'Today';
         <a href="<?= base_url('printing/jobs') ?>" class="mp-qa-btn blue"><i class="fa fa-list-ul"></i> Jobs</a>
         <?php if ($canPay): ?><a href="<?= base_url('printing/payments') ?>" class="mp-qa-btn orange"><i class="fa fa-money"></i> Payment</a><?php endif; ?>
         <a href="<?= base_url('customers/add') ?>" class="mp-qa-btn purple"><i class="fa fa-user-plus"></i> Client</a>
+        <a href="<?= base_url('docs/product-design/customer-guide/printing-shop-guide.html') ?>" target="_blank" rel="noopener" class="mp-qa-btn blue"><i class="fa fa-book"></i> Printing Guide</a>
       </div>
       <div class="mp-range-tabs print-tabs" style="flex:0 0 auto;margin-left:auto;">
         <?php foreach ($ranges as $rk): ?>

@@ -34,6 +34,7 @@ class Users_model extends CI_Model {
 		$this->db->trans_begin();
 
 		$profile_picture='';
+		$signature='';
 		if(!empty($_FILES['profile_picture']['name'])){
 			$config['upload_path']          = './uploads/users/';
 	        $config['allowed_types']        = 'gif|jpg|png|webp';
@@ -53,6 +54,13 @@ class Users_model extends CI_Model {
 	        {
 	        	   $profile_picture='uploads/users/'.$this->upload->data('file_name');
 	        }
+		}
+		if(!empty($_FILES['signature']['name']) && $this->db->field_exists('signature', 'db_users')){
+			$config['upload_path'] = './uploads/signatures/'; $config['allowed_types'] = 'gif|jpg|png|webp'; $config['max_size'] = 500; $config['max_width'] = 1200; $config['max_height'] = 400;
+			if(!is_dir($config['upload_path'])) @mkdir($config['upload_path'], 0775, true);
+			$this->load->library('upload', $config); $this->upload->initialize($config);
+			if(!$this->upload->do_upload('signature')) return $this->upload->display_errors();
+			$signature = 'uploads/signatures/'.$this->upload->data('file_name');
 		}
 
 
@@ -94,6 +102,7 @@ class Users_model extends CI_Model {
 		if(!empty($profile_picture)){
 			$info['profile_picture'] = $profile_picture;
 		}
+		if($signature !== '') $info['signature'] = $signature;
 		if(isset($role_id)){
 			$info['role_id'] = $role_id;
 		}
@@ -208,6 +217,7 @@ class Users_model extends CI_Model {
 		$this->db->trans_begin();
 
 		$profile_picture='';
+		$signature='';
 		if(!empty($_FILES['profile_picture']['name'])){
 			
 			$config['upload_path']          = './uploads/users/';
@@ -228,6 +238,13 @@ class Users_model extends CI_Model {
 	        {
 	        	   $profile_picture='uploads/users/'.$this->upload->data('file_name');
 	        }
+		}
+		if(!empty($_FILES['signature']['name']) && $this->db->field_exists('signature', 'db_users')){
+			$config['upload_path'] = './uploads/signatures/'; $config['allowed_types'] = 'gif|jpg|png|webp'; $config['max_size'] = 500; $config['max_width'] = 1200; $config['max_height'] = 400;
+			if(!is_dir($config['upload_path'])) @mkdir($config['upload_path'], 0775, true);
+			$this->load->library('upload', $config); $this->upload->initialize($config);
+			if(!$this->upload->do_upload('signature')) return $this->upload->display_errors();
+			$signature = 'uploads/signatures/'.$this->upload->data('file_name');
 		}
 
 
@@ -277,6 +294,7 @@ class Users_model extends CI_Model {
 		if(!empty($profile_picture)){
 			$user_data['profile_picture'] = $profile_picture;
 		}
+		if($signature !== '') $user_data['signature'] = $signature;
 
 
 		$pass = trim($pass);
@@ -419,6 +437,7 @@ class Users_model extends CI_Model {
 			$data['email']=$query->email;
 			$data['role_id']=$query->role_id;
 			$data['profile_picture']=$query->profile_picture;
+			$data['signature']=$this->db->field_exists('signature', 'db_users') ? ($query->signature ?: '') : '';
 			$data['default_warehouse_id']=$query->default_warehouse_id;
 			return $data;
 		}

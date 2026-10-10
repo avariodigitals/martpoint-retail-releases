@@ -17,14 +17,14 @@ textarea.at-json{width:100%;font-family:monospace;font-size:12px;min-height:120p
   <div class="mp-page-sub">Draft → preview → publish. Publishing creates no edits to history — assessments keep the version they were recorded on.</div>
 </div></div>
 
-<?php foreach($groups as $key => $versions): $latest = $versions[0]; ?>
+<?php foreach($groups as $key => $versions): $latest = $versions[0]; $displayName = $key === 'physio_initial' ? 'Physiotherapy Initial Assessment' : $latest->name; ?>
 <div class="at-card">
-  <h4><?= htmlspecialchars($latest->name); ?> <span style="font-family:monospace;color:var(--mp-muted);font-size:12px;font-weight:400">(<?= htmlspecialchars($key); ?>)</span></h4>
+  <h4><?= htmlspecialchars($displayName); ?> <span style="font-family:monospace;color:var(--mp-muted);font-size:12px;font-weight:400">(<?= htmlspecialchars($key); ?>)</span> <span class="at-badge <?= !empty($enabled[$key]) ? 'active' : 'archived'; ?>"><?= !empty($enabled[$key]) ? 'on' : 'off'; ?></span></h4>
   <table class="at">
     <tr><th>Version</th><th>Status</th><th>Scope</th><th>Created</th><th></th></tr>
     <?php foreach($versions as $v): ?>
     <tr>
-      <td>v<?= (int)$v->version; ?><?= $v->provisional ? ' <span class="at-badge draft">provisional</span>' : ''; ?></td>
+      <td>v<?= (int)$v->version; ?><?= $v->provisional && $key !== 'physio_initial' ? ' <span class="at-badge draft">provisional</span>' : ''; ?></td>
       <td><span class="at-badge <?= $v->status; ?>"><?= $v->status; ?></span></td>
       <td><?= (int)$v->store_id === 0 ? 'Platform' : 'This store'; ?></td>
       <td><?= $v->created_at ? date('M j, Y', strtotime($v->created_at)) : '—'; ?></td>
@@ -38,7 +38,7 @@ textarea.at-json{width:100%;font-family:monospace;font-size:12px;min-height:120p
     </tr>
     <?php endforeach; ?>
   </table>
-  <div style="margin-top:10px"><button class="at-btn ghost" onclick="newVersion('<?= htmlspecialchars($key); ?>')">New version (draft)</button></div>
+  <div style="margin-top:10px"><button class="at-btn ghost" onclick="newVersion('<?= htmlspecialchars($key); ?>')">New version (draft)</button> <button class="at-btn ghost" onclick="toggleTemplate('<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?>',<?= !empty($enabled[$key]) ? 0 : 1; ?>)"><?= !empty($enabled[$key]) ? 'Turn off for this clinic' : 'Turn on for this clinic'; ?></button></div>
 </div>
 <?php endforeach; ?>
 
@@ -58,4 +58,5 @@ function post(url,d,cb){ $.post('<?= base_url(); ?>'+url, Object.assign(d||{},CS
 function newVersion(k){ post('assessment_templates/new_version',{template_key:k}); }
 function publish(id){ if(confirm('Publish this version? The current active store version will be archived; existing assessments keep their recorded version.')) post('assessment_templates/publish/'+id,{}); }
 function createTpl(){ post('assessment_templates/create',{template_key:$('#nk').val(),name:$('#nn').val(),sections_json:$('#ns').val()}); }
+function toggleTemplate(k,e){ post('assessment_templates/toggle',{template_key:k,enabled:e}); }
 </script>

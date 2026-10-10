@@ -175,12 +175,18 @@
         <?php endif; ?>
       </div>
 
-      <!-- RIGHT COLUMN: Profile picture -->
+      <!-- RIGHT COLUMN: Profile picture and clinician signature -->
       <div class="mp-user-form-right">
         <div class="mp-user-photo">
           <img id="profile_preview" src="<?= base_url($profile_picture ?? 'uploads/profile_pictures/no_image.png'); ?>" alt="Profile Picture">
           <div class="photo-help">Max Width/Height: 500px x 500px<br>Size: 500KB</div>
           <input type="file" id="profile_picture" name="profile_picture" accept="image/*">
+        </div>
+        <div class="mp-form-field" style="margin-top:16px;">
+          <label for="signature">Profile signature (for clinical documents)</label>
+          <?php if(!empty($signature)): ?><div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:6px;"><img src="<?= base_url($signature); ?>" alt="Profile signature" style="max-width:220px;max-height:70px;"></div><?php endif; ?>
+          <input type="file" id="signature" name="signature" accept="image/*">
+          <div class="photo-help">Transparent PNG preferred · Max 500KB</div>
         </div>
       </div>
     </div>

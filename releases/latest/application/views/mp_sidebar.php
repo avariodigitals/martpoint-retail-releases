@@ -32,6 +32,8 @@ if ($is_central_install) {
 // $is_central gates the retail menus below; it means "hide them".
 $is_central = $hide_retail_menus;
 $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
+$CI->load->helper('industry_guide');
+$sidebar_industry_guide = mp_industry_guide($industry);
 $is_car = $industry === 'car_dealership';
 $is_creator = $industry === 'creator';
 $is_oil_processing = ($industry === 'oil_processing_plant') && function_exists('mp_feature_enabled') && mp_feature_enabled('oil_processing_workflow');
@@ -84,9 +86,11 @@ $mp_icons = [
       <a href="<?= base_url('printing'); ?>" class="mp-nav-item printing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Printing Overview</a>
       <?php elseif($is_oil_processing): ?>
       <a href="<?= base_url('oil_processing'); ?>" class="mp-nav-item oil_processing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Plant Overview</a>
+      <a href="<?= base_url('docs/product-design/customer-guide/oil-processing-plant-zonat.html'); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Plant Guide</a>
       <?php else: ?>
       <a href="<?= base_url('dashboard'); ?>" class="mp-nav-item active"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
       <?php endif; ?>
+      <?php if($sidebar_industry_guide && !$is_oil_processing): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$sidebar_industry_guide['file']); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars($sidebar_industry_guide['title'], ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?>
     </div>
 
     <?php
@@ -630,7 +634,8 @@ $mp_icons = [
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0057FF;"><i class="fa fa-question-circle"></i></span> Help <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <a href="<?= base_url('dashboard/help'); ?>" class="mp-nav-item help-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Help Center</a>
-        <a href="<?= base_url('docs/product-design/customer-guide/index.html'); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Guide</a>
+        <?php if($sidebar_industry_guide): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$sidebar_industry_guide['file']); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Industry Guide</a><?php endif; ?>
+        <a href="<?= base_url('docs/product-design/customer-guide/index.html?industry='.rawurlencode($industry)); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Guide</a>
         <a href="<?= base_url('dashboard/support'); ?>" class="mp-nav-item support-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Support</a>
       </div>
     </div></div>

@@ -1029,7 +1029,9 @@
           <a href="#"><i class="fa fa-question-circle" style="color:#0057FF;"></i> <span>Help</span><span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>
           <ul class="treeview-menu">
             <li class="help-active-li"><a href="<?php echo $base_url; ?>dashboard/help"><i class="fa fa-question-circle"></i> Help Center</a></li>
-            <li><a href="<?php echo $base_url; ?>docs/product-design/customer-guide/index.html" target="_blank" rel="noopener"><i class="fa fa-users"></i> Customer Guide</a></li>
+            <?php $this->load->helper('industry_guide'); $legacy_industry = mp_get_store_profile()['industry_type'] ?? ''; $legacy_guide = mp_industry_guide($legacy_industry); ?>
+            <?php if($legacy_guide): ?><li><a href="<?= base_url('docs/product-design/customer-guide/'.$legacy_guide['file']); ?>" target="_blank" rel="noopener"><i class="fa fa-book"></i> Industry Guide</a></li><?php endif; ?>
+            <li><a href="<?= base_url('docs/product-design/customer-guide/index.html?industry='.rawurlencode($legacy_industry)); ?>" target="_blank" rel="noopener"><i class="fa fa-users"></i> Customer Guide</a></li>
             <li><a href="<?php echo $base_url; ?>dashboard/support"><i class="fa fa-life-ring"></i> Support</a></li>
           </ul>
         </li>

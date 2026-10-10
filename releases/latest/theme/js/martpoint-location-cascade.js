@@ -1,251 +1,72 @@
-/**
- * MartPoint Location Cascade
- * Handles country -> state -> city cascading dropdowns
- * for customer, supplier and store forms.
- */
-(function($) {
+/** Shared country -> state -> city cascade for customer, supplier and store forms. */
+(function ($) {
   'use strict';
-
-  var base_url = (window.base_url) ? window.base_url : ($('#base_url').val() || '');
-
-  function loadStates(country, stateSelect, citySelect, selectedStateId) {
-    if (!country) {
-      $(stateSelect).html('<option value="">Select State</option>');
-      $(citySelect).html('<option value="">Select City</option>');
-      return;
-    }
-
-    var url = base_url + 'site/get_states_by_country';
-    console.log('[LocationCascade] Loading states for country:', country, '| URL:', url);
-
-    $.ajax({
-      url: url,
-      type: 'POST',
-      dataType: 'json',
-      data: { country: country },
-      success: function(data) {
-        console.log('[LocationCascade] States received:', data);
-        var options = '<option value="">Select State</option>';
-        $.each(data, function(i, item) {
-          var selected = (selectedStateId && String(selectedStateId) === String(item.id)) ? ' selected' : '';
-          options += '<option value="' + item.id + '"' + selected + '>' + item.state + '</option>';
-        });
-        $(stateSelect).html(options).trigger('change');
-
-        if (selectedStateId) {
-          $(stateSelect).val(selectedStateId).trigger('change');
-        }
-      },
-      error: function(xhr, status, err) {
-        console.error('[LocationCascade] States AJAX error:', status, err, 'URL:', url);
-        $(stateSelect).html('<option value="">No Records Found</option>');
+  function request(route, data, target, done) {
+    var base = window.base_url || $('#base_url').val() || '';
+    var name = window.csrfName;
+    if (name) data[name] = window.csrfHash || $('input[name="' + name + '"]').first().val();
+    var $target = $(target), previous = $target.data('locationRequest');
+    if (previous) previous.abort();
+    var req = $.ajax({url: base + route, type: 'POST', dataType: 'json', data: data,
+      success: function (rows) { done(Array.isArray(rows) ? rows : []); },
+      error: function (xhr, status) {
+        if (status === 'abort') return;
+        options($target, [], '', 'Could not load — select again');
+        if (window.toastr) toastr.error('Location list could not be loaded. Please select again.');
       }
     });
+    $target.data('locationRequest', req);
   }
-
-  function loadCities(stateId, citySelect, selectedCityName) {
-    if (!stateId) {
-      $(citySelect).html('<option value="">Select City</option>');
-      return;
-    }
-
-    var url = base_url + 'site/get_cities_by_state';
-    console.log('[LocationCascade] Loading cities for stateId:', stateId, '| URL:', url);
-
-    $.ajax({
-      url: url,
-      type: 'POST',
-      dataType: 'json',
-      data: { state_id: stateId },
-      success: function(data) {
-        console.log('[LocationCascade] Cities received:', data);
-        var options = '<option value="">Select City</option>';
-        $.each(data, function(i, item) {
-          var selected = (selectedCityName && String(selectedCityName) === String(item.city)) ? ' selected' : '';
-          options += '<option value="' + item.city + '"' + selected + '>' + item.city + '</option>';
-        });
-        $(citySelect).html(options);
-
-        if (selectedCityName) {
-          $(citySelect).val(selectedCityName).trigger('change');
-        }
-      },
-      error: function(xhr, status, err) {
-        console.error('[LocationCascade] Cities AJAX error:', status, err, 'URL:', url);
-        $(citySelect).html('<option value="">No Records Found</option>');
-      }
+  function options(target, rows, chosen, prompt, field) {
+    var $target = $(target).empty();
+    $target.append(new Option(prompt, ''));
+    rows.forEach(function (row) {
+      var value = field === 'stateName' ? row.state : (field === 'city' ? row.city : row.id);
+      var label = field === 'city' ? row.city : row.state;
+      $target.append(new Option(label, value, false, String(value) === String(chosen)));
+    });
+    $target.trigger('change.select2').trigger('mpupdate');
+  }
+  function cancel(target) {
+    var old = $(target).data('locationRequest');
+    if (old) old.abort();
+  }
+  function cities(stateId, target, chosen) {
+    cancel(target);
+    options(target, [], '', 'Select City');
+    if (!stateId) return;
+    request('site/get_cities_by_state', {state_id: stateId}, target, function (rows) {
+      options(target, rows, chosen, 'Select City', 'city');
     });
   }
-
-  /* ---------- Customer Modal (#customer-modal) ---------- */
-  $(document).on('change', '#customer-modal #country', function() {
-    var country = $(this).find('option:selected').text();
-    loadStates(country, '#customer-modal #state', '#customer-modal #city');
-  });
-
-  $(document).on('change', '#customer-modal #state', function() {
-    var stateId = $(this).val();
-    loadCities(stateId, '#customer-modal #city');
-  });
-
-  $(document).on('change', '#customer-modal #shipping_country', function() {
-    var country = $(this).find('option:selected').text();
-    loadStates(country, '#customer-modal #shipping_state', '#customer-modal #shipping_city');
-  });
-
-  $(document).on('change', '#customer-modal #shipping_state', function() {
-    var stateId = $(this).val();
-    loadCities(stateId, '#customer-modal #shipping_city');
-  });
-
-  /* ---------- Supplier Modal (#supplier-modal) ---------- */
-  $(document).on('change', '#supplier-modal #country', function() {
-    var country = $(this).find('option:selected').text();
-    loadStates(country, '#supplier-modal #state', '#supplier-modal #city');
-  });
-
-  $(document).on('change', '#supplier-modal #state', function() {
-    var stateId = $(this).val();
-    loadCities(stateId, '#supplier-modal #city');
-  });
-
-  /* ---------- Main Customer Form (#customers-form) ---------- */
-  $(document).on('change', '#customers-form #country', function() {
-    var country = $(this).find('option:selected').text();
-    loadStates(country, '#customers-form #state', '#customers-form #city');
-  });
-
-  $(document).on('change', '#customers-form #state', function() {
-    var stateId = $(this).val();
-    loadCities(stateId, '#customers-form #city');
-  });
-
-  /* ---------- Main Supplier Form (#suppliers-form) ---------- */
-  $(document).on('change', '#suppliers-form #country', function() {
-    var country = $(this).find('option:selected').text();
-    loadStates(country, '#suppliers-form #state', '#suppliers-form #city');
-  });
-
-  $(document).on('change', '#suppliers-form #state', function() {
-    var stateId = $(this).val();
-    loadCities(stateId, '#suppliers-form #city');
-  });
-
-  /* ---------- Store Form (#store-form) ---------- */
-  // Store uses country NAME as value, so we need name-based state/city options
-  function loadStoreStates(country, stateSelect, citySelect, selectedStateName) {
-    if (!country) {
-      $(stateSelect).html('<option value="">Select State</option>');
-      $(citySelect).html('<option value="">Select City</option>');
-      return;
-    }
-    $.ajax({
-      url: base_url + 'site/get_states_by_country',
-      type: 'POST',
-      dataType: 'json',
-      data: { country: country },
-      success: function(data) {
-        var options = '<option value="">Select State</option>';
-        $.each(data, function(i, item) {
-          var selected = (selectedStateName && String(selectedStateName) === String(item.state)) ? ' selected' : '';
-          options += '<option value="' + item.state + '"' + selected + '>' + item.state + '</option>';
-        });
-        $(stateSelect).html(options).trigger('change');
-      },
-      error: function() {
-        $(stateSelect).html('<option value="">No Records Found</option>');
+  function wire(form, shipping, store) {
+    var prefix = shipping ? 'shipping_' : '';
+    var c = form + ' #' + prefix + 'country', s = form + ' #' + prefix + 'state', t = form + ' #' + prefix + 'city';
+    $(document).on('change', c, function () {
+      cancel(s); cancel(t);
+      options(s, [], '', 'Select State'); options(t, [], '', 'Select City');
+      if (!this.value) return;
+      var country = store ? this.value : $(this).find('option:selected').text().trim();
+      request('site/get_states_by_country', {country: country}, s, function (rows) {
+        $(s).data('locationStates', rows);
+        options(s, rows, '', 'Select State', store ? 'stateName' : 'state');
+      });
+    });
+    $(document).on('change', s, function () {
+      var value = this.value;
+      if (!store) { cities(value, t); return; }
+      if (!value) { cities('', t); return; }
+      function load(rows) {
+        var state = rows.filter(function (r) { return r.state === value; })[0];
+        cities(state ? state.id : '', t);
       }
+      var cached = $(s).data('locationStates');
+      if (cached) load(cached);
+      else request('site/get_states_by_country', {country: $(c).val()}, t, load);
     });
   }
-
-  function loadStoreCities(stateName, citySelect, selectedCityName) {
-    if (!stateName) {
-      $(citySelect).html('<option value="">Select City</option>');
-      return;
-    }
-    // First find state ID by name, then load cities
-    $.ajax({
-      url: base_url + 'site/get_states_by_country',
-      type: 'POST',
-      dataType: 'json',
-      data: { country: $('#store-form #country').val() },
-      success: function(states) {
-        var stateId = '';
-        $.each(states, function(i, s) {
-          if (String(s.state) === String(stateName)) { stateId = s.id; }
-        });
-        // If state not found, try loading all cities as fallback
-        if (!stateId) {
-          loadAllCities(citySelect, selectedCityName);
-          return;
-        }
-        $.ajax({
-          url: base_url + 'site/get_cities_by_state',
-          type: 'POST',
-          dataType: 'json',
-          data: { state_id: stateId },
-          success: function(data) {
-            // Fallback: if no cities for this state, load all cities
-            if (!data || data.length === 0) {
-              loadAllCities(citySelect, selectedCityName);
-              return;
-            }
-            var options = '<option value="">Select City</option>';
-            $.each(data, function(i, item) {
-              var selected = (selectedCityName && String(selectedCityName) === String(item.city)) ? ' selected' : '';
-              options += '<option value="' + item.city + '"' + selected + '>' + item.city + '</option>';
-            });
-            $(citySelect).html(options);
-            if (selectedCityName) {
-              $(citySelect).val(selectedCityName).trigger('change');
-            }
-          },
-          error: function() {
-            loadAllCities(citySelect, selectedCityName);
-          }
-        });
-      },
-      error: function() {
-        loadAllCities(citySelect, selectedCityName);
-      }
-    });
-  }
-
-  function loadAllCities(citySelect, selectedCityName) {
-    $.ajax({
-      url: base_url + 'site/get_cities_by_state',
-      type: 'POST',
-      dataType: 'json',
-      data: { state_id: 0 },
-      success: function(data) {
-        if (!data || data.length === 0) {
-          $(citySelect).html('<option value="">No Records Found</option>');
-          return;
-        }
-        var options = '<option value="">Select City</option>';
-        $.each(data, function(i, item) {
-          var selected = (selectedCityName && String(selectedCityName) === String(item.city)) ? ' selected' : '';
-          options += '<option value="' + item.city + '"' + selected + '>' + item.city + '</option>';
-        });
-        $(citySelect).html(options);
-        if (selectedCityName) {
-          $(citySelect).val(selectedCityName).trigger('change');
-        }
-      },
-      error: function() {
-        $(citySelect).html('<option value="">No Records Found</option>');
-      }
-    });
-  }
-
-  $(document).on('change', '#store-form #country', function() {
-    var country = $(this).val();
-    loadStoreStates(country, '#store-form #state', '#store-form #city');
+  ['#customers-form', '#customer-modal', '#suppliers-form', '#supplier-modal'].forEach(function (form) {
+    wire(form, false, false); wire(form, true, false);
   });
-
-  $(document).on('change', '#store-form #state', function() {
-    var stateName = $(this).val();
-    loadStoreCities(stateName, '#store-form #city');
-  });
-
+  wire('#store-form', false, true);
 })(jQuery);

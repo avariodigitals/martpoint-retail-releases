@@ -47,7 +47,11 @@ class Oil_processing_model extends CI_Model {
         }
         if ($this->db->table_exists('db_quotation') && $this->db->field_exists('sales_status', 'db_quotation')) {
             $stats['open_quotes'] = (int)$this->db->where('store_id', $store_id)
-                ->where_not_in('sales_status', ['Converted', 'Expired', 'Cancelled'])->count_all_results('db_quotation');
+                ->group_start()
+                    ->where('sales_status', null)
+                    ->or_where_not_in('sales_status', ['Converted', 'Expired', 'Cancelled'])
+                ->group_end()
+                ->count_all_results('db_quotation');
         }
         if ($this->db->table_exists('db_sales') && $this->db->field_exists('sales_date', 'db_sales')
             && $this->db->field_exists('grand_total', 'db_sales') && $this->db->field_exists('sales_status', 'db_sales')) {

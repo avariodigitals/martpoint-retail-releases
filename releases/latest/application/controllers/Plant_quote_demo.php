@@ -199,6 +199,53 @@ class Plant_quote_demo extends CI_Controller {
         echo 'Open: http://martpointretailapp.test/quotation/invoice/'.$quote->id."\n";
     }
 
+    /** Regression check: an unconverted NULL-status quotation must appear in both plant dashboards. */
+    public function test_dashboard_stats(){
+        $store = $this->db->where('store_code',$this->code)->get('db_store')->row();
+        if(!$store){ exit("Demo store does not exist.\n"); }
+        $quote = $this->db->where('store_id',$store->id)->where('reference_no',$this->reference)->get('db_quotation')->row();
+        if(!$quote){ exit("Demo quotation does not exist.\n"); }
+        $this->load->model('Oil_processing_model','oil_workspace');
+        $store_id = (int)$store->id;
+        $this->db->trans_begin();
+        $this->db->where('id',$quote->id)->where('store_id',$store_id)
+            ->update('db_quotation',array('sales_status'=>null));
+        $open = $this->oil_workspace->dashboard_stats($store_id)['open_quotes'];
+        $this->db->where('id',$quote->id)->where('store_id',$store_id)
+            ->update('db_quotation',array('sales_status'=>'Converted'));
+        $converted = $this->oil_workspace->dashboard_stats($store_id)['open_quotes'];
+        $this->db->trans_rollback();
+        $restored = $this->db->select('sales_status')->where('id',$quote->id)
+            ->where('store_id',$store_id)->get('db_quotation')->row();
+        $ok = $open > 0 && $converted === $open - 1
+            && $restored && $restored->sales_status === $quote->sales_status;
+        echo ($ok ? 'PASS' : 'FAIL')." plant dashboard quotes: NULL status {$open}, converted {$converted}; original status restored\n";
+        if(!$ok){ exit(1); }
+    }
+
+    /** The Help Center must resolve the selected plant store to its own guide. */
+    public function test_guide(){
+        $store = $this->db->where('store_code',$this->code)->get('db_store')->row();
+        if(!$store){ exit("Demo store does not exist.\n"); }
+        $this->session->set_userdata('store_id',(int)$store->id);
+        $this->load->helper('industry_guide');
+        $profile = mp_get_store_profile();
+        $guide = mp_industry_guide();
+        $help = $this->load->view('help',array(),true);
+        $mobile_help = file_get_contents(APPPATH.'views/mobile/help.php');
+        $ok = ($profile['industry_type'] ?? '') === 'oil_processing_plant'
+            && $guide && $guide['file'] === 'oil-processing-plant-zonat.html'
+            && is_file(FCPATH.'docs/product-design/customer-guide/'.$guide['file'])
+            && strpos($help,'Your industry walkthrough') !== false
+            && strpos($help,'oil-processing-plant-zonat.html') !== false
+            && strpos($help,'physio-workspace-zonat-physiospace.html') === false
+            && strpos($mobile_help,'Your industry walkthrough') !== false
+            && strpos($mobile_help,"industry_guide['file']") !== false
+            && strpos($mobile_help,'physio-workspace-zonat-physiospace.html') === false;
+        echo ($ok ? 'PASS' : 'FAIL')." store #{$store->id} guide: ".($guide['file'] ?? 'none')."\n";
+        if(!$ok){ exit(1); }
+    }
+
     /** Financial save check inside a transaction that is always rolled back. */
     public function test_tax(){
         $store = $this->db->where('store_code',$this->code)->get('db_store')->row();

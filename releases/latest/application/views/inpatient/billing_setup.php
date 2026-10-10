@@ -49,6 +49,14 @@
 </div>
 
 <div class="bs-box">
+  <h4>System accounts for patient billing</h4>
+  <label style="display:flex;align-items:center;gap:10px">
+    <input type="checkbox" <?= ($policies['bed_system_accounts_enabled'] ?? '0')==='1' ? 'checked' : ''; ?> <?= !$can['run'] ? 'disabled' : ''; ?> onchange="bsBedAccounts(this,'bed_system_accounts_enabled')">
+    Use system accounts for Physio billing
+  </label>
+  <p>When enabled, existing and new beds receive linked accounts in Accounts. Inpatient bills show the current bed account; outpatients choose an active account without a bed. Switching off hides the choice and stops new system-account routing, preserving existing accounts and history.</p>
+  <p>Bed ledgers record charges and settlements. System account books record new direct collections; wallet or store-credit settlement does not create another collection.</p>
+  </div><div class="bs-box">
   <h4>Charging policies</h4>
   <table class="bs-table">
     <tr><th>Policy</th><th>Value</th><th>Meaning</th></tr>
@@ -72,21 +80,21 @@
 </div>
 
 <script>
-function bsBedAccounts(input){ var before=!input.checked; input.disabled=true;
-  var fd=new FormData(); fd.append('policy_key','bed_accounts_enabled'); fd.append('policy_value',input.checked?'1':'0');
+function bsBedAccounts(input,key){ var before=!input.checked; input.disabled=true;
+  var fd=new FormData(); fd.append('policy_key',key||'bed_accounts_enabled'); fd.append('policy_value',input.checked?'1':'0');
   if(window.csrfName) fd.append(window.csrfName,window.csrfHash);
   fetch('<?= base_url('inpatient/save_policy'); ?>',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
     if(d.status!=='success'){input.checked=before;alert(d.message||'Could not save');}
     else {location.reload();}
   }).catch(()=>{input.checked=before;alert('Could not save. Try again.');}).finally(()=>{input.disabled=false;});
 }
-function bsRun(){ var fd = new FormData(); fd.append('date', prompt('Run for date (Y-m-d)','<?= date('Y-m-d'); ?>')||'');
+function bsRun(){ var fd = new FormData(); if(window.csrfName) fd.append(window.csrfName,window.csrfHash); fd.append('date', prompt('Run for date (Y-m-d)','<?= date('Y-m-d'); ?>')||'');
   fetch('<?= base_url('inpatient/run_billing'); ?>', {method:'POST', body:fd})
     .then(r=>r.json()).then(d=>alert(d.message||'')); }
-function bsRate(e){ e.preventDefault(); var fd = new FormData(e.target);
+function bsRate(e){ e.preventDefault(); var fd = new FormData(e.target); if(window.csrfName) fd.append(window.csrfName,window.csrfHash);
   fetch('<?= base_url('inpatient/save_rate'); ?>', {method:'POST', body:fd})
     .then(r=>r.json()).then(d=>{ alert(d.message||''); if(d.status==='success') location.reload(); }); return false; }
-function bsPolicy(k, v){ var fd = new FormData(); fd.append('policy_key', k); fd.append('policy_value', v);
+function bsPolicy(k, v){ var fd = new FormData(); fd.append('policy_key', k); fd.append('policy_value', v); if(window.csrfName) fd.append(window.csrfName,window.csrfHash);
   fetch('<?= base_url('inpatient/save_policy'); ?>', {method:'POST', body:fd})
     .then(r=>r.json()).then(d=>alert(d.message||'')); }
 </script>

@@ -48,7 +48,7 @@ class Patient_billing extends MY_Controller {
 	/** Create the itemised bill from a plan (idempotent per plan). */
 	public function create_bill($planId = 0){
 		if(!physio_can('patient_billing_add')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
-		$res = $this->billing->createBillFromPlan((int)$planId);
+		$res = $this->billing->createBillFromPlan((int)$planId, (int)$this->input->post('account_id'));
 		$this->_json($res['ok']
 			? array('status' => 'success', 'message' => !empty($res['replayed']) ? 'Bill already exists' : 'Bill created', 'sales_id' => $res['sales_id'], 'sales_code' => $res['sales_code'])
 			: array('status' => 'error', 'message' => $res['error']));
@@ -89,6 +89,8 @@ class Patient_billing extends MY_Controller {
 					->order_by('id', 'desc')->limit(1)->get('db_debt_reminder_pauses')->row();
 			}
 		}
+		$this->load->model('Physio_accounts_model','pa');
+		$data['system_accounts']=$this->pa->systemContext($bill->customer_id,get_current_store_id());
 		$data['content'] = $this->load->view('patient_billing/view', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -99,7 +101,8 @@ class Patient_billing extends MY_Controller {
 		$res = $this->billing->addPayment((int)$salesId, (float)$this->input->post('amount'),
 			$this->input->post('payment_type') ?: 'cash',
 			trim($this->input->post('note', TRUE) ?: ''),
-			trim($this->input->post('payment_ref', TRUE) ?: '') ?: null);
+			trim($this->input->post('payment_ref', TRUE) ?: '') ?: null,
+			(int)$this->input->post('account_id'));
 		if(!empty($res['ok']) && empty($res['replayed'])){
 			// Queue the receipt — delivery-side suppression + sink handled centrally.
 			$patientId = $this->db->select('p.id')->from('db_sales s')
