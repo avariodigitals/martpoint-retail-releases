@@ -281,6 +281,7 @@ class Customers extends MY_Controller {
 	public function save_note($customer_id){
 		$this->belong_to('db_customers', $customer_id);
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		$note = trim((string)$this->input->post('note', TRUE));
 		if($note === ''){
 			$this->session->set_flashdata('failed', 'Please write a note before saving.');
@@ -302,6 +303,7 @@ class Customers extends MY_Controller {
 
 	public function edit_note($note_id){
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		if(!$this->db->table_exists('db_customer_notes')){
 			$this->session->set_flashdata('failed', 'Notes history is not available yet.');
 			redirect('customers');
@@ -422,7 +424,7 @@ class Customers extends MY_Controller {
 		$data['statement_summary'] = $statement['summary'];
 
 		// Gift cards
-		if($this->db->table_exists('db_gift_cards')){
+		if(mp_feature_enabled('gift_cards') && $this->db->table_exists('db_gift_cards')){
 			$data['gift_cards'] = $this->db->where('customer_id', $id)
 									  ->where('store_id', $store_id)
 									  ->order_by('id', 'desc')
@@ -431,7 +433,7 @@ class Customers extends MY_Controller {
 		} else { $data['gift_cards'] = array(); }
 
 		// Store credit
-		if($this->db->table_exists('db_store_credit')){
+		if(mp_feature_enabled('store_credit') && $this->db->table_exists('db_store_credit')){
 			$data['store_credits'] = $this->db->where('customer_id', $id)
 									   ->where('store_id', $store_id)
 									   ->order_by('id', 'desc')
@@ -449,7 +451,7 @@ class Customers extends MY_Controller {
 		} else { $data['coupons'] = array(); }
 
 		// Memberships
-		if($this->db->table_exists('db_customer_memberships')){
+		if(mp_feature_enabled('memberships') && $this->db->table_exists('db_customer_memberships')){
 			$this->load->model('membership_model', 'membership');
 			$data['memberships'] = $this->membership->get_customer_memberships($id);
 			$data['active_membership'] = $this->membership->get_customer_discount($id);
@@ -459,7 +461,7 @@ class Customers extends MY_Controller {
 		}
 
 		// Treatment Notes
-		if($this->db->table_exists('db_treatment_notes')){
+		if(mp_feature_enabled('treatment_notes') && $this->db->table_exists('db_treatment_notes')){
 			$this->load->model('treatment_notes_model', 'notes');
 			$data['treatment_notes'] = $this->notes->get_by_customer($id);
 		} else {
@@ -467,7 +469,7 @@ class Customers extends MY_Controller {
 		}
 
 		// Medical Notes (Pharmacy)
-		if($this->db->table_exists('db_medical_notes')){
+		if(mp_feature_enabled('medical_notes') && $this->db->table_exists('db_medical_notes')){
 			$this->load->model('medical_notes_model', 'med_notes');
 			$data['medical_notes'] = $this->med_notes->get_by_customer($id);
 			$data['medical_allergies'] = $this->med_notes->get_allergies($id);
@@ -477,12 +479,12 @@ class Customers extends MY_Controller {
 		}
 
 		// Customer Notes history
-		if($this->db->table_exists('db_customer_notes')){
+		if(mp_feature_enabled('customer_notes') && $this->db->table_exists('db_customer_notes')){
 			$this->load->model('customer_notes_model', 'cust_notes');
 			$data['customer_notes'] = $this->cust_notes->get_by_customer($id);
 		} else {
 			$data['customer_notes'] = array();
-			if(!empty($customer->notes)){
+			if(mp_feature_enabled('customer_notes') && !empty($customer->notes)){
 				$legacy = new stdClass();
 				$legacy->id = 0;
 				$legacy->note = $customer->notes;
@@ -495,7 +497,7 @@ class Customers extends MY_Controller {
 		}
 
 		// Custom Orders
-		if($this->db->table_exists('db_custom_orders')){
+		if(mp_feature_enabled('custom_orders') && $this->db->table_exists('db_custom_orders')){
 			$this->load->model('custom_orders_model', 'custom_orders');
 			$data['custom_orders'] = $this->custom_orders->get_by_customer($id);
 		} else {
@@ -503,7 +505,7 @@ class Customers extends MY_Controller {
 		}
 
 		// Service / Laundry History
-		if ($this->db->table_exists('db_laundry_orders')) {
+		if (mp_feature_enabled('laundry_workflow') && $this->db->table_exists('db_laundry_orders')) {
 			$data['service_history'] = $this->db->query(
 				"SELECT lo.id, lo.sales_id, lo.status, lo.tag_number, lo.created_at, lo.updated_at,
 						s.sales_code, s.sales_date, s.grand_total, s.paid_amount,

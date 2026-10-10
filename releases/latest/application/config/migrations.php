@@ -267,4 +267,6 @@ return [
           '4.0.9.128v'  => '4.0.9.128_provisioned_admin_login.sql',
           '4.0.9.129v'  => '4.0.9.129_fleet_delivery_and_import_navigation.sql',
           '4.0.9.130v'  => '4.0.9.130_physio_bed_accounts.sql',
+          '4.0.9.131v'  => '4.0.9.131_oil_plant_quotation_sections.sql',
+          '4.0.9.132v'  => '4.0.9.132_plant_manual_quote_lines.sql',
 ];

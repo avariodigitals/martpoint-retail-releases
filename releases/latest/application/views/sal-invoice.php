@@ -166,6 +166,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
 <div class="mp-section">
   <div class="mp-card-form" id="printableArea">
     <div class="mp-card-body">
+      <?php $this->load->view('oil_processing/document_banner', array('document_kind'=>'invoice')); ?>
       <div class="invoice-grid">
         <div class="invoice-block">
           <h4><?= $this->lang->line('from'); ?></h4>
@@ -408,7 +409,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
         </div>
         <div class="totals-row" style="border-bottom:none;">
           <span class="label"><?= $this->lang->line('invoiceTerms'); ?></span>
-          <span class="value" style="text-align:right;"><?= nl2br(html_entity_decode(trim($invoice_terms))); ?></span>
+          <span class="value" style="text-align:right;"><?= nl2br(htmlspecialchars(html_entity_decode(trim((string)$invoice_terms), ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')); ?></span>
         </div>
       </div>
     </div>

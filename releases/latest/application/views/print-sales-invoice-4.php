@@ -415,7 +415,7 @@ body { margin: 5px; }
   <tr>
     <td colspan="16">
       <span>
-        <b><?= $this->lang->line('invoiceTerms') .":</b>". nl2br(html_entity_decode($sales_rec->invoice_terms))."";?>
+        <b><?= $this->lang->line('invoiceTerms') .":</b>". nl2br(htmlspecialchars(html_entity_decode((string)$sales_rec->invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'))."";?>
     </span>  
     </td>
   </tr>
@@ -441,7 +441,7 @@ body { margin: 5px; }
                           </td>
                           <td colspan='8'>
                             <span><b> <?= $this->lang->line('authorised_signatory'); ?></b></span><br>
-                            <!--img width="30%" src="uploads/stamp/stamp.png"><br-->
+                            <?php $this->load->helper('document_signature'); echo mp_document_signature_tag(); ?>
                           </td>
                         </tr>
                      

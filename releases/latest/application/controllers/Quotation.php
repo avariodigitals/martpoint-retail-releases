@@ -16,6 +16,61 @@ class Quotation extends MY_Controller {
 		return is_sms_enabled();
 	}
 
+	/** Send a saved customer quotation through the store's configured email provider. */
+	public function send_email($id = 0){
+		$this->permission_check_with_msg('send_email');
+		$id = (int)$id;
+		$store_id = get_current_store_id();
+		$quote = $this->db->select('q.*, c.customer_name, c.email as customer_email, s.store_name')
+			->from('db_quotation q')->join('db_customers c','c.id=q.customer_id','left')
+			->join('db_store s','s.id=q.store_id','left')->where('q.id',$id)->where('q.store_id',$store_id)->get()->row();
+		if(!$quote || empty($quote->customer_email) || !filter_var($quote->customer_email, FILTER_VALIDATE_EMAIL)){
+			header('Content-Type: application/json');
+			echo json_encode(['success'=>false,'message'=>'This customer has no valid email address. Add one to the customer record first.','csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+		$sectionField = $this->db->field_exists('section_name', 'db_quotationitems') ? 'qi.section_name' : "'' AS section_name";
+		$items = $this->db->select('COALESCE(NULLIF(qi.manual_item_name,\'\'), i.item_name) AS item_name, COALESCE(NULLIF(qi.part_code,\'\'), i.item_code) AS item_code, COALESCE(NULLIF(qi.unit_label,\'\'), u.unit_name) AS unit_name, qi.description, '.$sectionField.', qi.quotation_qty, qi.price_per_unit, qi.tax_amt, qi.unit_total_cost, qi.total_cost', false)
+			->from('db_quotationitems qi')->join('db_items i','i.id=qi.item_id','left')->join('db_units u','u.id=i.unit_id','left')
+			->where('qi.quotation_id',$id)->where('qi.store_id',$store_id)->get()->result();
+		$esc = function($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };
+		$money = function($v){ return store_number_format((float)$v, 2); };
+		$rows = '';
+		$textRows = '';
+		$lastSection = null;
+		$sectionAmount = 0;
+		$taxTotal = 0;
+		foreach($items as $item){
+			$name = $item->item_name ?: 'Item';
+			$desc = trim((string)$item->description);
+			$section = trim((string)($item->section_name ?? ''));
+			$partCode = trim((string)($item->item_code ?? ''));
+			$sectionHeading = '';
+			if($section !== $lastSection){
+				if($lastSection !== null && $lastSection !== ''){ $rows .= '<tr><td colspan="4" style="padding:8px 10px;text-align:right;color:#475569;font-weight:bold">Section subtotal</td><td style="padding:8px 10px;text-align:right;font-weight:bold">'.$esc($money($sectionAmount)).'</td></tr>'; $textRows .= 'Section subtotal: '.$money($sectionAmount)."\n"; }
+				$lastSection = $section;
+				$sectionAmount = 0;
+				if($section !== ''){ $sectionHeading = '<tr><td colspan="5" style="padding:9px 10px;background:#f1f5f9;color:#14532d;font-weight:bold">'.$esc($section).'</td></tr>'; }
+			}
+			$rows .= $sectionHeading.'<tr><td style="padding:10px;border-bottom:1px solid #e2e8f0">'.($partCode !== '' ? '<small style="color:#64748b;font-weight:bold">'.$esc($partCode).' · </small>' : '').$esc($name).($desc !== '' ? '<br><small>'.$esc($desc).'</small>' : '').'</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right">'.$esc(format_qty($item->quotation_qty)).'</td><td style="padding:10px;border-bottom:1px solid #e2e8f0">'.$esc($item->unit_name ?? '').'</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right">'.$esc($money($item->price_per_unit)).'</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right">'.$esc($money($item->total_cost)).'</td></tr>';
+			$textRows .= ($sectionHeading !== '' ? "\n".$section."\n" : '').($partCode !== '' ? $partCode.' · ' : '').$name.' | '.format_qty($item->quotation_qty).' '.($item->unit_name ?? '').' | '.$money($item->price_per_unit).' | '.$money($item->total_cost)."\n";
+			$sectionAmount += (float)$item->total_cost;
+			$taxTotal += (float)$item->tax_amt;
+		}
+		if($lastSection !== null && $lastSection !== ''){ $rows .= '<tr><td colspan="4" style="padding:8px 10px;text-align:right;color:#475569;font-weight:bold">Section subtotal</td><td style="padding:8px 10px;text-align:right;font-weight:bold">'.$esc($money($sectionAmount)).'</td></tr>'; $textRows .= 'Section subtotal: '.$money($sectionAmount)."\n"; }
+		$storeName = $quote->store_name ?: 'MartPoint';
+		$subject = $storeName.' — Quotation '.$quote->quotation_code;
+		$html = '<div style="font-family:Arial,sans-serif;color:#172033;max-width:760px;margin:auto"><h2 style="color:#14532d">'. $esc($storeName) .'</h2><p>Dear '. $esc($quote->customer_name ?: 'Customer') .',</p><p>Please find our quotation <strong>'. $esc($quote->quotation_code) .'</strong> below.</p><p>Quotation date: '. $esc($quote->quotation_date) .(!empty($quote->expire_date) ? ' · Valid until: '.$esc($quote->expire_date) : '').'</p><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f1f5f9"><th style="padding:10px;text-align:left">Description</th><th style="padding:10px;text-align:right">Qty</th><th style="padding:10px;text-align:left">Unit</th><th style="padding:10px;text-align:right">Unit price</th><th style="padding:10px;text-align:right">Amount</th></tr></thead><tbody>'. $rows .'</tbody></table>'.($taxTotal > 0 ? '<p style="text-align:right">Subtotal: '.$esc($money($quote->subtotal)).'<br>Tax: '.$esc($money($taxTotal)).'</p>' : '').'<p style="text-align:right;font-size:18px"><strong>Total: '. $esc($money($quote->grand_total)) .'</strong></p>'.(!empty($quote->quotation_note) ? '<p>'.nl2br($esc($quote->quotation_note)).'</p>' : '').'<p>Please reply to this email if you have questions or would like to proceed.</p><p>'. $esc($storeName) .'</p></div>';
+		$text = 'Dear '.($quote->customer_name ?: 'Customer').",\n\nQuotation ".$quote->quotation_code."\nDate: ".$quote->quotation_date."\n\nItem | Qty | Unit Price | Amount\n".$textRows.($taxTotal > 0 ? "\nSubtotal: ".$money($quote->subtotal)."\nTax: ".$money($taxTotal) : '')."\nTotal: ".$money($quote->grand_total)."\n\n".strip_tags((string)$quote->quotation_note)."\n\nReply to this email with any questions.\n".$storeName;
+		$this->load->model('email_service');
+		$result = $this->email_service->sendRaw($quote->customer_email, $subject, $html, $text, [
+			'template_key'=>'customer_quotation','related_module'=>'quotation','related_record_id'=>$id,
+			'subject'=>$subject
+		]);
+		header('Content-Type: application/json');
+		echo json_encode(['success'=>!empty($result['success']),'message'=>$result['message'] ?? 'Email could not be sent.','csrf_hash'=>$this->security->get_csrf_hash()]);
+	}
+
 	public function index()
 	{
 		$this->permission_check('quotation_view');
@@ -28,9 +83,52 @@ class Quotation extends MY_Controller {
 	{	
 		$this->permission_check('quotation_add');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('quotation');
-		$data['content']=$this->load->view('quotation/quotation',$data,TRUE);
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		$data['page_title']=$is_plant ? 'New Quotation' : $this->lang->line('quotation');
+		$data['content']=$this->load->view($is_plant ? 'quotation/plant_quotation' : 'quotation/quotation',$data,TRUE);
 		$this->load->view('mp_layout',$data);
+	}
+
+	public function plant_save(){
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		if(!$is_plant){ show_404(); return; }
+		$this->permission_check($this->input->post('quotation_id', TRUE) ? 'quotation_edit' : 'quotation_add');
+		$this->form_validation->set_rules('quotation_date', 'Quotation Date', 'trim|required');
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required');
+		header('Content-Type: application/json');
+		if(!$this->form_validation->run()){
+			echo json_encode(array('success'=>false,'message'=>strip_tags(validation_errors()),'csrf_hash'=>$this->security->get_csrf_hash()));
+			return;
+		}
+		$result = $this->quotation->save_plant_quotation();
+		$parts = explode('<<<###>>>', $result);
+		echo json_encode(array('success'=>$parts[0] === 'success','message'=>$parts[0] === 'success' ? 'Quotation saved.' : $result,'id'=>isset($parts[1]) ? (int)$parts[1] : null,'csrf_hash'=>$this->security->get_csrf_hash()));
+	}
+
+	public function plant_item_search(){
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		if(!$is_plant){ show_404(); return; }
+		$this->permission_check('quotation_add');
+		$term = trim((string)$this->input->get('q', TRUE));
+		$items = array();
+		if(mb_strlen($term) >= 2){
+			$items = $this->db->select('i.id, i.item_name, i.item_code, i.description, i.sales_price, u.unit_name')
+				->from('db_items i')->join('db_units u', 'u.id=i.unit_id', 'left')
+				->where('i.store_id', get_current_store_id())->where('i.status', 1)
+				->group_start()->like('i.item_name', $term)->or_like('i.item_code', $term)->group_end()
+				->order_by('i.item_name')->limit(12)->get()->result_array();
+		}
+		header('Content-Type: application/json');
+		echo json_encode($items);
+	}
+
+	/** Workbook example is exposed only inside the processing plant quote builder. */
+	public function plant_sample(){
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		if(!$is_plant){ show_404(); return; }
+		$this->permission_check('quotation_add');
+		header('Content-Type: application/json');
+		echo file_get_contents(APPPATH.'data/plant_quote_hykeng_011026.json');
 	}
 	
 
@@ -53,8 +151,11 @@ class Quotation extends MY_Controller {
 		$this->permission_check('quotation_edit');
 		$data=$this->data;
 		$data=array_merge($data,array('quotation_id'=>$id));
-		$data['page_title']=$this->lang->line('quotation');
-		$data['content']=$this->load->view('quotation/quotation',$data,TRUE);
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		$is_plant_format = $is_plant && $this->db->field_exists('manual_item_name', 'db_quotationitems')
+			&& $this->db->where('quotation_id', (int)$id)->where('manual_item_name !=', '')->count_all_results('db_quotationitems') > 0;
+		$data['page_title']=$is_plant_format ? 'Edit Quotation' : $this->lang->line('quotation');
+		$data['content']=$this->load->view($is_plant_format ? 'quotation/plant_quotation' : 'quotation/quotation',$data,TRUE);
 		$this->load->view('mp_layout',$data);
 	}
 	
@@ -66,6 +167,8 @@ class Quotation extends MY_Controller {
 		$data = array();
 		$no = $_POST['start'];
 		foreach ($list as $quotation) {
+			$has_manual_lines = $this->db->field_exists('manual_item_name', 'db_quotationitems')
+				&& $this->db->where('quotation_id', (int)$quotation->id)->where('manual_item_name !=', '')->count_all_results('db_quotationitems') > 0;
 			
 			$no++;
 			$row = array();
@@ -93,7 +196,7 @@ class Quotation extends MY_Controller {
 										</a>
 										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
 
-											if($this->permissions('sales_add') && $quotation->sales_status=='')
+											if($this->permissions('sales_add') && $quotation->sales_status=='' && !$has_manual_lines)
 											$str2.='<li>
 												<a title="Convert to Invoice" href="'.base_url().'sales/quotation/'.$quotation->id.'" >
 													<i class="fa fa-fw fa-exchange text-blue"></i>Convert to Invoice
@@ -113,6 +216,13 @@ class Quotation extends MY_Controller {
 													<i class="fa fa-fw fa-eye text-blue"></i>View Quotation
 												</a>
 											</li>';
+
+							if($this->permissions('send_email'))
+							$str2.='<li>
+								<a style="cursor:pointer" onclick="sendQuotationEmail('.(int)$quotation->id.')">
+									<i class="fa fa-fw fa-envelope text-blue"></i>Email to Customer
+								</a>
+							</li>';
 
 											if($this->permissions('quotation_edit'))
 											$str2.='<li>

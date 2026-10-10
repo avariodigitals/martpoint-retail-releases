@@ -59,6 +59,12 @@ class Dashboard extends MY_Controller {
 		// itself instead of dead-ending.
 		if(function_exists('mp_get_store_profile') && $this->input->get('classic') === NULL){
 			$bp_print = mp_get_store_profile();
+			if(($bp_print['industry_type'] ?? '') === 'oil_processing_plant'
+				&& function_exists('mp_feature_enabled')
+				&& mp_feature_enabled('oil_processing_workflow')){
+				redirect(base_url('oil_processing'));
+				return;
+			}
 			if(($bp_print['industry_type'] ?? '') === 'printing'
 				&& function_exists('mp_feature_enabled')
 				&& mp_feature_enabled('production_workflow')){

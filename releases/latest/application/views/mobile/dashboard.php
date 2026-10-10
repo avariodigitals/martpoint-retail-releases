@@ -155,6 +155,8 @@
       <?php
         // Avatar should only be the user's profile picture; never the store logo
         $avatar_src = (!empty($profile_picture) && file_exists(FCPATH . $profile_picture)) ? $profile_picture : '';
+        $is_oil_processing = function_exists('mp_get_store_profile')
+          && ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant');
       ?>
       <div class="topbar">
         <div class="topbar-titles">
@@ -214,20 +216,21 @@
         </div>
       </form>
 
-      <a href="<?= base_url('mobile/sale'); ?>" class="hero-cta">
-        <div class="icon"><i class="fa fa-shopping-cart"></i></div>
+      <a href="<?= base_url($is_oil_processing ? 'mobile/production' : 'mobile/sale'); ?>" class="hero-cta">
+        <div class="icon"><i class="fa <?= $is_oil_processing ? 'fa-industry' : 'fa-shopping-cart'; ?>"></i></div>
         <div class="text">
-          <div class="title">Start New Sale</div>
-          <div class="sub">Quick scan, pay &amp; print</div>
+          <div class="title"><?= $is_oil_processing ? 'Processing Runs' : 'Start New Sale'; ?></div>
+          <div class="sub"><?= $is_oil_processing ? 'Plan and follow production batches' : 'Quick scan, pay &amp; print'; ?></div>
         </div>
         <div class="arrow"><i class="fa fa-chevron-right"></i></div>
       </a>
 
       <div class="quick-actions">
-        <a href="<?= base_url('mobile/pos'); ?>" class="quick-action blue">
-          <div class="icon"><i class="fa fa-calculator"></i></div>
-          <span>POS</span>
-        </a>
+        <?php if(!$is_oil_processing): ?><a href="<?= base_url('mobile/pos'); ?>" class="quick-action blue">
+          <div class="icon"><i class="fa fa-calculator"></i></div><span>POS</span>
+        </a><?php else: ?><a href="<?= base_url('mobile/production'); ?>" class="quick-action blue">
+          <div class="icon"><i class="fa fa-industry"></i></div><span>Production</span>
+        </a><?php endif; ?>
         <a href="<?= base_url('mobile/sale'); ?>" class="quick-action green">
           <div class="icon"><i class="fa fa-file-text-o"></i></div>
           <span>Sale</span>

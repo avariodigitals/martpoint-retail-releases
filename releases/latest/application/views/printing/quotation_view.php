@@ -168,7 +168,7 @@ table.pq-sum tr.bal td { color: #92400e; font-weight: 600; }
         <?php if (!empty($invoice_terms)): ?>
           <div class="pq-box" style="margin-top:0;">
             <h4>Terms &amp; conditions</h4>
-            <?= nl2br(htmlspecialchars($invoice_terms)) ?>
+            <?= nl2br(htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')) ?>
           </div>
         <?php endif; ?>
       </td>
@@ -248,7 +248,7 @@ table.pq-sum tr.bal td { color: #92400e; font-weight: 600; }
   <div class="pq-sign">
     <div>Customer name &amp; signature</div>
     <div>Date</div>
-    <div>For <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint') ?></div>
+    <div>For <?= htmlspecialchars($SITE_TITLE ?? 'MartPoint') ?><br><?php $this->load->helper('document_signature'); echo mp_document_signature_tag($store_id); ?></div>
   </div>
 
   <div class="pq-foot">

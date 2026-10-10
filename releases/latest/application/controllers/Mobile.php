@@ -244,7 +244,10 @@ class Mobile extends MY_Controller {
 		// clinic. Clinical access stays behind explicit physio_can() grants.
 		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
 		if(physio_enabled()){ $this->clinicHome(); return; }
-		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
+		$is_oil_processing = function_exists('mp_get_store_profile')
+			&& ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant');
+		if($is_oil_processing && $this->input->get('classic') === NULL){ redirect(base_url('mobile/oil_processing')); return; }
+		if(!$is_oil_processing && stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
 			redirect(base_url().'mobile/pos');
 		}
 		$data = $this->data;
@@ -555,6 +558,11 @@ class Mobile extends MY_Controller {
 	public function pos()
 	{
 		$this->permission_check('pos');
+		if(function_exists('mp_get_store_profile')
+			&& ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant')){
+			redirect(base_url('mobile/production'));
+			return;
+		}
 		if(!$this->is_cashier_clocked_in()){
 			$this->session->set_flashdata('error', 'Please clock in before making a sale.');
 			redirect('mobile/clock');
@@ -1959,7 +1967,7 @@ class Mobile extends MY_Controller {
 								 ->get('db_customer_payments')
 								 ->result();
 
-		if($this->db->table_exists('db_gift_cards')){
+		if(mp_feature_enabled('gift_cards') && $this->db->table_exists('db_gift_cards')){
 			$data['gift_cards'] = $this->db->where('customer_id', $id)
 								  ->where('store_id', $store_id)
 								  ->order_by('id', 'desc')
@@ -1967,7 +1975,7 @@ class Mobile extends MY_Controller {
 								  ->result();
 		} else { $data['gift_cards'] = array(); }
 
-		if($this->db->table_exists('db_store_credit')){
+		if(mp_feature_enabled('store_credit') && $this->db->table_exists('db_store_credit')){
 			$data['store_credits'] = $this->db->where('customer_id', $id)
 								     ->where('store_id', $store_id)
 								     ->order_by('id', 'desc')
@@ -1983,7 +1991,7 @@ class Mobile extends MY_Controller {
 								  ->result();
 		} else { $data['coupons'] = array(); }
 
-		if($this->db->table_exists('db_customer_memberships')){
+		if(mp_feature_enabled('memberships') && $this->db->table_exists('db_customer_memberships')){
 			$this->load->model('membership_model','membership');
 			$data['memberships'] = $this->membership->get_customer_memberships($id);
 			$data['active_membership'] = $this->membership->get_customer_discount($id);
@@ -2008,12 +2016,12 @@ class Mobile extends MY_Controller {
 			$data['medical_enabled'] = false;
 		}
 
-		if($this->db->table_exists('db_customer_notes')){
+		if(mp_feature_enabled('customer_notes') && $this->db->table_exists('db_customer_notes')){
 			$this->load->model('customer_notes_model','cust_notes');
 			$data['customer_notes'] = $this->cust_notes->get_by_customer($id);
 		} else {
 			$data['customer_notes'] = array();
-			if(!empty($customer->notes)){
+			if(mp_feature_enabled('customer_notes') && !empty($customer->notes)){
 				$legacy = new stdClass();
 				$legacy->id = 0;
 				$legacy->note = $customer->notes;
@@ -2025,7 +2033,7 @@ class Mobile extends MY_Controller {
 			}
 		}
 
-		if($this->db->table_exists('db_custom_orders')){
+		if(mp_feature_enabled('custom_orders') && $this->db->table_exists('db_custom_orders')){
 			$this->load->model('custom_orders_model','custom_orders');
 			$data['custom_orders'] = $this->custom_orders->get_by_customer($id);
 		} else { $data['custom_orders'] = array(); }
@@ -2068,6 +2076,7 @@ class Mobile extends MY_Controller {
 	{
 		$this->belong_to('db_customers', $customer_id);
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		$note = trim((string)$this->input->post('notes', TRUE));
 		if($note === ''){
 			$this->session->set_flashdata('failed', 'Please write a note before saving.');
@@ -2092,6 +2101,7 @@ class Mobile extends MY_Controller {
 	public function edit_customer_note($note_id)
 	{
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		if(!$this->db->table_exists('db_customer_notes')){
 			$this->session->set_flashdata('failed', 'Notes history is not available yet.');
 			redirect('mobile/customers');
@@ -2124,6 +2134,7 @@ class Mobile extends MY_Controller {
 	{
 		$this->belong_to('db_customers', $customer_id);
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('treatment_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		$this->load->model('treatment_notes_model', 'treatment');
 		$data = array(
 			'customer_id' => $customer_id,
@@ -2144,6 +2155,7 @@ class Mobile extends MY_Controller {
 	{
 		$this->belong_to('db_customers', $customer_id);
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('medical_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		$this->load->model('medical_notes_model', 'medical');
 		$data = array(
 			'customer_id' => $customer_id,
@@ -2166,6 +2178,7 @@ class Mobile extends MY_Controller {
 	{
 		$this->belong_to('db_customers', $customer_id);
 		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('custom_orders')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
 		$this->load->model('custom_orders_model', 'orders');
 		$data = array(
 			'customer_id' => $customer_id,
@@ -3327,7 +3340,8 @@ class Mobile extends MY_Controller {
 		if($is_update) $this->belong_to('db_items', $id);
 
 		$data = $this->data;
-		$data['page_title'] = $is_update ? 'Edit Product' : 'Add Product';
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		$data['page_title'] = $is_plant ? ($is_update ? 'Edit Material / Product' : 'Add Material / Product') : ($is_update ? 'Edit Product' : 'Add Product');
 		$store_id = get_current_store_id();
 		$data['store_id'] = $store_id;
 		$data['item_code'] = $is_update ? '' : get_init_code('item');
@@ -3338,6 +3352,9 @@ class Mobile extends MY_Controller {
 		$data['item_name'] = $data['sku'] = $data['hsn'] = '';
 		$data['brand_id'] = $data['category_id'] = $data['tax_id'] = $data['unit_id'] = '';
 		$data['price'] = $data['purchase_price'] = $data['sales_price'] = $data['mrp'] = $data['profit_margin'] = $data['discount'] = '';
+		if(!$is_update && $is_plant){
+			$data['price'] = $data['purchase_price'] = $data['sales_price'] = '0';
+		}
 		$data['alert_qty'] = $data['seller_points'] = $data['custom_barcode'] = $data['description'] = '';
 		$data['discount_type'] = 'Percentage';
 		$data['tax_type'] = 'Exclusive';
@@ -5669,6 +5686,41 @@ class Mobile extends MY_Controller {
 
 	/* ---------- PRODUCTION ---------- */
 
+	public function oil_processing()
+	{
+		if(!function_exists('mp_get_store_profile') || (mp_get_store_profile()['industry_type'] ?? '') !== 'oil_processing_plant'){
+			redirect(base_url('mobile'));
+			return;
+		}
+		$this->permission_check('dashboard_view');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Processing Plant';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->model('Oil_processing_model', 'oil_workspace');
+		$data['plant_stats'] = $this->oil_workspace->dashboard_stats($store_id);
+		$data['open_runs'] = $data['plant_stats']['open_runs'];
+		$data['recent_plant_runs'] = $this->db->table_exists('db_production_batches')
+			? $this->db->where('store_id', $store_id)->order_by('scheduled_date', 'DESC')->order_by('id', 'DESC')->limit(4)->get('db_production_batches')->result()
+			: [];
+		$data['can_purchase'] = $this->permissions('purchase_add');
+		$data['can_process'] = $this->permissions('production_batches_view') && mp_feature_enabled('production_workflow');
+		$data['can_quote'] = $this->permissions('quotation_add');
+		$data['can_quote_view'] = $this->permissions('quotation_view');
+		$data['can_sell'] = $this->permissions('sales_add');
+		$data['plant_subscription'] = null;
+		if($this->db->table_exists('db_subscription_license')){
+			try {
+				$this->load->model('subscription_license_model','sub_lic');
+				$data['plant_subscription'] = $this->sub_lic->get_status();
+			} catch(Throwable $e) {
+				log_message('error', 'Mobile plant subscription status failed: '.$e->getMessage());
+			}
+		}
+		$data['_view'] = 'oil_processing';
+		$this->_mobile_render($data);
+	}
+
 	public function production()
 	{
 		$this->permission_check('production_batches_view');
@@ -6572,13 +6624,18 @@ class Mobile extends MY_Controller {
 		$data['page_title'] = 'Quotations';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$store_id = get_current_store_id();
-		$data['records'] = $this->db->select('q.*, c.customer_name')
+		$data['records'] = $this->db->select('q.*, c.customer_name, c.email as customer_email')
 			->from('db_quotation q')
 			->join('db_customers c', 'c.id = q.customer_id', 'left')
 			->where('q.store_id', $store_id)
 			->order_by('q.id', 'desc')
 			->get()
 			->result();
+		$data['manual_quote_ids'] = array();
+		if($this->db->field_exists('manual_item_name', 'db_quotationitems')){
+			$manual = $this->db->select('quotation_id')->from('db_quotationitems')->where('store_id', $store_id)->where('manual_item_name !=', '')->group_by('quotation_id')->get()->result();
+			foreach($manual as $entry){ $data['manual_quote_ids'][(int)$entry->quotation_id] = true; }
+		}
 		$this->load->view('mobile/quotations', $data);
 	}
 
@@ -6587,13 +6644,25 @@ class Mobile extends MY_Controller {
 		$id = (int)$id;
 		$is_update = $id > 0;
 		$this->permission_check($is_update ? 'quotation_edit' : 'quotation_add');
+		$is_plant_format = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'
+			&& (!$is_update || ($this->db->field_exists('manual_item_name', 'db_quotationitems')
+				&& $this->db->where('quotation_id', $id)->where('manual_item_name !=', '')->count_all_results('db_quotationitems') > 0));
+		if($is_plant_format){
+			if($is_update){ $this->belong_to('db_quotation', $id); }
+			$data = $this->data;
+			$data['page_title'] = $is_update ? 'Edit Quotation' : 'New Quotation';
+			$data['plant_mobile'] = true;
+			if($is_update){ $data['quotation_id'] = $id; }
+			$this->load->view('mobile/plant_quotation', $data);
+			return;
+		}
 		$data = $this->data;
 		$data['page_title'] = $is_update ? 'Edit Quotation' : 'New Quotation';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$store_id = get_current_store_id();
 		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name')->get('db_customers')->result();
 		$data['taxes'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_tax')->result();
-		$data['items'] = $this->db->select('id, item_name, sales_price, tax_id')->where('store_id', $store_id)->where('status', 1)->where('item_group !=', 'Variants')->order_by('item_name')->limit(200)->get('db_items')->result();
+		$data['items'] = $this->db->select('id, item_name, item_code, sales_price, tax_id')->where('store_id', $store_id)->where('status', 1)->where('item_group !=', 'Variants')->order_by('item_name')->limit(200)->get('db_items')->result();
 		$data['warehouses'] = (warehouse_module() && warehouse_count() > 0)
 			? $this->db->where('store_id', $store_id)->where('status', 1)->get('db_warehouse')->result()
 			: [];
@@ -6624,6 +6693,7 @@ class Mobile extends MY_Controller {
 				$data['tax_id'] = $qi->tax_id;
 				$data['discount'] = $qi->discount_input;
 				$data['description'] = $qi->description;
+				$data['section_name'] = isset($qi->section_name) ? $qi->section_name : '';
 			}
 		} else {
 			$data['quotation_id'] = '';
@@ -6933,9 +7003,10 @@ class Mobile extends MY_Controller {
 			->get()
 			->row();
 		if(empty($data['q'])){ show_404(); exit; }
-		$data['items'] = $this->db->select('qi.*, i.item_name, i.item_code')
+		$data['items'] = $this->db->select("qi.*, COALESCE(NULLIF(qi.manual_item_name,''), i.item_name) AS item_name, COALESCE(NULLIF(qi.part_code,''), i.item_code) AS item_code, COALESCE(NULLIF(qi.unit_label,''), u.unit_name) AS unit_name", false)
 			->from('db_quotationitems qi')
 			->join('db_items i', 'i.id = qi.item_id', 'left')
+			->join('db_units u', 'u.id = i.unit_id', 'left')
 			->where('qi.quotation_id', $id)
 			->get()
 			->result();

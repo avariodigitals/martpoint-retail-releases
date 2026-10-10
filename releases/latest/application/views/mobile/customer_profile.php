@@ -127,7 +127,7 @@
           <div class="code"><?= $customer->customer_code; ?></div>
           <div class="profile-tags">
             <span class="badge <?= $customer->status == 1 ? 'active' : 'inactive'; ?>"><?= $customer->status == 1 ? 'Active' : 'Inactive'; ?></span>
-            <span class="badge tier"><?= $customer->loyalty_tier ?: 'Bronze'; ?></span>
+            <?php if (mp_feature_enabled('loyalty')): ?><span class="badge tier"><?= $customer->loyalty_tier ?: 'Bronze'; ?></span><?php endif; ?>
             <?php if(!empty($payplans)): ?><span class="badge payplan"><i class="fa fa-hourglass-half"></i> On Payplan</span><?php endif; ?>
           </div>
         </div>
@@ -137,17 +137,35 @@
         <button type="button" class="tab-btn active" data-tab="overview"><i class="fa fa-user"></i> Overview</button>
         <button type="button" class="tab-btn" data-tab="purchases"><i class="fa fa-shopping-cart"></i> Purchases</button>
         <button type="button" class="tab-btn" data-tab="statements"><i class="fa fa-money"></i> Statements</button>
-        <?php if(!empty($gift_cards)): ?><button type="button" class="tab-btn" data-tab="giftcards"><i class="fa fa-ticket"></i> Gift</button><?php endif; ?>
-        <?php if(!empty($store_credits)): ?><button type="button" class="tab-btn" data-tab="storecredit"><i class="fa fa-credit-card"></i> Credit</button><?php endif; ?>
+        <?php if(!empty($gift_cards)): ?><?php if (mp_feature_enabled('gift_cards')): ?>
+<button type="button" class="tab-btn" data-tab="giftcards"><i class="fa fa-ticket"></i> Gift</button>
+<?php endif; ?><?php endif; ?>
+        <?php if(!empty($store_credits)): ?><?php if (mp_feature_enabled('store_credit')): ?>
+<button type="button" class="tab-btn" data-tab="storecredit"><i class="fa fa-credit-card"></i> Credit</button>
+<?php endif; ?><?php endif; ?>
         <?php if(!empty($coupons)): ?><button type="button" class="tab-btn" data-tab="coupons"><i class="fa fa-tags"></i> Coupons</button><?php endif; ?>
-        <?php if(!empty($memberships)): ?><button type="button" class="tab-btn" data-tab="memberships"><i class="fa fa-id-card"></i> Member</button><?php endif; ?>
-        <?php if(!empty($service_history)): ?><button type="button" class="tab-btn" data-tab="services"><i class="fa fa-inbox"></i> Services</button><?php endif; ?>
-        <?php if(!empty($treatment_notes)): ?><button type="button" class="tab-btn" data-tab="treatment"><i class="fa fa-file-text-o"></i> Treat</button><?php endif; ?>
-        <?php if(!empty($medical_notes) || !empty($medical_enabled)): ?><button type="button" class="tab-btn" data-tab="medical"><i class="fa fa-file-medical-o"></i> Medical</button><?php endif; ?>
-        <?php if(!empty($custom_orders)): ?><button type="button" class="tab-btn" data-tab="custom"><i class="fa fa-pencil-square-o"></i> Orders</button><?php endif; ?>
+        <?php if(!empty($memberships)): ?><?php if (mp_feature_enabled('memberships')): ?>
+<button type="button" class="tab-btn" data-tab="memberships"><i class="fa fa-id-card"></i> Member</button>
+<?php endif; ?><?php endif; ?>
+        <?php if(!empty($service_history)): ?><?php if (mp_feature_enabled('laundry_workflow')): ?>
+<button type="button" class="tab-btn" data-tab="services"><i class="fa fa-inbox"></i> Services</button>
+<?php endif; ?><?php endif; ?>
+        <?php if(!empty($treatment_notes)): ?><?php if (mp_feature_enabled('treatment_notes')): ?>
+<button type="button" class="tab-btn" data-tab="treatment"><i class="fa fa-file-text-o"></i> Treat</button>
+<?php endif; ?><?php endif; ?>
+        <?php if(!empty($medical_notes) || !empty($medical_enabled)): ?><?php if (mp_feature_enabled('medical_notes')): ?>
+<button type="button" class="tab-btn" data-tab="medical"><i class="fa fa-file-medical-o"></i> Medical</button>
+<?php endif; ?><?php endif; ?>
+        <?php if(!empty($custom_orders)): ?><?php if (mp_feature_enabled('custom_orders')): ?>
+<button type="button" class="tab-btn" data-tab="custom"><i class="fa fa-pencil-square-o"></i> Orders</button>
+<?php endif; ?><?php endif; ?>
+        <?php if (mp_feature_enabled('customer_notes')): ?>
         <button type="button" class="tab-btn" data-tab="notes"><i class="fa fa-sticky-note"></i> Notes</button>
+<?php endif; ?>
         <button type="button" class="tab-btn" data-tab="idcard"><i class="fa fa-id-card"></i> ID Card</button>
-        <?php if(!empty($payplans)): ?><button type="button" class="tab-btn" data-tab="payplan"><i class="fa fa-hourglass-half"></i> Payplan</button><?php endif; ?>
+        <?php if(!empty($payplans)): ?><?php if (mp_feature_enabled('payplan')): ?>
+<button type="button" class="tab-btn" data-tab="payplan"><i class="fa fa-hourglass-half"></i> Payplan</button>
+<?php endif; ?><?php endif; ?>
       </div>
 
       <div id="overview" class="tab-panel active">
@@ -160,10 +178,12 @@
             <div class="label">Advance</div>
             <div class="value" title="<?= strip_tags(mp_format_money($customer->tot_advance ?? 0)); ?>"><?= mp_format_money_compact($customer->tot_advance ?? 0); ?></div>
           </div>
+          <?php if (mp_feature_enabled('loyalty')): ?>
           <div class="stat-card">
             <div class="label">Points</div>
             <div class="value"><?= number_format($customer->loyalty_points ?? 0); ?></div>
           </div>
+<?php endif; ?>
           <div class="stat-card">
             <div class="label">Credit Limit</div>
             <div class="value" title="<?= ($customer->credit_limit == -1) ? 'No Limit' : strip_tags(mp_format_money($customer->credit_limit ?? 0)); ?>"><?= ($customer->credit_limit == -1) ? 'No Limit' : mp_format_money_compact($customer->credit_limit ?? 0); ?></div>
@@ -174,11 +194,21 @@
           <div class="details-list">
             <div class="detail-row"><span class="label">Phone</span><span class="value"><?= !empty($customer->mobile) ? '<a href="tel:' . $customer->mobile . '">' . $customer->mobile . '</a>' : '-'; ?></span></div>
             <div class="detail-row"><span class="label">Email</span><span class="value"><?= !empty($customer->email) ? '<a href="mailto:' . $customer->email . '">' . $customer->email . '</a>' : '-'; ?></span></div>
+            <?php if (mp_feature_enabled('store_credit')): ?>
             <div class="detail-row"><span class="label">Store Credit</span><span class="value" style="color:var(--mp-warning);" title="<?= strip_tags(mp_format_money($customer->store_credit_balance ?? 0)); ?>"><?= mp_format_money_compact($customer->store_credit_balance ?? 0); ?></span></div>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('gift_cards')): ?>
             <div class="detail-row"><span class="label">Gift Card Balance</span><span class="value" style="color:var(--mp-danger);" title="<?= strip_tags(mp_format_money($customer->gift_card_balance ?? 0)); ?>"><?= mp_format_money_compact($customer->gift_card_balance ?? 0); ?></span></div>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('memberships')): ?>
             <div class="detail-row"><span class="label">Membership</span><span class="value"><?= !empty($active_membership) ? $active_membership->plan_name : 'None'; ?></span></div>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('treatment_notes')): ?>
             <div class="detail-row"><span class="label">Treatment Notes</span><span class="value"><?= count($treatment_notes ?? []); ?></span></div>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('custom_orders')): ?>
             <div class="detail-row"><span class="label">Custom Orders</span><span class="value"><?= count($custom_orders ?? []); ?></span></div>
+<?php endif; ?>
           </div>
         </div>
 
@@ -251,6 +281,7 @@
         </div>
       </div>
 
+      <?php if (mp_feature_enabled('gift_cards')): ?>
       <div id="giftcards" class="tab-panel">
         <div class="card">
           <?php if(!empty($gift_cards)): ?>
@@ -270,7 +301,9 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
+      <?php if (mp_feature_enabled('store_credit')): ?>
       <div id="storecredit" class="tab-panel">
         <div class="card">
           <?php if(!empty($store_credits)): ?>
@@ -290,6 +323,7 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
       <div id="coupons" class="tab-panel">
         <div class="card">
@@ -312,6 +346,7 @@
         </div>
       </div>
 
+      <?php if (mp_feature_enabled('memberships')): ?>
       <div id="memberships" class="tab-panel">
         <div class="card">
           <?php if(!empty($memberships)): ?>
@@ -331,7 +366,9 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
+      <?php if (mp_feature_enabled('laundry_workflow')): ?>
       <div id="services" class="tab-panel">
         <div class="card">
           <?php if(!empty($service_history)): ?>
@@ -351,7 +388,9 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
+      <?php if (mp_feature_enabled('treatment_notes')): ?>
       <div id="treatment" class="tab-panel">
         <button type="button" class="add-btn" data-form="treatmentForm"><i class="fa fa-plus"></i> Add Treatment Note</button>
         <form action="<?= base_url('mobile/save_treatment_note/' . $customer->id); ?>" method="post" id="treatmentForm" class="add-form">
@@ -378,7 +417,9 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
+      <?php if (mp_feature_enabled('medical_notes')): ?>
       <div id="medical" class="tab-panel">
         <?php if(!empty($medical_allergies)): ?>
           <div class="card" style="border-color:#FECACA; background:#FEF2F2;">
@@ -421,7 +462,9 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
+      <?php if (mp_feature_enabled('custom_orders')): ?>
       <div id="custom" class="tab-panel">
         <button type="button" class="add-btn" data-form="customForm"><i class="fa fa-plus"></i> New Custom Order</button>
         <form action="<?= base_url('mobile/save_custom_order/' . $customer->id); ?>" method="post" id="customForm" class="add-form">
@@ -461,7 +504,9 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
+      <?php if (mp_feature_enabled('customer_notes')): ?>
       <div id="notes" class="tab-panel">
         <form action="<?= base_url('mobile/save_customer_notes/' . $customer->id); ?>" method="post">
           <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
@@ -507,6 +552,7 @@
           <?php endif; ?>
         </div>
       </div>
+<?php endif; ?>
 
       <div id="idcard" class="tab-panel">
         <div id="idCardSection">
@@ -532,6 +578,7 @@
         </div>
       </div>
 
+      <?php if (mp_feature_enabled('payplan')): ?>
       <div id="payplan" class="tab-panel">
         <?php if(!empty($payplans)): ?>
           <?php foreach($payplans as $plan): ?>
@@ -565,6 +612,7 @@
           <div class="empty-state">No active payplans</div>
         <?php endif; ?>
       </div>
+<?php endif; ?>
     </section>
 
 
@@ -575,6 +623,7 @@
 
   <script>
     function switchTab(tab){
+      if (!document.querySelector('.tab-btn[data-tab="'+tab+'"]') || !document.getElementById(tab)) tab = 'overview';
       document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
       var btn = document.querySelector('.tab-btn[data-tab="'+tab+'"]');
       if(btn) btn.classList.add('active');

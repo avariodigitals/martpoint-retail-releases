@@ -98,10 +98,19 @@
           <tbody>
             <tr><td style="padding-left:0;">Phone</td><td style="text-align:right;font-weight:600;"><?= htmlspecialchars($customer->mobile ?? ''); ?></td></tr>
             <tr><td style="padding-left:0;">Email</td><td style="text-align:right;font-weight:600;"><?= htmlspecialchars($customer->email ?: '-'); ?></td></tr>
+            <?php if (mp_feature_enabled('loyalty')): ?>
             <tr><td style="padding-left:0;">Tier</td><td style="text-align:right;"><span class="mp-pill paid"><?= htmlspecialchars($customer->loyalty_tier ?: 'Bronze'); ?></span></td></tr>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('loyalty')): ?>
             <tr><td style="padding-left:0;">Loyalty Points</td><td style="text-align:right;font-weight:600;"><?= number_format($customer->loyalty_points ?? 0, 0); ?></td></tr>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('store_credit')): ?>
             <tr><td style="padding-left:0;">Store Credit</td><td style="text-align:right;font-weight:600;"><?= store_number_format($customer->store_credit_balance ?? 0); ?></td></tr>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('gift_cards')): ?>
             <tr><td style="padding-left:0;">Gift Card Bal</td><td style="text-align:right;font-weight:600;"><?= store_number_format($customer->gift_card_balance ?? 0); ?></td></tr>
+<?php endif; ?>
+            <?php if (mp_feature_enabled('memberships')): ?>
             <tr>
               <td style="padding-left:0;">Membership</td>
               <td style="text-align:right;">
@@ -112,6 +121,7 @@
                 <?php endif; ?>
               </td>
             </tr>
+<?php endif; ?>
             <tr><td style="padding-left:0;">Total Due</td><td style="text-align:right;font-weight:600;color:var(--mp-danger);"><?= store_number_format($total_due ?? 0); ?></td></tr>
           </tbody>
         </table>
@@ -144,18 +154,7 @@
   <!-- Right Main -->
   <div>
     <?php
-      // A print shop's client profile answers four questions: what did they
-      // order, what do they owe, what did they approve, and what property of
-      // theirs are we still holding.
-      //
-      // The retail/clinical tab set answered none of those well and leaked two
-      // clinical tabs (Treatment Notes, Medical Notes) onto a print shop. The
-      // tabs below are the printing set; every other industry keeps the
-      // original list unchanged.
-      //
-      // WHAT IS PRESERVED: the underlying queries, the tab IDs the JS binds to,
-      // and every record. Tabs are renamed and reordered — not rebuilt — so a
-      // bookmarked #purchases anchor still resolves and no history is hidden.
+      // Printing changes tab labels/order; feature checks apply to every industry.
       $cust_ind = function_exists('mp_get_store_profile')
         ? ((mp_get_store_profile()['industry_type'] ?? '') ?: '') : '';
       $cust_is_print = ($cust_ind === 'printing');
@@ -189,28 +188,46 @@
           <li><a href="#collection" data-toggle="tab"><i class="fa fa-truck"></i> Collection &amp; Delivery</a></li>
           <li><a href="#payments" data-toggle="tab"><i class="fa fa-money"></i> Statements</a></li>
           <li><a href="#customer_materials" data-toggle="tab"><i class="fa fa-cubes"></i> Customer Materials</a></li>
+          <?php if (mp_feature_enabled('customer_notes')): ?>
           <li><a href="#notes" data-toggle="tab"><i class="fa fa-sticky-note"></i> Customer Notes</a></li>
+<?php endif; ?>
           <li><a href="#credit_rewards" data-toggle="tab"><i class="fa fa-credit-card"></i> Credit &amp; Rewards</a></li>
           <?php if($cust_uses_idcard): ?>
           <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
           <?php endif; ?>
         <?php else: ?>
-          <?php /* Every other industry: the original tab set, unchanged. */ ?>
+          <?php /* Feature-enabled customer tabs for other industries. */ ?>
           <li class="active"><a href="#purchases" data-toggle="tab"><i class="fa fa-shopping-cart"></i> Purchase History</a></li>
           <li><a href="#payments" data-toggle="tab"><i class="fa fa-money"></i> Statements</a></li>
           <?php if (!empty($service_history)): ?>
+          <?php if (mp_feature_enabled('laundry_workflow')): ?>
           <li><a href="#services" data-toggle="tab"><i class="fa fa-inbox"></i> Service History</a></li>
+<?php endif; ?>
           <?php endif; ?>
+          <?php if (mp_feature_enabled('gift_cards')): ?>
           <li><a href="#giftcards" data-toggle="tab"><i class="fa fa-ticket"></i> Gift Cards</a></li>
+<?php endif; ?>
+          <?php if (mp_feature_enabled('store_credit')): ?>
           <li><a href="#storecredit" data-toggle="tab"><i class="fa fa-credit-card"></i> Store Credit</a></li>
+<?php endif; ?>
           <li><a href="#coupons" data-toggle="tab"><i class="fa fa-tags"></i> Coupons</a></li>
+          <?php if (mp_feature_enabled('memberships')): ?>
           <li><a href="#memberships" data-toggle="tab"><i class="fa fa-id-card"></i> Memberships</a></li>
+<?php endif; ?>
+          <?php if (mp_feature_enabled('customer_notes')): ?>
           <li><a href="#notes" data-toggle="tab"><i class="fa fa-sticky-note"></i> Customer Notes</a></li>
+<?php endif; ?>
+          <?php if (mp_feature_enabled('treatment_notes')): ?>
           <li><a href="#treatment_notes" data-toggle="tab"><i class="fa fa-file-text-o"></i> Treatment Notes</a></li>
+<?php endif; ?>
           <?php if (!empty($medical_notes)): ?>
+          <?php if (mp_feature_enabled('medical_notes')): ?>
           <li><a href="#medical_notes" data-toggle="tab"><i class="fa fa-file-medical-o"></i> Medical Notes</a></li>
+<?php endif; ?>
           <?php endif; ?>
+          <?php if (mp_feature_enabled('custom_orders')): ?>
           <li><a href="#custom_orders" data-toggle="tab"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
+<?php endif; ?>
           <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
         <?php endif; ?>
       </ul>
@@ -571,6 +588,7 @@
 
         <!-- Service History -->
         <?php if (!empty($service_history)): ?>
+        <?php if (mp_feature_enabled('laundry_workflow')): ?>
         <div class="tab-pane" id="services" style="padding:20px;">
           <table class="mp-static-table">
             <thead>
@@ -599,6 +617,7 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
         <?php endif; ?>
 
         <?php if($cust_is_print): ?>
@@ -669,6 +688,7 @@
         <?php endif; ?>
 
         <!-- Gift Cards -->
+        <?php if (mp_feature_enabled('gift_cards')): ?>
         <div class="tab-pane" id="giftcards" style="padding:20px;">
           <table class="mp-static-table">
             <thead>
@@ -697,8 +717,10 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
 
         <!-- Store Credit -->
+        <?php if (mp_feature_enabled('store_credit')): ?>
         <div class="tab-pane" id="storecredit" style="padding:20px;">
           <table class="mp-static-table">
             <thead>
@@ -727,6 +749,7 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
 
         <!-- Coupons -->
         <div class="tab-pane" id="coupons" style="padding:20px;">
@@ -756,6 +779,7 @@
         </div>
 
         <!-- Memberships -->
+        <?php if (mp_feature_enabled('memberships')): ?>
         <div class="tab-pane" id="memberships" style="padding:20px;">
           <table class="mp-static-table">
             <thead>
@@ -787,6 +811,7 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
 
         <?php if($cust_is_print): ?>
         <!-- Credit & Rewards — the enabled rewards, in one place.
@@ -800,6 +825,7 @@
             What this client holds with us as value — credit, gift cards and coupons.
           </p>
 
+          <?php if (mp_feature_enabled('store_credit')): ?>
           <h4 style="font-size:13px;font-weight:700;margin:16px 0 6px">Store Credit</h4>
           <?php if (empty($store_credits)): ?>
             <div class="mp-empty-state" style="padding:14px">No store credit.</div>
@@ -820,7 +846,9 @@
             </table>
           <?php endif; ?>
 
-          <h4 style="font-size:13px;font-weight:700;margin:20px 0 6px">Gift Cards</h4>
+
+<?php endif; ?><?php if (mp_feature_enabled('gift_cards')): ?>
+<h4 style="font-size:13px;font-weight:700;margin:20px 0 6px">Gift Cards</h4>
           <?php if (empty($gift_cards)): ?>
             <div class="mp-empty-state" style="padding:14px">No gift cards.</div>
           <?php else: ?>
@@ -840,7 +868,8 @@
             </table>
           <?php endif; ?>
 
-          <h4 style="font-size:13px;font-weight:700;margin:20px 0 6px">Coupons</h4>
+
+<?php endif; ?><h4 style="font-size:13px;font-weight:700;margin:20px 0 6px">Coupons</h4>
           <?php if (empty($coupons)): ?>
             <div class="mp-empty-state" style="padding:14px">No coupons.</div>
           <?php else: ?>
@@ -862,6 +891,7 @@
         <?php endif; ?>
 
         <!-- Notes -->
+        <?php if (mp_feature_enabled('customer_notes')): ?>
         <div class="tab-pane" id="notes" style="padding:20px;">
           <?php if ($CI->permissions('customers_edit')): ?>
           <form method="post" action="<?= base_url('customers/save_note/' . $customer->id); ?>" style="margin-bottom:16px;">
@@ -916,8 +946,10 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
 
         <!-- Treatment Notes -->
+        <?php if (mp_feature_enabled('treatment_notes')): ?>
         <div class="tab-pane" id="treatment_notes" style="padding:20px;">
           <div class="clearfix" style="margin-bottom:10px;">
             <a href="<?= base_url('operations/treatment_note?customer_id=' . $customer->id); ?>" class="mp-qa-btn green pull-right no-print" style="padding:6px 12px;"><i class="fa fa-plus"></i> Add Note</a>
@@ -952,9 +984,11 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
 
         <!-- Medical Notes -->
         <?php if (!empty($medical_notes)): ?>
+        <?php if (mp_feature_enabled('medical_notes')): ?>
         <div class="tab-pane" id="medical_notes" style="padding:20px;">
           <?php if (!empty($medical_allergies)): ?>
           <div class="mp-card" style="background:rgba(220,38,38,.06)!important;border-color:var(--mp-danger)!important;margin-bottom:16px;">
@@ -1003,9 +1037,11 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
         <?php endif; ?>
 
         <!-- Custom Orders -->
+        <?php if (mp_feature_enabled('custom_orders')): ?>
         <div class="tab-pane" id="custom_orders" style="padding:20px;">
           <div class="clearfix" style="margin-bottom:10px;">
             <a href="<?= base_url('operations/custom_order?customer_id=' . $customer->id); ?>" class="mp-qa-btn green pull-right no-print" style="padding:6px 12px;"><i class="fa fa-plus"></i> New Custom Order</a>
@@ -1031,6 +1067,7 @@
             </tbody>
           </table>
         </div>
+<?php endif; ?>
 
         <!-- ID Card -->
         <div class="tab-pane" id="idcard" style="padding:20px;">

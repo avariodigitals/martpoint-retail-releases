@@ -301,14 +301,16 @@
           </div>
         </div>
 
-        <div class="section-title"><i class="fa fa-sticky-note"></i> Notes</div>
+        <?php if (mp_feature_enabled('customer_notes')): ?>
+<div class="section-title"><i class="fa fa-sticky-note"></i> Notes</div>
         <div class="card">
           <div class="form-group">
             <textarea name="notes" placeholder="Customer notes"><?= $notes; ?></textarea>
           </div>
         </div>
 
-        <button type="submit" class="btn"><i class="fa fa-save"></i> <?= !empty($q_id) ? 'Update Customer' : 'Save Customer'; ?></button>
+
+<?php endif; ?><button type="submit" class="btn"><i class="fa fa-save"></i> <?= !empty($q_id) ? 'Update Customer' : 'Save Customer'; ?></button>
         <?php if(!empty($q_id)): ?>
           <a href="<?= base_url('mobile/customer_profile/' . $q_id); ?>" class="btn" style="display:block; text-align:center; margin-top:10px; background:var(--mp-muted); color:#fff; text-decoration:none;"><i class="fa fa-user"></i> View Profile</a>
         <?php endif; ?>

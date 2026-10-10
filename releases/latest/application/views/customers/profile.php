@@ -205,10 +205,19 @@
 <ul class="list-group list-group-unbordered">
 <li class="list-group-item"><b>Phone</b> <a class="pull-right"><?=htmlspecialchars($customer->mobile ?? '');?></a></li>
 <li class="list-group-item"><b>Email</b> <a class="pull-right"><?=htmlspecialchars($customer->email ?? '-');?></a></li>
+<?php if (mp_feature_enabled('loyalty')): ?>
 <li class="list-group-item"><b>Tier</b> <span class="pull-right label label-info"><?=htmlspecialchars($customer->loyalty_tier ?: 'Bronze');?></span></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('loyalty')): ?>
 <li class="list-group-item"><b>Loyalty Points</b> <a class="pull-right text-success"><?=number_format($customer->loyalty_points ?? 0, 0);?></a></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('store_credit')): ?>
 <li class="list-group-item"><b>Store Credit</b> <a class="pull-right text-warning"><?=store_number_format($customer->store_credit_balance ?? 0);?></a></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('gift_cards')): ?>
 <li class="list-group-item"><b>Gift Card Bal</b> <a class="pull-right text-maroon"><?=store_number_format($customer->gift_card_balance ?? 0);?></a></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('memberships')): ?>
 <li class="list-group-item"><b>Membership</b>
   <?php if($active_membership): ?>
     <span class="pull-right label label-success"><?=htmlspecialchars($active_membership->plan_name);?> (<?=$active_membership->discount_percent;?>% OFF)</span>
@@ -216,22 +225,31 @@
     <span class="pull-right text-muted">None</span>
   <?php endif; ?>
 </li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('treatment_notes')): ?>
 <li class="list-group-item"><b>Treatment Notes</b>
   <a class="pull-right text-info"><?=count($treatment_notes ?? []);?></a>
 </li>
+<?php endif; ?>
 <?php if(!empty($medical_notes)): ?>
+<?php if (mp_feature_enabled('medical_notes')): ?>
 <li class="list-group-item"><b>Medical Notes</b>
   <a class="pull-right text-info"><?=count($medical_notes);?></a>
 </li>
+<?php endif; ?>
 <?php if(!empty($medical_allergies)): ?>
+<?php if (mp_feature_enabled('medical_notes')): ?>
 <li class="list-group-item" style="background:#FEF2F2;border-left:3px solid #DC2626;"><b><i class="fa fa-exclamation-triangle text-red"></i> Allergies</b>
   <a class="pull-right text-danger"><?=htmlspecialchars($medical_allergies[0]->allergies_flagged);?></a>
 </li>
 <?php endif; ?>
 <?php endif; ?>
+<?php endif; ?>
+<?php if (mp_feature_enabled('custom_orders')): ?>
 <li class="list-group-item"><b>Custom Orders</b>
   <a class="pull-right text-warning"><?=count($custom_orders ?? []);?></a>
 </li>
+<?php endif; ?>
 <li class="list-group-item"><b>Total Due</b> <a class="pull-right text-danger"><?=store_number_format($total_due ?? 0);?></a></li>
 </ul>
 <a href="<?=base_url();?>customers/update/<?=$customer->id;?>" class="btn btn-primary btn-block no-print"><b>Edit Customer</b></a>
@@ -268,18 +286,34 @@
 <li class="active"><a href="#purchases" data-toggle="tab"><i class="fa fa-shopping-cart"></i> Purchase History</a></li>
 <li><a href="#payments" data-toggle="tab"><i class="fa fa-money"></i> Statements</a></li>
 <?php if(!empty($service_history)): ?>
+<?php if (mp_feature_enabled('laundry_workflow')): ?>
 <li><a href="#services" data-toggle="tab"><i class="fa fa-inbox"></i> Service History</a></li>
 <?php endif; ?>
+<?php endif; ?>
+<?php if (mp_feature_enabled('gift_cards')): ?>
 <li><a href="#giftcards" data-toggle="tab"><i class="fa fa-ticket"></i> Gift Cards</a></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('store_credit')): ?>
 <li><a href="#storecredit" data-toggle="tab"><i class="fa fa-credit-card"></i> Store Credit</a></li>
+<?php endif; ?>
 <li><a href="#coupons" data-toggle="tab"><i class="fa fa-tags"></i> Coupons</a></li>
+<?php if (mp_feature_enabled('memberships')): ?>
 <li><a href="#memberships" data-toggle="tab"><i class="fa fa-id-card"></i> Memberships</a></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('customer_notes')): ?>
 <li><a href="#notes" data-toggle="tab"><i class="fa fa-sticky-note"></i> Customer Notes</a></li>
+<?php endif; ?>
+<?php if (mp_feature_enabled('treatment_notes')): ?>
 <li><a href="#treatment_notes" data-toggle="tab"><i class="fa fa-file-text-o"></i> Treatment Notes</a></li>
+<?php endif; ?>
 <?php if(!empty($medical_notes) || mp_feature_enabled('medical_notes')): ?>
+<?php if (mp_feature_enabled('medical_notes')): ?>
 <li><a href="#medical_notes" data-toggle="tab"><i class="fa fa-file-medical-o"></i> Medical Notes</a></li>
 <?php endif; ?>
+<?php endif; ?>
+<?php if (mp_feature_enabled('custom_orders')): ?>
 <li><a href="#custom_orders" data-toggle="tab"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
+<?php endif; ?>
 <li><a href="#idcard" data-toggle="tab"><i class="fa fa-id-card"></i> ID Card</a></li>
 </ul>
 <div class="tab-content">
@@ -305,6 +339,7 @@
 </table>
 </div>
 <?php if(!empty($service_history)): ?>
+<?php if (mp_feature_enabled('laundry_workflow')): ?>
 <div class="tab-pane" id="services">
 <table class="table table-bordered table-striped">
 <thead class="bg-gray"><tr><th>#</th><th>Invoice</th><th>Items</th><th>Status</th><th>Drop-off</th><th>Last Update</th><th>Amount</th><th>Action</th></tr></thead>
@@ -342,6 +377,7 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </table>
 </div>
 <?php endif; ?>
+<?php endif; ?>
 <div class="tab-pane" id="payments">
 <div class="row" style="margin-bottom:15px;">
 <div class="col-md-3">
@@ -378,6 +414,7 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 <a href="<?=base_url('customers/statement/' . $customer->id);?>" class="btn btn-primary"><i class="fa fa-file-text-o"></i> View Full Statement / Print</a>
 </div>
 </div>
+<?php if (mp_feature_enabled('gift_cards')): ?>
 <div class="tab-pane" id="giftcards">
 <table class="table table-bordered table-striped">
 <thead class="bg-gray"><tr><th>#</th><th>Card Number</th><th>Initial Value</th><th>Balance</th><th>Issue Date</th><th>Expiry</th><th>Status</th></tr></thead>
@@ -398,6 +435,8 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </tbody>
 </table>
 </div>
+<?php endif; ?>
+<?php if (mp_feature_enabled('store_credit')): ?>
 <div class="tab-pane" id="storecredit">
 <table class="table table-bordered table-striped">
 <thead class="bg-gray"><tr><th>#</th><th>Code</th><th>Amount</th><th>Balance</th><th>Source</th><th>Expiry</th><th>Status</th></tr></thead>
@@ -418,6 +457,7 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </tbody>
 </table>
 </div>
+<?php endif; ?>
 <div class="tab-pane" id="coupons">
 <table class="table table-bordered table-striped">
 <thead class="bg-gray"><tr><th>#</th><th>Code</th><th>Type</th><th>Value</th><th>Expiry</th><th>Status</th></tr></thead>
@@ -465,6 +505,7 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </div>
 </div>
 </div>
+<?php if (mp_feature_enabled('memberships')): ?>
 <div class="tab-pane" id="memberships">
 <table class="table table-bordered table-striped">
 <thead class="bg-gray"><tr><th>#</th><th>Plan</th><th>Period</th><th>Status</th><th>Auto-Renew</th><th>Payment</th></tr></thead>
@@ -492,6 +533,8 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </tbody>
 </table>
 </div>
+<?php endif; ?>
+<?php if (mp_feature_enabled('customer_notes')): ?>
 <div class="tab-pane" id="notes">
 <div class="box-body">
   <div class="form-group">
@@ -504,6 +547,8 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
   <a href="<?=base_url();?>customers/update/<?=$customer->id;?>" class="btn btn-primary btn-sm"><i class="fa fa-edit"></i> Edit Notes</a>
 </div>
 </div>
+<?php endif; ?>
+<?php if (mp_feature_enabled('treatment_notes')): ?>
 <div class="tab-pane" id="treatment_notes">
 <div class="clearfix" style="margin-bottom:10px;">
   <a href="<?=base_url();?>operations/treatment_note?customer_id=<?=$customer->id;?>" class="btn btn-sm btn-success pull-right no-print"><i class="fa fa-plus"></i> Add Note</a>
@@ -536,7 +581,9 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </tbody>
 </table>
 </div>
+<?php endif; ?>
 <?php if(!empty($medical_notes) || mp_feature_enabled('medical_notes')): ?>
+<?php if (mp_feature_enabled('medical_notes')): ?>
 <div class="tab-pane" id="medical_notes">
 <?php if(!empty($medical_allergies)): ?>
 <div class="alert alert-danger" style="margin-bottom:12px;">
@@ -583,6 +630,8 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </table>
 </div>
 <?php endif; ?>
+<?php endif; ?>
+<?php if (mp_feature_enabled('custom_orders')): ?>
 <div class="tab-pane" id="custom_orders">
 <div class="clearfix" style="margin-bottom:10px;">
   <a href="<?=base_url();?>operations/custom_order?customer_id=<?=$customer->id;?>" class="btn btn-sm btn-success pull-right no-print"><i class="fa fa-plus"></i> New Custom Order</a>
@@ -606,6 +655,7 @@ $sl = $status_label[$sh->status] ?? ucfirst(str_replace('_', ' ', $sh->status));
 </tbody>
 </table>
 </div>
+<?php endif; ?>
 </div>
 </div>
 </div>

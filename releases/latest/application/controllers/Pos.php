@@ -41,6 +41,11 @@ class Pos extends MY_Controller {
 			&& function_exists('mp_get_store_profile')
 			&& function_exists('mp_feature_enabled')) {
 			$bp = mp_get_store_profile();
+			if (($bp['industry_type'] ?? '') === 'oil_processing_plant'
+				&& mp_feature_enabled('oil_processing_workflow')) {
+				redirect(base_url('oil_processing'));
+				return;
+			}
 			if (($bp['industry_type'] ?? '') === 'printing'
 				&& mp_feature_enabled('production_workflow')) {
 				redirect(base_url('printing/job'));

@@ -1,3 +1,4 @@
+<?php $oilPlantQuote = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
 <!DOCTYPE html>
 <html>
 <title><?= $page_title; ?> - A4</title>
@@ -47,12 +48,24 @@ body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; color: #1f2937; 
 .note-table td { font-size: 9pt; color: #374151; padding: 10px; background: #f9fafb; border: 0.5pt solid #e5e7eb; }
 .footer-table { margin-top: 20px; }
 .footer-table td { text-align: center; font-size: 8pt; color: #6b7280; padding-top: 10px; border-top: 0.5pt solid #e5e7eb; }
+.plant-meta { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
+.plant-meta td { width: 33.33%; padding: 10px; border: 0.5pt solid #e5e7eb; vertical-align: top; }
+.plant-meta .meta-label { display: block; color: #111; font-size: 8pt; }
+.plant-meta .meta-value { display: block; color: #111; font-size: 12pt; margin-top: 3px; }
+.plant-parties .party-title, .plant-parties .party-detail { color: #111 !important; }
+.plant-quotation, .plant-quotation .store-meta, .plant-quotation .meta-label,
+.plant-quotation .meta-sm, .plant-quotation .party-title, .plant-quotation .party-detail,
+.plant-quotation .items th, .plant-quotation .items td, .plant-quotation .items small,
+.plant-quotation .totals-inner .label, .plant-quotation .note-table td,
+.plant-quotation .footer-table td { color: #111 !important; }
 </style>
 </head>
-<body <?php if(!empty($auto_print)): ?>onload="window.print();"<?php endif; ?>>
+<body class="<?= $oilPlantQuote ? 'plant-quotation' : ''; ?>" <?php if(!empty($auto_print)): ?>onload="window.print();"<?php endif; ?>>
 
 <?php
 $CI =& get_instance();
+$this->load->helper('plant_documents');
+$plant_banner_enabled = mp_plant_banner_enabled('quotation');
 
 $q1 = $this->db->query("SELECT * FROM db_store WHERE status=1 AND id=".get_current_store_id());
 $res1 = $q1->row();
@@ -119,8 +132,19 @@ $tot_discount_to_all_amt = $res3->tot_discount_to_all_amt;
 $logo_data = mp_store_logo_round_base64($store_logo, 120);
 ?>
 
+<?php if($plant_banner_enabled) $this->load->view('oil_processing/document_banner', array('document_kind'=>'quotation')); ?>
+<?php if($oilPlantQuote && $plant_banner_enabled): ?>
+<table class="plant-meta">
+  <tr>
+    <td><span class="meta-label"><?= $this->lang->line('quotation'); ?></span><span class="meta-value"><?= htmlspecialchars((string)$quotation_code, ENT_QUOTES, 'UTF-8'); ?></span></td>
+    <td><span class="meta-label"><?= $this->lang->line('date'); ?></span><span class="meta-value"><?= show_date($quotation_date); ?></span></td>
+    <td><span class="meta-label"><?= $this->lang->line('expire_date'); ?></span><span class="meta-value"><?= $expire_date !== '' ? htmlspecialchars($expire_date, ENT_QUOTES, 'UTF-8') : '—'; ?></span></td>
+  </tr>
+</table>
+<?php else: ?>
 <table class="header" width="100%">
   <tr>
+    <?php if(!$plant_banner_enabled): ?>
     <td class="logo" width="100">
       <?php if(!empty($logo_data)): ?>
         <img src="<?= $logo_data; ?>" width="100" height="100" alt="store logo">
@@ -146,6 +170,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
         <?php endif; ?>
       </table>
     </td>
+    <?php endif; ?>
     <td class="meta" width="140">
       <table class="meta-table">
         <tr><td class="meta-label"><?= $this->lang->line('quotation'); ?></td></tr>
@@ -160,8 +185,9 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     </td>
   </tr>
 </table>
+<?php endif; ?>
 
-<table class="parties">
+<table class="parties<?= $oilPlantQuote ? ' plant-parties' : ''; ?>">
   <tr>
     <td>
       <div class="party-name" style="font-size:11pt; font-weight:bold; color:#111827;"><?= $customer_name; ?></div>
@@ -184,8 +210,10 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
   <thead>
     <tr>
       <th class="sl">#</th>
+      <?php if($oilPlantQuote): ?><th>Part code</th><?php endif; ?>
       <th><?= $this->lang->line('description'); ?></th>
       <th class="qty"><?= $this->lang->line('qty'); ?></th>
+      <?php if($oilPlantQuote): ?><th class="qty">Unit</th><?php endif; ?>
       <th class="num"><?= $this->lang->line('unit_cost'); ?></th>
       <th class="num"><?= $this->lang->line('amount'); ?></th>
     </tr>
@@ -198,10 +226,11 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     $tot_discount_amt = 0;
     $tot_total_cost = 0;
 
-    $this->db->select("a.description, c.item_name, a.quotation_qty,
+    $sectionField = $this->db->field_exists('section_name', 'db_quotationitems') ? 'a.section_name' : "'' AS section_name";
+    $this->db->select("a.description, ".$sectionField.", COALESCE(NULLIF(a.manual_item_name,''),c.item_name) AS item_name, COALESCE(NULLIF(a.part_code,''),c.item_code) AS item_code, a.quotation_qty,
                        a.price_per_unit, b.tax, b.tax_name, a.tax_amt,
                        a.discount_input, a.discount_amt, a.unit_total_cost,
-                       a.total_cost, d.unit_name, c.hsn");
+                       a.total_cost, COALESCE(NULLIF(a.unit_label,''),d.unit_name) AS unit_name, c.hsn", false);
     $this->db->where("a.quotation_id", $quotation_id);
     $this->db->from("db_quotationitems a");
     $this->db->join("db_tax b", "b.id=a.tax_id", "left");
@@ -209,16 +238,28 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     $this->db->join("db_units d", "d.id=c.unit_id", "left");
     $q2 = $this->db->get();
 
+    $activeSection = null;
+    $sectionTotal = 0;
     foreach($q2->result() as $res2){
+      $section = trim((string)($res2->section_name ?? ''));
+      if($oilPlantQuote && $section !== $activeSection){
+        if($activeSection !== null && $activeSection !== ''){ ?><tr><td colspan="6" style="text-align:right;font-weight:bold;color:#475569">Section subtotal</td><td class="num" style="font-weight:bold"><?= $CI->currency($sectionTotal); ?></td></tr><?php }
+        $activeSection = $section;
+        $sectionTotal = 0;
+        $i = 1;
+        if($section !== ''){ ?><tr><td colspan="7" style="background:#f1f5f9;color:#14532d;font-weight:bold;border-top:1px solid #dbe5df;padding:9px 7px"><?= htmlspecialchars($section, ENT_QUOTES, 'UTF-8'); ?></td></tr><?php }
+      }
     ?>
     <tr>
       <td class="sl"><?= $i++; ?></td>
+      <?php if($oilPlantQuote): ?><td><?= htmlspecialchars((string)($res2->item_code ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
       <td>
-        <?= $res2->item_name; ?>
-        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;">[<?= nl2br($res2->description); ?>]</small><?php endif; ?>
+        <?= htmlspecialchars((string)$res2->item_name, ENT_QUOTES, 'UTF-8'); ?>
+        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;"><?= nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8')); ?></small><?php endif; ?>
       </td>
       <td class="qty"><?= format_qty($res2->quotation_qty); ?></td>
-      <td class="num"><?= $CI->currency($res2->unit_total_cost); ?></td>
+      <?php if($oilPlantQuote): ?><td class="qty"><?= htmlspecialchars((string)($res2->unit_name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
+      <td class="num"><?= $CI->currency($oilPlantQuote ? $res2->price_per_unit : $res2->unit_total_cost); ?></td>
       <td class="num"><?= $CI->currency($res2->total_cost); ?></td>
     </tr>
     <?php
@@ -226,7 +267,9 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
         $tot_tax_amt += $res2->tax_amt;
         $tot_discount_amt += $res2->discount_amt;
         $tot_total_cost += $res2->total_cost;
+        $sectionTotal += (float)$res2->total_cost;
     }
+    if($oilPlantQuote && $activeSection !== null && $activeSection !== ''){ ?><tr><td colspan="6" style="text-align:right;font-weight:bold;color:#475569">Section subtotal</td><td class="num" style="font-weight:bold"><?= $CI->currency($sectionTotal); ?></td></tr><?php }
     ?>
   </tbody>
 </table>
@@ -242,6 +285,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     <td align="right" valign="top">
       <table class="totals-inner">
         <tr><td class="label"><?= $this->lang->line('subtotal'); ?></td><td class="value"><?= $CI->currency($subtotal); ?></td></tr>
+        <?php if($oilPlantQuote && $tot_tax_amt > 0): ?><tr><td class="label">Tax</td><td class="value"><?= $CI->currency($tot_tax_amt); ?></td></tr><?php endif; ?>
         <tr><td class="label"><?= $this->lang->line('other_charges'); ?></td><td class="value"><?= $CI->currency($other_charges_amt); ?></td></tr>
         <?php if(!empty($tot_discount_to_all_amt) && $tot_discount_to_all_amt != 0): ?>
         <tr><td class="label"><?= $this->lang->line('discount'); ?> <?= ($discount_to_all_type == '%') ? $discount_to_all_input . '%' : '[Fixed]'; ?></td><td class="value"><?= $CI->currency($tot_discount_to_all_amt); ?></td></tr>
@@ -261,15 +305,17 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 
 <?php if(!empty(trim($quotation_note))): ?>
 <table class="note-table" style="margin-top: 10px;">
-  <tr><td><strong><?= $this->lang->line('note'); ?>:</strong> <?= nl2br($quotation_note); ?></td></tr>
+  <tr><td><strong><?= $this->lang->line('note'); ?>:</strong> <?= nl2br(htmlspecialchars((string)$quotation_note, ENT_QUOTES, 'UTF-8')); ?></td></tr>
 </table>
 <?php endif; ?>
 
 <?php if(!empty($invoice_terms)): ?>
 <table class="note-table" style="margin-top: 10px;">
-  <tr><td><strong><?= $this->lang->line('invoice_terms_and_conditions'); ?>:</strong> <?= nl2br($invoice_terms); ?></td></tr>
+  <tr><td><strong><?= $this->lang->line('invoice_terms_and_conditions'); ?>:</strong> <?= nl2br(htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')); ?></td></tr>
 </table>
 <?php endif; ?>
+
+<?php $this->load->view('partials/document_signature'); ?>
 
 <table class="footer-table">
   <tr><td>

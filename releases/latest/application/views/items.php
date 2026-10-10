@@ -2,6 +2,7 @@
 $CI =& get_instance();
 // Business model: product_based, service_based, product_and_service
 $store_profile = mp_get_store_profile();
+$is_plant = ($store_profile['industry_type'] ?? '') === 'oil_processing_plant';
 $business_model = $store_profile['business_model'] ?? 'product_based';
 $services_enabled = service_module();
 $show_item_toggle = ($business_model === 'product_based' || $business_model === 'product_and_service');
@@ -265,7 +266,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
   <div class="mp-page-head">
     <div>
       <h2><?= $page_title; ?></h2>
-      <div class="mp-page-sub"><?= htmlspecialchars($this->session->userdata('store_name') ?: ($SITE_TITLE ?? 'MartPoint')); ?> &mdash; <?= !empty($q_id) ? 'Update' : 'Add'; ?> <?= mp_label('item'); ?></div>
+      <div class="mp-page-sub"><?= htmlspecialchars($this->session->userdata('store_name') ?: ($SITE_TITLE ?? 'MartPoint')); ?> &mdash; <?= !empty($q_id) ? 'Update' : 'Add'; ?> <?= mp_label('item'); ?><?= $is_plant ? ' for plant stock, processing, and quotations' : ''; ?></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
@@ -289,7 +290,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 <?php endif; ?>
 
 <div class="box mp-items-box">
-<?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST')); ?>
+<?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST', 'data-plant' => $is_plant ? '1' : '0')); ?>
 <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
 <input type="hidden" name="store_id" id="store_id" value="<?php echo get_current_store_id(); ?>">
 <?php if(!empty($q_id)): ?>
@@ -346,31 +347,33 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 
 <!-- Basic Information -->
 <div class="mp-card-form">
-  <div class="mp-card-head"><h3>Basic Information</h3></div>
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Material / Product Identity' : 'Basic Information'; ?></h3></div>
   <div class="mp-card-body">
+    <?php if($is_plant): ?><p class="mp-form-hint" style="margin:0 0 18px;">Use this catalogue for raw materials, finished oil, machine spares, and packaging. The part code below appears in the quotation item picker and on printed quotations.</p><?php endif; ?>
     <div class="mp-form-grid">
       <div class="mp-form-group full">
-        <label for="item_name"><?= mp_label('item'); ?> Name <span class="text-danger">*</span></label>
-        <input class="mp-form-control" id="item_name" name="item_name" placeholder="e.g. Coca-Cola 50cl" type="text" value="<?php print htmlspecialchars($item_name); ?>" autofocus>
+        <label for="item_name"><?= $is_plant ? 'Material / Product / Spare Part Name' : mp_label('item').' Name'; ?> <span class="text-danger">*</span></label>
+        <input class="mp-form-control" id="item_name" name="item_name" placeholder="<?= $is_plant ? 'e.g. Feed cage, palm kernel, refined oil' : 'e.g. Coca-Cola 50cl'; ?>" type="text" value="<?php print htmlspecialchars($item_name); ?>" autofocus>
         <span id="item_name_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="item_code"><?= mp_label('item'); ?> Code <span class="text-danger">*</span></label>
-        <input class="mp-form-control" id="item_code" name="item_code" type="text" value="<?php print htmlspecialchars($item_code); ?>">
+        <label for="item_code"><?= $is_plant ? 'Part / Material Code' : mp_label('item').' Code'; ?> <span class="text-danger">*</span></label>
+        <input class="mp-form-control" id="item_code" name="item_code" type="text" value="<?php print htmlspecialchars($item_code); ?>" <?= $is_plant ? 'placeholder="e.g. G11, FP-01, EK-200K"' : ''; ?>>
+        <?php if($is_plant): ?><p class="mp-form-hint">Replace the suggested code with the supplier or machine part number when available. This is the code shown on quotations.</p><?php endif; ?>
         <span id="item_code_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="custom_barcode"><?= $this->lang->line('barcode'); ?></label>
+        <label for="custom_barcode"><?= $is_plant ? 'Supplier barcode (optional)' : $this->lang->line('barcode'); ?></label>
         <input class="mp-form-control" id="custom_barcode" name="custom_barcode" placeholder="Scan or type barcode" type="text" value="<?php print htmlspecialchars($custom_barcode); ?>">
         <span id="custom_barcode_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="sku"><?= $this->lang->line('sku'); ?></label>
+        <label for="sku"><?= $is_plant ? 'Internal stock code (optional)' : $this->lang->line('sku'); ?></label>
         <input class="mp-form-control" id="sku" name="sku" placeholder="Stock keeping unit" type="text" value="<?php print htmlspecialchars($sku); ?>">
         <span id="sku_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group mp-item-only">
-        <label for="hsn"><?= $this->lang->line('hsn'); ?></label>
+        <label for="hsn"><?= $is_plant ? 'Tax classification code (optional)' : $this->lang->line('hsn'); ?></label>
         <input class="mp-form-control" id="hsn" name="hsn" type="text" value="<?php print htmlspecialchars($hsn); ?>">
       </div>
       <!-- SAC (Service Accounting Code — service-only) -->
@@ -380,7 +383,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="sac_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group mp-item-only">
-        <label for="brand_id"><?= $this->lang->line('brand'); ?></label>
+        <label for="brand_id"><?= $is_plant ? 'Manufacturer / Brand' : $this->lang->line('brand'); ?></label>
         <div class="mp-select-with-add">
           <select class="mp-form-control select2" id="brand_id" name="brand_id" style="width:100%;">
             <option value="">-Select-</option>
@@ -391,7 +394,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="brand_id_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="category_id"><?= $this->lang->line('category'); ?> <span class="text-danger">*</span></label>
+        <label for="category_id"><?= $is_plant ? 'Material / Product Category' : $this->lang->line('category'); ?> <span class="text-danger">*</span></label>
         <div class="mp-select-with-add">
           <select class="mp-form-control select2" id="category_id" name="category_id" required style="width:100%;">
             <option value="">-Select-</option>
@@ -402,7 +405,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="category_id_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group mp-item-only">
-        <label for="unit_id">Base / Stock Unit <small class="text-muted">All inventory is counted in this unit (Piece, Kg, Litre)</small> <span class="text-danger">*</span></label>
+        <label for="unit_id"><?= $is_plant ? 'Stock Unit' : 'Base / Stock Unit'; ?> <small class="text-muted"><?= $is_plant ? 'Use the unit used to count this material or part (PC, SET, KG, litre, metre)' : 'All inventory is counted in this unit (Piece, Kg, Litre)'; ?></small> <span class="text-danger">*</span></label>
         <div class="mp-select-with-add">
           <select class="mp-form-control select2" id="unit_id" name="unit_id" required style="width:100%;">
             <?= get_units_select_list($unit_id); ?>
@@ -481,11 +484,11 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
       <?php endif; ?>
 
       <div class="mp-form-group mp-item-only" id="item_group_group">
-        <label for="item_group">Product Type <small class="text-muted">Single product or product with variants (flavor, size, color)</small> <span class="text-danger">*</span></label>
+        <label for="item_group"><?= $is_plant ? 'Catalogue Structure' : 'Product Type'; ?> <small class="text-muted"><?= $is_plant ? 'One part/material or several specifications' : 'Single product or product with variants (flavor, size, color)'; ?></small> <span class="text-danger">*</span></label>
         <select class="mp-form-control select2" id="item_group" name="item_group" style="width:100%;">
-          <option value="Single" <?php if($item_group=='Single') echo 'selected'; ?>>Single Product</option>
+          <option value="Single" <?php if($item_group=='Single') echo 'selected'; ?>><?= $is_plant ? 'Single part / material / product' : 'Single Product'; ?></option>
           <?php if(mp_feature_enabled('item_variants')): ?>
-          <option value="Variants" <?php if($item_group=='Variants') echo 'selected'; ?>>Has Variants (flavor / size / color)</option>
+          <option value="Variants" <?php if($item_group=='Variants') echo 'selected'; ?>><?= $is_plant ? 'Multiple specifications / sizes' : 'Has Variants (flavor / size / color)'; ?></option>
           <?php endif; ?>
         </select>
         <span id="item_group_msg" style="display:none" class="text-danger"></span>
@@ -505,15 +508,15 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         </select>
       </div>
       <div class="mp-form-group mp-item-only">
-        <label for="alert_qty"><?= $this->lang->line('alert_qty'); ?></label>
+        <label for="alert_qty"><?= $is_plant ? 'Reorder Alert Quantity' : $this->lang->line('alert_qty'); ?></label>
         <input class="mp-form-control" id="alert_qty" name="alert_qty" type="number" min="0" value="<?php print $alert_qty; ?>">
         <span id="alert_qty_msg" style="display:none" class="text-danger"></span>
       </div>
-      <div class="mp-form-group">
+      <?php if($is_plant): ?><input type="hidden" id="seller_points" name="seller_points" value="<?= htmlspecialchars((string)$seller_points, ENT_QUOTES, 'UTF-8'); ?>"><?php else: ?><div class="mp-form-group">
         <label for="seller_points"><?= $this->lang->line('seller_points'); ?></label>
         <input class="mp-form-control" id="seller_points" name="seller_points" type="text" value="<?php print store_number_format($seller_points,0); ?>">
         <span id="seller_points_msg" style="display:none" class="text-danger"></span>
-      </div>
+      </div><?php endif; ?>
       <?php if($is_laundry): ?>
       <div class="mp-form-group mp-service-only">
         <label for="laundry_service_type">Laundry Service Type <span class="text-danger">*</span></label>
@@ -543,8 +546,8 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
       </div>
       <?php endif; ?>
       <div class="mp-form-group full">
-        <label for="description"><?= $this->lang->line('description'); ?></label>
-        <textarea class="mp-form-control" id="description" name="description" rows="3" placeholder="Optional description"><?php print htmlspecialchars($description); ?></textarea>
+        <label for="description"><?= $is_plant ? 'Specification / Description' : $this->lang->line('description'); ?></label>
+        <textarea class="mp-form-control" id="description" name="description" rows="3" placeholder="<?= $is_plant ? 'Machine model, dimensions, material grade, or technical specification' : 'Optional description'; ?>"><?php print htmlspecialchars($description); ?></textarea>
         <span id="description_msg" style="display:none" class="text-danger"></span>
       </div>
     </div>
@@ -553,19 +556,19 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 
 <!-- Optionals (item-only) -->
 <div class="mp-card-form mp-item-only">
-  <div class="mp-card-head"><h3>Optionals</h3></div>
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Plant Use & Tracking' : 'Optionals'; ?></h3></div>
   <div class="mp-card-body">
     <div class="mp-form-grid">
       <div class="mp-form-group full">
         <label class="mp-check-label">
           <input type="checkbox" id="not_for_sale" name="not_for_sale" value="1" <?= ($not_for_sale==1) ? 'checked' : ''; ?>>
-          Not for Sale <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Consumable / Raw Material)</span>
+          <?= $is_plant ? 'Used in processing / not sold directly' : 'Not for Sale'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Consumable / Raw Material)</span>
         </label>
-        <p class="mp-form-hint">Hide from POS. Use in treatments, production, etc.</p>
+        <p class="mp-form-hint"><?= $is_plant ? 'Select for raw inputs and consumables. Leave off for sellable finished oil, products, or spare parts.' : 'Hide from POS. Use in treatments, production, etc.'; ?></p>
       </div>
       <div class="mp-form-group">
-        <label for="consumable_unit">Unit Label <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(for consumables)</span></label>
-        <input class="mp-form-control" id="consumable_unit" name="consumable_unit" placeholder="e.g. ml, bottle, pump, sachet" type="text" value="<?php print htmlspecialchars($consumable_unit); ?>">
+        <label for="consumable_unit"><?= $is_plant ? 'Consumption Unit' : 'Unit Label'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(for consumables)</span></label>
+        <input class="mp-form-control" id="consumable_unit" name="consumable_unit" placeholder="<?= $is_plant ? 'e.g. kg, litre, metre, piece' : 'e.g. ml, bottle, pump, sachet'; ?>" type="text" value="<?php print htmlspecialchars($consumable_unit); ?>">
         <span id="consumable_unit_msg" style="display:none" class="text-danger"></span>
       </div>
       <?php if($is_perfumery && $this->db->field_exists('capacity_ml', 'db_items')): ?>
@@ -575,16 +578,18 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <p class="mp-form-hint">Set on the empty bottle item so fills can't exceed its size</p>
       </div>
       <?php endif; ?>
-      <div class="mp-form-group full">
+      <?php if(!$is_plant || $accept_custom_order==1): ?><div class="mp-form-group full">
         <label class="mp-check-label">
           <input type="checkbox" id="accept_custom_order" name="accept_custom_order" value="1" <?= ($accept_custom_order==1) ? 'checked' : ''; ?>>
           Accept Custom Orders <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Made to Order)</span>
         </label>
-        <p class="mp-form-hint">Furniture, cakes, tailored items. Capture specs at POS.</p>
+        <p class="mp-form-hint"><?= $is_plant ? 'Use for a fabricated part or special specification that needs a separate order.' : 'Furniture, cakes, tailored items. Capture specs at POS.'; ?></p>
       </div>
+      <?php endif; ?>
     </div>
 
     <!-- Custom Order Settings -->
+    <?php if(!$is_plant || $accept_custom_order==1): ?>
     <div id="custom-order-options" class="mp-hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--mp-border);">
       <h4 style="font-size:14px;font-weight:700;margin:0 0 14px;color:var(--mp-text);">Custom Order Settings</h4>
       <div class="mp-form-grid">
@@ -649,6 +654,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <button type="button" class="mp-table-add-btn" id="btn-add-cf"><i class="fa fa-plus"></i> Add Field</button>
       </div>
     </div>
+    <?php endif; ?>
 
     <!-- Serial / IMEI / Warranty tracking (only when no barcode table) -->
     <?php if(!$show_unit_table && mp_feature_enabled('serial_number_tracking')): ?>
@@ -693,18 +699,18 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 <?php if(recipe_module()): ?>
 <!-- Recipe & Costing (item-only) -->
 <div class="mp-card-form mp-item-only">
-  <div class="mp-card-head"><h3>Recipe & Costing</h3></div>
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Process Formula & Costing' : 'Recipe & Costing'; ?></h3></div>
   <div class="mp-card-body">
     <div class="mp-form-grid">
       <div class="mp-form-group">
-        <label for="recipe_id">Recipe / BOM</label>
+        <label for="recipe_id"><?= $is_plant ? 'Process Formula / Bill of Materials' : 'Recipe / BOM'; ?></label>
         <select class="mp-form-control select2" id="recipe_id" name="recipe_id" style="width:100%;">
           <option value="">-- No Recipe (Manual Costing) --</option>
           <?php foreach(($recipes_list ?? []) as $r): ?>
           <option value="<?= $r->id; ?>" data-cost="<?= $r->cost_per_unit ?? 0; ?>" data-yield="<?= $r->yield_qty; ?>" data-unit="<?= htmlspecialchars($r->yield_unit ?? ''); ?>" <?= (isset($recipe_id) && $recipe_id==$r->id)?'selected':''; ?>><?= htmlspecialchars($r->name); ?> (<?= number_format($r->yield_qty ?? 1,0); ?> <?= htmlspecialchars($r->yield_unit ?? 'piece'); ?>)</option>
           <?php endforeach; ?>
         </select>
-        <p class="mp-form-hint">Select a recipe to auto-calculate cost price from ingredients</p>
+        <p class="mp-form-hint"><?= $is_plant ? 'Link a process formula to calculate cost from inputs and expected output.' : 'Select a recipe to auto-calculate cost price from ingredients'; ?></p>
       </div>
       <div class="mp-form-group">
         <label for="recipe_margin_pct">Recipe Margin (%)</label>
@@ -712,13 +718,13 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <p class="mp-form-hint">Markup on top of recipe ingredient cost</p>
       </div>
       <div class="mp-form-group">
-        <label for="item_production_mode">Production Mode</label>
+        <label for="item_production_mode"><?= $is_plant ? 'Processing Stock Mode' : 'Production Mode'; ?></label>
         <select class="mp-form-control" id="item_production_mode" name="item_production_mode">
-          <option value="batch" <?= (isset($item_production_mode) && $item_production_mode=='batch')?'selected':''; ?>>Batch — produce first, then sell finished item</option>
-          <option value="sale_deplete" <?= (isset($item_production_mode) && $item_production_mode=='sale_deplete')?'selected':''; ?>>Sale-deplete — deduct raw ingredients at POS sale</option>
-          <option value="component" <?= (isset($item_production_mode) && $item_production_mode=='component')?'selected':''; ?>>Component plate — sell a plate that deducts pre-cooked parts</option>
+          <option value="batch" <?= (isset($item_production_mode) && $item_production_mode=='batch')?'selected':''; ?>><?= $is_plant ? 'Batch processing — record output after a run' : 'Batch — produce first, then sell finished item'; ?></option>
+          <?php if(!$is_plant || (isset($item_production_mode) && $item_production_mode=='sale_deplete')): ?><option value="sale_deplete" <?= (isset($item_production_mode) && $item_production_mode=='sale_deplete')?'selected':''; ?>>Sale-deplete — deduct raw ingredients at POS sale</option><?php endif; ?>
+          <?php if(!$is_plant || (isset($item_production_mode) && $item_production_mode=='component')): ?><option value="component" <?= (isset($item_production_mode) && $item_production_mode=='component')?'selected':''; ?>>Component plate — sell a plate that deducts pre-cooked parts</option><?php endif; ?>
         </select>
-        <p class="mp-form-hint">Tells the POS how this item consumes stock</p>
+        <p class="mp-form-hint"><?= $is_plant ? 'Finished output is added through processing runs; raw inputs are consumed there.' : 'Tells the POS how this item consumes stock'; ?></p>
       </div>
       <?php if($is_perfumery && $this->db->field_exists('fill_qty', 'db_items')): ?>
       <div class="mp-form-group">
@@ -763,23 +769,23 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 
 <!-- Pricing & Stock -->
 <div class="mp-card-form">
-  <div class="mp-card-head"><h3>Pricing & Stock</h3></div>
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Unit Pricing & Plant Stock' : 'Pricing & Stock'; ?></h3></div>
   <div class="mp-card-body">
     <?php if(!$show_unit_table): ?>
     <!-- Simple pricing: all prices on one line -->
     <div class="mp-price-row" id="simple-pricing-section">
       <div class="mp-form-group">
-        <label for="price">Base Price <span style="font-weight:400;color:var(--mp-muted);text-transform:none;">(before tax)</span></label>
+        <label for="price"><?= $is_plant ? 'Unit Cost' : 'Base Price'; ?> <span style="font-weight:400;color:var(--mp-muted);text-transform:none;">(before tax)</span></label>
         <input class="mp-form-control only_currency" id="price" name="price" type="text" value="<?php print store_number_format($price,0); ?>" placeholder="0.00">
         <span id="price_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="purchase_price">Purchase Price <span style="font-weight:400;color:var(--mp-muted);text-transform:none;">(cost w/ tax)</span></label>
+        <label for="purchase_price"><?= $is_plant ? 'Purchase Unit Cost' : 'Purchase Price'; ?> <span style="font-weight:400;color:var(--mp-muted);text-transform:none;">(cost w/ tax)</span></label>
         <input class="mp-form-control only_currency" id="purchase_price" name="purchase_price" type="text" value="<?php print store_number_format($purchase_price,0); ?>" placeholder="0.00" readonly>
         <span id="purchase_price_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="sales_price">Sale Price</label>
+        <label for="sales_price"><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Sale Price'; ?></label>
         <input class="mp-form-control only_currency" id="sales_price" name="sales_price" type="text" value="<?php print store_number_format($sales_price,0); ?>" placeholder="0.00">
         <span id="sales_price_msg" style="display:none" class="text-danger"></span>
       </div>
@@ -789,14 +795,14 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="profit_margin_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="mrp">MRP</label>
+        <label for="mrp"><?= $is_plant ? 'List Price (optional)' : 'MRP'; ?></label>
         <input class="mp-form-control only_currency" id="mrp" name="mrp" type="text" value="<?php print store_number_format($mrp,0); ?>" placeholder="0.00">
         <span id="mrp_msg" style="display:none" class="text-danger"></span>
       </div>
     </div>
     <!-- Opening Stock for simple items (no barcode/unit table) -->
     <div class="mp-form-group mp-item-only" style="margin-top:16px;max-width:240px;">
-      <label for="simple_opening_stock"><?= !empty($q_id) ? 'Current Stock' : 'Opening Stock'; ?></label>
+      <label for="simple_opening_stock"><?= !empty($q_id) ? 'Current Stock' : ($is_plant ? 'Opening Plant Stock' : 'Opening Stock'); ?></label>
       <input class="mp-form-control only_currency" id="simple_opening_stock" name="simple_opening_stock" type="text" value="<?php print store_number_format(!empty($q_id) ? ($stock ?? 0) : $opening_stock,0); ?>" placeholder="0" <?=$opening_stock_readonly;?> onchange="$('#adjustment_qty').val(this.value);">
       <?php if(empty($q_id)): ?><p class="mp-form-hint">Stock is added once here &mdash; after saving, use Purchases or Stock Adjustments to change it.</p><?php endif; ?>
     </div>
@@ -878,10 +884,11 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 <!-- Unit / Variant Details Table -->
 <div class="mp-card-form mp-item-only" id="barcode_section">
   <div class="mp-card-head">
-    <h3>Unit / Variant Details <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Each row = one physical unit or variant. Prices & stock are set here.)</span></h3>
-    <button type="button" class="mp-table-add-btn" onclick="addBarcodeRow()"><i class="fa fa-plus"></i> Add Unit</button>
+    <h3><?= $is_plant ? 'Batch & Stock Details' : 'Unit / Variant Details'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;"><?= $is_plant ? '(Record batch/lot and unit prices here. Part code remains above.)' : '(Each row = one physical unit or variant. Prices & stock are set here.)'; ?></span></h3>
+    <button type="button" class="mp-table-add-btn" onclick="addBarcodeRow()"><i class="fa fa-plus"></i> <?= $is_plant ? 'Add Batch / Lot' : 'Add Unit'; ?></button>
   </div>
   <div class="mp-card-body">
+    <?php if($is_plant): ?><p class="mp-form-hint" style="margin:0 0 12px;">Record the batch or lot when known. You may leave unit prices at zero and set the exact price on each quotation.</p><?php endif; ?>
     <?php if(mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking')): ?>
     <div style="display:flex;gap:24px;margin-bottom:14px;">
       <?php if(mp_feature_enabled('serial_number_tracking')): ?>
@@ -900,14 +907,14 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     <table class="mp-inner-table" id="barcode_table">
       <thead>
         <tr>
-          <th>Barcode</th>
+          <th><?= $is_plant ? 'Supplier Barcode' : 'Barcode'; ?></th>
           <?php if(mp_feature_enabled('batch_tracking')): ?><th>Batch / Lot</th><?php endif; ?>
           <?php if(mp_feature_enabled('serial_number_tracking')): ?><th>Serial Number</th><?php endif; ?>
           <?php if(mp_feature_enabled('imei_tracking')): ?><th>IMEI Number</th><?php endif; ?>
-          <th>Purchase Price</th>
-          <th>Wholesale Price</th>
-          <th>Retail Price (MRP)</th>
-          <th>Qty in Stock</th>
+          <th><?= $is_plant ? 'Unit Purchase Cost' : 'Purchase Price'; ?></th>
+          <th><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Wholesale Price'; ?></th>
+          <th><?= $is_plant ? 'List Price' : 'Retail Price (MRP)'; ?></th>
+          <th><?= $is_plant ? 'Qty in Plant Stock' : 'Qty in Stock'; ?></th>
           <?php if(mp_feature_enabled('expiry_tracking')): ?><th>Expiry</th><?php endif; ?>
           <?php if(mp_feature_enabled('mfg_tracking')): ?><th>MFG Date</th><?php endif; ?>
           <?php if(mp_feature_enabled('warranty_tracking')): ?><th>Warranty (Mo)</th><?php endif; ?>
@@ -952,7 +959,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     </table>
     </div>
     <div id="barcode_table_msg" style="display:none; margin-top:10px; padding:10px 14px; background:rgba(245,158,11,.1); border-radius:8px; color:#92400E; font-size:13px;">
-      <i class="fa fa-exclamation-circle"></i> <span id="barcode_table_msg_text">Please fill Purchase Price, Wholesale Price, and Retail Price for at least the first unit row.</span>
+      <i class="fa fa-exclamation-circle"></i> <span id="barcode_table_msg_text"><?= $is_plant ? 'Enter unit purchase cost and quotation price for the first batch.' : 'Please fill Purchase Price, Wholesale Price, and Retail Price for at least the first unit row.'; ?></span>
     </div>
   </div>
 </div>
@@ -1081,9 +1088,9 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 </div>
 <?php endif; ?>
 
-<!-- Product Image -->
+<!-- Item Image -->
 <div class="mp-card-form">
-  <div class="mp-card-head"><h3>Product Image</h3></div>
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Material / Part Photo' : 'Product Image'; ?></h3></div>
   <div class="mp-card-body">
     <div class="mp-upload-box" id="mp_upload_box" onclick="document.getElementById('item_image').click()">
       <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>

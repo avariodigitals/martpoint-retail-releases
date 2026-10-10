@@ -578,6 +578,8 @@ $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
 // the header and the rail can never disagree about what kind of store this is.
 $is_printing = ((mp_get_store_profile()['industry_type'] ?? '') === 'printing')
     && function_exists('mp_feature_enabled') && mp_feature_enabled('production_workflow');
+$is_oil_processing = ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant')
+    && function_exists('mp_feature_enabled') && mp_feature_enabled('oil_processing_workflow');
 ?>
 
 <!-- ===== HEADER ===== -->
@@ -591,6 +593,8 @@ $is_printing = ((mp_get_store_profile()['industry_type'] ?? '') === 'printing')
     <div class="mp-marquee"><div class="mp-marquee-track" id="intelTrack">
       <?php if($is_central): ?>
         <span class="mp-marquee-item">Vendor console — Fleet, Manifest and Release tooling.</span>
+      <?php elseif($is_oil_processing && empty($insights)): ?>
+        <span class="mp-marquee-item">Record purchases and processing runs to receive plant insights.</span>
       <?php elseif(!empty($insights)): foreach(array_slice($insights, 0, 6) as $ins): ?>
         <span class="mp-marquee-item"><?= htmlspecialchars(strip_tags($ins)); ?></span>
       <?php endforeach; else: ?>
@@ -603,7 +607,7 @@ $is_printing = ((mp_get_store_profile()['industry_type'] ?? '') === 'printing')
   </div>
   <div class="mp-header-actions">
     <span class="mp-offline-badge" id="mpOfflineBadge"><i class="fa fa-wifi"></i> OFFLINE</span>
-    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator): ?>
+    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator && !$is_oil_processing): ?>
     <button class="mp-hbtn" id="syncOfflineBtn" title="Sync Items for Offline Use"><i class="fa fa-refresh"></i> <span class="hidden-xs">Sync</span><span id="pendingSalesBadge" style="display:none;background:var(--mp-danger);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;">0</span></button>
     <?php endif; ?>
     <?php
@@ -632,7 +636,7 @@ $is_printing = ((mp_get_store_profile()['industry_type'] ?? '') === 'printing')
     <?php if(!is_store_admin() && !$is_central): ?>
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
     <?php endif; ?>
-    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator): ?>
+    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator && !$is_oil_processing): ?>
     <?php
       // The header action is labelled per business type.
       //

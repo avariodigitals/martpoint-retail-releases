@@ -468,7 +468,7 @@ class Pos_model extends CI_Model {
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
-		$invoice_terms = $this->input->post('invoice_terms', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
 		// Optional document links (quote→invoice traceability, delivery site)
 		$pos_quotation_id = (int)$this->input->post('quotation_id', TRUE);
 		$pos_shipaddr_id  = (int)$this->input->post('shippingaddress_id', TRUE);

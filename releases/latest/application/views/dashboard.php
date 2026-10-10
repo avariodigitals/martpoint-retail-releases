@@ -93,8 +93,9 @@ $this->load->view('admin/desktop/_styles');
             // name a screen the store does not have. A print job starts as a
             // job, which is what this now offers.
             $qa_printing = (mp_get_store_profile()['industry_type'] ?? '') === 'printing';
+            $qa_oil = (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
           ?>
-          <?php if(!$is_creator): ?><a href="<?= base_url($qa_printing ? 'printing/job' : 'pos'); ?>" class="mp-qa-btn green"><i class="fa <?= $qa_printing ? 'fa-print' : 'fa-shopping-cart'; ?>"></i> <?= $qa_printing ? 'New Print Job' : 'New Sale'; ?></a>
+          <?php if(!$is_creator): ?><a href="<?= base_url($qa_printing ? 'printing/job' : ($qa_oil ? 'operations/production_schedule' : 'pos')); ?>" class="mp-qa-btn green"><i class="fa <?= $qa_printing ? 'fa-print' : ($qa_oil ? 'fa-industry' : 'fa-shopping-cart'); ?>"></i> <?= $qa_printing ? 'New Print Job' : ($qa_oil ? 'Processing Runs' : 'New Sale'); ?></a>
           <a href="<?=base_url('customers/add');?>" class="mp-qa-btn blue"><i class="fa fa-user-plus"></i> Add <?= $customer_label; ?></a>
           <a href="<?=base_url('expense/add');?>" class="mp-qa-btn orange"><i class="fa fa-minus-square"></i> Add Expense</a>
           <?php if($is_product_business): ?><a href="<?=base_url('purchase/add');?>" class="mp-qa-btn purple"><i class="fa fa-plus-square"></i> Purchase Stock</a><?php endif; ?>

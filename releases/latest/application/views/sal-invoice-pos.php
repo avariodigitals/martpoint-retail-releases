@@ -387,6 +387,11 @@
     <div class="note"><b><?= $this->lang->line('invoiceTerms'); ?>:</b> <?=nl2br(get_invoice_terms_for_pos());?></div>
     <?php } ?>
 
+    <?php $this->load->helper('document_signature'); $signature_tag = mp_document_signature_tag(); ?>
+    <?php if($signature_tag !== ''): ?>
+    <div class="note" style="text-align:center;"><?= $signature_tag; ?><br>Authorized signature</div>
+    <?php endif; ?>
+
     <div class="footer">
         <span class="reprint"><?= $is_reprint ? '*** REPRINT ***' : ''; ?></span><br>
         <?= $sales_invoice_footer_text; ?><br>

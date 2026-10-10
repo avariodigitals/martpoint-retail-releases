@@ -28,11 +28,17 @@ class Sales extends MY_Controller {
 
 	//Convert to Quotation to Sales Invoice
 	public function quotation($quotation_id){
+		$this->belong_to('db_quotation',$quotation_id);
+		$this->permission_check('sales_add');
+		if($this->db->field_exists('manual_item_name', 'db_quotationitems')
+			&& $this->db->where('quotation_id', (int)$quotation_id)->where('manual_item_name !=', '')->count_all_results('db_quotationitems') > 0){
+			$this->session->set_flashdata('error', 'This quotation has custom line details. Create a sales invoice from the sales screen and enter the agreed items there.');
+			redirect('quotation');
+			return;
+		}
 		//Load model
 		$this->load->model('customers_model');
 
-		$this->belong_to('db_quotation',$quotation_id);
-		$this->permission_check('sales_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('quotation_to_sales_invoice');
 		$data['quotation_id']=$quotation_id;

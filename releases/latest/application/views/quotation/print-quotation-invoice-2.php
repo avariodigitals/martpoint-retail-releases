@@ -76,7 +76,6 @@ body { margin: 5px; }
     $store_website=$res1->store_website;
     $bank_details=$res1->bank_details;
     $terms_and_conditions="";//$res1->sales_terms_and_conditions;
-    $image_file=($res1->show_signature && !empty($res1->signature)) ? $res1->signature : '';
     
     $q3=$this->db->query("SELECT b.expire_date,b.customer_previous_due,b.customer_total_due,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,
                            a.opening_balance,a.country_id,a.state_id,a.created_by,
@@ -463,7 +462,7 @@ body { margin: 5px; }
   <tr>
     <td colspan="16">
       <span class='amt-in-word'>
-        <?= $this->lang->line('note') .":<b>". nl2br($quotation_note)."</b>";?>
+        <?= $this->lang->line('note') .":<b>". nl2br(htmlspecialchars((string)$quotation_note, ENT_QUOTES, 'UTF-8'))."</b>";?>
     </span>  
     </td>
   </tr>
@@ -495,7 +494,7 @@ body { margin: 5px; }
                           <td colspan='8'>
                             <span><b> <?= $this->lang->line('authorised_signatory'); ?></b></span><br>
                             
-                              <img src="<?= base_url($image_file);?>" width='70%' height='auto'>
+                              <?php $this->load->helper('document_signature'); echo mp_document_signature_tag(); ?>
                             
 
                           </td>

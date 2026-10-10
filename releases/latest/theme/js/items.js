@@ -1,5 +1,6 @@
 $(document).on("click", "#save, #update", function (e) {
 	var base_url=$("#base_url").val();
+	var isPlantItem = $("#items-form").attr('data-plant') === '1';
     //Initially flag set true
     var flag=true;
 
@@ -89,12 +90,20 @@ $(document).on("click", "#save, #update", function (e) {
 				if(bc_sprice_val <= 0){ $bc_sprice.val($bc_pprice.val()); bc_sprice_val = bc_pprice_val; }
 				if(bc_mrp_val <= 0){ $bc_mrp.val($bc_pprice.val()); bc_mrp_val = bc_pprice_val; }
 			}
-			// Barcode table is visible — prices MUST be entered in the first row
-			if(bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0){
+			if(isPlantItem){
+				if($bc_pprice.val() === '') $bc_pprice.val('0');
+				if($bc_sprice.val() === '') $bc_sprice.val('0');
+				if($bc_mrp.val() === '') $bc_mrp.val($bc_sprice.val());
+				bc_pprice_val = parseFloat($bc_pprice.val()) || 0;
+				bc_sprice_val = parseFloat($bc_sprice.val()) || 0;
+				bc_mrp_val = parseFloat($bc_mrp.val()) || 0;
+			}
+			// Plant catalogue entries can be priced later on a quotation.
+			if((isPlantItem && (bc_pprice_val < 0 || bc_sprice_val < 0 || bc_mrp_val < 0)) || (!isPlantItem && (bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0))){
 				$('#barcode_table_msg').fadeIn(200).show();
-				$('#barcode_table_msg_text').html($('#not_for_sale').is(':checked') ? 'Purchase Price (unit cost) is required for the first unit row.' : 'Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.');
-				if(bc_pprice_val <= 0) $bc_pprice.focus();
-				else if(bc_sprice_val <= 0) $bc_sprice.focus();
+				$('#barcode_table_msg_text').html(isPlantItem ? 'Unit prices cannot be negative.' : ($('#not_for_sale').is(':checked') ? 'Purchase Price (unit cost) is required for the first unit row.' : 'Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.'));
+				if(isPlantItem ? bc_pprice_val < 0 : bc_pprice_val <= 0) $bc_pprice.focus();
+				else if(isPlantItem ? bc_sprice_val < 0 : bc_sprice_val <= 0) $bc_sprice.focus();
 				else $bc_mrp.focus();
 				flag = false;
 			} else {

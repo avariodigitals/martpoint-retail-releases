@@ -17,11 +17,18 @@
   .mp-support-cta:hover { background: #0044CC; }
 </style>
 
+<?php $plant_help = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
 <div class="mp-help-wrap">
   <h2>Help Center</h2>
-  <p class="lead">Guides and support resources for MartPoint.</p>
+  <p class="lead"><?= $plant_help ? 'Processing Plant workflow and support.' : 'Guides and support resources for MartPoint.'; ?></p>
 
   <div class="mp-folder-grid">
+    <?php if($plant_help): ?>
+    <a href="<?= base_url('docs/product-design/customer-guide/oil-processing-plant-zonat.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa fa-industry"></i></div>
+      <div class="text"><div class="title">Processing Plant Use Case</div><div class="desc">Zonat Processing LTD: procurement, materials, runs, quotations and invoices, screen by screen.</div></div>
+    </a>
+    <?php else: ?>
     <a href="<?= base_url('docs/product-design/customer-guide/index.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-users"></i></div>
       <div class="text">
@@ -45,8 +52,10 @@
         <div class="desc">Installation and technology documentation for internal use only.</div>
       </div>
     </div>
+    <?php endif; ?>
   </div>
 
+  <?php if(!$plant_help): ?>
   <h3 style="font-size:17px;font-weight:700;color:#0F172A;margin:0 0 14px;">Detailed customer guides</h3>
   <div class="mp-folder-grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-bottom: 28px;">
     <a href="<?= base_url('docs/product-design/customer-guide/user-manual.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
@@ -92,6 +101,7 @@
       </div>
     </a>
   </div>
+  <?php endif; ?>
 
   <a href="<?= base_url('dashboard/support'); ?>" class="mp-support-cta"><i class="fa fa-life-ring"></i> Go to Support</a>
 </div>

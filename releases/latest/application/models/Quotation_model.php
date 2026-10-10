@@ -145,6 +145,119 @@ class Quotation_model extends CI_Model {
 		return $this->security->xss_clean(html_escape($input));
 	}
 
+	/** Free-entry quotation lines for the processing plant workspace. */
+	public function save_plant_quotation(){
+		$store_id = (int)get_current_store_id();
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$customer = $this->db->select('id')->from('db_customers')->where('id', $customer_id)->where('store_id', $store_id)->get()->row();
+		if(!$customer){ return 'Select a customer from this store.'; }
+		$raw_lines = $this->input->post('lines', TRUE);
+		if(!is_array($raw_lines)){ return 'Add at least one quotation line.'; }
+		$tax_id = (int)$this->input->post('tax_id', TRUE);
+		$tax_rate = 0;
+		if($tax_id){
+			$tax = $this->db->select('id,tax')->from('db_tax')->where('id',$tax_id)->where('store_id',$store_id)->where('status',1)->get()->row();
+			if(!$tax){ return 'Select a valid tax rate for this store.'; }
+			$tax_rate = (float)$tax->tax;
+		}
+		$lines = array();
+		$total = 0;
+		$subtotal = 0;
+		foreach($raw_lines as $raw){
+			$name = trim((string)($raw['name'] ?? ''));
+			if($name === ''){ continue; }
+			$qty = filter_var($raw['qty'] ?? null, FILTER_VALIDATE_FLOAT);
+			$price = filter_var($raw['price'] ?? null, FILTER_VALIDATE_FLOAT);
+			if($qty === false || $qty <= 0 || $price === false || $price < 0){ return 'Each line needs a positive quantity and a valid unit price.'; }
+			$amount = round($qty * $price, 2);
+			$tax_amount = round($amount * $tax_rate / 100, 2);
+			$item_id = (int)($raw['item_id'] ?? 0);
+			if($item_id && !$this->db->select('id')->from('db_items')->where('id', $item_id)->where('store_id', $store_id)->get()->row()){
+				return 'A quotation line refers to an item outside this store.';
+			}
+			$lines[] = array(
+				'item_id' => $item_id ?: null,
+				'manual_item_name' => mb_substr($name, 0, 255),
+				'part_code' => mb_substr(trim((string)($raw['code'] ?? '')), 0, 100),
+				'unit_label' => mb_substr(trim((string)($raw['unit'] ?? '')), 0, 40),
+				'section_name' => mb_substr(trim((string)($raw['section'] ?? '')), 0, 160),
+				'description' => trim((string)($raw['description'] ?? '')),
+				'quotation_qty' => $qty,
+				'price_per_unit' => $price,
+				'unit_total_cost' => round($price * (1 + $tax_rate / 100), 4),
+				'tax_id' => $tax_id ?: null,
+				'tax_type' => $tax_id ? 'Exclusive' : null,
+				'tax_amt' => $tax_amount,
+				'total_cost' => $amount + $tax_amount,
+				'quotation_status' => 'Quotation',
+				'status' => 1,
+				'seller_points' => 0,
+				'store_id' => $store_id,
+			);
+			$subtotal += $amount;
+			$total += $amount + $tax_amount;
+		}
+		if(!$lines){ return 'Add at least one quotation line with a description.'; }
+		foreach(array('manual_item_name','part_code','unit_label','section_name') as $column){
+			if(!$this->db->field_exists($column, 'db_quotationitems')){ return 'Plant quotation update is pending. Run the latest database migrations.'; }
+		}
+		$quote_id = (int)$this->input->post('quotation_id', TRUE);
+		if($quote_id){
+			$existing = $this->db->select('id, sales_status')->from('db_quotation')->where('id', $quote_id)->where('store_id', $store_id)->get()->row();
+			if(!$existing){ return 'Quotation not found for this store.'; }
+			if(!empty($existing->sales_status)){ return 'This quotation has already been converted to an invoice and cannot be edited.'; }
+		}
+		$raw_date = trim((string)$this->input->post('quotation_date', TRUE));
+		if(strtotime(str_replace('/', '-', $raw_date)) === false){ return 'Enter a valid quotation date.'; }
+		$quote_date = system_fromatted_date($raw_date);
+		$expires = trim((string)$this->input->post('expire_date', TRUE));
+		if($expires !== '' && strtotime(str_replace('/', '-', $expires)) === false){ return 'Enter a valid expiry date.'; }
+		$expires = $expires !== '' ? system_fromatted_date($expires) : null;
+		$header = array(
+			'store_id' => $store_id,
+			'warehouse_id' => get_store_warehouse_id(),
+			'customer_id' => $customer_id,
+			'quotation_date' => $quote_date,
+			'expire_date' => $expires,
+			'reference_no' => trim((string)$this->input->post('reference_no', TRUE)),
+			'quotation_status' => 'Quotation',
+			// Preserve literal payment terms such as "30% deposit". CI's XSS
+			// cleaner treats "% de" as a spaced URL escape and changes the text.
+			'quotation_note' => trim((string)$this->input->post('quotation_note', FALSE)),
+			'subtotal' => round($subtotal, 2),
+			'grand_total' => round($total, 2),
+			'round_off' => 0,
+			'other_charges_input' => null,
+			'other_charges_amt' => null,
+			'discount_to_all_input' => null,
+			'tot_discount_to_all_amt' => null,
+		);
+		$this->db->trans_begin();
+		if($quote_id){
+			$this->db->where('id', $quote_id)->where('store_id', $store_id)->update('db_quotation', $header);
+			$this->db->where('quotation_id', $quote_id)->where('store_id', $store_id)->delete('db_quotationitems');
+		}else{
+			$header['quotation_code'] = get_init_code('quotation');
+			$header['count_id'] = get_count_id('db_quotation');
+			$header['created_date'] = date('Y-m-d');
+			$header['created_time'] = date('H:i:s');
+			$header['created_by'] = $this->session->userdata('inv_username') ?: $this->session->userdata('username');
+			$header['status'] = 1;
+			$this->db->insert('db_quotation', $header);
+			$quote_id = (int)$this->db->insert_id();
+		}
+		foreach($lines as $line){
+			$line['quotation_id'] = $quote_id;
+			$this->db->insert('db_quotationitems', $line);
+		}
+		if(!$quote_id || $this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return 'Quotation could not be saved. Please try again.';
+		}
+		$this->db->trans_commit();
+		return 'success<<<###>>>'.$quote_id;
+	}
+
 	//Save Quotation
 	public function verify_save_and_update(){
 		$command = $this->input->post_get('command', TRUE);
@@ -162,7 +275,7 @@ class Quotation_model extends CI_Model {
 		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
 		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
 		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
-		$quotation_note = $this->input->post('quotation_note', TRUE);
+		$quotation_note = $this->input->post('quotation_note', FALSE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$quotation_id = $this->input->post('quotation_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
@@ -276,6 +389,7 @@ class Quotation_model extends CI_Model {
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
 				$unit_tax			=$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$section_name = isset($_REQUEST['section_name_'.$i]) ? $this->xss_html_filter(trim($_REQUEST['section_name_'.$i])) : '';
 
                 //$discount_input  =(empty($discount_input)) ? 0 : $discount_input;
 				//$discount_amt 		=($quotation_qty * $unit_total_cost)*$discount_input/100;
@@ -319,9 +433,12 @@ class Quotation_model extends CI_Model {
 		    				'unit_total_cost' 	=> $single_unit_total_cost,
 		    				'total_cost' 		=> $total_cost,
 		    				'status'	 		=> 1,
-		    				'seller_points'		=> get_seller_points($item_id) * $quotation_qty,
+							'seller_points'		=> get_seller_points($item_id) * $quotation_qty,
 
-		    			);
+						);
+				if ($this->db->field_exists('section_name', 'db_quotationitems')) {
+					$quotationitems_entry['section_name'] = $section_name !== '' ? $section_name : null;
+				}
 				
 				$quotationitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 				$q2 = $this->db->insert('db_quotationitems', $quotationitems_entry);
@@ -436,6 +553,7 @@ class Quotation_model extends CI_Model {
 							'item_id' 					=> $res1->id, 
 							'description' 				=> '', 
 							'item_name' 				=> $res1->item_name,
+							'item_code' 				=> $res1->item_code,
 							'item_available_qty' 		=> $item_available_qty,
 							'item_price' 				=> $res1->price, 
 							'item_quotation_price' 			=> $quotation_price, 
@@ -450,7 +568,6 @@ class Quotation_model extends CI_Model {
 							'item_discount_input' 		=> 0, 
 							'service_bit' 				=> $res1->service_bit, 
 						);
-
 		$this->return_row_with_data($rowcount,$info);
 	}
 	/* For Purchase Items List Retrieve*/
@@ -464,7 +581,9 @@ class Quotation_model extends CI_Model {
 			$info = array(
 							'item_id' 					=> $res1->item_id, 
 							'description' 				=> $res1->description, 
+							'section_name' 			=> isset($res1->section_name) ? $res1->section_name : '',
 							'item_name' 				=> $res2->item_name,
+							'item_code' 				=> $res2->item_code,
 							'item_available_qty' 		=> $res2->stock,
 							'item_price' 				=> $res2->price, 
 							'item_quotation_price' 			=> $res1->price_per_unit, 
@@ -479,7 +598,6 @@ class Quotation_model extends CI_Model {
 							'item_discount_input' 		=> $res1->discount_input, 
 							'service_bit' 				=> $res2->service_bit, 
 						);
-
 			$result = $this->return_row_with_data($rowcount++,$info);
 		}
 		return $result;
@@ -488,7 +606,9 @@ class Quotation_model extends CI_Model {
 	public function return_row_with_data($rowcount,$info){
 		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
 		$description = isset($info['description']) ? $info['description'] : '';
+		$section_name = isset($info['section_name']) ? $info['section_name'] : '';
 		$item_name = isset($info['item_name']) ? $info['item_name'] : '';
+		$item_code = isset($info['item_code']) ? $info['item_code'] : '';
 		$item_available_qty = isset($info['item_available_qty']) ? $info['item_available_qty'] : '';
 		$item_price = isset($info['item_price']) ? $info['item_price'] : '';
 		$item_quotation_price = isset($info['item_quotation_price']) ? $info['item_quotation_price'] : '';
@@ -507,9 +627,10 @@ class Quotation_model extends CI_Model {
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
                <td id="td_<?=$rowcount;?>_1">
                   <label class='form-control' style='height:auto;' data-toggle="tooltip" title='Edit ?' >
-                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_quotation_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a> 
+                  <?php if(function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant' && $item_code !== ''): ?><small style="color:#64748b;font-weight:700"><?=htmlspecialchars($item_code, ENT_QUOTES, 'UTF-8');?> · </small><?php endif; ?><a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_quotation_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
                   		<i onclick="show_quotation_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
                   	</label>
+                  <?php if (function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'): ?><small style="display:block;margin:5px 0 2px;color:#64748b;font-size:10px">Group heading (optional)</small><input type="text" class="form-control mp-form-control" style="font-size:11px" name="section_name_<?=$rowcount;?>" id="section_name_<?=$rowcount;?>" value="<?=htmlspecialchars($section_name, ENT_QUOTES, 'UTF-8');?>" placeholder="For example: EK-200K · First pressing"><?php endif; ?>
                </td>
 
                <!-- description  -->

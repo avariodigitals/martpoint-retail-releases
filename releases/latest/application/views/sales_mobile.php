@@ -796,7 +796,7 @@ padding-right: 2px;
                                     </div>
                                        <!-- /.box-header -->
                                        <div class="box-body">
-                                        <textarea id="invoice_terms" name="invoice_terms" class="textarea" placeholder="Place some text here" style="width: 100%; height: 100px; font-size: 14px; border: 1px solid #dddddd; padding: 10px;"><?= $invoice_terms;?></textarea>
+                                        <textarea id="invoice_terms" name="invoice_terms" class="textarea" placeholder="Place some text here" style="width: 100%; height: 100px; font-size: 14px; border: 1px solid #dddddd; padding: 10px;"><?= htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?></textarea>
                                        </div>
                                        <!-- /.box-body -->
                                       

@@ -39,7 +39,7 @@ class Store_profile_model extends CI_Model {
 		$sales_invoice_format_id = $this->input->post('sales_invoice_format_id', TRUE);
 		$pos_invoice_format_id = $this->input->post('pos_invoice_format_id', TRUE);
 		$sales_invoice_footer_text = $this->input->post('sales_invoice_footer_text', TRUE);
-		$invoice_terms = $this->input->post('invoice_terms', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
 		$round_off = $this->input->post('round_off', TRUE);
 		$show_tax = $this->input->post('show_tax', TRUE);
 		$language_id = $this->input->post('language_id', TRUE);
@@ -147,7 +147,8 @@ class Store_profile_model extends CI_Model {
 	        $config['max_width']            = 1000;
 	        $config['max_height']           = 1000;
 
-	        $this->load->library('upload', $config);
+	        $this->load->library('upload');
+	        $this->upload->initialize($config);
 
 	        if ( ! $this->upload->do_upload('signature'))
 	        {
@@ -190,6 +191,9 @@ class Store_profile_model extends CI_Model {
 			'decimals'					=> $decimals,
 			'qty_decimals'				=> $qty_decimals,
 		);
+
+		// Signature is stored on db_store; the theme table has no signature column.
+		if($signature !== ''){ $data['signature'] = $signature; }
 
 		// Modular inventory settings
 		$inventory_data = array(
@@ -268,9 +272,6 @@ class Store_profile_model extends CI_Model {
 		$theme_data = array();
 		if(!empty($store_logo)){
 			$theme_data['store_logo'] = $store_logo;
-		}
-		if(!empty($signature)){
-			$theme_data['signature'] = $signature;
 		}
 
 		// Modular storefront settings

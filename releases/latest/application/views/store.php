@@ -165,7 +165,11 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
                                                    <label for="signature" class="col-sm-4 control-label"><?= $this->lang->line('signature'); ?></label>
                                                    <div class="col-sm-8">
                                                       <input type="file" id="signature" name="signature">
-                                                      <span id="signature_msg" style="display:block;" class="text-danger">Max Width/Height: 1000px * 1000px & Size: 1024kb </span>
+                                                      <span id="signature_msg" style="display:block;" class="text-danger">Max Width/Height: 1000px * 1000px &amp; Size: 1024kb</span>
+                                                      <small class="text-muted">Upload a signature and enable Show Signature to place it on quotations and invoices.</small>
+                                                      <?php if(!empty($show_signature) && empty($signature)): ?>
+                                                        <small class="text-danger" style="display:block;">Show Signature is on, but no signature image is saved yet.</small>
+                                                      <?php endif; ?>
                                                    </div>
 
                                                 </div>
@@ -704,7 +708,7 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
 
                                                      <br/>
                                                      <br/>
-                                                      <textarea id="invoice_terms" name="invoice_terms" class="textarea" placeholder="Place some text here" style="width: 100%; height: 200px; font-size: 14px; border: 1px solid #dddddd; padding: 10px;"><?= $invoice_terms;?></textarea>
+                                                      <textarea id="invoice_terms" name="invoice_terms" class="textarea" placeholder="Place some text here" style="width: 100%; height: 200px; font-size: 14px; border: 1px solid #dddddd; padding: 10px;"><?= htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?></textarea>
                                                    </div>
                                                 </div>
                                              </div>

@@ -315,7 +315,8 @@ th, td {
       <b><?= $this->lang->line('customer_signature'); ?></b>
     </td>
     <td colspan="5" style="text-align: right;padding-top: 100px">
-      <b><?= $this->lang->line('authorised_signature'); ?>
+      <b><?= $this->lang->line('authorised_signature'); ?></b><br>
+      <?php $this->load->helper('document_signature'); echo mp_document_signature_tag(); ?>
     </td>
   </tr>
 

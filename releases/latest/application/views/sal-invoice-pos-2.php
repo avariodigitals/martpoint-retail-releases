@@ -273,6 +273,8 @@ echo "</td>";
 			</td>
 		</tr>
 	</table>
+	<?php $this->load->helper('document_signature'); $signature_tag = mp_document_signature_tag(); ?>
+	<?php if($signature_tag !== ''): ?><div style="text-align:center;margin:10px 0;"><?= $signature_tag; ?><br>Authorized signature</div><?php endif; ?>
 	<center >
   <div class="row no-print" style="padding-top: 15px;">
   <div class="col-md-12">

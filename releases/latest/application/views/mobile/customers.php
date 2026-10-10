@@ -128,10 +128,12 @@
                   <div class="stat-label">Credit Limit</div>
                   <div class="stat-value" title="<?= ($c->credit_limit == -1) ? 'No Limit' : strip_tags(mp_format_money($c->credit_limit ?? 0)); ?>"><?= ($c->credit_limit == -1) ? 'No Limit' : mp_format_money_compact($c->credit_limit ?? 0); ?></div>
                 </div>
+                <?php if (mp_feature_enabled('loyalty')): ?>
                 <div>
                   <div class="stat-label">Points</div>
                   <div class="stat-value"><?= number_format($c->loyalty_points ?? 0); ?><small><?= $c->loyalty_tier ?: 'Bronze'; ?></small></div>
                 </div>
+<?php endif; ?>
               </div>
 
               <div class="customer-actions">

@@ -234,6 +234,9 @@
                     'Nylon & Polythene' => [
                       'nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'
                     ],
+                    'Oil Processing' => [
+                      'oil_processing_workflow'
+                    ],
                     'Management' => [
                       'payplan','customer_notes','manager_approvals','cashier_shifts'
                     ],

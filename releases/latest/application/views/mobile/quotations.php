@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — Quotations</title>
+  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — Quotations</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -32,6 +32,7 @@
     .action.convert { background: #D1FAE5; color: #065F46; }
     .action.print { background: #FEF3C7; color: #B45309; }
     .action.delete { background: #FEF2F2; color: #B91C1B; }
+    .action.email { background: #EAF5EE; color: #176B45; border: 0; cursor: pointer; }
     .empty-state { text-align: center; padding: 32px; color: var(--mp-muted); }
     .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
     .badge.converted { background: #D1FAE5; color: #065F46; }
@@ -53,7 +54,7 @@
       <div class="topbar">
         <a href="<?= base_url('mobile'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Quotations</h1>
         </div>
         <a href="<?= base_url('mobile/quotation_form'); ?>" class="add"><i class="fa fa-plus"></i></a>
@@ -92,8 +93,11 @@
                 <?php if(empty($r->sales_status) && permissions('quotation_edit')): ?>
                   <a href="<?= base_url('mobile/quotation_form/'.$r->id); ?>" class="action edit"><i class="fa fa-edit"></i> Edit</a>
                 <?php endif; ?>
-                <?php if(empty($r->sales_status) && permissions('sales_add')): ?>
+                <?php if(empty($r->sales_status) && permissions('sales_add') && empty($manual_quote_ids[(int)$r->id])): ?>
                   <a href="<?= base_url('sales/quotation/'.$r->id); ?>" class="action convert"><i class="fa fa-exchange"></i> Invoice</a>
+                <?php endif; ?>
+                <?php if(permissions('send_email') && !empty($r->customer_email)): ?>
+                  <button type="button" class="action email" onclick="emailQuotation(<?= (int)$r->id; ?>, this)"><i class="fa fa-envelope"></i> Email</button>
                 <?php endif; ?>
                 <?php if(empty($r->sales_status) && permissions('quotation_delete')): ?>
                   <a href="javascript:void(0)" class="action delete" onclick="deleteQuotation(<?= (int)$r->id; ?>)"><i class="fa fa-trash"></i></a>
@@ -140,6 +144,22 @@
         })
         .catch(function(err){ mpError(mpErrorText(err)); });
       }, null, {danger: true});
+    }
+
+    function emailQuotation(id, button){
+      mpConfirm('Send this quotation to the customer email on file?', function(){
+        button.disabled = true;
+        var formData = new FormData();
+        formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('quotation/send_email/'); ?>' + id, {method:'POST', body:formData})
+          .then(function(data){
+            if(data.csrf_hash){ document.querySelectorAll('input[name="<?= $this->security->get_csrf_token_name(); ?>"]').forEach(function(input){ input.value=data.csrf_hash; }); }
+            if(data.success){ mpSuccess(data.message || 'Quotation emailed to the customer.'); }
+            else { mpError(data.message || 'The quotation email could not be sent.'); }
+          })
+          .catch(function(err){ mpError(mpErrorText(err)); })
+          .then(function(){ button.disabled = false; });
+      });
     }
   </script>
 </body>

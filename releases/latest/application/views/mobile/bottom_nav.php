@@ -14,6 +14,9 @@
   $can_more = !$is_cashier;
   if(!function_exists('physio_enabled')) $CI->load->helper('physio');
   $is_physio = function_exists('physio_enabled') && physio_enabled();
+  $is_oil_processing = function_exists('mp_get_store_profile')
+    && ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant');
+  if($is_oil_processing) $can_pos = false;
   $user_id = get_current_user_id();
   $store_id = get_current_store_id();
   $display_name = $CI->session->userdata('display_name') ?: $CI->session->userdata('username') ?: 'User';
@@ -27,14 +30,6 @@
       }
       if($user && !empty($user->profile_picture) && file_exists(FCPATH . $user->profile_picture)){
         $profile_picture = $user->profile_picture;
-      } elseif($CI->db->table_exists('db_logos') && !empty($store_id)){
-        $logoResult = $CI->db->where('store_id', $store_id)->where('status', 1)->order_by('id', 'desc')->get('db_logos');
-        if($logoResult && is_object($logoResult)){
-          $logo = $logoResult->row();
-          if($logo && !empty($logo->logo) && file_exists(FCPATH . $logo->logo)){
-            $profile_picture = $logo->logo;
-          }
-        }
       }
     } catch (Throwable $e) {
       $profile_picture = '';
@@ -176,22 +171,19 @@
      measured on /mobile/patients at 390px the title had 42px for a heading
      that needs 62px (clipped), and at 320px it was 0px — the screen name
      vanished entirely.
-     Rules, in order of what gives way first:
-       1. the store name is dropped (it is repeated in the account menu)
-       2. Clock In becomes an icon-only target
-       3. the page action (+ Register) collapses to its icon if it has one
-       4. the title gets a guaranteed minimum and ellipsises rather than clipping
-     Only the title is allowed to grow, so the layout can never redistribute the
-     squeeze onto a control the user needs to tap. */
+     The store and screen names stay visible; long text ellipsises while the
+     avatar and tap controls keep their own space. At narrow widths Clock In
+     becomes icon-only and page actions can compact to keep the header usable. */
   .topbar-titles { flex: 1 1 auto !important; min-width: 0 !important; }
+  .topbar .store-name { display: block !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar h1 { min-width: 0; }
   .topbar .back, .topbar .clock-btn, .topbar .mp-avatar-wrap { flex: 0 0 auto; }
 
   @media (max-width: 480px) {
-    /* The store name is already in the account menu, so it is the first thing
-       to give way. */
-    .topbar .store-name { display: none !important; }
-    .topbar h1 { font-size: 17px !important; }
+    /* Keep both store and screen names visible; let long names ellipsize. */
+    .topbar { gap: 8px !important; }
+    .topbar .store-name { font-size: 9px !important; margin-bottom: 1px; }
+    .topbar h1 { font-size: 16px !important; line-height: 1.2; }
   }
   @media (max-width: 460px) {
     /* Clock In becomes icon-only, keeping a comfortable 44px tap target. */
@@ -202,6 +194,8 @@
   }
   @media (max-width: 360px) {
     .topbar { gap: 6px !important; }
+    .topbar .mp-avatar-wrap { margin-left: 4px !important; }
+    .topbar .avatar { width: 34px !important; height: 34px !important; }
     .topbar .add, .topbar .topbar-action { padding: 8px 10px !important; font-size: 12px !important; }
   }
 

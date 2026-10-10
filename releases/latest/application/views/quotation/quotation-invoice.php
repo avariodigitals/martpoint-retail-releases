@@ -1,6 +1,7 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
 <?php
+$oilPlantQuote = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
 $q3=$this->db->query("SELECT b.expire_date, b.sales_status, b.store_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,a.city,
                            a.postcode,a.address,b.quotation_date,b.created_time,b.reference_no,
@@ -130,6 +131,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
 <div class="mp-section">
   <div class="mp-card-form" id="printableArea">
     <div class="mp-card-body">
+      <?php $this->load->view('oil_processing/document_banner', array('document_kind'=>'quotation')); ?>
       <div class="invoice-grid">
         <div class="invoice-block">
           <h4><?= $this->lang->line('from'); ?></h4>
@@ -185,17 +187,11 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
         <table class="table mp-invoice-table mp-dt-table" style="margin:0;">
           <thead>
             <tr>
-              <th>#</th>
-              <th><?= $this->lang->line('item_name'); ?></th>
-              <th class="num"><?= $this->lang->line('unit_price'); ?></th>
-              <th class="num"><?= $this->lang->line('quantity'); ?></th>
-              <th class="num"><?= $this->lang->line('net_cost'); ?></th>
-              <th class="num"><?= $this->lang->line('tax'); ?></th>
-              <th class="num"><?= $this->lang->line('tax_amount'); ?></th>
-              <th class="num"><?= $this->lang->line('discount'); ?></th>
-              <th class="num"><?= $this->lang->line('discount_amount'); ?></th>
-              <th class="num"><?= $this->lang->line('unit_cost'); ?></th>
-              <th class="num"><?= $this->lang->line('total_amount'); ?></th>
+              <?php if($oilPlantQuote): ?>
+                <th>S.No</th><th>Part code</th><th>Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price</th><th class="num">Line total</th>
+              <?php else: ?>
+                <th>#</th><th><?= $this->lang->line('item_name'); ?></th><th class="num"><?= $this->lang->line('unit_price'); ?></th><th class="num"><?= $this->lang->line('quantity'); ?></th><th class="num"><?= $this->lang->line('net_cost'); ?></th><th class="num"><?= $this->lang->line('tax'); ?></th><th class="num"><?= $this->lang->line('tax_amount'); ?></th><th class="num"><?= $this->lang->line('discount'); ?></th><th class="num"><?= $this->lang->line('discount_amount'); ?></th><th class="num"><?= $this->lang->line('unit_cost'); ?></th><th class="num"><?= $this->lang->line('total_amount'); ?></th>
+              <?php endif; ?>
             </tr>
           </thead>
           <tbody>
@@ -207,34 +203,42 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
             $tot_discount_amt=0;
             $tot_total_cost=0;
 
-            $q2=$this->db->query("SELECT a.description,c.item_name, a.quotation_qty,a.tax_type,
+            $sectionField = $this->db->field_exists('section_name', 'db_quotationitems') ? 'a.section_name' : "'' AS section_name";
+            $q2=$this->db->query("SELECT a.description,".$sectionField.",COALESCE(NULLIF(a.manual_item_name,''),c.item_name) AS item_name,COALESCE(NULLIF(a.part_code,''),c.item_code) AS item_code,COALESCE(NULLIF(a.unit_label,''),d.unit_name) AS unit_name, a.quotation_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost
-                                  FROM
-                                  db_quotationitems AS a,db_tax AS b,db_items AS c
-                                  WHERE
-                                  c.id=a.item_id AND b.id=a.tax_id AND a.quotation_id='$quotation_id'");
+                                  FROM db_quotationitems AS a
+                                  LEFT JOIN db_tax AS b ON b.id=a.tax_id
+                                  LEFT JOIN db_items AS c ON c.id=a.item_id
+                                  LEFT JOIN db_units AS d ON d.id=c.unit_id
+                                  WHERE a.quotation_id='$quotation_id'");
+            $activeSection = null;
+            $sectionTotal = 0;
             foreach ($q2->result() as $res2) {
                 $str = ($res2->tax_type=='Inclusive')? 'Inc.' : 'Exc.';
                 $discount = (empty($res2->discount_input)||$res2->discount_input==0)? '0':$res2->discount_input."%";
                 $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
+                $section = trim((string)($res2->section_name ?? ''));
+                if($oilPlantQuote && $section !== $activeSection){
+                  if($activeSection !== null && $activeSection !== ''){ ?><tr><td colspan="6" style="text-align:right;font-weight:700;color:#475569">Section subtotal</td><td class="num" style="font-weight:700"><?= $CI->currency($sectionTotal); ?></td></tr><?php }
+                  $activeSection = $section;
+                  $sectionTotal = 0;
+                  $i = 0;
+                  if($section !== ''){ ?><tr><td colspan="7" style="background:#f0f8f3;color:#14532d;font-weight:700;padding:10px 12px"><?= htmlspecialchars($section, ENT_QUOTES, 'UTF-8'); ?></td></tr><?php }
+                }
             ?>
             <tr>
-              <td><?= ++$i; ?></td>
-              <td>
-                <?= htmlspecialchars($res2->item_name); ?>
-                <?php if(!empty($res2->description)) { ?><span class="item-desc">[<?= nl2br(htmlspecialchars($res2->description)); ?>]</span><?php } ?>
-              </td>
-              <td class="num"><?= $CI->currency($res2->price_per_unit); ?></td>
-              <td class="num"><?= format_qty($res2->quotation_qty); ?></td>
-              <td class="num"><?= $CI->currency($res2->price_per_unit * $res2->quotation_qty); ?></td>
-              <td class="num"><?= store_number_format($res2->tax); ?>%<br><?= htmlspecialchars($res2->tax_name); ?> [<?= $str; ?>]</td>
-              <td class="num"><?= $CI->currency($res2->tax_amt); ?></td>
-              <td class="num"><?= $discount; ?></td>
-              <td class="num"><?= $CI->currency($discount_amt); ?></td>
-              <td class="num"><?= $CI->currency($res2->unit_total_cost); ?></td>
-              <td class="num"><?= $CI->currency($res2->total_cost); ?></td>
+              <?php if($oilPlantQuote): ?>
+                <td><?= ++$i; ?></td><td><?= htmlspecialchars((string)($res2->item_code ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                <td><?= htmlspecialchars((string)$res2->item_name, ENT_QUOTES, 'UTF-8'); ?><?php if(!empty($res2->description)): ?><span class="item-desc"><?= nl2br(htmlspecialchars($res2->description, ENT_QUOTES, 'UTF-8')); ?></span><?php endif; ?></td>
+                <td class="num"><?= format_qty($res2->quotation_qty); ?></td><td><?= htmlspecialchars((string)($res2->unit_name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                <td class="num"><?= $CI->currency($res2->price_per_unit); ?></td><td class="num"><?= $CI->currency($res2->total_cost); ?></td>
+              <?php else: ?>
+                <td><?= ++$i; ?></td><td><?= htmlspecialchars($res2->item_name); ?><?php if(!empty($res2->description)) { ?><span class="item-desc">[<?= nl2br(htmlspecialchars($res2->description)); ?>]</span><?php } ?></td>
+                <td class="num"><?= $CI->currency($res2->price_per_unit); ?></td><td class="num"><?= format_qty($res2->quotation_qty); ?></td><td class="num"><?= $CI->currency($res2->price_per_unit * $res2->quotation_qty); ?></td>
+                <td class="num"><?= store_number_format($res2->tax); ?>%<br><?= htmlspecialchars($res2->tax_name ?? ''); ?> [<?= $str; ?>]</td><td class="num"><?= $CI->currency($res2->tax_amt); ?></td><td class="num"><?= $discount; ?></td><td class="num"><?= $CI->currency($discount_amt); ?></td><td class="num"><?= $CI->currency($res2->unit_total_cost); ?></td><td class="num"><?= $CI->currency($res2->total_cost); ?></td>
+              <?php endif; ?>
             </tr>
             <?php
                 $tot_qty +=$res2->quotation_qty;
@@ -242,11 +246,13 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
                 $tot_tax_amt +=$res2->tax_amt;
                 $tot_discount_amt +=$res2->discount_amt;
                 $tot_total_cost +=$res2->total_cost;
+                $sectionTotal += (float)$res2->total_cost;
             }
+            if($oilPlantQuote && $activeSection !== null && $activeSection !== ''): ?><tr><td colspan="6" style="text-align:right;font-weight:700;color:#475569">Section subtotal</td><td class="num" style="font-weight:700"><?= $CI->currency($sectionTotal); ?></td></tr><?php endif; ?>
             ?>
           </tbody>
           <tfoot>
-            <tr>
+            <?php if($oilPlantQuote): ?><tr><td colspan="6" style="text-align:right">Quotation total</td><td class="num"><?= $CI->currency($grand_total); ?></td></tr><?php else: ?><tr>
               <td colspan="2" class="text-center">Total</td>
               <td class="num"><?= $CI->currency($tot_quotation_price); ?></td>
               <td class="num"><?= format_qty($tot_qty); ?></td>
@@ -257,7 +263,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
               <td class="num"><?= $CI->currency($tot_discount_amt); ?></td>
               <td class="num">-</td>
               <td class="num"><?= $CI->currency($tot_total_cost); ?></td>
-            </tr>
+            </tr><?php endif; ?>
           </tfoot>
         </table>
       </div>
@@ -266,7 +272,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
 
   <div class="mp-form-grid" style="margin-top:20px;align-items:start;">
     <div class="mp-card-form notes-card">
-      <div class="mp-card-head"><h3>Notes & Discount</h3></div>
+      <div class="mp-card-head"><h3><?= $oilPlantQuote ? 'Quotation notes' : 'Notes & Discount'; ?></h3></div>
       <div class="mp-card-body">
         <?php if($discount_to_all_input > 0 || $tot_discount_to_all_amt > 0){ ?>
           <div class="totals-row">
@@ -288,18 +294,19 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
           <span class="label"><?= $this->lang->line('subtotal'); ?></span>
           <span class="value"><?= store_number_format($subtotal); ?></span>
         </div>
-        <div class="totals-row">
+        <?php if($oilPlantQuote && $tot_tax_amt > 0): ?><div class="totals-row"><span class="label">Tax</span><span class="value"><?= store_number_format($tot_tax_amt); ?></span></div><?php endif; ?>
+        <?php if($other_charges_amt > 0): ?><div class="totals-row">
           <span class="label"><?= $this->lang->line('other_charges'); ?></span>
           <span class="value"><?= store_number_format($other_charges_amt); ?></span>
-        </div>
-        <div class="totals-row">
+        </div><?php endif; ?>
+        <?php if($tot_discount_to_all_amt > 0): ?><div class="totals-row">
           <span class="label"><?= $this->lang->line('discount_on_all'); ?></span>
           <span class="value"><?= store_number_format($tot_discount_to_all_amt); ?></span>
-        </div>
-        <div class="totals-row">
+        </div><?php endif; ?>
+        <?php if(abs((float)$round_off) > 0.00001): ?><div class="totals-row">
           <span class="label"><?= $this->lang->line('round_off'); ?></span>
           <span class="value"><?= store_number_format($round_off); ?></span>
-        </div>
+        </div><?php endif; ?>
         <div class="totals-row grand">
           <span class="label"><?= $this->lang->line('grand_total'); ?></span>
           <span class="value"><?= store_number_format($grand_total); ?></span>

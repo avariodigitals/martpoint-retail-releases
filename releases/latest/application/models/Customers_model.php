@@ -211,6 +211,8 @@ class Customers_model extends CI_Model {
                 'birthday'             => (!empty($birthday)) ? $birthday : NULL,
                 'notes'                => $notes,
 	              );
+		// Preserve existing notes when the feature is disabled and its input is hidden.
+		if (!mp_feature_enabled('customer_notes')) { unset($info['notes']); }
 			
 			if(isset($price_level_type)){
 				$info['price_level_type'] = $price_level_type;
@@ -393,6 +395,8 @@ class Customers_model extends CI_Model {
                 'birthday'             => (!empty($birthday)) ? $birthday : NULL,
                 'notes'                => $notes,
 			              );
+		// Preserve existing notes when the feature is disabled and its input is hidden.
+		if (!mp_feature_enabled('customer_notes')) { unset($info['notes']); }
 			    if(isset($price_level_type)){
 					$info['price_level_type'] = $price_level_type;
 					$info['price_level'] = $price_level;

@@ -53,7 +53,9 @@
                         <ul class="nav nav-tabs">
                            <li class="active"><a href="#tab_1" data-toggle="tab"><i class="fa  fa-pencil-square text-red"></i> <?= $this->lang->line('add/edit'); ?></a></li>
                            <li><a href="#tab_2" data-toggle="tab"><i class="fa fa-gears text-red"></i> <?= $this->lang->line('advanced'); ?></a></li>
-                           <li><a href="#tab_3" data-toggle="tab"><i class="fa fa-sticky-note text-red"></i> Notes & History</a></li>
+                           <?php if (mp_feature_enabled('customer_notes')): ?>
+<li><a href="#tab_3" data-toggle="tab"><i class="fa fa-sticky-note text-red"></i> Notes & History</a></li>
+<?php endif; ?>
                         </ul>
                         <div class="tab-content">
                            <div class="tab-pane active" id="tab_1">
@@ -180,38 +182,48 @@
                                     <div class="form-group">
                                        <h3 class="box-title text-uppercase text-warning" id="">
                                           <i class="fa fa-fw fa-heart"></i>
-                                          <ins>Loyalty & Rewards</ins>
+                                          <ins><?= (mp_feature_enabled('loyalty') || mp_feature_enabled('store_credit') || mp_feature_enabled('gift_cards')) ? 'Loyalty & Rewards' : 'Customer Details'; ?></ins>
                                        </h3>
                                     </div>
                                     <div class="form-group">
+                                       <?php if (mp_feature_enabled('loyalty')): ?>
                                        <label class="col-sm-2 control-label">Loyalty Points</label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control" value="<?=isset($loyalty_points)?$loyalty_points:0;?>" readonly>
                                        </div>
+<?php endif; ?>
+                                       <?php if (mp_feature_enabled('loyalty')): ?>
                                        <label class="col-sm-2 control-label">Current Tier</label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control" value="<?=isset($loyalty_tier)?$loyalty_tier:'Bronze';?>" readonly>
                                        </div>
+<?php endif; ?>
                                     </div>
                                     <div class="form-group">
+                                       <?php if (mp_feature_enabled('store_credit')): ?>
                                        <label class="col-sm-2 control-label">Store Credit</label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control" value="<?=isset($store_credit_balance)?store_number_format($store_credit_balance):0;?>" readonly>
                                        </div>
+<?php endif; ?>
+                                       <?php if (mp_feature_enabled('gift_cards')): ?>
                                        <label class="col-sm-2 control-label">Gift Card Balance</label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control" value="<?=isset($gift_card_balance)?store_number_format($gift_card_balance):0;?>" readonly>
                                        </div>
+<?php endif; ?>
                                     </div>
                                     <div class="form-group">
                                        <label class="col-sm-2 control-label">Birthday</label>
                                        <div class="col-sm-4">
                                           <input type="date" class="form-control" name="birthday" id="birthday" value="<?=isset($birthday)?$birthday:'';?>">
                                        </div>
+                                       <?php if (mp_feature_enabled('loyalty')): ?>
                                        <label class="col-sm-2 control-label">Referral Code</label>
                                        <div class="col-sm-4">
                                           <input type="text" class="form-control" value="<?=isset($referral_code)?$referral_code:'';?>" readonly>
                                        </div>
+<?php endif; ?>
                                     </div>
 
                                     <div class="form-group">
@@ -383,7 +395,8 @@
                            </div>
                            </div>
                            <!-- /.tab-pane -->
-                           <div class="tab-pane" id="tab_3">
+                           <?php if (mp_feature_enabled('customer_notes')): ?>
+<div class="tab-pane" id="tab_3">
                            <div class="box-body">
                               <div class="row">
                                  <div class="col-md-12">
@@ -399,6 +412,7 @@
                               </div>
                            </div>
                            </div>
+<?php endif; ?>
                            <!-- /.tab-pane -->
                         </div>
                         <!-- /.tab-content -->

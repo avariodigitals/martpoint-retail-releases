@@ -90,6 +90,13 @@
               <?php endforeach; ?>
             </select>
           </div>
+          <?php if (function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'): ?>
+          <div class="form-group">
+            <label>Group heading <small style="font-weight:400;color:var(--mp-muted)">(optional)</small></label>
+            <input type="text" name="section_name_1" value="<?= htmlspecialchars($section_name ?? '', ENT_QUOTES, 'UTF-8'); ?>" placeholder="e.g. EK-200K · First pressing">
+            <small style="display:block;color:var(--mp-muted);margin-top:5px">Use it to group related lines on the quotation, or leave blank.</small>
+          </div>
+          <?php endif; ?>
           <div class="form-row">
             <div class="form-group">
               <label>Quotation Date <span class="req">*</span></label>
@@ -130,7 +137,7 @@
             <select class="mp-select" name="tr_item_id_1" id="itemSelect" required>
               <option value="">Select item</option>
               <?php foreach($items as $i): ?>
-                <option value="<?= $i->id; ?>" data-price="<?= $i->sales_price; ?>" data-tax="<?= $tax_map[$i->tax_id] ?? 0; ?>" data-taxtype="Exclusive" data-taxid="<?= $i->tax_id; ?>" <?= ($i->id == $item_id) ? 'selected' : ''; ?>><?= $i->item_name; ?> (<?= store_number_format($i->sales_price); ?>)</option>
+                <option value="<?= $i->id; ?>" data-price="<?= $i->sales_price; ?>" data-tax="<?= $tax_map[$i->tax_id] ?? 0; ?>" data-taxtype="Exclusive" data-taxid="<?= $i->tax_id; ?>" <?= ($i->id == $item_id) ? 'selected' : ''; ?>><?= function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant' && !empty($i->item_code) ? htmlspecialchars($i->item_code).' · ' : ''; ?><?= htmlspecialchars($i->item_name); ?> (<?= store_number_format($i->sales_price); ?>)</option>
               <?php endforeach; ?>
             </select>
           </div>

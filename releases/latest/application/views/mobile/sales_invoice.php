@@ -83,6 +83,7 @@
         if(empty($res3) || $res3->store_id != $store_id){
           echo '<div class="card"><div class="empty">Invoice not found. (sales_id=' . $sales_id . ', store_id=' . $store_id . ')</div></div>';
         } else {
+          $this->load->view('oil_processing/document_banner', array('document_kind'=>'invoice'));
           $customer_id = $res3->customer_id;
           $customer_name = $res3->customer_name;
           $customer_mobile = $res3->mobile ?? '';
@@ -270,7 +271,7 @@
       <?php if($sales_note || $invoice_terms): ?>
       <div class="card">
         <?php if($sales_note): ?><div class="info-block"><div class="name">Note</div><div class="detail"><?= nl2br(htmlspecialchars($sales_note)); ?></div></div><?php endif; ?>
-        <?php if($invoice_terms): ?><div class="info-block" style="border-top:1px solid var(--mp-border); padding-top:12px;"><div class="name">Terms</div><div class="detail"><?= nl2br(html_entity_decode(trim($invoice_terms))); ?></div></div><?php endif; ?>
+        <?php if($invoice_terms): ?><div class="info-block" style="border-top:1px solid var(--mp-border); padding-top:12px;"><div class="name">Terms</div><div class="detail"><?= nl2br(htmlspecialchars(html_entity_decode(trim((string)$invoice_terms), ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')); ?></div></div><?php endif; ?>
       </div>
       <?php endif; ?>
 

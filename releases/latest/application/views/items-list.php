@@ -190,7 +190,7 @@ $non_sortable = json_encode([0, $action_col]);
             <input type="checkbox" class="group_check checkbox" >
           </th>
           <th><?= $this->lang->line('image'); ?></th>
-          <th><?= mp_label('item'); ?> Code</th>
+          <th><?= (function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant') ? 'Part / Material Code' : mp_label('item').' Code'; ?></th>
           <th><?= mp_label('item'); ?> Name</th>
           <th><?= $this->lang->line('brand'); ?></th>
           <th><?= $this->lang->line('category'); ?>/<br><?= $this->lang->line('item_type'); ?></th>

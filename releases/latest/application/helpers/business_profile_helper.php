@@ -67,6 +67,7 @@ if (!function_exists('mp_get_business_types')) {
             'printing'              => 'Printing',
             'tailoring'             => 'Tailoring',
             'manufacturer'          => 'Manufacturer',
+            'oil_processing_plant'  => 'Processing Plant (Palm / Vegetable Oil)',
             'nylon_polythene'       => 'Nylon & Polythene Manufacturing',
             'scientific_equipment'  => 'Scientific Equipment & Laboratory Supplies',
             'multi_branch_retail'   => 'Multi-Branch Retail',
@@ -119,6 +120,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'meat_butchery_workflow'    => 'Meat / Butchery Workflow',
             'frozen_food_cold_chain'    => 'Frozen Food Cold Chain',
             'perfumery_workflow'        => 'Perfumery / Blending Workflow',
+            'oil_processing_workflow'   => 'Palm / Vegetable Oil Processing Workspace',
             'nylon_workflow'            => 'Nylon / Polythene Production Module',
             'nylon_extrusion'           => 'Nylon: In-house Film Extrusion',
             'nylon_conversion'          => 'Nylon: Film-to-Bag Conversion',
@@ -571,6 +573,12 @@ if (!function_exists('mp_get_business_presets')) {
                 'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
                 'labels'=>['item'=>'Finished Good','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Factory','order'=>'Order','recipe'=>'Recipe','production'=>'Production'],
             ],
+            'oil_processing_plant' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','manager_approvals','price_catalogue','delivery_scheduling','customer_notes','oil_processing_workflow'],
+                'theme_key'=>'general_retail','dashboard_template'=>'oil_processing_plant','workflow_template'=>'oil_processing_standard',
+                'labels'=>['item'=>'Material / Product','product'=>'Finished Oil','batch'=>'Processing Batch','customer'=>'Buyer','supplier'=>'Supplier','warehouse'=>'Plant / Depot','order'=>'Sales Order','recipe'=>'Process Formula','production'=>'Processing Run','quote'=>'Quotation'],
+            ],
             'nylon_polythene' => [
                 'business_model'=>'product_based',
                 'features'=>['accounts','warehouse','custom_orders','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','manager_approvals','price_catalogue','delivery_scheduling','customer_notes','cashier_shifts','nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading','pos_retail_button','pos_wholesale_button'],
@@ -729,8 +737,11 @@ if (!function_exists('mp_feature_enabled')) {
             // Inventory tracking flags - require both the warehouse module and the industry profile
             case 'serial_number_tracking': case 'imei_tracking': case 'warranty_tracking': case 'batch_tracking': case 'expiry_tracking': case 'meat_butchery_workflow': case 'frozen_food_cold_chain': case 'perfumery_workflow': return warehouse_module() && in_array($flag_key, $profile_features);
             case 'mfg_tracking': return mp_feature_enabled('expiry_tracking');
-            // Service flags - require service module and the industry profile
-            case 'treatment_notes': case 'staff_assignment': case 'staff_commission': case 'custom_orders': return service_module() && in_array($flag_key, $profile_features);
+            // Service flags are independently configurable in Feature Flags.
+            // Requiring service_workflow here meant switching treatment_notes
+            // on had no effect when a store had service_workflow off, because
+            // the saved feature toggle was shadowed by this extra gate.
+            case 'treatment_notes': case 'staff_assignment': case 'staff_commission': case 'custom_orders': return in_array($flag_key, $profile_features);
             // Table management is a restaurant/food feature, not a service-workflow feature
             case 'table_management': return in_array($flag_key, $profile_features);
             // Business-driven features

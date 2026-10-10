@@ -34,6 +34,7 @@ $is_central = $hide_retail_menus;
 $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
 $is_car = $industry === 'car_dealership';
 $is_creator = $industry === 'creator';
+$is_oil_processing = ($industry === 'oil_processing_plant') && function_exists('mp_feature_enabled') && mp_feature_enabled('oil_processing_workflow');
 // A print shop gets its own rail. The workspace lives at /printing (the
 // dashboard redirects there), so the sidebar must offer its screens rather than
 // the retail set — otherwise the module is reachable but unnavigable, which is
@@ -81,6 +82,8 @@ $mp_icons = [
       <a href="<?= base_url('dashboard?classic=1'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Business Overview</a>
       <?php elseif($is_printing): ?>
       <a href="<?= base_url('printing'); ?>" class="mp-nav-item printing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Printing Overview</a>
+      <?php elseif($is_oil_processing): ?>
+      <a href="<?= base_url('oil_processing'); ?>" class="mp-nav-item oil_processing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Plant Overview</a>
       <?php else: ?>
       <a href="<?= base_url('dashboard'); ?>" class="mp-nav-item active"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
       <?php endif; ?>
@@ -112,6 +115,18 @@ $mp_icons = [
     ?>
 
     <?php if(!$is_central): ?>
+    <?php if($is_oil_processing): ?>
+    <?php $sec('Plant Operations'); ?>
+    <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['ops']; ?></span> Processing <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('operations/production_schedule'); ?>" class="mp-nav-item operations-production_schedule-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Processing Runs</a>
+        <a href="<?= base_url('operations/recipes'); ?>" class="mp-nav-item operations-recipes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Process Formulas</a>
+        <a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Materials &amp; Products</a>
+        <a href="<?= base_url('inventory'); ?>" class="mp-nav-item inventory-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Plant Stock</a>
+      </div>
+    </div></div>
+    <?php endif; ?>
     <?php if($is_printing): ?>
     <!-- ===== PRINTING WORKSPACE MENUS =====
          Order follows the actual working day, not the module layout:
@@ -256,15 +271,18 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Sales -->
-    <?php if((!$is_creator) && ($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view'))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view') || ($is_oil_processing && $CI->permissions('tax_view')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['sales']; ?></span> Sales <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
-        <?php if($CI->permissions('sales_add')): ?><a href="<?= base_url('sales/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Sale</a><?php endif; ?>
-        <?php if($CI->permissions('sales_view')): ?><a href="<?= base_url('sales'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales History</a><?php endif; ?>
+        <?php if($CI->permissions('sales_add')): ?><a href="<?= base_url('sales/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> <?= $is_oil_processing ? 'New Customer Invoice' : 'New Sale'; ?></a><?php endif; ?>
+        <?php if($CI->permissions('sales_view')): ?><a href="<?= base_url('sales'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_oil_processing ? 'Customer Invoices' : 'Sales History'; ?></a><?php endif; ?>
         <?php if($CI->permissions('sales_payment_view')): ?><a href="<?= base_url('sales_payments/'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Payments</a><?php endif; ?>
         <?php if($CI->permissions('installment_plans') && mp_feature_enabled('payplan')): ?><a href="<?= base_url('installments'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Installments</a><?php endif; ?>
         <?php if($CI->permissions('sales_return_view')): ?><a href="<?= base_url('sales_return'); ?>" class="mp-nav-item sales-returns-active-li sales-return-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Returns</a><?php endif; ?>
+        <?php if($is_oil_processing && $CI->permissions('quotation_add')): ?><a href="<?= base_url('quotation/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Customer Quotation</a><?php endif; ?>
+        <?php if($is_oil_processing && $CI->permissions('quotation_view')): ?><a href="<?= base_url('quotation'); ?>" class="mp-nav-item quotation-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Quotations</a><?php endif; ?>
+        <?php if($is_oil_processing && $CI->permissions('tax_view')): ?><a href="<?= base_url('tax'); ?>" class="mp-nav-item tax-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Tax Rates</a><?php endif; ?>
         <?php // "New Quotation" and "Quotation History" were removed from here.
               // Both pointed at routes the Quotations group already owns
               // (quotation/add and quotation), so the same two screens appeared
@@ -288,7 +306,7 @@ $mp_icons = [
         <?php if($CI->permissions('items_add') && mp_feature_enabled('auto_parts')): ?><a href="<?= base_url('items/add'); ?>" class="mp-nav-item items-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('item'); ?></a><?php endif; ?>
         <?php if($CI->permissions('services_add') && service_module()): ?><a href="<?= base_url('services/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Service</a><?php endif; ?>
         <?php if($CI->permissions('service_packages_view') && service_module()): ?><a href="<?= base_url('service_packages'); ?>" class="mp-nav-item service-packages-list-active-li service-packages-view-active-li service_packages-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Service Packages</a><?php endif; ?>
-        <?php if(($CI->permissions('items_view') && mp_feature_enabled('auto_parts')) || $CI->permissions('services_view') || $CI->permissions('services_add')): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('item'); ?> List</a><?php endif; ?>
+        <?php if(!$is_oil_processing && (($CI->permissions('items_view') && mp_feature_enabled('auto_parts')) || $CI->permissions('services_view') || $CI->permissions('services_add'))): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('item'); ?> List</a><?php endif; ?>
         <?php if($CI->permissions('items_category_view')): ?><a href="<?= base_url('category/view'); ?>" class="mp-nav-item category-view-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Categories</a><?php endif; ?>
         <?php if($CI->permissions('brand_view')): ?><a href="<?= base_url('brands/view'); ?>" class="mp-nav-item brand-view-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Brands</a><?php endif; ?>
         <?php if($CI->permissions('attributes_view')): ?><a href="<?= base_url('attributes'); ?>" class="mp-nav-item attributes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Attributes</a><?php endif; ?>
@@ -319,7 +337,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Promotions -->
-    <?php if((!$is_creator) && $CI->permissions('promotions_manage')): ?>
+    <?php if((!$is_creator) && !$is_oil_processing && $CI->permissions('promotions_manage')): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#E11D48;"><?= $mp_icons['promo']; ?></span> Promotions <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -332,9 +350,10 @@ $mp_icons = [
     <!-- Purchases -->
     <?php if((!$is_creator) && ($CI->permissions('purchase_add') || $CI->permissions('purchase_view') || $CI->permissions('purchase_return_view') || $CI->permissions('suppliers_view') || $CI->permissions('suppliers_add') || $CI->permissions('import_suppliers'))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
-      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['purchase']; ?></span> <?= $is_car ? 'Vehicle Purchases &amp; Sellers' : 'Purchases &amp; Suppliers'; ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#059669;"><?= $mp_icons['purchase']; ?></span> <?= $is_car ? 'Vehicle Purchases &amp; Sellers' : ($is_oil_processing ? 'Procurement &amp; Suppliers' : 'Purchases &amp; Suppliers'); ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
-        <?php if($CI->permissions('purchase_add')): ?><a href="<?= base_url('purchase/add'); ?>" class="mp-nav-item purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?></a><?php endif; ?>
+        <?php if($CI->permissions('purchase_add')): ?><a href="<?= base_url('purchase/add'); ?>" class="mp-nav-item purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= $is_car ? 'Vehicle Purchase' : ($is_oil_processing ? 'Material Purchase' : 'Purchase'); ?></a><?php endif; ?>
+        <?php if($is_oil_processing && $CI->permissions('purchase_add')): ?><a href="<?= base_url('purchase/add?document=supplier_proforma'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Record Supplier Proforma</a><?php endif; ?>
         <?php if($CI->permissions('purchase_view')): ?><a href="<?= base_url('purchase'); ?>" class="mp-nav-item purchase-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?> History</a><?php endif; ?>
         <?php if($CI->permissions('purchase_return_view')): ?><a href="<?= base_url('purchase_return'); ?>" class="mp-nav-item purchase-returns-active-li purchase-returns-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_car ? 'Vehicle Purchase' : 'Purchase'; ?> Returns</a><?php endif; ?>
         <?php // Suppliers live here, beside what they supply. They were under
@@ -405,7 +424,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Marketing -->
-    <?php if((!$is_creator) && (($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
+    <?php if((!$is_creator) && !$is_oil_processing && (($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#C026D3;"><?= $mp_icons['marketing']; ?></span> Marketing <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -562,7 +581,7 @@ $mp_icons = [
       //
       // Suppressed for printing only. Every other industry still gets it.
     ?>
-    <?php if((!$is_creator) && !$is_printing && ($has_ops || $has_staff || $has_tables)): ?>
+    <?php if((!$is_creator) && !$is_printing && !$is_oil_processing && ($has_ops || $has_staff || $has_tables)): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['ops']; ?></span> Operations <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -660,7 +679,8 @@ $mp_icons = [
         <?php if($CI->permissions('gateway_view') && ($this->session->userdata('role_id') == 1 || is_store_admin()) && store_module()): ?><a href="<?= base_url('gateways'); ?>" class="mp-nav-item gateways-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Gateways</a><?php endif; ?>
         <?php if($CI->permissions('package_view') && ($this->session->userdata('role_id') == 1 || is_store_admin()) && store_module()): ?><a href="<?= base_url('package'); ?>" class="mp-nav-item package-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Packages</a><?php endif; ?>
         <?php if($CI->permissions('subscription') && store_module()): ?><a href="<?= base_url('subscribers/list/'.get_current_store_id()); ?>" class="mp-nav-item subscription-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Subscription</a><?php endif; ?>
-        <?php if($CI->permissions('tax_view')): ?><a href="<?= base_url('tax'); ?>" class="mp-nav-item tax-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Tax List</a><?php endif; ?>
+        <?php if(!$is_oil_processing && $CI->permissions('tax_view')): ?><a href="<?= base_url('tax'); ?>" class="mp-nav-item tax-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Tax List</a><?php endif; ?>
+        <?php if($is_oil_processing && (is_store_admin() || $CI->permissions('store_edit'))): ?><a href="<?= base_url('oil_processing/document_style'); ?>" class="mp-nav-item oil_processing-document_style-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Quotation &amp; Invoice Banner</a><?php endif; ?>
         <?php if($CI->permissions('units_view')): ?><a href="<?= base_url('units/'); ?>" class="mp-nav-item units-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Units List</a><?php endif; ?>
         <?php if($CI->permissions('payment_types_view')): ?><a href="<?= base_url('payment_types/'); ?>" class="mp-nav-item payment_types-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Types</a><?php endif; ?>
         <?php if($CI->permissions('payment_modes_view')): ?><a href="<?= base_url('payment_modes/'); ?>" class="mp-nav-item payment_modes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Modes</a><?php endif; ?>

@@ -2,6 +2,7 @@
 <?php $CI =& get_instance(); ?>
 <?php $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail'; ?>
 <?php $is_car = $industry === 'car_dealership'; ?>
+<?php $is_supplier_proforma = !empty($supplier_proforma) && !isset($purchase_id); ?>
 <?php $page_title = $is_car ? 'Vehicle Purchase Order' : $page_title; ?>
 <?php $supplier_label = $is_car ? 'Seller / Dealer' : 'Supplier'; ?>
 <?php $item_label = $is_car ? 'Auto Part' : 'Item'; ?>
@@ -84,7 +85,7 @@ else{
 <div class="mp-page-head">
   <div>
     <h2><?=$page_title;?></h2>
-    <div class="mp-page-sub"><?= isset($purchase_id) ? 'Update ' . ($is_car ? 'vehicle purchase' : 'purchase') . ' order details' : 'Create a new ' . ($is_car ? 'vehicle purchase' : 'purchase') . ' order'; ?></div>
+    <div class="mp-page-sub"><?= $is_supplier_proforma ? 'Capture the preliminary invoice received from a supplier; stock is unchanged while it remains Draft' : (isset($purchase_id) ? 'Update ' . ($is_car ? 'vehicle purchase' : 'purchase') . ' order details' : 'Create a new ' . ($is_car ? 'vehicle purchase' : 'purchase') . ' order'); ?></div>
   </div>
   <a class="mp-qa-btn" href="<?= base_url('purchase'); ?>"><i class="fa fa-arrow-left"></i> Back to <?= $is_car ? 'Vehicle Purchases' : 'Purchases'; ?></a>
 </div>
@@ -111,13 +112,13 @@ else{
 <!-- Purchase Details -->
 <div class="mp-card-form">
   <div class="mp-card-head">
-    <h3><i class="fa fa-file-text-o"></i> <?= $is_car ? 'Vehicle Purchase Details' : 'Purchase Details'; ?></h3>
+    <h3><i class="fa fa-file-text-o"></i> <?= $is_supplier_proforma ? 'Supplier Proforma Details' : ($is_car ? 'Vehicle Purchase Details' : 'Purchase Details'); ?></h3>
   </div>
   <div class="mp-card-body">
     <div class="mp-form-grid">
       <div class="mp-form-group">
-        <label for="reference_no"><?= $this->lang->line('reference_no'); ?></label>
-        <input type="text" value="<?php echo $reference_no; ?>" class="form-control mp-form-control" id="reference_no" name="reference_no" placeholder="Optional reference">
+        <label for="reference_no"><?= $is_supplier_proforma ? 'Supplier Proforma Number' : $this->lang->line('reference_no'); ?></label>
+        <input type="text" value="<?php echo $reference_no; ?>" class="form-control mp-form-control" id="reference_no" name="reference_no" placeholder="<?= $is_supplier_proforma ? 'Number shown on supplier document' : 'Optional reference'; ?>">
         <span id="reference_no_msg" style="display:none" class="text-danger"></span>
       </div>
 
@@ -141,12 +142,18 @@ else{
 
       <div class="mp-form-group">
         <label for="purchase_status"><?= $this->lang->line('purchase_status'); ?> <span class="text-danger">*</span></label>
+        <?php if($is_supplier_proforma): ?>
+        <input type="hidden" id="purchase_status" name="purchase_status" value="Draft">
+        <div class="mp-status-select status-draft">Supplier Proforma / Draft</div>
+        <small class="text-muted">Convert this record to Ordered or Received when the transaction progresses.</small>
+        <?php else: ?>
         <select class="form-control mp-status-select" id="purchase_status" name="purchase_status" onchange="toggle_batch_fields(); update_status_badge_style();">
           <option value="Draft" <?= ($purchase_status=='Draft' || $purchase_status=='') ? 'selected' : ''; ?>>Draft</option>
           <option value="Ordered" <?= ($purchase_status=='Ordered') ? 'selected' : ''; ?>>Ordered</option>
           <option value="Partially Received" <?= ($purchase_status=='Partially Received') ? 'selected' : ''; ?>>Partially Received</option>
           <option value="Received" <?= ($purchase_status=='Received') ? 'selected' : ''; ?>>Received</option>
         </select>
+        <?php endif; ?>
         <span id="purchase_status_msg" style="display:none" class="text-danger"></span>
       </div>
 
@@ -406,12 +413,14 @@ else{
         echo '<input type="hidden" name="purchase_id" id="purchase_id" value="'.$purchase_id.'"/>';
       } else {
         $btn_id='save';
-        $btn_name=$is_car ? "Save Vehicle Purchase" : "Save Purchase";
+        $btn_name=$is_supplier_proforma ? "Save Supplier Proforma" : ($is_car ? "Save Vehicle Purchase" : "Save Purchase");
       }
       ?>
       <button type="button" id="<?php echo $btn_id;?>" class="mp-btn-primary" title="Save Data" onclick="handleSaveClick('<?php echo $btn_id;?>')"><i class="fa fa-check"></i> <?php echo $btn_name;?></button>
+      <?php if(!$is_supplier_proforma): ?>
       <button type="button" class="mp-btn-secondary" onclick="handleSaveClick('<?php echo $btn_id;?>', 'Draft')"><i class="fa fa-file-text-o"></i> Save Draft</button>
       <button type="button" class="mp-btn-secondary" onclick="handleSaveClick('<?php echo $btn_id;?>', 'Received')"><i class="fa fa-download"></i> Save &amp; Receive</button>
+      <?php endif; ?>
       <a href="<?= base_url()?>purchase" class="mp-btn-secondary"><i class="fa fa-times"></i> Cancel</a>
     </div>
   </div>

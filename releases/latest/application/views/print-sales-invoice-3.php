@@ -557,7 +557,7 @@ body { margin: 5px; }
   <tr>
     <td colspan="16">
       <span class='amt-in-word'>
-        <b><?= $this->lang->line('invoiceTerms') .":</b>". nl2br(html_entity_decode($invoice_terms))."";?>
+        <b><?= $this->lang->line('invoiceTerms') .":</b>". nl2br(htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'))."";?>
     </span>  
     </td>
   </tr>
@@ -602,7 +602,8 @@ body { margin: 5px; }
                             <span><b> <?= $this->lang->line('customer_signature'); ?></b></span>
                           </td>
                           <td colspan='8'>
-                            <span><b> <?= $this->lang->line('authorised_signatory'); ?></b></span>
+                            <span><b> <?= $this->lang->line('authorised_signatory'); ?></b></span><br>
+                            <?php $this->load->helper('document_signature'); echo mp_document_signature_tag(); ?>
                           </td>
                         </tr>
                      

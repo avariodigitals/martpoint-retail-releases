@@ -675,7 +675,7 @@ if(isset($sales_id)){
           <!-- Terms -->
           <div class="card">
             <div class="card-title">Terms & Conditions</div>
-            <textarea id="invoice_terms" name="invoice_terms" rows="3" placeholder="Enter invoice terms..."><?= $invoice_terms; ?></textarea>
+            <textarea id="invoice_terms" name="invoice_terms" rows="3" placeholder="Enter invoice terms..."><?= htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <span id="invoice_terms_msg" style="display:none" class="text-danger"></span>
           </div>
 

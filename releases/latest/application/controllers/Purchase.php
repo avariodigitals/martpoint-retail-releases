@@ -26,7 +26,8 @@ class Purchase extends MY_Controller {
 	{
 		$this->permission_check('purchase_add');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('purchase');
+		$data['supplier_proforma'] = ($this->input->get('document') === 'supplier_proforma');
+		$data['page_title']=$data['supplier_proforma'] ? 'Supplier Proforma' : $this->lang->line('purchase');
 		$data['extra_css_files'] = ['dist/css/AdminLTE.min.css','css/newcustom.css'];
 		$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','js/mp-offline-db.js?v=3','js/purchase.js?v=4','js/ajaxselect/supplier_select_ajax.js?v=2'];
 		$data['content'] = $this->load->view('mp_purchase',$data, TRUE);

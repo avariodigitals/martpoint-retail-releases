@@ -124,33 +124,43 @@ if (!isset($customer_name)) {
 
   <!-- Loyalty & Rewards -->
   <div class="mp-card">
-    <div class="mp-card-head"><h3>Loyalty & Rewards</h3></div>
+    <div class="mp-card-head"><h3><?= (mp_feature_enabled('loyalty') || mp_feature_enabled('store_credit') || mp_feature_enabled('gift_cards')) ? 'Loyalty & Rewards' : 'Customer Details'; ?></h3></div>
     <div class="mp-card-body">
       <div class="mp-form-grid">
+        <?php if (mp_feature_enabled('loyalty')): ?>
         <div class="mp-form-group">
           <label for="loyalty_points">Loyalty Points</label>
           <input type="text" class="form-control mp-form-control" id="loyalty_points" name="loyalty_points" value="<?= isset($loyalty_points) ? $loyalty_points : 0; ?>" readonly>
         </div>
+<?php endif; ?>
+        <?php if (mp_feature_enabled('loyalty')): ?>
         <div class="mp-form-group">
           <label for="loyalty_tier">Current Tier</label>
           <input type="text" class="form-control mp-form-control" id="loyalty_tier" name="loyalty_tier" value="<?= isset($loyalty_tier) ? $loyalty_tier : 'Bronze'; ?>" readonly>
         </div>
+<?php endif; ?>
+        <?php if (mp_feature_enabled('store_credit')): ?>
         <div class="mp-form-group">
           <label for="store_credit_balance">Store Credit</label>
           <input type="text" class="form-control mp-form-control" id="store_credit_balance" name="store_credit_balance" value="<?= isset($store_credit_balance) ? store_number_format($store_credit_balance) : 0; ?>" readonly>
         </div>
+<?php endif; ?>
+        <?php if (mp_feature_enabled('gift_cards')): ?>
         <div class="mp-form-group">
           <label for="gift_card_balance">Gift Card Balance</label>
           <input type="text" class="form-control mp-form-control" id="gift_card_balance" name="gift_card_balance" value="<?= isset($gift_card_balance) ? store_number_format($gift_card_balance) : 0; ?>" readonly>
         </div>
+<?php endif; ?>
         <div class="mp-form-group">
           <label for="birthday">Birthday</label>
           <input type="date" class="form-control mp-form-control" id="birthday" name="birthday" value="<?= isset($birthday) ? $birthday : ''; ?>">
         </div>
+        <?php if (mp_feature_enabled('loyalty')): ?>
         <div class="mp-form-group">
           <label for="referral_code">Referral Code</label>
           <input type="text" class="form-control mp-form-control" id="referral_code" name="referral_code" value="<?= isset($referral_code) ? $referral_code : ''; ?>" readonly>
         </div>
+<?php endif; ?>
       </div>
     </div>
   </div>
@@ -293,6 +303,7 @@ if (!isset($customer_name)) {
   </div>
 
   <!-- Notes -->
+  <?php if (mp_feature_enabled('customer_notes')): ?>
   <div class="mp-card">
     <div class="mp-card-head"><h3>Notes & History</h3></div>
     <div class="mp-card-body">
@@ -304,6 +315,7 @@ if (!isset($customer_name)) {
       </div>
     </div>
   </div>
+<?php endif; ?>
 
   <!-- Submit -->
   <div class="mp-form-actions" style="margin-bottom:24px;">

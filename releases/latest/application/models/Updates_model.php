@@ -30,68 +30,12 @@ class Updates_model extends CI_Model {
 	{
 		// Run sequential migrations to bring older installations up to the
 		// current installer schema without creating tables at runtime.
-		$migrations = [
-			'4.0.0' => '3.0_to_4.0.0.sql',
-			'4.0.1' => '4.0.0_to_4.0.1_purchase_batch.sql',
-			'4.0.2' => '4.0.1_to_4.0.2.sql',
-			'4.0.3' => '4.0.2_to_4.0.3_db_store_modularization.sql',
-			'4.0.4' => '4.0.3_to_4.0.4.sql',
-			'4.0.5' => '4.0.4_to_4.0.5.sql',
-			'4.0.6' => '4.0.5_to_4.0.6.sql',
-			'4.0.7' => '4.0.6_to_4.0.7_fashion_intelligence.sql',
-			'4.0.7-attr' => '4.0.7_attribute_driven_variants.sql',
-			'4.0.8' => '4.0.8_featured_products.sql',
-			'4.0.9' => '4.0.8_to_4.0.9_compatibility.sql',
-			'4.0.9.1' => '4.0.8_to_4.0.9_holditems_staff_commission.sql',
-			'4.0.9.2' => '4.0.9_to_4.0.9.2_promotions_loyalty.sql',
-			'4.0.9.3' => '4.0.9.3_sku_limit.sql',
-			'4.0.9.4' => '4.0.9_new_arrival_products.sql',
-			'4.0.9.5' => '4.0.9_online_excluded.sql',
-			'4.0.9.6' => '4.0.9.5_to_4.0.9.6_multi_unit_selling.sql',
-			'4.0.9.7' => '4.0.9.6_to_4.0.9.7_multi_unit_variants.sql',
-			'4.0.9.8' => '4.0.9.7_to_4.0.9.8_multi_unit_wholesale.sql',
-			'4.0.9.9' => '4.0.9.8_newsletter_subscribers.sql',
-			'4.0.9.10' => '4.0.6_b2b_customer_warehouse.sql',
-			'4.0.9.11' => '4.0.9.11_leads_crm.sql',
-			'4.0.9.12' => '4.0.9.12_industry_modules.sql',
-			'4.0.9.13' => '4.0.9.13_storefront_columns.sql',
-			'4.0.9.20' => '4.0.9.20_marquee_setting.sql',
-			'4.0.9.22' => '4.0.9.22_manual_shipping.sql',
-			'4.0.9.24' => ['4.0.9.24_perfumery_module.sql', '4.0.9.24_audit_trail.sql'],
-			'4.0.9.25' => '4.0.9.25_monnify_integration.sql',
-			'4.0.9.26' => ['4.0.9.26_bottling_runs.sql', '4.0.9.26_parfum_themes.sql'],
-			'4.0.9.27' => '4.0.9.27_bottling_sku_link.sql',
-			'4.0.9.28' => '4.0.9.28_customer_notes.sql',
-			'4.0.9.29' => '4.0.9.29_storefront_settings_columns.sql',
-			'4.0.9.30' => '4.0.9.30_stock_adjustment_repair.sql',
-			'4.0.9.31' => '4.0.9.31_stock_recalculation_repair.sql',
-			'4.0.9.32' => '4.0.9.32_warehouse_stock_repair.sql',
-			'4.0.9.35' => '4.0.9.35_assist_ai_settings.sql',
-			'4.0.9.38' => '4.0.9.38_payment_account_columns.sql',
-			'4.0.9.53' => '4.0.9.53_nylon_polythene.sql',
-			'4.0.9.55' => '4.0.9.55_city_shipping.sql',
-			'4.0.9.56' => '4.0.9.56_skincare.sql',
-			'4.0.9.60' => '4.0.9.60_physiotherapy_foundation.sql',
-			'4.0.9.61' => '4.0.9.61_physiotherapy_intake_queue.sql',
-			'4.0.9.62' => '4.0.9.62_physiotherapy_clinical.sql',
-			'4.0.9.63' => '4.0.9.63_tracker_consent.sql',
-			'4.0.9.64' => '4.0.9.64_physiotherapy_plans_funds.sql',
-			'4.0.9.65' => '4.0.9.65_feature_coverage_variants.sql',
-			'4.0.9.66' => '4.0.9.66_customer_import.sql',
-			'4.0.9.67' => '4.0.9.67_physiotherapy_stage4_hardening.sql',
-			'4.0.9.68' => '4.0.9.68_payment_reconciliation.sql',
-			'4.0.9.69' => '4.0.9.69_storefront_coupons.sql',
-			'4.0.9.70' => '4.0.9.70_physiotherapy_inpatient.sql',
-			'4.0.9.71' => '4.0.9.71_storefront_events_carts.sql',
-			'4.0.9.73' => '4.0.9.73_storefront_phase2_hardening.sql',
-			'4.0.9.72' => '4.0.9.72_physiotherapy_portal_feedback.sql',
-			'4.0.9.74' => '4.0.9.74_physiotherapy_imports.sql',
-			'4.0.9.75' => '4.0.9.75_phase3_segments_campaigns.sql',
-			'4.0.9.76' => '4.0.9.76_physiotherapy_approval_binding.sql',
-			'4.0.9.77' => '4.0.9.77_phase3_hardening.sql',
-			'4.0.9.78' => '4.0.9.78_phase4_commerce.sql',
-			'4.0.9.79' => '4.0.9.79_refund_traceability.sql',
-		];
+		$registry = require APPPATH . 'config/migrations.php';
+		$migrations = [];
+		foreach ($registry as $version => $files) {
+			$migrations[rtrim((string)$version, 'v')] = $files;
+		}
+		uksort($migrations, 'version_compare');
 		$latest_applied = $this->db_version;
 		foreach($migrations as $target_version => $files){
 			if(version_compare($this->db_version, $target_version, '<')){

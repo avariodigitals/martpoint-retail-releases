@@ -68,6 +68,8 @@
         elseif(!empty($q->expire_date) && $q->expire_date < $now){ $status = 'Expired'; $badge = 'expired'; }
       ?>
 
+      <?php $this->load->view('oil_processing/document_banner', array('document_kind'=>'quotation')); ?>
+
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <div class="card-title" style="margin:0;"><?= $q->quotation_code; ?></div>
@@ -99,8 +101,10 @@
         <?php if(!empty($items)): ?>
           <?php foreach($items as $it): ?>
             <div class="item-row">
-              <div class="item-name"><?= $it->item_name; ?></div>
-              <div class="item-detail"><?= store_number_format($it->quotation_qty); ?> x <?= store_number_format($it->price_per_unit); ?> <?= !empty($it->tax_amt) ? '+ tax ' . store_number_format($it->tax_amt) : ''; ?></div>
+              <?php if(!empty($it->section_name)): ?><div class="item-detail" style="display:inline-block;padding:4px 8px;border-radius:7px;background:#eef7f1;color:#14532d;font-weight:700;margin-bottom:6px;"><?= htmlspecialchars($it->section_name, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+              <?php if(!empty($it->item_code)): ?><div class="item-detail" style="font-weight:700;color:var(--mp-muted);"><?= htmlspecialchars($it->item_code, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+              <div class="item-name"><?= htmlspecialchars((string)$it->item_name, ENT_QUOTES, 'UTF-8'); ?></div>
+              <div class="item-detail"><?= store_number_format($it->quotation_qty); ?> <?= htmlspecialchars($it->unit_name ?? '', ENT_QUOTES, 'UTF-8'); ?> × <?= store_number_format($it->price_per_unit); ?> <?= !empty($it->tax_amt) ? '+ tax ' . store_number_format($it->tax_amt) : ''; ?></div>
               <div class="item-detail" style="font-weight:600; color:var(--mp-text);">Total: <?= store_number_format($it->total_cost); ?></div>
             </div>
           <?php endforeach; ?>
@@ -110,6 +114,7 @@
 
         <div class="total-box">
           <div class="row"><span class="label">Subtotal</span><span class="value"><?= store_number_format($q->subtotal); ?></span></div>
+          <?php $mobile_quote_tax = 0; foreach((array)$items as $tax_line){ $mobile_quote_tax += (float)($tax_line->tax_amt ?? 0); } if($mobile_quote_tax > 0): ?><div class="row"><span class="label">Tax</span><span class="value"><?= store_number_format($mobile_quote_tax); ?></span></div><?php endif; ?>
           <?php if(!empty($q->tot_discount_to_all_amt)): ?><div class="row"><span class="label">Discount</span><span class="value">- <?= store_number_format($q->tot_discount_to_all_amt); ?></span></div><?php endif; ?>
           <?php if(!empty($q->other_charges_amt)): ?><div class="row"><span class="label">Extra charges</span><span class="value">+ <?= store_number_format($q->other_charges_amt); ?></span></div><?php endif; ?>
           <?php if(!empty($q->round_off)): ?><div class="row"><span class="label">Round off</span><span class="value"><?= store_number_format($q->round_off); ?></span></div><?php endif; ?>

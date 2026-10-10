@@ -350,7 +350,7 @@ Thank you Visit Again",
 		$sales_invoice_format_id = $this->input->post('sales_invoice_format_id', TRUE);
 		$pos_invoice_format_id = $this->input->post('pos_invoice_format_id', TRUE);
 		$sales_invoice_footer_text = $this->input->post('sales_invoice_footer_text', TRUE);
-		$invoice_terms = $this->input->post('invoice_terms', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
 		$round_off = $this->input->post('round_off', TRUE);
 		$decimals = $this->input->post('decimals', TRUE);
 		$qty_decimals = $this->input->post('qty_decimals', TRUE);
@@ -588,7 +588,7 @@ Thank you Visit Again",
 		$sales_invoice_format_id = $this->input->post('sales_invoice_format_id', TRUE);
 		$pos_invoice_format_id = $this->input->post('pos_invoice_format_id', TRUE);
 		$sales_invoice_footer_text = $this->input->post('sales_invoice_footer_text', TRUE);
-		$invoice_terms = $this->input->post('invoice_terms', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
 		$round_off = $this->input->post('round_off', TRUE);
 		$decimals = $this->input->post('decimals', TRUE);
 		$qty_decimals = $this->input->post('qty_decimals', TRUE);
@@ -652,7 +652,8 @@ Thank you Visit Again",
 	        $config['max_width']            = 1000;
 	        $config['max_height']           = 1000;
 
-	        $this->load->library('upload', $config);
+	        $this->load->library('upload');
+	        $this->upload->initialize($config);
 
 	        if ( ! $this->upload->do_upload('signature'))
 	        {
@@ -690,6 +691,8 @@ Thank you Visit Again",
 			'date_format'				=> $date_format,
 			'time_format'				=> $time_format,
 		);
+
+		if($signature !== ''){ $data['signature'] = $signature; }
 
 		// Modular inventory settings
 		$inventory_data = array(
@@ -742,9 +745,6 @@ Thank you Visit Again",
 		$theme_data = array();
 		if(!empty($store_logo)){
 			$theme_data['store_logo'] = $store_logo;
-		}
-		if(!empty($signature)){
-			$theme_data['signature'] = $signature;
 		}
 
 		// Modular tax settings

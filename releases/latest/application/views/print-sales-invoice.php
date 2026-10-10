@@ -310,7 +310,8 @@ th, td {
       <b><?= $this->lang->line('customer_signature'); ?></b><br/>&nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;<br/>
     </td>
     <td colspan="5">
-      <b><?= $this->lang->line('authorised_signature'); ?></b><br/><br/><br/><br/><br/>
+      <b><?= $this->lang->line('authorised_signature'); ?></b><br/>
+      <?php $this->load->helper('document_signature'); echo mp_document_signature_tag(); ?>
     </td>
   </tr>
   <?php if(!empty($sales_invoice_footer_text)) {?>

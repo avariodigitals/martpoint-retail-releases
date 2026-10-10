@@ -1,5 +1,6 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
+<?php $is_oil_plant_quote = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
 <?php
 if(!isset($quotation_id)){
   $customer_id  = $quotation_date = $quotation_status = $warehouse_id =
@@ -45,6 +46,9 @@ table.table-bordered > thead > tr > th { text-align: center; }
 .totals-table td { text-align: right; }
 .totals-table th { text-align: left; }
 input#item_search.mp-form-control { border-radius: 0 !important; }
+<?php if($is_oil_plant_quote): ?>
+#quotation_table thead th:nth-child(4),#quotation_table thead th:nth-child(5),#quotation_table thead th:nth-child(6),#quotation_table tbody td[id$="_8"],#quotation_table tbody td[id$="_11"],#quotation_table tbody td[id$="_12"]{display:none!important}
+<?php endif; ?>
 
 /* jQuery UI Autocomplete modern skin */
 .ui-autocomplete { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.08), 0 4px 10px -4px rgba(0,0,0,.04); padding: 8px 0; max-height: 320px; overflow-y: auto; overflow-x: hidden; z-index: 2000; font-family: inherit; font-size: 13px; width: auto !important; min-width: 320px; max-width: 90vw; }
@@ -158,6 +162,11 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
     <h3><i class="fa fa-barcode"></i> Items</h3>
   </div>
   <div class="mp-card-body" style="padding:0;">
+    <?php if($is_oil_plant_quote): ?><div style="padding:14px 20px;background:#f0f8f3;border-bottom:1px solid #d7eadf;">
+      <label for="plant_quote_section" style="display:block;font-weight:700;color:#14532d;margin-bottom:5px"><i class="fa fa-folder-open-o"></i> Group heading <span style="font-weight:400;color:#64748b">(optional)</span></label>
+      <input type="text" id="plant_quote_section" class="form-control mp-form-control" placeholder="Example: EK-200K · First pressing" autocomplete="off">
+      <small style="display:block;color:#64748b;margin-top:5px">Use this to group related lines on the quotation. Leave blank for a regular ungrouped quotation; change it when you start a new group.</small>
+    </div><?php endif; ?>
     <div style="padding:16px 20px; border-bottom:1px solid var(--mp-border);">
       <div class="mp-form-group" style="margin:0;">
         <div class="input-group">
@@ -171,13 +180,13 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
       <table class="table table-hover table-bordered mp-dt-table" style="width:100%;margin:0;" id="quotation_table">
         <thead class="custom_thead">
           <tr class="bg-primary">
-            <th style="width:15%"><?= $this->lang->line('item_name'); ?></th>
+            <th style="width:15%"><?= $is_oil_plant_quote ? 'Part / description' : $this->lang->line('item_name'); ?></th>
             <th style="width:10%"><?= $this->lang->line('quantity'); ?></th>
-            <th style="width:10%"><?= $this->lang->line('unit_price'); ?></th>
+            <th style="width:10%"><?= $is_oil_plant_quote ? 'Unit price' : $this->lang->line('unit_price'); ?></th>
             <th style="width:10%"><?= $this->lang->line('discount'); ?>(<?= $CI->currency() ?>)</th>
             <th style="width:10%"><?= $this->lang->line('tax_amount'); ?></th>
             <th style="width:5%"><?= $this->lang->line('tax'); ?></th>
-            <th style="width:7.5%"><?= $this->lang->line('total_amount'); ?></th>
+            <th style="width:7.5%"><?= $is_oil_plant_quote ? 'Line total' : $this->lang->line('total_amount'); ?></th>
             <th style="width:7.5%"><?= $this->lang->line('action'); ?></th>
           </tr>
         </thead>
@@ -224,7 +233,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 
         <div class="mp-form-group full" style="margin-bottom:16px;">
           <label for="quotation_note"><?= $this->lang->line('note'); ?></label>
-          <textarea class="form-control text-left mp-form-control" id='quotation_note' name="quotation_note"><?= $quotation_note; ?></textarea>
+          <textarea class="form-control text-left mp-form-control" id='quotation_note' name="quotation_note"><?= htmlspecialchars((string)$quotation_note, ENT_QUOTES, 'UTF-8'); ?></textarea>
           <span id="quotation_note_msg" style="display:none" class="text-danger"></span>
         </div>
       </div>
@@ -316,6 +325,26 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
   var walk_in_customer_name ='<?= get_walk_in_customer_name();?>'
 </script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/quotation/quotation.js"></script>
+<?php if($is_oil_plant_quote): ?><script>
+  window.applyPlantQuoteSection = function(row){
+    var heading = document.getElementById('plant_quote_section');
+    var line = document.getElementById('section_name_' + row);
+    if(heading && line && heading.value.trim() && !line.value.trim()) line.value = heading.value.trim();
+  };
+  var allDiscount = document.getElementById('discount_to_all_input');
+  if(allDiscount){ var discountGroup = allDiscount.closest('.mp-form-group'); if(discountGroup) discountGroup.style.display = 'none'; }
+  (function(){
+    var body = document.querySelector('#quotation_table tbody');
+    if(!body || !window.MutationObserver) return;
+    new MutationObserver(function(changes){
+      changes.forEach(function(change){
+        Array.prototype.forEach.call(change.addedNodes, function(node){
+          if(node.nodeType === 1 && node.getAttribute('data-row')) window.applyPlantQuoteSection(node.getAttribute('data-row'));
+        });
+      });
+    }).observe(body, {childList:true});
+  })();
+</script><?php endif; ?>
 <script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js"></script>
 <script>

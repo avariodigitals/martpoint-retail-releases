@@ -159,7 +159,7 @@ table.items td.num, table.items td.qty { text-align: right; }
     <?php if (!empty($terms)): ?>
     <div class="box" style="margin-top:8px;">
       <h4>Terms &amp; conditions</h4>
-      <?= nl2br(htmlspecialchars($terms)) ?>
+      <?= nl2br(htmlspecialchars(html_entity_decode((string)$terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')) ?>
     </div>
     <?php endif; ?>
   </td>
@@ -236,7 +236,7 @@ table.items td.num, table.items td.qty { text-align: right; }
   <tr>
     <td>Customer name &amp; signature</td>
     <td>Date</td>
-    <td>For <?= htmlspecialchars($store->store_name ?? ($SITE_TITLE ?? 'MartPoint')) ?></td>
+    <td>For <?= htmlspecialchars($store->store_name ?? ($SITE_TITLE ?? 'MartPoint')) ?><br><?php $this->load->helper('document_signature'); echo mp_document_signature_tag($store_id); ?></td>
   </tr>
 </table>
 

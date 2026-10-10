@@ -1,3 +1,4 @@
+<?php $is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -90,19 +91,21 @@
         <input type="hidden" id="q_id" name="q_id" value="<?= $q_id; ?>">
         <input type="hidden" id="command" name="command" value="<?= $command; ?>">
 
-        <div class="section-title">Basics</div>
+        <div class="section-title"><?= $is_plant ? 'Material / Product Identity' : 'Basics'; ?></div>
         <div class="card">
+          <?php if($is_plant): ?><p class="form-group hint">Add raw material, finished oil, spare parts, or packaging. The part code below appears on quotations.</p><?php endif; ?>
           <div class="form-group">
-            <label>Product Code</label>
-            <input type="text" name="item_code" value="<?= $item_code; ?>" readonly>
+            <label><?= $is_plant ? 'Part / Material Code' : 'Product Code'; ?></label>
+            <input type="text" name="item_code" value="<?= htmlspecialchars($item_code, ENT_QUOTES, 'UTF-8'); ?>" <?= $is_plant ? 'placeholder="e.g. G11, FP-01, EK-200K"' : 'readonly'; ?>>
+            <?php if($is_plant): ?><small class="hint">Replace the suggested code with the supplier or machine part number when available.</small><?php endif; ?>
           </div>
           <div class="form-group">
-            <label>Product Name <span class="req">*</span></label>
-            <input type="text" name="item_name" id="item_name" value="<?= htmlspecialchars($item_name); ?>" required autofocus>
+            <label><?= $is_plant ? 'Material / Product / Spare Part Name' : 'Product Name'; ?> <span class="req">*</span></label>
+            <input type="text" name="item_name" id="item_name" value="<?= htmlspecialchars($item_name); ?>" <?= $is_plant ? 'placeholder="e.g. Feed cage, palm kernel, refined oil"' : ''; ?> required autofocus>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Category <span class="req">*</span></label>
+              <label><?= $is_plant ? 'Material Category' : 'Category'; ?> <span class="req">*</span></label>
               <select class="mp-select" name="category_id">
                 <option value="">Select</option>
                 <?= get_categories_select_list($category_id); ?>
@@ -118,7 +121,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Unit <span class="req">*</span></label>
+              <label><?= $is_plant ? 'Stock Unit' : 'Unit'; ?> <span class="req">*</span></label>
               <select class="mp-select" name="unit_id">
                 <option value="">Select</option>
                 <?= get_units_select_list($unit_id); ?>
@@ -130,54 +133,56 @@
             </div>
           </div>
           <div class="form-group">
-            <label>Product Type</label>
+            <label><?= $is_plant ? 'Catalogue Structure' : 'Product Type'; ?></label>
             <select class="mp-select" name="item_group" id="item_group">
-              <option value="Single" <?= $item_group == 'Single' ? 'selected' : ''; ?>>Single Product</option>
+              <option value="Single" <?= $item_group == 'Single' ? 'selected' : ''; ?>><?= $is_plant ? 'Single part / material / product' : 'Single Product'; ?></option>
               <?php if(mp_feature_enabled('item_variants')): ?>
-              <option value="Variants" <?= $item_group == 'Variants' ? 'selected' : ''; ?>>Variant Product</option>
+              <option value="Variants" <?= $item_group == 'Variants' ? 'selected' : ''; ?>><?= $is_plant ? 'Multiple specifications / sizes' : 'Variant Product'; ?></option>
               <?php endif; ?>
             </select>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Barcode</label>
+              <label><?= $is_plant ? 'Supplier Barcode' : 'Barcode'; ?></label>
               <input type="text" name="custom_barcode" value="<?= htmlspecialchars($custom_barcode); ?>">
             </div>
             <div class="form-group">
-              <label>SKU</label>
+              <label><?= $is_plant ? 'Internal Stock Code' : 'SKU'; ?></label>
               <input type="text" name="sku" value="<?= htmlspecialchars($sku); ?>">
             </div>
           </div>
           <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" rows="2"><?= htmlspecialchars($description); ?></textarea>
+            <label><?= $is_plant ? 'Specification / Description' : 'Description'; ?></label>
+            <textarea name="description" rows="2" <?= $is_plant ? 'placeholder="Machine model, dimensions, grade, or technical specification"' : ''; ?>><?= htmlspecialchars($description); ?></textarea>
           </div>
+          <?php if($is_plant): ?><div class="form-group"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="not_for_sale" value="1" style="width:auto" <?= !empty($not_for_sale) ? 'checked' : ''; ?>> Used in processing / not sold directly</label><small class="hint">Choose for raw inputs or consumables; leave off for sellable finished products or parts.</small></div><?php endif; ?>
           <div class="form-group">
-            <label>Product Image</label>
+            <label><?= $is_plant ? 'Item Photo (optional)' : 'Product Image'; ?></label>
             <input type="file" name="item_image" id="item_image" accept="image/*">
             <small class="hint">Max 1MB, jpg/png/gif/webp, 1500x1500</small>
           </div>
         </div>
 
-        <div class="section-title">Pricing &amp; Tax</div>
+        <div class="section-title"><?= $is_plant ? 'Unit Pricing, Tax &amp; Stock' : 'Pricing &amp; Tax'; ?></div>
         <div class="card">
+          <?php if($is_plant): ?><p class="form-group hint">Use zero when the price is still to be agreed; the exact unit price can be set on a quotation.</p><?php endif; ?>
           <div class="form-row">
             <div class="form-group">
-              <label>Base/Cost Price <span class="req">*</span></label>
+              <label><?= $is_plant ? 'Unit Cost Before Tax' : 'Base/Cost Price'; ?> <span class="req">*</span></label>
               <input type="number" step="0.01" name="price" id="price" value="<?= $price; ?>" required>
             </div>
             <div class="form-group">
-              <label>Purchase Price <span class="req">*</span></label>
+              <label><?= $is_plant ? 'Purchase Unit Cost' : 'Purchase Price'; ?> <span class="req">*</span></label>
               <input type="number" step="0.01" name="purchase_price" id="purchase_price" value="<?= $purchase_price; ?>" required>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Sale Price <span class="req">*</span></label>
+              <label><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Sale Price'; ?> <span class="req">*</span></label>
               <input type="number" step="0.01" name="sales_price" id="sales_price" value="<?= $sales_price; ?>" required>
             </div>
             <div class="form-group">
-              <label>MRP</label>
+              <label><?= $is_plant ? 'List Price (optional)' : 'MRP'; ?></label>
               <input type="number" step="0.01" name="mrp" id="mrp" value="<?= $mrp; ?>">
             </div>
           </div>
@@ -187,7 +192,7 @@
               <input type="number" step="0.01" name="profit_margin" id="profit_margin" value="<?= $profit_margin; ?>">
             </div>
             <div class="form-group">
-              <label>Opening Stock</label>
+              <label><?= $is_plant ? 'Opening Plant Stock' : 'Opening Stock'; ?></label>
               <input type="number" step="0.01" name="adjustment_qty" id="adjustment_qty" value="<?= $adjustment_qty; ?>" min="0">
             </div>
           </div>
@@ -289,7 +294,7 @@
           </div>
         </div>
 
-        <button type="submit" id="btn-save" class="btn btn-primary">Save Product</button>
+        <button type="submit" id="btn-save" class="btn btn-primary"><?= $is_plant ? 'Save Material / Product' : 'Save Product'; ?></button>
       </form>
     </section>
   </div>

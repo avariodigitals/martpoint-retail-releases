@@ -64,6 +64,8 @@ body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; color: #1f2937; 
 
 <?php
 $CI =& get_instance();
+$this->load->helper('plant_documents');
+$plant_banner_enabled = mp_plant_banner_enabled('invoice');
 
 $q1 = $this->db->query("SELECT * FROM db_store WHERE status=1 AND id=".get_current_store_id());
 $res1 = $q1->row();
@@ -178,8 +180,10 @@ foreach($q_payments->result() as $p){ $paid_amount += $p->payment; }
 $logo_data = mp_store_logo_round_base64($store_logo, 120);
 ?>
 
+<?php if($plant_banner_enabled) $this->load->view('oil_processing/document_banner', array('document_kind'=>'invoice')); ?>
 <table class="header" width="100%">
   <tr>
+    <?php if(!$plant_banner_enabled): ?>
     <td class="logo" width="100">
       <?php if(!empty($logo_data)): ?>
         <img src="<?= $logo_data; ?>" width="100" height="100" alt="store logo">
@@ -205,6 +209,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
         <?php endif; ?>
       </table>
     </td>
+    <?php endif; ?>
     <td class="meta" width="140">
       <table class="meta-table">
         <tr><td class="meta-label"><?= $this->lang->line('invoice'); ?></td></tr>
@@ -373,9 +378,11 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 
 <?php if(!empty($invoice_terms)): ?>
 <table class="note-table" style="margin-top: 10px;">
-  <tr><td><strong><?= $this->lang->line('invoice_terms_and_conditions'); ?>:</strong> <?= nl2br($invoice_terms); ?></td></tr>
+  <tr><td><strong><?= $this->lang->line('invoice_terms_and_conditions'); ?>:</strong> <?= nl2br(htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')); ?></td></tr>
 </table>
 <?php endif; ?>
+
+<?php $this->load->view('partials/document_signature'); ?>
 
 <table class="footer-table">
   <tr><td>

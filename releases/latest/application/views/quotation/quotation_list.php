@@ -203,6 +203,15 @@ $pending_count = $CI->db->where('store_id', $store_id)->where('sales_status', ''
   function show_receipt(id){
     window.open("<?= base_url('quotation/print_show_receipt/'); ?>"+id, "_blank", "scrollbars=1,resizable=1,height=500,width=500");
   }
+  function sendQuotationEmail(id){
+    if(!window.confirm('Send this quotation to the customer email on file?')) return;
+    var formData = new FormData();
+    formData.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+    fetch('<?= base_url('quotation/send_email/'); ?>'+id, {method:'POST', body:formData, credentials:'same-origin'})
+      .then(function(response){ return response.json(); })
+      .then(function(data){ window.alert(data.message || (data.success ? 'Quotation emailed.' : 'The quotation email could not be sent.')); })
+      .catch(function(){ window.alert('The quotation email could not be sent. Check the email settings and try again.'); });
+  }
 </script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/quotation/quotation.js"></script>
 <script>$(".quotation_list-active-li").addClass("active");</script>

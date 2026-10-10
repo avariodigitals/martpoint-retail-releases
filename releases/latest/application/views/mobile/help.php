@@ -53,9 +53,17 @@
         </div>
       </div>
 
-      <p class="lead">Choose the guide that matches your role. Customer guides are for day-to-day use.</p>
+      <?php $plant_help = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
+      <p class="lead"><?= $plant_help ? 'Follow the Zonat Processing LTD plant workflow, screen by screen.' : 'Choose the guide that matches your role. Customer guides are for day-to-day use.'; ?></p>
 
       <div class="folder-grid">
+        <?php if($plant_help): ?>
+        <a href="<?= base_url('docs/product-design/customer-guide/oil-processing-plant-zonat.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-industry"></i></div>
+          <div class="text"><div class="title">Processing Plant Use Case</div><div class="desc">Zonat procurement, stock, runs, buyer quotations and invoices</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
+        <?php else: ?>
         <a href="<?= base_url('docs/product-design/customer-guide/index.html'); ?>" target="_blank" rel="noopener" class="folder-card">
           <div class="icon"><i class="fa fa-users"></i></div>
           <div class="text">
@@ -118,6 +126,7 @@
           </div>
           <div class="arrow"><i class="fa fa-lock"></i></div>
         </div>
+        <?php endif; ?>
       </div>
 
       <div class="support-banner">
