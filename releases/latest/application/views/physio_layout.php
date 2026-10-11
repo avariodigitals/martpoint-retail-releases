@@ -139,11 +139,21 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 .physio-shell .mp-qa-btn.green:hover,.physio-shell .mp-qa-btn.green:focus,.physio-shell .mp-qa-btn.blue:hover,.physio-shell .mp-qa-btn.blue:focus{background:var(--mp-primary-dark)!important;color:#fff!important;border-color:var(--mp-primary-dark)}
 .physio-shell .dataTables_wrapper{position:relative}
 .physio-shell .dataTables_processing{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%);margin:0!important;width:auto!important;max-width:calc(100% - 32px);height:auto!important;background:#fff!important;color:var(--mp-primary-dark)!important;border:1px solid var(--mp-border)!important;border-radius:9px;padding:14px 20px!important;z-index:5}
-*{box-sizing:border-box!important}html{margin:0!important;min-height:100%!important;overflow-x:hidden!important}body{margin:0!important;min-height:100%!important;background:var(--mp-bg)!important;color:var(--mp-text)!important;font-family:'DM Sans',sans-serif!important;font-size:15.5px!important}body{display:block!important;overflow-y:auto!important;overflow-x:hidden!important;line-height:1.6!important}
-.mp-shell.physio-shell{display:grid!important;grid-template-columns:264px minmax(0,1fr)!important;min-height:100vh!important;align-items:stretch!important}
-/* The rail is a sticky 100vh column, so when the page is taller than the
-   viewport the column below it was empty and the sidebar appeared to "cut off"
-   part-way down.
+*{box-sizing:border-box!important}
+/* App frame — same model as the standard shell: the page itself never scrolls,
+   the rail and the content column each scroll inside their own box.
+
+   This is also what stops the sidebar moving. The rail was position:sticky,
+   but `body{overflow-x:hidden;overflow-y:auto}` turned <body> into a scroll
+   container that never actually scrolls — so the browser measured the sticky
+   rail against that dead scrollport instead of the viewport, sticky never
+   engaged, and the whole rail (logo included) slid away with the page. With
+   the page no longer scrolling there is nothing for the rail to drift against. */
+html{margin:0!important;height:100%!important;overflow:hidden!important}
+body{margin:0!important;height:100%!important;background:var(--mp-bg)!important;color:var(--mp-text)!important;font-family:'DM Sans',sans-serif!important;font-size:15.5px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;line-height:1.6!important}
+.mp-shell.physio-shell{display:grid!important;grid-template-columns:264px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;flex:1 1 auto!important;min-height:0!important;align-items:stretch!important}
+/* Paint the rail's own 264px column the rail colour for the WHOLE shell height,
+   so the sidebar background can never show a gap at the bottom of the screen.
 
    The first attempt at this painted the WHOLE shell the rail colour and relied
    on the content area repainting over its own half — but .mp-main{background:
@@ -166,15 +176,18 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
  * look broken: the modal opened, but its Save button could not be clicked.
  * Stacking is handled by the rail's own z-index instead, which only needs to
  * sit above the ::before column. */
-.mp-shell.physio-shell>.physio-main{position:static;background:var(--mp-bg)!important}
-.physio-rail{position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:22px 14px 16px;background:#153b32;color:#e7f1ec}
+.mp-shell.physio-shell>.physio-main{position:static;background:var(--mp-bg)!important;min-height:0!important;overflow:hidden!important}
+.physio-rail{min-height:0;height:100%;overflow-y:auto;display:flex;flex-direction:column;padding:0 14px 16px;background:#153b32;color:#e7f1ec}
 /* Slim, dark scrollbar so the nav does not gain a bright strip when it scrolls. */
 .physio-rail{scrollbar-width:thin;scrollbar-color:rgba(230,244,237,.28) transparent}
 .physio-rail::-webkit-scrollbar{width:8px}
 .physio-rail::-webkit-scrollbar-track{background:transparent}
 .physio-rail::-webkit-scrollbar-thumb{background:rgba(230,244,237,.22);border-radius:4px}
 .physio-rail::-webkit-scrollbar-thumb:hover{background:rgba(230,244,237,.34)}
-.physio-brand{display:flex;align-items:center;gap:11px;padding:2px 10px 20px;text-decoration:none;color:inherit}
+/* Brand and user chip stay pinned while the menu between them scrolls — the
+   logo must not ride up the screen just because the clinic menu is long, and
+   the last links must not sit hidden under a dead edge at the bottom. */
+.physio-brand{position:sticky;top:0;z-index:3;flex:0 0 auto;display:flex;align-items:center;gap:11px;padding:22px 10px 20px;text-decoration:none;color:inherit;background:#153b32;box-shadow:0 12px 18px -14px rgba(0,0,0,.55)}
 .physio-brand-logo{max-width:100%;width:auto;max-height:52px;object-fit:contain;flex-shrink:0}
 .physio-brand.has-wide-logo{justify-content:center}.physio-brand.has-wide-logo .physio-brand-text{display:none}
 .physio-brand:not(.has-wide-logo) .physio-brand-logo{max-width:52px;max-height:44px}.physio-user{border-top:0!important}.physio-nav-list{gap:2px}.physio-nav-group{margin-bottom:3px}
@@ -201,8 +214,8 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 .physio-nav-submenu .physio-nav-link{min-height:36px;font-size:13px;padding:0 10px}
 .physio-nav-submenu .physio-nav-link i{font-size:13px;width:17px}
 .physio-nav-link .physio-nav-badge{margin-left:auto;min-width:19px;padding:1px 6px;border-radius:9px;background:#c95f49;color:#fff;font-size:11px;font-weight:700;text-align:center}
-.physio-rail-spacer{flex:1}.physio-user{display:flex;align-items:center;gap:10px;padding:15px 8px 0;border-top:1px solid rgba(230,244,237,.14);color:#e7f1ec;font-size:12px}.physio-user i{color:#b8e0cf;font-size:15px}.physio-user span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.physio-main{min-width:0;display:flex;flex-direction:column}.physio-topbar{min-height:78px;display:flex;align-items:center;gap:18px;padding:16px 32px;border-bottom:1px solid var(--mp-border);background:#fff}
+.physio-rail-spacer{flex:1}.physio-user{position:sticky;bottom:0;z-index:3;flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:15px 8px 16px;border-top:1px solid rgba(230,244,237,.14);background:#153b32;box-shadow:0 -12px 18px -14px rgba(0,0,0,.55);color:#e7f1ec;font-size:12px}.physio-user i{color:#b8e0cf;font-size:15px}.physio-user span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.physio-main{min-width:0;display:flex;flex-direction:column}.physio-topbar{flex:0 0 auto;min-height:78px;display:flex;align-items:center;gap:18px;padding:16px 32px;border-bottom:1px solid var(--mp-border);background:#fff}
 /* The actions block is pinned to the right edge and the title keeps a floor
    width, so the row cannot reflow between screens. It used to be positioned
    only by the insights band filling the middle: with no insights the actions
@@ -282,7 +295,7 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 .mp-main{min-width:0!important;width:auto!important;max-width:none!important;flex:1 0 auto!important;overflow:visible!important;padding:0!important;background:transparent!important}
 /* The topbar must sit flush against the top and edges of the content area;
    page padding lives on this wrapper so content clears the header. */
-.physio-content{flex:1;min-width:0;padding:34px 32px 44px}
+.physio-content{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:34px 32px 44px}
 /* Direct children must span the content column. Without an explicit width a
    block-level flex/grid child here collapses to its shrink-to-fit width
    (visibly to 0), which pushed headings out past the right edge — so width is
@@ -330,10 +343,15 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 .physio-mobile-nav{display:none}.physio-mobile-nav a{color:var(--mp-muted);text-decoration:none;font-size:11px;text-align:center}.physio-mobile-nav a i{display:block;margin-bottom:4px;font-size:18px}.physio-mobile-nav a.active{color:var(--mp-primary);font-weight:700}
 /* Copyright sits under the whole shell and is centred across the full width,
    matching the standard shell rather than left-aligned under the rail. */
-footer.copyright{margin:0!important;color:var(--mp-muted)!important;background:#fff!important;border-top:1px solid var(--mp-border)!important;font-size:13px!important;padding:16px 20px!important;text-align:center!important;width:100%!important}
-@media (max-width:900px),(max-width:1024px) and (orientation:portrait){/* The rail is hidden here, so its column must not be painted either. */
+footer.copyright{flex:0 0 auto;margin:0!important;color:var(--mp-muted)!important;background:#fff!important;border-top:1px solid var(--mp-border)!important;font-size:13px!important;padding:16px 20px!important;text-align:center!important;width:100%!important}
+@media (max-width:900px),(max-width:1024px) and (orientation:portrait){/* Phones and tablet portrait scroll the page again — the rail is gone, so there
+is no app frame holding two scroll areas. body must stay a non-scroller here or
+the sticky topbar hits the same dead-scrollport bug the rail had on desktop. */
+html{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important}
+body{display:block!important;height:auto!important;min-height:100%!important;overflow:visible!important}
+/* The rail is hidden here, so its column must not be painted either. */
 .mp-shell.physio-shell::before{display:none}
-.mp-shell.physio-shell{display:block!important;min-height:100vh!important;padding-bottom:calc(80px + env(safe-area-inset-bottom))!important}.physio-rail{display:none}.physio-topbar{position:sticky;top:0;z-index:400;min-height:64px;padding:12px 16px}.physio-title strong{font-size:17px;margin-top:3px}.physio-main{min-height:100vh}.physio-content{padding:20px 16px 32px}.mp-page-head{margin-bottom:20px!important}.mp-page-head h2{font-size:24px!important}.physio-mobile-nav{position:fixed;z-index:500;right:0;bottom:0;left:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;padding:9px 4px calc(9px + env(safe-area-inset-bottom));border-top:1px solid var(--mp-border);background:rgba(255,255,255,.97);backdrop-filter:blur(12px)}.physio-mobile-nav a{min-width:0;padding:4px 0}.physio-mobile-nav a i{font-size:17px}.physio-mobile-nav a span{display:block;white-space:nowrap;font-size:10px}
+.mp-shell.physio-shell{display:block!important;min-height:100vh!important;padding-bottom:calc(80px + env(safe-area-inset-bottom))!important}.physio-rail{display:none}.physio-topbar{position:sticky;top:0;z-index:400;min-height:64px;padding:12px 16px}.physio-title strong{font-size:17px;margin-top:3px}.mp-shell.physio-shell>.physio-main{min-height:100vh;overflow:visible!important}.physio-content{overflow:visible!important;min-height:0!important;padding:20px 16px 32px}.mp-page-head{margin-bottom:20px!important}.mp-page-head h2{font-size:24px!important}.physio-mobile-nav{position:fixed;z-index:500;right:0;bottom:0;left:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;padding:9px 4px calc(9px + env(safe-area-inset-bottom));border-top:1px solid var(--mp-border);background:rgba(255,255,255,.97);backdrop-filter:blur(12px)}.physio-mobile-nav a{min-width:0;padding:4px 0}.physio-mobile-nav a i{font-size:17px}.physio-mobile-nav a span{display:block;white-space:nowrap;font-size:10px}
 /* Data-heavy clinical tables stay usable on a phone: scrollable, not clipped. */
 .mp-main .dataTables_wrapper{overflow-x:auto!important}.mp-main table.dataTable{font-size:13px!important;min-width:520px}
 .mp-page-head{align-items:flex-start!important;flex-direction:column!important;gap:10px!important}}

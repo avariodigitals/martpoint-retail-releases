@@ -1,9 +1,8 @@
 {
-    "version": "4.0.9.138",
-    "previous_version": "4.0.9.137",
+    "version": "4.0.9.139",
+    "previous_version": "4.0.9.138",
     "release_date": "2026-10-11",
     "fleet_url": "https://central.martpoint.com.ng/",
-    "fleet_key": "mp_ac30cd9f79347fc2527ce915e55b06e9378ec53a",
     "files": [
         {
             "path": "application/views/sales_mobile.php",
@@ -5207,8 +5206,8 @@
         },
         {
             "path": "application/views/physio_layout.php",
-            "hash": "3385873cc016db2379968859af8f5edd57dd8822ca586113163da87c28d7b42d",
-            "size": 50601
+            "hash": "024376475bd89b4c9a657d424074c727f198cb326aab4b3c017aab9c0448cce2",
+            "size": 52363
         },
         {
             "path": "application/config/assist_ai.php",
@@ -5257,8 +5256,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "9f7ba25a5135b701f33dd814fa5363162dedab7ffb33759ec3e6dfdbde7fee7e",
-            "size": 16405
+            "hash": "481b366578af9f3513d6e7942fa9ebc35171811dfd6e4adb340d755ed2b62a2c",
+            "size": 16782
         },
         {
             "path": "application/config/routes.php",
@@ -5272,8 +5271,8 @@
         },
         {
             "path": "application/config/updater.php",
-            "hash": "395abe47fba634343afaefdf93eb94ceb0b588793e4d6e61f27232ebb976146f",
-            "size": 963
+            "hash": "6c84b37718e57497833bffce0ab4d95ea3c8325400b48d0232dd699de88463f7",
+            "size": 1408
         },
         {
             "path": "application/config/paypallib_config.php",
@@ -9852,8 +9851,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "1dd9dbd0cc92abf1656026735191d4f5e55e006e2f82167c6846c74e581a35d1",
-            "size": 152092
+            "hash": "1b9adce2b2ff28d44276c7769139f1c677c276f66ff1eaa1c83caf44e5b034d7",
+            "size": 167204
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -11297,7 +11296,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "030884e8f68be12656b59289c96febcfaa04981fbee94b2dc572d002e054f060",
+            "hash": "75d8646198837d73cfe39b634daf09eb162b0f3b8e5ac6f67391d2d193262524",
             "size": 106508
         },
         {
@@ -17638,6 +17637,7 @@
         "4.0.9.136_physio_user_signatures.sql",
         "4.0.9.137_skincare_reference_themes.sql",
         "4.0.9.138_skincare_appointment_channel.sql",
+        "4.0.9.139_fleet_enrol_columns.sql",
         "4.0.9.13_storefront_columns.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
@@ -17726,6 +17726,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": null,
-    "changelog": "Release 4.0.9.138"
+    "signature": "53d8cd318eb1cd533a516603b02bc453e4084efa87fe84b4079df626d921e61222ddb41756911fa296d50746a2b7cb8a5d329fa907d8e7f02fa5341cde0f780e",
+    "changelog": "Release 4.0.9.139"
 }

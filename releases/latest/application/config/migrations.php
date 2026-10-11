@@ -275,4 +275,9 @@ return [
           '4.0.9.136v'  => '4.0.9.136_physio_user_signatures.sql',
           '4.0.9.137v'  => '4.0.9.137_skincare_reference_themes.sql',
           '4.0.9.138v'  => '4.0.9.138_skincare_appointment_channel.sql',
+          // .139 Fleet enrol columns — the fleet_key no longer travels in the
+          // (public) release manifest, so installs pick it up out of band via
+          // install_key. This guarantees the three columns exist; the code
+          // guards are field_exists() so a missing column is a silent skip.
+          '4.0.9.139v'  => '4.0.9.139_fleet_enrol_columns.sql',
 ];

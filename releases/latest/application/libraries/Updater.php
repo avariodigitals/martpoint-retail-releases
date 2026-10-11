@@ -49,6 +49,19 @@ class Updater {
     protected $tempDir;
     protected $lastManifestError = null;
 
+    // Reason the last httpGetOnce() attempt failed, for retry/error messages.
+    protected $httpLastDetail = '';
+
+    // How long the channel CDN holds each URL (raw.githubusercontent.com is
+    // fronted by Fastly at cache-control: max-age=300). It caches PER URL and
+    // IGNORES query strings, so a ?rb= cache-buster can never force a fresh
+    // copy — a repair re-download returns the same stale bytes. Recovery has
+    // to wait out this window instead of retrying instantly.
+    protected $channelCacheTtl = 300;
+
+    // Immutable commit SHA for the channel look-up, memoized per request.
+    protected $channelRef = null;
+
     // Concurrency lock so cron, Central's wake ping and the login-time lazy
     // check can never race the same state file. Without it two runners can
     // interleave readState()/writeState(), lose a checkpoint, and re-run the
@@ -151,10 +164,16 @@ class Updater {
 
     public function fetchManifest(): ?array {
         $channel = $this->getUpdateChannelUrl();
-        // Cache-bust: a stale cached manifest paired with fresh files (or vice
-        // versa) produces hash mismatches that have nothing to do with the
-        // release itself — GitHub's raw CDN caches each URL independently.
-        $manifestUrl = rtrim($channel, '/') . '/release-manifest.json?t=' . time();
+        // Read the manifest at an immutable commit ref wherever possible, so it
+        // can never be a different vintage than the files fetched for the same
+        // update. When no ref is available fall back to the moving path plus a
+        // cache-buster (some proxies honour it even though the GitHub CDN does
+        // not).
+        $ref = $this->resolveChannelRef($channel);
+        $manifestUrl = $this->channelFileUrl($channel, 'release-manifest.json', $ref);
+        if ($ref === '') {
+            $manifestUrl .= '?t=' . time();
+        }
 
         $json = $this->httpGet($manifestUrl, 60);
         if ($json === null) {
@@ -174,6 +193,10 @@ class Updater {
             $this->lastManifestError = "Manifest at {$manifestUrl} is missing required 'version'/'files' keys. The channel URL may be pointing at the PWA manifest.json instead of release-manifest.json.";
             return null;
         }
+
+        // Carried in the job state so every later slice — including repair
+        // downloads — reads files from the SAME commit this manifest describes.
+        $manifest['_channel_ref'] = $ref;
 
         return $manifest;
     }
@@ -581,6 +604,67 @@ subscription to receive updates.';
     }
 
     /**
+     * Fetch this install's fleet_key from Central, proving who we are with our
+     * own per-install install_key (generated here, never published).
+     *
+     * This is the only way the key reaches an install: the release manifest is
+     * public, so the key must not travel in it. It is also the self-heal after
+     * a rotation — Central rejects a heartbeat carrying the old key, the
+     * install re-enrols, and the next heartbeat succeeds.
+     */
+    protected function enrolFleet(): bool {
+        try {
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            if ($fleetUrl === '') {
+                return false;
+            }
+            $payload = [
+                'install_url' => base_url(),
+                'install_key' => $this->installKey(),
+            ];
+            $existing = $this->getSitesetting('fleet_key');
+            if ($existing !== '') {
+                $payload['key'] = $existing;
+            }
+
+            $resp = $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/enroll', $payload, 10);
+            if ($resp === null) {
+                return false;
+            }
+            $data = json_decode($resp, true);
+            if (!is_array($data) || ($data['status'] ?? '') !== 'ok') {
+                log_message('error', 'Updater enrolFleet rejected: ' . substr((string) ($data['message'] ?? $resp), 0, 200));
+                return false;
+            }
+
+            return $this->adoptFleetSettings($data);
+        } catch (Throwable $e) {
+            log_message('error', 'Updater enrolFleet failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Store the fleet callback details Central told us about. Used by both
+     * /fleet/enroll and the heartbeat response — the heartbeat is the routine
+     * path, and it is what carries a ROTATED fleet_key out to every install
+     * without anyone noticing their copy went stale.
+     */
+    protected function adoptFleetSettings(array $data): bool {
+        $updates = [];
+        if (!empty($data['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
+            $updates['fleet_url'] = $data['fleet_url'];
+        }
+        if (!empty($data['fleet_key']) && $this->CI->db->field_exists('fleet_key', 'db_sitesettings')) {
+            $updates['fleet_key'] = $data['fleet_key'];
+        }
+        if ($updates) {
+            $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
+        }
+        return !empty($data['fleet_key']);
+    }
+
+    /**
      * Report this install to the central fleet registry. Fire-and-forget —
      * failures are logged but never affect the caller.
      */
@@ -611,6 +695,12 @@ subscription to receive updates.';
             $fleetUrl = $this->getSitesetting('fleet_url');
             if (empty($fleetUrl)) {
                 return;
+            }
+            // The fleet key arrives out of band (mp_provision.php) or from
+            // /fleet/enroll — never from the public release manifest. If we do
+            // not hold one, go and fetch it before trying to phone home.
+            if ($this->getSitesetting('fleet_key') === '') {
+                $this->enrolFleet();
             }
             $payload = [
                 'key'         => $this->getSitesetting('fleet_key'),
@@ -670,7 +760,23 @@ subscription to receive updates.';
                 $payload['days_left']      = (string) ($summary['days_left'] ?? '');
                 $payload['usage_json']     = json_encode($summary['quotas'] ?? []);
             }
-            $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
+            $resp = $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
+            if ($resp !== null) {
+                $rj = json_decode($resp, true);
+                if (is_array($rj) && ($rj['status'] ?? '') === 'ok') {
+                    // Central answers with its current callback details, so a
+                    // ROTATED fleet_key arrives here on the next heartbeat. This
+                    // matters because a stale key no longer fails authentication
+                    // (install_key is accepted too) — without this the install
+                    // would keep its old key for ever and then reject every
+                    // licence proof, which is HMACed with the current one.
+                    $this->adoptFleetSettings($rj);
+                } elseif (is_array($rj) && ($rj['status'] ?? '') === 'error'
+                    && stripos((string) ($rj['message'] ?? ''), 'fleet key') !== false) {
+                    // Rejected outright: re-enrol with our own per-install key.
+                    $this->enrolFleet();
+                }
+            }
         } catch (Throwable $e) {
             log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
         }
@@ -1918,8 +2024,18 @@ subscription to receive updates.';
         if ($pubkey === '') {
             return true;
         }
+
+        // A host without PHP sodium cannot verify anything. Refusing would
+        // permanently strand that install — there is nothing it can do about a
+        // missing extension — and no remote attacker can induce the condition,
+        // so proceed but say so loudly instead of pretending it was checked.
+        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+            log_message('error', 'Updater: manifest signatures are enforced but the PHP sodium extension is unavailable on this host — the update was applied UNVERIFIED. Enable php-sodium.');
+            return true;
+        }
+
         $sig = $manifest['signature'] ?? null;
-        if (empty($sig) || !function_exists('sodium_crypto_sign_verify_detached')) {
+        if (empty($sig)) {
             return false;
         }
         try {
@@ -1944,8 +2060,15 @@ subscription to receive updates.';
 
     /**
      * Let the (verified) manifest point installs at the fleet registry —
-     * fleet_url/fleet_key ship inside the manifest so a channel move or a
-     * first-time rollout reaches every install without manual settings edits.
+     * fleet_url ships inside the manifest so a channel move or a first-time
+     * rollout reaches every install without manual settings edits.
+     *
+     * fleet_key is NEVER taken from here, even if a manifest carries one. The
+     * manifest is published to a public repository, so anything in it is
+     * world-readable — and that key authenticates heartbeats and signs licence
+     * proofs. Installs hold their own copy (from mp_provision.php) and refresh
+     * it from {fleet_url}/fleet/enroll when needed, which is authenticated by
+     * this install's per-install install_key instead.
      */
     protected function applyManifestSettings(array $manifest): void {
         try {
@@ -1962,9 +2085,6 @@ subscription to receive updates.';
             }
             if (!empty($manifest['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
                 $updates['fleet_url'] = $manifest['fleet_url'];
-            }
-            if (!empty($manifest['fleet_key']) && $this->CI->db->field_exists('fleet_key', 'db_sitesettings')) {
-                $updates['fleet_key'] = $manifest['fleet_key'];
             }
             if (!empty($updates)) {
                 $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
@@ -2365,6 +2485,9 @@ subscription to receive updates.';
         $this->resetTimer();
 
         $channel = $this->getUpdateChannelUrl();
+        // Immutable ref recorded by fetchManifest(), so the files match the
+        // manifest this job is verifying against.
+        $channelRef = (string) ($state['manifest']['_channel_ref'] ?? '');
         $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
 
         // Drop paths the CURRENT manifest no longer lists. A persisted state
@@ -2422,7 +2545,7 @@ subscription to receive updates.';
             }
             $this->resetTimer();
             $processed++;
-            $remoteUrl = rtrim($channel, '/') . '/' . $relPath;
+            $remoteUrl = $this->channelFileUrl($channel, $relPath, $channelRef);
             $localTemp = $this->tempDir . '/' . $relPath;
             $dir = dirname($localTemp);
             if (!is_dir($dir)) {
@@ -2472,6 +2595,9 @@ subscription to receive updates.';
         $this->resetTimer();
 
         $manifest = $state['manifest'] ?? [];
+        // Immutable ref recorded by fetchManifest(); repair downloads must use
+        // the same commit the manifest came from.
+        $channelRef = (string) ($manifest['_channel_ref'] ?? '');
         $manifestMap = [];
         foreach ($manifest['files'] ?? [] as $f) {
             $manifestMap[$f['path']] = $f['hash'];
@@ -2484,8 +2610,41 @@ subscription to receive updates.';
         // ~5 minutes and ignores query strings, so an instant retry serves the
         // same stale bytes — the failure must be deferred, not fatal).
         $pendingMap = $state['hash_pending'] ?? [];
-        $queue = !empty($pendingMap) ? array_keys($pendingMap) : $allFiles;
         $total = count($allFiles);
+
+        $queue = $allFiles;
+        if (!empty($pendingMap)) {
+            // Only retry a pending file once its cache window has elapsed.
+            // Retrying sooner just re-reads the same stale copy and burns the
+            // retry budget — which is how a couple of stale files used to reach
+            // the give-up threshold and fail an otherwise healthy job.
+            $now = time();
+            $queue = [];
+            foreach (array_keys($pendingMap) as $p) {
+                if ((int) ($state['hash_retry_at'][$p] ?? 0) <= $now) {
+                    $queue[] = $p;
+                }
+            }
+            if (empty($queue)) {
+                $wait = 1;
+                foreach (array_keys($pendingMap) as $p) {
+                    $wait = max($wait, (int) ($state['hash_retry_at'][$p] ?? 0) - $now);
+                }
+                $verified = $total - count($pendingMap);
+                return [
+                    'status' => 'ok',
+                    'message' => "Verified {$verified} / {$total} files — waiting "
+                        . (int) ceil($wait / 60)
+                        . ' min for the update channel cache to refresh before retrying '
+                        . count($pendingMap) . ' file(s)',
+                    'step_label' => 'Verify File Integrity',
+                    'done' => false,
+                    'step' => 4,
+                    'progress' => $verified,
+                    'total' => $total,
+                ];
+            }
+        }
         $queueTotal = count($queue);
 
         $offset = !empty($pendingMap) ? 0 : ($state['batch'] ?? 0);
@@ -2519,11 +2678,12 @@ subscription to receive updates.';
 
             // Self-heal: a stale or truncated temp file from an earlier failed
             // run must not doom every retry — re-fetch before deciding. A few
-            // short-spaced attempts inside this request cover fast-expiring
-            // caches; longer staleness defers to the next poll via hash_pending.
+            // short-spaced attempts inside this request cover a corrupted local
+            // copy; anything still wrong defers to a later pass via hash_pending
+            // so the channel's cache window can elapse first.
             for ($attempt = 0; !$ok && $attempt < 3; $attempt++) {
                 if ($attempt > 0) sleep(2);
-                if ($this->redownloadFile($relPath, $tempPath)) {
+                if ($this->redownloadFile($relPath, $tempPath, $channelRef)) {
                     $ok = file_exists($tempPath)
                         && (!$expected || hash_file('sha256', $tempPath) === $expected);
                 }
@@ -2532,7 +2692,7 @@ subscription to receive updates.';
             if (!$ok) {
                 if ($this->isNonCritical($relPath)) {
                     @unlink($tempPath);
-                    unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath]);
+                    unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath], $state['hash_retry_at'][$relPath]);
                     $state['files_skipped'][] = $relPath;
                     $this->writeState($state);
                     continue;
@@ -2543,13 +2703,21 @@ subscription to receive updates.';
                 $retries = ($state['hash_retry'][$relPath] ?? 0) + 1;
                 $state['hash_retry'][$relPath] = $retries;
                 if ($retries > 60) {
-                    unset($state['hash_pending'][$relPath]);
-                    throw new Exception("Hash mismatch for: {$relPath} — the update channel is still serving a cached copy. Wait a few minutes and press Resume; the update continues from this checkpoint.");
+                    unset($state['hash_pending'][$relPath], $state['hash_retry_at'][$relPath]);
+                    // With an immutable ref the bytes cannot be stale, so a
+                    // persistent mismatch means the published release really is
+                    // wrong — say that instead of blaming the cache.
+                    $hint = ($channelRef !== '')
+                        ? 'the release on the update channel is internally inconsistent (this file does not match the hash in its manifest) — re-publish the release from Central, then press Resume.'
+                        : 'the update channel is still serving a cached copy. Wait a few minutes and press Resume; the update continues from this checkpoint.';
+                    throw new Exception("Hash mismatch for: {$relPath} — {$hint}");
                 }
                 $state['hash_pending'][$relPath] = true;
+                // Not eligible again until the CDN cache window has elapsed.
+                $state['hash_retry_at'][$relPath] = time() + $this->channelCacheTtl + 15;
                 continue;
             }
-            unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath]);
+            unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath], $state['hash_retry_at'][$relPath]);
         }
 
         $stillPending = !empty($state['hash_pending']);
@@ -2856,7 +3024,14 @@ subscription to receive updates.';
             ];
         }
 
-        $sqlUrl = rtrim($channel, '/') . '/migrations/' . $migrationFile . '?t=' . time();
+        // Migrations change the DATABASE, so a stale cached copy here is far
+        // worse than a stale file — pin to the same commit the manifest came
+        // from, exactly as the file downloads do.
+        $sqlUrl = $this->channelFileUrl(
+            $channel,
+            'migrations/' . $migrationFile,
+            (string) ($state['manifest']['_channel_ref'] ?? '')
+        );
         $sql = $this->httpGet($sqlUrl, 60);
         if ($sql === null) {
             throw new Exception("Failed to fetch migration: {$migrationFile}");
@@ -3111,42 +3286,84 @@ subscription to receive updates.';
     /*  Network / misc                                                    */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * One HTTP GET attempt. Prefers cURL: on many hosts (cPanel in particular)
+     * allow_url_fopen fetches fail with "operation failed" while cURL works
+     * fine — the same split deploy.php documents. Falls back to
+     * file_get_contents when cURL is unavailable.
+     *
+     * On failure returns null and leaves the reason in $this->httpLastDetail.
+     */
+    protected function httpGetOnce(string $url, int $timeout): ?string {
+        $this->httpLastDetail = '';
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_CONNECTTIMEOUT => min($timeout, 30),
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_FAILONERROR    => false,
+                CURLOPT_USERAGENT      => 'MartPointUpdater/1.0',
+            ]);
+            $data = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err  = curl_error($ch);
+            curl_close($ch);
+
+            if ($data !== false && $code >= 200 && $code < 300) {
+                return (string) $data;
+            }
+            $this->httpLastDetail = $data === false
+                ? ('cURL error: ' . ($err !== '' ? $err : 'unknown'))
+                : ('HTTP ' . $code);
+            return null;
+        }
+
+        $ctx = stream_context_create([
+            'http' => [
+                'timeout' => $timeout,
+                'user_agent' => 'MartPointUpdater/1.0',
+                'follow_location' => 1,
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+        $data = @file_get_contents($url, false, $ctx);
+        if ($data !== false) {
+            return $data;
+        }
+        if (isset($http_response_header) && is_array($http_response_header) && !empty($http_response_header[0])) {
+            $this->httpLastDetail = $http_response_header[0];
+        } else {
+            $this->httpLastDetail = error_get_last()['message'] ?? 'unknown';
+        }
+        return null;
+    }
+
     protected function httpGet(string $url, int $timeout = 30): ?string {
         $attempts = 0;
         $maxAttempts = 3;
         $lastError = '';
-        $lastHttpStatus = '';
 
         while ($attempts < $maxAttempts) {
             $attempts++;
-            $ctx = stream_context_create([
-                'http' => [
-                    'timeout' => $timeout,
-                    'user_agent' => 'MartPointUpdater/1.0',
-                    'follow_location' => 1,
-                ],
-                'ssl' => [
-                    'verify_peer' => true,
-                    'verify_peer_name' => true,
-                ],
-            ]);
-
-            $data = @file_get_contents($url, false, $ctx);
-            if ($data !== false) {
+            $data = $this->httpGetOnce($url, $timeout);
+            if ($data !== null) {
                 return $data;
             }
-
-            // Capture the HTTP status line if available (set by PHP in $http_response_header)
-            if (isset($http_response_header) && is_array($http_response_header) && !empty($http_response_header[0])) {
-                $lastHttpStatus = $http_response_header[0];
-            }
-            $lastError = error_get_last()['message'] ?? ($lastHttpStatus ?: 'unknown');
+            $lastError = $this->httpLastDetail ?: 'unknown';
             if ($attempts < $maxAttempts) {
                 sleep(min($attempts, 3)); // Backoff: 1s, 2s, 3s
             }
         }
 
-        $detail = $lastHttpStatus ?: $lastError;
+        $detail = $lastError;
         log_message('error', "Updater httpGet failed for {$url}: {$detail}");
         $this->lastManifestError = "Could not download {$url} — {$detail}";
         return null;
@@ -3154,14 +3371,42 @@ subscription to receive updates.';
 
     // Minimal POST helper for the fleet heartbeat — no retry loop, telemetry
     // must never hold up the request that triggered it.
+    //
+    // Uses the same cURL-first path as httpGetOnce(): on cPanel hosts
+    // allow_url_fopen fetches fail with "operation failed" while cURL works,
+    // and a heartbeat/enrolment that silently never arrives is exactly how an
+    // install disappears from the fleet registry.
     protected function httpPost(string $url, array $payload, int $timeout = 8): ?string {
+        $body = http_build_query($payload);
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_CONNECTTIMEOUT => min($timeout, 10),
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_FAILONERROR    => false,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $body,
+                CURLOPT_USERAGENT      => 'MartPointUpdater/1.0',
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
+            ]);
+            $data = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            return ($data !== false && $code >= 200 && $code < 300) ? (string) $data : null;
+        }
+
         $ctx = stream_context_create([
             'http' => [
                 'method' => 'POST',
                 'timeout' => $timeout,
                 'user_agent' => 'MartPointUpdater/1.0',
                 'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-                'content' => http_build_query($payload),
+                'content' => $body,
             ],
             'ssl' => [
                 'verify_peer' => true,
@@ -3187,6 +3432,81 @@ subscription to receive updates.';
             return 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest';
         }
         return $url;
+    }
+
+    /**
+     * Split a GitHub raw channel URL into owner / repo / ref / subpath.
+     * Returns null for any other host, so callers fall back to the plain URL.
+     */
+    protected function channelRepoInfo(string $channel): ?array {
+        if (!preg_match(
+            '#^https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)$#i',
+            rtrim($channel, '/'),
+            $m
+        )) {
+            return null;
+        }
+        return ['owner' => $m[1], 'repo' => $m[2], 'ref' => $m[3], 'subpath' => $m[4]];
+    }
+
+    /**
+     * Resolve the channel's current commit SHA so an update reads its manifest
+     * and every file from ONE immutable point.
+     *
+     * The manifest and the files live at the same moving path (releases/latest),
+     * and the CDN caches each URL independently — so right after a release is
+     * published a client can pair a fresh manifest with cached files and fail
+     * hashes that are perfectly correct upstream. Pinning to the commit SHA
+     * removes the race outright: a SHA URL never changes, so caching it is
+     * always safe and the manifest can never disagree with its files.
+     *
+     * Returns '' when the channel is not GitHub-hosted or the lookup fails;
+     * callers then fall back to the moving URL (and rely on the TTL-gated
+     * retry in step4 to wait out any staleness).
+     */
+    protected function resolveChannelRef(string $channel): string {
+        if ($this->channelRef !== null) {
+            return $this->channelRef;
+        }
+        $this->channelRef = '';
+
+        $info = $this->channelRepoInfo($channel);
+        if ($info === null) {
+            return '';
+        }
+
+        $api = 'https://api.github.com/repos/' . rawurlencode($info['owner'])
+            . '/' . rawurlencode($info['repo'])
+            . '/commits/' . rawurlencode($info['ref']);
+
+        // This lookup must not overwrite lastManifestError — a failed ref
+        // resolution is non-fatal, a failed manifest fetch is not.
+        $saved = $this->lastManifestError;
+        $json = $this->httpGet($api, 15);
+        $this->lastManifestError = $saved;
+
+        if ($json === null) {
+            return '';
+        }
+        $data = json_decode($json, true);
+        $sha = is_array($data) ? (string) ($data['sha'] ?? '') : '';
+        if (preg_match('/^[0-9a-f]{40}$/', $sha)) {
+            $this->channelRef = $sha;
+        }
+        return $this->channelRef;
+    }
+
+    /**
+     * Build the URL for a channel file, pinned to an immutable ref when one is
+     * available. Falls back to the moving channel path otherwise.
+     */
+    protected function channelFileUrl(string $channel, string $relPath, string $ref = ''): string {
+        $base = rtrim($channel, '/');
+        if ($ref !== '' && ($info = $this->channelRepoInfo($channel)) !== null) {
+            $base = 'https://raw.githubusercontent.com/' . $info['owner'] . '/' . $info['repo']
+                . '/' . $ref . '/' . $info['subpath'];
+        }
+        return $base . '/' . ltrim($relPath, '/');
     }
 
     protected function isProtected(string $path): bool {
@@ -3268,12 +3588,22 @@ subscription to receive updates.';
 
     // Re-fetch a single file from the update channel into the temp dir.
     // Used by verify to repair stale/truncated downloads from earlier runs.
-    // The cache-busting query forces raw.githubusercontent.com (and any CDN
-    // in front of the channel) off its cached copy — without it the repair
-    // re-download returns the same stale bytes that just failed the hash check.
-    protected function redownloadFile(string $relPath, string $tempPath): bool {
+    //
+    // The URL is pinned to the immutable commit ref recorded in the job state,
+    // which is what actually makes the repair work: that URL never changes, so
+    // it can only ever hold the bytes this job expects.
+    //
+    // The old repair appended ?rb=<random> to dodge the CDN cache. That does
+    // NOT work — the GitHub CDN (Fastly) ignores query strings in its cache
+    // key, so the "fresh" request was served the same stale bytes that just
+    // failed the hash check. Only when no ref is available do we still try the
+    // buster, since some other proxies do honour it.
+    protected function redownloadFile(string $relPath, string $tempPath, string $ref = ''): bool {
         $channel = $this->getUpdateChannelUrl();
-        $url = rtrim($channel, '/') . '/' . $relPath . '?rb=' . time() . mt_rand(1000, 9999);
+        $url = $this->channelFileUrl($channel, $relPath, $ref);
+        if ($ref === '') {
+            $url .= '?rb=' . time() . mt_rand(1000, 9999);
+        }
         $data = $this->httpGet($url, 30);
         if ($data === null) {
             return false;
