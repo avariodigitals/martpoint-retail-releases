@@ -42,7 +42,7 @@ $is_oil_processing = ($industry === 'oil_processing_plant') && function_exists('
 // the retail set — otherwise the module is reachable but unnavigable, which is
 // exactly how it behaved before: /printing loaded and the menu showed Sales,
 // Inventory and Clients.
-$is_printing = ($industry === 'printing') && function_exists('mp_feature_enabled') && mp_feature_enabled('production_workflow');
+$is_printing = function_exists('mp_is_print_shop') && mp_is_print_shop();
 // NOTE on $is_printing: it adds the printing GROUPS (Print Shop, Machine
 // Floor) and reorders the top of the rail. It does NOT hide the shared
 // business groups.

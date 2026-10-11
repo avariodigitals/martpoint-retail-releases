@@ -612,6 +612,18 @@ class Storefront_model extends CI_Model {
 
 	// ============== SERVICES ==============
 
+	/** All of this merchant's services for the admin editor, including drafts and offline entries. */
+	public function getServicesForAdmin($storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		return $this->db->select('a.*, b.category_name')
+			->from('db_services a')
+			->join('db_category b', 'b.id=a.category_id AND b.store_id=a.store_id', 'left')
+			->where('a.store_id', $storeId)
+			->order_by('a.sort_order', 'asc')
+			->order_by('a.id', 'desc')
+			->get()->result();
+	}
+
 	public function getOnlineServices($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.*, b.category_name');
@@ -642,6 +654,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.id', $serviceId);
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.available_online', 1);
+		$this->db->where('a.status', 1);
 		return $this->db->get()->row();
 	}
 
@@ -2169,6 +2182,8 @@ class Storefront_model extends CI_Model {
 		// legacy/fallback tokens are rejected so the client regenerates.
 		if(!preg_match('/^[0-9a-f]{32,64}$/', (string)$token)) return false;
 		$token = (string)$token;
+		$items = json_decode((string)($data['items_json'] ?? '[]'), true);
+		$hasItems = is_array($items) && count($items) > 0;
 		$row = array(
 			'customer_name'  => substr((string)($data['customer_name'] ?? ''), 0, 191) ?: null,
 			'customer_phone' => substr((string)($data['customer_phone'] ?? ''), 0, 50) ?: null,
@@ -2187,14 +2202,28 @@ class Storefront_model extends CI_Model {
 		$existing = $this->db->where('store_id', (int)$storeId)->where('cart_token', $token)->get('db_storefront_carts')->row();
 		if($existing){
 			if(in_array($existing->status, array('ordered'), true)) return (int)$existing->id;
-			$this->db->where('id', $existing->id)->update('db_storefront_carts', $row);
-			return (int)$existing->id;
+			// A non-checkout snapshot must not erase contact details already
+			// captured on checkout. An explicit empty string still clears a field.
+			foreach(array('customer_name','customer_phone','customer_email','subtotal','coupon_code') as $field){
+				if(!isset($data[$field])) unset($row[$field]);
+			}
+			$row['status'] = $hasItems ? 'active' : 'cleared';
+			if($hasItems && $existing->status === 'cleared'){
+				foreach(array('customer_name','customer_phone','customer_email','coupon_code') as $field){
+					if(!isset($data[$field])) $row[$field] = null;
+				}
+				$row['reminder_count'] = 0;
+				$row['reminder_sent_at'] = null;
+			}
+			$ok = $this->db->where('id', $existing->id)->update('db_storefront_carts', $row);
+			return $ok ? (int)$existing->id : false;
 		}
+		if(!$hasItems) return 0;
 		$row['store_id'] = (int)$storeId;
 		$row['cart_token'] = $token;
 		$row['created_at'] = date('Y-m-d H:i:s');
-		$this->db->insert('db_storefront_carts', $row);
-		return (int)$this->db->insert_id();
+		$ok = $this->db->insert('db_storefront_carts', $row);
+		return $ok ? (int)$this->db->insert_id() : false;
 	}
 
 	public function getCartByToken($storeId, $token){
@@ -2219,12 +2248,12 @@ class Storefront_model extends CI_Model {
 	 */
 	public function getRestorableCart($storeId, $token){
 		$cart = $this->getCartByToken($storeId, $token);
-		if(!$cart || $cart->status === 'ordered') return null;
+		if(!$cart || $cart->status !== 'active') return null;
 		$now = date('Y-m-d H:i:s');
 		$expiry = !empty($cart->expires_at) ? $cart->expires_at : date('Y-m-d H:i:s', strtotime($cart->created_at . ' +7 days'));
 		if($expiry <= $now) return null;
 		$items = json_decode((string)$cart->items_json, true);
-		if(!is_array($items)) $items = array();
+		if(!is_array($items) || !$items) return null;
 		return $this->revalidateCartItems($storeId, $items);
 	}
 
@@ -2297,8 +2326,12 @@ class Storefront_model extends CI_Model {
 			->where('status', 'active')
 			->where('last_activity <', $cutoff)
 			->where('items_json IS NOT NULL', null, false)
+			->where("items_json <> '[]'", null, false)
 			->where('(customer_phone IS NOT NULL OR customer_email IS NOT NULL)', null, false)
 			->where('reminder_count <', 3);
+		if($this->db->field_exists('expires_at', 'db_storefront_carts')){
+			$this->db->where('(expires_at > NOW() OR (expires_at IS NULL AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)))', null, false);
+		}
 		if($this->db->field_exists('opt_out', 'db_storefront_carts')){
 			$this->db->where('opt_out', 0);
 		}
@@ -2307,18 +2340,23 @@ class Storefront_model extends CI_Model {
 	}
 
 	/**
-	 * Cross-store abandoned carts for the automated-recovery cron. Same
-	 * rules as the merchant list; caller still re-checks eligibility per
-	 * cart at send time.
+	 * Abandoned carts for automated recovery. The cron passes a store id so
+	 * each merchant gets its own limit and a busy store cannot starve another.
+	 * The caller still re-checks eligibility before sending.
 	 */
-	public function getAbandonedCartsForRecovery($hours = 24, $limit = 500){
+	public function getAbandonedCartsForRecovery($hours = 24, $limit = 500, $storeId = null){
 		if(!$this->db->table_exists('db_storefront_carts')) return array();
 		$cutoff = date('Y-m-d H:i:s', time() - max(1, (int)$hours) * 3600);
 		$this->db->where('status', 'active')
 			->where('last_activity <', $cutoff)
 			->where('items_json IS NOT NULL', null, false)
+			->where("items_json <> '[]'", null, false)
 			->where('(customer_phone IS NOT NULL OR customer_email IS NOT NULL)', null, false)
 			->where('reminder_count <', 3);
+		if($storeId !== null) $this->db->where('store_id', (int)$storeId);
+		if($this->db->field_exists('expires_at', 'db_storefront_carts')){
+			$this->db->where('(expires_at > NOW() OR (expires_at IS NULL AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)))', null, false);
+		}
 		if($this->db->field_exists('opt_out', 'db_storefront_carts')){
 			$this->db->where('opt_out', 0);
 		}
@@ -2334,6 +2372,11 @@ class Storefront_model extends CI_Model {
 	public function cartReminderEligible($cart, $hours = 24){
 		if(!$cart || $cart->status !== 'active') return false;
 		if(!empty($cart->opt_out)) return false; // column absent pre-.73 → field never set → falsy, fine
+		if(trim((string)$cart->items_json) === '' || trim((string)$cart->items_json) === '[]') return false;
+		$expiry = !empty($cart->expires_at)
+			? strtotime((string)$cart->expires_at)
+			: strtotime((string)$cart->created_at . ' +7 days');
+		if(!$expiry || $expiry <= time()) return false;
 
 		if((int)$cart->reminder_count >= 3) return false;
 		if(empty($cart->customer_phone) && empty($cart->customer_email)) return false;

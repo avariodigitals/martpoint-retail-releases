@@ -109,7 +109,7 @@
             <label class="stop-row">
               <input type="checkbox" name="sales_id[]" value="<?= (int)$s->id; ?>" onchange="this.closest('.stop-row').classList.toggle('picked', this.checked)">
               <div class="info"><div class="inv">#<?= htmlspecialchars($s->sales_code); ?></div><div class="cust"><?= htmlspecialchars($s->customer_name ?: 'Walk-in'); ?> · <?= htmlspecialchars($s->mobile ?: '-'); ?></div></div>
-              <span class="amt"><?= $this->currency($s->grand_total); ?></span>
+              <span class="amt"><?= mp_format_money($s->grand_total); ?></span>
               <input type="hidden" name="delivery_sequence[]" value="<?= $i + 1; ?>">
             </label>
             <?php endforeach; ?>

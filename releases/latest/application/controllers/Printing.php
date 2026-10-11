@@ -23,22 +23,13 @@ class Printing extends MY_Controller {
     }
 
     private function _check_feature() {
-        // Gated on `production_workflow`, which is what the printing preset
-        // declares (business_profile_helper: 'printing' => [... 'production_workflow' ...]).
-        //
-        // This used to read `printing_workflow`, a flag key that exists NOWHERE
-        // in the codebase — not in mp_get_feature_flags() (67 keys), not in any
-        // preset. mp_feature_enabled() falls through to its default arm and
-        // looks the key up in the store's feature list, so the answer was
-        // permanently false: the entire printing workspace was unreachable for
-        // every store, and _check_feature() would have shown "not activated"
-        // even on a correctly configured print shop.
-        //
-        // Accept EITHER key so an install that has somehow stored the old
-        // spelling keeps working — but the preset's real flag is the gate.
-        if (!mp_feature_enabled('production_workflow') && !mp_feature_enabled('printing_workflow')) {
-            $this->show_feature_not_activated('production_workflow',
-                'Enable the Printing module from Business Profile, then pick category presets.');
+        // Gates on `printing_workflow`, which the printing preset now declares.
+        // `production_workflow` is NOT a printing flag — the bakery, restaurant,
+        // manufacturer, butchery and oil presets declare it too, so gating here
+        // opened this workspace on ordinary retail stores.
+        if (!mp_feature_enabled('printing_workflow')) {
+            $this->show_feature_not_activated('printing_workflow',
+                'Enable the Print Shop module from Business Profile, then pick category presets.');
         }
     }
 

@@ -85,7 +85,7 @@
           </div>
           <div class="item-name"><i class="fa fa-cube"></i> <?= htmlspecialchars($o->template_item_name ?: $o->item_name ?: '-'); ?></div>
           <div class="foot">
-            <span class="amount"><?= $this->currency($o->total_amount); ?></span>
+            <span class="amount"><?= mp_format_money($o->total_amount); ?></span>
             <span class="due <?= $overdue ? 'overdue' : ''; ?>"><?php if(!empty($o->due_date)): ?><i class="fa fa-calendar"></i> <?= show_date($o->due_date); ?><?= $overdue ? ' — overdue' : ''; ?><?php else: ?>No due date<?php endif; ?></span>
           </div>
         </a>

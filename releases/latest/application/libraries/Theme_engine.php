@@ -282,8 +282,21 @@ class Theme_engine {
      * decision and overrides it — that is the whole point of the mode.
      */
     public function cartEnabled(): bool {
+        // Printing designs are quote-first even when a legacy catalogue mode
+        // says "both". A skincare theme on a test slug retains its product bag.
+        $key = $this->theme->theme_key ?? '';
+        if (in_array($key, ['print_works', 'print_inkpress', 'print_papercraft', 'print_neonprint'], true)) {
+            return false;
+        }
         if (!$this->sellsProducts()) {
             return false;
+        }
+        // Skinora's Products/Products + Services modes have their own bag and
+        // checkout. Existing stores can carry a stale allow_products_online=0
+        // flag while publishing products, so the selected theme must supply
+        // its commerce path rather than hiding it.
+        if (($this->theme->theme_key ?? '') === 'skinora') {
+            return true;
         }
         // Lumière is an online product storefront whenever Products or Both
         // is selected in Appearance. Older skincare stores can retain the
@@ -446,7 +459,7 @@ class Theme_engine {
             // not be wrapped in retail markup at all.
             //
             // Everything else in the catalogue keeps the retail layout untouched.
-            $layout = $isPrintDesign ? 'themes/printing/layout' : 'themes/shared/layout';
+			$layout = $isPrintDesign ? 'themes/printing/layout' : 'themes/shared/layout';
             return $this->CI->load->view($layout, $merged, $return);
         }
 

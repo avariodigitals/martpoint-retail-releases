@@ -82,7 +82,7 @@
           <div class="top">
             <div>
               <div class="who"><?= htmlspecialchars($m->customer_name ?: 'Unknown'); ?></div>
-              <div class="plan"><?= htmlspecialchars($m->plan_name ?: 'Plan'); ?> · <?= $this->currency($m->price); ?> / <?= htmlspecialchars($m->billing_cycle); ?></div>
+              <div class="plan"><?= htmlspecialchars($m->plan_name ?: 'Plan'); ?> · <?= mp_format_money($m->price); ?> / <?= htmlspecialchars($m->billing_cycle); ?></div>
             </div>
             <span class="badge <?= $bcls; ?>"><?= $btxt; ?></span>
           </div>

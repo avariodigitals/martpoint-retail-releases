@@ -676,6 +676,7 @@ function placeOrder(){
 }
 
 function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
+  window.mpCheckoutInProgress = true;
   const data=new URLSearchParams();
   data.append('store_id',STORE_ID); data.append('customer_name',name); data.append('customer_phone',phone);
   data.append('customer_email',email); data.append('customer_address',address); data.append('payment_method',pm);
@@ -702,10 +703,10 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
         payWithPaystack(res.public_key,res.email,res.amount_kobo,res.reference,res.order_id,res.currency||'NGN');
       } else {
         showOrderSuccess(res.order_code, res.redirect_url, pm);
-        cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); updateCartUI();
+        cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); localStorage.removeItem('sf_cart_token_'+STORE_ID); updateCartUI();
       }
-    } else { showToast(res.message||'Failed to place order'); btn.disabled=false; updateCheckoutBtn(); }
-  }).catch(err=>{ showToast(err.message || 'Network error. Please try again.'); btn.disabled=false; updateCheckoutBtn(); });
+    } else { window.mpCheckoutInProgress = false; showToast(res.message||'Failed to place order'); btn.disabled=false; updateCheckoutBtn(); }
+  }).catch(err=>{ window.mpCheckoutInProgress = false; showToast(err.message || 'Network error. Please try again.'); btn.disabled=false; updateCheckoutBtn(); });
 }
 
 function payWithPaystack(key,email,amount,reference,orderId,currency){
@@ -720,8 +721,9 @@ function payWithPaystack(key,email,amount,reference,orderId,currency){
       .then(v=>{
         if(v.status){
           showOrderSuccess(v.order_code||response.reference, v.redirect_url||('<?= base_url('store/' . ($settings->store_slug ?? '') . '/order_received/'); ?>'+(v.order_code||response.reference)), 'paystack');
-          cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); updateCartUI();
+          cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); localStorage.removeItem('sf_cart_token_'+STORE_ID); updateCartUI();
         } else {
+          window.mpCheckoutInProgress = false;
           showToast(v.message||'Payment could not be verified');
           const btn=document.getElementById('checkout-btn'); if(btn){ btn.disabled=false; updateCheckoutBtn(); }
         }
@@ -732,7 +734,7 @@ function payWithPaystack(key,email,amount,reference,orderId,currency){
         window.location.href = '<?= base_url('storefront/paystack_callback'); ?>?reference=' + encodeURIComponent(response.reference);
       });
     },
-    onClose:function(){ showToast('Payment cancelled'); const btn=document.getElementById('checkout-btn'); if(btn){ btn.disabled=false; updateCheckoutBtn(); } }
+    onClose:function(){ window.mpCheckoutInProgress = false; showToast('Payment cancelled'); const btn=document.getElementById('checkout-btn'); if(btn){ btn.disabled=false; updateCheckoutBtn(); } }
   });
   handler.openIframe();
 }

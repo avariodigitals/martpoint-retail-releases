@@ -1,1 +1,10 @@
-<?php $SK_SKIN = 'skinora'; include APPPATH . 'views/themes/skin_core/products.php'; ?>
+<?php
+require_once APPPATH . 'views/themes/skinora/_helpers.php';
+$snSlug = $settings->store_slug ?? '';
+$snHome = base_url('store/' . $snSlug);
+$snBase = $snHome . '/products';
+$snQuery = [];
+if (!empty($category_id)) $snQuery['category'] = (int) $category_id;
+if (!empty($search)) $snQuery['search'] = $search;
+?>
+<main class="sn-inner"><div class="container"><div class="sn-breadcrumb"><a href="<?= sn_e($snHome); ?>">Home</a><span>›</span>Shop</div><div class="sn-page-intro"><div class="eyebrow">THE SKINORA SELECTION</div><h1>Your shelf, elevated.</h1><p>A curated collection of feel-good skincare favourites.</p></div><form class="sn-search-form" action="<?= sn_e($snBase); ?>" method="get"><input type="search" name="search" value="<?= sn_e($search ?? ''); ?>" placeholder="Search serums, moisturisers, cleansers..." aria-label="Search skincare products"><button class="btn" type="submit">SEARCH ↗</button></form><div class="tabs sn-list-tabs"><a class="tab <?= empty($category_id) ? 'active' : ''; ?>" href="<?= sn_e($snBase); ?>">All</a><?php foreach ($categories ?? [] as $category): ?><a class="tab <?= (int) ($category_id ?? 0) === (int) $category->id ? 'active' : ''; ?>" href="<?= sn_e($snBase . '?category=' . (int) $category->id); ?>"><?= sn_e($category->category_name); ?></a><?php endforeach; ?></div><?php if (!empty($products)): ?><div class="product-grid"><?php foreach ($products as $product) sn_product_card($product, $snSlug, $store_currency ?? null, $settings); ?></div><?php else: ?><div class="empty"><h2>No products found.</h2><p>Try another search or browse all skincare.</p><a class="btn" href="<?= sn_e($snBase); ?>">SHOP ALL PRODUCTS ↗</a></div><?php endif; ?><?php if (($total_pages ?? 1) > 1): ?><nav class="sn-pagination" aria-label="Product pages"><?php for ($p = 1; $p <= $total_pages; $p++): $snQuery['page'] = $p; ?><a class="<?= $p === (int) $page ? 'active' : ''; ?>" href="<?= sn_e($snBase . '?' . http_build_query($snQuery)); ?>"><?= $p; ?></a><?php endfor; ?></nav><?php endif; ?></div></main>

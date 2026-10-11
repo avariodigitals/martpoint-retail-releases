@@ -80,11 +80,19 @@
     _mpCartSaveTimer = setTimeout(function(){
       try{
         const items = (typeof cartData !== 'undefined' ? cartData : cart) || [];
-        if(!items.length) return;
+        const subtotal = items.reduce(function(sum, item){
+          return sum + (typeof sfCartLineTotal === 'function'
+            ? sfCartLineTotal(item)
+            : (Number(item.price)||0) * (Number(item.qty)||0));
+        }, 0);
         const body = new URLSearchParams({
           store_id: STORE_ID, cart_token: mpCartToken(),
           '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>',
-          items_json: JSON.stringify(items)
+          items_json: JSON.stringify(items), subtotal: String(subtotal)
+        });
+        [['cust-name','customer_name'],['cust-phone','customer_phone'],['cust-email','customer_email']].forEach(function(pair){
+          const input = document.getElementById(pair[0]);
+          if(input) body.set(pair[1], input.value || '');
         });
         if(extra) for(const k in extra) body.set(k, extra[k]);
         fetch('<?= base_url('storefront/save_cart'); ?>', {method:'POST', body:body.toString(),
@@ -93,8 +101,9 @@
           .then(res => {
             // Server rejected the token format (e.g. upgraded client) —
             // clear it so the next save mints a fresh crypto token.
-            if(res && res.message === 'bad_token'){
+            if(res && (res.message === 'bad_token' || res.message === 'ordered_token')){
               try{ localStorage.removeItem('sf_cart_token_' + STORE_ID); }catch(e){}
+              if(res.message === 'ordered_token' && !window.mpCheckoutInProgress) mpSaveCart(extra);
             }
           }).catch(()=>{});
       }catch(e){}

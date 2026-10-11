@@ -1,1 +1,21 @@
-<?php $SK_SKIN = 'skinora'; include APPPATH . 'views/themes/skin_core/header.php'; ?>
+<?php
+require_once APPPATH . 'views/themes/skinora/_helpers.php';
+$snSlug = $settings->store_slug ?? '';
+$snHome = base_url('store/' . $snSlug);
+$snName = trim((string) ($store->store_name ?? '')) ?: 'Skinora';
+$snHasServices = !empty($sells_services) && !empty($settings->allow_services);
+$snAnnouncement = trim((string) ($settings->announcement_bar ?? '')) ?: 'A BEAUTIFUL RITUAL STARTS HERE · COMPLIMENTARY DELIVERY ON ORDERS ABOVE ₦50,000';
+$snMarquee = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) ($settings->marquee_items ?? ''))), 'strlen'));
+?>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="<?= base_url('theme/css/skinora-reference.css?v=1'); ?>">
+<link rel="stylesheet" href="<?= base_url('theme/css/skinora-martpoint.css?v=3'); ?>">
+<?php if ($snMarquee): ?><div class="announcement sn-marquee" aria-label="Store announcements"><div class="sn-marquee-track"><?php for ($r = 0; $r < 2; $r++): ?><div class="sn-marquee-group"<?= $r ? ' aria-hidden="true"' : ''; ?>><?php foreach ($snMarquee as $message): ?><span><?= sn_e($message); ?></span><i aria-hidden="true">✧</i><?php endforeach; ?></div><?php endfor; ?></div></div><?php else: ?><div class="announcement"><?= sn_e($snAnnouncement); ?></div><?php endif; ?>
+<header class="header"><div class="header-inner">
+  <button class="icon-btn menu-button" type="button" id="sn-menu" aria-label="Open navigation" aria-expanded="false" aria-controls="sn-nav">☰</button>
+  <a href="<?= sn_e($snHome); ?>" class="brand<?= !empty($logo_url) ? ' sn-brand-logo' : ''; ?>" aria-label="<?= sn_e($snName); ?> homepage"><?php if (!empty($logo_url)): ?><img src="<?= sn_e($logo_url); ?>" alt="<?= sn_e($snName); ?> logo"><?php else: ?><?= sn_e($snName); ?><span>PURE · CARE · YOU</span><?php endif; ?></a>
+  <nav id="sn-nav" class="nav" aria-label="Main navigation"><?php if (!empty($sells_products)): ?><a href="<?= sn_e($snHome . '/products'); ?>">Shop</a><a href="<?= sn_e($snHome . '#collections'); ?>">Collections</a><?php endif; ?><a href="<?= sn_e($snHome . '/about'); ?>">Our Story</a><?php if ($snHasServices): ?><a href="<?= sn_e($snHome . '/services'); ?>">Treatments</a><?php endif; ?><a href="<?= sn_e($snHome . '#newsletter'); ?>">Journal &amp; Offers</a></nav>
+  <div class="actions"><button class="icon-btn" type="button" id="sn-search" aria-label="Search products" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg></button><a class="icon-btn" href="<?= sn_e($snHome . '/account'); ?>" aria-label="Customer account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-5 16-5 16 0"/></svg></a><?php if (!empty($cart_enabled)): ?><a class="icon-btn" id="sn-cart-open" href="<?= sn_e($snHome . '/cart'); ?>" aria-label="Your beauty bag" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 8h16l-1 13H5L4 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg><span id="cart-count" class="bag-count">0</span></a><?php endif; ?></div>
+</div><form class="search-bar" id="sn-search-bar" action="<?= sn_e($snHome . '/products'); ?>" method="get"><input type="search" name="search" id="sn-search-input" placeholder="Search serums, moisturisers, cleansers..." aria-label="Search products"></form></header>
+<script>document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('sn-menu'),n=document.getElementById('sn-nav'),s=document.getElementById('sn-search'),f=document.getElementById('sn-search-bar');b.addEventListener('click',function(){var open=n.classList.toggle('open');b.setAttribute('aria-expanded',open?'true':'false')});s.addEventListener('click',function(){var open=f.classList.toggle('open');s.setAttribute('aria-expanded',open?'true':'false');if(open)document.getElementById('sn-search-input').focus()});document.addEventListener('click',function(e){var a=e.target.closest('[data-sn-add]');if(a&&typeof addToCart==='function'){addToCart(Number(a.dataset.id),a.dataset.type,a.dataset.name,Number(a.dataset.price),a.dataset.image,1,Number(a.dataset.stock))}})});</script>

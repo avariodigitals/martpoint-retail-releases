@@ -87,7 +87,10 @@ class Cron extends CI_Controller {
 			$this->_cartRecoveryOut($isCli, ['status'=>'skipped','message'=>'feature tables not installed']);
 			return;
 		}
-		$stores = $this->db->where('auto_recovery_enabled', 1)->get('db_storefront_settings')->result();
+		$stores = $this->db->where('auto_recovery_enabled', 1)
+			->where('cart_recovery_enabled', 1)
+			->where('store_status', 'active')
+			->get('db_storefront_settings')->result();
 		$results = [];
 		foreach($stores as $st){
 			$storeId = (int)$st->store_id;
@@ -97,7 +100,7 @@ class Cron extends CI_Controller {
 			$store = $this->db->where('id', $storeId)->get('db_store')->row();
 			$testRecipient = $store->email ?? null;
 
-			foreach($this->storefront_model->getAbandonedCartsForRecovery($hours, 500) as $cart){
+			foreach($this->storefront_model->getAbandonedCartsForRecovery($hours, 500, $storeId) as $cart){
 				if((int)$cart->store_id !== $storeId) continue;
 				// Recheck eligibility at send time — ordered/opted-out/
 				// recently-nudged carts are skipped even if just listed.

@@ -68,7 +68,7 @@
 
       <div class="hero">
         <div class="lbl">Total Commission</div>
-        <div class="amt"><?= $this->currency($grand_total); ?></div>
+        <div class="amt"><?= mp_format_money($grand_total); ?></div>
         <div class="range"><?= show_date($from_date); ?> — <?= show_date($to_date); ?><?= $selected_staff_id ? ' · filtered' : ''; ?></div>
       </div>
 
@@ -94,7 +94,7 @@
           <div class="who"><?= htmlspecialchars($s->staff_name ?: 'Unknown'); ?></div>
           <div class="sub"><?= (int)$s->invoice_count; ?> invoice<?= $s->invoice_count == 1 ? '' : 's'; ?> · <?= store_number_format($s->total_qty); ?> units</div>
         </div>
-        <div class="amt"><?= $this->currency($s->total_commission); ?></div>
+        <div class="amt"><?= mp_format_money($s->total_commission); ?></div>
       </div>
       <?php endforeach; ?>
       <?php endif; ?>
@@ -110,7 +110,7 @@
           <div class="item"><?= htmlspecialchars($c->item_name ?: 'Item'); ?> × <?= store_number_format($c->sales_qty); ?></div>
           <div class="foot">
             <span class="who"><i class="fa fa-user"></i> <?= htmlspecialchars($c->staff_name ?: '-'); ?></span>
-            <span class="comm">+<?= $this->currency($c->commission_amount); ?></span>
+            <span class="comm">+<?= mp_format_money($c->commission_amount); ?></span>
           </div>
         </div>
         <?php endforeach; ?>

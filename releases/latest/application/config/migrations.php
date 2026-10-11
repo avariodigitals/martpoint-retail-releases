@@ -274,4 +274,5 @@ return [
           '4.0.9.135v'  => '4.0.9.135_physio_final_assessment.sql',
           '4.0.9.136v'  => '4.0.9.136_physio_user_signatures.sql',
           '4.0.9.137v'  => '4.0.9.137_skincare_reference_themes.sql',
+          '4.0.9.138v'  => '4.0.9.138_skincare_appointment_channel.sql',
 ];

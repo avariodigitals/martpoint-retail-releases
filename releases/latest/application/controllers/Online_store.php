@@ -621,7 +621,7 @@ class Online_store extends MY_Controller {
 		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
 		$data = array_merge($this->data, [
 			'page_title' => 'Services',
-			'services' => $this->storefront_model->getOnlineServices(null, null, '', 100, 0),
+			'services' => $this->storefront_model->getServicesForAdmin(get_current_store_id()),
 			'categories' => $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_category')->result()
 		]);
 		$data['content'] = $this->load->view('online_store/services', $data, TRUE);
@@ -629,12 +629,17 @@ class Online_store extends MY_Controller {
 	}
 
 	public function save_service(){
+		$this->output->set_content_type('application/json');
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;
 		}
 		$serviceId = (int)$this->input->post('service_id');
 		$storeId = get_current_store_id();
+		if($serviceId && !$this->db->where('id', $serviceId)->where('store_id', $storeId)->get('db_services')->row()){
+			echo json_encode(['status' => 'error', 'message' => 'Service not found for this store']);
+			return;
+		}
 		$data = [
 			'service_name' => trim($this->input->post('service_name')),
 			'category_id' => (int)$this->input->post('category_id'),
@@ -651,11 +656,43 @@ class Online_store extends MY_Controller {
 			'deposit_percent' => (float)$this->input->post('deposit_percent'),
 			'status' => $this->input->post('status') ? 1 : 0
 		];
+		$uploadedPath = null;
+		if(!empty($_FILES['service_image']['name'])){
+			$mediaCheck = check_media_storage_limit();
+			if($mediaCheck !== true){
+				echo json_encode(['status' => 'error', 'message' => $mediaCheck]);
+				return;
+			}
+			$uploadDir = './uploads/storefront/' . $storeId . '/services/';
+			if(!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)){
+				echo json_encode(['status' => 'error', 'message' => 'Could not prepare the service photo folder']);
+				return;
+			}
+			$this->load->library('upload');
+			$this->upload->initialize([
+				'upload_path' => $uploadDir,
+				'allowed_types' => 'jpg|jpeg|png|webp',
+				'max_size' => 5120,
+				'file_name' => 'service_' . ($serviceId ?: 'new') . '_' . time()
+			]);
+			if(!$this->upload->do_upload('service_image')){
+				echo json_encode(['status' => 'error', 'message' => trim(strip_tags($this->upload->display_errors('', ''))) ?: 'Service photo upload failed']);
+				return;
+			}
+			$upload = $this->upload->data();
+			$uploadedPath = $upload['full_path'];
+			$data['service_image'] = 'uploads/storefront/' . $storeId . '/services/' . $upload['file_name'];
+		}
 		if($serviceId){
-			$this->db->where('id', $serviceId)->where('store_id', $storeId)->update('db_services', $data);
+			$saved = $this->db->where('id', $serviceId)->where('store_id', $storeId)->update('db_services', $data);
 		} else {
 			$data['store_id'] = $storeId;
-			$this->db->insert('db_services', $data);
+			$saved = $this->db->insert('db_services', $data);
+		}
+		if(!$saved){
+			if($uploadedPath) @unlink($uploadedPath);
+			echo json_encode(['status' => 'error', 'message' => 'Could not save service']);
+			return;
 		}
 		echo json_encode(['status' => 'success', 'message' => 'Service saved successfully']);
 	}

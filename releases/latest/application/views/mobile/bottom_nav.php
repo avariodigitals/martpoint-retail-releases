@@ -106,6 +106,8 @@
   .topbar h1 { font-size: clamp(16px, 4.5vw, 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .clock-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--mp-success); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
   .clock-btn.out { background: var(--mp-danger); }
+  .mp-time-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: var(--mp-bg); border: 1px solid var(--mp-border); color: var(--mp-ink); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .mp-time-pill i { color: var(--mp-muted); font-size: 13px; }
   .avatar { width: 36px; height: 36px; border-radius: 50%; background: #E0E7FF; color: var(--mp-primary); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; overflow: hidden; text-decoration: none; flex-shrink: 0; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
   .mp-avatar-wrap { position: relative; display: inline-flex; margin-left: 16px; }
@@ -177,7 +179,7 @@
   .topbar-titles { flex: 1 1 auto !important; min-width: 0 !important; }
   .topbar .store-name { display: block !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar h1 { min-width: 0; }
-  .topbar .back, .topbar .clock-btn, .topbar .mp-avatar-wrap { flex: 0 0 auto; }
+  .topbar .back, .topbar .clock-btn, .topbar .mp-time-pill, .topbar .mp-avatar-wrap { flex: 0 0 auto; }
 
   @media (max-width: 480px) {
     /* Keep both store and screen names visible; let long names ellipsize. */
@@ -191,10 +193,15 @@
     .topbar .clock-btn .clock-label { display: none !important; }
     .topbar .clock-btn i { font-size: 15px !important; }
     .topbar .mp-avatar-wrap { margin-left: 8px !important; }
+    /* Time pill keeps its text (the time is the whole point) but drops the
+       icon and tightens up so the screen name keeps its room. */
+    .topbar .mp-time-pill { padding: 6px 8px !important; gap: 0 !important; font-size: 12px !important; }
+    .topbar .mp-time-pill i { display: none !important; }
   }
   @media (max-width: 360px) {
     .topbar { gap: 6px !important; }
     .topbar .mp-avatar-wrap { margin-left: 4px !important; }
+    .topbar .mp-time-pill { padding: 5px 7px !important; font-size: 11px !important; }
     .topbar .avatar { width: 34px !important; height: 34px !important; }
     .topbar .add, .topbar .topbar-action { padding: 8px 10px !important; font-size: 12px !important; }
   }
@@ -303,6 +310,11 @@
              visible and kept crushing the screen title. */ ?>
     <span class="clock-label"><?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?></span>
   </a>
+  <?php else: ?>
+  <div class="mp-time-pill" aria-label="Current time">
+    <i class="fa fa-clock-o"></i>
+    <span class="mp-time-val">--:--</span>
+  </div>
   <?php endif; ?>
   <div class="mp-avatar-wrap">
     <button type="button" class="avatar mp-avatar-trigger" aria-haspopup="true" aria-label="Open account menu" style="color:var(--mp-primary);">
@@ -347,6 +359,16 @@
         tb.insertAdjacentHTML('beforeend', html);
       });
     }
+
+    (function(){
+      if(!document.querySelector('.mp-time-val')) return;
+      function tick(){
+        var t = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+        document.querySelectorAll('.mp-time-val').forEach(function(el){ el.textContent = t; });
+      }
+      tick();
+      setInterval(tick, 15000);
+    })();
 
     function closeAllAvatarMenus(){
       document.querySelectorAll('.mp-avatar-menu').forEach(function(m){ m.classList.remove('open'); });

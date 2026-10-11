@@ -66,7 +66,7 @@
             </div>
             <span class="badge <?= $p->status ? 'active' : 'inactive'; ?>"><?= $p->status ? 'Active' : 'Inactive'; ?></span>
           </div>
-          <div class="price"><?= $this->currency($p->price); ?> <small>/ <?= htmlspecialchars($p->billing_cycle); ?></small></div>
+          <div class="price"><?= mp_format_money($p->price); ?> <small>/ <?= htmlspecialchars($p->billing_cycle); ?></small></div>
           <div class="perks">
             <?php if((float)$p->discount_percent > 0): ?><span class="perk"><i class="fa fa-tag"></i> <?= $p->discount_percent; ?>% off</span><?php endif; ?>
             <?php if((int)$p->free_services_per_period > 0): ?><span class="perk"><i class="fa fa-gift"></i> <?= (int)$p->free_services_per_period; ?> free/period</span><?php endif; ?>

@@ -83,10 +83,10 @@
         <div class="kv"><span class="k"><?= htmlspecialchars(mp_label('staff')); ?></span><span class="v"><?= htmlspecialchars($order->staff_name ?: '-'); ?></span></div>
         <div class="kv"><span class="k">Order Date</span><span class="v"><?= show_date($order->order_date); ?></span></div>
         <div class="kv"><span class="k">Due Date</span><span class="v"><?= !empty($order->due_date) ? show_date($order->due_date) : '-'; ?></span></div>
-        <div class="kv"><span class="k">Quoted</span><span class="v"><?= $this->currency($order->quoted_price); ?></span></div>
-        <div class="kv"><span class="k">Deposit</span><span class="v"><?= $this->currency($order->deposit_paid); ?> / <?= $this->currency($order->deposit_amount); ?></span></div>
-        <div class="kv"><span class="k">Total</span><span class="v" style="color:var(--mp-primary)"><?= $this->currency($order->total_amount); ?></span></div>
-        <div class="kv"><span class="k">Balance Due</span><span class="v" style="color:<?= ((float)$order->balance_due > 0) ? 'var(--mp-danger)' : 'var(--mp-success)'; ?>"><?= $this->currency($order->balance_due); ?></span></div>
+        <div class="kv"><span class="k">Quoted</span><span class="v"><?= mp_format_money($order->quoted_price); ?></span></div>
+        <div class="kv"><span class="k">Deposit</span><span class="v"><?= mp_format_money($order->deposit_paid); ?> / <?= mp_format_money($order->deposit_amount); ?></span></div>
+        <div class="kv"><span class="k">Total</span><span class="v" style="color:var(--mp-primary)"><?= mp_format_money($order->total_amount); ?></span></div>
+        <div class="kv"><span class="k">Balance Due</span><span class="v" style="color:<?= ((float)$order->balance_due > 0) ? 'var(--mp-danger)' : 'var(--mp-success)'; ?>"><?= mp_format_money($order->balance_due); ?></span></div>
       </div>
 
       <?php $specs = json_decode($order->specifications_json ?: '[]', true); if(!empty($specs)): ?>

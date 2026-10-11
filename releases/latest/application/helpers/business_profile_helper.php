@@ -131,6 +131,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'staff_commission'          => 'Staff Commission',
             'delivery_scheduling'       => 'Delivery Scheduling',
             'production_workflow'       => 'Production Workflow',
+            'printing_workflow'         => 'Print Shop Module',
             'recipe_tracking'           => 'Recipe Tracking',
             'customer_notes'            => 'Customer Notes',
             'price_catalogue'           => 'Price Catalogue',
@@ -557,7 +558,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'printing' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','custom_orders','production_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
+                'features'=>['accounts','warehouse','online_store','custom_orders','production_workflow','printing_workflow','recipe_tracking','delivery_scheduling','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 'theme_key'=>'general_retail','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Print Job','service_order'=>'Print Order','item'=>'Material','customer'=>'Client','recipe'=>'Recipe','production'=>'Production'],
             ],
@@ -768,25 +769,13 @@ if (!function_exists('mp_is_print_shop')) {
     /**
      * Is this store running a print business?
      *
-     * WHY A FEATURE CHECK AND NOT AN INDUSTRY LABEL
-     * ---------------------------------------------
-     * Deciding this from `industry_type === 'printing'` is too narrow and has
-     * already produced a real bug: a store can legitimately be relabelled (the
-     * dev store reads `fashion`) while still running printing themes with print
-     * jobs against it. The industry string then disagrees with reality and every
-     * screen that trusted it shows the wrong thing.
-     *
-     * `production_workflow` is what the printing preset actually declares and
-     * what the printing module itself gates on
-     * (Printing::_check_feature()), so the same flag answers "should this store
-     * see print-shaped screens?" everywhere. One question, one answer.
-     *
-     * The legacy `printing_workflow` spelling is still honoured because it
-     * existed in shipped code before the flag was corrected.
+     * Gates on `printing_workflow`, NOT `production_workflow`: the latter is
+     * declared by the bakery/restaurant/manufacturer/butchery/oil presets too,
+     * so it leaks the print workspace into ordinary retail. A store whose
+     * industry label is wrong can still switch this on under Feature Flags.
      */
     function mp_is_print_shop() {
-        return mp_feature_enabled('production_workflow')
-            || mp_feature_enabled('printing_workflow');
+        return mp_feature_enabled('printing_workflow');
     }
 }
 

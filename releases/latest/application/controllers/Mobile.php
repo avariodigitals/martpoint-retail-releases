@@ -3384,18 +3384,14 @@ class Mobile extends MY_Controller {
 	 */
 	public function shipping_fees()
 	{
-		if(!mp_feature_enabled('manual_shipping') || !$this->db->table_exists('db_shipping_fees')){
-			show_404();
-			return;
-		}
 		$this->permission_check('sales_view');
-
 		$data = $this->data;
 		$data['page_title'] = 'Shipping Fees';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
-		$data['fees'] = $this->db->where('store_id', get_current_store_id())
-			->order_by('sort_order', 'asc')->order_by('id', 'asc')
-			->get('db_shipping_fees')->result();
+		$store_id = get_current_store_id();
+		$data['fees'] = ($this->db->table_exists('db_shipping_fees'))
+			? $this->db->where('store_id', $store_id)->order_by('sort_order', 'asc')->order_by('id', 'asc')->get('db_shipping_fees')->result()
+			: [];
 		$data['can_add'] = $this->permissions('sales_add');
 		$data['can_delete'] = $this->permissions('sales_delete');
 		$this->load->view('mobile/shipping_fees', $data);
@@ -4326,6 +4322,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Due Payments', 'desc' => 'Unpaid invoices', 'icon' => 'fa-money', 'url' => 'mobile/due', 'perm' => 'sales_view', 'color' => 'red'],
 				['title' => 'Reconciliation', 'desc' => 'Payment exception queue', 'icon' => 'fa-check-square-o', 'url' => 'mobile/reconcile', 'perm' => 'payments_reconcile', 'color' => 'teal'],
 				['title' => 'Shipping Fees', 'desc' => 'Delivery locations and charges', 'icon' => 'fa-truck', 'url' => 'mobile/shipping_fees', 'perm' => 'sales_view', 'feature' => 'manual_shipping', 'color' => 'orange'],
+				['title' => 'Deliveries', 'desc' => 'Delivery routes, stops & progress', 'icon' => 'fa-map-o', 'url' => 'mobile/deliveries', 'perm' => 'store_view', 'feature' => 'delivery_scheduling', 'color' => 'purple'],
 				['title' => 'Sales Payments', 'desc' => 'Payment receipt ledger', 'icon' => 'fa-credit-card', 'url' => 'mobile/sales_payments', 'perm' => 'sales_payment_view', 'color' => 'teal'],
 				['title' => 'Installment Plans', 'desc' => 'Buy now, pay later schedules', 'icon' => 'fa-calendar-check-o', 'url' => 'mobile/installments', 'perm' => 'installment_plans', 'feature' => 'payplan', 'color' => 'purple'],
 			],
@@ -4613,7 +4610,7 @@ class Mobile extends MY_Controller {
 			// carries production_workflow and custom_orders, so without its own
 			// entry the phone offered it batch production and custom orders —
 			// screens written for a factory, not a press shop.
-			['title' => 'Print Shop', 'desc' => 'Jobs, quotes, artwork & collection', 'icon' => 'fa-print', 'url' => 'mobile/printing', 'perm' => 'print_view', 'feature' => 'production_workflow', 'color' => 'teal'],
+			['title' => 'Print Shop', 'desc' => 'Jobs, quotes, artwork & collection', 'icon' => 'fa-print', 'url' => 'mobile/printing', 'perm' => 'print_view', 'feature' => 'printing_workflow', 'color' => 'teal'],
 			['title' => 'Custom Orders', 'desc' => 'Orders, quotes & deposits', 'icon' => 'fa-pencil-square-o', 'url' => 'operations/custom_orders', 'perm' => 'custom_orders_view', 'feature' => 'custom_orders', 'color' => 'primary'],
 			['title' => 'Production', 'desc' => 'Batches & production schedule', 'icon' => 'fa-industry', 'url' => 'operations/production', 'perm' => 'production_batches_view', 'feature' => 'production_workflow', 'color' => 'orange'],
 			['title' => 'Nylon Factory', 'desc' => 'Extrusion, printing & bag jobs', 'icon' => 'fa-industry', 'url' => 'mobile/nylon', 'perm' => 'nylon_view', 'feature' => ['nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'], 'color' => 'teal'],
@@ -4624,7 +4621,7 @@ class Mobile extends MY_Controller {
 			['title' => 'Table Management', 'desc' => 'Tables & dining status', 'icon' => 'fa-table', 'url' => 'mobile/table_management', 'perm' => 'store_view', 'feature' => 'table_management', 'color' => 'green'],
 			['title' => 'Staff Assignment', 'desc' => 'Assign staff to services', 'icon' => 'fa-user-md', 'url' => 'operations/staff_assignment', 'perm' => 'store_view', 'feature' => 'staff_assignment', 'color' => 'yellow'],
 			['title' => 'Staff Commission', 'desc' => 'Track staff commissions', 'icon' => 'fa-percent', 'url' => 'operations/staff_commission', 'perm' => 'store_view', 'feature' => 'staff_commission', 'color' => 'yellow'],
-			['title' => 'Delivery', 'desc' => 'Schedule & track deliveries', 'icon' => 'fa-truck', 'url' => 'operations/delivery_scheduling', 'perm' => 'store_view', 'feature' => 'delivery_scheduling', 'color' => 'purple'],
+			['title' => 'Delivery', 'desc' => 'Schedule & track deliveries', 'icon' => 'fa-truck', 'url' => 'mobile/deliveries', 'perm' => 'store_view', 'feature' => 'delivery_scheduling', 'color' => 'purple'],
 			['title' => 'Warranty Lookup', 'desc' => 'Check product warranty', 'icon' => 'fa-shield', 'url' => 'operations/warranty_lookup', 'perm' => 'store_view', 'feature' => 'warranty_tracking', 'color' => 'blue'],
 			['title' => 'Treatment Notes', 'desc' => 'Service & treatment history', 'icon' => 'fa-heartbeat', 'url' => 'operations/treatment_notes', 'perm' => 'treatment_notes_view', 'feature' => 'treatment_notes', 'color' => 'red'],
 			['title' => 'Medical Notes', 'desc' => 'Patient prescriptions', 'icon' => 'fa-file-medical-o', 'url' => 'operations/medical_notes', 'perm' => 'medical_notes_view', 'feature' => 'medical_notes', 'color' => 'red'],
@@ -8071,10 +8068,10 @@ class Mobile extends MY_Controller {
 
 	private function _printing_gate($perm = 'print_view')
 	{
-		// Same flag the desktop module gates on. NOT `printing_workflow`, which
-		// exists nowhere and would make every one of these routes unreachable —
-		// exactly the fault found in Printing::_check_feature().
-		if(!mp_feature_enabled('production_workflow') && !mp_feature_enabled('printing_workflow')){
+		// Same flag the desktop module gates on. `production_workflow` is shared
+		// with bakery/restaurant/manufacturer/butchery/oil, so it is not a
+		// printing signal.
+		if(!mp_feature_enabled('printing_workflow')){
 			$this->show_access_denied_page();
 			return false;
 		}

@@ -90,7 +90,7 @@
             <select name="plan_id" id="plan_id" class="mp-select" required>
               <option value="">Select plan</option>
               <?php foreach($plans as $p): ?>
-              <option value="<?= (int)$p->id; ?>" data-price="<?= htmlspecialchars($p->price); ?>" <?= ($edit_membership && $edit_membership->plan_id == $p->id) ? 'selected' : ''; ?>><?= htmlspecialchars($p->plan_name); ?> — <?= $this->currency($p->price); ?>/<?= htmlspecialchars($p->billing_cycle); ?></option>
+              <option value="<?= (int)$p->id; ?>" data-price="<?= htmlspecialchars($p->price); ?>" <?= ($edit_membership && $edit_membership->plan_id == $p->id) ? 'selected' : ''; ?>><?= htmlspecialchars($p->plan_name); ?> — <?= mp_format_money($p->price); ?>/<?= htmlspecialchars($p->billing_cycle); ?></option>
               <?php endforeach; ?>
             </select>
           </div>

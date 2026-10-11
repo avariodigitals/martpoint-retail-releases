@@ -68,7 +68,7 @@ $pw_tint = function ($hex, $amount = 0.88) use ($pw_hex) {
 $tint = $pw_tint($accent);
 
 $mode   = $catalogue_mode ?? 'services';
-$enq    = base_url('store/' . $slug . '/contact');
+$enq    = base_url('store/' . $slug) . '#quote';
 $svc_url = base_url('store/' . $slug . '/services');
 ?>
 <style>
@@ -345,7 +345,7 @@ $pw_emit_sections = function (array $bases, array $scope) use ($pw_partial_path)
 
   <!-- Services -->
   <?php if (!empty($svcs) && !empty($sells_services)): ?>
-  <section class="pw-sec">
+  <section class="pw-sec" id="quote">
     <div class="pw-sec-head">
       <div>
         <div class="pw-eyebrow">Services</div>

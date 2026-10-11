@@ -30,7 +30,7 @@
             <option value="hero" <?= ($banner->banner_type ?? 'hero') == 'hero' ? 'selected' : ''; ?>>Homepage Hero</option>
             <option value="promo" <?= ($banner->banner_type ?? '') == 'promo' ? 'selected' : ''; ?>>Promotional</option>
           </select>
-          <p class="mp-form-hint">For Lumière, the first active Hero banner controls the desktop and mobile hero images. Title, subtitle and button text are optional; empty fields use the Homepage Builder copy. Each image can be up to 5 MB.</p>
+          <p class="mp-form-hint">For Lumière and Skinora, the first active Hero banner controls the desktop and mobile hero images. Skinora’s first and second active Promotional banners control its left and right editorial cards. Blank titles and subtitles use Homepage Builder fallback copy. Each image can be up to 5 MB.</p>
         </div>
         <div class="mp-form-group full"><label for="banner_title">Banner Title</label><input type="text" class="mp-form-control" name="banner_title" id="banner_title" value="<?= htmlspecialchars($banner->banner_title ?? ''); ?>"></div>
         <div class="mp-form-group full"><label for="banner_subtitle">Banner Subtitle</label><input type="text" class="mp-form-control" name="banner_subtitle" id="banner_subtitle" value="<?= htmlspecialchars($banner->banner_subtitle ?? ''); ?>"></div>

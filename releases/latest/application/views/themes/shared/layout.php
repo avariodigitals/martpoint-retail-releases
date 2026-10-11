@@ -10,10 +10,10 @@
   $seoUrl = $seo_canonical ?? current_url();
   $seoType = $seo_type ?? 'website';
   $storeName = $store->store_name ?? 'Online Store';
-  if (($theme_key ?? '') === 'lumiere' && trim((string)$seoDesc) === '') {
+  if (in_array(($theme_key ?? ''), ['lumiere', 'skinora'], true) && trim((string)$seoDesc) === '') {
     $seoDesc = trim(strip_tags((string)($settings->store_subheadline ?? ''))) ?: ('Shop online at ' . $storeName . '.');
   }
-  $seoPageTitle = (($theme_key ?? '') === 'lumiere' && trim((string)$seoTitle) === trim((string)$storeName))
+  $seoPageTitle = (in_array(($theme_key ?? ''), ['lumiere', 'skinora'], true) && trim((string)$seoTitle) === trim((string)$storeName))
     ? $storeName : $seoTitle . ' | ' . $storeName;
 ?>
   <title><?= htmlspecialchars($seoPageTitle); ?></title>
@@ -176,7 +176,9 @@
 
 <?php if(($theme_key ?? '') === 'lumiere'): ?>
   <?php $this->load->view('themes/lumiere/footer'); ?>
-<?php elseif(in_array(($theme_key ?? ''), ['skinora','bella_reve'], true)): ?>
+<?php elseif(($theme_key ?? '') === 'skinora'): ?>
+  <?php $this->load->view('themes/skinora/footer'); ?>
+<?php elseif(($theme_key ?? '') === 'bella_reve'): ?>
   <?php $this->load->view('themes/skin_core/footer'); ?>
 <?php else: ?>
   <?php $this->load->view('themes/shared/footer'); ?>

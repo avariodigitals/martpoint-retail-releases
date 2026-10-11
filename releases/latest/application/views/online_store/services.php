@@ -13,7 +13,7 @@
     <h2><?= htmlspecialchars($page_title); ?></h2>
     <div class="mp-page-sub">Services available for online booking and ordering</div>
   </div>
-  <button class="mp-qa-btn green" data-toggle="modal" data-target="#modal-service"><i class="fa fa-plus"></i> Add Service</button>
+  <button class="mp-qa-btn green" data-toggle="modal" data-target="#modal-service" onclick="newService()"><i class="fa fa-plus"></i> Add Service</button>
 </div>
 
 <div class="mp-table-wrap">
@@ -82,6 +82,7 @@
         <div class="mp-form-group"><label>Treatment Notes Template</label><textarea class="mp-form-control" id="treatment_notes_template" rows="2" placeholder="Default notes for this service"></textarea></div>
         <?php } ?>
         <div class="mp-form-group"><label>Description</label><textarea class="mp-form-control" id="description" rows="3"></textarea></div>
+        <div class="mp-form-group"><label for="service_image">Service Photo <span class="mp-form-hint">(optional, JPG/PNG/WebP, up to 5 MB)</span></label><input type="file" class="mp-form-control" id="service_image" accept="image/jpeg,image/png,image/webp"><div id="service_image_preview" style="display:none;margin-top:8px;"></div><div class="mp-form-hint">Shown on Skinora service cards and the service page.</div></div>
         <div class="os-check-row">
           <label><input type="checkbox" id="available_online" checked> Available Online</label>
           <label><input type="checkbox" id="requires_appointment"> Requires Appointment</label>
@@ -99,6 +100,17 @@
 
 <script>
 var services = <?= json_encode($services); ?>;
+
+function newService(){
+  $('#service_id,#service_name,#price,#discount_price,#service_duration,#description,#service_image').val('');
+  $('#category_id').val('0').trigger('change');
+  $('#location_type').val('in-store');
+  $('#sort_order,#deposit_percent').val(0);
+  $('#deposit_required').val('0');
+  $('#available_online,#status').prop('checked',true);
+  $('#requires_appointment,#requires_note').prop('checked',false);
+  $('#service_image_preview').hide().empty();
+}
 
 function editService(id){
   var s = services.find(x => x.id == id);
@@ -118,6 +130,12 @@ function editService(id){
   $('#status').prop('checked', s.status == 1);
   $('#deposit_required').val(s.deposit_required || 0);
   $('#deposit_percent').val(s.deposit_percent || 0);
+  $('#service_image').val('');
+  if(s.service_image){
+    $('#service_image_preview').html($('<img>', {src: <?= json_encode(base_url()); ?> + s.service_image, alt:'Current service photo', style:'max-width:180px;max-height:130px;object-fit:cover;border-radius:8px;'})).show();
+  } else {
+    $('#service_image_preview').hide().empty();
+  }
   <?php if(mp_feature_enabled('staff_assignment')) { ?>$('#assigned_staff_id').val(s.assigned_staff_id || '');<?php } ?>
   <?php if(mp_feature_enabled('staff_commission')) { ?>$('#staff_commission_percent').val(s.staff_commission_percent || 0);<?php } ?>
   <?php if(mp_feature_enabled('treatment_notes')) { ?>$('#treatment_notes_template').val(s.treatment_notes_template || '');<?php } ?>
@@ -164,10 +182,17 @@ $('#btn-save-service').click(function(){
     <?php if(mp_feature_enabled('treatment_notes')) { ?>treatment_notes_template: $('#treatment_notes_template').val(),<?php } ?>
     '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'
   };
-  $.post('<?=base_url("online_store/save_service");?>', data, function(res){
-    if(res.status === 'success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); }
-    else { toastr.error(res.message || 'Failed'); }
-  }, 'json');
+  var fd = new FormData();
+  Object.keys(data).forEach(function(key){ fd.append(key, data[key]); });
+  var photo = document.getElementById('service_image').files[0];
+  if(photo) fd.append('service_image', photo);
+  $.ajax({url:'<?=base_url("online_store/save_service");?>', type:'POST', data:fd, processData:false, contentType:false, dataType:'json',
+    success:function(res){
+      if(res.status === 'success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); }
+      else { toastr.error(res.message || 'Failed'); }
+    },
+    error:function(){ toastr.error('Could not save service. Please try again.'); }
+  });
 });
 
 $(document).ready(function(){

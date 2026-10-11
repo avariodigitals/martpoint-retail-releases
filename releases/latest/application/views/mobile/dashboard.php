@@ -45,6 +45,8 @@
     .date-range button { width: 100%; padding: 10px 14px; border: none; border-radius: 12px; background: var(--mp-primary); color: #fff; font-size: 13px; font-weight: 600; }
     .clock-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--mp-success); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
     .clock-btn.out { background: var(--mp-danger); color: #fff; }
+    .mp-time-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: var(--mp-bg); border: 1px solid var(--mp-border); color: var(--mp-ink); font-size: 13px; font-weight: 600; white-space: nowrap; flex: 0 0 auto; }
+    .mp-time-pill i { color: var(--mp-muted); font-size: 13px; }
     .alert { padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; font-size: 13px; font-weight: 500; }
     .alert-success { background: #ECFDF5; color: #065F46; }
     .alert-danger { background: #FEF2F2; color: #B91C1C; }
@@ -132,7 +134,7 @@
     .fab { position: fixed; bottom: calc(90px + var(--safe-bottom)); right: 12px; width: 50px; height: 50px; border-radius: 50%; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 12px rgba(0,87,255,0.35); z-index: 310; text-decoration: none; }
     .empty-state { text-align: center; padding: 24px; color: var(--mp-muted); font-size: 13px; }
     @media (min-width: 430px) { .screen { padding: 16px 16px 100px; } .quick-actions { grid-template-columns: repeat(5, 1fr); } }
-    @media (max-width: 430px) { .screen { padding: 10px 10px 100px; } .topbar h1 { font-size: 18px; } .greeting { font-size: 12px; } .hero-cta { padding: 12px 12px; } .hero-cta .title { font-size: 15px; } .kpi-card, .insight { padding: 14px 12px; } .quick-action .icon { width: 32px; height: 32px; font-size: 14px; } .quick-action span { font-size: 10px; } .date-presets { flex-wrap: wrap; } .date-presets button { font-size: 10px; padding: 7px 4px; border-radius: 10px; } .clock-btn { padding: 6px 10px; font-size: 12px; } .avatar { width: 34px; height: 34px; } .fab { right: auto; left: 12px; bottom: calc(100px + var(--safe-bottom)); } }
+    @media (max-width: 430px) { .screen { padding: 10px 10px 100px; } .topbar h1 { font-size: 18px; } .greeting { font-size: 12px; } .hero-cta { padding: 12px 12px; } .hero-cta .title { font-size: 15px; } .kpi-card, .insight { padding: 14px 12px; } .quick-action .icon { width: 32px; height: 32px; font-size: 14px; } .quick-action span { font-size: 10px; } .date-presets { flex-wrap: wrap; } .date-presets button { font-size: 10px; padding: 7px 4px; border-radius: 10px; } .clock-btn { padding: 6px 10px; font-size: 12px; } .mp-time-pill { padding: 6px 10px; font-size: 12px; gap: 0; } .mp-time-pill i { display: none; } .avatar { width: 34px; height: 34px; } .fab { right: auto; left: 12px; bottom: calc(100px + var(--safe-bottom)); } }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .bottom-nav { max-width: 100%; left: 0; right: 0; transform: none; } .kpi-grid, .insights { grid-template-columns: repeat(2, 1fr); } .quick-actions { grid-template-columns: repeat(5, 1fr); } }
     @media (min-width: 1024px) { .screen { padding: 24px 48px 120px; } .kpi-card .value { font-size: 26px !important; font-weight: 800 !important; } .insight .value { font-size: 24px !important; font-weight: 800 !important; } }
     @media (orientation: landscape) and (min-width: 600px) {
@@ -171,6 +173,11 @@
           <i class="fa <?= $needs_clock_out ? 'fa-sign-out' : 'fa-sign-in'; ?>"></i>
           <?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?>
         </a>
+        <?php else: ?>
+        <div class="mp-time-pill" aria-label="Current time">
+          <i class="fa fa-clock-o"></i>
+          <span class="mp-time-val">--:--</span>
+        </div>
         <?php endif; ?>
         <div class="mp-avatar-wrap">
           <button type="button" class="avatar mp-avatar-trigger" aria-haspopup="true" aria-label="Open account menu" style="color:var(--mp-primary);">

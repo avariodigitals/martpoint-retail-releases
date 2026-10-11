@@ -41,7 +41,7 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
-		$isLumiere = (($this->theme_engine->currentTheme()->theme_key ?? '') === 'lumiere');
+		$isLumiere = in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora'], true);
 
 		$canonical = base_url('store/' . $settings->store_slug);
 		$businessProfile = mp_get_store_profile($storeId);
@@ -181,6 +181,10 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
+		if (($this->theme_engine->currentTheme()->theme_key ?? '') === 'skinora' && !$this->theme_engine->sellsServices()) {
+			show_404();
+			return;
+		}
 
 		$search = trim($this->input->get('search'));
 		$categoryId = (int)$this->input->get('category');
@@ -355,6 +359,10 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
+		if (($this->theme_engine->currentTheme()->theme_key ?? '') === 'skinora' && !$this->theme_engine->sellsServices()) {
+			show_404();
+			return;
+		}
 
 		$service = $this->storefront_model->getOnlineService($serviceId, $storeId);
 		if(!$service){
@@ -385,6 +393,40 @@ class Storefront extends CI_Controller {
 			'seo_type' => 'product',
 		];
 		$this->theme_engine->view('service_detail', $data);
+	}
+
+	/** A treatment request is its own journey, separate from product checkout. */
+	public function appointment($storeSlug = '', $serviceId = 0){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = (int)$settings->store_id;
+		$this->theme_engine->init($storeId, $this->_previewThemeForVisitor($settings));
+		$key = $this->theme_engine->currentTheme()->theme_key ?? '';
+		if (!in_array($key, ['lumiere', 'skinora'], true) || empty($settings->allow_services) || !$this->theme_engine->sellsServices()) {
+			show_404();
+			return;
+		}
+		$service = $this->storefront_model->getOnlineService((int)$serviceId, $storeId);
+		if (!$service) {
+			show_404();
+			return;
+		}
+		$service->effective_price = $this->storefront_model->getServiceEffectivePrice($service);
+		$store = get_store_details($storeId);
+		$this->theme_engine->view('appointment', [
+			'settings' => $settings,
+			'store' => $store,
+			'service' => $service,
+			'store_currency' => $this->theme_engine->getStoreCurrency(),
+			'logo_url' => $this->theme_engine->logoUrl(),
+			'favicon_url' => $this->theme_engine->faviconUrl(),
+			'social_links' => $this->theme_engine->socialLinks(),
+			'show_appointment' => true,
+			'seo_title' => 'Request ' . $service->service_name . ' Appointment',
+			'seo_description' => 'Request a time for ' . $service->service_name . ' at ' . ($store->store_name ?? 'our studio') . '.',
+			'seo_canonical' => base_url('store/' . $settings->store_slug . '/appointment/' . (int)$serviceId),
+			'csrf_name' => $this->security->get_csrf_token_name(),
+			'csrf_hash' => $this->security->get_csrf_hash(),
+		]);
 	}
 
 	/**
@@ -488,7 +530,13 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
-		$lumiereCheckout = $page === 'checkout' && (($this->theme_engine->currentTheme()->theme_key ?? '') === 'lumiere');
+		if (!$this->theme_engine->cartEnabled()) {
+			$key = $this->theme_engine->currentTheme()->theme_key ?? '';
+			$printTheme = in_array($key, ['print_works', 'print_inkpress', 'print_papercraft', 'print_neonprint'], true);
+			redirect(base_url('store/' . rawurlencode($settings->store_slug) . ($printTheme ? '#quote' : '/services')));
+			return;
+		}
+		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora'], true);
 
 		$data = [
 			'settings' => $settings,
@@ -927,17 +975,21 @@ class Storefront extends CI_Controller {
 		// pay-on-delivery reservations are merchant-managed and never expire.
 		try { $this->storefront_model->releaseExpiredReservations($storeId); } catch(Exception $e) {}
 
-		$cart = json_decode($this->input->post('cart'), true);
-		if(empty($cart) || !is_array($cart)){
-			echo json_encode(['status' => false, 'message' => 'Cart is empty', 'csrf_hash' => $this->security->get_csrf_hash()]);
-			return;
-		}
-
 		$customerName = trim($this->input->post('customer_name'));
 		$customerEmail = trim($this->input->post('customer_email'));
 		$customerPhone = trim($this->input->post('customer_phone'));
 		$customerAddress = trim($this->input->post('customer_address'));
-		$paymentMethod = $this->input->post('payment_method'); // paystack, whatsapp, pay_on_delivery
+		$paymentMethod = $this->input->post('payment_method'); // paystack, whatsapp, pay_on_delivery, appointment
+		$appointmentRequest = $paymentMethod === 'appointment';
+		if ($appointmentRequest) {
+			$cart = [['type'=>'service','id'=>(int)$this->input->post('service_id'), 'qty'=>1]];
+		} else {
+			$cart = json_decode($this->input->post('cart'), true);
+		}
+		if(empty($cart) || !is_array($cart)){
+                    echo json_encode(['status' => false, 'message' => 'Cart is empty', 'csrf_hash' => $this->security->get_csrf_hash()]);
+                    return;
+            }
 		$serviceDate = $this->input->post('service_date');
 		$serviceTime = $this->input->post('service_time');
 		$serviceNote = $this->input->post('service_note');
@@ -947,6 +999,21 @@ class Storefront extends CI_Controller {
 		if(!$customerName || !$customerPhone){
 			echo json_encode(['status' => false, 'message' => 'Name and phone are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
+		}
+		if (!in_array($paymentMethod, ['paystack', 'whatsapp', 'pay_on_delivery', 'appointment'], true)) {
+			echo json_encode(['status' => false, 'message' => 'Selected payment method is not available', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		if ($appointmentRequest) {
+			$this->theme_engine->init($storeId, $this->_previewThemeForVisitor($settings));
+			$key = $this->theme_engine->currentTheme()->theme_key ?? '';
+			$date = DateTime::createFromFormat('!Y-m-d', (string)$serviceDate);
+			if (!in_array($key, ['lumiere', 'skinora'], true) || empty($settings->allow_services)
+				|| !$this->theme_engine->sellsServices() || !$date || $date->format('Y-m-d') !== $serviceDate
+				|| $serviceDate < date('Y-m-d') || !preg_match('/^([01][0-9]|2[0-3]):[0-5][0-9]$/', (string)$serviceTime)) {
+				echo json_encode(['status' => false, 'message' => 'Please choose a valid treatment and future appointment time', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
 		}
 
 		// Validate payment method against settings
@@ -1099,6 +1166,11 @@ class Storefront extends CI_Controller {
 			echo json_encode(['status' => false, 'message' => 'No valid items in cart', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
+		if ($appointmentRequest && (count($cart) !== 1 || count($itemsToInsert) !== 1
+			|| !$hasServices || $hasProducts || $orderQty !== 1)) {
+			echo json_encode(['status' => false, 'message' => 'Choose one treatment for this appointment', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
 		$orderMinQty = max(0, (int)($settings->min_order_qty ?? 0));
 		if($orderMinQty > 0 && $orderQty < $orderMinQty){
 			echo json_encode(['status' => false, 'message' => 'This order requires at least ' . $orderMinQty . ' items.', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -1113,6 +1185,10 @@ class Storefront extends CI_Controller {
 
 		$hasOnlyDigital = ($hasDigital || $hasCourse || $hasMembership) && !$hasPhysical && !$hasServices;
 		$orderType = ($hasProducts && $hasServices) ? 'mixed' : ($hasServices ? 'service' : 'product');
+		if ($appointmentRequest) {
+			$shippingMethod = null;
+			$customerAddress = null;
+		}
 
 		// Digital-only orders never need shipping
 		if($hasOnlyDigital){
@@ -1147,7 +1223,7 @@ class Storefront extends CI_Controller {
 			// normal zone/method resolution so it can't skip delivery fees.
 			if(!$isPickupMethod) $shippingMethod = '';
 		}
-		$cityShippingOn = !$isPickupMethod && !$hasOnlyDigital && !$tableNumber && !empty($settings->city_shipping_enabled) && is_array($cityZones) && count($cityZones) > 0;
+		$cityShippingOn = !$appointmentRequest && !$isPickupMethod && !$hasOnlyDigital && !$tableNumber && !empty($settings->city_shipping_enabled) && is_array($cityZones) && count($cityZones) > 0;
 
 		if($cityShippingOn){
 			$selectedCity = trim((string)$this->input->post('shipping_city'));
@@ -1402,7 +1478,7 @@ class Storefront extends CI_Controller {
 			'order_id' => $orderId,
 			'order_code' => $order->order_code,
 			'redirect_url' => base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code),
-			'message' => 'Order placed successfully!',
+			'message' => $appointmentRequest ? 'Appointment request received.' : 'Order placed successfully!',
 			'csrf_hash' => $this->security->get_csrf_hash(),
 		]);
 	}
@@ -1531,6 +1607,11 @@ class Storefront extends CI_Controller {
 		$items = json_decode((string)$this->input->post('items_json'), true);
 		if(!is_array($items)){ $items = array(); }
 		if(!preg_match('/^[0-9a-f]{32,64}$/', $token)){ $out(['status'=>false,'message'=>'bad_token']); return; }
+		$previous = $this->storefront_model->getCartByToken($storeId, $token);
+		if($previous && $previous->status === 'ordered'){
+			$out(['status'=>false,'message'=>'ordered_token']);
+			return;
+		}
 
 		$id = $this->storefront_model->saveCart($storeId, $token, array(
 			'customer_name'  => $this->input->post('customer_name', TRUE),
@@ -1680,6 +1761,14 @@ class Storefront extends CI_Controller {
 			'seo_canonical' => base_url('store/' . $settings->store_slug . '/order_received/' . $orderCode),
 			'page_title' => 'Order Received',
 		];
+		if ($order->payment_method === 'appointment'
+			&& in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora'], true)) {
+			$data['seo_title'] = 'Appointment Request Received';
+			$data['seo_description'] = 'Your treatment appointment request has been received.';
+			$data['seo_type'] = 'website';
+			$this->theme_engine->view('appointment_received', $data);
+			return;
+		}
 		$this->load->view('storefront/order_received', $data);
 	}
 
@@ -2563,6 +2652,57 @@ class Storefront extends CI_Controller {
 		$this->email_service->sendRaw($customerEmail, $subject, $html);
 	}
 
+	private function _orderEmailBrandData($store, $settings){
+		$logo = '';
+		if(!empty($settings->store_logo) && file_exists($settings->store_logo)){
+			$logo = base_url($settings->store_logo);
+		} elseif(!empty($store->store_logo) && file_exists($store->store_logo)){
+			$logo = base_url($store->store_logo);
+		} else {
+			$logo = base_url('theme/dist/img/logo1.png');
+		}
+		$storeName = htmlspecialchars($store->store_name ?? ($settings->store_name ?? 'Store'));
+		$storeEmail = htmlspecialchars(!empty($settings->store_email) ? $settings->store_email : ($store->email ?? ''));
+		$storePhone = htmlspecialchars($settings->store_phone ?? ($store->mobile ?? ''));
+		$storeAddress = htmlspecialchars($settings->store_address ?? ($store->address ?? ''));
+
+		$contactLines = [];
+		if($storeAddress !== ''){ $contactLines[] = '<p>' . $storeAddress . '</p>'; }
+		$reach = [];
+		if($storePhone !== ''){ $reach[] = '<a href="tel:' . preg_replace('/[^0-9+]/', '', $storePhone) . '">' . $storePhone . '</a>'; }
+		if($storeEmail !== ''){ $reach[] = '<a href="mailto:' . $storeEmail . '">' . $storeEmail . '</a>'; }
+		if(!empty($reach)){ $contactLines[] = '<p>' . implode(' &nbsp;·&nbsp; ', $reach) . '</p>'; }
+
+		$contactText = trim(implode("\n", array_filter([
+			$storeAddress,
+			trim($storePhone . ($storePhone !== '' && $storeEmail !== '' ? ' · ' : '') . $storeEmail),
+		])));
+
+		return [
+			'store_name'        => $storeName,
+			'store_email'       => $storeEmail,
+			'store_logo_url'    => $logo,
+			'store_contact_html'=> implode('', $contactLines),
+			'store_contact_text'=> $contactText,
+		];
+	}
+
+	private function _orderItemsHtml($items, $currency, $withPrices = true){
+		$html = '';
+		foreach($items as $item){
+			$nameCell = "<td class='name' style='padding:12px;font-size:14px;color:#334155;border-bottom:1px solid #F1F5F9;'>" . htmlspecialchars($item['item_name']) . "</td>";
+			$qtyCell = "<td class='ctr' style='padding:12px;font-size:14px;color:#334155;border-bottom:1px solid #F1F5F9;text-align:center;'>" . (int)$item['qty'] . "</td>";
+			if($withPrices){
+				$lineTotal = $currency . number_format($item['total_price'], 2);
+				$html .= '<tr>' . $nameCell . $qtyCell
+					. "<td class='num' style='padding:12px;font-size:14px;color:#334155;border-bottom:1px solid #F1F5F9;text-align:right;'>" . $lineTotal . "</td></tr>";
+			} else {
+				$html .= '<tr>' . $nameCell . $qtyCell . '</tr>';
+			}
+		}
+		return $html;
+	}
+
 	private function _send_order_emails($order, $items, $store, $settings){
 		try {
 			$this->load->model('email_service');
@@ -2584,54 +2724,69 @@ class Storefront extends CI_Controller {
 			// Get currency symbol for this store
 			$curRow = $this->db->query("SELECT a.currency as symbol, b.currency_placement as placement FROM db_currency a, db_store b WHERE a.id = b.currency_id AND b.id = ? LIMIT 1", [$order->store_id])->row();
 			$currency = $curRow ? $curRow->symbol : '';
-			$storeName = $store->store_name ?? 'MartPoint Retail';
-			$storeEmail = !empty($settings->store_email) ? $settings->store_email : ($store->email ?? '');
-			$paymentMethodLabel = ucfirst(str_replace('_', ' ', $order->payment_method));
+			$isAppointment = ($order->payment_method === 'appointment');
 
-			// Build item list HTML and text
-			$itemsHtml = '';
-			$itemsText = '';
-			foreach($items as $item){
-				$lineTotal = $currency . number_format($item['total_price'], 2);
-				$itemsHtml .= "<tr><td style='padding:8px;border-bottom:1px solid #eee;'>" . htmlspecialchars($item['item_name']) . "</td>"
-					. "<td style='padding:8px;border-bottom:1px solid #eee;text-align:center;'>" . $item['qty'] . "</td>"
-					. "<td style='padding:8px;border-bottom:1px solid #eee;text-align:right;'>" . $lineTotal . "</td></tr>";
-				$itemsText .= "- {$item['item_name']} x{$item['qty']} = {$lineTotal}\n";
+			$brand = $this->_orderEmailBrandData($store, $settings);
+			$storeName = $brand['store_name'];
+
+			$appointmentData = [];
+			if($isAppointment){
+				$firstItem = $items[0] ?? null;
+				$dateLabel = '';
+				if(!empty($order->service_date)){
+					$ts = strtotime($order->service_date);
+					$dateLabel = $ts ? date('l, j F Y', $ts) : $order->service_date;
+				}
+				$note = trim((string)($order->service_note ?? ''));
+				$priceLine = (float)$order->grand_total > 0
+					? 'Estimated total: <b>' . $currency . number_format($order->grand_total, 2) . '</b> — settled at your visit.'
+					: 'Pricing for this treatment is on request — we\'ll confirm the final amount when confirming your appointment.';
+				$appointmentData = [
+					'service_name'      => htmlspecialchars($firstItem['item_name'] ?? ''),
+					'appointment_date'  => htmlspecialchars($dateLabel),
+					'appointment_time'  => htmlspecialchars((string)($order->service_time ?? '')),
+					'appointment_note'  => $note !== '' ? htmlspecialchars($note) : '—',
+					'price_note_html'   => '<p class="price-line">' . $priceLine . '</p>',
+					'price_note_text'   => (float)$order->grand_total > 0
+						? 'Estimated total: ' . $currency . number_format($order->grand_total, 2) . ' — settled at your visit.'
+						: 'Pricing for this treatment is on request — we\'ll confirm the final amount when confirming your appointment.',
+				];
 			}
 
-			// Build placeholder data for templates
-			$tplData = [
+			$tplData = array_merge($brand, $appointmentData, [
 				'order_code'        => $order->order_code,
-				'customer_name'     => $order->customer_name,
-				'customer_phone'    => $order->customer_phone,
+				'customer_name'     => htmlspecialchars($order->customer_name),
+				'customer_phone'    => htmlspecialchars($order->customer_phone),
 				'customer_email'    => $order->customer_email ?: 'N/A',
 				'customer_address'  => $order->customer_address ?: 'N/A',
-				'payment_method'    => $paymentMethodLabel,
+				'payment_method'    => ucfirst(str_replace('_', ' ', $order->payment_method)),
 				'shipping_method'   => $order->shipping_method ?: 'N/A',
-				'order_items'       => $itemsHtml,
-				'order_items_text'  => $itemsText,
+				'order_items'       => $this->_orderItemsHtml($items, $currency, !$isAppointment),
+				'order_items_text'  => implode('', array_map(function($item) use ($currency, $isAppointment){
+					$price = $isAppointment ? '' : ' = ' . $currency . number_format($item['total_price'], 2);
+					return "- {$item['item_name']} x{$item['qty']}{$price}\n";
+				}, $items)),
 				'subtotal'          => $currency . number_format($order->subtotal, 2),
 				'delivery_fee'      => $order->delivery_fee > 0 ? $currency . number_format($order->delivery_fee, 2) : 'Free',
 				'grand_total'       => $currency . number_format($order->grand_total, 2),
-				'store_name'        => $storeName,
-				'store_email'       => $storeEmail ?: $storeName,
-			];
+				'order_link'        => base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code),
+				'dashboard_link'    => base_url('online_store/order_detail/' . (int)$order->id),
+			]);
+
+			$ownerTemplate = $isAppointment ? 'appointment_request_owner' : 'online_order_owner';
+			$customerTemplate = $isAppointment ? 'appointment_request_customer' : 'online_order_customer';
+			$logContext = ['related_module' => 'storefront', 'related_record_id' => $order->id];
 
 			// ---- 1. Email to store owner ----
+			$storeEmail = !empty($settings->store_email) ? $settings->store_email : ($store->email ?? '');
 			if(!empty($storeEmail) && filter_var($storeEmail, FILTER_VALIDATE_EMAIL)){
-				$result = $this->email_service->sendTemplate('online_order_owner', $storeEmail, $tplData, [
-					'related_module' => 'storefront',
-					'related_record_id' => $order->id,
-				]);
+				$result = $this->email_service->sendTemplate($ownerTemplate, $storeEmail, $tplData, $logContext);
 				log_message('debug', 'Storefront: Owner email result: ' . json_encode($result));
 			}
 
 			// ---- 2. Confirmation email to customer ----
 			if(!empty($order->customer_email) && filter_var($order->customer_email, FILTER_VALIDATE_EMAIL)){
-				$result2 = $this->email_service->sendTemplate('online_order_customer', $order->customer_email, $tplData, [
-					'related_module' => 'storefront',
-					'related_record_id' => $order->id,
-				]);
+				$result2 = $this->email_service->sendTemplate($customerTemplate, $order->customer_email, $tplData, $logContext);
 				log_message('debug', 'Storefront: Customer email result: ' . json_encode($result2));
 			}
 		} catch (Exception $e) {
