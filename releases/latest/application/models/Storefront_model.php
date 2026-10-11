@@ -422,6 +422,17 @@ class Storefront_model extends CI_Model {
 			. " AND ({$alias}.child_bit IS NULL OR {$alias}.child_bit = 0)";
 	}
 
+	/** A marked variant option belongs on its parent product card. */
+	private function _flaggedCardWhere($flag, $storeId, $alias = 'a'){
+		if(!in_array($flag, ['is_featured', 'is_new_arrival'], true)) return '0=1';
+		$storeId = (int)$storeId;
+		return "({$alias}.{$flag} = 1 OR EXISTS (SELECT 1 FROM db_items variant_flag"
+			. " WHERE variant_flag.store_id = {$storeId} AND variant_flag.parent_id = {$alias}.id"
+			. " AND variant_flag.{$flag} = 1 AND variant_flag.publish_online = 1"
+			. " AND (variant_flag.status = 1 OR variant_flag.status IS NULL)"
+			. " AND (variant_flag.not_for_sale IS NULL OR variant_flag.not_for_sale = 0)))";
+	}
+
 	/**
 	 * Children written by older flows can carry status=NULL; storefront
 	 * reads treat NULL as active ONLY for child rows (never for top-level
@@ -436,14 +447,15 @@ class Storefront_model extends CI_Model {
 	 * price = lowest child effective price, image = first child image when
 	 * the parent has none, stock = sum of child stock. Mutates the rows.
 	 */
-	private function _decorateVariantParents($rows){
+	private function _decorateVariantParents($rows, $inheritFlags = false){
 		$parentIds = [];
 		foreach($rows as $r){
 			if(($r->item_group ?? '') === 'Variants'){ $parentIds[] = (int)$r->id; }
 		}
 		if(!empty($parentIds)){
-			$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, online_price, discount_type, discount, stock')
+			$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, online_price, discount_type, discount, stock, is_featured, is_new_arrival')
 				->from('db_items')
+				->where('store_id', (int)$rows[0]->store_id)
 				->where_in('parent_id', $parentIds)
 				->where('publish_online', 1)
 				->where('(status = 1 OR status IS NULL)', null, false)
@@ -464,6 +476,12 @@ class Storefront_model extends CI_Model {
 				}
 				$r->variant_count = count($kids);
 				$r->stock = $stockSum;
+				if($inheritFlags){
+					foreach($kids as $kid){
+						if(!empty($kid->is_featured)) $r->is_featured = 1;
+						if(!empty($kid->is_new_arrival)) $r->is_new_arrival = 1;
+					}
+				}
 				if($minPrice !== null){
 					$r->sales_price = $minPrice;
 					$r->online_price = null;
@@ -512,13 +530,17 @@ class Storefront_model extends CI_Model {
 		return $this->_decorateVariantParents($this->db->get()->result());
 	}
 
-	public function getFeaturedProducts($storeId = null, $limit = 8){
+	public function getFeaturedProducts($storeId = null, $limit = 8, $includeVariantFlags = false){
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
-		$this->db->where('a.is_featured', 1);
+		if($includeVariantFlags){
+			$this->db->where($this->_flaggedCardWhere('is_featured', $storeId), NULL, FALSE);
+		} else {
+			$this->db->where('a.is_featured', 1);
+		}
 		$this->db->where('a.publish_online', 1);
 		$this->db->where('a.status', 1);
 		$this->db->where('a.service_bit', 0);
@@ -527,7 +549,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'desc');
 		$this->db->limit($limit);
-		return $this->_decorateVariantParents($this->db->get()->result());
+		return $this->_decorateVariantParents($this->db->get()->result(), $includeVariantFlags);
 	}
 
 	public function getOnlineProduct($productId, $storeId = null){
@@ -1348,6 +1370,9 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'derma_pure', 'theme_name' => 'Derma Pure', 'industry' => 'skincare', 'description' => 'Clinical minimal lab theme — crisp white, ink and derma-teal with mono labels for science-led skincare and formulation brands.', 'default_primary_color' => '#2F6B5E', 'default_secondary_color' => '#0F172A', 'default_font_family' => 'Inter', 'sort_order' => 40],
 			['theme_key' => 'terra_glow', 'theme_name' => 'Terra Glow', 'industry' => 'skincare', 'description' => 'Warm earth-luxe theme — sand canvas, clay ink and terracotta accents with plush rounded cards for shea, butter and glow-focused brands.', 'default_primary_color' => '#B5643C', 'default_secondary_color' => '#31221A', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 41],
 			['theme_key' => 'verdant', 'theme_name' => 'Verdant', 'industry' => 'skincare', 'description' => 'Calm editorial flagship — cream canvas, deep forest bands, sage accents and serif typography with concern-led shopping, journal and routine sets, all driven by the Online Store backend.', 'default_primary_color' => '#4F7A5C', 'default_secondary_color' => '#1F3A2E', 'default_font_family' => 'Instrument Serif', 'sort_order' => 42],
+			['theme_key' => 'lumiere', 'theme_name' => 'Lumière', 'industry' => 'skincare', 'description' => 'Cream editorial skincare boutique with dark forest accents, serif headlines and clean product-led sections.', 'default_primary_color' => '#173A2B', 'default_secondary_color' => '#151713', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 43],
+			['theme_key' => 'skinora', 'theme_name' => 'Skinora', 'industry' => 'skincare', 'description' => 'Blush premium skincare storefront with editorial serif type, soft rose surfaces and conversion-focused collections.', 'default_primary_color' => '#6A2730', 'default_secondary_color' => '#311D1E', 'default_font_family' => 'Playfair Display', 'sort_order' => 44],
+			['theme_key' => 'bella_reve', 'theme_name' => 'Bella Rêve', 'industry' => 'skincare', 'description' => 'Dark luxury spa storefront with warm gold accents, treatment booking and premium product merchandising.', 'default_primary_color' => '#D3A74C', 'default_secondary_color' => '#10130D', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 45],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
@@ -1389,6 +1414,9 @@ class Storefront_model extends CI_Model {
 			'derma_pure' => 'skincare',
 			'terra_glow' => 'skincare',
 			'verdant' => 'skincare',
+			'lumiere' => 'skincare',
+			'skinora' => 'skincare',
+			'bella_reve' => 'skincare',
 		];
 		foreach($canonical as $key => $industry){
 			$this->db->where('theme_key', $key)->update('db_storefront_themes', ['industry' => $industry]);
@@ -1422,7 +1450,7 @@ class Storefront_model extends CI_Model {
 
 	public function saveBanner($data, $bannerId = null){
 		if($bannerId){
-			return $this->db->where('id', $bannerId)->update('db_storefront_banners', $data);
+			return $this->db->where('id', $bannerId)->where('store_id', get_current_store_id())->update('db_storefront_banners', $data);
 		}
 		$data['store_id'] = $data['store_id'] ?? get_current_store_id();
 		return $this->db->insert('db_storefront_banners', $data);
@@ -1457,7 +1485,7 @@ class Storefront_model extends CI_Model {
 	/**
 	 * Save a section's custom title/subtitle (themes read these via config_json).
 	 */
-	public function saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle){
+	public function saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle, $imageUrl = null, $eyebrow = null){
 		$storeId = $storeId ?: get_current_store_id();
 		$row = $this->db->where('store_id', $storeId)->where('section_key', $sectionKey)->get('db_storefront_homepage_sections')->row();
 		if(!$row) return false;
@@ -1469,6 +1497,12 @@ class Storefront_model extends CI_Model {
 		}
 		if($title !== '') $cfg['title'] = $title; else unset($cfg['title']);
 		if($subtitle !== '') $cfg['subtitle'] = $subtitle; else unset($cfg['subtitle']);
+		if($imageUrl !== null && in_array(preg_replace('/_\d+$/', '', $sectionKey), ['hero_banner','promo_banner','store_info'], true)){
+			if($imageUrl !== '') $cfg['image_url'] = $imageUrl; else unset($cfg['image_url']);
+		}
+		if($eyebrow !== null && in_array(preg_replace('/_\d+$/', '', $sectionKey), ['hero_banner','promo_banner'], true)){
+			if($eyebrow !== '') $cfg['eyebrow'] = $eyebrow; else unset($cfg['eyebrow']);
+		}
 
 		$data = ['config_json' => json_encode($cfg)];
 		if($title !== ''){
@@ -1627,11 +1661,11 @@ class Storefront_model extends CI_Model {
 		return $this->_decorateVariantParents($rows);
 	}
 
-	public function getNewArrivals($storeId = null, $limit = 8){
+	public function getNewArrivals($storeId = null, $limit = 8, $fallbackToRecent = true, $includeVariantFlags = false){
 		$storeId = $storeId ?: get_current_store_id();
-		// Prefer manually flagged "New Arrival" products (is_new_arrival=1).
-		// Fall back to most recently added published products if none are flagged.
-		$buildQuery = function($storeId, $limit, $flaggedOnly) {
+		// Prefer manually flagged "New Arrival" cards (including variant parents).
+		// Themes may opt out of the recent-product fallback when flags are explicit.
+		$buildQuery = function($storeId, $limit, $flaggedOnly) use ($includeVariantFlags) {
 			$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
@@ -1642,12 +1676,16 @@ class Storefront_model extends CI_Model {
 			$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 			$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 			if($flaggedOnly){
-				$this->db->where('a.is_new_arrival', 1);
+				if($includeVariantFlags){
+					$this->db->where($this->_flaggedCardWhere('is_new_arrival', $storeId), NULL, FALSE);
+				} else {
+					$this->db->where('a.is_new_arrival', 1);
+				}
 			}
 			$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 			$this->db->order_by('a.id', 'desc');
 			$this->db->limit($limit);
-			return $this->_decorateVariantParents($this->db->get()->result());
+			return $this->_decorateVariantParents($this->db->get()->result(), $includeVariantFlags);
 		};
 		// Try flagged items first
 		$results = $buildQuery($storeId, $limit, true);
@@ -1655,7 +1693,7 @@ class Storefront_model extends CI_Model {
 			return $results;
 		}
 		// Fallback: most recent published products
-		return $buildQuery($storeId, $limit, false);
+		return $fallbackToRecent ? $buildQuery($storeId, $limit, false) : [];
 	}
 
 	// ============== ANALYTICS ==============
@@ -1860,13 +1898,17 @@ class Storefront_model extends CI_Model {
 			$this->db->where('store_id', $storeId);
 			if($enabledOnly) $this->db->where('is_enabled', 1);
 			$this->db->order_by('sort_order', 'asc');
-			return $this->db->get('db_storefront_faqs')->result();
+			$rows = $this->db->get('db_storefront_faqs')->result();
+			if(!$enabledOnly) return $rows;
+			return array_values(array_filter($rows, function($faq){
+				return trim((string)$faq->question) !== '' && trim(strip_tags((string)$faq->answer)) !== '';
+			}));
 		} catch(Exception $e){ return []; }
 	}
 
 	public function saveStorefrontFaq($data, $id = null){
 		if($id){
-			$res = $this->db->where('id', $id)->update('db_storefront_faqs', $data);
+			$res = $this->db->where('id', $id)->where('store_id', $data['store_id'])->update('db_storefront_faqs', $data);
 			return $res ? $id : false;
 		}
 		$res = $this->db->insert('db_storefront_faqs', $data);
@@ -1874,7 +1916,7 @@ class Storefront_model extends CI_Model {
 	}
 
 	public function deleteStorefrontFaq($id){
-		return $this->db->where('id', $id)->delete('db_storefront_faqs');
+		return $this->db->where('id', $id)->where('store_id', get_current_store_id())->delete('db_storefront_faqs');
 	}
 
 	// ============== NEWSLETTER SUBSCRIBERS ==============

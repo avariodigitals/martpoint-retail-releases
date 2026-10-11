@@ -9,6 +9,33 @@
 if (!isset($SK_SKIN)) $SK_SKIN = 'botanica';
 
 $SK_SKINS = [
+    'lumiere' => [ /* Lumière — cream editorial skincare boutique */
+        'theme_key'      => 'lumiere', 'bg' => '#F8F5EE', 'surface' => '#FFFFFF', 'card' => '#FFFDF8',
+        'ink' => '#151713', 'muted' => '#6C6D64', 'accent' => '#173A2B', 'accent_soft' => '#E7EEE8',
+        'accent_ink' => '#FFFFFF', 'border' => '#DDDCD2', 'soft' => '#F1EEE5', 'kicker_color' => '#173A2B',
+        'font_display' => "'Cormorant Garamond', Georgia, serif", 'font_body' => "'Jost', sans-serif",
+        'font_kicker' => "'Jost', sans-serif", 'fonts_url' => 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap',
+        'display_italic' => false, 'display_case' => 'none', 'radius' => '4px', 'btn_radius' => '4px',
+        'hero_align' => 'left', 'header_style' => 'inline', 'media_shape' => 'rounded', 'featured_layout' => 'grid', 'story_invert' => true,
+    ],
+    'skinora' => [ /* Skinora — blush editorial premium */
+        'theme_key' => 'skinora', 'bg' => '#F8ECEB', 'surface' => '#FFF9F7', 'card' => '#FFFDFC', 'ink' => '#311D1E',
+        'muted' => '#8D6D6D', 'accent' => '#6A2730', 'accent_soft' => '#F0D7D4', 'accent_ink' => '#FFFFFF',
+        'border' => '#E8D0CE', 'soft' => '#F5E1DF', 'kicker_color' => '#6A2730',
+        'font_display' => "'Playfair Display', Georgia, serif", 'font_body' => "'Jost', sans-serif", 'font_kicker' => "'Jost', sans-serif",
+        'fonts_url' => 'https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Playfair+Display:wght@500;600;700&display=swap',
+        'display_italic' => false, 'display_case' => 'none', 'radius' => '10px', 'btn_radius' => '4px', 'hero_align' => 'left',
+        'header_style' => 'inline', 'media_shape' => 'rounded', 'featured_layout' => 'grid', 'story_invert' => true,
+    ],
+    'bella' => [ /* Bella Rêve — dark luxury spa */
+        'theme_key' => 'bella_reve', 'bg' => '#10130D', 'surface' => '#181C14', 'card' => '#20261A', 'ink' => '#F6F0DF',
+        'muted' => '#B8B49E', 'accent' => '#D3A74C', 'accent_soft' => '#2C3020', 'accent_ink' => '#17170F',
+        'border' => '#3B3C2C', 'soft' => '#1B2016', 'kicker_color' => '#D3A74C',
+        'font_display' => "'Cormorant Garamond', Georgia, serif", 'font_body' => "'Jost', sans-serif", 'font_kicker' => "'Jost', sans-serif",
+        'fonts_url' => 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap',
+        'display_italic' => false, 'display_case' => 'none', 'radius' => '3px', 'btn_radius' => '3px', 'hero_align' => 'left',
+        'header_style' => 'inline', 'media_shape' => 'rounded', 'featured_layout' => 'grid', 'story_invert' => false,
+    ],
     'botanica' => [ /* Botanical editorial — warm cream, forest ink, sage */
         'theme_key'      => 'botanica',
         'bg'             => '#FAF7F1',
@@ -97,6 +124,9 @@ $SK['skin'] = $SK_SKIN;
 
 /* Signature "ritual" strip — per-skin copy. */
 $SK_RITUALS = [
+    'lumiere' => ['kicker'=>'The Lumière Ritual','title'=>'Healthy skin. Confident you.','sub'=>'Simple, considered care for your everyday glow.','steps'=>[['n'=>'01','t'=>'Cleanse','d'=>'A gentle beginning for fresh, balanced skin.'],['n'=>'02','t'=>'Treat','d'=>'Targeted formulas for visible radiance.'],['n'=>'03','t'=>'Protect','d'=>'Daily moisture and SPF to keep your glow going.']]],
+    'skinora' => ['kicker'=>'The Skinora Edit','title'=>'Beauty beyond skin deep.','sub'=>'High-performance care, thoughtfully chosen for real results.','steps'=>[['n'=>'01','t'=>'Prepare','d'=>'Cleanse and tone for a receptive canvas.'],['n'=>'02','t'=>'Restore','d'=>'Actives selected around your skin concern.'],['n'=>'03','t'=>'Glow','d'=>'Seal in hydration and confidence.']]],
+    'bella' => ['kicker'=>'The Bella Rêve Experience','title'=>'A ritual for beautiful skin.','sub'=>'Professional treatments and premium products in one serene place.','steps'=>[['n'=>'01','t'=>'Unwind','d'=>'Slow down with a considered consultation.'],['n'=>'02','t'=>'Treat','d'=>'Expert hands and trusted formulas work together.'],['n'=>'03','t'=>'Reveal','d'=>'Leave with skin that feels renewed and luminous.']]],
     'botanica' => [
         'kicker' => 'The Ritual',
         'title'  => 'Three steps. Nothing more.',

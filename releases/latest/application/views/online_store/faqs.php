@@ -4,7 +4,7 @@
 <div class="mp-page-head">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">Frequently asked questions shown as an accordion on your storefront</div>
+    <div class="mp-page-sub">Active questions with an answer appear as an accordion on your storefront</div>
   </div>
   <button class="mp-qa-btn green" onclick="openModal()"><i class="fa fa-plus"></i> Add FAQ</button>
 </div>
@@ -16,11 +16,11 @@
       <table id="os-faqs-table" class="table mp-dt-table" width="100%">
         <thead><tr><th>Question</th><th>Answer</th><th>Status</th><th>Order</th><th>Action</th></tr></thead>
         <tbody>
-          <?php foreach($faqs as $f): ?>
+          <?php foreach($faqs as $f): $faqComplete = trim((string)$f->question) !== '' && trim(strip_tags((string)$f->answer)) !== ''; ?>
           <tr data-id="<?= (int)$f->id; ?>" data-question="<?= htmlspecialchars($f->question); ?>" data-answer="<?= htmlspecialchars($f->answer); ?>" data-enabled="<?= (int)$f->is_enabled; ?>" data-order="<?= (int)$f->sort_order; ?>">
             <td class="row-name"><?= htmlspecialchars($f->question); ?></td>
             <td><?= htmlspecialchars(mb_substr($f->answer, 0, 80)) . (strlen($f->answer) > 80 ? '…' : ''); ?></td>
-            <td><span class="label label-<?= $f->is_enabled ? 'success' : 'default'; ?>"><?= $f->is_enabled ? 'Active' : 'Inactive'; ?></span></td>
+            <td><span class="label label-<?= $f->is_enabled ? ($faqComplete ? 'success' : 'warning') : 'default'; ?>"><?= $f->is_enabled ? ($faqComplete ? 'Active' : 'Needs answer') : 'Inactive'; ?></span></td>
             <td><?= (int)$f->sort_order; ?></td>
             <td>
               <div class="mp-actions">
@@ -76,7 +76,9 @@ function editFaq(btn){
   $('#faqModal').modal('show');
 }
 function saveFaq(){
-  const fd = new FormData(document.getElementById('faqForm'));
+  const form = document.getElementById('faqForm');
+  if(!form.reportValidity()) return;
+  const fd = new FormData(form);
   $.ajax({ url:'<?= base_url('online_store/save_faq'); ?>', type:'POST', data:fd, processData:false, contentType:false, dataType:'json',
     success:function(res){ if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); } else { toastr.error(res.message || 'Failed to save'); } },
     error:function(){ toastr.error('Request failed. Please check your connection.'); }

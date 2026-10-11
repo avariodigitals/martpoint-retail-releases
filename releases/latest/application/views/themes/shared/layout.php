@@ -10,8 +10,13 @@
   $seoUrl = $seo_canonical ?? current_url();
   $seoType = $seo_type ?? 'website';
   $storeName = $store->store_name ?? 'Online Store';
+  if (($theme_key ?? '') === 'lumiere' && trim((string)$seoDesc) === '') {
+    $seoDesc = trim(strip_tags((string)($settings->store_subheadline ?? ''))) ?: ('Shop online at ' . $storeName . '.');
+  }
+  $seoPageTitle = (($theme_key ?? '') === 'lumiere' && trim((string)$seoTitle) === trim((string)$storeName))
+    ? $storeName : $seoTitle . ' | ' . $storeName;
 ?>
-  <title><?= htmlspecialchars($seoTitle); ?> | <?= htmlspecialchars($storeName); ?></title>
+  <title><?= htmlspecialchars($seoPageTitle); ?></title>
   <meta name="description" content="<?= htmlspecialchars($seoDesc); ?>">
 <?php if(!empty($settings->meta_keywords)): ?>
   <meta name="keywords" content="<?= htmlspecialchars($settings->meta_keywords); ?>">
@@ -169,7 +174,13 @@
   ]); ?>
 <?php endif; ?>
 
-<?php $this->load->view('themes/shared/footer'); ?>
+<?php if(($theme_key ?? '') === 'lumiere'): ?>
+  <?php $this->load->view('themes/lumiere/footer'); ?>
+<?php elseif(in_array(($theme_key ?? ''), ['skinora','bella_reve'], true)): ?>
+  <?php $this->load->view('themes/skin_core/footer'); ?>
+<?php else: ?>
+  <?php $this->load->view('themes/shared/footer'); ?>
+<?php endif; ?>
 
 <?php $this->load->view('themes/shared/scripts'); ?>
 
@@ -189,7 +200,7 @@
     $social_links['x'] ?? '',
     $social_links['youtube'] ?? '',
     $social_links['tiktok'] ?? ''
-  ]))
+  ], function($url){ return filter_var($url, FILTER_VALIDATE_URL); }))
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?></script>
 <?php endif; ?>
 

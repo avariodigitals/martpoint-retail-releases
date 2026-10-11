@@ -3377,6 +3377,95 @@ class Mobile extends MY_Controller {
 		$this->load->view('mobile/stock', $data);
 	}
 
+	/**
+	 * Delivery zones and their charges.  This deliberately has its own mobile
+	 * screen instead of linking to Shipping_fees::index(), which renders the
+	 * desktop mp_layout shell.
+	 */
+	public function shipping_fees()
+	{
+		if(!mp_feature_enabled('manual_shipping') || !$this->db->table_exists('db_shipping_fees')){
+			show_404();
+			return;
+		}
+		$this->permission_check('sales_view');
+
+		$data = $this->data;
+		$data['page_title'] = 'Shipping Fees';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['fees'] = $this->db->where('store_id', get_current_store_id())
+			->order_by('sort_order', 'asc')->order_by('id', 'asc')
+			->get('db_shipping_fees')->result();
+		$data['can_add'] = $this->permissions('sales_add');
+		$data['can_delete'] = $this->permissions('sales_delete');
+		$this->load->view('mobile/shipping_fees', $data);
+	}
+
+	/** Mobile receipt ledger for payments already recorded against sales. */
+	public function sales_payments()
+	{
+		$this->permission_check('sales_payment_view');
+		$data = $this->data;
+		$data['page_title'] = 'Sales Payments';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->db->select('p.*, s.sales_code, c.customer_name');
+		$this->db->from('db_salespayments p');
+		$this->db->join('db_sales s', 's.id=p.sales_id', 'left');
+		$this->db->join('db_customers c', 'c.id=p.customer_id', 'left');
+		$this->db->where('p.store_id', get_current_store_id());
+		if(is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
+			$this->db->where('UPPER(p.created_by)', strtoupper($this->session->userdata('inv_username')));
+		}
+		$data['payments'] = $this->db->order_by('p.id', 'desc')->limit(100)->get()->result();
+		$data['can_delete'] = $this->permissions('sales_payment_delete');
+		$this->load->view('mobile/sales_payments', $data);
+	}
+
+	/** Buy-now-pay-later plans, schedule and a lightweight mobile payment flow. */
+	public function installments($plan_id = 0)
+	{
+		if(!mp_feature_enabled('payplan')){ $this->show_feature_not_activated('payplan'); return; }
+		$this->permission_check('installment_plans');
+		$this->load->model('installments_model', 'installments');
+		$data = $this->data;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		if(!$plan_id){
+			$data['page_title'] = 'Installment Plans';
+			$data['plans'] = $this->installments->get_plans();
+			$data['stats'] = $this->installments->get_dashboard_stats();
+			$this->load->view('mobile/installments', $data);
+			return;
+		}
+		$plan = $this->installments->get_plan((int)$plan_id);
+		if(!$plan || (int)$plan->store_id !== (int)get_current_store_id()){ show_404(); return; }
+		$data['page_title'] = 'Installment Plan';
+		$data['plan'] = $plan;
+		$data['can_pay'] = $this->permissions('installment_payment') && $plan->status === 'active';
+		$this->load->view('mobile/installment_view', $data);
+	}
+
+	public function save_installment_payment($plan_id = 0)
+	{
+		if(!mp_feature_enabled('payplan')){ show_404(); return; }
+		$this->permission_check('installment_payment');
+		$this->load->model('installments_model', 'installments');
+		$plan = $this->installments->get_plan((int)$plan_id);
+		$payment_id = (int)$this->input->post('payment_id');
+		$payment = $payment_id ? $this->db->where('id', $payment_id)->where('plan_id', (int)$plan_id)->get('db_installment_payments')->row() : null;
+		header('Content-Type: application/json');
+		if(!$plan || (int)$plan->store_id !== (int)get_current_store_id() || !$payment || $payment->status === 'paid'){
+			echo json_encode(['status' => 'error', 'message' => 'That installment is no longer available for payment.']); return;
+		}
+		$amount = parse_amount($this->input->post('amount_paid', TRUE));
+		if($amount <= 0){ echo json_encode(['status' => 'error', 'message' => 'Enter a payment amount greater than zero.']); return; }
+		$result = $this->installments->record_payment([
+			'payment_id' => $payment_id, 'amount_paid' => $amount,
+			'payment_type' => trim($this->input->post('payment_type', TRUE)) ?: 'Cash',
+			'payment_note' => trim($this->input->post('payment_note', TRUE)), 'account_id' => null,
+		]);
+		echo json_encode($result);
+	}
+
 	public function product($id = 0)
 	{
 		$id = (int)$id;
@@ -4236,6 +4325,9 @@ class Mobile extends MY_Controller {
 				['title' => 'Sales Returns', 'desc' => 'Returned sales invoices', 'icon' => 'fa-undo', 'url' => 'mobile/sales_returns', 'perm' => 'sales_return_view', 'color' => 'orange'],
 				['title' => 'Due Payments', 'desc' => 'Unpaid invoices', 'icon' => 'fa-money', 'url' => 'mobile/due', 'perm' => 'sales_view', 'color' => 'red'],
 				['title' => 'Reconciliation', 'desc' => 'Payment exception queue', 'icon' => 'fa-check-square-o', 'url' => 'mobile/reconcile', 'perm' => 'payments_reconcile', 'color' => 'teal'],
+				['title' => 'Shipping Fees', 'desc' => 'Delivery locations and charges', 'icon' => 'fa-truck', 'url' => 'mobile/shipping_fees', 'perm' => 'sales_view', 'feature' => 'manual_shipping', 'color' => 'orange'],
+				['title' => 'Sales Payments', 'desc' => 'Payment receipt ledger', 'icon' => 'fa-credit-card', 'url' => 'mobile/sales_payments', 'perm' => 'sales_payment_view', 'color' => 'teal'],
+				['title' => 'Installment Plans', 'desc' => 'Buy now, pay later schedules', 'icon' => 'fa-calendar-check-o', 'url' => 'mobile/installments', 'perm' => 'installment_plans', 'feature' => 'payplan', 'color' => 'purple'],
 			],
 			'Purchase' => [
 				['title' => 'New Purchase', 'desc' => 'Create a purchase order', 'icon' => 'fa-plus-square', 'url' => 'mobile/purchase_form', 'perm' => 'purchase_add', 'color' => 'green'],

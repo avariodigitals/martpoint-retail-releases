@@ -1,5 +1,6 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
+<?php $hbTheme = !empty($settings->theme_id) ? $CI->storefront_model->getTheme($settings->theme_id) : null; $hbLumiere = ($hbTheme->theme_key ?? '') === 'lumiere'; ?>
 <style>
 .os-hb-grid{display:grid!important;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)!important;gap:20px!important;align-items:start!important}
 @media(max-width:1024px){.os-hb-grid{grid-template-columns:1fr!important}}
@@ -52,13 +53,15 @@
         $isCopy = (bool)preg_match('/_\d+$/', $s->section_key);
         $sCfg = !empty($s->config_json) ? json_decode($s->config_json, true) : [];
         if(!is_array($sCfg)) $sCfg = [];
-        $sTitle = $sCfg['title'] ?? $s->section_label;
+        $sTitle = $sCfg['title'] ?? ($hbLumiere ? '' : $s->section_label);
         $sSub   = $sCfg['subtitle'] ?? '';
+        $sBaseKey = preg_replace('/_\d+$/', '', $s->section_key);
+        $sDisplayLabel = ($hbLumiere && $sBaseKey === 'featured_products') ? 'Featured Products' : $s->section_label;
       ?>
       <div class="section-wrap">
         <div class="section-row os-section-row <?= $s->is_enabled ? '' : 'disabled'; ?>" data-key="<?= htmlspecialchars($s->section_key); ?>" data-order="<?= (int)$s->display_order; ?>">
           <span class="os-section-handle" title="Drag to reorder">&#9776;</span>
-          <span class="os-section-label"><?= htmlspecialchars($s->section_label); ?></span>
+          <span class="os-section-label"><?= htmlspecialchars($sDisplayLabel); ?></span>
           <?php if($isDup): ?><span class="os-section-badge duplicable">Duplicate</span><?php endif; ?>
           <div class="os-section-actions">
             <button type="button" class="os-section-edit-btn" onclick="toggleSectionEdit(this)" title="Edit heading"><i class="fa fa-pencil"></i></button>
@@ -72,9 +75,17 @@
           </div>
         </div>
         <div class="os-sec-edit" style="display:none;">
-          <div class="mp-form-group"><label>Section Heading</label><input type="text" class="mp-form-control os-sec-title" value="<?= htmlspecialchars($sTitle); ?>" placeholder="e.g. Featured Products"></div>
-          <div class="mp-form-group"><label>Sub-heading <span style="font-weight:400;color:var(--mp-muted);">(optional)</span></label><input type="text" class="mp-form-control os-sec-sub" value="<?= htmlspecialchars($sSub); ?>" placeholder="Short line under the heading"></div>
-          <button type="button" class="mp-btn-primary" style="padding:8px 18px;font-size:13px;" onclick="saveSectionMeta(this)"><i class="fa fa-check"></i> Apply</button>
+          <?php if($hbLumiere && $sBaseKey === 'trust_badges'): ?>
+            <p class="mp-form-hint">This row controls visibility and placement. Edit the four badge titles and descriptions in <a href="<?= base_url('online_store/settings'); ?>">Store Settings → Trust Badges</a>.</p>
+          <?php else: ?>
+            <?php if($hbLumiere && $sBaseKey === 'hero_banner'): ?><p class="mp-form-hint">The first active <a href="<?= base_url('online_store/banners'); ?>">Hero banner</a> controls Lumière’s desktop and mobile images. Its title, subtitle and button text override these fields when filled; otherwise these fields remain the fallback.</p><?php endif; ?>
+            <?php if($hbLumiere && $sBaseKey === 'promo_banner'): ?><p class="mp-form-hint">An active <a href="<?= base_url('online_store/banners'); ?>">Promotional banner</a> supplies this section’s image, text and button. These fields can provide fallback content.</p><?php endif; ?>
+            <?php if($hbLumiere && in_array($sBaseKey, ['hero_banner','promo_banner'], true)): ?><div class="mp-form-group"><label>Small label above heading <span style="font-weight:400;color:var(--mp-muted);">(optional)</span></label><input type="text" class="mp-form-control os-sec-eyebrow" value="<?= htmlspecialchars($sCfg['eyebrow'] ?? '', ENT_QUOTES); ?>" placeholder="<?= $sBaseKey === 'hero_banner' ? 'THE ART OF NATURALLY BEAUTIFUL SKIN' : 'THE LUMIÈRE EDIT'; ?>"></div><?php endif; ?>
+            <div class="mp-form-group"><label>Section Heading</label><input type="text" class="mp-form-control os-sec-title" value="<?= htmlspecialchars($sTitle); ?>" placeholder="<?= htmlspecialchars($sDisplayLabel); ?>"></div>
+            <div class="mp-form-group"><label>Sub-heading <span style="font-weight:400;color:var(--mp-muted);">(optional)</span></label><input type="text" class="mp-form-control os-sec-sub" value="<?= htmlspecialchars($sSub); ?>" placeholder="Short line under the heading"></div>
+            <?php if($hbLumiere && in_array($sBaseKey, ['hero_banner','promo_banner','store_info'], true)): ?><div class="mp-form-group"><label><?= $sBaseKey === 'store_info' ? 'Section image URL' : 'Fallback image URL'; ?> <span style="font-weight:400;color:var(--mp-muted);">(optional)</span></label><input type="url" class="mp-form-control os-sec-image" value="<?= htmlspecialchars($sCfg['image_url'] ?? '', ENT_QUOTES); ?>" placeholder="https://example.com/your-skincare-photo.jpg"></div><?php endif; ?>
+            <button type="button" class="mp-btn-primary" style="padding:8px 18px;font-size:13px;" onclick="saveSectionMeta(this)"><i class="fa fa-check"></i> Apply</button>
+          <?php endif; ?>
         </div>
       </div>
       <?php endforeach; ?>
@@ -90,18 +101,19 @@
   <div class="mp-card-form">
     <div class="mp-card-head"><h3>How to Create Content</h3></div>
     <div class="mp-card-body os-hb-guide">
-      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Home Banner</strong><p>Create banners in <a href="<?= base_url('online_store/banners'); ?>">Banners</a>. The first active banner appears here. If you have multiple banners, it becomes an auto-sliding carousel.</p></div>
-      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Promotional Banner</strong><p>Shows all banners after the first one as a distinct promotional card grid. Create in <a href="<?= base_url('online_store/banners'); ?>">Banners</a>. Stands separate from the main Home Banner.</p></div>
-      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Featured Products</strong><p>Products marked as "Online" with stock appear automatically. Manage in <a href="<?= base_url('online_store/products_online'); ?>">Online Products</a>.</p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Home Banner</strong><p><?php if($hbLumiere): ?>Lumière uses the first active Hero banner. Edit its desktop and mobile photos, title, subtitle and button in <a href="<?= base_url('online_store/banners'); ?>">Banners</a>. Blank text fields use the Hero Banner section’s fallback copy.<?php else: ?>Create banners in <a href="<?= base_url('online_store/banners'); ?>">Banners</a>. The first active banner appears here. If you have multiple banners, it becomes an auto-sliding carousel.<?php endif; ?></p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Promotional Banner</strong><p><?php if($hbLumiere): ?>Add an active Promotional banner in <a href="<?= base_url('online_store/banners'); ?>">Banners</a> to display its photo, copy and button. The Store Information section remains a separate editorial panel.<?php else: ?>Shows all banners after the first one as a distinct promotional card grid. Create in <a href="<?= base_url('online_store/banners'); ?>">Banners</a>. Stands separate from the main Home Banner.<?php endif; ?></p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Featured Products</strong><p>Enable this section above, then switch on both Online and Featured for the products you want in <a href="<?= base_url('online_store/products_online'); ?>">Online Products</a>. A marked variant option appears through its parent product card.</p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Featured Services</strong><p>Services marked as "Online" appear here. Manage in <a href="<?= base_url('online_store/services'); ?>">Services</a>.</p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-magic"></i> Featured Categories</strong><p>Auto-populated from your product categories. No setup needed.</p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-magic"></i> Best Sellers</strong><p>Calculated automatically from online orders. No setup needed.</p></div>
-      <div class="os-hb-guide-item"><strong><i class="fa fa-magic"></i> New Arrivals</strong><p>Shows latest published products automatically. No setup needed.</p></div>
-      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Store Information</strong><p>Edit your store description in <a href="<?= base_url('online_store/settings'); ?>">Settings</a> under Description.</p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-magic"></i> New Arrivals</strong><p><?php if($hbLumiere): ?>Enable this section above, then mark published products as New Arrival in <a href="<?= base_url('online_store/products_online'); ?>">Online Products</a>. Marked variant options appear through their parent card.<?php else: ?>Shows marked New Arrival products, or the latest published products when none are marked. Manage flags in <a href="<?= base_url('online_store/products_online'); ?>">Online Products</a>.<?php endif; ?></p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Store Information</strong><p><?php if($hbLumiere): ?>Use this section’s pencil button to edit the editorial heading, description and image URL. Its order and visibility are controlled above.<?php else: ?>Edit your store description in <a href="<?= base_url('online_store/settings'); ?>">Settings</a> under Description.<?php endif; ?></p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Contact / WhatsApp CTA</strong><p>Edit phone, email, address and WhatsApp number in <a href="<?= base_url('online_store/settings'); ?>">Settings</a>.</p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Store Hours</strong><p>Edit in <a href="<?= base_url('online_store/appearance'); ?>">Appearance</a> under Hours (one per line).</p></div>
-      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Headline & Sub-headline</strong><p>Edit in <a href="<?= base_url('online_store/appearance'); ?>">Appearance</a> under Store Branding.</p></div>
-      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Trust Badges</strong><p>Edit the 4 badge titles and descriptions in <a href="<?= base_url('online_store/settings'); ?>">Settings</a> under Trust Badges.</p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Headline & Sub-headline</strong><p><?php if($hbLumiere): ?>Edit the hero title and subtitle in <a href="<?= base_url('online_store/banners'); ?>">Banners</a>, or use the Hero Banner pencil button here for fallback text. Other section headings and sub-headings use their own pencil buttons.<?php else: ?>Edit in <a href="<?= base_url('online_store/appearance'); ?>">Appearance</a> under Store Branding.<?php endif; ?></p></div>
+      <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Trust Badges</strong><p>Use this page to show, hide or move the badges. Edit the 4 titles and descriptions in <a href="<?= base_url('online_store/settings'); ?>">Settings</a> under Trust Badges.</p></div>
+      <?php if($hbLumiere): ?><div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Lumière announcements and SEO</strong><p>Edit the scrolling marquee, announcement colour, meta title, description and indexing in <a href="<?= base_url('online_store/appearance'); ?>">Appearance</a>. The cart and checkout appear when “What You Sell” includes products.</p></div><?php endif; ?>
       <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Newsletter CTA</strong><p>Edit the headline and sub-headline in <a href="<?= base_url('online_store/settings'); ?>">Settings</a> under Newsletter CTA.</p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Brands</strong><p>Add brand logos in <a href="<?= base_url('online_store/brands'); ?>">Brands</a>. Shows as a logo grid on the storefront.</p></div>
       <div class="os-hb-guide-item"><strong><i class="fa fa-pencil-square-o"></i> Testimonials</strong><p>Add customer reviews in <a href="<?= base_url('online_store/testimonials'); ?>">Testimonials</a>. Shows with star ratings.</p></div>
@@ -158,6 +170,10 @@ function saveSectionMeta(btn){
   fd.append('section_key', key);
   fd.append('title', title);
   fd.append('subtitle', subtitle);
+  const eyebrowInput = wrap.querySelector('.os-sec-eyebrow');
+  if(eyebrowInput) fd.append('eyebrow', eyebrowInput.value.trim());
+  const imageInput = wrap.querySelector('.os-sec-image');
+  if(imageInput) fd.append('image_url', imageInput.value.trim());
   fetch('<?= base_url('online_store/save_homepage_section_meta'); ?>', {method:'POST', body:fd})
   .then(r=>r.json()).then(res=>{
     btn.disabled = false;

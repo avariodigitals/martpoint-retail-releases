@@ -193,6 +193,7 @@ const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($
 const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
 const TABLE_NUMBER = <?= json_encode($table_number ?? ''); ?>;
 const ALLOW_BACKORDER = <?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;
+const MP_CART_REVIEW_ONLY = <?= !empty($cart_review_only) ? 'true' : 'false'; ?>;
 
 // A cart needs delivery only if it contains something physically
 // deliverable — merchandise or a service. Digital downloads, courses
@@ -223,7 +224,7 @@ function renderCart(){
   // Build two-column layout
   let html = '<div class="mp-cart-layout">';
 
-  // === LEFT COLUMN: item list, then checkout sections ===
+  // === LEFT COLUMN: item list, then checkout fields on the checkout page ===
   html += '<div class="mp-cart-main">';
 
   // Items — spacious rows, quantity/remove handled here; the summary
@@ -239,6 +240,10 @@ function renderCart(){
     html += '<div style="background:#EFF6FF;border:1px solid var(--mp-primary);border-radius:var(--mp-radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--mp-primary);"><i class="fa fa-qrcode"></i> Ordering for Table: ' + TABLE_NUMBER + '</div>';
   }
 
+  // Lumière's cart reviews items and totals; the same shared renderer adds
+  // contact, delivery, service and payment fields only on its checkout page.
+  cityShipMode = false;
+  if(!MP_CART_REVIEW_ONLY){
   // Step numbering adjusts as sections appear
   let stepNum = 1;
 
@@ -351,6 +356,7 @@ function renderCart(){
   <?php endif; ?>
   html += '</div>';
   html += '</div>'; // end payment card
+  }
 
   html += '</div>'; // end left column
 
@@ -358,7 +364,8 @@ function renderCart(){
   html += '<div class="mp-cart-aside">';
   html += '<div class="mp-order-summary">';
   html += '<div class="mp-order-summary-title">Order summary</div>';
-  html += '<div class="mp-summary-items" id="summary-items"></div>';
+  html += '<div class="mp-summary-items" id="summary-items"'+(MP_CART_REVIEW_ONLY?' style="display:none"':'')+'></div>';
+  if(!MP_CART_REVIEW_ONLY){
   html += '<div class="mp-coupon-box" id="coupon-box">'
        +  '<div style="display:flex;gap:8px;">'
        +  '<input type="text" class="mp-cart-input" id="coupon-code" placeholder="Coupon code" style="flex:1;text-transform:uppercase;">'
@@ -366,15 +373,23 @@ function renderCart(){
        +  '</div>'
        +  '<div id="coupon-msg" style="font-size:12px;margin-top:6px;display:none;"></div>'
        +  '</div>';
+  }
   html += '<div class="mp-summary-totals">';
   html += '<div class="mp-cart-row"><span>Subtotal</span><span id="summary-subtotal"></span></div>';
+  if(MP_CART_REVIEW_ONLY && needsDelivery) html += '<div class="mp-cart-row"><span>Delivery</span><span>Calculated at checkout</span></div>';
+  if(!MP_CART_REVIEW_ONLY){
   html += '<div class="mp-cart-row" id="summary-discount-row" style="display:none;color:#059669;"><span>Coupon <span id="summary-coupon-code"></span> <a href="javascript:void(0)" onclick="removeCoupon()" style="color:#991B1B;font-size:11px;">[remove]</a></span><span id="summary-discount"></span></div>';
   html += '<div class="mp-cart-row" id="summary-shipping-row" style="display:none;"><span>Shipping</span><span id="summary-shipping"></span></div>';
-  html += '<div class="mp-cart-total"><span id="summary-total-label">Total</span><span id="summary-total"></span></div>';
-  html += '<div class="mp-quote-note" id="summary-quote-note" style="display:none;"><i class="fa fa-info-circle"></i> Delivery for the selected method is priced by the store — the delivery fee will be confirmed when your order is processed. This total covers your items only.</div>';
+  }
+  html += '<div class="mp-cart-total"><span id="summary-total-label">'+(MP_CART_REVIEW_ONLY?'Items total':'Total')+'</span><span id="summary-total"></span></div>';
+  if(!MP_CART_REVIEW_ONLY) html += '<div class="mp-quote-note" id="summary-quote-note" style="display:none;"><i class="fa fa-info-circle"></i> Delivery for the selected method is priced by the store — the delivery fee will be confirmed when your order is processed. This total covers your items only.</div>';
   html += '</div>';
+  if(MP_CART_REVIEW_ONLY){
+    html += '<div class="mp-cart-review-actions"><a class="mp-cart-next" href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/checkout'); ?>">Continue to Checkout <span aria-hidden="true">↗</span></a><a class="mp-continue-shopping" href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>">← Continue Shopping</a></div>';
+  } else {
   html += '<button class="mp-cart-checkout" id="checkout-btn" onclick="placeOrder()">Place Order</button>';
   html += '<a class="mp-continue-shopping" href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>">&larr; Continue shopping</a>';
+  }
   html += '</div>';
   html += '</div>'; // end right column
 
@@ -421,8 +436,8 @@ function renderCart(){
   document.getElementById('cart-items').innerHTML=itemsHtml;
   document.getElementById('summary-items').innerHTML=miniHtml;
   document.getElementById('summary-subtotal').textContent=formatMoney(subtotal);
-  selectedPayment=document.querySelector('input[name="paymethod"]:checked')?.value||'pay_on_delivery';
-  selectedShippingMethod=document.querySelector('input[name="shipmethod"]:checked')?.value||((needsDelivery && !cityShipMode && SHIPPING_METHODS.length>0)?SHIPPING_METHODS[0].name:'');
+  selectedPayment=MP_CART_REVIEW_ONLY?'':(document.querySelector('input[name="paymethod"]:checked')?.value||'pay_on_delivery');
+  selectedShippingMethod=MP_CART_REVIEW_ONLY?'':(document.querySelector('input[name="shipmethod"]:checked')?.value||((needsDelivery && !cityShipMode && SHIPPING_METHODS.length>0)?SHIPPING_METHODS[0].name:''));
   selectedCityIdx=-1;
   updateShipSummary(subtotal);
 }
@@ -561,7 +576,7 @@ function updateShipSummary(subtotal){
   const note=document.getElementById('summary-quote-note');
   const totalLbl=document.getElementById('summary-total-label');
   if(note) note.style.display = quotePending ? 'block' : 'none';
-  if(totalLbl) totalLbl.textContent = quotePending ? 'Items total' : 'Total';
+  if(totalLbl) totalLbl.textContent = MP_CART_REVIEW_ONLY || quotePending ? 'Items total' : 'Total';
   const dRow=document.getElementById('summary-discount-row');
   if(dRow){
     if(appliedCoupon && couponDiscountPreview>0){
@@ -796,7 +811,7 @@ function showOrderSuccess(orderCode, redirectUrl, paymentMethod){
 // by mpTrackEvent). Persisted carts are order-adjacent, not ads — they are
 // always saved so the merchant can see abandonment.
 if(cartData.length){
-  if(typeof mpTrackEvent === 'function') mpTrackEvent('begin_checkout', 0, cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0));
+  if(!MP_CART_REVIEW_ONLY && typeof mpTrackEvent === 'function') mpTrackEvent('begin_checkout', 0, cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0));
   if(typeof mpSaveCart === 'function') mpSaveCart();
 }
 

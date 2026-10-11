@@ -1452,7 +1452,10 @@ class Online_store extends MY_Controller {
 	public function appearance(){
 		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
 		$storeId = get_current_store_id();
-		$settings = $this->storefront_model->getSettings($storeId);
+		// The appearance view resolves colours through the storefront engine.
+		$this->load->library('theme_engine');
+		$this->theme_engine->init($storeId);
+		$settings = $this->theme_engine->settings();
 		$profile = mp_get_store_profile($storeId);
 		$industryType = $profile['industry_type'] ?? 'general_retail';
 
@@ -1460,7 +1463,7 @@ class Online_store extends MY_Controller {
 			'page_title' => 'Appearance',
 			'settings' => $settings,
 			'themes' => $this->storefront_model->getThemesByIndustryForStore($industryType, true),
-			'current_theme' => $this->storefront_model->getTheme($settings->theme_id),
+			'current_theme' => $this->theme_engine->currentTheme(),
 			'store' => get_store_details($storeId),
 			'industry_type' => $industryType
 		]);
@@ -1637,14 +1640,24 @@ class Online_store extends MY_Controller {
 	}
 
 	public function save_banner(){
+		$this->output->set_content_type('application/json');
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;
 		}
 		$storeId = get_current_store_id();
 		$bannerId = (int)$this->input->post('banner_id');
+		if($bannerId && !$this->storefront_model->getBanner($bannerId, $storeId)){
+			echo json_encode(['status' => 'error', 'message' => 'Banner not found for this store']);
+			return;
+		}
+		$bannerType = (string)$this->input->post('banner_type');
+		if(!in_array($bannerType, ['hero', 'promo'], true)){
+			echo json_encode(['status' => 'error', 'message' => 'Choose a valid banner type']);
+			return;
+		}
 		$data = [
-			'banner_type' => $this->input->post('banner_type') ?: 'hero',
+			'banner_type' => $bannerType,
 			'banner_title' => trim($this->input->post('banner_title')),
 			'banner_subtitle' => trim($this->input->post('banner_subtitle')),
 			'button_text' => trim($this->input->post('button_text')),
@@ -1658,36 +1671,42 @@ class Online_store extends MY_Controller {
 		$uploadDir = './uploads/storefront/' . $storeId . '/';
 		if(!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
 
-		if(!empty($_FILES['desktop_image']['name']) || !empty($_FILES['mobile_image']['name'])){
+		$hasDesktopImage = !empty($_FILES['desktop_image']['name']);
+		$hasMobileImage = !empty($_FILES['mobile_image']['name']);
+		if($hasDesktopImage || $hasMobileImage){
 			$media_check = check_media_storage_limit();
 			if($media_check !== true){
 				echo json_encode(['status' => 'error', 'message' => $media_check]);
 				return;
 			}
+			// Either field can be uploaded by itself. Loading inside the desktop
+			// branch left mobile-only saves calling initialize() on null.
+			$this->load->library('upload');
 		}
 
-		if(!empty($_FILES['desktop_image']['name'])){
-			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp', 'max_size' => 2048, 'file_name' => 'desktop_' . time()];
-			$this->load->library('upload');
+		$uploadedPaths = [];
+		foreach(['desktop_image' => $hasDesktopImage, 'mobile_image' => $hasMobileImage] as $field => $hasImage){
+			if(!$hasImage) continue;
+			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp', 'max_size' => 5120, 'file_name' => ($field === 'desktop_image' ? 'desktop_' : 'mobile_') . time()];
 			$this->upload->initialize($config);
-			if($this->upload->do_upload('desktop_image')){
-				$up = $this->upload->data();
-				$data['desktop_image'] = 'uploads/storefront/' . $storeId . '/' . $up['file_name'];
+			if(!$this->upload->do_upload($field)){
+				foreach($uploadedPaths as $uploadedPath) @unlink($uploadedPath);
+				echo json_encode(['status' => 'error', 'message' => trim(strip_tags($this->upload->display_errors('', ''))) ?: 'Image upload failed']);
+				return;
 			}
-		}
-		if(!empty($_FILES['mobile_image']['name'])){
-			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp', 'max_size' => 2048, 'file_name' => 'mobile_' . time()];
-			$this->upload->initialize($config);
-			if($this->upload->do_upload('mobile_image')){
-				$up = $this->upload->data();
-				$data['mobile_image'] = 'uploads/storefront/' . $storeId . '/' . $up['file_name'];
-			}
+			$up = $this->upload->data();
+			$uploadedPaths[] = $up['full_path'];
+			$data[$field] = 'uploads/storefront/' . $storeId . '/' . $up['file_name'];
 		}
 
 		if(!$bannerId){
 			$data['store_id'] = $storeId;
 		}
-		$this->storefront_model->saveBanner($data, $bannerId ?: null);
+		if(!$this->storefront_model->saveBanner($data, $bannerId ?: null)){
+			foreach($uploadedPaths as $uploadedPath) @unlink($uploadedPath);
+			echo json_encode(['status' => 'error', 'message' => 'Could not save banner. Please try again.']);
+			return;
+		}
 		echo json_encode(['status' => 'success', 'message' => 'Banner saved']);
 	}
 
@@ -1744,11 +1763,21 @@ class Online_store extends MY_Controller {
 		$sectionKey = preg_replace('/[^a-z0-9_]/i', '', (string)$this->input->post('section_key'));
 		$title    = trim((string)$this->input->post('title'));
 		$subtitle = trim((string)$this->input->post('subtitle'));
+		$imageUrl = $this->input->post('image_url');
+		$eyebrow = $this->input->post('eyebrow');
+		if($eyebrow !== null) $eyebrow = trim((string)$eyebrow);
+		if($imageUrl !== null){
+			$imageUrl = trim((string)$imageUrl);
+			if($imageUrl !== '' && (!filter_var($imageUrl, FILTER_VALIDATE_URL) || !in_array(strtolower((string)parse_url($imageUrl, PHP_URL_SCHEME)), ['https','http'], true))){
+				echo json_encode(['status' => 'error', 'message' => 'Enter a valid http or https image URL']);
+				return;
+			}
+		}
 		if(!$sectionKey){
 			echo json_encode(['status' => 'error', 'message' => 'No section key provided']);
 			return;
 		}
-		if($this->storefront_model->saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle)){
+		if($this->storefront_model->saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle, $imageUrl, $eyebrow)){
 			echo json_encode(['status' => 'success', 'message' => 'Section updated', 'title' => $title]);
 		} else {
 			echo json_encode(['status' => 'error', 'message' => 'Section not found']);
@@ -2518,10 +2547,20 @@ class Online_store extends MY_Controller {
 		try{
 			$storeId = get_current_store_id();
 			$id = (int)$this->input->post('faq_id');
+			$question = trim((string)$this->input->post('question'));
+			$answer = trim((string)$this->input->post('answer'));
+			if($question === '' || trim(strip_tags($answer)) === ''){
+				echo json_encode(['status' => 'error', 'message' => 'Enter a question and an answer before saving']);
+				return;
+			}
+			if($id && !$this->db->where('id', $id)->where('store_id', $storeId)->get('db_storefront_faqs')->row()){
+				echo json_encode(['status' => 'error', 'message' => 'FAQ not found for this store']);
+				return;
+			}
 			$faqData = [
 				'store_id' => $storeId,
-				'question' => trim($this->input->post('question')),
-				'answer' => trim($this->input->post('answer')),
+				'question' => $question,
+				'answer' => $answer,
 				'is_enabled' => $this->input->post('is_enabled') ? 1 : 0,
 				'sort_order' => (int)$this->input->post('sort_order')
 			];
@@ -2542,7 +2581,11 @@ class Online_store extends MY_Controller {
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
 		}
 		try{
-			$this->storefront_model->deleteStorefrontFaq($id);
+			if(!$this->db->where('id', (int)$id)->where('store_id', get_current_store_id())->get('db_storefront_faqs')->row()){
+				echo json_encode(['status' => 'error', 'message' => 'FAQ not found for this store']);
+				return;
+			}
+			$this->storefront_model->deleteStorefrontFaq((int)$id);
 			echo json_encode(['status' => 'success', 'message' => 'FAQ deleted']);
 		} catch(Exception $e){
 			echo json_encode(['status' => 'error', 'message' => 'Error: '.$e->getMessage()]);

@@ -7,6 +7,7 @@
  * earlier rail are skipped so nothing repeats.
  */
 include APPPATH . 'views/themes/skin_core/_skin.php';
+if ($SK_SKIN === 'lumiere') { include APPPATH . 'views/themes/skin_core/reference_store.php'; return; }
 
 $slug  = $settings->store_slug ?? '';
 $cur   = $store_currency ?? null;

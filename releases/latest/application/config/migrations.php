@@ -273,4 +273,5 @@ return [
           '4.0.9.134v'  => '4.0.9.134_lagos_location_repair.sql',
           '4.0.9.135v'  => '4.0.9.135_physio_final_assessment.sql',
           '4.0.9.136v'  => '4.0.9.136_physio_user_signatures.sql',
+          '4.0.9.137v'  => '4.0.9.137_skincare_reference_themes.sql',
 ];

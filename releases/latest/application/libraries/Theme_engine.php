@@ -285,6 +285,14 @@ class Theme_engine {
         if (!$this->sellsProducts()) {
             return false;
         }
+        // Lumière is an online product storefront whenever Products or Both
+        // is selected in Appearance. Older skincare stores can retain the
+        // legacy allow_products_online=0 flag even while publishing products;
+        // that stale flag must not remove their bag and checkout.
+        if (($this->theme->theme_key ?? '') === 'lumiere'
+            && $this->CI->storefront_model->normalizeThemeIndustry($this->industry) === 'skincare') {
+            return true;
+        }
         $allowedOnline = true;
         try {
             if ($this->settings && isset($this->settings->allow_products_online)) {

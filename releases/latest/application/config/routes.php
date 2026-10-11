@@ -64,6 +64,7 @@ $route['store/(:any)/product/(:num)/review'] = 'storefront/submit_product_review
 $route['store/(:any)/service/(:num)'] = 'storefront/service/$1/$2';
 $route['store/(:any)/vehicle/(:num)'] = 'storefront/vehicle/$1/$2';
 $route['store/(:any)/cart'] = 'storefront/cart/$1';
+$route['store/(:any)/checkout'] = 'storefront/cart/$1/checkout';
 $route['store/(:any)/catalogue'] = 'storefront/catalogue/$1';
 $route['store/(:any)/track/testimonial'] = 'storefront/submit_testimonial/$1';
 $route['store/(:any)/subscribe'] = 'storefront/subscribe/$1';

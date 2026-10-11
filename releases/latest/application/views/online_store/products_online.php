@@ -17,8 +17,9 @@
 .os-sync-btn{padding:9px 18px!important;border-radius:10px!important;border:none!important;background:var(--mp-primary)!important;color:#fff!important;font-weight:600!important;cursor:pointer!important;font-size:13px!important;display:inline-flex!important;align-items:center!important;gap:6px!important}
 .os-sync-btn:hover{background:var(--mp-primary-dark,#0044CC)!important}
 .os-sync-btn:disabled{opacity:.6!important;cursor:not-allowed!important}
-.os-toggle.na{background:#6366F1!important}
+.os-toggle.na{background:var(--mp-border)!important}
 .os-toggle.na.on{background:#4F46E5!important}
+.os-toggle.featured.on{background:#F59E0B!important}
 /* Batch toolbar */
 .os-batch-bar{position:sticky!important;top:0!important;z-index:50!important;background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-primary,#0057FF)!important;border-radius:12px!important;padding:10px 16px!important;margin-bottom:16px!important;display:none!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important;box-shadow:0 4px 12px rgba(0,87,255,.12)!important}
 .os-batch-bar.show{display:flex!important}
@@ -140,7 +141,7 @@
 <div class="mp-page-head">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">Publish products to your storefront and manage online prices, featured & new arrival items</div>
+    <div class="mp-page-sub">Publish products to your storefront and manage online prices, featured & new arrival items. Variant options appear on the storefront through their parent product card.</div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <form method="get" class="os-search" action="<?= base_url('online_store/products_online'); ?>">
@@ -204,10 +205,10 @@
               <button type="button" class="os-toggle <?= $p->publish_online ? 'on' : ''; ?>" data-id="<?= (int)$p->id; ?>" onclick="toggleOnline(this)" title="Toggle online publication"></button>
             </td>
             <td>
-              <button type="button" class="os-toggle na <?= $p->is_new_arrival ? 'on' : ''; ?>" data-id="<?= (int)$p->id; ?>" onclick="toggleNewArrival(this)" title="Toggle New Arrival"></button>
+              <button type="button" class="os-toggle na <?= $p->is_new_arrival ? 'on' : ''; ?>" data-id="<?= (int)$p->id; ?>" onclick="toggleNewArrival(this)" title="Toggle New Arrival" aria-pressed="<?= $p->is_new_arrival ? 'true' : 'false'; ?>"></button>
             </td>
             <td>
-              <button type="button" class="os-toggle <?= $p->is_featured ? 'on' : ''; ?>" data-id="<?= (int)$p->id; ?>" onclick="toggleFeatured(this)" title="Toggle Featured" style="background:#F59E0B!important"></button>
+              <button type="button" class="os-toggle featured <?= $p->is_featured ? 'on' : ''; ?>" data-id="<?= (int)$p->id; ?>" onclick="toggleFeatured(this)" title="Toggle Featured" aria-pressed="<?= $p->is_featured ? 'true' : 'false'; ?>"></button>
             </td>
           </tr>
           <?php endforeach; ?>
@@ -243,6 +244,7 @@ function toggleNewArrival(btn){
   }, function(res){
     if(res.status === 'success'){
       $(btn).toggleClass('on', res.is_new_arrival == 1);
+      $(btn).attr('aria-pressed', res.is_new_arrival == 1 ? 'true' : 'false');
       toastr.success(res.is_new_arrival ? 'Marked as New Arrival' : 'Removed from New Arrivals');
     } else { toastr.error(res.message); }
   }, 'json');
@@ -256,6 +258,7 @@ function toggleFeatured(btn){
   }, function(res){
     if(res.status === 'success'){
       $(btn).toggleClass('on', res.is_featured == 1);
+      $(btn).attr('aria-pressed', res.is_featured == 1 ? 'true' : 'false');
       toastr.success(res.is_featured ? 'Marked as Featured' : 'Removed from Featured');
     } else { toastr.error(res.message); }
   }, 'json');

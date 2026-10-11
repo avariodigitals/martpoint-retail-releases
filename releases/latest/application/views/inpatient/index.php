@@ -50,7 +50,7 @@
         <select class="ip-inp" name="patient_id" required>
           <option value="">— Patient —</option>
           <?php foreach($patients as $p): ?>
-            <option value="<?= (int)$p->id; ?>"><?= htmlspecialchars($p->patient_code . ' — ' . $p->full_name); ?></option>
+            <option value="<?= (int)$p->id; ?>"><?= htmlspecialchars($p->patient_code . ' — ' . ($p->customer_name ?? '')); ?></option>
           <?php endforeach; ?>
         </select>
         <select class="ip-inp" name="bed_id">

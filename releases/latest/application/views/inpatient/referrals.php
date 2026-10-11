@@ -50,7 +50,7 @@
   <h4>New referral</h4>
   <form onsubmit="return rfNew(event)">
     <select class="rf-inp" name="patient_id" required><option value="">— Patient —</option>
-      <?php foreach($patients as $p): ?><option value="<?= (int)$p->id; ?>"><?= htmlspecialchars($p->patient_code . ' — ' . $p->full_name); ?></option><?php endforeach; ?></select>
+      <?php foreach($patients as $p): ?><option value="<?= (int)$p->id; ?>"><?= htmlspecialchars($p->patient_code . ' — ' . ($p->customer_name ?? '')); ?></option><?php endforeach; ?></select>
     <input class="rf-inp" name="destination" placeholder="Destination facility" required style="width:200px">
     <input class="rf-inp" name="reason" placeholder="Reason" style="width:200px">
     <select class="rf-inp" name="urgency"><option>routine</option><option>urgent</option><option>emergency</option></select>

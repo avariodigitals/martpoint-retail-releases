@@ -46,6 +46,16 @@ if(!empty($settings->marquee_items)){
 .theme-<?= $tk; ?> .mp-header,
 .theme-<?= $tk; ?> .mp-mobile-menu-btn { display:none !important; }
 .theme-<?= $tk; ?> .mp-footer-space { height:0 !important; }
+<?php if($SK_SKIN === 'lumiere'): ?>
+/* Lumière reference chrome: white editorial bar, centered navigation, quiet utility icons. */
+.theme-lumiere .skh{background:#fff;border-bottom:1px solid #d9d5ca;box-shadow:0 2px 9px rgba(25,31,25,.08)}
+.theme-lumiere .skh-bar{min-height:68px;max-width:1280px;padding:0 34px}
+.theme-lumiere .skh-logo{position:relative}.theme-lumiere .skh-logo-name{font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;letter-spacing:.13em;text-transform:uppercase;color:#101510!important}
+.theme-lumiere .skh-logo:after{content:'SKINCARE & BEAUTY';display:block;position:absolute;margin:31px 0 0 -149px;font:600 7px Jost,sans-serif;letter-spacing:.28em;color:#686a60}
+.theme-lumiere .skh-nav{gap:27px}.theme-lumiere .skh-nav-link{font:500 12px Jost,sans-serif;color:#171b17!important}.theme-lumiere .skh-nav-link:hover{color:#173a2b!important}
+.theme-lumiere .skh-actions{gap:14px}.theme-lumiere .skh-ic{color:#111!important}.theme-lumiere .skh-count{background:#173a2b;color:#fff!important}
+@media(max-width:760px){.theme-lumiere .skh-bar{padding:0 16px}.theme-lumiere .skh-logo-name{font-size:22px}.theme-lumiere .skh-logo:after{margin:25px 0 0 -119px;font-size:6px}.theme-lumiere .skh-nav{display:none}}
+<?php endif; ?>
 
 body.theme-<?= $tk; ?> {
   background: <?= $SK['bg']; ?>;
@@ -480,18 +490,20 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
       <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <a href="<?= base_url('store/' . $slug); ?>" class="skh-logo">
-      <?php if($logo): ?>
+      <?php if($logo && $SK_SKIN !== 'lumiere'): ?>
         <img src="<?= $logo; ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>">
       <?php else: ?>
-        <span class="skh-logo-name"><?= htmlspecialchars($settings->store_headline ?: ($store->store_name ?? 'Store')); ?></span>
+        <span class="skh-logo-name"><?= $SK_SKIN === 'lumiere' ? 'LUMIÈRE' : htmlspecialchars($settings->store_headline ?: ($store->store_name ?? 'Store')); ?></span>
       <?php endif; ?>
     </a>
     <nav class="skh-nav">
-      <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="skh-nav-link">Shop</a>
+      <?php if($SK_SKIN === 'lumiere'): ?><a href="<?= base_url('store/' . $slug); ?>" class="skh-nav-link">Home</a><?php endif; ?>
+      <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="skh-nav-link"><?= $SK_SKIN === 'lumiere' ? 'Shop Skincare' : 'Shop'; ?></a>
       <?php if(($settings->show_categories ?? 1) && !empty($categories)): foreach(array_slice($categories, 0, 3) as $cat): ?>
       <a href="<?= base_url('store/' . $slug . '/products?category=' . $cat->id); ?>" class="skh-nav-link"><?= htmlspecialchars($cat->category_name); ?></a>
       <?php endforeach; endif; ?>
-      <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="skh-nav-link">About</a>
+      <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="skh-nav-link"><?= $SK_SKIN === 'lumiere' ? 'Our Story' : 'About'; ?></a>
+      <?php if($SK_SKIN === 'lumiere'): ?><a href="<?= base_url('store/' . $slug . '/blog'); ?>" class="skh-nav-link">Blog</a><?php endif; ?>
       <?php if($settings->allow_services ?? false): ?>
       <a href="<?= base_url('store/' . $slug . '/services'); ?>" class="skh-nav-link">Services</a>
       <?php endif; ?>
@@ -523,7 +535,7 @@ $announceBg = !empty($settings->announcement_bar_color) ? $settings->announcemen
   </div>
   <a href="<?= base_url('store/' . $slug); ?>" class="skh-drawer-link" onclick="skMenu(false)">Home</a>
   <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="skh-drawer-link" onclick="skMenu(false)">Shop</a>
-  <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="skh-drawer-link" onclick="skMenu(false)">About</a>
+      <a href="<?= base_url('store/' . $slug . '/about'); ?>" class="skh-drawer-link" onclick="skMenu(false)"><?= $SK_SKIN === 'lumiere' ? 'Our Story' : 'About'; ?></a>
   <?php if($settings->allow_services ?? false): ?>
   <a href="<?= base_url('store/' . $slug . '/services'); ?>" class="skh-drawer-link" onclick="skMenu(false)">Services</a>
   <?php endif; ?>

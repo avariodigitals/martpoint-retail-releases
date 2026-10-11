@@ -41,6 +41,7 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
+		$isLumiere = (($this->theme_engine->currentTheme()->theme_key ?? '') === 'lumiere');
 
 		$canonical = base_url('store/' . $settings->store_slug);
 		$businessProfile = mp_get_store_profile($storeId);
@@ -62,11 +63,11 @@ class Storefront extends CI_Controller {
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'featured_categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'all_products' => $allProducts,
-			'featured_products' => $this->storefront_model->getFeaturedProducts($storeId, $settings->featured_products_limit),
+			'featured_products' => $this->storefront_model->getFeaturedProducts($storeId, $settings->featured_products_limit, $isLumiere),
 			'featured_vehicles' => $featuredVehicles,
 			'featured_services' => $settings->allow_services ? $this->storefront_model->getOnlineServices($storeId, null, '', 8) : [],
 			'best_sellers' => $this->storefront_model->getBestSellers($storeId, 8),
-			'new_arrivals' => $this->storefront_model->getNewArrivals($storeId, 10),
+			'new_arrivals' => $this->storefront_model->getNewArrivals($storeId, 10, !$isLumiere, $isLumiere),
 			'paystack_enabled' => $this->paystack->is_enabled($storeId),
 			'paystack_public_key' => '',
 			'active_banners' => $this->theme_engine->activeBanners(),
@@ -92,6 +93,10 @@ class Storefront extends CI_Controller {
 		foreach(['featured_products','best_sellers','new_arrivals'] as $key){
 			foreach($data[$key] as &$p){ $p->sold_count = $soldCounts[$p->id] ?? 0; }
 		}
+		foreach($data['featured_services'] as &$service){
+			$service->effective_price = $this->storefront_model->getServiceEffectivePrice($service);
+		}
+		unset($service);
 
 		// Get Paystack public key if enabled
 		if($data['paystack_enabled']){
@@ -360,7 +365,8 @@ class Storefront extends CI_Controller {
 		$this->load->model('Extras_model', 'extras_model');
 		$serviceAddons = $this->extras_model->getAddonsForService($serviceId, $storeId);
 
-		$serviceImage = $service->item_image && file_exists($service->item_image) ? base_url($service->item_image) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'));
+		$serviceImagePath = $service->service_image ?? $service->item_image ?? '';
+		$serviceImage = $serviceImagePath && file_exists($serviceImagePath) ? base_url($serviceImagePath) : ($this->theme_engine->logoUrl() ?: base_url('uploads/site/icon.webp'));
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
@@ -372,8 +378,8 @@ class Storefront extends CI_Controller {
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
-			'seo_title' => $service->item_name,
-			'seo_description' => substr(strip_tags($service->description ?? ''), 0, 160) ?: ('Book ' . $service->item_name . ' at ' . ($store->store_name ?? 'our store')),
+			'seo_title' => $service->service_name ?? $service->item_name ?? 'Service',
+			'seo_description' => substr(strip_tags($service->description ?? ''), 0, 160) ?: ('Book ' . ($service->service_name ?? $service->item_name ?? 'a service') . ' at ' . ($store->store_name ?? 'our store')),
 			'seo_image' => $serviceImage,
 			'seo_canonical' => base_url('store/' . $settings->store_slug . '/service/' . $serviceId),
 			'seo_type' => 'product',
@@ -476,12 +482,13 @@ class Storefront extends CI_Controller {
 	 * Cart page
 	 * URL: /store/{store_slug}/cart
 	 */
-	public function cart($storeSlug = ''){
+	public function cart($storeSlug = '', $page = 'cart'){
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
+		$lumiereCheckout = $page === 'checkout' && (($this->theme_engine->currentTheme()->theme_key ?? '') === 'lumiere');
 
 		$data = [
 			'settings' => $settings,
@@ -493,9 +500,9 @@ class Storefront extends CI_Controller {
 			'social_links' => $this->theme_engine->socialLinks(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
 			'table_number' => $this->table_number,
-			'seo_title' => 'Shopping Cart',
-			'seo_description' => 'Your cart at ' . ($store->store_name ?? 'our store'),
-			'seo_canonical' => base_url('store/' . $settings->store_slug . '/cart'),
+			'seo_title' => $lumiereCheckout ? 'Secure Checkout' : 'Shopping Cart',
+			'seo_description' => ($lumiereCheckout ? 'Complete your order securely at ' : 'Your cart at ') . ($store->store_name ?? 'our store'),
+			'seo_canonical' => base_url('store/' . $settings->store_slug . ($lumiereCheckout ? '/checkout' : '/cart')),
 			'seo_type' => 'website',
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash(),
@@ -507,7 +514,7 @@ class Storefront extends CI_Controller {
 				$data['paystack_test_mode'] = $ps->test_mode ?? 1;
 			}
 		}
-		$this->theme_engine->view('cart', $data);
+		$this->theme_engine->view($lumiereCheckout ? 'checkout' : 'cart', $data);
 	}
 
 	/**

@@ -109,7 +109,13 @@ class Sales_payments extends MY_Controller {
 
 	public function delete_payment(){
 		$this->permission_check_with_msg('sales_payment_delete');
-		$payment_id = $this->input->post('payment_id');
+		$payment_id = (int)$this->input->post('payment_id');
+		// The desktop and mobile ledgers share this endpoint.  Do not let a
+		// guessed receipt id delete a payment belonging to another branch.
+		$belongs_here = $this->db->where('id', $payment_id)
+			->where('store_id', get_current_store_id())
+			->count_all_results('db_salespayments');
+		if(!$belongs_here){ echo 'failed'; return; }
 		echo $this->sales->delete_payment($payment_id);
 	}
 	public function show_cheque_payments_modal(){

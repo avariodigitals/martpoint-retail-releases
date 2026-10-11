@@ -1,0 +1,119 @@
+/* Lumière-only integration styles. The reference stylesheet supplies the visual system. */
+body.theme-lumiere{--mp-primary:#244735;--mp-primary-dark:#1b3527;--mp-dark:#202921;--mp-gray:#66716a;--mp-border:#e2e6dd;--mp-light-gray:#f8f6ef;--mp-white:#fffefa;--mp-radius:4px;--mp-radius-sm:4px;--mp-font:'DM Sans',sans-serif;background:#fffefa;color:#202921;font-family:'DM Sans',sans-serif}
+.theme-lumiere .header,.theme-lumiere .topbar,.theme-lumiere .footer{font-family:'DM Sans',sans-serif}
+.theme-lumiere .header a,.theme-lumiere .footer a{text-decoration:none}
+.theme-lumiere .header .icon-btn{width:27px;height:27px}
+.theme-lumiere .header .brand{flex-shrink:0}
+.theme-lumiere .header .brand-logo,.theme-lumiere .footer .brand-logo{display:inline-flex;align-items:center;justify-content:flex-start;max-width:220px}
+.theme-lumiere .header .brand-logo img,.theme-lumiere .footer .brand-logo img{display:block;width:auto;height:auto;max-width:100%;object-fit:contain}
+.theme-lumiere .header .brand-logo img{max-height:58px}
+.theme-lumiere .footer .brand-logo img{max-height:70px}
+.theme-lumiere .hero-image{background-image:var(--lm-hero-desktop)}
+.theme-lumiere .newsletter{display:block;padding:54px 0}
+.theme-lumiere .newsletter .lm-newsletter-inner{display:flex;align-items:center;justify-content:space-between;gap:35px}
+.theme-lumiere .newsletter .lm-newsletter-inner>div:first-child{min-width:0}
+.theme-lumiere .topbar.lm-marquee{background:var(--lm-announcement-color);overflow:hidden;white-space:nowrap;padding:10px 0}
+.theme-lumiere .lm-marquee-track{display:flex;width:max-content;animation:lm-marquee-scroll 28s linear infinite}
+.theme-lumiere .lm-marquee-group{display:flex;align-items:center;justify-content:space-around;gap:38px;min-width:100vw;padding:0 38px;text-transform:uppercase}
+.theme-lumiere .lm-marquee-group i{font-size:8px;font-style:normal;opacity:.55}
+@keyframes lm-marquee-scroll{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.theme-lumiere .lm-marquee-track{animation:none}}
+.theme-lumiere .service-image{display:block}
+.theme-lumiere .service-bottom a{border-bottom:1px solid var(--sage);padding-bottom:4px;font-size:12px;color:var(--sage);font-weight:700;white-space:nowrap}
+.theme-lumiere .service-info p{min-height:50px}
+.theme-lumiere .product-image>a{display:block;height:100%}
+.theme-lumiere .product-image img{height:100%;width:100%;object-fit:cover}
+.theme-lumiere .lm-image-placeholder{height:100%;width:100%;display:grid;place-items:center;background:#e9e7df;color:#879081;font:500 22px 'Playfair Display',serif;letter-spacing:.14em}
+.theme-lumiere .lm-toast{background:#1b3527;color:#fff;border:1px solid #476b55;box-shadow:0 12px 28px #14251c33;z-index:1000}
+.theme-lumiere .product h3 a:hover,.theme-lumiere .service h3 a:hover{color:#617460}
+.theme-lumiere .quick-add:disabled{opacity:.45;cursor:not-allowed}
+.theme-lumiere .lm-inner{padding:0 0 95px;background:#fffefa}
+.theme-lumiere .lm-breadcrumb{display:flex;align-items:center;gap:10px;padding:24px 0;color:#738078;font-size:11px}
+.theme-lumiere .lm-breadcrumb a:hover{color:#244735}
+.theme-lumiere .lm-page-intro{padding:44px 0 38px;max-width:720px}
+.theme-lumiere .lm-page-intro h1,.theme-lumiere .lm-detail-copy h1{font:normal clamp(40px,5vw,68px)/1.12 'Playfair Display',serif;letter-spacing:-.04em;margin:12px 0 14px}
+.theme-lumiere .lm-page-intro p{font-size:14px;line-height:1.8;color:#66716a;margin:0}
+.theme-lumiere .lm-search-form{display:flex;gap:10px;max-width:600px;margin-bottom:24px}
+.theme-lumiere .lm-search-form input{flex:1;min-width:0;padding:14px 16px;background:white;border:1px solid #d8ded4;color:#202921;font-size:13px}
+.theme-lumiere .lm-search-form .btn{min-height:46px}
+.theme-lumiere .lm-inner .categories{margin-bottom:8px}
+.theme-lumiere .lm-pagination{display:flex;gap:7px;justify-content:center;margin:45px 0 0}
+.theme-lumiere .lm-pagination a{display:grid;place-items:center;min-width:38px;height:38px;border:1px solid #d8ded4;font-size:12px}
+.theme-lumiere .lm-pagination a.active,.theme-lumiere .lm-pagination a:hover{background:#244735;color:white;border-color:#244735}
+.theme-lumiere .lm-empty{padding:70px 20px;text-align:center;background:#f8f6ef}
+.theme-lumiere .lm-empty h2{font:normal 32px 'Playfair Display',serif}
+.theme-lumiere .lm-empty p{color:#66716a;font-size:13px;margin-bottom:25px}
+.theme-lumiere .lm-services-page .services-grid{margin-top:8px}
+.theme-lumiere .lm-detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7%;align-items:start;padding:20px 0 30px}
+.theme-lumiere .lm-detail-image{height:min(55vw,660px);min-height:480px;background:#f1f0e9;overflow:hidden}
+.theme-lumiere .lm-detail-image img{width:100%;height:100%;object-fit:cover}
+.theme-lumiere .lm-detail-copy{padding:38px 0}
+.theme-lumiere .lm-detail-copy h1{margin-bottom:20px}
+.theme-lumiere .lm-detail-price{font-size:21px;font-weight:700;color:#244735;margin:0 0 22px}
+.theme-lumiere .lm-detail-price .old{font-size:13px}
+.theme-lumiere .lm-detail-description{color:#66716a;font-size:14px;line-height:1.9;margin-bottom:24px;white-space:normal}
+.theme-lumiere .lm-availability,.theme-lumiere .lm-service-meta{font-size:12px;color:#617460;padding-bottom:18px;border-bottom:1px solid #e2e6dd;margin-bottom:22px}
+.theme-lumiere .lm-service-meta{display:flex;gap:18px}
+.theme-lumiere .lm-detail-buy{display:flex;gap:13px;align-items:stretch;margin:28px 0 12px}
+.theme-lumiere .lm-quantity{display:flex;border:1px solid #d8ded4;align-items:center}
+.theme-lumiere .lm-quantity button{width:40px;border:0;background:transparent;color:#244735;font-size:19px}
+.theme-lumiere .lm-quantity span{min-width:29px;text-align:center;font-size:13px}
+.theme-lumiere .lm-detail-buy .btn{flex:1}
+.theme-lumiere .lm-detail-note{font-size:11px;color:#899188;margin-top:15px}
+.theme-lumiere .lm-detail .sf-variant-picker{margin:20px 0}
+.theme-lumiere .lm-detail .sf-variant-picker select{max-width:100%;padding:12px;border:1px solid #d8ded4;background:white}
+.theme-lumiere .lm-related{padding-bottom:0}
+.theme-lumiere .lm-about .editorial{min-height:560px}
+.theme-lumiere .lm-promo-banner{padding:28px 0;background:#fffefa}
+.theme-lumiere .lm-promo-banner .wrap{display:grid;grid-template-columns:1fr 1fr;min-height:420px}
+.theme-lumiere .lm-promo-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:55px 9%;background:#f1eee5}
+.theme-lumiere .lm-promo-copy h2{font:normal clamp(35px,4vw,55px)/1.1 'Playfair Display',serif;letter-spacing:-.04em;margin:12px 0 16px}
+.theme-lumiere .lm-promo-copy p{font-size:14px;line-height:1.8;color:#5c685d;max-width:440px;margin:0 0 24px}
+.theme-lumiere .lm-promo-banner img{width:100%;height:100%;max-height:460px;object-fit:cover}
+.theme-lumiere .lm-about .section{padding:75px 0}
+.theme-lumiere .lm-category-section{padding-bottom:50px}
+.theme-lumiere .lm-extra:nth-of-type(even){background:#f8f6ef}
+.theme-lumiere .lm-brand-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.theme-lumiere .lm-brand-grid>div{border:1px solid #e2e6dd;background:#fffefa;min-height:105px;display:grid;place-items:center;padding:15px;text-align:center;font:normal 20px 'Playfair Display',serif}
+.theme-lumiere .lm-journal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.theme-lumiere .lm-journal-grid a{display:block;background:#f7f6f0}
+.theme-lumiere .lm-journal-grid img{height:240px;object-fit:cover}
+.theme-lumiere .lm-journal-grid span{display:block;padding:15px;font-size:12px;line-height:1.5}
+.theme-lumiere .lm-faq-list{max-width:850px}
+.theme-lumiere .lm-faq-list details{border-bottom:1px solid #e2e6dd;padding:17px 0}
+.theme-lumiere .lm-faq-list summary{cursor:pointer;font:normal 19px 'Playfair Display',serif;list-style:none}
+.theme-lumiere .lm-faq-list summary::after{content:'+';float:right;font:normal 22px 'DM Sans',sans-serif;color:#244735}
+.theme-lumiere .lm-faq-list details[open] summary::after{content:'−'}
+.theme-lumiere .lm-faq-list p{font-size:13px;line-height:1.8;color:#66716a}
+.theme-lumiere .lm-contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.theme-lumiere .lm-contact-grid>a,.theme-lumiere .lm-contact-grid>div{display:flex;flex-direction:column;gap:10px;padding:26px;background:#f8f6ef;border:1px solid #e2e6dd;min-width:0}
+.theme-lumiere .lm-contact-grid small{font-size:10px;letter-spacing:.18em;color:#617460}
+.theme-lumiere .lm-contact-grid b{font:normal 19px 'Playfair Display',serif;overflow-wrap:anywhere}
+.theme-lumiere .lm-whatsapp-cta{padding:65px 0;background:#1b3527;color:#fff}
+.theme-lumiere .lm-whatsapp-cta .eyebrow{color:#cfddc4}
+.theme-lumiere .lm-whatsapp-cta h2{font:normal 43px 'Playfair Display',serif;margin:13px 0}
+.theme-lumiere .lm-whatsapp-cta p{font-size:13px;color:#e0e5db;line-height:1.8}
+.theme-lumiere .lm-whatsapp-cta .btn{background:white;color:#244735;border-color:white;margin-top:14px}
+.theme-lumiere .lm-hours-list{max-width:650px}
+.theme-lumiere .lm-hours-list>div{padding:16px 0;border-bottom:1px solid #e2e6dd;font-size:13px}
+.theme-lumiere .lm-cart-page{background:#fffefa;padding-bottom:80px}
+.theme-lumiere .lm-cart-page .lm-page-intro{padding:18px 0 0}
+.theme-lumiere .lm-cart-page .mp-breadcrumb{display:none}
+.theme-lumiere .lm-cart-page .mp-section{max-width:1400px;padding-left:6%;padding-right:6%}
+.theme-lumiere .lm-cart-page .mp-cart-section{padding-top:20px!important}
+.theme-lumiere .lm-cart-page .mp-items-card,.theme-lumiere .lm-cart-page .mp-checkout-card{border-radius:4px;box-shadow:none}
+.theme-lumiere .lm-cart-page .mp-items-title,.theme-lumiere .lm-cart-page .mp-checkout-card-title{font-family:'Playfair Display',serif;font-weight:500;font-size:22px}
+.theme-lumiere .lm-cart-page .mp-item-img{border-radius:2px}
+.theme-lumiere .lm-cart-page .mp-cart-checkout,.theme-lumiere .lm-cart-page .mp-success-btn-primary{background:#244735!important;border-color:#244735!important;border-radius:4px!important}
+.theme-lumiere .lm-cart-review .mp-order-summary{padding:28px 30px;border-color:#dfe4da}
+.theme-lumiere .lm-cart-review .mp-cart-review-actions{display:flex;flex-direction:column;align-items:flex-end;gap:14px;padding-top:24px}
+.theme-lumiere .lm-cart-review .mp-cart-next{display:inline-flex;align-items:center;justify-content:space-between;gap:22px;min-width:240px;padding:14px 18px;background:#244735;color:#fff;border:1px solid #244735;border-radius:4px;font:600 13px 'DM Sans',sans-serif;text-decoration:none;transition:background .2s,border-color .2s}
+.theme-lumiere .lm-cart-review .mp-cart-next:hover,.theme-lumiere .lm-cart-review .mp-cart-next:focus-visible{background:#173825;border-color:#173825;color:#fff}
+.theme-lumiere .lm-cart-review .mp-continue-shopping{margin:0;color:#244735;text-decoration:none}
+.theme-lumiere .lm-cart-review .mp-continue-shopping:hover{text-decoration:underline}
+.theme-lumiere .lm-cart-page .mp-cart-input:focus{box-shadow:0 0 0 3px #24473522}
+.theme-lumiere .lm-cart-page select{max-width:100%}
+.theme-lumiere .dialog[hidden],.theme-lumiere .overlay[hidden]{display:none!important}
+@media(max-width:760px){.theme-lumiere .hero-image{background-image:var(--lm-hero-mobile)}.theme-lumiere .newsletter{padding:45px 0}.theme-lumiere .newsletter .lm-newsletter-inner{display:block}.theme-lumiere .lm-inner{padding-bottom:60px}.theme-lumiere .lm-page-intro{padding:24px 0 28px}.theme-lumiere .lm-page-intro h1{font-size:39px}.theme-lumiere .lm-detail{grid-template-columns:1fr;gap:10px;padding-top:0}.theme-lumiere .lm-detail-image{height:100vw;min-height:300px}.theme-lumiere .lm-detail-copy{padding:24px 0}.theme-lumiere .lm-search-form .btn{padding:12px 15px}.theme-lumiere .lm-cart-page .mp-section{padding-left:5%;padding-right:5%}.theme-lumiere .lm-cart-page .lm-page-intro{padding-top:10px}.theme-lumiere .lm-brand-grid,.theme-lumiere .lm-journal-grid{grid-template-columns:repeat(2,1fr)}.theme-lumiere .lm-journal-grid img{height:150px}.theme-lumiere .lm-contact-grid{grid-template-columns:1fr}.theme-lumiere .lm-whatsapp-cta h2{font-size:35px}.theme-lumiere .lm-promo-banner .wrap{grid-template-columns:1fr}.theme-lumiere .lm-promo-copy{padding:42px 6%}.theme-lumiere .lm-promo-banner img{max-height:320px}}
+@media(max-width:760px){.theme-lumiere .lm-cart-review .mp-cart-review-actions{align-items:stretch}.theme-lumiere .lm-cart-review .mp-cart-next{width:100%;min-width:0}.theme-lumiere .lm-cart-review .mp-continue-shopping{align-self:flex-start}}
+@media(max-width:760px){.theme-lumiere .header .brand-logo{max-width:130px}.theme-lumiere .header .brand-logo img{max-height:45px}}

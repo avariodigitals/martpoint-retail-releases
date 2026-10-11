@@ -27,9 +27,10 @@
       <div class="os-form-grid">
         <div class="mp-form-group full"><label for="banner_type">Banner Type</label>
           <select class="mp-form-control" name="banner_type" id="banner_type">
-            <option value="hero" <?= ($banner->banner_type ?? 'hero') == 'hero' ? 'selected' : ''; ?>>Homepage Hero (slideshow)</option>
+            <option value="hero" <?= ($banner->banner_type ?? 'hero') == 'hero' ? 'selected' : ''; ?>>Homepage Hero</option>
             <option value="promo" <?= ($banner->banner_type ?? '') == 'promo' ? 'selected' : ''; ?>>Promotional</option>
           </select>
+          <p class="mp-form-hint">For Lumière, the first active Hero banner controls the desktop and mobile hero images. Title, subtitle and button text are optional; empty fields use the Homepage Builder copy. Each image can be up to 5 MB.</p>
         </div>
         <div class="mp-form-group full"><label for="banner_title">Banner Title</label><input type="text" class="mp-form-control" name="banner_title" id="banner_title" value="<?= htmlspecialchars($banner->banner_title ?? ''); ?>"></div>
         <div class="mp-form-group full"><label for="banner_subtitle">Banner Subtitle</label><input type="text" class="mp-form-control" name="banner_subtitle" id="banner_subtitle" value="<?= htmlspecialchars($banner->banner_subtitle ?? ''); ?>"></div>
@@ -62,10 +63,14 @@ function saveBanner(){
   btn.disabled = true; btn.textContent = 'Saving...';
   const fd = new FormData(document.getElementById('banner-form'));
   fetch('<?= base_url('online_store/save_banner'); ?>', {method:'POST', body:fd})
-  .then(r=>r.json()).then(res=>{
+  .then(async r=>{
+    const body = await r.text();
+    try { return JSON.parse(body); }
+    catch(e) { throw new Error(r.status === 403 ? 'Session expired. Refresh the page and try again.' : 'Banner save failed (HTTP ' + r.status + ').'); }
+  }).then(res=>{
     if(res.status==='success'){ toastr.success(res.message); location.href='<?= base_url('online_store/banners'); ?>'; }
     else { toastr.error(res.message || 'Failed to save'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Banner'; }
-  }).catch(()=>{ toastr.error('Error saving banner'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Banner'; });
+  }).catch(err=>{ toastr.error(err.message || 'Error saving banner'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Banner'; });
 }
 </script>
 <script>$(".online_store-banners-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>
