@@ -26,6 +26,7 @@ class Audit_trail extends MY_Controller {
 			$data['page_title'] = 'Audit Trail';
 			$data['entries'] = [];
 			$data['modules'] = [];
+			$data['actions'] = [];
 			$data['filters'] = [];
 			$data['table_missing'] = true;
 			$data['content'] = $this->load->view('audit_trail', $data, TRUE);
@@ -43,8 +44,41 @@ class Audit_trail extends MY_Controller {
 			'q'       => $this->input->get('q', TRUE),
 		);
 
-		$this->db->from('db_audit_trail')->where('store_id', $store_id);
+		$perPage = 50;
+		$page    = max(1, (int)$this->input->get('page'));
 
+		$this->_applyAuditFilters($store_id, $filters);
+		$total = (int)$this->db->count_all_results('db_audit_trail');
+
+		$this->_applyAuditFilters($store_id, $filters);
+		$this->db->order_by('id', 'DESC')->limit($perPage, ($page - 1) * $perPage);
+		$entries = $this->db->get()->result();
+
+		$modules = $this->db->select('module')->distinct()
+			->where('store_id', $store_id)
+			->order_by('module')->get('db_audit_trail')->result();
+
+		$actions = $this->db->select('action')->distinct()
+			->where('store_id', $store_id)
+			->order_by('action')->get('db_audit_trail')->result();
+
+		$data = $this->data;
+		$data['page_title'] = 'Audit Trail';
+		$data['entries'] = $entries;
+		$data['modules'] = $modules;
+		$data['actions'] = $actions;
+		$data['filters'] = $filters;
+		$data['page'] = $page;
+		$data['per_page'] = $perPage;
+		$data['total'] = $total;
+		$data['table_missing'] = false;
+		$data['content'] = $this->load->view('audit_trail', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	/** Shared filter chain for the count query and the page query. */
+	private function _applyAuditFilters($store_id, array $filters){
+		$this->db->from('db_audit_trail')->where('store_id', $store_id);
 		if(!empty($filters['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['from'])){
 			$this->db->where('created_date >=', $filters['from']);
 		}
@@ -65,21 +99,5 @@ class Audit_trail extends MY_Controller {
 				->or_like('ref_id', $q)
 			->group_end();
 		}
-
-		$this->db->order_by('id', 'DESC')->limit(500);
-		$entries = $this->db->get()->result();
-
-		$modules = $this->db->select('module')->distinct()
-			->where('store_id', $store_id)
-			->order_by('module')->get('db_audit_trail')->result();
-
-		$data = $this->data;
-		$data['page_title'] = 'Audit Trail';
-		$data['entries'] = $entries;
-		$data['modules'] = $modules;
-		$data['filters'] = $filters;
-		$data['table_missing'] = false;
-		$data['content'] = $this->load->view('audit_trail', $data, TRUE);
-		$this->load->view('mp_layout', $data);
 	}
 }

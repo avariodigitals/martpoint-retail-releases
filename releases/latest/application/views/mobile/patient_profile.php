@@ -110,11 +110,14 @@
         <?php if(empty($episodes)): ?>
           <div class="empty">No care episodes yet.</div>
         <?php else: ?>
-          <?php foreach($episodes as $e): ?>
+          <?php foreach($episodes as $e): $ct = $e->episode_type; ?>
             <div class="row-item">
               <div>
                 <div style="font-family:monospace;"><?= htmlspecialchars($e->episode_code ?: 'EP-'.$e->id); ?></div>
-                <div class="r-sub"><?= ucfirst($e->episode_type); ?> · <?= $e->started_at ? date('M j, Y', strtotime($e->started_at)) : ''; ?></div>
+                <div class="r-sub">
+                  <b style="color:<?= $ct === 'inpatient' ? '#4338CA' : ($ct === 'outpatient' ? '#065F46' : '#64748B'); ?>;"><?= $ct ? ucfirst($ct) : 'Not marked'; ?></b>
+                  · <?= $e->started_at ? date('M j, Y', strtotime($e->started_at)) : ''; ?>
+                </div>
               </div>
               <span class="badge <?= $e->status === 'open' ? 'active' : 'deceased'; ?>"><?= ucfirst($e->status); ?></span>
             </div>

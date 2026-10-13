@@ -302,8 +302,26 @@ class Patients_model extends CI_Model {
 	public function getEpisodes($patientId, $storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
 		if(!$this->db->table_exists('db_care_episodes')) return array();
+		// An inpatient spell is only half a story without the ward stay it
+		// belongs to, so the admission rides along on the episode row.
+		if($this->db->table_exists('db_admissions')){
+			return $this->db->select('e.*, a.id AS admission_id, a.admission_code, a.status AS admission_status', false)
+				->from('db_care_episodes e')
+				->join('db_admissions a', 'a.episode_id = e.id', 'left')
+				->where('e.store_id', $storeId)->where('e.patient_id', $patientId)
+				->order_by('e.id', 'desc')->get()->result();
+		}
 		return $this->db->where('store_id', $storeId)->where('patient_id', $patientId)
 			->order_by('id', 'desc')->get('db_care_episodes')->result();
+	}
+
+	/** Visits (encounters) for the profile's episode band — newest first. */
+	public function getEpisodeVisits($patientId, $storeId = null, $limit = 40){
+		$storeId = $storeId ?: get_current_store_id();
+		if(!$this->db->table_exists('db_encounters')) return array();
+		return $this->db->select('id, encounter_code, episode_id, queue_stage, visit_type, checkin_at')
+			->where('store_id', $storeId)->where('patient_id', $patientId)
+			->order_by('id', 'desc')->limit($limit)->get('db_encounters')->result();
 	}
 
 	public function getAppointments($patientId, $storeId = null, $limit = 20){

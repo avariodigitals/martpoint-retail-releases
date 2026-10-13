@@ -93,15 +93,17 @@
   <?php $this->load->view('mobile/chat'); ?>
   <script>
     function deleteBanner(id, btn){
-      if(!confirm('Delete this banner?')) return;
-      btn.disabled = true;
-      const fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      mpFetchJson('<?= base_url('online_store/delete_banner/'); ?>' + id, {method:'POST', body:fd})
-      .then(res=>{
-        if(res.status === 'success'){ location.reload(); }
-        else { alert(res.message || 'The banner could not be deleted. Please try again.'); btn.disabled = false; }
-      }).catch(err=>{ alert(mpErrorText(err, 'The banner could not be deleted. Please try again.')); btn.disabled = false; });
+      mpConfirmAsync('Delete this banner?', { title:'Delete Banner', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        btn.disabled = true;
+        const fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('online_store/delete_banner/'); ?>' + id, {method:'POST', body:fd})
+        .then(res=>{
+          if(res.status === 'success'){ location.reload(); }
+          else { mpError(res.message || 'The banner could not be deleted. Please try again.'); btn.disabled = false; }
+        }).catch(err=>{ mpError(mpErrorText(err, 'The banner could not be deleted. Please try again.')); btn.disabled = false; });
+      });
     }
   </script>
 </body>

@@ -224,9 +224,10 @@
         var act = this.getAttribute('data-act');
         var id = this.getAttribute('data-id');
         if(act === 'log_reverse'){
-          var reason = prompt('Reason for reversing this report?');
-          if(reason === null){ return; }
-          post('nylon/log_reverse', { id: id, reason: reason }, this);
+          mpPrompt({ title: 'Reverse report', message: 'Reason for reversing this report?', placeholder: 'Reason', multiline: true, okText: 'Reverse Report', danger: true }).then(function(reason){
+            if(reason === null){ return; }
+            post('nylon/log_reverse', { id: id, reason: reason }, btn);
+          });
         } else if(act === 'log_approve'){
           post('nylon/log_approve', { id: id }, this);
         } else if(act === 'stage_done'){
@@ -240,8 +241,10 @@
     var cj = document.getElementById('completeJob');
     if(cj){
       cj.addEventListener('click', function(){
-        if(!confirm('Complete this job? All stages must be done and QC reports approved.')){ return; }
-        post('nylon/job_complete', { id: JOB_ID }, this);
+        mpConfirmAsync('Complete this job? All stages must be done and QC reports approved.', { title: 'Complete job?', okText: 'Complete Job', danger: true }).then(function(ok){
+          if(!ok){ return; }
+          post('nylon/job_complete', { id: JOB_ID }, cj);
+        });
       });
     }
   </script>

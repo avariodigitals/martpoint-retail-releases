@@ -1,4 +1,7 @@
-<?php /* Modern in-app alerts, toasts and confirmations for mobile views. */ ?>
+<?php /* Modern in-app alerts, toasts and confirmations for mobile views.
+       components/dialog adds the input prompt (window.mpPrompt / cqPrompt)
+       that replaces window.prompt() across mobile screens. */ ?>
+<?php $this->load->view('components/dialog'); ?>
 <style>
   .mp-alert-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,0.42); backdrop-filter: blur(2px); z-index: 1; opacity: 0; transition: opacity 0.2s; }
   .mp-confirm-wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px 12px; z-index: 10005; pointer-events: none; }

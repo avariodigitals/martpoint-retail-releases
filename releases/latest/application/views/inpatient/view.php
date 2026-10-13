@@ -29,12 +29,28 @@
 }
 </style>
 
+<?php
+// How long the patient has been in. Days count from the calendar day of
+// admission to today, or to the day the stay ended.
+$ivFrom   = strtotime(substr((string)$adm->admitted_at, 0, 10));
+$ivTo     = $adm->closed_at ? strtotime(substr((string)$adm->closed_at, 0, 10)) : time();
+$ivDays   = $ivFrom ? max(1, (int)floor(($ivTo - $ivFrom) / 86400) + 1) : null;
+$ivDecisionLabel = array(
+	'continue' => 'Prepaid sessions carried on through the stay',
+	'pause'    => 'Prepaid sessions paused for the stay',
+	'replace'  => 'Prepaid sessions cancelled and refunded',
+);
+?>
 <div class="mp-page-head">
   <div><h2><?= htmlspecialchars($adm->admission_code); ?> — <?= htmlspecialchars($adm->full_name); ?></h2>
   <div class="mp-page-sub">
-    Admitted <?= htmlspecialchars($adm->admitted_at); ?> · Clinician: <?= htmlspecialchars($adm->clinician_name ?? '—'); ?> ·
-    Package decision: <strong><?= htmlspecialchars($adm->outpatient_decision); ?></strong>
+    Admitted <?= htmlspecialchars($adm->admitted_at); ?><?= $ivDays ? ' · <strong>Day ' . $ivDays . '</strong>' : ''; ?> ·
+    Clinician: <?= htmlspecialchars(physio_staff_label($adm->clinician_name ?? '', $adm->clinician_role_id ?? null) ?: '—'); ?>
+    <?php if(!empty($adm->episode_code)): ?> · Care episode <strong><?= htmlspecialchars($adm->episode_code); ?></strong><?php endif; ?>
     <?php if($occupancy): ?> · Bed: <?= htmlspecialchars($occupancy->ward_name . ' / ' . $occupancy->bed_label); ?><?php endif; ?>
+    <?php if(($adm->outpatient_decision ?? 'continue') !== 'continue'): ?>
+      · <?= htmlspecialchars($ivDecisionLabel[$adm->outpatient_decision] ?? 'Prepaid sessions: ' . $adm->outpatient_decision); ?>
+    <?php endif; ?>
   </div></div>
   <div><span class="iv-badge iv-<?= htmlspecialchars($adm->status); ?>" style="font-size:13px"><?= htmlspecialchars(mp_code_label($adm->status)); ?></span>
     <?php if($adm->closed_at): ?><span style="font-size:12px;color:var(--mp-muted)">closed <?= htmlspecialchars($adm->closed_at); ?></span><?php endif; ?></div>
@@ -57,6 +73,28 @@
 </div>
 <?php endif; ?>
 
+<?php if(!empty($adm->nok_name) || !empty($adm->nok_phone)): ?>
+<div class="iv-box" style="background:#FEF2F2!important;border-color:#FECACA!important">
+  <h4 style="color:#991B1B!important">Emergency contact</h4>
+  <div style="font-size:13px;color:#991B1B;line-height:1.7">
+    <strong><?= htmlspecialchars($adm->nok_name ?: 'Not recorded'); ?></strong>
+    <?php if(!empty($adm->nok_relationship)): ?> &middot; <?= htmlspecialchars($adm->nok_relationship); ?><?php endif; ?>
+    <?php if(!empty($adm->nok_phone)): ?>
+      &middot; <a href="tel:<?= htmlspecialchars($adm->nok_phone); ?>" style="color:#991B1B;font-weight:700"><?= htmlspecialchars($adm->nok_phone); ?></a>
+    <?php endif; ?>
+  </div>
+</div>
+<?php else: ?>
+<div class="iv-box" style="background:#FFFBEB!important;border-color:#FDE68A!important">
+  <h4 style="color:#92400E!important">Emergency contact</h4>
+  <div style="font-size:12px;color:#92400E">
+    No next of kin is recorded for this patient. Add one on the
+    <a href="<?= base_url('patients/profile/' . (int)$adm->patient_id); ?>" style="color:#92400E;font-weight:700">patient record</a>
+    &mdash; someone needs to be reachable if this patient's condition changes.
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="iv-box">
   <h4>Overview</h4>
   <div class="iv-grid">
@@ -66,15 +104,38 @@
         <tr><td style="color:var(--mp-muted)">Admission account</td><td><strong><?= htmlspecialchars($adm->admission_code); ?></strong></td></tr>
         <tr><td style="color:var(--mp-muted)">Admitted</td><td><?= htmlspecialchars($adm->admitted_at); ?></td></tr>
         <tr><td style="color:var(--mp-muted)">Ward / Bed</td><td><?= $occupancy ? htmlspecialchars($occupancy->ward_name . ' / ' . $occupancy->bed_label) : '—'; ?></td></tr>
-        <tr><td style="color:var(--mp-muted)">Responsible clinician</td><td><?= htmlspecialchars($adm->clinician_name ?? '—'); ?></td></tr>
+        <tr><td style="color:var(--mp-muted)">Responsible clinician</td><td><?= htmlspecialchars(physio_staff_label($adm->clinician_name ?? '', $adm->clinician_role_id ?? null) ?: '—'); ?></td></tr>
         <tr><td style="color:var(--mp-muted)">Status</td><td><span class="iv-badge iv-<?= htmlspecialchars($adm->status); ?>"><?= htmlspecialchars(mp_code_label($adm->status)); ?></span></td></tr>
       </table>
     </div>
     <div>
       <table class="iv-table">
-        <tr><td style="color:var(--mp-muted)">Admission reason</td><td><?= htmlspecialchars($adm->reason ?? '—'); ?></td></tr>
-        <tr><td style="color:var(--mp-muted)">Care plan</td><td><?= htmlspecialchars($adm->care_plan ?? '—'); ?></td></tr>
-        <tr><td style="color:var(--mp-muted)">Package decision</td><td><strong><?= htmlspecialchars($adm->outpatient_decision); ?></strong><?= $adm->outpatient_decision_note ? ' — ' . htmlspecialchars($adm->outpatient_decision_note) : ''; ?></td></tr>
+        <tr><td style="color:var(--mp-muted)">Care episode</td><td>
+          <?php if(!empty($adm->episode_code)): ?>
+            <a href="<?= base_url('patients/profile/' . (int)$adm->patient_id); ?>"><?= htmlspecialchars($adm->episode_code); ?></a>
+            &middot; <?= htmlspecialchars(ucfirst($adm->episode_type ?: 'inpatient')); ?> spell
+            <?php if(!empty($adm->episode_started_at)): ?><span style="color:var(--mp-muted)">since <?= htmlspecialchars(date('d M Y', strtotime($adm->episode_started_at))); ?></span><?php endif; ?>
+          <?php else: ?>—<?php endif; ?>
+        </td></tr>
+        <tr><td style="color:var(--mp-muted)">Admission reason</td><td><?= nl2br(htmlspecialchars($adm->reason ?? '—')); ?></td></tr>
+        <tr><td style="color:var(--mp-muted)">Treatment plan</td><td>
+          <?php if(!empty($adm->plan_title) || !empty($adm->plan_code)): ?>
+            <strong><?= htmlspecialchars(trim(($adm->plan_code ? $adm->plan_code . ' — ' : '') . ($adm->plan_title ?: 'Untitled plan'))); ?></strong>
+            <span style="color:var(--mp-muted)">(<?= htmlspecialchars(ucfirst($adm->plan_care_setting ?: 'outpatient')); ?>)</span>
+            <?php if(!empty($adm->plan_goals)): ?><div style="color:var(--mp-muted);margin-top:3px"><?= nl2br(htmlspecialchars($adm->plan_goals)); ?></div><?php endif; ?>
+          <?php else: ?>
+            <span style="color:var(--mp-muted)">No treatment plan on file</span>
+          <?php endif; ?>
+        </td></tr>
+        <?php if(($adm->outpatient_decision ?? 'continue') !== 'continue'): ?>
+        <tr><td style="color:var(--mp-muted)">Prepaid sessions</td><td>
+          <?= htmlspecialchars($ivDecisionLabel[$adm->outpatient_decision] ?? $adm->outpatient_decision); ?>
+          <?= $adm->outpatient_decision_note ? '<div style="color:var(--mp-muted);margin-top:3px">' . htmlspecialchars($adm->outpatient_decision_note) . '</div>' : ''; ?>
+        </td></tr>
+        <?php endif; ?>
+        <?php if(!empty($adm->care_plan)): ?>
+        <tr><td style="color:var(--mp-muted)">Care note (older records)</td><td><?= nl2br(htmlspecialchars($adm->care_plan)); ?></td></tr>
+        <?php endif; ?>
         <?php if($occupancy): ?><tr><td style="color:var(--mp-muted)">Bed since</td><td><?= htmlspecialchars($occupancy->from_at); ?></td></tr><?php endif; ?>
       </table>
     </div>

@@ -112,6 +112,21 @@ class Assessments extends MY_Controller {
 				'amend'    => physio_can('encounters_amend'),
 			),
 		));
+		// Referral partners — a referral raised here is tagged to this
+		// assessment so the patient history shows where it came from.
+		$data['referral_panel'] = '';
+		if(physio_can_any(array('referrals_view','referrals_manage'))){
+			$this->load->model('referrals_model', 'referrals');
+			$data['referral_panel'] = $this->load->view('referrals/patient_panel', $this->referrals->panelData(
+				(int)$enc->patient_id,
+				array(
+					'source'        => 'assessment',
+					'source_id'     => (int)($a->id ?? 0),
+					'encounter_id'  => (int)$enc->id,
+					'assessment_id' => (int)($a->id ?? 0),
+				)
+			), TRUE);
+		}
 		$data['content'] = $this->load->view('assessments/form', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}

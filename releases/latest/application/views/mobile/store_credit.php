@@ -274,26 +274,28 @@
 
     document.querySelectorAll('.action.cancel').forEach(function(btn){
       btn.addEventListener('click', function(){
-        if(!confirm('Cancel this store credit?')) return;
-        var id = this.dataset.id;
         var self = this;
-        self.disabled = true;
-        var fd = new FormData();
-        fd.append('id', id);
-        fd.append(tokenName, token);
-        mpFetchText('<?= base_url('store_credit/cancel_credit'); ?>', { method: 'POST', body: fd })
-        .then(function(res){
-          if(res === 'success'){
-            mpSuccess('Credit cancelled.');
-            setTimeout(function(){ window.location.reload(); }, 500);
-          } else {
-            mpError((res && res.indexOf('<') === -1 && res.trim().length < 300) ? res.trim() : 'The credit could not be cancelled. Please try again.');
+        mpConfirmAsync('Cancel this store credit?', { title:'Cancel Store Credit', okText:'Cancel Credit', danger:true }).then(function(ok){
+          if(!ok) return;
+          var id = self.dataset.id;
+          self.disabled = true;
+          var fd = new FormData();
+          fd.append('id', id);
+          fd.append(tokenName, token);
+          mpFetchText('<?= base_url('store_credit/cancel_credit'); ?>', { method: 'POST', body: fd })
+          .then(function(res){
+            if(res === 'success'){
+              mpSuccess('Credit cancelled.');
+              setTimeout(function(){ window.location.reload(); }, 500);
+            } else {
+              mpError((res && res.indexOf('<') === -1 && res.trim().length < 300) ? res.trim() : 'The credit could not be cancelled. Please try again.');
+              self.disabled = false;
+            }
+          })
+          .catch(function(err){
+            mpError(mpErrorText(err));
             self.disabled = false;
-          }
-        })
-        .catch(function(err){
-          mpError(mpErrorText(err));
-          self.disabled = false;
+          });
         });
       });
     });

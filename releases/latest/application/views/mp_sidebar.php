@@ -646,8 +646,8 @@ $mp_icons = [
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#78716C;"><?= $mp_icons['admin']; ?></span> Settings <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <a href="<?= base_url('admin'); ?>" class="mp-nav-item admin-dashboard-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Admin Dashboard</a>
-        <?php if($CI->permissions('store_edit')): ?><a href="<?= base_url('store_profile/update/'.$this->session->userdata('store_id')); ?>" class="mp-nav-item store_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Store Profile</a><?php endif; ?>
-        <?php if($CI->permissions('business_setup')): ?><a href="<?= base_url('business_profile'); ?>" class="mp-nav-item business_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Business Profile</a><?php endif; ?>
+        <?php if($CI->permissions('store_profile')): ?><a href="<?= base_url('store_profile/update/'.$this->session->userdata('store_id')); ?>" class="mp-nav-item store_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Store Profile</a><?php endif; ?>
+        <?php if($CI->permissions('business_profile')): ?><a href="<?= base_url('business_profile'); ?>" class="mp-nav-item business_profile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Business Profile</a><?php endif; ?>
         <?php if(($CI->permissions('warehouse_view') || $CI->permissions('warehouse_add')) && warehouse_module()):
           try { $branch_label_nav = mp_label('branch','Branches'); } catch (Exception $e) { $branch_label_nav = 'Branches'; }
         ?>
@@ -672,14 +672,12 @@ $mp_icons = [
         <?php endif; ?>
         <?php if($CI->permissions('send_sms')): ?><a href="<?= base_url('sms'); ?>" class="mp-nav-item sms-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Send SMS</a><?php endif; ?>
         <?php if($CI->permissions('sms_template_view')): ?><a href="<?= base_url('templates/sms'); ?>" class="mp-nav-item sms-templates-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> SMS Templates</a><?php endif; ?>
-        <?php if($this->session->userdata('role_id') == 1 || is_store_admin()): ?>
-          <a href="<?= base_url('site'); ?>" class="mp-nav-item site-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Site Settings</a>
-          <a href="<?= base_url('migrate'); ?>" class="mp-nav-item migrate-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Data Migration</a>
-          <a href="<?= base_url('subscription_license'); ?>" class="mp-nav-item subscription-license-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> License Management</a>
-          <a href="<?= base_url('subscription_plans'); ?>" class="mp-nav-item subscription-plans-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Subscription Plans</a>
-        <?php endif; ?>
+          <?php if($CI->permissions('site_settings')): ?><a href="<?= base_url('site'); ?>" class="mp-nav-item site-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Site Settings</a><?php endif; ?>
+          <?php if($CI->permissions('data_migration')): ?><a href="<?= base_url('migrate'); ?>" class="mp-nav-item migrate-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Data Migration</a><?php endif; ?>
+          <?php if($CI->permissions('license_management')): ?><a href="<?= base_url('subscription_license'); ?>" class="mp-nav-item subscription-license-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> License Management</a><?php endif; ?>
+          <?php if($CI->permissions('subscription_plans')): ?><a href="<?= base_url('subscription_plans'); ?>" class="mp-nav-item subscription-plans-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Subscription Plans</a><?php endif; ?>
         <?php if($CI->permissions('sms_api_view')): ?><a href="<?= base_url('sms/api'); ?>" class="mp-nav-item sms-api-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> SMS API</a><?php endif; ?>
-        <?php if($CI->permissions('smtp_settings') && ($this->session->userdata('role_id') == 1 || is_store_admin())): ?><a href="<?= base_url('email_settings'); ?>" class="mp-nav-item email-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Email Settings</a><?php endif; ?>
+        <?php if($CI->permissions('smtp_settings')): ?><a href="<?= base_url('email_settings'); ?>" class="mp-nav-item email-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Email Settings</a><?php endif; ?>
         <?php if($CI->permissions('debt_reminder_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?><a href="<?= base_url('debt_reminder'); ?>" class="mp-nav-item debt-reminder-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Debt Reminder</a><?php endif; ?>
         <?php if($CI->permissions('gateway_view') && ($this->session->userdata('role_id') == 1 || is_store_admin()) && store_module()): ?><a href="<?= base_url('gateways'); ?>" class="mp-nav-item gateways-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Gateways</a><?php endif; ?>
         <?php if($CI->permissions('package_view') && ($this->session->userdata('role_id') == 1 || is_store_admin()) && store_module()): ?><a href="<?= base_url('package'); ?>" class="mp-nav-item package-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Packages</a><?php endif; ?>
@@ -694,13 +692,13 @@ $mp_icons = [
         <?php if($CI->permissions('expiry_settings') && mp_feature_enabled('expiry_tracking')): ?><a href="<?= base_url('expiry_settings'); ?>" class="mp-nav-item expiry-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Expiry Settings</a><?php endif; ?>
         <?php if($this->session->userdata('role_id') == 1 || is_store_admin()): ?>
           <a href="<?= base_url('currency/view'); ?>" class="mp-nav-item currency-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Currency List</a>
-          <a href="<?= base_url('users/dbbackup'); ?>" class="mp-nav-item dbbackup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Database Backup</a>
-          <a href="<?= base_url('system_updates'); ?>" class="mp-nav-item system-updates-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> System Update</a>
-          <a href="<?= base_url('permission_audit'); ?>" class="mp-nav-item permission-audit-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Permission Audit</a>
-          <a href="<?= base_url('country'); ?>" class="mp-nav-item country-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Countries</a>
-          <a href="<?= base_url('state'); ?>" class="mp-nav-item state-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> States</a>
-          <a href="<?= base_url('city'); ?>" class="mp-nav-item city-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Cities</a>
         <?php endif; ?>
+        <?php if($CI->permissions('database_backup')): ?><a href="<?= base_url('users/dbbackup'); ?>" class="mp-nav-item dbbackup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Database Backup</a><?php endif; ?>
+        <?php if($CI->permissions('system_updates')): ?><a href="<?= base_url('system_updates'); ?>" class="mp-nav-item system-updates-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> System Update</a><?php endif; ?>
+        <?php if($CI->permissions('permission_audit')): ?><a href="<?= base_url('permission_audit'); ?>" class="mp-nav-item permission-audit-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Permission Audit</a><?php endif; ?>
+        <?php if($CI->permissions('countries_view')): ?><a href="<?= base_url('country'); ?>" class="mp-nav-item country-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Countries</a><?php endif; ?>
+        <?php if($CI->permissions('states_view')): ?><a href="<?= base_url('state'); ?>" class="mp-nav-item state-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> States</a><?php endif; ?>
+        <?php if($CI->permissions('cities_view')): ?><a href="<?= base_url('city'); ?>" class="mp-nav-item city-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Cities</a><?php endif; ?>
         <?php if(($CI->permissions('approval_settings_edit') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('manager_approvals')): ?><a href="<?= base_url('approvals/settings'); ?>" class="mp-nav-item approvals-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Security & Approvals</a><?php endif; ?>
         <?php if($CI->permissions('audit_trail_view')): ?><a href="<?= base_url('audit_trail'); ?>" class="mp-nav-item audit-trail-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Audit Trail</a><?php endif; ?>
         <?php if($CI->permissions('nin_usage')): ?><a href="<?= base_url('ninverify/usage'); ?>" class="mp-nav-item ninverify-usage-active-li"><i class="fa fa-bar-chart mp-nav-icon"></i> NIN Usage</a><?php endif; ?>

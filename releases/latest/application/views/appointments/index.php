@@ -10,6 +10,15 @@
 .ap-badge.cancelled{background:#FEE2E2!important;color:#B91C1C!important}
 .ap-badge.no_show{background:#FEF3C7!important;color:#B45309!important}
 .ap-ref{font-family:monospace!important;font-size:12px!important;color:var(--mp-muted)!important}
+.ap-pat-list{display:none;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 10px 10px;background:#fff;max-height:230px;overflow-y:auto;margin-top:-2px}
+.ap-pat-list.open{display:block}
+.ap-pat-opt{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #f1f5f9;padding:8px 12px;font-size:13px;cursor:pointer;line-height:1.35}
+.ap-pat-opt:hover{background:#f1f5f9}
+.ap-pat-opt .ap-pat-sub{display:block;font-size:11px;color:var(--mp-muted)}
+.ap-pat-hint{padding:9px 12px;font-size:12px;color:var(--mp-muted)}
+.ap-pat-chip{display:none;align-items:center;gap:8px;margin-top:-2px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:0 0 10px 10px;background:#f8fafc;font-size:13px;font-weight:600}
+.ap-pat-chip .ap-pat-clear{margin-left:auto;background:none;border:0;font-size:18px;line-height:1;cursor:pointer;color:#64748b}
+.ap-pat-open{border-radius:10px 10px 0 0}
 </style>
 
 <div class="mp-page-head">
@@ -50,7 +59,7 @@
             <td class="row-name"><?= htmlspecialchars($a->customer_name ?: '—'); ?>
               <div style="font-size:11px;color:var(--mp-muted);"><?= htmlspecialchars($a->mobile ?: ''); ?></div></td>
             <td><?= htmlspecialchars($a->service_name ?: '—'); ?></td>
-            <td><?= htmlspecialchars($a->staff_name ?: 'Unassigned'); ?></td>
+            <td><?= htmlspecialchars(physio_staff_label($a->staff_name, $a->staff_role_id ?? null) ?: 'Unassigned'); ?></td>
             <td><?= htmlspecialchars($a->branch_name ?: '—'); ?></td>
             <td><span class="ap-badge <?= $a->status; ?>"><?= str_replace('_',' ',$a->status); ?></span></td>
             <td>
@@ -93,12 +102,25 @@
         </div>
         <div class="modal-body">
           <div class="mp-form-group"><label>Patient *</label>
-            <select class="mp-form-control" name="patient_id" id="ap_patient" required>
-              <option value="">— choose patient —</option>
+            <input type="text" class="mp-form-control" id="ap_patient_q" placeholder="Search by name, phone or patient code…" autocomplete="off">
+            <div class="ap-pat-list" id="ap_patient_list">
               <?php foreach($patients as $p): ?>
-                <option value="<?= (int)$p->id; ?>"><?= htmlspecialchars(($p->patient_code ? $p->patient_code . ' — ' : '') . $p->customer_name); ?></option>
+                <?php
+                  $apLabel = ($p->patient_code ? $p->patient_code . ' — ' : '') . $p->customer_name;
+                  $apHay   = mb_strtolower($apLabel . ' ' . $p->mobile . ' ' . $p->email, 'UTF-8');
+                ?>
+                <button type="button" class="ap-pat-opt" data-id="<?= (int)$p->id; ?>" data-search="<?= htmlspecialchars($apHay, ENT_QUOTES); ?>">
+                  <?= htmlspecialchars($apLabel); ?>
+                  <span class="ap-pat-sub"><?= htmlspecialchars(trim(($p->mobile ?: '') . ($p->email ? '  ·  ' . $p->email : ''))); ?></span>
+                </button>
               <?php endforeach; ?>
-            </select></div>
+              <div class="ap-pat-hint" id="ap_patient_hint"></div>
+            </div>
+            <div class="ap-pat-chip" id="ap_patient_chip">
+              <span id="ap_patient_chip_text"></span>
+              <button type="button" class="ap-pat-clear" title="Change patient" onclick="apPatientClear()">&times;</button>
+            </div>
+            <input type="hidden" name="patient_id" id="ap_patient"></div>
           <div class="row">
             <div class="col-sm-6"><div class="mp-form-group"><label>Branch</label>
               <select class="mp-form-control" name="warehouse_id" id="ap_branch">
@@ -167,7 +189,51 @@
 toastr.options = { positionClass: 'toast-top-center', closeButton: true, progressBar: true, timeOut: 3000 };
 var CSRF_BODY = { '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>' };
 
-function openApptModal(){ $('#apptForm')[0].reset(); $('#apptModal').modal('show'); }
+function openApptModal(){ $('#apptForm')[0].reset(); apPatientClear(); $('#apptModal').modal('show'); }
+
+var AP_PAT_MAX = 40;
+function apPatientRender(q){
+  q = (q || '').trim().toLowerCase();
+  var shown = 0, matched = 0;
+  $('#ap_patient_list .ap-pat-opt').each(function(){
+    var ok = !q || ($(this).attr('data-search') || '').indexOf(q) !== -1;
+    if(ok) matched++;
+    var show = ok && shown < AP_PAT_MAX;
+    if(show) shown++;
+    $(this).toggle(show);
+  });
+  var hint = '';
+  if(!q) hint = 'Showing ' + shown + ' of ' + matched + ' patients — type to narrow down';
+  else if(matched === 0) hint = 'No patient matches “' + q + '”';
+  else if(matched > shown) hint = 'Showing ' + shown + ' of ' + matched + ' — type more to narrow down';
+  $('#ap_patient_hint').toggle(hint !== '').text(hint);
+}
+function apPatientPick(btn){
+  $('#ap_patient').val($(btn).attr('data-id'));
+  $('#ap_patient_chip_text').text($(btn).clone().children().remove().end().text().trim());
+  $('#ap_patient_chip').css('display', 'flex');
+  $('#ap_patient_q').val('').hide().removeClass('ap-pat-open');
+  $('#ap_patient_list').removeClass('open');
+}
+function apPatientClear(){
+  $('#ap_patient').val('');
+  $('#ap_patient_chip').hide();
+  $('#ap_patient_q').val('').show();
+  apPatientClose();
+  apPatientRender('');
+}
+function apPatientClose(){
+  $('#ap_patient_list').removeClass('open');
+  $('#ap_patient_q').removeClass('ap-pat-open');
+}
+$(document).on('click', '.ap-pat-opt', function(){ apPatientPick(this); });
+$(document).on('focus input', '#ap_patient_q', function(){
+  $('#ap_patient_list').addClass('open');
+  $('#ap_patient_q').addClass('ap-pat-open');
+  apPatientRender($(this).val());
+});
+$(document).on('blur', '#ap_patient_q', function(){ setTimeout(apPatientClose, 180); });
+
 function saveAppt(){
   if(!$('#ap_patient').val()){ toastr.error('Choose a patient'); return; }
   if(!$('#ap_when').val()){ toastr.error('Choose date & time'); return; }
@@ -202,7 +268,14 @@ function doReschedule(){
 function viewEvents(id){
   $.get('<?= base_url('appointments/events/'); ?>'+id, function(res){
     let html = '';
-    (res.events||[]).forEach(function(e){ html += '<li><b>'+e.event+'</b>'+(e.from_value?' '+e.from_value+' → '+e.to_value:'')+(e.note?' — '+e.note:'')+' <span style="color:#94a3b8">by '+(e.created_by_name||'system')+' · '+e.created_at+'</span></li>'; });
+    const esc = s => $('<div>').text(s == null ? '' : s).html();
+    (res.events||[]).forEach(function(e){
+      let line = '<b>' + esc(e.label || 'Update') + '</b>';
+      if(e.from_label && e.to_label) line += ' — ' + esc(e.from_label) + ' → ' + esc(e.to_label);
+      else if(e.to_label) line += ' — ' + esc(e.to_label);
+      if(e.note) line += ' — ' + esc(e.note);
+      html += '<li>' + line + ' <span style="color:#94a3b8">by ' + esc(e.created_by_name || 'System') + ' · ' + esc(e.created_at) + '</span></li>';
+    });
     $('#evList').html(html || '<li>No history</li>');
     $('#eventsModal').modal('show');
   }, 'json');

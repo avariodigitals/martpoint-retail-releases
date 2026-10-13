@@ -675,6 +675,9 @@ class Dashboard extends MY_Controller {
 		$data['clinic_activity'] = $this->clinicActivity($access);
 		$data['clinic_analytics'] = $this->clinicAnalytics($clinic_range);
 		$data['staff_birthdays'] = $this->clinicStaffBirthdays();
+		// Patient names are register data: only a role that may open the
+		// register gets the card at all, not an empty placeholder.
+		$data['patient_birthdays'] = $access['patients'] ? $this->clinicPatientBirthdays() : null;
 		$data['commercial'] = null;
 		$data['intel'] = array();
 		if(physio_can('patient_billing_view')){
@@ -726,30 +729,72 @@ class Dashboard extends MY_Controller {
 		return $out;
 	}
 
-	/** Upcoming birthdays for active staff in this store, ordered by next occurrence. */
-	private function clinicStaffBirthdays(){
-		if(!$this->db->table_exists('db_users')) return array();
-		$storeId = (int)get_current_store_id();
-		$rows = $this->db->select('id, username, first_name, last_name, firstname, lastname, dob')
-			->where('store_id', $storeId)->where('status', 1)->where('dob IS NOT NULL', null, false)
-			->get('db_users')->result();
+	/** Birthdays are shown for the week ahead only — a 90-day list is a reminder nobody acts on. */
+	const CLINIC_BIRTHDAY_DAYS = 7;
+
+	/** Next occurrence within the week, nearest first. */
+	private function clinicBirthdayList(array $people){
 		$today = new DateTimeImmutable(date('Y-m-d'));
 		$items = array();
-		foreach($rows as $row){
-			if(empty($row->dob)) continue;
-			$dob = new DateTimeImmutable(substr($row->dob, 0, 10));
-			$year = (int)$today->format('Y');
-			try { $next = new DateTimeImmutable($year.'-'.$dob->format('m-d')); }
+		foreach($people as $person){
+			$dobRaw = substr((string)($person['dob'] ?? ''), 0, 10);
+			if($dobRaw === '' || strpos($dobRaw, '0000') === 0) continue;
+			try { $dob = new DateTimeImmutable($dobRaw); } catch(Exception $e) { continue; }
+			// 29 Feb in a non-leap year throws here and is simply not listed.
+			try { $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d')); }
 			catch(Exception $e) { continue; }
 			if($next < $today) $next = $next->modify('+1 year');
 			$days = (int)$today->diff($next)->format('%a');
-			if($days > 90) continue;
-			$name = trim(($row->first_name ?: $row->firstname ?: '').' '.($row->last_name ?: $row->lastname ?: ''));
-			if($name === '') $name = (string)$row->username;
-			$items[] = array('name'=>$name, 'date'=>$next->format('M j'), 'days'=>$days);
+			if($days > self::CLINIC_BIRTHDAY_DAYS) continue;
+			$items[] = array('name'=>(string)$person['name'], 'date'=>$next->format('M j'), 'days'=>$days);
 		}
 		usort($items, function($a, $b){ return $a['days'] <=> $b['days']; });
-		return array_slice($items, 0, 8);
+		return array_slice($items, 0, 10);
+	}
+
+	/** Birthdays this week for active staff in this store. */
+	private function clinicStaffBirthdays(){
+		if(!$this->db->table_exists('db_users')) return array();
+		$storeId = (int)get_current_store_id();
+		// Real staff only — system/vendor accounts are never listed.
+		$people = array();
+		foreach(physio_staff_select($storeId, false) as $row){
+			if(empty($row->dob)) continue;
+			$name = trim(($row->first_name ?: $row->firstname ?: '').' '.($row->last_name ?: $row->lastname ?: ''));
+			if($name === '') $name = (string)$row->username;
+			$people[] = array('name'=>$name, 'dob'=>$row->dob);
+		}
+		return $this->clinicBirthdayList($people);
+	}
+
+	/** Birthdays this week for the live patient register in this store. */
+	private function clinicPatientBirthdays(){
+		if(!$this->db->table_exists('db_patients') || !$this->db->field_exists('dob', 'db_patients')) return array();
+		$storeId = (int)get_current_store_id();
+		// The window is matched as month-day so a week crossing New Year still
+		// finds its birthdays.
+		$today = new DateTimeImmutable(date('Y-m-d'));
+		$md = array();
+		for($i = 0; $i <= self::CLINIC_BIRTHDAY_DAYS; $i++) $md[] = $today->modify('+'.$i.' day')->format('m-d');
+		$in = implode(',', array_map(function($v){ return "'".$v."'"; }, $md));
+		$rows = $this->db->select('p.dob, TRIM(c.customer_name) AS customer_name', false)
+			->from('db_patients p')
+			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->where('p.store_id', $storeId)
+			->where('p.deceased', 0)->where('p.status', 1)
+			// A missing date of birth is stored as a zero date, which a bound
+			// comparison rejects as an invalid DATE under strict SQL mode.
+			->where('p.dob IS NOT NULL', null, false)
+			->where('p.dob <> 0', null, false)
+			->where("DATE_FORMAT(p.dob, '%m-%d') IN (".$in.")", null, false)
+			->get()->result();
+		$people = array();
+		foreach($rows as $row){
+			$name = trim((string)$row->customer_name);
+			if($name === '') continue;
+			$people[] = array('name'=>$name, 'dob'=>$row->dob);
+		}
+		return $this->clinicBirthdayList($people);
 	}
 
 
@@ -800,11 +845,19 @@ class Dashboard extends MY_Controller {
 				->where('queue_stage IS NOT NULL', null, false)->where('queue_stage !=', 'closed')
 				->group_by('queue_stage')->get('db_encounters')->result();
 			$total = 0; foreach($queue as $q){ $total += (int)$q->n; }
+			/* The tile counts every unclosed visit, but the board opens on a
+			   1-day window — so an old visit left open made the tile disagree
+			   with an apparently empty queue. Name the stale ones and send the
+			   click to the window that actually shows them. */
+			$stale = (int)$this->db->where('store_id', $storeId)
+				->where('queue_stage IS NOT NULL', null, false)->where('queue_stage !=', 'closed')
+				->where('checkin_at <', date('Y-m-d H:i:s', strtotime('-30 days')))
+				->count_all_results('db_encounters');
 			$out['queue'] = array(
 				'label' => 'In care queue',
 				'value' => $total,
-				'sub'   => $total ? 'awaiting triage, treatment or payment' : 'queue is clear',
-				'url'   => 'care_queue',
+				'sub'   => $total ? ($stale ? $stale . ' untouched for over 30 days' : 'awaiting triage, treatment or payment') : 'queue is clear',
+				'url'   => 'care_queue?days=0',
 				'icon'  => 'fa-list-ol',
 				'alert' => $total > 0,
 			);
@@ -860,7 +913,7 @@ class Dashboard extends MY_Controller {
 				->from('db_sales s')
 				->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
 				->where('s.store_id', $storeId)
-				->where('(s.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
+				->where('(s.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
 				->where('s.grand_total > s.paid_amount', null, false)
 				->get()->row()->due;
 			$out['due'] = array(
@@ -902,6 +955,7 @@ class Dashboard extends MY_Controller {
 					'icon'  => 'fa-user-plus',
 					'title' => trim((string)$r->customer_name) ?: ('Patient #' . $r->id),
 					'meta'  => 'Registered ' . ($r->created_date ? date('M j, Y', strtotime($r->created_date)) : '—'),
+					'url'   => 'patients/profile/' . (int)$r->id,
 				);
 			}
 		}

@@ -143,19 +143,26 @@
         var id = this.getAttribute('data-id');
         var st = this.getAttribute('data-status');
         var cur = this.getAttribute('data-current');
-        if(st === 'completed' && !confirm('Mark this batch complete? Stock will be posted to inventory.')){ return; }
-        var b = this; b.disabled = true;
+        var go = function(){
+          var b = btn; b.disabled = true;
 
-        var fd = new FormData();
-        fd.append('id', id); fd.append('status', st); fd.append('current_status', cur);
-        fd.append(csrf_token, csrf_hash);
-        mpFetchJson(base_url + 'mobile/production_status', { method: 'POST', body: fd })
-          .then(function(d){
-            if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
-            if(d && d.success){ window.location.reload(); }
-            else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
-          })
-          .catch(function(err){ mpError(mpErrorText(err)); b.disabled = false; });
+          var fd = new FormData();
+          fd.append('id', id); fd.append('status', st); fd.append('current_status', cur);
+          fd.append(csrf_token, csrf_hash);
+          mpFetchJson(base_url + 'mobile/production_status', { method: 'POST', body: fd })
+            .then(function(d){
+              if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
+              if(d && d.success){ window.location.reload(); }
+              else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
+            })
+            .catch(function(err){ mpError(mpErrorText(err)); b.disabled = false; });
+        };
+        if(st === 'completed'){
+          mpConfirmAsync('Mark this batch complete? Stock will be posted to inventory.', { danger:true, okText:'Mark complete' }).then(function(ok){
+            if(!ok) return;
+            go();
+          });
+        } else { go(); }
       });
     });
   </script>

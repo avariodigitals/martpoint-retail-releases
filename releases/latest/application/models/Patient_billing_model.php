@@ -37,19 +37,331 @@ class Patient_billing_model extends CI_Model {
 			->get('db_patient_bill_items')->result();
 	}
 
+	/**
+	 * Lines for a printed document. Plan and visit bills mirror their clinical
+	 * itemisation in db_patient_bill_items, but a bill raised straight at the
+	 * counter only ever lands in db_salesitems — so fall back rather than print
+	 * a blank "what this bill covers".
+	 */
+	public function printItems($salesId){
+		$rows = $this->billItems($salesId);
+		if($rows) return $rows;
+		$out = array();
+		$src = $this->db->select('a.description, a.sales_qty, a.price_per_unit, a.total_cost, c.item_name')
+			->from('db_salesitems a')
+			->join('db_items c', 'c.id = a.item_id', 'left')
+			->where('a.sales_id', (int)$salesId)->order_by('a.id')->get()->result();
+		foreach($src as $r){
+			$desc = trim((string)$r->description) !== '' ? $r->description : (trim((string)$r->item_name) !== '' ? $r->item_name : 'Item');
+			$out[] = (object)array(
+				'description' => (string)$desc,
+				'qty'         => (float)$r->sales_qty,
+				'unit_price'  => (float)$r->price_per_unit,
+				'total'       => (float)$r->total_cost,
+			);
+		}
+		return $out;
+	}
+
 	public function billsForPatient($patientId){
 		$storeId = get_current_store_id();
 		return $this->db->select('s.*')
 			->from('db_sales s')
 			->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
 			->where('s.store_id', $storeId)->where('p.id', $patientId)
-			->where('(s.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
+			->where('(s.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
 			->order_by('s.id', 'desc')->get()->result();
 	}
 
 	public function paymentsFor($salesId){
 		return $this->db->where('sales_id', $salesId)->where('store_id', get_current_store_id())
 			->order_by('id')->get('db_salespayments')->result();
+	}
+
+	/**
+	 * Visit bills for one care-queue encounter — the bills raised at the
+	 * waiting-for-nurse desk (assessment fee or any counter bill). Each is a
+	 * normal db_sales invoice tagged with encounter_id, so plan bills and
+	 * visit bills read the same downstream.
+	 */
+	public function billsForEncounter($encounterId){
+		return $this->db->select('s.*, p.patient_code, c.customer_name AS patient_name')
+			->from('db_sales s')
+			->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id', 'left')
+			->join('db_customers c', 'c.id = s.customer_id AND c.store_id = s.store_id', 'left')
+			->where('s.store_id', get_current_store_id())
+			->where('s.encounter_id', (int)$encounterId)
+			->order_by('s.id', 'desc')->get()->result();
+	}
+
+	/**
+	 * Visit bill — raised at check-in (waiting-for-nurse stage) for the
+	 * assessment fee or any other counter charge. $lines is a list of
+	 * array(item_id, description, qty, unit_price). Unlike plan bills these
+	 * are NOT plan-linked, so no entitlement is spawned; payments settle them
+	 * like any retail invoice. An existing open bill for the same encounter
+	 * + reference replays instead of duplicating.
+	 */
+	public function createVisitBill($encounterId, array $lines, $note = '', $accountId = null, $careType = null){
+		$storeId = get_current_store_id();
+		$enc = $this->db->where('id', (int)$encounterId)->where('store_id', $storeId)
+			->get('db_encounters')->row();
+		if(!$enc) return array('ok' => false, 'error' => 'Visit not found');
+		$patient = $this->db->where('id', (int)$enc->patient_id)->where('store_id', $storeId)
+			->get('db_patients')->row();
+		if(!$patient) return array('ok' => false, 'error' => 'No patient record on this visit');
+
+		/* Inpatient vs outpatient is a clinical decision, never a billing one:
+		   the physiotherapist records it at the assessment remark, or admitting
+		   the patient settles it. A bill raised without an explicit mark (a
+		   clinician adding their recommendation, or counter fees before the
+		   assessment) inherits the episode's type rather than landing unmarked. */
+		$careType = in_array($careType, array('inpatient', 'outpatient'), true) ? $careType : null;
+		if($careType === null && !empty($enc->episode_id) && $this->db->field_exists('episode_type', 'db_care_episodes')){
+			$epRow = $this->db->select('episode_type')->where('id', (int)$enc->episode_id)->get('db_care_episodes')->row();
+			$careType = $epRow && in_array($epRow->episode_type, array('inpatient','outpatient'), true) ? $epRow->episode_type : null;
+		}
+
+		$clean = array();
+		$subtotal = 0;
+		foreach((array)$lines as $ln){
+			$desc = trim((string)($ln['description'] ?? ''));
+			$qty  = max(0.01, (float)($ln['qty'] ?? 1));
+			$price= max(0, (float)($ln['unit_price'] ?? 0));
+			if($desc === '' || ($price <= 0 && $qty <= 0)) continue;
+			$clean[] = array(
+				'item_id'     => (int)($ln['item_id'] ?? 0) ?: null,
+				'description' => $desc,
+				'qty'         => $qty,
+				'unit_price'  => $price,
+			);
+			$subtotal += $qty * $price;
+		}
+		if(empty($clean)) return array('ok' => false, 'error' => 'Add at least one billable line');
+
+		$this->load->model('Physio_accounts_model', 'pa');
+		$physioAccountId = $this->pa->forCustomer($patient->customer_id, $storeId);
+		$systemAccountId = null;
+		try {
+			$context = $this->pa->systemContext($patient->customer_id, $storeId);
+			$systemAccountId = $this->pa->resolveSystemAccount($patient->customer_id, $storeId, $accountId);
+		} catch (Exception $e) { /* account wiring is optional on a visit bill */ }
+
+		$this->db->trans_begin();
+		$this->db->query('SELECT 1 FROM db_store WHERE id = ? FOR UPDATE', [(int)$storeId]);
+		$initCode = get_only_init_code('sales');
+		$countId  = autosynch_sales_code();
+		$salesCode = $initCode . $countId;
+
+		$invoice = array(
+			'init_code'      => $initCode,
+			'count_id'       => $countId,
+			'sales_code'     => $salesCode,
+			'reference_no'   => 'ENC-' . $enc->encounter_code,
+			'sales_date'     => date('Y-m-d'),
+			'sales_status'   => 'Final',
+			'customer_id'    => $patient->customer_id,
+			'encounter_id'   => (int)$encounterId,
+			'subtotal'       => $subtotal,
+			'grand_total'    => $subtotal,
+			'paid_amount'    => 0,
+			'payment_status' => 'Unpaid',
+			'sales_note'     => trim((string)$note) !== '' ? $note : ('Visit bill ' . $enc->encounter_code),
+			'care_type'      => $careType,
+			'store_id'       => $storeId,
+			'warehouse_id'   => $enc->warehouse_id ?: (function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null),
+			'created_date'   => date('Y-m-d'),
+			'created_time'   => date('H:i:s'),
+			'created_by'     => $this->session->userdata('inv_username') ?: 'system',
+			'system_ip'      => $this->input->ip_address(),
+			'system_name'    => php_uname(),
+			'status'         => 1,
+		);
+		if ($systemAccountId) $invoice['physio_system_account_id'] = $systemAccountId;
+		// Migration 4.0.9.145 adds care_type — skip it on an un-migrated database
+		// rather than letting the whole INSERT fail on an unknown column.
+		if(!$this->db->field_exists('care_type', 'db_sales')) unset($invoice['care_type']);
+		$this->db->insert('db_sales', $invoice);
+		$salesId = (int)$this->db->insert_id();
+		if (!$salesId) { $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Bill insert failed'); }
+
+		if($careType){ $this->applyCareType((int)$encounterId, $careType); }
+
+		foreach ($clean as $ln) {
+			$lineTotal = $ln['qty'] * $ln['unit_price'];
+			$this->db->insert('db_salesitems', array(
+				'sales_id'        => $salesId,
+				'physio_account_id'=> $physioAccountId,
+				'store_id'        => $storeId,
+				'sales_status'    => 'Final',
+				'item_id'         => $ln['item_id'],
+				'description'     => $ln['description'],
+				'sales_qty'       => $ln['qty'],
+				'price_per_unit'  => $ln['unit_price'],
+				'discount_amt'    => 0,
+				'unit_total_cost' => $ln['unit_price'],
+				'total_cost'      => $lineTotal,
+				'purchase_price'  => 0,
+				'status'          => 1,
+			));
+			// Clinical itemisation mirrors the sales line; plan fields stay
+			// NULL because a visit bill is not plan-linked.
+			$this->db->insert('db_patient_bill_items', array(
+				'store_id'      => $storeId,
+				'sales_id'      => $salesId,
+				'sales_item_id' => (int)$this->db->insert_id(),
+				'item_id'       => $ln['item_id'] ?: 0,
+				'description'   => $ln['description'],
+				'qty'           => $ln['qty'],
+				'unit_price'    => $ln['unit_price'],
+				'total'         => $lineTotal,
+				'created_date'  => date('Y-m-d'),
+				'created_time'  => date('H:i:s'),
+				'created_by'    => $this->session->userdata('inv_username') ?: 'system',
+			));
+		}
+		$this->load->model('Sales_model', 'sales_m');
+		$this->sales_m->update_sales_payment_status_by_sales_id($salesId, $patient->customer_id);
+		$this->db->trans_commit();
+		if ($this->db->trans_status() === FALSE) {
+			return array('ok' => false, 'error' => 'Bill could not be saved');
+		}
+		return array('ok' => true, 'sales_id' => $salesId, 'sales_code' => $salesCode);
+	}
+
+	/**
+	 * Record the care type of a whole visit — the physiotherapist's call at the
+	 * assessment remark, or the act of admitting the patient. It is never a
+	 * billing decision: the person raising a bill cannot make it.
+	 *
+	 * Mirrors the mark onto the care episode, so the patient profile groups this
+	 * spell under the right heading. An episode is one spell of care under one
+	 * type. If this visit is typed differently from the episode it landed on,
+	 * the visit belongs to a different spell: retype the episode when this is
+	 * its only visit, otherwise give this visit its own new episode. The old
+	 * episode is never rewritten or closed — its own visits keep their type.
+	 *
+	 * Stamps every bill of the visit, so counter fees raised before the decision
+	 * follow it instead of keeping whatever they inherited.
+	 */
+	public function applyCareType($encounterId, $careType){
+		$careType = in_array($careType, array('inpatient', 'outpatient'), true) ? $careType : null;
+		if(!$careType) return array('ok' => false, 'error' => 'Mark this visit Inpatient or Outpatient');
+		$storeId = get_current_store_id();
+		$enc = $this->db->where('id', (int)$encounterId)->where('store_id', $storeId)
+			->get('db_encounters')->row();
+		if(!$enc) return array('ok' => false, 'error' => 'Visit not found');
+
+		if($this->db->field_exists('care_type', 'db_sales')){
+			$this->db->where('encounter_id', (int)$encounterId)->where('store_id', $storeId)
+				->update('db_sales', array('care_type' => $careType));
+		}
+
+		if(!empty($enc->episode_id) && $this->db->field_exists('episode_type', 'db_care_episodes')){
+			$ep = $this->db->where('id', (int)$enc->episode_id)->where('store_id', $storeId)
+				->get('db_care_episodes')->row();
+			if($ep && $ep->episode_type !== $careType){
+				$others = $this->db->where('episode_id', (int)$ep->id)
+					->where('id !=', (int)$encounterId)->count_all_results('db_encounters');
+				if((int)$others === 0){
+					// Only this visit sits on the episode — retyping it is honest.
+					$this->db->where('id', (int)$ep->id)->update('db_care_episodes', array('episode_type' => $careType));
+				} else {
+					$countId = function_exists('get_count_id') ? get_count_id('db_care_episodes', $storeId) : null;
+					$this->db->insert('db_care_episodes', array(
+						'store_id'     => $storeId,
+						'patient_id'   => (int)$enc->patient_id,
+						'count_id'     => $countId,
+						'episode_code' => 'EP-'.str_pad((string)$countId, 5, '0', STR_PAD_LEFT),
+						'warehouse_id' => $enc->warehouse_id ?: null,
+						'episode_type' => $careType,
+						'started_at'   => date('Y-m-d H:i:s'),
+						'status'       => 'open',
+						'created_date' => date('Y-m-d'),
+						'created_time' => date('H:i:s'),
+						'created_by'   => $this->session->userdata('inv_username') ?: 'system',
+					));
+					$newEpId = (int)$this->db->insert_id();
+					if($newEpId){
+						$this->db->where('id', (int)$encounterId)->where('store_id', $storeId)
+							->update('db_encounters', array('episode_id' => $newEpId));
+					}
+				}
+			}
+		}
+		return array('ok' => true);
+	}
+
+	/**
+	 * Append one line to a Final bill and re-total it — used when the treating
+	 * clinician adds their recommendation to a bill the desk already raised.
+	 *
+	 * Raising grand_total moves billFingerprint(), so any discount approval
+	 * logged against the old total no longer matches and must be re-approved.
+	 * That is deliberate: an approver never signs off on a total that has
+	 * silently grown underneath them.
+	 */
+	public function addLineToBill($salesId, array $line){
+		$storeId = get_current_store_id();
+		$desc = trim((string)($line['description'] ?? ''));
+		if($desc === '') return array('ok' => false, 'error' => 'A line description is required');
+		$qty   = max(0.01, (float)($line['qty'] ?? 1));
+		$price = max(0, (float)($line['unit_price'] ?? 0));
+
+		$this->db->trans_begin();
+		$sale = $this->db->query('SELECT * FROM db_sales WHERE id = ? AND store_id = ? FOR UPDATE', [(int)$salesId, (int)$storeId])->row();
+		if(!$sale){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Bill not found'); }
+		if((string)$sale->sales_status !== 'Final'){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Only a finalised bill can be amended'); }
+
+		$physioAccountId = null;
+		$this->load->model('Physio_accounts_model', 'pa');
+		try { $physioAccountId = $this->pa->forCustomer($sale->customer_id, $storeId); } catch (Exception $e) { /* optional */ }
+
+		$lineTotal = round($qty * $price, 2);
+		$this->db->insert('db_salesitems', array(
+			'sales_id'         => (int)$salesId,
+			'physio_account_id'=> $physioAccountId,
+			'store_id'         => $storeId,
+			'sales_status'     => 'Final',
+			'item_id'          => (int)($line['item_id'] ?? 0) ?: null,
+			'description'      => $desc,
+			'sales_qty'        => $qty,
+			'price_per_unit'   => $price,
+			'discount_amt'     => 0,
+			'unit_total_cost'  => $price,
+			'total_cost'       => $lineTotal,
+			'purchase_price'   => 0,
+			'status'           => 1,
+		));
+		$this->db->insert('db_patient_bill_items', array(
+			'store_id'      => $storeId,
+			'sales_id'      => (int)$salesId,
+			'sales_item_id' => (int)$this->db->insert_id(),
+			'item_id'       => (int)($line['item_id'] ?? 0) ?: 0,
+			'description'   => $desc,
+			'qty'           => $qty,
+			'unit_price'    => $price,
+			'total'         => $lineTotal,
+			'created_date'  => date('Y-m-d'),
+			'created_time'  => date('H:i:s'),
+			'created_by'    => $this->session->userdata('inv_username') ?: 'system',
+		));
+
+		$newSubtotal = round((float)$sale->subtotal + $lineTotal, 2);
+		$newGrand    = round($newSubtotal - (float)$sale->tot_discount_to_all_amt, 2);
+		$this->db->where('id', (int)$salesId)->update('db_sales', array(
+			'subtotal'    => $newSubtotal,
+			'grand_total' => $newGrand,
+		));
+
+		$this->load->model('Sales_model', 'sales_m');
+		$this->sales_m->update_sales_payment_status_by_sales_id((int)$salesId, $sale->customer_id);
+		$this->db->trans_commit();
+		if($this->db->trans_status() === FALSE){
+			return array('ok' => false, 'error' => 'The line could not be added to the bill');
+		}
+		return array('ok' => true, 'sales_id' => (int)$salesId, 'sales_code' => $sale->sales_code,
+			'line_total' => $lineTotal, 'grand_total' => $newGrand);
 	}
 
 	/** sha over the bill's mutable values — approvals bind to this. */
@@ -97,6 +409,14 @@ class Patient_billing_model extends CI_Model {
 		$subtotal = 0;
 		foreach($items as $it){ $subtotal += $it->qty * $it->unit_price; }
 
+		// Inherit the care type from the plan's episode — a plan bill is raised
+		// on existing care, so it should never land unmarked next to it.
+		$planCareType = null;
+		if(!empty($plan->episode_id) && $this->db->field_exists('episode_type', 'db_care_episodes')){
+			$planEp = $this->db->select('episode_type')->where('id', (int)$plan->episode_id)->get('db_care_episodes')->row();
+			if($planEp && in_array($planEp->episode_type, array('inpatient','outpatient'), true)) $planCareType = $planEp->episode_type;
+		}
+
 		$invoice = array(
 			'init_code'      => $initCode,
 			'count_id'       => $countId,
@@ -106,6 +426,7 @@ class Patient_billing_model extends CI_Model {
 			'sales_status'   => 'Final',
 			'customer_id'    => $plan->customer_id,
 			'plan_id'        => $planId,
+			'care_type'      => $planCareType,
 			'subtotal'       => $subtotal,
 			'grand_total'    => $subtotal,
 			'paid_amount'    => 0,
@@ -121,6 +442,7 @@ class Patient_billing_model extends CI_Model {
 			'status'         => 1,
 		);
 		if($systemAccountId) $invoice['physio_system_account_id']=$systemAccountId;
+		if(!$this->db->field_exists('care_type', 'db_sales')) unset($invoice['care_type']);
 		$this->db->insert('db_sales',$invoice);
 		$salesId = $this->db->insert_id();
 		if(!$salesId){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Bill insert failed'); }
@@ -374,6 +696,40 @@ class Patient_billing_model extends CI_Model {
 			'target_version'      => $this->billFingerprint($sale),
 		));
 		return array('ok' => true, 'log_id' => $logId);
+	}
+
+	/**
+	 * Request a FULL waiver of what is still owed — if the Clinical Director
+	 * approves, the patient pays nothing; if they decline, the bill stays
+	 * payable. Reuses the md_discount approval gate so no new approval type
+	 * is needed, tagged `waiver` so the bill can present it as a waiver
+	 * rather than an ordinary discount.
+	 *
+	 * The logged amount is the outstanding balance (what is being forgiven),
+	 * but the discount actually applied must be subtotal − paid_amount so the
+	 * bill settles to exactly what has already been received.
+	 */
+	public function requestWaiver($salesId, $reason){
+		$sale = $this->getBill($salesId);
+		if(!$sale) return array('ok' => false, 'error' => 'Bill not found');
+		if(!$reason) return array('ok' => false, 'error' => 'A reason is required');
+		$due = round($sale->grand_total - $sale->paid_amount, 2);
+		if($due <= 0) return array('ok' => false, 'error' => 'Nothing is outstanding on this bill');
+		$applied = round($sale->subtotal - $sale->paid_amount, 2);
+		$logId = $this->al->log(array(
+			'action_type'         => 'request',
+			'approval_type'       => 'md_discount',
+			'requesting_user_id'  => $this->session->userdata('inv_userid'),
+			'requesting_user_name'=> $this->session->userdata('display_name') ?: $this->session->userdata('inv_username'),
+			'reason'              => $reason,
+			'previous_value'      => json_encode(array('grand_total' => $sale->grand_total, 'discount' => $sale->tot_discount_to_all_amt)),
+			'new_value'           => json_encode(array('discount' => $applied, 'waiver' => 1)),
+			'amount'              => $due,
+			'target_module'       => 'patient_bill',
+			'target_id'           => $salesId,
+			'target_version'      => $this->billFingerprint($sale),
+		));
+		return array('ok' => true, 'log_id' => $logId, 'amount' => $due);
 	}
 
 	/**

@@ -7,7 +7,6 @@
 .ass-req{color:#DC2626!important}
 .ass-lock{background:#F8FAFC!important;border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:10px 12px!important;font-size:12px!important;margin-bottom:8px!important}
 .ass-amend{border-left:3px solid #8B5CF6!important;padding:8px 12px!important;margin:8px 0!important;font-size:12px!important;background:#FAF5FF!important}
-.prov-banner{background:#FEF3C7!important;border:1px solid #F59E0B!important;color:#92400E!important;font-size:12px!important;padding:8px 12px!important;border-radius:8px!important;margin-bottom:14px!important}
 .final-banner{background:#D1FAE5!important;border:1px solid #10B981!important;color:#065F46!important;font-size:12px!important;padding:8px 12px!important;border-radius:8px!important;margin-bottom:14px!important}
 .ass-voice-wrap{position:relative}.ass-voice-wrap textarea,.ass-voice-wrap input{padding-right:104px}.ass-voice{position:absolute;right:8px;top:8px;border:1px solid #b8d5c7;background:#eaf3ee;color:#104d40;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer}.ass-voice.listening{background:#fee2e2;border-color:#fca5a5;color:#991b1b}.ass-voice-note{font-size:11px;color:#64748b;margin:5px 0 12px}
 .ass-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;border:1px solid var(--mp-border);border-radius:9px;background:#fbfdfc}.ass-check{display:flex;align-items:flex-start;gap:7px;font-size:13px;font-weight:500}.ass-check input{margin-top:3px}.amend-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:5px}.amend-check{display:flex;gap:6px;font-size:12px;font-weight:500}@media(max-width:760px){.ass-sec{grid-template-columns:1fr}.ass-check-grid,.amend-check-grid{grid-template-columns:1fr}}
@@ -25,11 +24,6 @@
   </div>
   <a href="<?= base_url('care_queue/encounter/' . (int)$enc->id); ?>" class="mp-qa-btn"><i class="fa fa-arrow-left"></i> Back to visit</a>
 </div>
-
-<?php if($template->provisional && ($template->template_key ?? '') !== 'physio_initial'): ?>
-<div class="prov-banner"><i class="fa fa-exclamation-triangle"></i>
-  <b>Provisional template.</b> This is a stand-in assessment pending the agreed five-page clinical form — do not treat it as the final approved document.</div>
-<?php endif; ?>
 
 <?php if($assessment && $assessment->status === 'final'): ?>
 <div class="final-banner"><i class="fa fa-lock"></i>
@@ -100,6 +94,7 @@
   <?php endif; ?>
   <?php if($assessment): ?><a id="downloadLink" class="mp-qa-btn blue" href="<?= base_url('assessments/download/'.(int)$assessment->id); ?>"><i class="fa fa-download"></i> Download copy</a><?php else: ?><a id="downloadLink" class="mp-qa-btn blue" href="#" style="display:none"><i class="fa fa-download"></i> Download copy</a><?php endif; ?>
 </form>
+<?php if(!empty($referral_panel)): ?><?= $referral_panel; ?><?php endif; ?>
 <div class="ass-voice-note"><i class="fa fa-info-circle"></i> Voice fills the focused narrative field using your browser microphone. Review the transcript before saving.</div>
 
 <?php if($isFinal && $can['amend']): ?>

@@ -169,22 +169,31 @@
     document.querySelectorAll('.st-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         var st = this.getAttribute('data-status');
-        if(st === 'cancelled' && !confirm('Cancel this <?= strtolower(htmlspecialchars($co_label)); ?>?')){ return; }
-        var b = this; b.disabled = true;
-        post('mobile/custom_order_status', { id: order_id, status: st }, function(d){
-          if(d && d.success){ window.location.reload(); }
-          else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
-        });
+        var go = function(){
+          var b = btn; b.disabled = true;
+          post('mobile/custom_order_status', { id: order_id, status: st }, function(d){
+            if(d && d.success){ window.location.reload(); }
+            else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
+          });
+        };
+        if(st === 'cancelled'){
+          mpConfirmAsync('Cancel this <?= strtolower(htmlspecialchars($co_label)); ?>?', { danger:true, okText:'Cancel' }).then(function(ok){
+            if(!ok) return;
+            go();
+          });
+        } else { go(); }
       });
     });
 
     var del = document.getElementById('deleteBtn');
     if(del){
       del.addEventListener('click', function(){
-        if(!confirm('Delete <?= htmlspecialchars($order->order_code); ?>? This cannot be undone.')){ return; }
-        post('mobile/custom_order_delete', { id: order_id }, function(d){
-          if(d && d.success){ window.location.href = base_url + 'mobile/custom_orders'; }
-          else { mpError(d && d.message ? d.message : 'The order could not be deleted. Please try again.'); }
+        mpConfirmAsync('Delete <?= htmlspecialchars($order->order_code); ?>? This cannot be undone.', { danger:true, okText:'Delete' }).then(function(ok){
+          if(!ok) return;
+          post('mobile/custom_order_delete', { id: order_id }, function(d){
+            if(d && d.success){ window.location.href = base_url + 'mobile/custom_orders'; }
+            else { mpError(d && d.message ? d.message : 'The order could not be deleted. Please try again.'); }
+          });
         });
       });
     }

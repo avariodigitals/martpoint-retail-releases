@@ -206,8 +206,10 @@
     document.querySelectorAll('[data-art]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var st = this.getAttribute('data-st');
-        if(st === 'rejected' && !confirm('Reject this artwork? Printing cannot proceed on a rejected design.')){ return; }
-        post('nylon/artwork_status', { id: this.getAttribute('data-art'), status: st }, this);
+        (st === 'rejected' ? mpConfirmAsync('Reject this artwork? Printing cannot proceed on a rejected design.', { title: 'Reject artwork?', okText: 'Reject Artwork', danger: true }) : Promise.resolve(true)).then(function(ok){
+          if(!ok){ return; }
+          post('nylon/artwork_status', { id: btn.getAttribute('data-art'), status: st }, btn);
+        });
       });
     });
 
@@ -223,8 +225,10 @@
     var rb = document.getElementById('repeatBtn');
     if(rb){
       rb.addEventListener('click', function(){
-        if(!confirm('Create a repeat order with this approved specification?')){ return; }
-        post('nylon/order_repeat', { id: ORDER_ID }, this);
+        mpConfirmAsync('Create a repeat order with this approved specification?', { title: 'Repeat order?', okText: 'Create Repeat Order' }).then(function(ok){
+          if(!ok){ return; }
+          post('nylon/order_repeat', { id: ORDER_ID }, rb);
+        });
       });
     }
 

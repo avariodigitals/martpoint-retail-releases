@@ -96,12 +96,28 @@ class Service_package_model extends CI_Model {
 
         $store_id = get_current_store_id();
 
+        // A calculated package has no entered price — store zero rather than an
+        // empty string so the decimal column never sees an invalid value.
+        if ($pricing_model === 'calculated') {
+            $package_price = 0;
+        } elseif ($package_price === '' || !is_numeric($package_price)) {
+            return 'Package price must be a number.';
+        }
+
         // Handle image upload
         $file_name = '';
         if (!empty($_FILES['package_image']['name'])) {
             $new_name = time();
             $config['file_name'] = $new_name;
             $config['upload_path'] = './uploads/packages/';
+            // The upload folder is created on demand — the store owner should not
+            // have to know it needs to exist before a package photo can be saved.
+            if (!is_dir($config['upload_path'])) {
+                @mkdir($config['upload_path'], 0755, true);
+            }
+            if (!is_dir($config['upload_path']) || !is_writable($config['upload_path'])) {
+                return 'The folder uploads/packages is missing or not writable on the server. Create it (or fix its permissions) and try again.';
+            }
             $config['allowed_types'] = 'jpg|png|jpeg|webp';
             $config['max_size'] = 1024;
             $config['max_width'] = 1500;
@@ -337,9 +353,20 @@ class Service_package_model extends CI_Model {
 
         $this->db->trans_begin();
 
-        // Insert redemption record
+        // One redemption on the customer-package ledger …
+        $new_remaining = $this->apply_redemption($cp, $item_id, $qty, $notes, $service_order_id, $sale_id);
+        // … and the care queue's session bank moves with it, so a manual
+        // redemption here can never leave phantom sessions on the card.
+        $this->spend_entitlement_for_package($cp, $qty);
+
+        $this->db->trans_commit();
+        return array('status' => 'success', 'message' => 'Redeemed successfully', 'remaining' => $new_remaining);
+    }
+
+    // Log a redemption and run the customer package's uses down.
+    private function apply_redemption($cp, $item_id, $qty, $notes = '', $service_order_id = null, $sale_id = null) {
         $this->db->insert('db_customer_package_redemptions', array(
-            'customer_package_id' => $customer_package_id,
+            'customer_package_id' => (int)$cp->id,
             'item_id'             => $item_id,
             'quantity_redeemed'   => $qty,
             'service_order_id'    => $service_order_id,
@@ -349,16 +376,52 @@ class Service_package_model extends CI_Model {
             'redeemed_by'         => $this->data['CUR_USERNAME'] ?? 'System',
         ));
 
-        // Update remaining uses
         $new_remaining = $cp->remaining_uses - $qty;
         $update_data = array('remaining_uses' => $new_remaining);
         if ($new_remaining <= 0) {
             $update_data['status'] = 'fully_redeemed';
         }
-        $this->db->where('id', $customer_package_id)->update('db_customer_packages', $update_data);
+        $this->db->where('id', $cp->id)->update('db_customer_packages', $update_data);
+        return $new_remaining;
+    }
 
-        $this->db->trans_commit();
-        return array('status' => 'success', 'message' => 'Redeemed successfully', 'remaining' => $new_remaining);
+    // The catalogue item a package is sold as (its package_bit row).
+    private function package_item_id($package_id) {
+        $it = $this->db->select('id')->where('package_bit', 1)
+            ->where('description', 'PACKAGE_' . (int)$package_id)->get('db_items')->row();
+        return $it ? (int)$it->id : null;
+    }
+
+    // Spend $qty units of the care-queue session bank this package sale banked.
+    private function spend_entitlement_for_package($cp, $qty) {
+        if (!$this->db->table_exists('db_plan_entitlements')) return;
+        $itemId = $this->package_item_id((int)$cp->package_id);
+        if (!$itemId) return;
+        $ent = $this->db->where('sale_id', (int)$cp->sale_id)->where('service_id', $itemId)
+            ->where('store_id', (int)$cp->store_id)
+            ->where('units_used < units_total', null, false)
+            ->order_by('id', 'desc')->get('db_plan_entitlements')->row();
+        if (!$ent) return;
+        $used = min((float)$ent->units_total, (float)$ent->units_used + (float)$qty);
+        $this->db->where('id', $ent->id)->update('db_plan_entitlements', array(
+            'units_used' => $used,
+            'status'     => ($used >= (float)$ent->units_total) ? 'exhausted' : $ent->status,
+        ));
+    }
+
+    // A care-queue treatment session spent one use of a package-funded
+    // entitlement — keep the customer-package counter and its log in step.
+    public function record_use_for_entitlement($ent, $qty = 1) {
+        if (!$ent || empty($ent->sale_id) || empty($ent->service_id)) return false;
+        $pkg = $this->get_by_item_id((int)$ent->service_id);
+        if (!$pkg) return false;
+        $cp = $this->db->where('sale_id', (int)$ent->sale_id)
+            ->where('package_id', (int)$pkg->id)
+            ->where('store_id', get_current_store_id())
+            ->where('status', 'active')->order_by('id', 'desc')->get('db_customer_packages')->row();
+        if (!$cp) return false;
+        $this->apply_redemption($cp, (int)$ent->service_id, $qty, 'Treatment session');
+        return true;
     }
 
     // Create customer package record after sale
@@ -403,6 +466,28 @@ class Service_package_model extends CI_Model {
         );
 
         $this->db->insert('db_customer_packages', $data);
-        return $this->db->insert_id();
+        $cpId = $this->db->insert_id();
+
+        // The care queue spends sessions from db_plan_entitlements — bank the
+        // package's uses there too, so selling the package opens the patient's
+        // Treatment-session route and the Session Ticket counts them down.
+        $patient = $this->db->select('id')->where('customer_id', $customer_id)
+            ->where('store_id', $pkg->store_id)->get('db_patients')->row();
+        if ($patient && $total_uses > 0 && $this->db->table_exists('db_plan_entitlements')) {
+            $line = $sale_items_id ? $this->db->select('total_cost')
+                ->where('id', (int)$sale_items_id)->get('db_salesitems')->row() : null;
+            $this->load->model('Sessions_model', 'sm');
+            $this->sm->createEntitlement(array(
+                'patient_id'     => $patient->id,
+                'sale_id'        => $sale_id,
+                'service_id'     => $this->package_item_id($package_id),
+                'units_total'    => $total_uses,
+                'funded_amount'  => ($line && (float)$line->total_cost > 0) ? (float)$line->total_cost : (float)$pkg->package_price,
+                'expiry_date'    => $expiry_date,
+                'source'         => 'purchase',
+                'valuation_note' => 'Session package ' . $pkg->package_code . ' sold',
+            ));
+        }
+        return $cpId;
     }
 }

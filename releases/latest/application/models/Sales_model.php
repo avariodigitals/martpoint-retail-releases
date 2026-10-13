@@ -521,12 +521,15 @@ class Sales_model extends CI_Model {
 			if($has_shipaddr_col){
 				$sales_entry['shippingaddress_id'] = $shippingaddress_id;
 			}
-			if($shipping_cols){
+			// Only touch the shipping columns when the caller actually posted them.
+			// The back-office Sales form has no shipping field, so editing a sale
+			// there must not silently drop the delivery fee (and shrink grand_total).
+			if($shipping_cols && $this->input->post('shipping_fee') !== NULL){
 				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
 			}
-			$sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+			$sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
 

@@ -179,6 +179,7 @@ if (!function_exists('mp_get_label_defaults')) {
             'warehouse'         => 'Branch',
             'branch'            => 'Branch',
             'item'              => 'Item',
+            'sku'               => 'SKU',
             'product'           => 'Product',
             'service'           => 'Service',
             'service_order'     => 'Service Order',
@@ -1159,5 +1160,86 @@ if (!function_exists('mp_set_service_custom_fields')) {
         $CI =& get_instance();
         $json = json_encode($fields_array);
         return @$CI->db->where('id',$service_id)->update('db_services',['industry_fields_json'=>$json]);
+    }
+}
+
+// ============================================================
+// ROLE / INDUSTRY FAMILIES
+// Role lists are gated by the store's industry: universal roles show
+// everywhere, industry roles (e.g. Clinical Director) only for stores
+// of that family — a plant must never be offered clinical roles.
+// ============================================================
+
+if (!function_exists('mp_role_family')) {
+    /**
+     * Which industry family a role name belongs to.
+     * 'universal' roles are offered to every business; the rest only to
+     * stores in that family. Unknown/custom roles count as universal so
+     * a store's own roles always persist.
+     */
+    function mp_role_family($role_name) {
+        $n = strtolower(trim((string)$role_name));
+        if ($n === '') {
+            return 'universal';
+        }
+        $clinical = ['clinical director','physiotherapist','nurse','receptionist','finance officer','auditor','porter'];
+        foreach ($clinical as $c) {
+            if (strpos($n, $c) !== false) {
+                return 'clinical';
+            }
+        }
+        if (strpos($n, 'production supervisor') !== false || strpos($n, 'production operator') !== false) {
+            return 'production';
+        }
+        if (strpos($n, 'service engineer') !== false) {
+            return 'equipment';
+        }
+        return 'universal';
+    }
+}
+
+if (!function_exists('mp_store_role_families')) {
+    /**
+     * The role families this store's industry belongs to.
+     * A store can belong to more than one (e.g. a physio clinic that also
+     * runs a small production unit).
+     */
+    function mp_store_role_families($store_id = null) {
+        $profile = mp_get_store_profile($store_id);
+        $ind  = $profile['industry_type'] ?? '';
+        $feat = $profile['features'] ?? [];
+        $families = [];
+
+        if (in_array($ind, ['physiotherapy_rehabilitation','clinic','hospital','diagnostic_centre'], true)
+            || in_array('patient_registry', $feat, true)
+            || in_array('clinical_encounters', $feat, true)) {
+            $families[] = 'clinical';
+        }
+
+        if (in_array($ind, ['manufacturer','nylon_polythene','oil_processing_plant','bakery_cake_studio','printing'], true)
+            || in_array('production_workflow', $feat, true)
+            || in_array('recipe_tracking', $feat, true)
+            || in_array('oil_processing_workflow', $feat, true)) {
+            $families[] = 'production';
+        }
+
+        if ($ind === 'scientific_equipment') {
+            $families[] = 'equipment';
+        }
+
+        return $families;
+    }
+}
+
+if (!function_exists('mp_role_visible')) {
+    /**
+     * May a store of this industry be given this role?
+     */
+    function mp_role_visible($role_name, $store_id = null) {
+        $family = mp_role_family($role_name);
+        if ($family === 'universal') {
+            return true;
+        }
+        return in_array($family, mp_store_role_families($store_id), true);
     }
 }

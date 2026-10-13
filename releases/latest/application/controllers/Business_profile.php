@@ -10,10 +10,27 @@ class Business_profile extends MY_Controller {
     }
 
     public function index() {
-        $this->permission_check('business_setup');
+        $this->_screen('tab_identity');
+    }
+
+    /**
+     * The rail has two entries that used to open this same screen on the same
+     * tab, so they looked like a duplicate. Each now lands on the tab it names.
+     */
+    public function facility() {
+        $this->_screen('tab_identity');
+    }
+
+    public function capabilities() {
+        $this->_screen('tab_features');
+    }
+
+    private function _screen($activeTab = 'tab_identity') {
+        $this->permission_check('business_profile');
         $store_id = get_current_store_id();
         $data = $this->data;
         $data['page_title'] = 'Business Profile';
+        $data['active_tab'] = $activeTab;
         $data['profile'] = $this->bp_model->get_profile($store_id);
         $data['presets'] = $this->bp_model->get_available_presets();
         $data['business_types'] = mp_get_business_types();
@@ -29,7 +46,7 @@ class Business_profile extends MY_Controller {
     }
 
     public function save() {
-        $this->permission_check('business_setup');
+        $this->permission_check('business_profile');
         $store_id = get_current_store_id();
 
         $industry_type = $this->input->post('industry_type', TRUE);
@@ -205,7 +222,7 @@ class Business_profile extends MY_Controller {
     }
 
     public function get_preset() {
-        $this->permission_check('business_setup');
+        $this->permission_check('business_profile');
         $industry_type = $this->input->post('industry_type', TRUE);
         $preset = $this->bp_model->get_preset($industry_type);
         if ($preset) {

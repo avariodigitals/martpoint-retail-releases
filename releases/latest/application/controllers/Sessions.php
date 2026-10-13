@@ -26,18 +26,40 @@ class Sessions extends MY_Controller {
 
 	public function index(){
 		$storeId = get_current_store_id();
-		$rows = $this->db->select('s.*, p.patient_code, c.customer_name AS patient_name')
-			->from('db_treatment_sessions s')
-			->join('db_patients p', 'p.id = s.patient_id')
-			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
-			->where('s.store_id', $storeId)
-			->order_by('s.scheduled_at', 'desc')->limit(300)->get()->result();
+		// ?range=today|week|month|all — the diary window the desk is looking at.
+		$range = $this->input->get('range') !== NULL ? (string)$this->input->get('range') : 'week';
+		if(!isset($this->sessions->diaryRanges()[$range])) $range = 'week';
+		$rows = $this->sessions->diarySessions($storeId, $range);
+		// Paid sessions nobody has booked yet — without these on screen the
+		// diary reads as broken when it is simply still empty.
+		$waiting = array();
+		if($this->db->table_exists('db_plan_entitlements')){
+			$waiting = $this->db->select('e.*, i.item_name AS treatment_name, p.patient_code, c.customer_name AS patient_name')
+				->from('db_plan_entitlements e')
+				->join('db_patients p', 'p.id = e.patient_id')
+				->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+				->join('db_items i', 'i.id = e.service_id', 'left')
+				->where('e.store_id', $storeId)
+				->where('e.status', 'active')
+				->where('e.units_total > e.units_used', null, false)
+				->group_start()
+					->where('e.expiry_date IS NULL', null, false)
+					->or_where('e.expiry_date >=', date('Y-m-d'))
+				->group_end()
+				->order_by('e.id', 'desc')->limit(50)->get()->result();
+		}
 		$data = array_merge($this->data, array(
 			'page_title' => 'Treatment Sessions',
 			'sessions'   => $rows,
+			'waiting'    => $waiting,
+			'sess_range'  => $range,
+			'sess_ranges' => $this->sessions->diaryRanges(),
+			'sess_hidden' => $this->sessions->countDiaryOutside($storeId, $range),
+			'next_sess'   => $this->sessions->nextUpcoming($storeId),
 			'can'        => array(
 				'checkin'  => physio_can('sessions_checkin'),
 				'complete' => physio_can('sessions_complete'),
+				'schedule' => physio_can('plans_add') || physio_can('sessions_checkin'),
 			),
 		));
 		$data['content'] = $this->load->view('sessions/index', $data, TRUE);
@@ -50,11 +72,16 @@ class Sessions extends MY_Controller {
 		}
 		$ent = $this->sessions->getEntitlement((int)$this->input->post('entitlement_id'));
 		if(!$ent){ $this->_json(array('status' => 'error', 'message' => 'Entitlement not found')); return; }
+		// The booking dialog sends a day + time; anything unparseable is a bad
+		// booking, not a silent "now".
+		$when = trim($this->input->post('scheduled_at', TRUE) ?: '');
+		$ts = $when ? strtotime($when) : false;
+		if($when && !$ts){ $this->_json(array('status' => 'error', 'message' => 'Choose a valid day and time for the session')); return; }
 		$patient = $this->patients->getPatient((int)$ent->patient_id);
 		$res = $this->sessions->schedule(array(
 			'entitlement_id' => $ent->id,
 			'customer_id'    => $patient->customer_id,
-			'scheduled_at'   => $this->input->post('scheduled_at') ?: date('Y-m-d H:i:s'),
+			'scheduled_at'   => $ts ? date('Y-m-d H:i:s', $ts) : date('Y-m-d H:i:s'),
 			'clinician_id'   => (int)$this->input->post('clinician_id') ?: null,
 			'branch_id'      => (int)$this->input->post('branch_id') ?: null,
 			'fee'            => (float)$this->input->post('fee'),
@@ -86,16 +113,26 @@ class Sessions extends MY_Controller {
 	public function complete($id = 0){
 		if(!physio_can('sessions_complete')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
 		$res = $this->sessions->complete((int)$id);
+		$next = null;
 		if(!empty($res['ok']) && empty($res['already'])){
-			$s = $this->db->select('patient_id,store_id')->where('id',(int)$id)->get('db_treatment_sessions')->row();
+			$s = $this->db->select('patient_id,store_id,entitlement_id')->where('id',(int)$id)->get('db_treatment_sessions')->row();
 			if($s){
 				$this->load->model('portal_model','portal');
 				$this->portal->maybeRequestFeedback((int)$s->patient_id, 'session', (int)$id, (int)$s->store_id);
+				// The course is rarely one session long — offer the next booking
+				// while the patient is still on everyone's mind.
+				$o = $this->sessions->nextOffer((int)$s->patient_id, (int)$s->entitlement_id);
+				if($o){
+					$next = array('entitlement_id' => $o->entitlement_id, 'fee' => $o->fee,
+						'sessions_left' => $o->sessions_left, 'treatment_name' => $o->treatment_name);
+				}
 			}
 		}
-		$this->_json($res['ok']
-			? array('status' => 'success', 'message' => !empty($res['already']) ? 'Already completed — nothing double-posted' : 'Session completed — fee applied once', 'session_id' => $res['session_id'])
-			: array('status' => 'error', 'message' => $res['error']));
+		$ok = array('status' => 'success',
+			'message' => !empty($res['already']) ? 'Already completed — nothing double-posted' : 'Session completed — fee applied once',
+			'session_id' => $res['session_id']);
+		if($next) $ok['next'] = $next;
+		$this->_json(!empty($res['ok']) ? $ok : array('status' => 'error', 'message' => $res['error']));
 	}
 
 	public function cancel($id = 0){

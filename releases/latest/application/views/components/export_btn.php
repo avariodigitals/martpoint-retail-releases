@@ -19,3 +19,6 @@ $tableId = (isset($tableId)) ? $tableId : '';
 	</li>
 </ul>
 </div>
+<?php if (empty($GLOBALS['__mp_export_wired'])): $GLOBALS['__mp_export_wired'] = true; ?>
+<?php $this->load->view('comman/code_js_export.php'); ?>
+<?php endif; ?>

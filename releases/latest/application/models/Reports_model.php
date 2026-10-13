@@ -1701,9 +1701,13 @@ class Reports_model extends CI_Model {
            	//GROSS PROFIT & NET PROFIT
             $sales_details = $this->get_sales_item_sum($sales_ids);
             $sal_item_pur_price = $sales_details['purchase_price'];
-            $sal_cost = $sales_details['sales_price'];
+            $sal_item_sales = $sales_details['sales_price'];
+            $sal_shipping = $sales_details['shipping_fee'];
             $sal_tax_amt = $sales_details['tax_amt'];
-            $net_sales = $sal_cost-$sal_item_pur_price;//ACTUAL SALES VALUE
+            // The delivery fee is takings — it joins Total Sales — but it rides on
+            // the courier, so it must not inflate gross/net profit.
+            $sal_cost = $sal_item_sales+$sal_shipping;
+            $net_sales = $sal_item_sales-$sal_item_pur_price;//ACTUAL SALES VALUE
 
 
             $return_details = $this->get_sales_return_item_sum($sales_return_ids);
@@ -1775,10 +1779,22 @@ class Reports_model extends CI_Model {
 			}
 		}
 
+		// The delivery/shipping fee sits on db_sales, not on any item line. It is
+		// takings (Total Sales) but never margin, so it is returned separately and
+		// the profit calculations exclude it.
+		$sum_shipping = 0;
+		if($this->db->field_exists('shipping_fee','db_sales')){
+			$this->db->select("COALESCE(SUM(shipping_fee),0) AS shipping_fee");
+			$this->db->from('db_sales');
+			$this->db->where("id in (".$sales_ids.")");
+			$sum_shipping = (float)$this->db->get()->row()->shipping_fee;
+		}
+
 		return array(
 					'purchase_price' => $sum_pur_price,
 					'sales_price' => $sum_sal_price,
 					'tax_amt' => $sum_tax_amt,
+					'shipping_fee' => $sum_shipping,
 				);
 	}
 	public function get_sales_return_item_sum($sales_return_ids){
@@ -1979,7 +1995,8 @@ class Reports_model extends CI_Model {
 			if(!empty($store_id)){ $this->db->where("a.store_id",$store_id);}
 			}else{ $this->db->where("a.store_id",get_current_store_id());	
 		}
-		$this->db->select("a.coupon_amt,a.id,a.sales_date,a.sales_code,b.customer_name");
+		$ship_sel = $this->db->field_exists('shipping_fee','db_sales') ? ',a.shipping_fee' : '';
+		$this->db->select("a.coupon_amt,a.id,a.sales_date,a.sales_code,b.customer_name".$ship_sel);
 		$this->db->from("db_sales as a,db_customers as b");
 		$this->db->where("a.sales_status='Final' and b.id=a.customer_id");
 
@@ -2005,11 +2022,13 @@ class Reports_model extends CI_Model {
 
 				//Total price item_purchase_price * qty
 				$purchase_price = ($q2->row()->purchase_price-$purchase_return_price);
-				//Total price item_sales_price * qty
-				$sales_price = ($q2->row()->total_cost-$q3->row()->total_cost);
+				//Total price item_sales_price * qty (delivery fee included — it is takings)
+				$item_net = ($q2->row()->total_cost-$q3->row()->total_cost);
+				$sales_price = $item_net + (float)($res1->shipping_fee ?? 0);
 
 				$coupon_amt = $res1->coupon_amt;
-				$profit = $sales_price - $purchase_price;
+				//Delivery fee is a sale, not profit — the margin uses item takings only.
+				$profit = $item_net - $purchase_price;
 				
 				/*$sales_tax_amt =$this->db->query("select COALESCE(SUM(tax_amt),0) AS tax_amt from db_salesitems where sales_id=".$res1->id)->row()->tax_amt;
 				

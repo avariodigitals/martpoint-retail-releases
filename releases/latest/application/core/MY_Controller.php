@@ -260,7 +260,7 @@ class MY_Controller extends CI_Controller{
       private function reseed_role_permissions(){
             // Use a versioned session flag so the reseed runs again after each
             // deployment where the default permission sets have changed.
-            $flag = 'mp_perms_reseeded_v5_' . get_current_store_id() . '_' . app_version();
+            $flag = 'mp_perms_reseeded_v6_' . get_current_store_id() . '_' . app_version();
             if($this->session->userdata($flag)){
                 return;
             }
@@ -275,6 +275,7 @@ class MY_Controller extends CI_Controller{
             try {
                 $this->load->model('default_data_model','default_data');
                 $this->default_data->reseed_missing_permissions();
+                $this->default_data->sync_system_admin_permissions(get_current_store_id());
                 if (physio_enabled()) {
                     $store_id = get_current_store_id();
                     $this->default_data->create_physio_roles($store_id);

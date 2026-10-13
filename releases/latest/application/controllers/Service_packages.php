@@ -44,7 +44,11 @@ class Service_packages extends MY_Controller {
 
     public function newpackage() {
         $this->form_validation->set_rules('package_name', 'Package Name', 'trim|required');
-        $this->form_validation->set_rules('package_price', 'Package Price', 'trim|required|numeric');
+        // A calculated package prices itself from its items, so there is no
+        // price box to fill in — requiring one here just blocked the save.
+        if ($this->input->post('pricing_model', TRUE) !== 'calculated') {
+            $this->form_validation->set_rules('package_price', 'Package Price', 'trim|required|numeric');
+        }
 
         if ($this->form_validation->run() == TRUE) {
             $result = $this->service_package_model->save_and_update();

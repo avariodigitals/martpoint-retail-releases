@@ -43,7 +43,7 @@ class Appointments_model extends CI_Model {
 	}
 
 	public function getAppointments($storeId, $filters = array()){
-		$this->db->select('a.*, c.customer_name, c.mobile, s.service_name, u.username AS staff_name, w.warehouse_name AS branch_name')
+		$this->db->select('a.*, c.customer_name, c.mobile, s.service_name, u.username AS staff_name, u.role_id AS staff_role_id, w.warehouse_name AS branch_name')
 			->from('db_appointments a')
 			->join('db_patients p', 'p.id = a.patient_id AND p.store_id = a.store_id', 'left')
 			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
@@ -67,17 +67,23 @@ class Appointments_model extends CI_Model {
 	}
 
 	public function getEvents($appointmentId, $storeId = null){
+		if(!function_exists('mp_first_name')) $this->load->helper('physio');
 		$storeId = $storeId ?: get_current_store_id();
-		return $this->db->where('appointment_id', $appointmentId)->where('store_id', $storeId)
+		$rows = $this->db->where('appointment_id', $appointmentId)->where('store_id', $storeId)
 			->order_by('id', 'asc')->get('db_appointment_events')->result();
+		foreach($rows as $r){
+			$r->created_by_name = mp_first_name($r->created_by, $r->created_by_name);
+		}
+		return $rows;
 	}
 
 	private function _logEvent($apptId, $storeId, $event, $from = null, $to = null, $note = null){
+		if(!function_exists('mp_first_name')) $this->load->helper('physio');
 		$this->db->insert('db_appointment_events', array(
 			'store_id' => $storeId, 'appointment_id' => $apptId, 'event' => $event,
 			'from_value' => $from, 'to_value' => $to, 'note' => $note,
 			'created_by' => $this->session->userdata('inv_userid'),
-			'created_by_name' => $this->session->userdata('inv_username'),
+			'created_by_name' => mp_first_name($this->session->userdata('inv_userid'), $this->session->userdata('first_name')),
 			'created_at' => date('Y-m-d H:i:s'),
 		));
 	}

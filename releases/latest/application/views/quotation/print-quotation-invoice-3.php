@@ -210,7 +210,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
   <thead>
     <tr>
       <th class="sl">#</th>
-      <?php if($oilPlantQuote): ?><th>Part code</th><?php endif; ?>
+      <?php if($oilPlantQuote): ?><th><?= htmlspecialchars(mp_label('sku')) ?></th><?php endif; ?>
       <th><?= $this->lang->line('description'); ?></th>
       <th class="qty"><?= $this->lang->line('qty'); ?></th>
       <?php if($oilPlantQuote): ?><th class="qty">Unit</th><?php endif; ?>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zonat Processing LTD | Processing Plant use case</title>
+<link rel="icon" href="../favicon.webp" type="image/webp">
+<link rel="stylesheet" href="../martpoint-brand.css">
+<style>
+  :root { --zonat:#174f37; --zonat-deep:#103b2b; --zonat-gold:#d7a53a; --zonat-wash:#eff6f0; --zonat-line:#d6e5da; }
+  body { background:#e9eee9; }
+  .page { border-top:5px solid var(--zonat-gold); }
+  .page-cover { background:linear-gradient(145deg,#103b2b 0%,#186442 63%,#1c754d 100%); border-top:0; }
+  .z-top { display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:16px;border-bottom:1px solid var(--zonat-line);margin-bottom:24px; }
+  .z-brand { display:flex;align-items:center;gap:11px;color:var(--zonat-deep);font-size:16px;font-weight:800;letter-spacing:.015em; }
+  .z-mark { display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--zonat);color:#fff;font-size:22px;font-weight:800;font-family:Georgia,serif; }
+  .z-kicker { font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:#62796a;font-weight:800; }
+  .z-foot { margin-top:auto;padding-top:14px;border-top:1px solid var(--zonat-line);display:flex;justify-content:space-between;gap:10px;color:#69806f;font-size:11px; }
+  .page-cover .z-mark { background:#fff;color:var(--zonat); }
+  .page-cover .z-brand,.page-cover .z-kicker { color:#fff; }
+  .page-cover .z-top,.page-cover .z-foot { border-color:rgba(255,255,255,.28); }
+  .page-cover .z-foot { color:#e0f1e3; }
+  .eyebrow { display:inline-block;color:var(--zonat);font-weight:800;text-transform:uppercase;letter-spacing:.12em;font-size:11px;margin-bottom:10px; }
+  .page-cover .eyebrow { color:#f7d987; }
+  h1 { font-size:44px;line-height:1.07;max-width:620px; }
+  h2 { color:var(--zonat-deep);font-size:28px; }
+  h3 { color:var(--zonat-deep);font-size:16px; }
+  .page-cover h1,.page-cover p { color:#fff; }
+  .page-cover p { max-width:610px; }
+  .lead { font-size:16px; }
+  .route { display:inline-flex;align-items:center;gap:8px;background:var(--zonat-wash);border:1px solid var(--zonat-line);border-radius:999px;padding:7px 12px;color:var(--zonat-deep);font-size:12px;font-weight:700;margin:5px 0 16px; }
+  .route a,.action a { color:var(--zonat);font-weight:800;text-decoration:underline; }
+  .screen { border:1px solid var(--zonat-line);border-radius:15px;overflow:hidden;margin:12px 0 18px;background:#fff;page-break-inside:avoid; }
+  .screen-head { background:var(--zonat-deep);color:#fff;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;font-size:12px; }
+  .screen-head b { font-size:13px; }
+  .screen-body { padding:16px; }
+  .screen-body p:last-child { margin-bottom:0; }
+  .row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+  .row.three { grid-template-columns:repeat(3,1fr); }
+  .box { border:1px solid var(--zonat-line);border-radius:12px;padding:12px 13px;background:#fff;page-break-inside:avoid; }
+  .box strong { color:var(--zonat-deep); }
+  .box small { display:block;color:#52675a;line-height:1.45;margin-top:5px; }
+  .step { display:grid;grid-template-columns:28px 1fr;gap:10px;margin:0 0 13px;align-items:start;page-break-inside:avoid; }
+  .step i { display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--zonat);color:#fff;font-style:normal;font-weight:800;font-size:12px; }
+  .step p { font-size:13px;margin:0; }
+  .step b { color:var(--zonat-deep); }
+  .data { width:100%;border-collapse:collapse;font-size:12px;margin:10px 0 18px; }
+  .data th { background:var(--zonat-deep);color:#fff;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em; }
+  .data td,.data th { padding:8px 9px;border-bottom:1px solid var(--zonat-line);vertical-align:top; }
+  .data tbody tr:nth-child(even) { background:#f8fbf8; }
+  .data code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--zonat-deep);font-size:11px; }
+  .callout { border-left:4px solid var(--zonat-gold);padding:10px 13px;background:#fff9e9;color:#4d482f;border-radius:0 10px 10px 0;font-size:13px;margin:12px 0 18px; }
+  .action { background:var(--zonat-wash);border:1px solid var(--zonat-line);border-radius:12px;padding:11px 14px;font-size:13px;margin-top:14px; }
+  .timeline { display:grid;grid-template-columns:76px 1fr;gap:0 12px; }
+  .timeline div { padding:9px 0;border-bottom:1px solid var(--zonat-line);font-size:13px; }
+  .timeline .time { color:var(--zonat);font-weight:800; }
+  .mini-flow { display:flex;flex-wrap:wrap;gap:7px;margin:14px 0; }
+  .mini-flow span { background:var(--zonat-wash);border:1px solid var(--zonat-line);border-radius:999px;padding:7px 10px;color:var(--zonat-deep);font-size:11px;font-weight:700; }
+  .brand-pair { display:flex;align-items:center;gap:15px;margin-top:32px;color:#e5f2e6;font-size:12px;font-weight:700; }
+  .brand-pair img { height:27px;width:auto; }
+  .toc a { color:var(--zonat);font-weight:700; }
+  @media screen and (max-width:840px) { .document{padding:0;max-width:100%}.page{width:100%;min-height:0;margin:0 0 12px;padding:25px 18px;box-shadow:none}.page-cover .cover-inner{min-height:75vh;padding:25px 18px}.row,.row.three{grid-template-columns:1fr}.data{font-size:11px}h1{font-size:36px}h2{font-size:25px}.z-top{align-items:flex-start}.z-kicker{text-align:right} }
+  @media print { .page{border-top:5px solid var(--zonat-gold);}.page-cover{border-top:0}.screen,.box,.callout,.step{break-inside:avoid} }
+</style>
+</head>
+<body>
+<main class="document">
+  <section class="page page-cover" id="start">
+    <div class="cover-inner">
+      <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">Processing Plant · Palm / Vegetable Oil</div></div>
+      <div style="margin:auto 0;"><span class="eyebrow">Customer use case · screen by screen</span><h1>From fruit and machinery purchases to oil dispatch</h1><p class="lead">A working day at Zonat Processing LTD, with the exact MartPoint screens and example records the plant team uses to buy, receive, process, quote, invoice and review its work.</p><div class="mini-flow"><span>Set up</span><span>Procure</span><span>Receive</span><span>Process</span><span>Quote</span><span>Invoice</span><span>Review</span></div><div class="brand-pair"><img src="../logo-white.png" alt="MartPoint"><span>MartPoint workspace guide for Zonat Processing LTD</span></div></div>
+      <div class="z-foot"><span>Zonat Processing LTD · Customer guide</span><span>01 / 12</span></div>
+    </div>
+  </section>
+
+  <section class="page" id="map">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">01 · The route</div></div>
+    <span class="eyebrow">Start here</span><h2>One plant, one connected record</h2>
+    <p class="lead">Zonat receives palm fruit and kernels, keeps production inputs and expeller spares in stock, completes processing runs, and sells bulk oil to buyers. Consistent item codes help the team reconcile purchases, stock, formulas, quotations and invoices.</p>
+    <div class="screen"><div class="screen-head"><b>Processing Plant dashboard</b><span>Zonat Processing LTD</span></div><div class="screen-body"><div class="row three"><div class="box"><strong>Inputs to replenish</strong><small>Raw materials, packaging and spare parts at their alert quantity.</small></div><div class="box"><strong>Purchases awaiting receipt</strong><small>Orders and supplier proformas still being checked against deliveries.</small></div><div class="box"><strong>Open processing runs</strong><small>Planned and active batches awaiting completion.</small></div></div></div></div>
+    <div class="mini-flow"><span>Dashboard</span><span>Items</span><span>Suppliers</span><span>Purchases</span><span>Inventory</span><span>Process formulas</span><span>Processing runs</span><span>Quotations</span><span>Invoices</span></div>
+    <div class="callout">Use the <strong>Processing Plant</strong> business profile for Zonat. The store name appears in the app header and on customer documents. Set the document banner, reply-to email and signature in store settings before sending the first quotation.</div>
+    <div class="action">Open <a href="/dashboard">Dashboard</a> · On a phone, open <a href="/mobile/oil_processing">Processing Plant</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>02 / 12</span></div>
+  </section>
+
+  <section class="page" id="setup">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">02 · One-time setup</div></div>
+    <span class="eyebrow">Store profile · units · locations</span><h2>Set the plant up before the first purchase</h2>
+    <div class="screen"><div class="screen-head"><b>Store Profile</b><span>Zonat Processing LTD</span></div><div class="screen-body">
+      <div class="step"><i>1</i><p><b>Business name.</b> Save <strong>Zonat Processing LTD</strong> as the store name. Use the plant address, phone and business email that buyers should see on documents.</p></div>
+      <div class="step"><i>2</i><p><b>Document identity.</b> Upload the company banner for quotations and invoices, set the email reply-to address, then upload the authorised signature and turn on <strong>Show Signature</strong> if Zonat uses it.</p></div>
+      <div class="step"><i>3</i><p><b>Units.</b> Make sure kilogram, litre, metre, piece, set and drum are available. Use one stock unit consistently for each item.</p></div>
+      <div class="step"><i>4</i><p><b>Plant location.</b> Use a warehouse or depot for the main plant; add another only when stock is physically held elsewhere.</p></div>
+    </div></div>
+    <div class="callout">A supplier's proforma is an incoming purchasing document. Zonat's quotation is an offer to its buyer. They belong to different sides of the workflow.</div>
+    <div class="action">Open <a href="/business_profile">Business Profile</a> · <a href="/oil_processing/document_style">Document Banner</a> · <a href="/email_settings">Email Settings</a> · <a href="/warehouse">Plant / Depot</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>03 / 12</span></div>
+  </section>
+
+  <section class="page" id="items">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">03 · Items</div></div>
+    <span class="eyebrow">Catalogue screen</span><h2>Build items the plant can actually use</h2>
+    <p>Open <strong>Items → Add Item</strong>. Choose a clear category, enter the <strong>Part / Material Code</strong>, a description with the relevant grade or machine model, the stock unit, purchase price and reorder level. Mark purchased inputs, machinery and spares <strong>Not for sale</strong>. Finished oil and by-products can be saleable.</p>
+    <table class="data"><thead><tr><th>Category</th><th>Code · item name</th><th>Unit</th><th>Use at Zonat</th></tr></thead><tbody>
+      <tr><td>Raw materials</td><td><code>RM-FFB-001</code> Fresh fruit bunches</td><td>kg</td><td>Received from growers; consumed by a processing run.</td></tr>
+      <tr><td>Raw materials</td><td><code>RM-PK-001</code> Palm kernels</td><td>kg</td><td>Kernel oil input.</td></tr>
+      <tr><td>Process inputs</td><td><code>RM-BE-001</code> Bleaching earth</td><td>kg</td><td>Consumable recorded against the relevant formula.</td></tr>
+      <tr><td>Packaging</td><td><code>PK-DRUM-200</code> 200 L steel drum</td><td>piece</td><td>Purchased for bulk-oil packing.</td></tr>
+      <tr><td>Packaging</td><td><code>PK-BOT-1L</code> 1 L PET bottle</td><td>piece</td><td>Purchased for packaged oil.</td></tr>
+      <tr><td>Machinery</td><td><code>EQ-EK200</code> EK-200K expeller</td><td>set</td><td>Procured as equipment; keep the model in the description.</td></tr>
+      <tr><td>Machinery</td><td><code>EQ-FP01</code> Filter press machine 30 × 30</td><td>set</td><td>Procured as equipment with its specification.</td></tr>
+      <tr><td>Spare parts</td><td><code>G11</code> Gear coupling (M) 18T</td><td>piece</td><td>Linked to the EK-200K in its description.</td></tr>
+      <tr><td>Spare parts</td><td><code>SP-FC-40</code> Filter cloth 40-inch width</td><td>metre</td><td>Purchased by measured length.</td></tr>
+      <tr><td>Finished goods</td><td><code>FG-CPO-BULK</code> Crude palm oil, bulk</td><td>litre</td><td>Finished stock available for buyer invoices.</td></tr>
+      <tr><td>Finished goods</td><td><code>FG-PKO-BULK</code> Palm kernel oil, bulk</td><td>litre</td><td>Finished stock available for buyer invoices.</td></tr>
+      <tr><td>By-products</td><td><code>BP-PKC-001</code> Palm kernel cake</td><td>kg</td><td>Recorded output when produced.</td></tr>
+    </tbody></table>
+    <div class="callout">The codes and catalogue entries in the separate Zonat demo are examples. Prices and physical opening quantities start at zero so a real purchase or stock count establishes them.</div>
+    <div class="action">Open <a href="/items">Items</a> · <a href="/items/add">Add Item</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>04 / 12</span></div>
+  </section>
+
+  <section class="page" id="suppliers">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">04 · Suppliers</div></div>
+    <span class="eyebrow">Procurement starts here</span><h2>Keep grower and machinery suppliers separate</h2>
+    <div class="screen"><div class="screen-head"><b>Suppliers</b><span>Zonat Processing LTD</span></div><div class="screen-body"><div class="row"><div class="box"><strong>Zonat Growers Cooperative (sample)</strong><small>Fruit bunches and kernels. Record the supplier name, contact and agreed delivery terms.</small></div><div class="box"><strong>Industrial Plant Spares (sample)</strong><small>Expeller components, filter cloth and equipment. Record part codes on each purchase line.</small></div></div></div></div>
+    <div class="step"><i>1</i><p>Open <strong>Suppliers → Add Supplier</strong>; save the supplier's contact details and name exactly as they should appear on the purchase.</p></div>
+    <div class="step"><i>2</i><p>Before ordering, check the item code, unit and expected quantity against the supplier's offer. A set of spare parts and an individual piece are different units.</p></div>
+    <div class="step"><i>3</i><p>Keep each supplier purchase under the supplier who will invoice Zonat. This makes unpaid supplier balances and later receipts easier to review.</p></div>
+    <div class="action">Open <a href="/suppliers">Suppliers</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>05 / 12</span></div>
+  </section>
+
+  <section class="page" id="purchasing">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">05 · Purchases</div></div>
+    <span class="eyebrow">Supplier proforma → receipt</span><h2>Procure materials, machinery and spares</h2>
+    <div class="screen"><div class="screen-head"><b>Purchase · Supplier Proforma</b><span>Zonat Processing LTD</span></div><div class="screen-body">
+      <div class="step"><i>1</i><p><b>Choose supplier.</b> Select the grower cooperative for fruit or Industrial Plant Spares for an expeller part.</p></div>
+      <div class="step"><i>2</i><p><b>Capture the preliminary document.</b> Use <strong>Supplier Proforma</strong> for the supplier's offered quantities, part codes, units and prices. Save it as the preliminary purchase record.</p></div>
+      <div class="step"><i>3</i><p><b>Confirm the purchase.</b> Compare the supplier's final terms with the proforma, including taxes and delivery cost where applicable.</p></div>
+      <div class="step"><i>4</i><p><b>Receive what arrived.</b> Record the physical quantity against the correct item and plant location. If only part of the order arrived, keep the outstanding quantity visible.</p></div>
+      <div class="step"><i>5</i><p><b>Record payment.</b> Match supplier payment to the purchase, then review the remaining supplier balance.</p></div>
+    </div></div>
+    <div class="callout">Example: the supplier offers <strong>5 SET</strong> of EK-200K feed cages. Zonat receives <strong>3 SET</strong> today. The team records three received sets and follows up on the remaining two.</div>
+    <div class="action">Open <a href="/purchase/add?document=supplier_proforma">Supplier Proforma</a> · <a href="/purchase">Purchases</a> · Phone: <a href="/mobile/purchase">Purchases</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>06 / 12</span></div>
+  </section>
+
+  <section class="page" id="stock">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">06 · Plant stock</div></div>
+    <span class="eyebrow">Inventory screen</span><h2>Check stock before scheduling a run</h2>
+    <p>After receiving, open the plant stock view. Check the exact item and unit. Raw material stock is held by kilogram; oil output is recorded in litres; filter cloth is counted in metres. Keep machinery and spares identifiable by their part or equipment code.</p>
+    <div class="screen"><div class="screen-head"><b>Plant stock check</b><span>Zonat Processing LTD</span></div><div class="screen-body"><table class="data"><thead><tr><th>Item</th><th>Check</th><th>Next action</th></tr></thead><tbody><tr><td>Fresh fruit bunches</td><td>Physical kg and receipt batch</td><td>Allocate available quantity to the planned run.</td></tr><tr><td>Filter cloth 40-inch</td><td>Metres on hand</td><td>Raise a supplier purchase when stock is low.</td></tr><tr><td>Crude palm oil, bulk</td><td>Litres available after completed runs</td><td>Quote only the volume Zonat can commit to supply.</td></tr></tbody></table></div></div>
+    <div class="step"><i>1</i><p>Review the dashboard's <strong>inputs at or below reorder level</strong>.</p></div>
+    <div class="step"><i>2</i><p>Open the affected item and inspect its stock quantity and unit. Correct any real stock discrepancy through the inventory workflow, recording the reason.</p></div>
+    <div class="step"><i>3</i><p>Raise a purchase for missing material or spare parts before committing a run or delivery date.</p></div>
+    <div class="action">Open <a href="/inventory">Plant Stock</a> · <a href="/items">Items</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>07 / 12</span></div>
+  </section>
+
+  <section class="page" id="formulas">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">07 · Process formulas</div></div>
+    <span class="eyebrow">Plan a repeatable batch</span><h2>Define expected inputs and output</h2>
+    <div class="screen"><div class="screen-head"><b>Process Formulas</b><span>Zonat Processing LTD</span></div><div class="screen-body">
+      <div class="step"><i>1</i><p>Create a formula such as <strong>Crude Palm Oil — First Pressing</strong> and select the finished oil item.</p></div>
+      <div class="step"><i>2</i><p>Add expected input items: for example fresh fruit bunches and the process consumables actually used by this plant.</p></div>
+      <div class="step"><i>3</i><p>Enter expected quantities and the intended output unit. Keep the formula based on Zonat's approved process data, not a supplier's sales sheet.</p></div>
+      <div class="step"><i>4</i><p>Review the calculated expected cost, then save the formula for future runs.</p></div>
+    </div></div>
+    <div class="callout">The item catalogue also contains machinery and spare parts for procurement. A process formula lists the materials actually consumed to produce output.</div>
+    <div class="action">Open <a href="/operations/recipes">Process Formulas</a> · Phone: <a href="/mobile/recipes">Formulas</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>08 / 12</span></div>
+  </section>
+
+  <section class="page" id="runs">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">08 · Processing runs</div></div>
+    <span class="eyebrow">Production schedule</span><h2>Run, review and complete the batch</h2>
+    <div class="screen"><div class="screen-head"><b>Processing Runs</b><span>Zonat Processing LTD</span></div><div class="screen-body">
+      <div class="step"><i>1</i><p>Schedule a run for the chosen oil item and planned date. Give it a batch name the shift team can recognise.</p></div>
+      <div class="step"><i>2</i><p>Check that required input stock is available. Assign the planned quantity and begin the run.</p></div>
+      <div class="step"><i>3</i><p>At shift handover, compare actual output with planned output and record the operational result in the run.</p></div>
+      <div class="step"><i>4</i><p>Have the responsible team review product quality and quantities before completing the run. Completion posts the finished stock and consumes the recorded inputs.</p></div>
+      <div class="step"><i>5</i><p>Return to Items or Plant Stock to confirm the finished oil quantity is available for a buyer order.</p></div>
+    </div></div>
+    <div class="callout">Complete a run only after checking quantities. A completed batch should not be completed again just to increase stock; create the next run for the next production cycle.</div>
+    <div class="action">Open <a href="/operations/production_schedule">Processing Runs</a> · Phone: <a href="/mobile/production">Production</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>09 / 12</span></div>
+  </section>
+
+  <section class="page" id="quotes">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">09 · Buyer quotation</div></div>
+    <span class="eyebrow">Quote screen</span><h2>Offer bulk oil or plant spares clearly</h2>
+    <div class="screen"><div class="screen-head"><b>New Quotation</b><span>Zonat Processing LTD</span></div><div class="screen-body">
+      <div class="step"><i>1</i><p>Select the <strong>buyer</strong>, quotation date, expiry date and buyer reference.</p></div>
+      <div class="step"><i>2</i><p>Add a <strong>group heading</strong> such as <em>Bulk Crude Palm Oil</em> or <em>EK-200K First Pressing Spares</em>. Add the relevant item lines inside that group.</p></div>
+      <div class="step"><i>3</i><p>Use the item picker to bring in saved codes and descriptions, then confirm quantity, unit and unit price. For a one-off quoted part, enter its code and description manually.</p></div>
+      <div class="step"><i>4</i><p>Apply the correct tax selection, write payment and delivery terms in Notes, and save. Percentages such as <strong>30% deposit</strong> remain intact.</p></div>
+      <div class="step"><i>5</i><p>Review the group subtotals and numbering, then print or open the PDF. Send it to the buyer by email only after confirming the buyer address and Zonat reply-to address.</p></div>
+    </div></div>
+    <div class="callout">The document banner is optional for this business profile. When enabled, it uses Zonat's branding at the top of the quotation and invoice. The authorised signature appears when an image is uploaded and Show Signature is on.</div>
+    <div class="action">Open <a href="/quotation/add">New Quotation</a> · <a href="/quotation">Quotations</a> · Phone: <a href="/mobile/quotations">Quotations</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>10 / 12</span></div>
+  </section>
+
+  <section class="page" id="invoice">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">10 · Invoice &amp; payment</div></div>
+    <span class="eyebrow">Buyer order to cash</span><h2>Invoice what Zonat delivers</h2>
+    <div class="screen"><div class="screen-head"><b>Customer Invoice</b><span>Zonat Processing LTD</span></div><div class="screen-body">
+      <div class="step"><i>1</i><p>Open the accepted quotation and use <strong>Convert to Invoice</strong>, or create a customer invoice for a direct buyer order.</p></div>
+      <div class="step"><i>2</i><p>Check the buyer, delivered item, quantity, unit, unit price and tax. Match the invoiced volume to available finished stock and the actual dispatch.</p></div>
+      <div class="step"><i>3</i><p>Save the invoice, record any payment or deposit against it, and confirm the outstanding customer balance.</p></div>
+      <div class="step"><i>4</i><p>Share the invoice PDF with Zonat's name, contact details, banner or signature settings as configured.</p></div>
+    </div></div>
+    <div class="callout">Example: a buyer accepts a quotation for 2,000 litres of bulk crude palm oil. Zonat checks the available litres, dispatches the agreed quantity, invoices that quantity and records the payment received.</div>
+    <div class="action">Open <a href="/sales">Customer Invoices</a> · <a href="/sales/add">New Invoice</a>.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>11 / 12</span></div>
+  </section>
+
+  <section class="page" id="daily">
+    <div class="z-top"><div class="z-brand"><span class="z-mark">Z</span> ZONAT PROCESSING LTD</div><div class="z-kicker">11 · Daily walkthrough</div></div>
+    <span class="eyebrow">A normal working day</span><h2>From opening check to close of day</h2>
+    <div class="timeline">
+      <div class="time">07:30</div><div><strong>Dashboard.</strong> The plant manager checks open runs, inputs below reorder level, purchases awaiting receipt, active quotations and customer balances.</div>
+      <div class="time">08:00</div><div><strong>Suppliers &amp; Purchases.</strong> Procurement checks today's fruit delivery and the expeller spare-part order. It records quantities received and leaves unreceived quantities outstanding.</div>
+      <div class="time">09:00</div><div><strong>Plant Stock.</strong> Stores confirms kilograms of fruit and kernels, metres of filter cloth and packaging pieces on hand.</div>
+      <div class="time">09:30</div><div><strong>Process Formula &amp; Run.</strong> The supervisor schedules the first pressing run, checks input availability and starts the batch.</div>
+      <div class="time">13:00</div><div><strong>Run Review.</strong> The shift team records actual quantities and reviews the oil output before completing the batch.</div>
+      <div class="time">14:00</div><div><strong>Quotation.</strong> Sales prepares a grouped offer for the buyer with litres, price, tax and payment terms; the manager reviews the PDF before email.</div>
+      <div class="time">16:00</div><div><strong>Invoice &amp; Payment.</strong> Accepted quantity is invoiced, the dispatch is checked against stock, and any buyer payment is recorded.</div>
+      <div class="time">17:30</div><div><strong>Close of day.</strong> The manager revisits the KPIs, remaining supplier receipts, open quotes, completed runs and outstanding customer balances.</div>
+    </div>
+    <div class="callout">On a phone, use the Processing Plant dashboard for the same daily checks, then open the relevant purchase, production or quotation screen. The store name stays visible in the mobile header.</div>
+    <div class="z-foot"><span>Zonat Processing LTD · MartPoint</span><span>12 / 12</span></div>
+  </section>
+</main>
+</body>
+</html>

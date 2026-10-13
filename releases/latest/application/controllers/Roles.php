@@ -71,6 +71,10 @@ class Roles extends MY_Controller {
 		$rows = [];
 		$no = 0;
 		foreach($q->result() as $role){
+			// Industry gate: a plant store must not see clinical roles etc.
+			if(!mp_role_visible($role->role_name, $role->store_id)){
+				continue;
+			}
 			$no++;
 			$row = new stdClass();
 			$row->id = $role->id;
@@ -140,6 +144,9 @@ class Roles extends MY_Controller {
 		$data = array();
 		$no = $_POST['start'];
 		foreach ($list as $roles) {
+			if(!mp_role_visible($roles->role_name, $roles->store_id)){
+				continue;
+			}
 			$no++;
 			$row = array();
 			$row[] = $no;

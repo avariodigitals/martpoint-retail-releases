@@ -255,7 +255,7 @@
     function formatMoney(num){
       return currency + ' ' + Number(num).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
     }
-    function toast(msg, type){ if(window.mpAlert){ mpAlert(msg, type === 'error' ? 'danger' : (type || 'info')); } else { alert(msg); } }
+    function toast(msg, type){ if(window.mpAlert){ mpAlert(msg, type === 'error' ? 'danger' : (type || 'info')); } else if(window.cqToast){ cqToast(msg, type); } }
 
     function lineCalc(it){
       var gross = it.qty * it.price;

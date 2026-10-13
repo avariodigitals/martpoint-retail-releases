@@ -259,6 +259,7 @@ class Assessments_model extends CI_Model {
 		if($assessmentId){
 			$a = $this->get($assessmentId, $storeId);
 			if(!$a) return array('error' => 'Assessment not found');
+			if(physio_visit_locked((int)$a->encounter_id)) return array('error' => physio_visit_locked_error());
 			if($a->status === 'final') return array('error' => 'Final assessments are locked — record an amendment');
 			if((int)$a->assessor_user_id !== $uid) return array('error' => 'Only the assessor can edit this draft');
 			$this->db->where('id', $assessmentId)->where('store_id', $storeId)->update('db_assessments', array(
@@ -271,6 +272,7 @@ class Assessments_model extends CI_Model {
 		$enc = $this->db->where('id', (int)$d['encounter_id'])->where('store_id', $storeId)
 			->get('db_encounters')->row();
 		if(!$enc) return array('error' => 'Visit not found');
+		if(physio_visit_locked((int)$enc->id)) return array('error' => physio_visit_locked_error());
 		$this->db->insert('db_assessments', array(
 			'store_id'         => $storeId,
 			'encounter_id'     => (int)$enc->id,
@@ -317,6 +319,7 @@ class Assessments_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$a = $this->get($assessmentId, $storeId);
 		if(!$a) return array('error' => 'Assessment not found');
+		if(physio_visit_locked((int)$a->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($a->status === 'final') return array('error' => 'Already finalised');
 		$template = $this->getTemplate((int)$a->template_id);
 		$answers  = json_decode($a->answers_json, true) ?: array();
@@ -343,6 +346,7 @@ class Assessments_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$a = $this->get($assessmentId, $storeId);
 		if(!$a) return array('error' => 'Assessment not found');
+		if(physio_visit_locked((int)$a->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($a->status !== 'final') return array('error' => 'Only final assessments are amended');
 		$reason = trim((string)$reason);
 		if($reason === '') return array('error' => 'An amendment reason is required');

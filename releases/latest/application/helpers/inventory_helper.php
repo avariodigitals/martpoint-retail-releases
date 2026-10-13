@@ -667,17 +667,23 @@ function get_packages_select_list($select_id=''){
 	  $q1=$query->get();
 	  $str='';
 	   if($q1->num_rows($q1)>0)
-	    {  
-	
+	    {
 	        foreach($q1->result() as $res1)
-	      { 
+	      {
+	        // Industry gate: universal roles show everywhere, industry roles
+	        // (e.g. Clinical Director) only for stores of that family. The
+	        // role already assigned to the user is always kept, so editing an
+	        // existing user never loses its current value.
+	        if($select_id != $res1->id && !mp_role_visible($res1->role_name, $store_id)){
+	        	continue;
+	        }
 	        $selected = ($select_id==$res1->id)? 'selected' : '';
 	        $str.="<option $selected value='".$res1->id."'>".$res1->role_name."</option>";
 	      }
 	    }
-	    else
+	    if($str==='')
 	    {
-	    	$str.='<option value="">No Records Found</option>'; 
+	    	$str.='<option value="">No Records Found</option>';
 	    }
 	    return $str;
  }

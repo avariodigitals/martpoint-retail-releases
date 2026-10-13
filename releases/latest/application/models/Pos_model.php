@@ -501,11 +501,15 @@ class Pos_model extends CI_Model {
 		$sales_date 		=date("Y-m-d",strtotime($CUR_DATE));
 		//$points 			= (empty($points_use)) ? 'NULL' : $points_use;
 		$discount_input 	= (empty($discount_input)) ? 'NULL' : $discount_input;
+		// Clean numerics captured before tot_disc/tot_grand are swapped for the
+		// string 'NULL' below. round_off is worked out once the coupon is final.
+		$tot_amt_n = parse_amount($tot_amt);
+		$tot_disc_n = parse_amount($tot_disc);
+		$tot_grand_n = parse_amount($tot_grand);
 		$tot_disc 		= (empty($tot_disc) || $tot_disc==0) ? 'NULL' : $tot_disc;
 		$tot_grand 		= (empty($tot_grand)) ? 'NULL' : $tot_grand;
 		//$tot_grand		=round($tot_amt);
-		$round_off = number_format($tot_grand-$tot_amt,decimals(),'.','');
-		
+
 
 		//FIND CUSTOMER INFORMATION BY ITS ID
 		$q1=$this->db->query("select customer_name,mobile from db_customers where id=$customer_id");
@@ -615,6 +619,11 @@ class Pos_model extends CI_Model {
 
 
 
+
+		// Round off is the genuine rounding only. It used to be tot_grand - tot_amt,
+		// which swallowed the discount, coupon and delivery fee into "Round Off" and
+		// left the printed breakdown not adding up to the grand total.
+		$round_off = number_format($tot_grand_n - ($tot_amt_n - $tot_disc_n - parse_amount($coupon_discount_amt) + (float)$shipping_fee), decimals(),'.','');
 
 		$sales_entry_init = array(
 	    							'init_code' 				=> $init_code,
@@ -1526,10 +1535,13 @@ class Pos_model extends CI_Model {
 		$sales_date 		=date("Y-m-d",strtotime($CUR_DATE));
 		//$points 			= (empty($points_use)) ? 'NULL' : $points_use;
 		$discount_input 	= (empty($discount_input)) ? 'NULL' : $discount_input;
+		// Round off is the genuine rounding only — it used to be tot_grand - tot_amt,
+		// which swallowed the discount and delivery fee into "Round Off". db_hold has
+		// no coupon column, so the coupon can only land here.
+		$round_off = number_format(parse_amount($tot_grand) - (parse_amount($tot_amt) - parse_amount($tot_disc) + (float)$shipping_fee), decimals(),'.','');
 		$tot_disc 		= (empty($tot_disc) || $tot_disc==0) ? 'NULL' : $tot_disc;
 		$tot_grand 		= (empty($tot_grand)) ? 'NULL' : $tot_grand;
 		//$tot_grand		=round($tot_amt);
-		$round_off = number_format($tot_grand-$tot_amt,decimals(),'.','');
 		
 
 		$prev_item_ids = array();

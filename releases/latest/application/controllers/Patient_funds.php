@@ -201,6 +201,7 @@ class Patient_funds extends MY_Controller {
 			'can'        => array(
 				'enter'  => physio_can('opening_positions_enter'),
 				'review' => physio_can('opening_positions_review'),
+				'delete' => physio_can('opening_positions_delete'),
 			),
 		));
 		$data['content'] = $this->load->view('patient_funds/openings', $data, TRUE);
@@ -259,6 +260,12 @@ class Patient_funds extends MY_Controller {
 		if(!physio_can('opening_positions_review')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
 		$res = $this->funds->rejectOpening((int)$posId, trim($this->input->post('reason', TRUE) ?: ''));
 		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Opening position rejected') : array('status' => 'error', 'message' => $res['error']));
+	}
+
+	public function opening_delete($posId = 0){
+		if(!physio_can('opening_positions_delete')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
+		$res = $this->funds->deleteOpening((int)$posId);
+		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Opening position deleted') : array('status' => 'error', 'message' => $res['error']));
 	}
 
 	/** Full patient statement — separate sections, traceable lines. */

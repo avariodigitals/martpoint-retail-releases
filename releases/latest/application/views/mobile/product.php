@@ -93,7 +93,7 @@
 
         <div class="section-title"><?= $is_plant ? 'Material / Product Identity' : 'Basics'; ?></div>
         <div class="card">
-          <?php if($is_plant): ?><p class="form-group hint">Add raw material, finished oil, spare parts, or packaging. The part code below appears on quotations.</p><?php endif; ?>
+          <?php if($is_plant): ?><p class="form-group hint">Add raw material, finished oil, spare parts, or packaging. The <?= htmlspecialchars(mp_label('sku')) ?> appears on quotations.</p><?php endif; ?>
           <div class="form-group">
             <label><?= $is_plant ? 'Part / Material Code' : 'Product Code'; ?></label>
             <input type="text" name="item_code" value="<?= htmlspecialchars($item_code, ENT_QUOTES, 'UTF-8'); ?>" <?= $is_plant ? 'placeholder="e.g. G11, FP-01, EK-200K"' : 'readonly'; ?>>
@@ -147,7 +147,7 @@
               <input type="text" name="custom_barcode" value="<?= htmlspecialchars($custom_barcode); ?>">
             </div>
             <div class="form-group">
-              <label><?= $is_plant ? 'Internal Stock Code' : 'SKU'; ?></label>
+              <label><?= htmlspecialchars(mp_label('sku')) ?></label>
               <input type="text" name="sku" value="<?= htmlspecialchars($sku); ?>">
             </div>
           </div>

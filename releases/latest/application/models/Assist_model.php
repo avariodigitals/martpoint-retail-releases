@@ -23,6 +23,11 @@ class Assist_model extends CI_Model {
 		'GENERATE_PAYMENT_LINK'=> ['payment link','pay link','generate link'],
 		'CREATE_QUOTATION'    => ['quotation','quote','estimate'],
 		'CREATE_SERVICE_ORDER'=> ['service','repair','booking'],
+		'TODAY_APPOINTMENTS'  => ['appointment schedule','appointments today','todays appointments','today\'s appointments','appointment','appointments','schedule'],
+		'BOOK_APPOINTMENT'    => ['book an appointment','book appointment','new appointment','schedule appointment','book a session','book'],
+		'CARE_QUEUE'          => ['care queue','who is waiting','waiting patients','queue'],
+		'RECORD_PAYMENT'      => ['record payment','take payment','receive payment','patient payment','patient funds'],
+		'RECORD_PRODUCTION'   => ['record production','production run','processing run','plant workspace','production'],
 		'HELP'                => ['help','what can you do','commands','hello','hi','hey','good morning','good afternoon','good evening'],
 	];
 
@@ -45,33 +50,16 @@ class Assist_model extends CI_Model {
 	}
 
 	/**
-	 * Get filtered quick tasks based on user role level
+	 * Get filtered quick tasks based on user role level AND the store's
+	 * business type — a clinic gets care tasks, a processing plant gets
+	 * production tasks, retail keeps the POS menu.
 	 */
 	private function _getFilteredQuickTasks(){
 		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
 		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
 
-		$itemLabel = $this->_term('item', 'Item');
-		$allTasks = [
-			['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
-			['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
-			['label' => 'Find '.$this->_term('customer', 'Customer'), 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
-			['label' => "Today's Sales", 'action' => 'today_sales', 'icon' => 'fa-line-chart', 'min_role' => 'cashier'],
-			['label' => 'Daily Summary', 'action' => 'daily_summary', 'icon' => 'fa-file-text-o', 'min_role' => 'cashier'],
-			['label' => 'Record Expense', 'action' => 'record_expense', 'icon' => 'fa-money', 'min_role' => 'cashier'],
-			['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
-			['label' => 'View Debts', 'action' => 'view_debts', 'icon' => 'fa-handshake-o', 'min_role' => 'cashier'],
-			['label' => 'Online Orders', 'action' => 'online_orders', 'icon' => 'fa-globe', 'min_role' => 'all'],
-			['label' => 'New '.$itemLabel, 'action' => 'create_item', 'icon' => 'fa-plus-circle', 'min_role' => 'business_owner'],
-		];
-
-		// Business-type aware tasks: only show when the store's preset enables the feature
-		if($this->_featAny(['recipe_tracking','production_workflow'])){
-			$allTasks[] = ['label' => 'Add '.$this->_rawMaterialLabel(), 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner'];
-		}
-
 		$filtered = [];
-		foreach($allTasks as $task){
+		foreach($this->_businessQuickTasks() as $task){
 			$taskLevel = $this->assist_knowledge_model->roleHierarchy[$task['min_role']] ?? 0;
 			if($levelVal >= $taskLevel){
 				$filtered[] = ['label' => $task['label'], 'action' => $task['action'], 'icon' => $task['icon']];
@@ -222,6 +210,28 @@ class Assist_model extends CI_Model {
 				if($levelVal < 1) return $this->_roleDeniedResponse();
 				return $this->_customerBalances($message);
 			case 'ONLINE_ORDER_SUMMARY': return $this->_onlineOrders();
+			case 'CREATE_QUOTATION':
+				return $this->_openScreen('New Customer Quotation', 'quotation/add', 'Build the customer quotation on the quotations screen.');
+			case 'CREATE_SERVICE_ORDER':
+				if(!$this->_featAny(['appointments','service_workflow'])) return $this->_fallbackResponse();
+				return $this->_openScreen('Bookings & Appointments', 'appointments', 'Pick a time slot and book the customer in.');
+			case 'TODAY_APPOINTMENTS':
+				if(!$this->_featAny(['appointments','service_workflow','patient_registry'])) return $this->_fallbackResponse();
+				return $this->_todayAppointments();
+			case 'BOOK_APPOINTMENT':
+				if(!$this->_featAny(['appointments','service_workflow'])) return $this->_fallbackResponse();
+				return $this->_openScreen('Bookings & Appointments', 'appointments', 'Pick a time slot and book the customer in.');
+			case 'CARE_QUEUE':
+				if($this->_menuFamily() !== 'clinical') return $this->_fallbackResponse();
+				return $this->_openScreen('Care Queue', 'care_queue', 'Here is who is waiting and what each patient is booked for.');
+			case 'RECORD_PAYMENT':
+				if($this->_menuFamily() === 'clinical'){
+					return $this->_openScreen('Patient Payments', 'patient_funds', 'Record a payment into a patient\'s funds or reconcile what was received.');
+				}
+				return $this->_openScreen('Receive a Payment', 'sales', 'Open the invoice on the Sales screen and record the payment against it.');
+			case 'RECORD_PRODUCTION':
+				$prod = $this->_productionScreen();
+				return $this->_openScreen($prod['title'], $prod['uri'], $prod['blurb']);
 			case 'HELP': return $this->_welcomeResponse();
 			default:
 				// Rule-based engine didn't recognize it — let the AI try
@@ -272,6 +282,14 @@ class Assist_model extends CI_Model {
 				if($levelVal < 2 || !$this->_hasPermission('items_add')) return $this->_roleDeniedResponse();
 				if(!$this->_featAny(['recipe_tracking','production_workflow'])) return $this->_rawMaterialUnavailable();
 				return $this->_startFlow('entity_raw_material', $sessionId);
+			case 'today_appointments': return $this->_todayAppointments();
+			case 'care_queue':         return $this->_openScreen('Care Queue', 'care_queue', 'Here is who is waiting and what each patient is booked for.');
+			case 'record_payment':     return $this->_openScreen('Patient Payments', 'patient_funds', 'Record a payment into a patient\'s funds or reconcile what was received.');
+			case 'new_quotation':      return $this->_openScreen('New Customer Quotation', 'quotation/add', 'Build the customer quotation on the quotations screen.');
+			case 'record_production':
+				$prod = $this->_productionScreen();
+				return $this->_openScreen($prod['title'], $prod['uri'], $prod['blurb']);
+			case 'book_appointment':   return $this->_openScreen('Bookings & Appointments', 'appointments', 'Pick a time slot and book the customer in.');
 			default: return $this->_fallbackResponse();
 		}
 	}
@@ -486,15 +504,17 @@ class Assist_model extends CI_Model {
 
 			case 'search_customer_result':
 				if(empty($msg)){
-					return $this->_conversational('I need a customer name or phone to search. Please try again, or type "cancel" to stop.', ['step'=>'search_customer_result']);
+					return $this->_conversational('I need a name or phone number to search. Please try again, or type "cancel" to stop.', ['step'=>'search_customer_result']);
 				}
-				$this->db->like('customer_name', $msg, 'both');
-				$this->db->or_like('mobile', $msg, 'both');
-				$customers = $this->db->get('db_customers')->result();
+				$term = $this->_customerSearchTerm($msg);
+				if($term === ''){
+					return $this->_conversational('Whose sale is this? Type the '.strtolower($this->_term('customer','customer')).' name or phone number.', ['step'=>'search_customer_result']);
+				}
+				$result = $this->_findCustomers($term, 5);
 
-				if(empty($customers)){
+				if(empty($result['rows'])){
 					$this->_advanceStep('ask_create_customer', [], $sessionId);
-					return $this->_conversational('I couldn\'t find any customer matching "'.ucwords($msg).'". Would you like me to create a new customer?', [
+					return $this->_conversational('I couldn\'t find any '.strtolower($this->_term('customer','customer')).' matching "'.htmlspecialchars(ucwords($term), ENT_QUOTES).'". Would you like me to create a new '.strtolower($this->_term('customer','customer')).'?', [
 						'step' => 'ask_create_customer',
 						'options' => [
 							['label'=>'Yes, create customer', 'value'=>'yes'],
@@ -502,34 +522,37 @@ class Assist_model extends CI_Model {
 						]
 					]);
 				}
-				if(count($customers) === 1){
-					$c = $customers[0];
+				if($result['total'] === 1){
+					$c = $result['rows'][0];
 					$this->_advanceStep('ask_item', ['customer_id'=>$c->id, 'customer_name'=>$c->customer_name], $sessionId);
 					$conv = $this->_getConversation($sessionId);
 					if(!empty($conv['data']['item'])){
 						return $this->_processFlowStep($conv['data']['item'], $conv, $sessionId);
 					}
-					return $this->_conversational('Found '.$this->_term('customer','customer').': <strong>'.($c->customer_name ?? 'Unknown').'</strong> ('.($c->mobile ?? 'N/A').'). Now, what '.strtolower($this->_term('item','item')).' are you selling?', ['step'=>'ask_item']);
+					return $this->_conversational('Found '.$this->_term('customer','customer').': <strong>'.htmlspecialchars($c->customer_name ?? 'Unknown', ENT_QUOTES).'</strong> ('.htmlspecialchars($c->mobile ?? 'N/A', ENT_QUOTES).'). Now, what '.strtolower($this->_term('item','item')).' are you selling?', ['step'=>'ask_item']);
 				}
 
 				$options = [];
-				foreach($customers as $c){
-					$options[] = ['label' => ($c->customer_name ?? 'Unknown').' - '.($c->mobile ?? 'No phone'), 'value' => 'customer_'.$c->id];
+				foreach($result['rows'] as $c){
+					$options[] = ['label' => $this->_customerOptionLabel($c), 'value' => 'customer_'.$c->id];
 				}
-				$this->_advanceStep('pick_customer', ['search_name'=>$msg], $sessionId);
-				return $this->_conversational('I found multiple customers. Please pick one:', ['step'=>'pick_customer', 'options'=>$options]);
+				$this->_advanceStep('pick_customer', ['search_name'=>$term], $sessionId);
+				$ask = ($result['total'] > count($options))
+					? 'Showing '.count($options).' of '.$result['total'].' matches — type more of the name or phone number to narrow it down:'
+					: 'I found multiple '.strtolower($this->_term('customer','customer')).'s. Please pick one:';
+				return $this->_conversational($ask, ['step'=>'pick_customer', 'options'=>$options]);
 
 			case 'pick_customer':
 				if(strpos($msg, 'customer_') === 0){
-					$customerId = str_replace('customer_', '', $msg);
-					$c = $this->db->where('id', $customerId)->get('db_customers')->row();
+					$customerId = (int)str_replace('customer_', '', $msg);
+					$c = $this->db->where('id', $customerId)->where('store_id', get_current_store_id())->get('db_customers')->row();
 					if($c){
 						$this->_advanceStep('ask_item', ['customer_id'=>$c->id, 'customer_name'=>$c->customer_name], $sessionId);
 						$conv = $this->_getConversation($sessionId);
 						if(!empty($conv['data']['item'])){
 							return $this->_processFlowStep($conv['data']['item'], $conv, $sessionId);
 						}
-						return $this->_conversational('Selected: <strong>'.($c->customer_name ?? 'Unknown').'</strong>. Now, what item are you selling?', ['step'=>'ask_item']);
+						return $this->_conversational('Selected: <strong>'.htmlspecialchars($c->customer_name ?? 'Unknown', ENT_QUOTES).'</strong>. Now, what '.strtolower($this->_term('item','item')).' are you selling?', ['step'=>'ask_item']);
 					}
 				}
 				return $this->_conversational('Please select a customer from the list above, or type "cancel" to stop.', ['step'=>'pick_customer']);
@@ -610,7 +633,7 @@ class Assist_model extends CI_Model {
 				$this->db->insert('db_customers', $customerData);
 				$customerId = $this->db->insert_id();
 				$this->_advanceStep('ask_continue_sale', ['customer_id'=>$customerId, 'customer_name'=>$d['new_customer_name']], $sessionId);
-				return $this->_conversational('Customer "'.($d['new_customer_name'] ?? 'Unknown').'" created successfully! <strong>Customer ID: '.$customerId.'</strong>. Would you like to continue with the sale?', [
+				return $this->_conversational('Customer "'.htmlspecialchars($d['new_customer_name'] ?? 'Unknown', ENT_QUOTES).'" created successfully! <strong>Customer ID: '.$customerId.'</strong>. Would you like to continue with the sale?', [
 					'step'=>'ask_continue_sale',
 					'options'=>[
 						['label'=>'Yes, continue sale', 'value'=>'yes'],
@@ -1017,7 +1040,7 @@ class Assist_model extends CI_Model {
 				$this->db->insert('db_customers', $customerData);
 				$customerId = $this->db->insert_id();
 				$this->_clearConversation($sessionId);
-				return $this->_response('success', 'Customer "'.($d['new_customer_name'] ?? 'Unknown').'" created successfully! <strong>Customer ID: '.$customerId.'</strong>', [
+				return $this->_response('success', 'Customer "'.htmlspecialchars($d['new_customer_name'] ?? 'Unknown', ENT_QUOTES).'" created successfully! <strong>Customer ID: '.$customerId.'</strong>', [
 					'quick_tasks' => $this->_getFilteredQuickTasks()
 				]);
 
@@ -1787,6 +1810,129 @@ class Assist_model extends CI_Model {
 
 	// =================== BUSINESS CONTEXT ===================
 
+	// =================== BUSINESS-TYPE AWARE MENU ===================
+	//
+	// Assist's quick tasks and AI capability list follow the store's business
+	// family (derived from the Business Profile preset), so a clinic, a
+	// processing plant or a service shop gets tasks that match how that
+	// business actually works instead of a fixed retail menu.
+
+	private function _menuFamily(){
+		if(function_exists('physio_enabled') && physio_enabled()){
+			return 'clinical';
+		}
+		if($this->_featAny(['patient_registry','clinical_encounters'])){
+			return 'clinical';
+		}
+		if($this->_feat('oil_processing_workflow')) return 'plant';
+		if($this->_feat('kitchen_workflow'))        return 'food';
+		if($this->_feat('printing_workflow'))       return 'print';
+		if($this->_featAny(['service_workflow','appointments'])) return 'service';
+		if($this->_featAny(['production_workflow','recipe_tracking'])) return 'production';
+		return 'retail';
+	}
+
+	private function _businessQuickTasks(){
+		$cust = $this->_term('customer', 'Customer');
+		$item = $this->_term('item', 'Item');
+		$rm   = $this->_rawMaterialLabel();
+		$family = $this->_menuFamily();
+
+		$money = [
+			['label' => "Today's Sales", 'action' => 'today_sales', 'icon' => 'fa-line-chart', 'min_role' => 'cashier'],
+			['label' => 'Daily Summary', 'action' => 'daily_summary', 'icon' => 'fa-file-text-o', 'min_role' => 'cashier'],
+			['label' => 'Record Expense', 'action' => 'record_expense', 'icon' => 'fa-money', 'min_role' => 'cashier'],
+			['label' => 'View Debts', 'action' => 'view_debts', 'icon' => 'fa-handshake-o', 'min_role' => 'cashier'],
+		];
+
+		switch($family){
+			case 'clinical':
+				$tasks = [
+					['label' => 'Register '.$cust, 'action' => 'create_customer', 'icon' => 'fa-user-plus', 'min_role' => 'all'],
+					['label' => 'Find '.$cust, 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
+					['label' => "Today's Appointments", 'action' => 'today_appointments', 'icon' => 'fa-calendar', 'min_role' => 'all'],
+					['label' => 'Care Queue', 'action' => 'care_queue', 'icon' => 'fa-heartbeat', 'min_role' => 'all'],
+					['label' => 'Record Payment', 'action' => 'record_payment', 'icon' => 'fa-credit-card', 'min_role' => 'cashier'],
+				];
+				break;
+
+			case 'plant':
+				$tasks = [
+					['label' => 'New Customer Invoice', 'action' => 'create_sale', 'icon' => 'fa-file-text-o', 'min_role' => 'all'],
+					['label' => 'New Customer Quotation', 'action' => 'new_quotation', 'icon' => 'fa-quote-left', 'min_role' => 'all'],
+					['label' => 'Record Production', 'action' => 'record_production', 'icon' => 'fa-industry', 'min_role' => 'all'],
+					['label' => 'Add '.$rm, 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner'],
+					['label' => 'Material Purchase', 'action' => 'create_purchase', 'icon' => 'fa-shopping-basket', 'min_role' => 'business_owner'],
+					['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
+					['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
+				];
+				break;
+
+			case 'food':
+				$tasks = [
+					['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
+					['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
+					['label' => 'Find '.$cust, 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
+					['label' => 'Add '.$rm, 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner'],
+					['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
+				];
+				break;
+
+			case 'print':
+				$tasks = [
+					['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
+					['label' => 'Production Floor', 'action' => 'record_production', 'icon' => 'fa-industry', 'min_role' => 'all'],
+					['label' => 'Find '.$cust, 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
+					['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
+					['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
+					['label' => 'New '.$item, 'action' => 'create_item', 'icon' => 'fa-plus-circle', 'min_role' => 'business_owner'],
+				];
+				break;
+
+			case 'service':
+				$tasks = [
+					['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
+					['label' => 'Book '.($this->_term('service_order', 'Appointment')), 'action' => 'book_appointment', 'icon' => 'fa-calendar-plus-o', 'min_role' => 'all'],
+					['label' => 'Find '.$cust, 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
+					['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
+					['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
+					['label' => 'New '.$item, 'action' => 'create_item', 'icon' => 'fa-plus-circle', 'min_role' => 'business_owner'],
+				];
+				break;
+
+			case 'production':
+				$tasks = [
+					['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
+					['label' => 'Record Production', 'action' => 'record_production', 'icon' => 'fa-industry', 'min_role' => 'all'],
+					['label' => 'Add '.$rm, 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner'],
+					['label' => 'Material Purchase', 'action' => 'create_purchase', 'icon' => 'fa-shopping-basket', 'min_role' => 'business_owner'],
+					['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
+					['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
+					['label' => 'New '.$item, 'action' => 'create_item', 'icon' => 'fa-plus-circle', 'min_role' => 'business_owner'],
+				];
+				break;
+
+			default: // retail and everything else
+				$tasks = [
+					['label' => 'Create Sale', 'action' => 'create_sale', 'icon' => 'fa-shopping-cart', 'min_role' => 'all'],
+					['label' => 'Check Stock', 'action' => 'check_stock', 'icon' => 'fa-cubes', 'min_role' => 'all'],
+					['label' => 'Find '.$cust, 'action' => 'find_customer', 'icon' => 'fa-users', 'min_role' => 'all'],
+					['label' => 'Low Stock', 'action' => 'low_stock', 'icon' => 'fa-exclamation-triangle', 'min_role' => 'all'],
+					['label' => 'New '.$item, 'action' => 'create_item', 'icon' => 'fa-plus-circle', 'min_role' => 'business_owner'],
+				];
+		}
+
+		// Feature-gated extras that apply outside the families already offering them
+		if(!in_array($family, ['plant','production','food'], true) && $this->_featAny(['recipe_tracking','production_workflow'])){
+			$tasks[] = ['label' => 'Add '.$rm, 'action' => 'create_raw_material', 'icon' => 'fa-leaf', 'min_role' => 'business_owner'];
+		}
+		if($this->_feat('online_store')){
+			$tasks[] = ['label' => 'Online Orders', 'action' => 'online_orders', 'icon' => 'fa-globe', 'min_role' => 'all'];
+		}
+
+		return array_merge($tasks, $money);
+	}
+
 	private $_bizProfile = null;
 
 	private function _biz(){
@@ -1820,6 +1966,59 @@ class Assist_model extends CI_Model {
 		return $this->_response('text',
 			'Your current business setup does not use '.$this->_rawMaterialLabel().'s — this feature is for businesses with recipe tracking or production workflows. You can ask me to add a regular '.$this->_term('item','item').' instead.',
 			['quick_tasks' => $this->_getFilteredQuickTasks()]);
+	}
+
+	// =================== BUSINESS-TYPE AWARE ACTIONS ===================
+
+	/**
+	 * Hand the user to the right screen with a short explanation — used for
+	 * actions that live on a dedicated workspace (care queue, quotations,
+	 * production) rather than inside a chat flow.
+	 */
+	private function _openScreen($heading, $uri, $blurb = ''){
+		$html = '<div style="margin-bottom:6px;">'.$heading.'</div>';
+		if($blurb !== ''){
+			$html .= '<div style="font-size:.92em;color:#555;margin-bottom:10px;">'.$blurb.'</div>';
+		}
+		$html .= '<a href="'.base_url($uri).'" target="_blank" rel="noopener" '
+			.'style="display:inline-block;padding:8px 16px;background:#059669;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Open screen &rarr;</a>';
+		return $this->_response('html', $html, ['quick_tasks' => $this->_getFilteredQuickTasks()]);
+	}
+
+	private function _todayAppointments(){
+		$count = 0;
+		if($this->db->table_exists('db_appointments')){
+			$count = (int)$this->db->where('store_id', get_current_store_id())
+				->where('DATE(scheduled_at)', date('Y-m-d'))
+				->count_all_results('db_appointments');
+		}
+		$word = $count === 1 ? 'appointment' : 'appointments';
+		return $this->_openScreen(
+			'You have <strong>'.$count.' '.$word.'</strong> scheduled for today.',
+			'appointments',
+			'Open the appointments screen to check patients in, move bookings or add walk-ins.'
+		);
+	}
+
+	private function _productionScreen(){
+		if($this->_feat('oil_processing_workflow')){
+			return ['title' => 'Plant Workspace', 'uri' => 'oil_processing',
+				'blurb' => 'Record a processing run, post output and follow up on supplier proformas from the plant workspace.'];
+		}
+		if($this->_feat('nylon_workflow')){
+			return ['title' => 'Production', 'uri' => 'nylon',
+				'blurb' => 'Record today\'s production runs, output and rejects.'];
+		}
+		if($this->_feat('printing_workflow')){
+			return ['title' => 'Production Floor', 'uri' => 'printing/production',
+				'blurb' => 'Move jobs across the production floor and mark what is ready.'];
+		}
+		if($this->_feat('kitchen_workflow')){
+			return ['title' => 'Kitchen Display', 'uri' => 'operations/kitchen',
+				'blurb' => 'See what is pending in the kitchen and mark orders done.'];
+		}
+		return ['title' => 'Production Schedule', 'uri' => 'operations/production_schedule',
+			'blurb' => 'Open the production schedule to record output against planned runs.'];
 	}
 
 	// =================== ENTITY REGISTRY (declarative create flows) ===================
@@ -2388,6 +2587,22 @@ class Assist_model extends CI_Model {
 			$caps[] = ['name' => 'create_raw_material', 'desc' => 'add a '.strtolower($this->_rawMaterialLabel()).' — a not-for-sale input used in recipes/production (entities: name, unit, price, qty). Can create several at once.', 'min' => 2, 'perm' => 'items_add'];
 		}
 
+		// Business-family capabilities: a clinic understands care tasks, a
+		// plant understands production and quotations, and so on.
+		$family = $this->_menuFamily();
+		if($family === 'clinical'){
+			$caps[] = ['name' => 'today_appointments', 'desc' => "today's appointment schedule for the {$custLabel}s", 'min' => 0];
+			$caps[] = ['name' => 'care_queue', 'desc' => 'who is waiting in the care queue right now', 'min' => 0];
+			$caps[] = ['name' => 'record_payment', 'desc' => "take or record a {$custLabel} payment", 'min' => 1];
+		}
+		if(in_array($family, ['plant','production'], true)){
+			$caps[] = ['name' => 'record_production', 'desc' => 'open the production workspace / record a production run', 'min' => 0];
+			$caps[] = ['name' => 'new_quotation', 'desc' => "start a customer quotation (entities: {$custLabel})", 'min' => 0, 'perm' => 'quotation_add'];
+		}
+		if(in_array($family, ['service','print'], true) || $this->_feat('appointments')){
+			$caps[] = ['name' => 'book_appointment', 'desc' => 'open the bookings & appointments screen', 'min' => 0];
+		}
+
 		$out = [];
 		foreach($caps as $c){
 			if($levelVal < ($c['min'] ?? 0)) continue;
@@ -2481,6 +2696,15 @@ class Assist_model extends CI_Model {
 			case 'customer_balance':
 				if($levelVal < 1) return $this->_roleDeniedResponse();
 				return $this->_customerBalances($entities['customer'] ?? '');
+
+			case 'today_appointments': return $this->_todayAppointments();
+			case 'care_queue':         return $this->_openScreen('Care Queue', 'care_queue', 'Here is who is waiting and what each patient is booked for.');
+			case 'record_payment':     return $this->_openScreen('Patient Payments', 'patient_funds', 'Record a payment into a patient\'s funds or reconcile what was received.');
+			case 'new_quotation':      return $this->_openScreen('New Customer Quotation', 'quotation/add', 'Build the customer quotation on the quotations screen.');
+			case 'record_production':
+				$prod = $this->_productionScreen();
+				return $this->_openScreen($prod['title'], $prod['uri'], $prod['blurb']);
+			case 'book_appointment':   return $this->_openScreen('Bookings & Appointments', 'appointments', 'Pick a time slot and book the customer in.');
 		}
 		return null; // unknown capability name — caller falls back
 	}
@@ -2588,52 +2812,115 @@ class Assist_model extends CI_Model {
 
 	// =================== CUSTOMER ===================
 
+	// =================== CUSTOMER / PATIENT LOOKUP ===================
+	//
+	// Careful behaviour: Assist never dumps a wall of records. Lookups are
+	// store-scoped, capped at a handful of matches, and a multi-match answer
+	// says how many more exist so the user knows to narrow the search.
+
+	/**
+	 * Turn what came after "find/search/lookup" into a real search term.
+	 * "find patient" or "find the customer" is a request to search, not a
+	 * name — return '' so we ask WHO instead of listing everyone.
+	 */
+	private function _customerSearchTerm($name){
+		$name = strtolower(trim((string)$name));
+		$name = trim(preg_replace('/^(?:the|a|an|all|any|my|our|this|for)\s+/i', '', $name), " \t.,!?'");
+		$label = strtolower($this->_term('customer', 'Customer'));
+		$generic = array_unique(array_merge(
+			[$label, $label.'s', 'patient','patients','customer','customers','client','clients','member','members','person','people','someone','anyone'],
+			['find','search','lookup','look','show','list','get','check','display','view','give','tell','bring','pull','need','want','me','us','up','info','information','details','record','records','for','of','about','on']
+		));
+		$words = preg_split('/\s+/', $name);
+		// "patient musa" / "customer john" -> search for the name itself
+		while(count($words) > 1 && in_array($words[0], $generic, true)){
+			array_shift($words);
+		}
+		$name = implode(' ', $words);
+		return in_array($name, $generic, true) ? '' : $name;
+	}
+
+	/**
+	 * Store-scoped customer query. Walk-in / restricted records
+	 * (delete_bit = 1) are never offered.
+	 */
+	private function _customerLookupQuery($term = null){
+		$this->db->select('id, customer_name, mobile');
+		$this->db->where('store_id', get_current_store_id());
+		if($this->db->field_exists('delete_bit', 'db_customers')){
+			$this->db->where('delete_bit', 0);
+		}
+		if($term !== null && $term !== ''){
+			$this->db->group_start();
+			$this->db->like('customer_name', $term, 'both');
+			$this->db->or_like('mobile', $term, 'both');
+			$this->db->group_end();
+		}
+		return $this->db;
+	}
+
+	/** Store-scoped lookup capped at $limit rows plus the true match count. */
+	private function _findCustomers($term, $limit = 5){
+		$this->_customerLookupQuery($term)->order_by('customer_name', 'ASC');
+		$total = (int)$this->db->count_all_results('db_customers');
+		$this->_customerLookupQuery($term)->order_by('customer_name', 'ASC')->limit($limit);
+		return ['rows' => $this->db->get('db_customers')->result(), 'total' => $total];
+	}
+
+	private function _customerOptionLabel($c){
+		// Escaped client-side by the choice renderer — keep raw here.
+		return ($c->customer_name ?? 'Unknown').' - '.(!empty($c->mobile) ? $c->mobile : 'No phone');
+	}
+
 	private function _searchCustomer($message, $customerName = null){
 		$name = !empty($customerName) ? $customerName : $this->_extractAfterKeywords($message, ['who is','find customer','search customer','lookup customer','customer','find','search','lookup']);
-		if(empty($name)) return $this->_recentCustomers();
+		$term = $this->_customerSearchTerm($name);
+		if($term === '') return $this->_recentCustomers();
 
-		$this->db->like('customer_name', $name, 'both');
-		$this->db->or_like('mobile', $name, 'both');
-		$customers = $this->db->get('db_customers')->result();
-
-		if(empty($customers)){
-			$html = '<div class="assist-card"><h4>No Match</h4><p>No customer found for "'.ucwords($name).'".</p><p><a href="'.base_url('customers/add').'" target="_blank" style="color:#667eea;font-weight:600;">+ Create New Customer</a></p></div>';
-			return $this->_response('html', 'No customer found:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+		$result = $this->_findCustomers($term, 5);
+		if(empty($result['rows'])){
+			$label = $this->_term('customer', 'Customer');
+			$html = '<div class="assist-card"><h4>No Match</h4><p>No '.strtolower($label).' found for "'.htmlspecialchars(ucwords($term), ENT_QUOTES).'".</p>'
+				.'<p><a href="'.base_url('customers/add').'" target="_blank" style="color:#667eea;font-weight:600;">+ Create New '.$label.'</a></p></div>';
+			return $this->_response('html', 'No match found:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 		}
-		if(count($customers) === 1) return $this->_customerDetail($customers[0]->id);
+		if($result['total'] === 1) return $this->_customerDetail($result['rows'][0]->id);
 
 		$options = [];
-		foreach($customers as $c){
-			$options[] = ['label' => ($c->customer_name ?? 'Unknown').' - '.($c->mobile ?? 'No phone'), 'value' => 'customer_'.$c->id];
+		foreach($result['rows'] as $c){
+			$options[] = ['label' => $this->_customerOptionLabel($c), 'value' => 'customer_'.$c->id];
 		}
-		return $this->_response('choice', 'Multiple customers found:', ['options' => $options, 'context' => 'customer_search', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+		$label = $this->_term('customer', 'Customer');
+		$text = ($result['total'] > count($options))
+			? 'Showing '.count($options).' of '.$result['total'].' matches for "'.htmlspecialchars(ucwords($term), ENT_QUOTES).'" — type more of the name or a phone number to narrow it down.'
+			: 'Multiple '.strtolower($label).'s found — pick one:';
+		return $this->_response('choice', $text, ['options' => $options, 'context' => 'customer_search', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _recentCustomers(){
-		$this->db->order_by('id', 'DESC');
-		$this->db->limit(10);
-		$customers = $this->db->get('db_customers')->result();
+		$label = $this->_term('customer', 'Customer');
+		$this->_customerLookupQuery()->order_by('id', 'DESC')->limit(5);
+		$rows = $this->db->get('db_customers')->result();
 
-		if(empty($customers)){
-			$html = '<div class="assist-card"><h4>Customers</h4><p>No customers yet.</p><p><a href="'.base_url('customers/add').'" target="_blank" style="color:#667eea;font-weight:600;">+ Create First Customer</a></p></div>';
-			return $this->_response('html', 'Customers:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+		if(empty($rows)){
+			$html = '<div class="assist-card"><h4>'.$label.'s</h4><p>No '.strtolower($label).'s yet.</p>'
+				.'<p><a href="'.base_url('customers/add').'" target="_blank" style="color:#667eea;font-weight:600;">+ Create First '.$label.'</a></p></div>';
+			return $this->_response('html', $label.'s:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 		}
 
-		$html = '<div class="assist-card"><h4>Recent Customers</h4><table class="assist-table">';
-		$html .= '<tr><th>Name</th><th>Phone</th><th>Balance</th></tr>';
-		foreach($customers as $c){
-			$this->db->select_sum('debit'); $debit = $this->db->where('customer_id', $c->id)->get('db_customer_payments')->row()->debit ?? 0;
-			$this->db->select_sum('credit'); $credit = $this->db->where('customer_id', $c->id)->get('db_customer_payments')->row()->credit ?? 0;
-			$balance = $debit - $credit;
-			$html .= '<tr><td>'.($c->customer_name ?? 'Unknown').'</td><td>'.($c->mobile ?? 'N/A').'</td><td>'.number_format($balance, 2).'</td></tr>';
+		$options = [];
+		foreach($rows as $c){
+			$options[] = ['label' => $this->_customerOptionLabel($c), 'value' => 'customer_'.$c->id];
 		}
-		$html .= '</table></div>';
-		return $this->_response('html', 'Recent customers:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+		return $this->_response('choice',
+			'Who are you looking for? Type a '.strtolower($label).' name or phone number — or pick one of the most recent:',
+			['options' => $options, 'context' => 'customer_search', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _customerDetail($customerId){
-		$customer = $this->db->where('id', $customerId)->get('db_customers')->row();
-		if(!$customer) return $this->_response('text', 'Customer not found.');
+		$label = $this->_term('customer', 'Customer');
+		$customer = $this->db->where('id', $customerId)->where('store_id', get_current_store_id())->get('db_customers')->row();
+		if(!$customer) return $this->_response('text', $label.' not found.');
 
 		$this->db->select_sum('debit'); $debit = $this->db->where('customer_id', $customerId)->get('db_customer_payments')->row()->debit ?? 0;
 		$this->db->select_sum('credit'); $credit = $this->db->where('customer_id', $customerId)->get('db_customer_payments')->row()->credit ?? 0;
@@ -2641,13 +2928,14 @@ class Assist_model extends CI_Model {
 
 		$lastSale = $this->db->where('customer_id', $customerId)->order_by('id', 'DESC')->limit(1)->get('db_sales')->row();
 
-		$html = '<div class="assist-card"><h4>'.($customer->customer_name ?? 'Unknown').'</h4>';
-		$html .= '<p><strong>Phone:</strong> '.($customer->mobile ?? 'N/A').'</p>';
-		$html .= '<p><strong>Email:</strong> '.($customer->email ?? 'N/A').'</p>';
+		$name = htmlspecialchars($customer->customer_name ?? 'Unknown', ENT_QUOTES);
+		$html = '<div class="assist-card"><h4>'.$name.'</h4>';
+		$html .= '<p><strong>Phone:</strong> '.htmlspecialchars($customer->mobile ?? 'N/A', ENT_QUOTES).'</p>';
+		$html .= '<p><strong>Email:</strong> '.htmlspecialchars($customer->email ?? 'N/A', ENT_QUOTES).'</p>';
 		$html .= '<p><strong>Outstanding:</strong> '.number_format($balance, 2).'</p>';
 		if($lastSale) $html .= '<p><strong>Last Purchase:</strong> '.date('d M Y', strtotime($lastSale->sales_date)).'</p>';
 		$html .= '</div>';
-		return $this->_response('html', 'Customer found:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+		return $this->_response('html', $label.' found:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _customerBalances($message){
@@ -2982,7 +3270,7 @@ class Assist_model extends CI_Model {
 		$this->db->insert('db_customers', $data);
 		$customer_id = $this->db->insert_id();
 		if($customer_id){
-			return $this->_response('success', 'Customer "'.ucwords($draft['customer_name']).'" created successfully! <strong>Customer ID: '.$customer_id.'</strong>', [
+			return $this->_response('success', 'Customer "'.htmlspecialchars(ucwords($draft['customer_name']), ENT_QUOTES).'" created successfully! <strong>Customer ID: '.$customer_id.'</strong>', [
 				'customer_id'   => $customer_id,
 				'customer_name'  => $draft['customer_name'],
 				'quick_tasks'   => $this->_getFilteredQuickTasks()

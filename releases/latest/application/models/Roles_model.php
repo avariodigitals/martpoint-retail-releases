@@ -552,7 +552,7 @@ class Roles_model extends CI_Model {
                     'appointments_view','appointments_add','appointments_edit','appointments_cancel',
                     'care_queue_view','care_checkin',
                     'vitals_view','vitals_add',
-                    'encounters_view','encounters_add','encounters_finalize','encounters_amend',
+                    'encounters_view','encounters_add','encounters_finalize','encounters_amend','encounters_edit_closed',
                     'assessments_view','assessments_add','assessments_finalize',
                     'investigations_view','investigations_request','investigations_result_enter','investigations_review',
                     'plans_view','plans_add','plans_amend',
@@ -570,7 +570,7 @@ class Roles_model extends CI_Model {
                     'patient_funds_view','patient_funds_add','payment_evidence_verify',
                     'funds_adjust_request','refund_request',
                     'patient_billing_view','patient_billing_add',
-                    'opening_positions_view','opening_positions_enter','opening_positions_review',
+                    'opening_positions_view','opening_positions_enter','opening_positions_review','opening_positions_delete',
                     'patient_feedback_view','patient_feedback_manage','testimonial_publish',
                     'portal_manage','assessment_templates_manage',
                     'imports_view','imports_run','imports_rollback',
@@ -618,6 +618,21 @@ class Roles_model extends CI_Model {
 
                     // System
                     'database_backup',
+
+                    // Admin & System — screens only a system/store administrator
+                    // should open. Each is its own flag so it can be switched off
+                    // for roles like Business Owner.
+                    'store_profile',
+                    'business_profile',
+                    'site_settings',
+                    'data_migration',
+                    'license_management',
+                    'subscription_plans',
+                    'system_updates',
+                    'permission_audit',
+                    'countries_view',
+                    'states_view',
+                    'cities_view',
 
                     // Reports
                     'cash_flow_report',

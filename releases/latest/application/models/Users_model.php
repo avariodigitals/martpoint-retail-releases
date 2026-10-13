@@ -31,6 +31,12 @@ class Users_model extends CI_Model {
 		$CUR_USERNAME = isset($data['CUR_USERNAME']) ? $data['CUR_USERNAME'] : '';
 		$SYSTEM_IP = isset($data['SYSTEM_IP']) ? $data['SYSTEM_IP'] : '';
 		$SYSTEM_NAME = isset($data['SYSTEM_NAME']) ? $data['SYSTEM_NAME'] : '';
+
+		$roleErr = $this->_roleAllowedForStore($role_id, $store_id);
+		if($roleErr !== null){
+			return $roleErr;
+		}
+
 		$this->db->trans_begin();
 
 		$profile_picture='';
@@ -214,6 +220,13 @@ class Users_model extends CI_Model {
 			$warehouses = null;
 			$default_warehouse_id = null;
 		}
+
+		$currentRole = $this->db->select('role_id')->where('id', (int)$q_id)->get('db_users')->row();
+		$roleErr = $this->_roleAllowedForStore($role_id, $store_id ?: get_current_store_id(), $currentRole->role_id ?? null);
+		if($roleErr !== null){
+			return $roleErr;
+		}
+
 		$this->db->trans_begin();
 
 		$profile_picture='';
@@ -374,6 +387,30 @@ class Users_model extends CI_Model {
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! User Updated Succssfully!!');
 		return "success";
+	}
+
+	/**
+	 * Industry gate for role assignment: a role only fits stores of its own
+	 * business family (a plant must not be given Clinical Director). Returns
+	 * an error message, or null when the assignment is fine. A user keeping
+	 * their current role is always allowed, so editing still works after a
+	 * store switches business type.
+	 */
+	private function _roleAllowedForStore($role_id, $store_id, $current_role_id = null){
+		if(empty($role_id)){
+			return null;
+		}
+		if($current_role_id !== null && (int)$role_id === (int)$current_role_id){
+			return null;
+		}
+		$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();
+		if(!$role){
+			return 'Please select a valid role.';
+		}
+		if(!function_exists('mp_role_visible') || mp_role_visible($role->role_name, $store_id)){
+			return null;
+		}
+		return 'The role "'.$role->role_name.'" does not apply to this business type.';
 	}
 
 	public function status_update($id,$status){

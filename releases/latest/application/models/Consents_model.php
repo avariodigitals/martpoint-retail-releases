@@ -45,6 +45,9 @@ class Consents_model extends CI_Model {
 	 */
 	public function generate(array $d){
 		$storeId = get_current_store_id();
+		if(!empty($d['encounter_id']) && physio_visit_locked((int)$d['encounter_id'])){
+			return array('error' => physio_visit_locked_error());
+		}
 		$patientId = (int)($d['patient_id'] ?? 0);
 		if(!$patientId && !empty($d['encounter_id'])){
 			$enc = $this->db->where('id', (int)$d['encounter_id'])->where('store_id', $storeId)
@@ -98,6 +101,7 @@ class Consents_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Consent not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if(!in_array($row->status, array('pending','awaiting_verification'))){
 			return array('error' => 'Consent is ' . $row->status . ' — signed copy cannot be attached');
 		}
@@ -124,6 +128,7 @@ class Consents_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Consent not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($row->status !== 'awaiting_verification' || !$row->document_id){
 			return array('error' => 'Upload the signed copy before verifying');
 		}
@@ -152,6 +157,7 @@ class Consents_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Consent not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if(in_array($row->status, array('completed','superseded'))) return array('error' => 'Consent is ' . $row->status);
 		$this->db->where('id', (int)$id)->where('store_id', $storeId)->update('db_consents', array(
 			'status'           => 'declined',

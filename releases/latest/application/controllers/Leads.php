@@ -49,7 +49,8 @@ class Leads extends MY_Controller {
 			'physio_active' => $physio,
 			'can_convert_patient' => $physio && physio_can('patients_add'),
 			'can_book_appt' => $physio && physio_can('appointments_add'),
-			'staff' => $physio ? $this->db->select('id, username')->where('store_id', $storeId)->where('status', 1)->get('db_users')->result() : array(),
+			// Lead owner may be any real staff member — never a system account.
+			'staff' => $physio ? physio_staff_select($storeId, false) : array(),
 		]);
 		$data['content'] = $this->load->view('leads/index', $data, TRUE);
 		$this->load->view('mp_layout', $data);

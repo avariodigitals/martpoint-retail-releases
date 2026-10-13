@@ -100,11 +100,19 @@
     var CSRF_NAME = '<?= $this->security->get_csrf_token_name(); ?>';
     var CSRF_HASH = '<?= $this->security->get_csrf_hash(); ?>';
     function apptDo(id, to, askReason){
-      var note = '';
-      if(askReason){ note = prompt('Reason (recorded):', '') || ''; }
-      var fd = new FormData(); fd.append(CSRF_NAME, CSRF_HASH); fd.append('to', to); fd.append('note', note);
-      mpFetchJson('<?= base_url('mobile/appt_transition/'); ?>' + id, { method: 'POST', body: fd })
-        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError((d && d.message) || 'Failed'); } });
+      var go = function(note){
+        var fd = new FormData(); fd.append(CSRF_NAME, CSRF_HASH); fd.append('to', to); fd.append('note', note);
+        mpFetchJson('<?= base_url('mobile/appt_transition/'); ?>' + id, { method: 'POST', body: fd })
+          .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError((d && d.message) || 'Failed'); } });
+      };
+      if(askReason){
+        mpPrompt({ title:'Reason (recorded)', message:'This reason will be recorded on the appointment.', placeholder:'Reason', multiline:true, okText:'Continue' }).then(function(note){
+          if(note === null) return;
+          go(note);
+        });
+      } else {
+        go('');
+      }
     }
     function checkIn(id){
       var fd = new FormData(); fd.append(CSRF_NAME, CSRF_HASH); fd.append('appointment_id', id);

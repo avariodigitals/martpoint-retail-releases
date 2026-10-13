@@ -54,7 +54,7 @@ $nav = function($label, $route, $icon, $allowed, $feature = null, $match = null)
 $group = function($label, $icon, array $items) use ($CI, $nav){
 	$html = '';
 	foreach($items as $it){
-		$html .= $nav($it[0], $it[1], $it[2], $it[3], $it[4] ?? null);
+		$html .= $nav($it[0], $it[1], $it[2], $it[3], $it[4] ?? null, $it[5] ?? null);
 	}
 	if($html === '') return '';
 	$open = (strpos($html, 'physio-nav-link active') !== false) ? ' open' : '';
@@ -374,6 +374,7 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
       <?= $nav('Patient accounts', $canBilling ? 'patient_billing' : 'patient_funds','fa-file-text-o', $canFunding); ?>
       <?= $nav('Investigations','investigations','fa-flask',physio_can('investigations_view'),'clinical_assessments'); ?>
       <?= $nav('Documents & consent','patient_docs','fa-file-text-o',physio_can('patient_docs_view'),'patient_documents'); ?>
+      <?= $nav('Referral partners','referrals','fa-share-alt',physio_can_any(array('referrals_view','referrals_manage'))); ?>
     </nav>
     <?php
       /**
@@ -457,14 +458,14 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
       // ---- Settings ----
       $gSettings = '';
       $gSettings .= $group('Facility', 'fa-building-o', array(
-        array('Facility settings', 'business_profile', 'fa-sliders', $CI->permissions('business_setup') || $CI->permissions('store_edit')),
-        array('Store profile', 'store_profile/update/'.get_current_store_id(), 'fa-id-card-o', $CI->permissions('store_edit')),
+        array('Facility settings', 'business_profile/facility', 'fa-sliders', $CI->permissions('business_profile')),
+        array('Store profile', 'store_profile/update/'.get_current_store_id(), 'fa-id-card-o', $CI->permissions('store_profile')),
         array('Branches & locations', 'warehouse', 'fa-map-marker', ($CI->permissions('warehouse_view') || $CI->permissions('warehouse_add')) && warehouse_module()),
-        array('Site & branding', 'site', 'fa-picture-o', $isOwner),
+        array('Site & branding', 'site', 'fa-picture-o', $CI->permissions('site_settings')),
       ));
       $gSettings .= $group('Features & subscription', 'fa-toggle-on', array(
-        array('Enabled capabilities', 'business_profile', 'fa-toggle-on', $CI->permissions('business_setup')),
-        array('Subscription & licence', 'subscription_license', 'fa-id-card-o', $isOwner),
+        array('Enabled capabilities', 'business_profile/capabilities', 'fa-toggle-on', $CI->permissions('business_profile')),
+        array('Subscription & licence', 'subscription_license', 'fa-id-card-o', $CI->permissions('license_management')),
       ));
       $gSettings .= $group('Clinical configuration', 'fa-stethoscope', array(
         array('Assessment templates', 'assessment_templates', 'fa-file-text-o', physio_can('assessment_templates_manage')),

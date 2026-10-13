@@ -229,6 +229,7 @@
           ['vitals_view','Vitals View'], ['vitals_add','Vitals Record'],
           ['encounters_view','Encounters View'], ['encounters_add','Encounters Add'],
           ['encounters_finalize','Finalise Notes'], ['encounters_amend','Amend Finalised'],
+          ['encounters_edit_closed','Edit Closed Visits'],
           ['assessments_view','Assessments View'], ['assessments_add','Assessments Add'], ['assessments_finalize','Finalise Assessment'],
           ['investigations_view','Investigations View'], ['investigations_request','Request'], ['investigations_result_enter','Enter Result'], ['investigations_review','Review Result'],
         ]],
@@ -340,6 +341,19 @@
         ]],
         ['Audit Trail', 'audit_trail', [
           ['audit_trail_view','View'],
+        ]],
+        ['Admin & System', 'admin_system', [
+          ['store_profile','Store Profile'], ['business_profile','Business Profile'],
+          ['warehouse_add','New Branch'], ['warehouse_view','Branch List'],
+          ['roles_view','Roles List'], ['send_sms','Send SMS'],
+          ['sms_template_view','SMS Templates'], ['site_settings','Site Settings'],
+          ['data_migration','Data Migration'], ['license_management','License Management'],
+          ['subscription_plans','Subscription Plans'], ['sms_api_view','SMS API'],
+          ['smtp_settings','Email Settings'], ['paystack_settings','Paystack Settings'],
+          ['monnify_settings','Monnify Settings'], ['database_backup','Database Backup'],
+          ['system_updates','System Update'], ['permission_audit','Permission Audit'],
+          ['countries_view','Countries'], ['states_view','States'], ['cities_view','Cities'],
+          ['nin_usage','NIN Usage'], ['nin_logs','NIN Verification Log'],
         ]],
       ];
 

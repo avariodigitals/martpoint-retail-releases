@@ -250,7 +250,7 @@ class Default_data_model extends CI_Model {
             'care_queue_view','care_checkin',
             'vitals_view','vitals_add',
             // Encounters, assessments, investigations
-            'encounters_view','encounters_add','encounters_finalize','encounters_amend',
+            'encounters_view','encounters_add','encounters_finalize','encounters_amend','encounters_edit_closed',
             'assessments_view','assessments_add','assessments_finalize',
             'investigations_view','investigations_request',
             'investigations_result_enter','investigations_review',
@@ -272,7 +272,7 @@ class Default_data_model extends CI_Model {
             'patient_funds_view','patient_funds_add','payment_evidence_verify',
             'funds_adjust_request','refund_request',
             'patient_billing_view','patient_billing_add',
-            'opening_positions_view','opening_positions_enter','opening_positions_review',
+            'opening_positions_view','opening_positions_enter','opening_positions_review','opening_positions_delete',
             // Experience, portal, templates and imports
             'patient_feedback_view','patient_feedback_manage','testimonial_publish',
             'portal_manage','assessment_templates_manage',
@@ -307,15 +307,41 @@ class Default_data_model extends CI_Model {
      */
     public function get_store_owner_permissions() {
         return array(
-            // Staff, roles and permissions
-            'roles_view','roles_add','roles_edit',
+            // Staff and permissions
+            'roles_add','roles_edit',
             // Business setup, store profile, expiry rules
             'business_setup','store_view','expiry_settings',
             // Payments configuration
-            'paystack_settings','payment_modes_view','payment_modes_add',
+            'payment_modes_view','payment_modes_add',
             'payment_modes_edit','payment_modes_delete',
-            // Notifications, email and approval authority
-            'smtp_settings','approval_settings_edit',
+            // Approval authority
+            'approval_settings_edit',
+            // NOTE: roles_view / paystack_settings / smtp_settings are no longer
+            // granted here. This set is applied to every owner-class role
+            // (including Business Owner), and those three are Admin & System
+            // screens that must stay switchable per role — see
+            // get_system_admin_permissions(), which targets administrators only.
+        );
+    }
+
+    /**
+     * Admin & System screens. One flag per screen so each can be switched off
+     * for a role (Business Owner in particular must not default to any of them).
+     * Granted to administrators only — see sync_system_admin_permissions().
+     */
+    public function get_system_admin_permissions() {
+        return array(
+            'store_profile','business_profile',
+            'warehouse_add','warehouse_view',
+            'roles_view',
+            'send_sms','sms_template_view',
+            'site_settings','data_migration',
+            'license_management','subscription_plans',
+            'sms_api_view','smtp_settings',
+            'paystack_settings','monnify_settings',
+            'database_backup','system_updates','permission_audit',
+            'countries_view','states_view','cities_view',
+            'nin_usage','nin_logs',
         );
     }
 
@@ -372,6 +398,66 @@ class Default_data_model extends CI_Model {
             $missing = array_values(array_diff($wanted, $held));
             $missing = array_values(array_diff($missing, $this->revoked_keys($store_id, (int) $role->id)));
 
+            $added = 0;
+            if ($apply && !empty($missing)) {
+                $added = $this->assign_permissions($role->id, $store_id, $missing);
+            }
+            $out[trim((string)$role->role_name)] = array(
+                'role_id' => (int)$role->id,
+                'added'   => (int)$added,
+                'missing' => $missing,
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Give the store's administrator roles the Admin & System grant set.
+     *
+     * Deliberately narrower than grant_to_roles(): that one matches every
+     * owner-class role (store_owner_role_names(), which includes BUSINESS
+     * OWNER). These screens are technical, so they go to ADMIN / STORE ADMIN
+     * only and must never be implied by owning the business.
+     *
+     * Additive and idempotent — never deletes, and never re-adds a key an
+     * administrator deliberately revoked (see revoked_keys()).
+     */
+    public function sync_system_admin_permissions($store_id, $apply = true) {
+        $store_id = (int)$store_id;
+        if (empty($store_id)) {
+            return array();
+        }
+        return $this->grant_to_named_roles(
+            $store_id,
+            array('ADMIN', 'STORE ADMIN'),
+            $this->get_system_admin_permissions(),
+            $apply
+        );
+    }
+
+    /**
+     * Grant to roles matched by exact name within a store.
+     */
+    private function grant_to_named_roles($store_id, array $role_names, array $wanted, $apply) {
+        $out = array();
+        if (empty($wanted)) {
+            return $out;
+        }
+        $names = array();
+        foreach ($role_names as $n) {
+            $names[] = "'" . $this->db->escape_str(strtoupper($n)) . "'";
+        }
+        $roles = $this->db->query(
+            "SELECT id, role_name FROM db_roles
+              WHERE store_id = " . (int)$store_id . "
+                AND UPPER(role_name) IN (" . implode(',', $names) . ")"
+        )->result();
+        foreach ($roles as $role) {
+            $existing = $this->db->select('permissions')->where('role_id', $role->id)
+                ->get('db_permissions')->result_array();
+            $held = array_map('strval', array_column($existing, 'permissions'));
+            $missing = array_values(array_diff($wanted, $held));
+            $missing = array_values(array_diff($missing, $this->revoked_keys($store_id, (int) $role->id)));
             $added = 0;
             if ($apply && !empty($missing)) {
                 $added = $this->assign_permissions($role->id, $store_id, $missing);
@@ -689,8 +775,7 @@ class Default_data_model extends CI_Model {
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
             // Warehouse
-            'warehouse_add','warehouse_edit','warehouse_delete','warehouse_view',
-            // Accounts
+'warehouse_edit','warehouse_delete',            // Accounts
             'accounts_add','accounts_edit','accounts_delete','accounts_view',
             'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
             'money_deposit_add','money_deposit_edit','money_deposit_delete','money_deposit_view',
@@ -699,12 +784,13 @@ class Default_data_model extends CI_Model {
             'cashier_shifts_manage','z_report',
             // Services
             'services_add','services_edit','services_delete','services_view',
+            'service_packages_add','service_packages_edit','service_packages_delete','service_packages_view',
             'import_services',
             // Quotations
             'quotation_add','quotation_edit','quotation_delete','quotation_view',
             'show_all_users_quotations',
             // Messaging
-            'send_sms','sms_template_view','sms_template_edit',
+'sms_template_edit',
             'send_email','email_template_view','email_template_edit',
             // Coupons
             'discountCouponAdd','discountCouponEdit','discountCouponDelete','discountCouponView',
@@ -730,7 +816,7 @@ class Default_data_model extends CI_Model {
             'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
             'show_purchase_price',
             // Settings
-            'subscription','sms_settings','sms_api_view','sms_api_edit',
+            'subscription','sms_settings','sms_api_edit',
             // Online Store (Business Owner can manage online store)
             'online_store_view','online_store_edit',
             // Custom Orders & Nylon Production (full)
@@ -800,8 +886,7 @@ class Default_data_model extends CI_Model {
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
             // Warehouse
-            'warehouse_add','warehouse_edit','warehouse_delete','warehouse_view',
-            // Accounts
+'warehouse_edit','warehouse_delete',            // Accounts
             'accounts_add','accounts_edit','accounts_delete','accounts_view',
             'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
             'money_deposit_add','money_deposit_edit','money_deposit_delete','money_deposit_view',
@@ -810,13 +895,13 @@ class Default_data_model extends CI_Model {
             'cashier_shifts_manage','z_report',
             // Services
             'services_add','services_edit','services_delete','services_view',
+            'service_packages_add','service_packages_edit','service_packages_delete','service_packages_view',
             'import_services',
             // Quotations
             'quotation_add','quotation_edit','quotation_delete','quotation_view',
             'show_all_users_quotations',
             // Messaging (view only)
-            'send_sms','sms_template_view',
-            'send_email','email_template_view',
+'send_email','email_template_view',
             // Coupons (view only)
             'discountCouponView','customerCouponView',
             // Reports
@@ -881,8 +966,7 @@ class Default_data_model extends CI_Model {
             // Quotations (view only)
             'quotation_view',
             // Messaging (view only)
-            'send_sms','sms_template_view',
-            // Coupons (view only)
+// Coupons (view only)
             'discountCouponView','customerCouponView',
             // Limited Reports
             'sales_report','sales_payments_report',
@@ -929,8 +1013,7 @@ class Default_data_model extends CI_Model {
             // Quotations (view only)
             'quotation_view',
             // Messaging (view only)
-            'send_sms','sms_template_view',
-            'send_email','email_template_view',
+'send_email','email_template_view',
             // Reports
             'sales_report','purchase_report','expense_report','profit_report',
             'stock_report',
@@ -985,8 +1068,7 @@ class Default_data_model extends CI_Model {
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
             // Warehouse
-            'warehouse_add','warehouse_edit','warehouse_delete','warehouse_view',
-            // Reports (inventory-focused, NO GST reports)
+'warehouse_edit','warehouse_delete',            // Reports (inventory-focused, NO GST reports)
             'purchase_report','stock_report','expired_items_report',
             'purchase_payments_report',
             'supplier_items_report',
@@ -1011,7 +1093,6 @@ class Default_data_model extends CI_Model {
             // Items & stock (view + adjustments for corrections)
             'items_view','items_category_view','brand_view','units_view',
             'stock_adjustment_add','stock_adjustment_view',
-            'warehouse_view',
             // Customers / orders (view)
             'customers_view','custom_orders_view',
             // Nylon module — full operational access incl. approvals
@@ -1030,8 +1111,7 @@ class Default_data_model extends CI_Model {
     private function get_production_operator_permissions() {
         return array(
             'dashboard_view',
-            'items_view','units_view','warehouse_view',
-            'custom_orders_view',
+            'items_view','units_view',            'custom_orders_view',
             'nylon_view','nylon_report'
         );
     }
@@ -1161,7 +1241,7 @@ class Default_data_model extends CI_Model {
                 'patient_docs_release',
                 'patient_funds_add','payment_evidence_verify','funds_adjust_request','refund_request',
                 'patient_billing_view','patient_billing_add',
-                'opening_positions_view','opening_positions_enter','opening_positions_review',
+                'opening_positions_view','opening_positions_enter','opening_positions_review','opening_positions_delete',
                 'debt_reminder_view',
                 'patient_feedback_manage','testimonial_publish',
                 'portal_manage','assessment_templates_manage',
@@ -1291,8 +1371,7 @@ class Default_data_model extends CI_Model {
             // Stock / Warehouse
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
-            'warehouse_add','warehouse_edit','warehouse_delete','warehouse_view',
-            // Accounts
+'warehouse_edit','warehouse_delete',            // Accounts
             'accounts_add','accounts_edit','accounts_delete','accounts_view',
             'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
             'money_deposit_add','money_deposit_edit','money_deposit_delete','money_deposit_view',
@@ -1301,10 +1380,11 @@ class Default_data_model extends CI_Model {
             'cashier_shifts_manage','z_report',
             // Services / Quotations
             'services_add','services_edit','services_delete','services_view',
+            'service_packages_add','service_packages_edit','service_packages_delete','service_packages_view',
             'import_services',
             'quotation_add','quotation_edit','quotation_delete','quotation_view',
             // Messaging (sending + store-facing templates only — no API keys)
-            'send_sms','sms_template_view','sms_template_edit',
+'sms_template_edit',
             'send_email',
             // Coupons
             'discountCouponAdd','discountCouponEdit','discountCouponDelete','discountCouponView',
@@ -1415,7 +1495,11 @@ class Default_data_model extends CI_Model {
             'Production Supervisor' => $this->get_production_supervisor_permissions(),
             'Production Operator'   => $this->get_production_operator_permissions(),
             'Service Engineer'      => $this->get_service_engineer_permissions(),
-            'Admin'          => $this->get_business_owner_permissions(),
+            // Administrators hold the Admin & System screens as well. NOTE these
+            // must stay ahead of the bare 'Admin' entry — the match below is a
+            // substring test, so 'Store Admin' would otherwise fall into it.
+            'Store Admin'    => array_merge($this->get_business_owner_permissions(), $this->get_system_admin_permissions()),
+            'Admin'          => array_merge($this->get_business_owner_permissions(), $this->get_system_admin_permissions()),
             'Clinical Director' => $this->get_clinical_director_permissions(),
             'Physiotherapist' => $this->get_physiotherapist_permissions(),
             'Nurse'          => $this->get_nurse_permissions(),

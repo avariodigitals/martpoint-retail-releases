@@ -416,6 +416,12 @@
         if ($(this).data('select2')) { $(this).select2(); }
       });
     });
+    // The rail can send us straight to a named tab (Facility settings vs
+    // Enabled capabilities), so honour it instead of always opening Identity.
+    var bpStart = <?= json_encode($active_tab ?? 'tab_identity'); ?>;
+    if (bpStart && bpStart !== 'tab_identity') {
+      $('.bp-tabs .bp-tab[data-tab="' + bpStart + '"]').trigger('click');
+    }
 
     var currentPreset = null;
     var themeColors = {

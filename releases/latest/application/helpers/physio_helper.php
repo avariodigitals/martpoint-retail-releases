@@ -48,6 +48,28 @@ if (!function_exists('physio_can_any')) {
     }
 }
 
+if (!function_exists('physio_visit_locked')) {
+    /**
+     * A closed visit is view-only: nothing in its record may change without
+     * the explicit `encounters_edit_closed` grant (admin-class roles hold it
+     * by default; a Store Admin can grant it on the Roles screen).
+     * Raw query, like physio_can — safe to call mid-query-builder.
+     */
+    function physio_visit_locked($encounterId) {
+        if (!(int)$encounterId) return false;
+        $CI =& get_instance();
+        $row = $CI->db->query('SELECT queue_stage FROM db_encounters WHERE id = ?', array((int)$encounterId))->row();
+        return $row && (string)$row->queue_stage === 'closed' && !physio_can('encounters_edit_closed');
+    }
+}
+
+if (!function_exists('physio_visit_locked_error')) {
+    /** The one wording every closed-visit refusal speaks. */
+    function physio_visit_locked_error() {
+        return 'This visit is closed — view only. Editing a closed visit needs the Edit Closed Visits right.';
+    }
+}
+
 if (!function_exists('physio_require')) {
     /**
      * Deny (JSON-aware, via show_access_denied_page) unless the explicit
@@ -393,6 +415,7 @@ if (!function_exists('mp_event_label')) {
                 // Visit / encounter lifecycle
                 'checked_in'            => 'Patient checked in',
                 'stage_change'          => 'Moved to a new stage',
+                'reassigned'            => 'Sent to a therapist',
                 'status'                => 'Status changed',
                 'intake_completed'      => 'Nursing intake completed',
                 'vitals'                => 'Vitals recorded',
@@ -402,6 +425,7 @@ if (!function_exists('mp_event_label')) {
                 'with_physio'           => 'With clinician',
                 'awaiting_finance'      => 'Awaiting payment',
                 'closed'                => 'Visit closed',
+                'visit_type'            => 'Visit type chosen',
                 // Registration / identity
                 'registered'            => 'Patient registered',
                 'patient_code'          => 'Patient number assigned',
@@ -412,7 +436,10 @@ if (!function_exists('mp_event_label')) {
                 'assessment_saved'      => 'Assessment saved',
                 'assessment_finalised'  => 'Assessment completed',
                 'assessment_amended'    => 'Assessment amended',
+                'assessment_remark'     => 'Assessment remark recorded',
                 'investigation_reviewed'=> 'Investigation reviewed',
+                'assessment_remark'    => 'Assessment remark recorded',
+                'visit_type'           => 'Visit type chosen',
                 'consent_recorded'      => 'Consent recorded',
                 'document_uploaded'     => 'Document uploaded',
                 // Money
@@ -420,6 +447,7 @@ if (!function_exists('mp_event_label')) {
                 'assessment_fee_waived' => 'Assessment fee waived',
                 'payment_received'      => 'Payment received',
                 'invoice_created'       => 'Invoice created',
+                'visit_bill_created'    => 'Visit bill created',
                 // Notes / admin
                 'note'                  => 'Note',
                 'notes'                 => 'Notes',
@@ -437,6 +465,15 @@ if (!function_exists('mp_event_label')) {
                 'confirmed'             => 'Confirmed',
                 'assigned'              => 'Assigned to a staff member',
                 'converted'             => 'Converted',
+                'arrived'               => 'Patient arrived',
+                // Patient documents
+                'view'                  => 'Viewed',
+                'download'              => 'Downloaded',
+                'upload'                => 'Uploaded',
+                'release'               => 'Released to the patient portal',
+                'unrelease'             => 'Removed from the patient portal',
+                'verify'                => 'Signature verified',
+                'denied'                => 'Access refused',
             );
         }
 
@@ -449,6 +486,99 @@ if (!function_exists('mp_event_label')) {
         }
         // Unknown: still never show underscores.
         return ucfirst(str_replace('_', ' ', $code));
+    }
+}
+
+if (!function_exists('mp_first_name')) {
+    /**
+     * The person's name for "by ..." audit lines — never the login username.
+     *
+     * History rows used to show the login handle ("by storeadm"), which is
+     * meaningless to clinic staff. We look the user up so rows written before
+     * the change read correctly too; the name captured at the time is only a
+     * fallback for users that have since been deleted.
+     */
+    function mp_first_name($userId, $fallback = '')
+    {
+        static $cache = array();
+        $userId = (int) $userId;
+        if ($userId > 0 && !array_key_exists($userId, $cache)) {
+            $CI =& get_instance();
+            $row = null;
+            if ($CI->db->field_exists('first_name', 'db_users')) {
+                $cols = 'first_name' . ($CI->db->field_exists('last_name', 'db_users') ? ', last_name' : '');
+                $row = $CI->db->select($cols)->where('id', $userId)->get('db_users')->row();
+            }
+            $name = $row ? trim((string) $row->first_name) : '';
+            if ($name === '' && $row && isset($row->last_name)) {
+                $name = trim((string) $row->last_name);
+            }
+            $cache[$userId] = $name;
+        }
+        $name = $userId > 0 ? $cache[$userId] : '';
+        return $name !== '' ? $name : (trim((string) $fallback) !== '' ? trim((string) $fallback) : 'System');
+    }
+}
+
+if (!function_exists('mp_name_from_login')) {
+    /**
+     * As mp_first_name(), but for rows that only stored the login handle.
+     *
+     * Older tables (db_document_versions.uploaded_by) hold the username
+     * rather than a user id, so we resolve the handle back to its user and
+     * then use the same first-name rule. Unresolvable handles become "System"
+     * — the login handle itself is never shown.
+     */
+    function mp_name_from_login($login, $fallback = '')
+    {
+        static $ids = array();
+        $login = trim((string) $login);
+        if ($login === '') {
+            return mp_first_name(0, $fallback);
+        }
+        if (!array_key_exists($login, $ids)) {
+            $CI =& get_instance();
+            $row = $CI->db->select('id')->where('username', $login)->limit(1)->get('db_users')->row();
+            $ids[$login] = $row ? (int) $row->id : 0;
+        }
+        return mp_first_name($ids[$login], $fallback);
+    }
+}
+
+if (!function_exists('mp_file_type_label')) {
+    /**
+     * Friendly name for a stored MIME type.
+     *
+     * The document history printed raw MIME strings, so staff saw
+     * "application/octet-stream". Anything unrecognised still reads as a
+     * plain word rather than a slash-separated token.
+     */
+    function mp_file_type_label($mime)
+    {
+        static $map = array(
+            'application/pdf'       => 'PDF',
+            'image/jpeg'            => 'JPEG image',
+            'image/png'             => 'PNG image',
+            'image/webp'            => 'WebP image',
+            'image/gif'             => 'GIF image',
+            'application/dicom'     => 'DICOM scan',
+            'application/msword'    => 'Word document',
+            'application/zip'       => 'ZIP archive',
+        );
+        $mime = strtolower(trim((string) $mime));
+        if ($mime === '') {
+            return 'File';
+        }
+        if (isset($map[$mime])) {
+            return $map[$mime];
+        }
+        if ($mime === 'application/octet-stream') {
+            return 'File';
+        }
+        // Unknown type: use the part after the slash, never the whole token.
+        $short = substr($mime, strrpos($mime, '/') + 1);
+        $short = str_replace(array('x-', 'vnd.', '+xml'), '', $short);
+        return $short !== '' ? ucfirst(str_replace(array('_', '-'), ' ', $short)) : 'File';
     }
 }
 
@@ -541,5 +671,200 @@ if (!function_exists('mp_code_label')) {
         }
         // Unknown: sentence-case, spaces, no underscores — never show the code.
         return ucfirst(strtolower(str_replace('_', ' ', $raw)));
+    }
+}
+
+if (!function_exists('physio_staff_label')) {
+    /**
+     * Display label for a staff name already fetched by a join.
+     *
+     * Historical rows (appointments, queue, admissions) can carry a system
+     * account as the recorded clinician. Physio stores must never surface
+     * those accounts to other users, so the name is masked here — the row
+     * itself stays intact. Non-physio stores and real staff pass through
+     * unchanged. Pass the joined role_id when the query provides one; if it
+     * is absent, only the known system usernames are masked.
+     */
+    function physio_staff_label($name, $role_id = null) {
+        $name = trim((string) $name);
+        if ($name === '') return $name;
+        if (!function_exists('physio_enabled') || !physio_enabled()) return $name;
+        if ($role_id !== null && (int) $role_id > 0) {
+            if (in_array((int) $role_id, array(1, 2), true)) return '—';
+            return $name;
+        }
+        if (in_array(strtolower($name), array('master', 'storeadm'), true)) return '—';
+        return $name;
+    }
+}
+
+if (!function_exists('physio_clinical_user')) {
+    /**
+     * Does this db_users row belong to a clinical role?
+     *
+     * Clinical = the role holds at least one hands-on care grant. The Admin
+     * and Store Admin roles are seeded with every grant, so a naive
+     * permission check would call storeadm a clinician — that is exactly how
+     * the vendor admin account ended up listed as a "clinical doctor" in the
+     * booking and plan pickers. Roles 1 (Admin) and 2 (Store Admin) are
+     * therefore never clinical, whatever they hold. Memoised per request.
+     */
+    function physio_clinical_user($user) {
+        static $roleClinical = array();
+        if (!is_object($user) || !isset($user->role_id)) return false;
+        $roleId = (int) $user->role_id;
+        if ($roleId === 1 || $roleId === 2) return false;
+        if (!array_key_exists($roleId, $roleClinical)) {
+            $CI =& get_instance();
+            $keys = "'encounters_add','assessments_add','vitals_add','plans_add',"
+                  . "'sessions_complete','md_authority','investigations_review','nursing_tasks_view'";
+            $row = $CI->db->query(
+                "SELECT 1 FROM db_permissions WHERE role_id = ? AND permissions IN ($keys) LIMIT 1",
+                array($roleId)
+            )->row();
+            $roleClinical[$roleId] = (bool) $row;
+        }
+        return $roleClinical[$roleId];
+    }
+}
+
+if (!function_exists('physio_staff_select')) {
+    /**
+     * Staff rows for a physio picker or list.
+     *
+     * Physio industry rules (any other store type gets the plain unfiltered
+     * list, so retail/other industries are untouched):
+     *  - system/vendor accounts (role 1 Admin, role 2 Store Admin — master,
+     *    storeadm) are never listed. They can still log in and work, but
+     *    like a licence seat count they are excluded from what everyone
+     *    else is shown.
+     *  - $clinical_only lists only clinical roles, so "Clinician"-style
+     *    fields show carers instead of every user in the store.
+     *
+     * Uses a raw bound query — the CI3 shared Query Builder must not be
+     * touched from a helper that can run mid-composition (see physio_can).
+     */
+    function physio_staff_select($store_id = null, $clinical_only = true, $order_by = 'username') {
+        $CI =& get_instance();
+        if ($store_id === null) { $store_id = (int) get_current_store_id(); }
+        $store_id = (int) $store_id;
+        $order = ($order_by === 'first_name') ? 'u.first_name' : 'u.username';
+        if (!function_exists('physio_enabled') || !physio_enabled($store_id)) {
+            return $CI->db->query(
+                "SELECT u.* FROM db_users u WHERE u.store_id = ? AND u.status = 1 ORDER BY $order",
+                array($store_id)
+            )->result();
+        }
+        $rows = $CI->db->query(
+            "SELECT u.* FROM db_users u
+             WHERE u.store_id = ? AND u.status = 1
+               AND u.role_id NOT IN (1, 2)
+               AND LOWER(u.username) NOT IN ('master', 'storeadm')
+             ORDER BY $order",
+            array($store_id)
+        )->result();
+        if (!$clinical_only) return $rows;
+        $out = array();
+        foreach ($rows as $r) {
+            if (physio_clinical_user($r)) $out[] = $r;
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('physio_nurse_select')) {
+    /**
+     * Nurse-profile staff — who may be tasked with a treatment patient.
+     *
+     * The clinic role set carries a 'Nurse' profile ("Vitals, observations,
+     * assigned care tasks and nursing handover"), and that profile is what the
+     * tasked-nurse picker must show. Holding vitals_add is NOT enough: the
+     * owner and admin roles hold every grant, so a permission-based list puts
+     * the store admin in a clinical dropdown. Match the role NAME instead
+     * ('Nurse', 'Senior Nurse', 'Staff Nurse' all qualify).
+     *
+     * A store whose nurse role was renamed to something without "nurse" in it
+     * would otherwise have an empty picker and a treatment queue that cannot
+     * move, so that case falls back to hands-on care roles holding vitals_add —
+     * still never the system or owner accounts.
+     */
+    function physio_nurse_select($store_id = null, $order_by = 'first_name') {
+        $CI =& get_instance();
+        if ($store_id === null) { $store_id = (int) get_current_store_id(); }
+        $store_id = (int) $store_id;
+        $order = ($order_by === 'username') ? 'u.username' : 'u.first_name';
+        $exclude = array(1, 2);
+        if (function_exists('store_owner_role_ids')) {
+            $exclude = array_merge($exclude, store_owner_role_ids($store_id));
+        }
+        $exclude = array_unique(array_map('intval', $exclude));
+        $notIn = implode(',', $exclude);
+        $rows = $CI->db->query(
+            "SELECT u.* FROM db_users u
+             JOIN db_roles r ON r.id = u.role_id
+             WHERE u.store_id = ? AND u.status = 1
+               AND u.role_id NOT IN ($notIn)
+               AND LOWER(u.username) NOT IN ('master', 'storeadm')
+               AND LOWER(r.role_name) LIKE '%nurse%'
+             ORDER BY $order",
+            array($store_id)
+        )->result();
+        if (!empty($rows)) return $rows;
+        return $CI->db->query(
+            "SELECT DISTINCT u.* FROM db_users u
+             JOIN db_permissions p ON p.role_id = u.role_id AND p.permissions = 'vitals_add'
+             WHERE u.store_id = ? AND u.status = 1
+               AND u.role_id NOT IN ($notIn)
+               AND LOWER(u.username) NOT IN ('master', 'storeadm')
+             ORDER BY $order",
+            array($store_id)
+        )->result();
+    }
+}
+
+if (!function_exists('physio_therapist_select')) {
+    /**
+     * Therapist profiles — who a patient can be sent to on the Care Queue.
+     *
+     * The desk routes by JOB, not by permission: the Physiotherapist profile is
+     * the role that takes a patient through treatment, so match the role NAME
+     * ('Physiotherapist', 'Senior Physiotherapist', 'Therapist' all qualify)
+     * and fall back to any clinical role that can actually run a visit
+     * (encounters_add) — a clinic whose role was renamed must still be able to
+     * move its queue. System/owner accounts are never listed, and neither are
+     * nurses who cannot treat, so a patient is never "sent to" somebody who
+     * cannot see them.
+     */
+    function physio_therapist_select($store_id = null, $order_by = 'first_name') {
+        $CI =& get_instance();
+        if ($store_id === null) { $store_id = (int) get_current_store_id(); }
+        $store_id = (int) $store_id;
+        $order = ($order_by === 'username') ? 'u.username' : 'u.first_name';
+        $exclude = array(1, 2);
+        if (function_exists('store_owner_role_ids')) {
+            $exclude = array_merge($exclude, store_owner_role_ids($store_id));
+        }
+        $exclude = array_unique(array_map('intval', $exclude));
+        $notIn = implode(',', $exclude);
+        $rows = $CI->db->query(
+            "SELECT u.* FROM db_users u
+             JOIN db_roles r ON r.id = u.role_id
+             WHERE u.store_id = ? AND u.status = 1
+               AND u.role_id NOT IN ($notIn)
+               AND LOWER(u.username) NOT IN ('master', 'storeadm')
+               AND (LOWER(r.role_name) LIKE '%physio%' OR LOWER(r.role_name) LIKE '%therapist%')
+             ORDER BY $order",
+            array($store_id)
+        )->result();
+        if (!empty($rows)) return $rows;
+        return $CI->db->query(
+            "SELECT DISTINCT u.* FROM db_users u
+             JOIN db_permissions p ON p.role_id = u.role_id AND p.permissions = 'encounters_add'
+             WHERE u.store_id = ? AND u.status = 1
+               AND u.role_id NOT IN ($notIn)
+               AND LOWER(u.username) NOT IN ('master', 'storeadm')
+             ORDER BY $order",
+            array($store_id)
+        )->result();
     }
 }

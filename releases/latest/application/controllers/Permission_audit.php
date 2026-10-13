@@ -11,19 +11,15 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *  - Which controllers have NO permission checks at all (potential security gaps)
  *  - Which permission keys are referenced in code but missing from Roles_model
  *
- * Access: Super Admin (role_id 1) or Store Admin (role_id 2) only.
+ * Access: anyone holding the `permission_audit` grant (installed for
+ * administrators only; deliberately NOT for Business Owner).
  */
 class Permission_audit extends MY_Controller {
 
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
-		$role_id = (int)$this->session->userdata('role_id');
-		$user_id = (int)$this->session->userdata('inv_userid');
-		if($user_id !== 1 && $role_id !== 1 && !is_store_admin()){
-			$this->show_access_denied_page();
-			return;
-		}
+		$this->permission_check('permission_audit');
 	}
 
 	/**

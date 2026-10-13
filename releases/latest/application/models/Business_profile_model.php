@@ -85,6 +85,19 @@ class Business_profile_model extends CI_Model {
                 if (!empty($storeUpdate)) {
                     $this->db->where('id', $store_id)->update('db_store', $storeUpdate);
                 }
+                // The legacy table is still read as a fallback by
+                // mp_get_store_profile and physio_enabled(). Leaving it behind
+                // is what let a store resolve to two different business types
+                // at once — the clinical screens read one and the rest of the
+                // app read the other. Mirror the write so they cannot drift.
+                if ($this->db->table_exists('db_store_business_profile')) {
+                    $exists = $this->db->where('store_id', $store_id)->get('db_store_business_profile')->num_rows();
+                    if ($exists) {
+                        $this->db->where('store_id', $store_id)->update('db_store_business_profile', $update);
+                    } else {
+                        $this->db->insert('db_store_business_profile', $update);
+                    }
+                }
                 return true;
             }
         }

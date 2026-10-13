@@ -55,11 +55,30 @@
 						}
 						$store = get_store_details();
 
+						// Branding so the invite renders as a clean, self-contained HTML email.
+						$logo = base_url('theme/dist/img/logo1.png');
+						if(!empty($store->store_logo) && file_exists($store->store_logo)){
+							$logo = base_url($store->store_logo);
+						}
+						$contactLines = [];
+						$storeAddress = htmlspecialchars($store->address ?? '');
+						$storePhone   = htmlspecialchars($store->mobile ?? '');
+						$storeEmail   = htmlspecialchars($store->email ?? '');
+						if($storeAddress !== ''){ $contactLines[] = '<p>'.$storeAddress.'</p>'; }
+						$reach = [];
+						if($storePhone !== ''){ $reach[] = '<a href="tel:'.preg_replace('/[^0-9+]/','',$storePhone).'">'.$storePhone.'</a>'; }
+						if($storeEmail !== ''){ $reach[] = '<a href="mailto:'.$storeEmail.'">'.$storeEmail.'</a>'; }
+						if(!empty($reach)){ $contactLines[] = '<p>'.implode(' &nbsp;·&nbsp; ', $reach).'</p>'; }
+
 						$this->email_service->sendTemplate('staff_invite', $this->input->post('email'), [
-							'staff_name'  => $this->input->post('new_user'),
-							'store_name'  => $store->store_name ?? 'MartPoint',
-							'staff_role'  => $role_name,
-							'login_link'  => base_url('login')
+							'staff_name'        => $this->input->post('new_user'),
+							'username'          => $this->input->post('username'),
+							'password'          => $this->input->post('pass'),
+							'store_name'        => $store->store_name ?? 'MartPoint',
+							'staff_role'        => $role_name,
+							'login_link'        => base_url('login'),
+							'store_logo_url'    => $logo,
+							'store_contact_html'=> implode('', $contactLines),
 						]);
 					}
 				}

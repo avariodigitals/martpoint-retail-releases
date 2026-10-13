@@ -156,12 +156,19 @@
     document.querySelectorAll('.st-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         var st = this.getAttribute('data-st');
-        if(st === 'cancelled' && !confirm('Cancel this route?')){ return; }
-        var b = this; b.disabled = true;
-        post('mobile/delivery_status', { id: schedule_id, status: st }, function(d){
-          if(d && d.success){ window.location.reload(); }
-          else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
-        });
+        var go = function(){
+          var b = btn; b.disabled = true;
+          post('mobile/delivery_status', { id: schedule_id, status: st }, function(d){
+            if(d && d.success){ window.location.reload(); }
+            else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
+          });
+        };
+        if(st === 'cancelled'){
+          mpConfirmAsync('Cancel this route?', { danger:true, okText:'Cancel route' }).then(function(ok){
+            if(!ok) return;
+            go();
+          });
+        } else { go(); }
       });
     });
 
@@ -169,21 +176,29 @@
       btn.addEventListener('click', function(){
         var itemId = this.getAttribute('data-item');
         var st = this.getAttribute('data-status');
-        var notes = '';
-        if(st === 'failed'){ notes = prompt('Reason for failed delivery? (optional)') || ''; }
-        var b = this; b.disabled = true;
-        post('mobile/delivery_item_status', { item_id: itemId, status: st, notes: notes }, function(d){
-          if(d && d.success){ window.location.reload(); }
-          else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
-        });
+        var go = function(notes){
+          var b = btn; b.disabled = true;
+          post('mobile/delivery_item_status', { item_id: itemId, status: st, notes: notes }, function(d){
+            if(d && d.success){ window.location.reload(); }
+            else { mpError(d && d.message ? d.message : 'The status could not be updated. Please try again.'); b.disabled = false; }
+          });
+        };
+        if(st === 'failed'){
+          mpPrompt({ title:'Reason for failed delivery', message:'Optional — leave blank if not needed.', placeholder:'Reason (optional)', multiline:true, okText:'Continue' }).then(function(notes){
+            if(notes === null) return;
+            go(notes);
+          });
+        } else { go(''); }
       });
     });
 
     document.getElementById('deleteBtn').addEventListener('click', function(){
-      if(!confirm('Delete this delivery schedule?')){ return; }
-      post('mobile/delivery_delete', { id: schedule_id }, function(d){
-        if(d && d.success){ window.location.href = base_url + 'mobile/deliveries'; }
-        else { mpError(d && d.message ? d.message : 'The delivery schedule could not be deleted. Please try again.'); }
+      mpConfirmAsync('Delete this delivery schedule?', { danger:true, okText:'Delete' }).then(function(ok){
+        if(!ok) return;
+        post('mobile/delivery_delete', { id: schedule_id }, function(d){
+          if(d && d.success){ window.location.href = base_url + 'mobile/deliveries'; }
+          else { mpError(d && d.message ? d.message : 'The delivery schedule could not be deleted. Please try again.'); }
+        });
       });
     });
   </script>

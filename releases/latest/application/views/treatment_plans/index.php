@@ -25,7 +25,7 @@
 <?php endif; ?>
 
 <?php foreach($plans as $p):
-  $clin = $this->db->select('username,first_name,last_name')->where('id', $p->clinician_id)->get('db_users')->row(); ?>
+  $clin = $this->db->select('username,first_name,last_name,role_id')->where('id', $p->clinician_id)->get('db_users')->row(); ?>
 <div class="tp-card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
     <div>
@@ -36,7 +36,7 @@
     </div>
     <div class="tp-meta">
       <?= htmlspecialchars($p->plan_code); ?> ·
-      Clinician: <?= htmlspecialchars($clin ? trim($clin->first_name . ' ' . $clin->last_name) ?: $clin->username : '—'); ?> ·
+      Clinician: <?= htmlspecialchars($clin ? physio_staff_label(trim($clin->first_name . ' ' . $clin->last_name) ?: $clin->username, $clin->role_id ?? null) : '—'); ?> ·
       <?= htmlspecialchars($p->created_date); ?>
     </div>
   </div>

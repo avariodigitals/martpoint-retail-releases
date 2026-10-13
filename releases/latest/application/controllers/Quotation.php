@@ -29,6 +29,11 @@ class Quotation extends MY_Controller {
 			echo json_encode(['success'=>false,'message'=>'This customer has no valid email address. Add one to the customer record first.','csrf_hash'=>$this->security->get_csrf_hash()]);
 			return;
 		}
+		if(trim((string)($quote->quotation_status ?? '')) === 'Draft'){
+			header('Content-Type: application/json');
+			echo json_encode(['success'=>false,'message'=>'This quotation is saved as a draft. Review it and save it as final before emailing it to the customer.','csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
 		$sectionField = $this->db->field_exists('section_name', 'db_quotationitems') ? 'qi.section_name' : "'' AS section_name";
 		$items = $this->db->select('COALESCE(NULLIF(qi.manual_item_name,\'\'), i.item_name) AS item_name, COALESCE(NULLIF(qi.part_code,\'\'), i.item_code) AS item_code, COALESCE(NULLIF(qi.unit_label,\'\'), u.unit_name) AS unit_name, qi.description, '.$sectionField.', qi.quotation_qty, qi.price_per_unit, qi.tax_amt, qi.unit_total_cost, qi.total_cost', false)
 			->from('db_quotationitems qi')->join('db_items i','i.id=qi.item_id','left')->join('db_units u','u.id=i.unit_id','left')
@@ -112,25 +117,16 @@ class Quotation extends MY_Controller {
 		$term = trim((string)$this->input->get('q', TRUE));
 		$items = array();
 		if(mb_strlen($term) >= 2){
-			$items = $this->db->select('i.id, i.item_name, i.item_code, i.description, i.sales_price, u.unit_name')
+			$items = $this->db->select('i.id, i.item_name, i.item_code, i.sku, i.description, i.sales_price, u.unit_name')
 				->from('db_items i')->join('db_units u', 'u.id=i.unit_id', 'left')
 				->where('i.store_id', get_current_store_id())->where('i.status', 1)
-				->group_start()->like('i.item_name', $term)->or_like('i.item_code', $term)->group_end()
+				->group_start()->like('i.item_name', $term)->or_like('i.item_code', $term)->or_like('i.sku', $term)->group_end()
 				->order_by('i.item_name')->limit(12)->get()->result_array();
 		}
 		header('Content-Type: application/json');
 		echo json_encode($items);
 	}
 
-	/** Workbook example is exposed only inside the processing plant quote builder. */
-	public function plant_sample(){
-		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
-		if(!$is_plant){ show_404(); return; }
-		$this->permission_check('quotation_add');
-		header('Content-Type: application/json');
-		echo file_get_contents(APPPATH.'data/plant_quote_hykeng_011026.json');
-	}
-	
 
 	public function quotation_save_and_update(){
 		$this->form_validation->set_rules('quotation_date', 'Quotation Date', 'trim|required');
@@ -175,8 +171,10 @@ class Quotation extends MY_Controller {
 			$row[] = '<input type="checkbox" name="checkbox[]" value='.$quotation->id.' class="checkbox column_checkbox" >';
 			
 			$str='';
+			if(trim((string)($quotation->quotation_status ?? '')) === 'Draft')
+				$str.="<span title='Saved as a draft — review before sending to the customer' class='label label-default'> Draft </span>";
 			        if($quotation->sales_status!='')
-			          $str="<span title='Converted to Sales Invoice' class='label label-success' style='cursor:pointer'> Converted </span>";
+			          $str.="<span title='Converted to Sales Invoice' class='label label-success' style='cursor:pointer'> Converted </span>";
 			$row[] = show_date($quotation->quotation_date)."<br>".$str;
 			$row[] = (!empty($quotation->expire_date)) ? show_date($quotation->expire_date) : '';
 

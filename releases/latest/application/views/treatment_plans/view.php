@@ -1,4 +1,4 @@
-<?php $this->load->view('admin/desktop/_styles'); $CI =& get_instance(); ?>
+<?php $this->load->view('admin/desktop/_styles'); $this->load->view('components/dialog'); $this->load->view('components/book_session'); $CI =& get_instance(); ?>
 <style>
 .tp-box{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:14px!important;margin-bottom:14px!important}
 .tp-box h4{font-size:11px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:var(--mp-muted)!important;margin:0 0 10px 0!important}
@@ -114,25 +114,32 @@ function createBill(){
   }, 'json');
 }
 function scheduleSession(entId, fee){
-  var when = prompt('Schedule for (YYYY-MM-DD HH:MM):', '<?= date('Y-m-d H:i'); ?>');
-  if(!when) return;
-  $.post('<?= base_url('sessions/schedule'); ?>', Object.assign({entitlement_id: entId, scheduled_at: when, fee: fee.toFixed(2)}, CSRF), function(r){
-    if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not schedule the session.');
-  }, 'json');
+  mpBookSession({ title: 'Book a session', message: 'Pick the day and the time the patient will come in. On that day the session appears on the Care Queue, so the patient can be checked in for vitals and their ticket raised.' }).then(function(when){
+    if(!when) return;
+    $.post('<?= base_url('sessions/schedule'); ?>', Object.assign({entitlement_id: entId, scheduled_at: when, fee: fee.toFixed(2)}, CSRF), function(r){
+      if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not schedule the session.');
+    }, 'json');
+  });
 }
 function sessAct(id, act){
   $.post('<?= base_url('sessions/'); ?>' + act + '/' + id, CSRF, function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not update the session.'); }, 'json');
 }
 function sessCancel(id){
-  var reason = prompt('Cancellation reason (required):'); if(!reason) return;
-  $.post('<?= base_url('sessions/cancel/'); ?>' + id, Object.assign({reason: reason}, CSRF), function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not cancel the session.'); }, 'json');
+  cqPrompt({ title: 'Cancel session', message: 'Why is this session being cancelled?', placeholder: 'Reason', required: true, okText: 'Cancel the session' }).then(function(reason){
+    if(!reason) return;
+    $.post('<?= base_url('sessions/cancel/'); ?>' + id, Object.assign({reason: reason}, CSRF), function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not cancel the session.'); }, 'json');
+  });
 }
 function sessReverse(id){
-  var reason = prompt('Reversal reason (required):'); if(!reason) return;
-  $.post('<?= base_url('sessions/reverse/'); ?>' + id, Object.assign({reason: reason}, CSRF), function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not reverse the session.'); }, 'json');
+  cqPrompt({ title: 'Reverse completion', message: 'Why is this completed session being reversed?', placeholder: 'Reason', required: true, okText: 'Request reversal' }).then(function(reason){
+    if(!reason) return;
+    $.post('<?= base_url('sessions/reverse/'); ?>' + id, Object.assign({reason: reason}, CSRF), function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not reverse the session.'); }, 'json');
+  });
 }
 function amendPlan(){
-  var reason = prompt('Amendment reason:'); if(reason === null) return;
-  $.post('<?= base_url('treatment_plans/amend/' . $plan->id); ?>', Object.assign({reason: reason}, CSRF), function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not amend the treatment plan.'); }, 'json');
+  cqPrompt({ title: 'Amend plan', message: 'Why is the plan being amended?', placeholder: 'Reason', okText: 'Amend' }).then(function(reason){
+    if(reason === null) return;
+    $.post('<?= base_url('treatment_plans/amend/' . $plan->id); ?>', Object.assign({reason: reason}, CSRF), function(r){ if(r.status==='success'){ toastr.success(r.message); setTimeout(function(){ location.reload(); }, 700); } else toastr.error(r.message || 'Could not amend the treatment plan.'); }, 'json');
+  });
 }
 </script>

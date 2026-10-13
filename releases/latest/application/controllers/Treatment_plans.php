@@ -31,7 +31,7 @@ class Treatment_plans extends MY_Controller {
 	/** Patient's plans — linked from the patient profile. */
 	public function index($patientId = 0){
 		$patient = $this->patients->getPatient((int)$patientId);
-		if(!$patient){ $this->show_access_denied_page(); return; }
+		if(!$patient){ $this->show_access_denied_page('Patient not found — open them from the Patient register and try again.'); return; }
 		$data = array_merge($this->data, array(
 			'page_title' => 'Treatment Plans — ' . $patient->patient_code,
 			'patient'    => $patient,
@@ -48,7 +48,7 @@ class Treatment_plans extends MY_Controller {
 	public function add($patientId = 0){
 		if(!physio_can('plans_add')){ $this->show_access_denied_page(); return; }
 		$patient = $this->patients->getPatient((int)$patientId);
-		if(!$patient){ $this->show_access_denied_page(); return; }
+		if(!$patient){ $this->show_access_denied_page('Patient not found — open them from the Patient register and try again.'); return; }
 		$storeId = get_current_store_id();
 		$data = array_merge($this->data, array(
 			'page_title'  => 'New Treatment Plan — ' . $patient->patient_code,
@@ -58,7 +58,8 @@ class Treatment_plans extends MY_Controller {
 				->order_by('id', 'desc')->get('db_assessments')->result(),
 			'episodes'    => $this->db->where('patient_id', $patient->id)->where('store_id', $storeId)
 				->order_by('id', 'desc')->get('db_care_episodes')->result(),
-			'clinicians'  => $this->db->where('store_id', $storeId)->order_by('username')->get('db_users')->result(),
+			// Clinical pickers: clinical roles only, never system accounts.
+			'clinicians'  => physio_staff_select($storeId),
 		));
 		$data['content'] = $this->load->view('treatment_plans/form', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -93,7 +94,7 @@ class Treatment_plans extends MY_Controller {
 
 	public function view($id = 0){
 		$plan = $this->tpm->getPlan((int)$id);
-		if(!$plan){ $this->show_access_denied_page(); return; }
+		if(!$plan){ $this->show_access_denied_page('Treatment plan not found — the link may be out of date.'); return; }
 		$patient = $this->patients->getPatient((int)$plan->patient_id);
 		$clinician = $this->db->where('id', $plan->clinician_id)->get('db_users')->row();
 		$bill = $this->db->where('plan_id', $plan->id)->where('store_id', get_current_store_id())

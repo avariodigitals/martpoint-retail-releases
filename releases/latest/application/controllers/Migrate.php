@@ -11,10 +11,7 @@ class Migrate extends MY_Controller {
 	}
 
 	private function _guard(){
-		if(!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
-			$this->show_access_denied_page();
-			exit;
-		}
+		$this->permission_check('data_migration');
 	}
 
 	public function index(){

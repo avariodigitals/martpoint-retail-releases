@@ -148,26 +148,48 @@
       var note = '';
       var moneyTypes = ['unmatched','late_payment'];
       var type = (window.rcRowType && window.rcRowType[id]) || '';
+      var finish = function(){
+        var fd = new FormData();
+        fd.append('id', id); fd.append('action', action); fd.append('note', note);
+        for(const [k,v] of Object.entries(csrf())) fd.append(k, v);
+        mpFetchJson('<?= base_url('reconcile/resolve'); ?>', {method:'POST', body:fd})
+          .then(d => {
+            if(d.status === 'success'){ showToast(d.message || 'Updated'); setTimeout(() => window.location.reload(), 800); }
+            else showToast(d.message || 'Update failed', true);
+          })
+          .catch(err => showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true));
+      };
       if(action === 'acknowledged' && moneyTypes.indexOf(type) !== -1){
         // Money-received exceptions: a bare acknowledgement hides real cash.
-        var raw = prompt('This exception reports money actually received. Acknowledging it does NOT settle the money.\n\nRecord what happened (refund sent, order reinstated, etc.) — required:');
-        if(raw === null) return;
-        note = (raw || '').trim();
-        if(!note){ showToast('A note is required for money-received exceptions.', true); return; }
+        mpPrompt({
+          title: 'Acknowledge exception',
+          message: 'This exception reports money actually received. Acknowledging it does NOT settle the money. Record what happened (refund sent, order reinstated, etc.).',
+          placeholder: 'Record what happened (refund sent, order reinstated, etc.)',
+          multiline: true,
+          required: true,
+          okText: 'Acknowledge',
+          danger: true
+        }).then(raw => {
+          if(raw === null) return;
+          note = (raw || '').trim();
+          if(!note){ showToast('A note is required for money-received exceptions.', true); return; }
+          finish();
+        });
       } else if(action === 'resolved' || action === 'dismissed' || action === 'dispute'){
-        var raw2 = prompt(action.charAt(0).toUpperCase()+action.slice(1) + ' — add a note (optional):');
-        if(raw2 === null) return;
-        note = raw2;
+        mpPrompt({
+          title: action.charAt(0).toUpperCase()+action.slice(1),
+          message: 'Add a note (optional).',
+          placeholder: 'Note',
+          multiline: true,
+          okText: 'Continue'
+        }).then(raw2 => {
+          if(raw2 === null) return;
+          note = raw2;
+          finish();
+        });
+      } else {
+        finish();
       }
-      var fd = new FormData();
-      fd.append('id', id); fd.append('action', action); fd.append('note', note);
-      for(const [k,v] of Object.entries(csrf())) fd.append(k, v);
-      mpFetchJson('<?= base_url('reconcile/resolve'); ?>', {method:'POST', body:fd})
-        .then(d => {
-          if(d.status === 'success'){ showToast(d.message || 'Updated'); setTimeout(() => window.location.reload(), 800); }
-          else showToast(d.message || 'Update failed', true);
-        })
-        .catch(err => showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true));
     }
   </script>
 </body>

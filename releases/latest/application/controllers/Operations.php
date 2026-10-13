@@ -11,6 +11,8 @@ class Operations extends MY_Controller {
         parent::__construct();
         $this->load_info();
         $this->load->model('Business_profile_model', 'bp_model');
+        // Defines physio_staff_select() — a no-op filter for non-physio stores.
+        if (!function_exists('physio_staff_select')) { $this->load->helper('physio'); }
     }
 
     private function _check_feature($flag) {
@@ -134,7 +136,7 @@ class Operations extends MY_Controller {
         $data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_customers')->result();
         // Only items that accept custom orders
         $data['items'] = $this->db->where('store_id', $store_id)->where('status', 1)->where('accept_custom_order', 1)->get('db_items')->result();
-        $data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_users')->result();
+        $data['staff'] = physio_staff_select($store_id, false);
         $data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
         $this->_render($id ? 'Edit Custom Order' : 'New Custom Order', 'operations/custom_order', $data);
     }
@@ -332,7 +334,7 @@ class Operations extends MY_Controller {
             $data['batch_items'] = $this->pb->get_items($id);
         }
 
-        $data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_users')->result();
+        $data['staff'] = physio_staff_select($store_id, false);
         // Pending custom orders that can be batched
         $data['pending_orders'] = $this->pb->get_pending_items($store_id);
         $data['preselect_order_id'] = $this->input->get('order_id', TRUE) ?: null;
@@ -716,7 +718,7 @@ class Operations extends MY_Controller {
                 $data['unit_hierarchy'][$u->id] = $u;
             }
         }
-        $data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_users')->result();
+        $data['staff'] = physio_staff_select($store_id, false);
         $data['recipe_categories'] = $this->recipe->get_active_categories($store_id);
         // Product items for Final Product dropdown (items with their unit names)
         // Exclude items flagged "Not for Sale" — those are raw materials, not final products
@@ -1189,7 +1191,8 @@ class Operations extends MY_Controller {
         }
 
         $data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_customers')->result();
-        $data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_users')->result();
+        // Treatment note author is a clinical role — clinical staff only.
+        $data['staff'] = physio_staff_select($store_id, true);
 
         $this->_render($id ? 'Edit Treatment Note' : 'New Treatment Note', 'operations/treatment_note', $data);
     }
@@ -1353,8 +1356,8 @@ class Operations extends MY_Controller {
 
         $data['customers'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)
             ->order_by('customer_name', 'asc')->get('db_customers')->result();
-        $data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)
-            ->order_by('first_name', 'asc')->get('db_users')->result();
+        // Medical note author is a clinical role — clinical staff only.
+        $data['staff'] = physio_staff_select($store_id, true);
 
         $this->_render($id ? 'Edit Medical Note' : 'New Medical Note', 'operations/medical_note', $data);
     }
@@ -1857,8 +1860,9 @@ class Operations extends MY_Controller {
         // Load all active services for this store
         $services = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('service_name', 'asc')->get('db_services')->result();
 
-        // Load all active staff for this store
-        $staff_list = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('username', 'asc')->get('db_users')->result();
+        // Load all active staff for this store — clinical roles only in physio
+        // (the label reads "Therapist" there), real staff elsewhere.
+        $staff_list = physio_staff_select($store_id, true);
 
         // Load existing assignments
         $assignments = [];
@@ -1913,7 +1917,7 @@ class Operations extends MY_Controller {
         $this->db->group_by('si.staff_id');
         $data['summary'] = $this->db->get()->result();
 
-        $data['staff_list'] = $this->db->where('status', 1)->where('store_id', $store_id)->get('db_users')->result();
+        $data['staff_list'] = physio_staff_select($store_id, false);
         $data['selected_staff_id'] = $staff_id;
         $data['from_date'] = $from_date;
         $data['to_date'] = $to_date;

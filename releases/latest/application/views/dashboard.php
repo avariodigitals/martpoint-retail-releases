@@ -201,7 +201,7 @@ $this->load->view('admin/desktop/_styles');
           </div>
           <div class="mp-kpi-card profit">
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>
-            <div class="mp-kpi-label"><?= $range_label; ?> New Customers</div>
+            <div class="mp-kpi-label"><?= $range_label; ?> New <?= $customer_label ?>s</div>
             <div class="mp-kpi-value"><?= number_format($new_customers_range['count']); ?></div>
             <div class="mp-kpi-sub <?= $new_customers_range['change'] >= 0 ? 'up' : 'down' ?>"><?= $new_customers_range['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($new_customers_range['change']) ?>% vs Previous</div>
           </div>
@@ -578,7 +578,7 @@ $this->load->view('admin/desktop/_styles');
             </div>
             <table class="mp-tbl">
               <thead>
-                <tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Status</th><th>Time</th></tr>
+                <tr><th>Invoice</th><th><?= $customer_label ?></th><th>Amount</th><th>Status</th><th>Time</th></tr>
               </thead>
               <tbody>
                 <?php if($q_recent->num_rows() > 0){ ?>
@@ -707,7 +707,7 @@ $this->load->view('admin/desktop/_styles');
               <a href="<?=base_url('customers');?>" class="mp-card-link">View All</a>
             </div>
             <table class="mp-tbl">
-              <thead><tr><th>Customer</th><th>Owing</th></tr></thead>
+              <thead><tr><th><?= $customer_label ?></th><th>Owing</th></tr></thead>
               <tbody>
                 <?php if(!empty($top_debtors)){ ?>
                 <?php foreach(array_slice($top_debtors, 0, 5) as $debtor){ ?>

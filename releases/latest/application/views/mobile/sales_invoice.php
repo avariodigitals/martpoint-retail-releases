@@ -78,7 +78,10 @@
         $CI =& get_instance();
         $is_cashier = (strpos(strtolower($CI->session->userdata('role_name') ?: ''), 'cashier') !== false);
 
-        $q3 = $this->db->query("SELECT b.coupon_id,b.coupon_amt,b.due_date,b.quotation_id,b.store_id,b.customer_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,COALESCE(a.id,b.customer_id) as id,a.opening_balance,a.country_id,a.state_id,a.city,a.postcode,COALESCE(a.address,'') as address,b.sales_date,b.created_time,b.reference_no,b.sales_code,b.sales_status,b.sales_note,b.invoice_terms,coalesce(b.grand_total,0) as grand_total,coalesce(b.subtotal,0) as subtotal,coalesce(b.paid_amount,0) as paid_amount,coalesce(b.other_charges_input,0) as other_charges_input,b.other_charges_tax_id,coalesce(b.other_charges_amt,0) as other_charges_amt,b.discount_to_all_input,b.discount_to_all_type,coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,coalesce(b.round_off,0) as round_off,b.payment_status,b.pos FROM db_sales b LEFT JOIN db_customers a ON a.id=b.customer_id WHERE b.id=? AND b.store_id=?", [$sales_id, $store_id]);
+        $ship_sel = $this->db->field_exists('shipping_fee','db_sales')
+          ? ',coalesce(b.shipping_fee,0) as shipping_fee,b.shipping_label'
+          : ',0 as shipping_fee,null as shipping_label';
+        $q3 = $this->db->query("SELECT b.coupon_id,b.coupon_amt,b.due_date,b.quotation_id,b.store_id,b.customer_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,COALESCE(a.id,b.customer_id) as id,a.opening_balance,a.country_id,a.state_id,a.city,a.postcode,COALESCE(a.address,'') as address,b.sales_date,b.created_time,b.reference_no,b.sales_code,b.sales_status,b.sales_note,b.invoice_terms,coalesce(b.grand_total,0) as grand_total,coalesce(b.subtotal,0) as subtotal,coalesce(b.paid_amount,0) as paid_amount,coalesce(b.other_charges_input,0) as other_charges_input,b.other_charges_tax_id,coalesce(b.other_charges_amt,0) as other_charges_amt,b.discount_to_all_input,b.discount_to_all_type,coalesce(b.tot_discount_to_all_amt,0) as tot_discount_to_all_amt,coalesce(b.round_off,0) as round_off" . $ship_sel . ",b.payment_status,b.pos FROM db_sales b LEFT JOIN db_customers a ON a.id=b.customer_id WHERE b.id=? AND b.store_id=?", [$sales_id, $store_id]);
         $res3 = $q3->row();
         if(empty($res3) || $res3->store_id != $store_id){
           echo '<div class="card"><div class="empty">Invoice not found. (sales_id=' . $sales_id . ', store_id=' . $store_id . ')</div></div>';
@@ -126,6 +129,8 @@
           $discount_to_all_type = ($res3->discount_to_all_type == 'in_percentage') ? '%' : 'Fixed';
           $tot_discount_to_all_amt = $res3->tot_discount_to_all_amt;
           $round_off = $res3->round_off;
+          $shipping_fee = (float)($res3->shipping_fee ?? 0);
+          $shipping_label = (string)($res3->shipping_label ?? '');
           $payment_status = $res3->payment_status;
 
           $q1 = $this->db->where('id', $res3->store_id)->get('db_store');
@@ -244,6 +249,8 @@
         <?php if($coupon_amt): ?><div class="total-row"><span class="label">Coupon <?= htmlspecialchars(getTruncatedCCNumber($coupon_code)); ?></span><span><?= store_number_format($coupon_amt); ?></span></div><?php endif; ?>
         <?php if($tot_discount_to_all_amt): ?><div class="total-row"><span class="label">Discount</span><span><?= store_number_format($tot_discount_to_all_amt); ?></span></div><?php endif; ?>
         <div class="total-row"><span class="label">Round Off</span><span><?= store_number_format($round_off); ?></span></div>
+        <?php if($tot_tax_amt): ?><div class="total-row"><span class="label">Tax</span><span><?= store_number_format($tot_tax_amt); ?></span></div><?php endif; ?>
+        <?php if($shipping_fee > 0): ?><div class="total-row"><span class="label">Shipping<?= $shipping_label !== '' ? ' ('.htmlspecialchars($shipping_label).')' : ''; ?></span><span><?= store_number_format($shipping_fee); ?></span></div><?php endif; ?>
         <div class="total-row grand"><span>Paid</span><span><?= store_number_format($paid_amount); ?></span></div>
         <div class="total-row grand" style="color:var(--mp-ink);"><span>Grand Total</span><span><?= store_number_format($grand_total); ?></span></div>
       </div>

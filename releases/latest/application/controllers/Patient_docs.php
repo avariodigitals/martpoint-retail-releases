@@ -149,7 +149,25 @@ class Patient_docs extends MY_Controller {
 			$this->docs->logAccess((int)$id, null, 'denied');
 			$this->_json(array('status' => 'error', 'message' => 'Clinical documents require clinical access')); return;
 		}
-		$this->_json(array('status' => 'success', 'log' => $this->docs->accessLog((int)$id),
-			'versions' => $this->docs->versions((int)$id)));
+		// Plain-English labels and first names — the popup must never show a
+		// raw action code, a MIME token or a login handle.
+		$versions = array();
+		foreach($this->docs->versions((int)$id) as $v){
+			$versions[] = array(
+				'version_label' => 'Version ' . (int)$v->version_no,
+				'file_type'     => mp_file_type_label($v->mime),
+				'by_name'       => mp_name_from_login($v->uploaded_by),
+				'created_at'    => $v->created_at,
+			);
+		}
+		$log = array();
+		foreach($this->docs->accessLog((int)$id) as $l){
+			$log[] = array(
+				'label'      => mp_event_label($l->action),
+				'by_name'    => (int)$l->user_id > 0 ? mp_first_name((int)$l->user_id) : mp_name_from_login($l->username),
+				'created_at' => $l->created_at,
+			);
+		}
+		$this->_json(array('status' => 'success', 'log' => $log, 'versions' => $versions));
 	}
 }

@@ -163,18 +163,20 @@
 
     document.querySelectorAll('[data-del]').forEach(function(btn){
       btn.addEventListener('click', function(){
-        if(!confirm('Remove this machine?')){ return; }
-        var b = this; b.disabled = true;
-        var fd = new FormData();
-        fd.append('id', this.getAttribute('data-del'));
-        fd.append(csrf_token, csrf_hash);
-        mpFetchJson(base_url + 'nylon/machine_delete', { method: 'POST', body: fd })
-          .then(function(d){
-            if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
-            if(d && d.success){ window.location.reload(); }
-            else { showToast(d && d.message ? d.message : 'Could not delete this machine. Please try again.'); b.disabled = false; }
-          })
-          .catch(function(err){ showToast(mpErrorText(err)); b.disabled = false; });
+        mpConfirmAsync('Remove this machine?', { title: 'Remove machine?', okText: 'Remove Machine', danger: true }).then(function(ok){
+          if(!ok) return;
+          var b = btn; b.disabled = true;
+          var fd = new FormData();
+          fd.append('id', b.getAttribute('data-del'));
+          fd.append(csrf_token, csrf_hash);
+          mpFetchJson(base_url + 'nylon/machine_delete', { method: 'POST', body: fd })
+            .then(function(d){
+              if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
+              if(d && d.success){ window.location.reload(); }
+              else { showToast(d && d.message ? d.message : 'Could not delete this machine. Please try again.'); b.disabled = false; }
+            })
+            .catch(function(err){ showToast(mpErrorText(err)); b.disabled = false; });
+        });
       });
     });
   </script>

@@ -779,6 +779,26 @@ class Patient_funds_model extends CI_Model {
 	}
 
 	/**
+	 * Remove an opening position that never posted anything. Only entered or
+	 * rejected positions may go: an approved one has already moved money and
+	 * entitlements, and history stays visible instead.
+	 */
+	public function deleteOpening($posId){
+		$pos = $this->openingPosition($posId);
+		if(!$pos) return array('ok' => false, 'error' => 'Opening position not found');
+		if(!in_array($pos->status, array('entered','rejected'))){
+			return array('ok' => false, 'error' => 'Only a position that has not been approved can be deleted');
+		}
+		$this->db->trans_begin();
+		$this->db->where('position_id', $pos->id)->where('store_id', $pos->store_id)
+			->delete('db_opening_position_items');
+		$this->db->where('id', $pos->id)->where('store_id', $pos->store_id)
+			->delete('db_opening_positions');
+		$this->db->trans_commit();
+		return array('ok' => true);
+	}
+
+	/**
 	 * Approve a reviewed position — the ONLY posting path for migrated
 	 * balances. Approver ≠ enterer. Per item:
 	 *   unused_sessions → db_plan_entitlements (source 'migration')

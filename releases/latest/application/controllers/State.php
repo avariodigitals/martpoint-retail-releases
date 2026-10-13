@@ -6,6 +6,7 @@ class State extends MY_Controller {
 		parent::__construct();
 		$this->load_global();
 		$this->load->model('state_model','state');
+		$this->permission_check('states_view');
 	}
 
 	public function index(){

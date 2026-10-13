@@ -11,9 +11,7 @@ class Subscription_license extends MY_Controller {
 	/* ================= SUPER ADMIN ONLY ================= */
 
 	public function index(){
-		if(!special_access()){
-			redirect('dashboard','refresh');
-		}
+		$this->permission_check('license_management');
 		$this->load->model('subscription_license_model','license');
 		$data = $this->data;
 		$data['license'] = $this->license->get_by_store();
@@ -32,9 +30,7 @@ class Subscription_license extends MY_Controller {
 	}
 
 	public function activate_form(){
-		if(!special_access()){
-			redirect('dashboard','refresh');
-		}
+		$this->permission_check('license_management');
 		$this->load->model('subscription_license_model','license');
 		$data = $this->data;
 		$data['license'] = $this->license->get_by_store();
@@ -44,9 +40,7 @@ class Subscription_license extends MY_Controller {
 	}
 
 	public function usage(){
-		if(!special_access()){
-			redirect('dashboard','refresh');
-		}
+		$this->permission_check('license_management');
 		$this->load->model('subscription_license_model','license');
 		$data = $this->data;
 		$data['license'] = $this->license->get_by_store();
@@ -65,10 +59,7 @@ class Subscription_license extends MY_Controller {
 	/* ----- Request OTP (AJAX) ----- */
 
 	public function request_otp(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 		$store_id = get_current_store_id();
 		$type = $this->input->post('otp_type') ?: 'generate';
@@ -106,10 +97,7 @@ class Subscription_license extends MY_Controller {
 	/* ----- Generate License Key (AJAX) ----- */
 
 	public function generate_license(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 
 		$plan_name = $this->input->post('plan_name');
 		$start_date = $this->input->post('subscription_start_date');
@@ -177,10 +165,7 @@ class Subscription_license extends MY_Controller {
 	/* ----- Activate Subscription (decode license key) ----- */
 
 	public function save_activation(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 
 		$license_code = trim($this->input->post('license_code'));
@@ -257,10 +242,7 @@ class Subscription_license extends MY_Controller {
 	/* ----- Extend / Renew Subscription ----- */
 
 	public function extend(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 
 		$license_code = trim($this->input->post('license_code'));
@@ -343,10 +325,7 @@ class Subscription_license extends MY_Controller {
 	}
 
 	public function suspend(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 		$store_id = get_current_store_id();
 		$reason = $this->input->post('reason');
@@ -362,10 +341,7 @@ class Subscription_license extends MY_Controller {
 	}
 
 	public function reactivate(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 		$store_id = get_current_store_id();
 		$this->license->save([
@@ -379,10 +355,7 @@ class Subscription_license extends MY_Controller {
 	/* ----- Deactivate History License (AJAX) ----- */
 
 	public function get_plan_preset(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$plan_code = $this->input->post('plan_code', TRUE);
 		if(empty($plan_code)){
 			echo json_encode(['status'=>'error','message'=>'Plan code required']);
@@ -415,10 +388,7 @@ class Subscription_license extends MY_Controller {
 	}
 
 	public function update_limits(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 		$store_id = get_current_store_id();
 
@@ -500,10 +470,7 @@ class Subscription_license extends MY_Controller {
 	}
 
 	public function deactivate_history(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('subscription_license_model','license');
 		$history_id = (int) $this->input->post('history_id');
 		if($this->license->deactivate_license($history_id)){
@@ -650,10 +617,7 @@ class Subscription_license extends MY_Controller {
 	 * Test email provider diagnostics (AJAX)
 	 */
 	public function test_email(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('license_management');
 		$this->load->model('email_service');
 		$this->load->model('email_settings_model');
 

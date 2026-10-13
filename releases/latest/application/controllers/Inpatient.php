@@ -13,10 +13,20 @@ class Inpatient extends MY_Controller {
 		parent::__construct();
 		$this->load_global();
 		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
-		if(!physio_enabled() || !physio_can_any(array(
+		// Two different failures deserve two different explanations: the store
+		// has not turned clinical care on, or this user's role lacks the keys.
+		// Both used to land on the same dead "Access Denied" page.
+		if(!physio_enabled()){
+			$this->show_feature_not_activated('inpatient_care',
+				'Admissions, wards and beds belong to the Physiotherapy & Rehabilitation setup. Switch this store to that business type to use them.');
+			return;
+		}
+		if(!physio_can_any(array(
 			'admissions_view','admissions_manage','nursing_tasks_view','porter_tasks_view',
 			'meals_view','daily_billing_view','referrals_view','discharge_decide','deceased_record'))){
-			$this->show_access_denied_page(); return;
+			$this->show_access_denied_page(
+				'Your role cannot open the ward screens yet. An administrator needs to grant the Admissions permissions on the Roles screen.');
+			return;
 		}
 		$this->load->model('inpatient_model', 'ipd');
 		$this->load->model('patients_model', 'patients');
@@ -36,10 +46,14 @@ class Inpatient extends MY_Controller {
 
 	/** Admissions register. */
 	public function index(){
-		physio_require('admissions_view');
+		if(!physio_can('admissions_view')){
+			$this->show_access_denied_page('Your role cannot open the Admissions register yet. An administrator needs to grant the Admissions permission on the Roles screen.');
+			return;
+		}
 		$data = array_merge($this->data, array(
 			'page_title'  => 'Admissions',
 			'admissions'  => $this->ipd->admissions('all'),
+			'pending'     => $this->ipd->pendingAdmissions(),
 			'patients'    => $this->patients->getPatients(),
 			'beds'        => $this->ipd->availableBeds(),
 			'can'         => array(
@@ -118,10 +132,24 @@ class Inpatient extends MY_Controller {
 		$admIds = array();
 		foreach($board['beds'] as $b){ if($b->admission_id) $admIds[] = (int)$b->admission_id; }
 		$taskSummary = $this->ipd->bedTaskSummary($admIds);
+		// Resolve what each bed bills at (own override → category → fallback) and
+		// stamp the same rate on each room, so the Bed Board can show real prices.
+		foreach($board['beds'] as $b){
+			$rr = $this->ipd->resolveBedRate($b);
+			$b->eff_rate = $rr['rate']; $b->rate_source = $rr['source']; $b->rate_label = $rr['label'];
+		}
+		$rateMap = $this->ipd->currentBedRates();
+		$rooms = $this->ipd->rooms();
+		foreach($rooms as $rm){
+			$cid = (int)$rm->room_class_id;
+			$rm->eff_rate = isset($rateMap['by_class'][$cid]) ? $rateMap['by_class'][$cid] : $rateMap['fallback'];
+		}
 		$data = array_merge($this->data, array(
 			'page_title' => 'Bed Board',
 			'wards'      => $board['wards'],
 			'beds'       => $board['beds'],
+			'rooms'      => $rooms,
+			'fallback_rate' => $rateMap['fallback'],
 			'task_summary' => $taskSummary,
 			'can'        => array(
 				'manage' => physio_can('beds_manage'),
@@ -198,10 +226,17 @@ class Inpatient extends MY_Controller {
 	public function billing_setup(){
 		physio_require('daily_billing_view');
 		$data = array_merge($this->data, array(
-			'page_title' => 'Inpatient Billing Setup',
-			'rates'      => $this->ipd->rates(),
-			'policies'   => $this->ipd->policies(),
-			'can'        => array('run' => physio_can('daily_billing_run')),
+			'page_title'   => 'Inpatient Billing Setup',
+			'rates'        => $this->ipd->rates(),
+			'policies'     => $this->ipd->policies(),
+			'room_classes' => $this->ipd->roomClasses(),
+			'rooms'        => $this->ipd->rooms(),
+			'wards'        => $this->ipd->wards(),
+			'admissions'   => $this->ipd->admissions('active'),
+			'can'          => array(
+				'run'   => physio_can('daily_billing_run'),
+				'rooms' => physio_can('beds_manage'),
+			),
 		));
 		$data['content'] = $this->load->view('inpatient/billing_setup', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -214,6 +249,8 @@ class Inpatient extends MY_Controller {
 		$r = $this->ipd->admit((int)$this->input->post('patient_id'), array(
 			'reason'            => $this->input->post('reason', TRUE),
 			'care_plan'         => $this->input->post('care_plan', TRUE),
+			'episode_id'        => $this->input->post('episode_id'),
+			'treatment_plan_id' => $this->input->post('treatment_plan_id'),
 			'clinician_user_id' => $this->input->post('clinician_user_id'),
 			'bed_id'            => $this->input->post('bed_id'),
 			'admitted_at'       => $this->input->post('admitted_at'),
@@ -221,6 +258,16 @@ class Inpatient extends MY_Controller {
 			'outpatient_decision_note' => $this->input->post('outpatient_decision_note', TRUE),
 		));
 		$this->_result($r, 'Patient admitted');
+	}
+
+	/**
+	 * Fill in the New Admission form from what the clinic already knows:
+	 * the physio's assessment remark, the bed already on the bill, the patient's
+	 * treatment plans, prepaid sessions left and the emergency contact.
+	 */
+	public function admit_context($patientId = 0){
+		if(!physio_can('admissions_manage')){ $this->_deny(); return; }
+		$this->_json($this->ipd->admitContext((int)$patientId));
 	}
 
 	// ============================== BEDS / TRANSFER / PORTER ==============================
@@ -231,7 +278,35 @@ class Inpatient extends MY_Controller {
 	}
 	public function save_bed(){
 		if(!physio_can('beds_manage')){ $this->_deny(); return; }
-		$this->_result($this->ipd->saveBed((int)$this->input->post('ward_id'), $this->input->post('label', TRUE), $this->input->post('daily_rate')), 'Bed saved');
+		$this->_result($this->ipd->saveBed((int)$this->input->post('ward_id'), $this->input->post('label', TRUE),
+			$this->input->post('daily_rate'), $this->input->post('room_id')), 'Bed saved');
+	}
+	public function update_bed(){
+		if(!physio_can('beds_manage')){ $this->_deny(); return; }
+		$this->_result($this->ipd->updateBed((int)$this->input->post('bed_id'), $this->input->post('label', TRUE),
+			$this->input->post('daily_rate'), $this->input->post('room_id')), 'Bed updated');
+	}
+	public function save_room_class(){
+		if(!physio_can_any(array('beds_manage','daily_billing_run'))){ $this->_deny(); return; }
+		$this->_result($this->ipd->saveRoomClass(
+			$this->input->post('class_name', TRUE), $this->input->post('class_code', TRUE),
+			$this->input->post('description', TRUE), (int)$this->input->post('room_class_id') ?: null), 'Room category saved');
+	}
+	public function seed_room_classes(){
+		if(!physio_can_any(array('beds_manage','daily_billing_run'))){ $this->_deny(); return; }
+		$r = $this->ipd->seedDefaultRoomClasses();
+		$this->_result($r, "Room categories ready ({$r['added']} added)");
+	}
+	public function save_room(){
+		if(!physio_can('beds_manage')){ $this->_deny(); return; }
+		$this->_result($this->ipd->saveRoom((int)$this->input->post('ward_id'),
+			(int)$this->input->post('room_class_id'), $this->input->post('room_label', TRUE),
+			(int)$this->input->post('capacity') ?: 1, $this->input->post('notes', TRUE),
+			(int)$this->input->post('room_id') ?: null), 'Room saved');
+	}
+	public function assign_bed_room(){
+		if(!physio_can('beds_manage')){ $this->_deny(); return; }
+		$this->_result($this->ipd->assignBedRoom((int)$this->input->post('bed_id'), $this->input->post('room_id')), 'Bed updated');
 	}
 	public function request_transfer($admId = 0){
 		if(!physio_can('admissions_manage')){ $this->_deny(); return; }
@@ -307,7 +382,8 @@ class Inpatient extends MY_Controller {
 		if(!physio_can('daily_billing_run')){ $this->_deny(); return; }
 		$this->_result($this->ipd->saveRate($this->input->post('rate_code', TRUE),
 			$this->input->post('name', TRUE), $this->input->post('amount'),
-			$this->input->post('effective_from') ?: date('Y-m-d')), 'Rate saved — new version effective');
+			$this->input->post('effective_from') ?: date('Y-m-d'),
+			$this->input->post('room_class_id')), 'Rate saved — new version effective');
 	}
 	public function save_policy(){
 		if(!physio_can('daily_billing_run')){ $this->_deny(); return; }
@@ -330,6 +406,15 @@ class Inpatient extends MY_Controller {
 		$date = $this->input->post('date') ?: date('Y-m-d');
 		$r = $this->ipd->postDailyCharges(get_current_store_id(), $date);
 		$this->_json(array('status'=>'success','message'=>"Charges posted: {$r['posted']}, already posted: {$r['skipped']}, wallet settled: " . number_format($r['settled'],2)));
+	}
+	/** Bill one admission's room for a chosen number of days — the manual run. */
+	public function bill_days(){
+		if(!physio_can('daily_billing_run')){ $this->_deny(); return; }
+		$admId = (int)$this->input->post('admission_id');
+		if(!$admId || !$this->ipd->getAdmission($admId)){ $this->_json(array('status'=>'error','message'=>'Choose an admission')); return; }
+		$r = $this->ipd->billAdmissionDays($admId, (int)$this->input->post('days'), $this->input->post('to_date'));
+		if(empty($r['ok'])){ $this->_json(array('status'=>'error','message'=>$r['error'] ?? 'Could not bill those days')); return; }
+		$this->_json(array('status'=>'success','message'=>"Room billed: {$r['posted']} day(s) posted, {$r['skipped']} already billed, wallet settled: " . number_format($r['settled'],2)));
 	}
 
 	// ============================== REFERRALS ==============================

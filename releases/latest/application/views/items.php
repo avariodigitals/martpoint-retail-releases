@@ -349,7 +349,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 <div class="mp-card-form">
   <div class="mp-card-head"><h3><?= $is_plant ? 'Material / Product Identity' : 'Basic Information'; ?></h3></div>
   <div class="mp-card-body">
-    <?php if($is_plant): ?><p class="mp-form-hint" style="margin:0 0 18px;">Use this catalogue for raw materials, finished oil, machine spares, and packaging. The part code below appears in the quotation item picker and on printed quotations.</p><?php endif; ?>
+    <?php if($is_plant): ?><p class="mp-form-hint" style="margin:0 0 18px;">Use this catalogue for raw materials, finished oil, machine spares, and packaging. The <?= htmlspecialchars(mp_label('sku')) ?> below appears in the quotation item picker and on printed quotations.</p><?php endif; ?>
     <div class="mp-form-grid">
       <div class="mp-form-group full">
         <label for="item_name"><?= $is_plant ? 'Material / Product / Spare Part Name' : mp_label('item').' Name'; ?> <span class="text-danger">*</span></label>
@@ -359,7 +359,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
       <div class="mp-form-group">
         <label for="item_code"><?= $is_plant ? 'Part / Material Code' : mp_label('item').' Code'; ?> <span class="text-danger">*</span></label>
         <input class="mp-form-control" id="item_code" name="item_code" type="text" value="<?php print htmlspecialchars($item_code); ?>" <?= $is_plant ? 'placeholder="e.g. G11, FP-01, EK-200K"' : ''; ?>>
-        <?php if($is_plant): ?><p class="mp-form-hint">Replace the suggested code with the supplier or machine part number when available. This is the code shown on quotations.</p><?php endif; ?>
+        <?php if($is_plant): ?><p class="mp-form-hint">Replace the suggested code with the supplier or machine part number when available. The <?= htmlspecialchars(mp_label('sku')) ?> below is shown on quotations.</p><?php endif; ?>
         <span id="item_code_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
@@ -368,7 +368,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="custom_barcode_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="sku"><?= $is_plant ? 'Internal stock code (optional)' : $this->lang->line('sku'); ?></label>
+        <label for="sku"><?= htmlspecialchars(mp_label('sku')) ?> (optional)</label>
         <input class="mp-form-control" id="sku" name="sku" placeholder="Stock keeping unit" type="text" value="<?php print htmlspecialchars($sku); ?>">
         <span id="sku_msg" style="display:none" class="text-danger"></span>
       </div>

@@ -57,7 +57,17 @@
         <b style="color:var(--mp-text);"><?= htmlspecialchars($patient->customer_name ?? ''); ?></b> · <?= htmlspecialchars($patient->patient_code ?? ''); ?> · <?= str_replace('_',' ',$enc->queue_stage); ?>
       </p>
 
-      <?php if(physio_can('vitals_view')): ?>
+      <?php if(!empty($business_only)): ?>
+      <div class="card" style="background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF;font-size:12px;">
+        <i class="fa fa-briefcase"></i> Business view — bills and payments only. Clinical records are not shown to finance.
+      </div>
+      <?php elseif($enc->queue_stage === 'waiting_nurse'): ?>
+      <div class="card" style="background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF;font-size:12px;">
+        <i class="fa fa-user-plus"></i> Check-in desk — register and bill the patient here. Vitals and visit history begin at Nursing Intake.
+      </div>
+      <?php endif; ?>
+
+      <?php if(!empty($show_clinical) && physio_can('vitals_view')): ?>
       <div class="card">
         <h4>Nursing Intake — Vitals</h4>
         <?php foreach($vitals_sets as $vs): ?>
@@ -115,7 +125,7 @@
       </div>
       <?php endif; ?>
 
-      <?php if(physio_can('assessments_view')): ?>
+      <?php if(!empty($show_clinical) && physio_can('assessments_view')): ?>
       <div class="card">
         <h4>Assessments</h4>
         <?php foreach($assessments as $a): ?>
@@ -126,7 +136,7 @@
       </div>
       <?php endif; ?>
 
-      <?php if(physio_can('investigations_view')): ?>
+      <?php if(!empty($show_clinical) && physio_can('investigations_view')): ?>
       <div class="card">
         <h4>Investigations</h4>
         <?php foreach($investigations as $i): ?>
@@ -137,7 +147,7 @@
       </div>
       <?php endif; ?>
 
-      <?php if($can['docs_upload'] || physio_can('patient_docs_view')): ?>
+      <?php if(!empty($show_clinical) && ($can['docs_upload'] || physio_can('patient_docs_view'))): ?>
       <div class="card">
         <h4>Consents &amp; Documents</h4>
         <?php foreach($consents as $c): ?>
@@ -184,12 +194,12 @@
       });
       if(i === 0){ mpError('Enter at least one vital or mark it not measured'); return; }
       mpFetchJson('<?= base_url('mobile/care_vitals/'); ?>' + ENC_ID, { method: 'POST', body: fd })
-        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError((d && d.message) || 'Failed'); } });
+        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError((d && (d.message || d.error)) || 'Failed'); } });
     }
     function intakeDone(){
       var fd = new FormData(); fd.append(CSRF_NAME, CSRF_HASH);
       mpFetchJson('<?= base_url('mobile/care_intake_complete/'); ?>' + ENC_ID, { method: 'POST', body: fd })
-        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError((d && d.message) || 'Failed'); } });
+        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError((d && (d.message || d.error)) || 'Failed'); } });
     }
   </script>
 </body>

@@ -91,7 +91,7 @@ $patientTerm = mp_label('customer');
     <div class="greeting">Hello <?= htmlspecialchars($display_name ?? 'there'); ?> · <?= date('D, d M Y'); ?></div>
 
     <?php if(!empty($acc['queue'])): ?>
-    <a class="hero" href="<?= base_url('mobile/care_queue'); ?>">
+    <a class="hero" href="<?= base_url(isset($c['queue_url']) ? $c['queue_url'] : 'mobile/care_queue'); ?>">
       <span class="icon"><i class="fa fa-list-ol"></i></span>
       <span class="text">
         <span class="title"><?= (int)($c['queue_total'] ?? 0); ?> in care queue</span>
@@ -158,8 +158,9 @@ $patientTerm = mp_label('customer');
       </a>
       <?php endif; ?>
       <?php if(!empty($commercial)): ?>
-      <div class="kpi money"><div class="label">Patient billing today</div><div class="value"><?= htmlspecialchars(mp_format_money($commercial['billed_today'])); ?></div><div class="sub"><?= (int)$commercial['invoices_today']; ?> final bills</div></div>
-      <div class="kpi money"><div class="label">Payments today</div><div class="value"><?= htmlspecialchars(mp_format_money($commercial['collected_today'])); ?></div><div class="sub">Received against final bills</div></div>
+      <?php $mPeriodLabel = htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?>
+      <div class="kpi money"><div class="label">Patient billing · <?= $mPeriodLabel; ?></div><div class="value"><?= htmlspecialchars(mp_format_money($commercial['billed_today'])); ?></div><div class="sub"><?= (int)$commercial['invoices_today']; ?> final bills</div></div>
+      <div class="kpi money"><div class="label">Payments · <?= $mPeriodLabel; ?></div><div class="value"><?= htmlspecialchars(mp_format_money($commercial['collected_today'])); ?></div><div class="sub">Received against final bills</div></div>
       <div class="kpi wide<?= $commercial['overdue_invoices'] ? ' alert' : ''; ?>"><div class="label">Overdue patient bills</div><div class="value"><?= (int)$commercial['overdue_invoices']; ?></div><div class="sub">Past due date with an unpaid balance</div></div>
       <?php endif; ?>
     </div>

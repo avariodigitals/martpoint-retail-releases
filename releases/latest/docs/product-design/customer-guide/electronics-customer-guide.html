@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Electronics Store - MartPoint Customer Guide</title>
+<link rel="stylesheet" href="../martpoint-brand.css">
+<style>
+  .section-head { margin-bottom: calc(var(--space)*2); }
+  .screen-card { border: 1px solid var(--stroke); border-radius: 12px; padding: calc(var(--space)*2); margin-bottom: calc(var(--space)*2); }
+  .screen-card .card-title { font-weight: 700; margin-bottom: 6px; }
+  .field-list { display: grid; gap: 8px; margin-top: 8px; }
+  .field { border-left: 3px solid var(--brand); padding-left: 10px; }
+  .field .lbl { font-weight: 700; font-size: 13px; }
+  .field .val { font-size: 12.5px; color: var(--muted); }
+  .blend-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .blend-table th, .blend-table td { border-bottom: 1px solid var(--stroke); padding: 6px 8px; text-align: left; }
+  .blend-table thead th { background: var(--wash); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .chat { display: grid; gap: 10px; margin-top: 8px; }
+  .chat-bubble { border-radius: 12px; padding: 10px 12px; font-size: 12.5px; }
+  .chat-left { background: var(--wash); border: 1px solid var(--stroke); }
+  .chat-right { background: #111; color: #fff; justify-self: end; max-width: 80%; }
+  .chat-avatar { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .tip { border-left: 3px solid var(--brand); padding-left: 10px; margin: calc(var(--space)*2) 0; }
+  .next { border-top: 1px solid var(--stroke); padding-top: calc(var(--space)*1.5); margin-top: calc(var(--space)*2); font-size: 12.5px; color: var(--muted); }
+  .do-dont { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-top: calc(var(--space)*2); }
+  .do-dont h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; }
+  .do, .dont { border: 1px solid var(--stroke); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; }
+  .do { background: #f6fbf7; }
+  .dont { background: #fff7f7; }
+  .screen-flow { display: grid; gap: 8px; }
+  .flow-step { border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+  .flow-step .gate { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; background: #fef4e6; color: #b4650b; margin-left: 6px; }
+  .path-card { border: 1px solid var(--stroke); border-radius: 12px; padding: calc(var(--space)*2); }
+  .path-card .path-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 3px 10px; margin-bottom: 6px; }
+  .path-1 .path-badge { background: #eafaf1; color: #148f55; }
+  .path-2 .path-badge { background: #fef4e6; color: #b4650b; }
+  .path-3 .path-badge { background: #efe8fd; color: #6b3ecb; }
+  .role-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .role-table th, .role-table td { border-bottom: 1px solid var(--stroke); padding: 8px; text-align: left; vertical-align: top; }
+  .role-table thead th { background: var(--wash); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .glossary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .glossary-table td { border-bottom: 1px solid var(--stroke); padding: 6px 8px; vertical-align: top; }
+  .glossary-table td:first-child { font-weight: 700; width: 32%; }
+  @media print { .document { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Electronics Store</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>PrimeVolt Electronics</h1>
+        <p>Phones and laptops sold by serial and IMEI, accessories sold by the pack, resellers on wholesale terms, warranty claims handled at the counter, and an online shop that never closes. Every screen, every role, field by field.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Start here</span>
+      <h2>The three ways PrimeVolt earns</h2>
+      <p class="lead">An electronics shop is not one business. The retail floor sells phones and laptops one unit at a time &mdash; each with its own serial or IMEI and warranty. The accessories shelf moves cables, chargers and cases in packs. And resellers buy cartons at wholesale. MartPoint&rsquo;s Electronics profile supports all three at once.</p>
+    </div>
+    <div class="screen-card path-1">
+      <span class="path-badge">Line A &mdash; Serialized retail</span>
+      <div class="card-title">Phones, laptops, TVs &mdash; sold unit by unit</div>
+      <p class="small">Every iPhone, MacBook and TV has a <strong>serial number or IMEI</strong> and a warranty. MartPoint tracks each physical unit individually: captured when the supplier delivers, scanned when the customer buys, looked up when they return with a claim.</p>
+    </div>
+    <div class="screen-card path-2">
+      <span class="path-badge">Line B &mdash; Accessories volume</span>
+      <div class="card-title">Cables, chargers, cases &mdash; sold by the pack</div>
+      <p class="small">Low-ticket items nobody serializes. They sell in singles, packs and cartons &mdash; stock counts in pieces, the till sells in declared pack sizes at pack prices.</p>
+    </div>
+    <div class="screen-card path-3">
+      <span class="path-badge">Line C &mdash; Wholesale &amp; online</span>
+      <div class="card-title">Resellers on account, plus a 24/7 online shop</div>
+      <p class="small">Smaller shops buy cartons at wholesale price on credit terms through invoices; the online store sells the same catalogue through the <strong>Tech Hub</strong> theme while the shop is shut.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The whole picture</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Set up</strong> categories, brands, serialized and bulk products, branches, staff <em>(once)</em></div>
+        <div class="flow-step"><strong>Buy</strong> &mdash; supplier receipts capture serial/IMEI per unit and accessory quantities by carton</div>
+        <div class="flow-step"><strong>Sell</strong> &mdash; POS scans the unit&rsquo;s serial, receipt prints the warranty; resellers invoice at wholesale</div>
+        <div class="flow-step"><strong>Support</strong> &mdash; warranty claims looked up by serial, replacements tracked</div>
+        <div class="flow-step"><strong>Ship</strong> &mdash; online orders fulfil from a chosen branch, delivered by city fees</div>
+        <div class="flow-step"><strong>Watch</strong> &mdash; serialized stock, low stock, warranty register, margin by brand</div>
+      </div>
+    </div>
+    <div class="tip"><strong>Enable the profile:</strong> <em>Settings &rarr; Business Profile &rarr; Electronics Store</em> (or <em>Gadget Store</em> / <em>Computer Store</em> &mdash; the cousins). On save the storefront takes the <strong>Tech Hub</strong> theme, the dashboard switches to the electronics template, and <strong>Serial Number</strong> / <strong>IMEI</strong> fields appear wherever they matter &mdash; product forms, purchase rows, the POS sale and the warranty register. This guide uses those words throughout.</div>
+    <div class="screen-card">
+      <div class="card-title">What you set up on day one</div>
+      <table class="blend-table">
+        <thead><tr><th>Building block</th><th>Examples at PrimeVolt</th></tr></thead>
+        <tbody>
+          <tr><td>Categories</td><td>Phones &middot; Laptops &middot; TVs &amp; Home Theatre &middot; Audio &middot; Accessories &middot; Power &amp; Solar</td></tr>
+          <tr><td>Brands</td><td>Apple, Samsung, Tecno, HP, LG, Sony, Anker, Oraimo</td></tr>
+          <tr><td>Suppliers</td><td>The distributor you actually buy from &mdash; <code>Stellar Devices Ltd</code>, <code>Naija Gadgets Wholesale</code></td></tr>
+          <tr><td>Branches</td><td><code>Showroom Floor</code> for selling, <code>Stockroom</code> for bulk holding &mdash; stock transfers move goods between them</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> the product records &mdash; serialized and bulk.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 1</span>
+      <h2>Products: serialized vs bulk</h2>
+      <p class="lead"><em>Catalog &rarr; Product List &rarr; Add Product.</em> The single most important decision on this screen is whether the item is <strong>tracked by serial/IMEI</strong>. Everything else follows from that.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Add a serialized product &middot; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Item Type</div><div class="val"><code>Item</code> &mdash; physical stock</div></div>
+        <div class="field"><div class="lbl">Product Name</div><div class="val"><code>iPhone 15 &mdash; 128GB, Black</code> &mdash; put storage, RAM and colour in the name; &ldquo;iPhone 15&rdquo; alone is four different products</div></div>
+        <div class="field"><div class="lbl">Product Code / SKU / Barcode</div><div class="val"><code>IPH15-128-BLK</code> &mdash; your own code; the box barcode scans here if the distributor prints one</div></div>
+        <div class="field"><div class="lbl">Brand / Category</div><div class="val"><code>Apple</code> &middot; <code>Phones</code> &mdash; the brand also powers margin-by-brand reports and the online store&rsquo;s brand row</div></div>
+        <div class="field"><div class="lbl">Base / Stock Unit</div><div class="val"><code>Piece</code> &mdash; always. One unit = one physical device</div></div>
+        <div class="field"><div class="lbl">Serial / IMEI tracking</div><div class="val"><strong>On</strong> &mdash; each unit gets its own identity. IMEI for phones and cellular devices; serial number for laptops, TVs and anything else with a printed serial</div></div>
+        <div class="field"><div class="lbl">Warranty Period</div><div class="val"><code>12 months</code> &mdash; starts counting on the sale date and prints on the receipt; the warranty register reads it</div></div>
+        <div class="field"><div class="lbl">Purchase Price / Sale Price / MRP</div><div class="val"><code>1,180,000</code> &middot; <code>1,295,000</code> &middot; <code>1,350,000</code> &mdash; MRP shows as the strike-through on the online store</div></div>
+        <div class="field"><div class="lbl">Wholesale Price</div><div class="val"><code>1,210,000</code> &mdash; what the reseller pays; the POS wholesale button and account invoices use it without negotiation</div></div>
+        <div class="field"><div class="lbl">Opening Stock / Alert Qty</div><div class="val"><code>0</code> &mdash; phones enter through purchases so every unit gets its serial captured &middot; alert <code>3</code> (you always want a few in hand)</div></div>
+        <div class="field"><div class="lbl">Product Image &amp; Description</div><div class="val">Clean photo + honest spec description &mdash; this is what the online store shows</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Add a bulk product &mdash; same screen, different answers</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Product Name</div><div class="val"><code>Anker USB-C Cable 1m</code> &mdash; no serial needed; a cable is a cable</div></div>
+        <div class="field"><div class="lbl">Serial / IMEI tracking</div><div class="val"><strong>Off</strong> &mdash; quantity tracking only</div></div>
+        <div class="field"><div class="lbl">Purchase / Sale Price</div><div class="val"><code>1,800</code> &middot; <code>3,500</code></div></div>
+        <div class="field"><div class="lbl">Selling Units</div><div class="val"><code>Pack of 10</code> at <code>32,000</code> (reseller rate) &middot; <code>Carton of 50</code> at <code>150,000</code> &mdash; stock always counts in pieces; customers buy in declared packs</div></div>
+        <div class="field"><div class="lbl">Opening Stock</div><div class="val">Type it once for what you already own &mdash; restocks after day one go through Purchases</div></div>
+      </div>
+    </div>
+    <div class="do-dont">
+      <div>
+        <h4>Do</h4>
+        <div class="do">Serialize <strong>everything a customer might claim warranty on</strong> &mdash; phones, laptops, TVs, generators, premium audio. The serial is your proof of what was sold and when.</div>
+      </div>
+      <div>
+        <h4>Don&rsquo;t</h4>
+        <div class="dont">Don&rsquo;t serialize accessories &mdash; twenty minutes spent typing cable serials buys you nothing but a slower receipt.</div>
+      </div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> branches, price lists and who may do what.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 2</span>
+      <h2>Branches, price lists &amp; roles</h2>
+      <p class="lead">PrimeVolt sells from the showroom but holds bulk stock at the back. And not everyone at the till may give discounts or see costs.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Branches &mdash; where stock lives</div>
+      <table class="blend-table">
+        <thead><tr><th>Branch</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td><code>Showroom Floor</code></td><td>What POS and the online store sell from &mdash; display units and ready stock</td></tr>
+          <tr><td><code>Stockroom</code></td><td>Bulk cartons, sealed units awaiting display, slow movers</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">When Ngozi unpacks a carton for display, she runs a <strong>stock transfer</strong> Stockroom &rarr; Showroom. The dashboard&rsquo;s per-branch stock always answers &ldquo;where is it?&rdquo; &mdash; a phone shows as Showroom only when it physically sits on the floor.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Price Catalogue &mdash; your printed/loaned price list</div>
+      <p class="small">The profile enables the <strong>Price Catalogue</strong>: a clean sell-price listing customers can be shown or handed &mdash; the modern replacement for the laminated price board. Keep it current and the floor team always quotes the same number.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Roles &amp; permissions &mdash; who touches what</div>
+      <table class="role-table">
+        <thead><tr><th>Permission</th><th>Allows</th><th>Typical role at PrimeVolt</th></tr></thead>
+        <tbody>
+          <tr><td><code>sales_add / items_view</code></td><td>POS and invoices</td><td>Chidi &mdash; sales rep</td></tr>
+          <tr><td><code>purchase_add / purchase_view</code></td><td>Supplier orders and receipts</td><td>Ngozi &mdash; stock control</td></tr>
+          <tr><td><code>stock_transfer / stock_adjustment</code></td><td>Move and correct stock between branches</td><td>Ngozi only</td></tr>
+          <tr><td><code>sales_return_add</code></td><td>Process returns</td><td>Chidi, with manager sign-off</td></tr>
+          <tr><td><code>manager_approvals</code></td><td>Approves discounts above the set limit</td><td>Kelechi &mdash; owner</td></tr>
+          <tr><td><code>online_store_view / _edit / _orders</code></td><td>Storefront content and order fulfilment</td><td>Kelechi / Chidi</td></tr>
+          <tr><td><code>reports</code> group</td><td>Margin, stock and sales reports</td><td>Kelechi</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">The discount guard is the one to set on day one: reps can discount up to your configured limit &mdash; anything deeper routes to the owner&rsquo;s <strong>Pending Approvals</strong> queue before the sale completes.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Chidi &middot; Sales rep</div><div class="chat-bubble">Customer wants &#8358;50,000 off the MacBook &mdash; my limit is &#8358;15,000.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Send it through &mdash; it waits in my approvals queue. I approve from my phone and you complete the sale. Or I don&rsquo;t, and the price stands.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> receiving stock &mdash; where serials and IMEIs enter.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Procurement</span>
+      <h2>Purchases &mdash; serials enter here</h2>
+      <p class="lead"><em>Purchases &rarr; New Purchase.</em> A shipment of ten phones is ten individual units, not &ldquo;quantity 10&rdquo;. The receipt is where each one gets its identity.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">New Purchase &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Supplier</div><div class="val"><code>Stellar Devices Ltd</code> &mdash; their invoice number goes on the record too</div></div>
+        <div class="field"><div class="lbl">Purchase Status</div><div class="val"><code>Received</code> adds stock now &mdash; <em>Ordered / Draft</em> hold the order without touching stock; <em>Partially Received</em> posts only what arrived</div></div>
+        <div class="field"><div class="lbl">Branch (Warehouse)</div><div class="val"><code>Stockroom</code> for bulk inbound; transfer to Showroom as you display</div></div>
+        <div class="field"><div class="lbl">Items &mdash; serialized line</div><div class="val">iPhone 15 128GB Black &times;<code>10</code> @ &#8358;1,180,000. On the serial/IMEI row beneath, enter <strong>each unit&rsquo;s IMEI</strong> (or serial) &mdash; scan or type from the box labels. Ten units = ten identities</div></div>
+        <div class="field"><div class="lbl">Items &mdash; bulk line</div><div class="val">Anker USB-C Cable 1m &times;<code>200</code> @ &#8358;1,800 &mdash; quantity only, no identity row</div></div>
+        <div class="field"><div class="lbl">Payment</div><div class="val">Paid now or on account &mdash; the supplier balance tracks through supplier payments as usual</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Why the serial row matters at receipt</div>
+      <table class="blend-table">
+        <thead><tr><th>You capture</th><th>MartPoint uses it for</th></tr></thead>
+        <tbody>
+          <tr><td>Serial / IMEI per unit</td><td>Which exact device went to which customer on which date &mdash; the answer to every &ldquo;is this ours?&rdquo;</td></tr>
+          <tr><td>Unit cost on the same row</td><td>True cost basis per unit &mdash; a discounted supplier batch doesn&rsquo;t blur the margin on older stock</td></tr>
+          <tr><td>Missing-swap protection</td><td>A &ldquo;returned&rdquo; phone whose IMEI never shipped from you can&rsquo;t be argued &mdash; it simply isn&rsquo;t in the register</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip"><strong>Serialized stock position:</strong> after the receipt posts, <em>Product List</em> shows iPhone 15 128GB Black with <code>10</code> in stock &mdash; and the serial register lists all ten identities. A sale can only complete when the rep picks which physical unit leaves.</div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Ngozi &middot; Stock control</div><div class="chat-bubble">Distributor sent 10 iPhones but one box has no IMEI printed on it.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Boot it &mdash; Settings &rarr; About Phone shows the IMEI. Enter that. If it&rsquo;s a refurb with no IMEI at all, it doesn&rsquo;t belong in this profile&rsquo;s serialized stock.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> the till day &mdash; scans, wholesale, approvals.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Sales</span>
+      <h2>POS &mdash; the till day</h2>
+      <p class="lead">Chidi&rsquo;s till is ordinary fast retail with two electronics extras: serialized items pick <em>which unit</em> leaves, and wholesale flips to the reseller price without hand-editing.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">At the till</div>
+      <table class="blend-table">
+        <thead><tr><th>Sale</th><th>On screen</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td>One iPhone</td><td>Scan box barcode / tap iPhone 15 128GB Black &rarr; pick the unit&rsquo;s IMEI</td><td>That exact unit leaves stock; its serial, IMEI and 12-month warranty print on the receipt</td></tr>
+          <tr><td>Accessory bundle</td><td>Anker USB-C Cable &rarr; <code>Pack of 10</code></td><td>&minus;10 pieces at pack price &mdash; stock still counts in pieces</td></tr>
+          <tr><td>Mixed cart</td><td>iPhone + case + cable + 20W charger</td><td>One receipt &mdash; serialized line picks its unit, bulk lines take quantity</td></tr>
+          <tr><td>Wholesale</td><td>POS &rarr; wholesale button &rarr; customer <code>Jumla Gadgets (Ikeja)</code></td><td>Cart flips to wholesale prices; balance sits on their account until paid</td></tr>
+          <tr><td>Gift card / loyalty</td><td>Redeem at payment</td><td>Card balance applies; points accrue on the remainder</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">When a rep wants to discount</div>
+      <div class="screen-flow">
+        <div class="flow-step">Chidi applies a &#8358;40,000 discount on the TV &mdash; over his &#8358;15,000 limit</div>
+        <div class="flow-step">Sale routes to <strong>Pending Approvals</strong> &mdash; the customer can still complete a quoted sale on hold<span class="gate">owner decision</span></div>
+        <div class="flow-step">Kelechi approves or declines from his phone &mdash; approved, the sale completes at the discounted price</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Returns &amp; swaps</div>
+      <div class="screen-flow">
+        <div class="flow-step">Customer returns a unit within policy &mdash; look up the original sale (receipt number or customer)</div>
+        <div class="flow-step">Process the return on that sale; the serialized unit&rsquo;s IMEI returns to sellable stock &mdash; same identity, full trail</div>
+        <div class="flow-step">Refund as cash-out or <strong>store credit</strong> &mdash; PrimeVolt&rsquo;s policy on opened boxes is credit</div>
+      </div>
+    </div>
+    <div class="tip"><strong>Store credit over cash refunds:</strong> opened-box returns land as credit on the customer&rsquo;s record &mdash; the money stays in the business and the customer&rsquo;s balance shows honestly on their next visit or invoice.</div>
+    <div class="next"><strong>Next &rarr;</strong> warranty &mdash; the claim that tests whether the serial work paid off.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">After-sales</span>
+      <h2>Warranty &mdash; the claim</h2>
+      <p class="lead">Six weeks after purchase a customer walks in: &ldquo;the phone won&rsquo;t charge.&rdquo; This is the moment the serial discipline either pays off or embarrasses you.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The claim, step by step</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Look it up</strong> &mdash; enter the IMEI/serial (from the device, the box, or the receipt) &mdash; the register shows the sale date, the customer, the branch, and the warranty end date</div>
+        <div class="flow-step"><strong>Decide</strong> &mdash; inside warranty &rarr; repair, replace or send to the distributor per your policy; outside &rarr; quote a paid repair, no argument needed</div>
+        <div class="flow-step"><strong>Record it</strong> &mdash; the claim and its resolution sit on the unit&rsquo;s history, so a second claim on the same device is visible, not fresh news</div>
+        <div class="flow-step"><strong>Replacement (if it happens)</strong> &mdash; the swapped unit&rsquo;s serial returns to the claim record; the new unit&rsquo;s serial attaches to the customer &mdash; one clean line of custody</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">What the register answers &mdash; instantly</div>
+      <table class="blend-table">
+        <thead><tr><th>Customer says</th><th>You verify</th></tr></thead>
+        <tbody>
+          <tr><td>&ldquo;I bought it here last month&rdquo;</td><td>Serial lookup: sold here, that date, that branch &mdash; or <em>not in the register</em> (grey-market unit, politely declined)</td></tr>
+          <tr><td>&ldquo;It&rsquo;s still under warranty&rdquo;</td><td>Sale date + warranty period = in or out, in one glance &mdash; no box receipt archaeology</td></tr>
+          <tr><td>&ldquo;You already repaired this twice&rdquo;</td><td>The unit&rsquo;s claim history is attached to its serial &mdash; the third claim is a different conversation</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Customer</div><div class="chat-bubble">I lost my receipt, but I definitely bought this TV from you.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Turn it on &mdash; we read the serial. If we sold it, the register shows your name and the exact date. If we didn&rsquo;t&hellip; it doesn&rsquo;t.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> the online shop &mdash; same stock, open all night.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Online store</span>
+      <h2>Store settings &amp; shipping</h2>
+      <p class="lead"><em>Online Store &rarr; Store Settings.</em> The electronics profile ships with the <strong>Tech Hub</strong> theme &mdash; a clean spec-and-price storefront built for devices, with brand rows, category tiles and WhatsApp checkout.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Store Settings &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Store Slug</div><div class="val"><code>primevolt</code> &mdash; your public link for Instagram bio, flyers and WhatsApp status</div></div>
+        <div class="field"><div class="lbl">Store Status</div><div class="val"><code>Live</code> only once the pages below are filled &mdash; keep hidden while building</div></div>
+        <div class="field"><div class="lbl">Description</div><div class="val">&ldquo;Genuine phones, laptops &amp; accessories with receipt-backed warranty. Showroom in Ikeja, delivery nationwide.&rdquo;</div></div>
+        <div class="field"><div class="lbl">WhatsApp Number</div><div class="val">Business line &mdash; powers the <em>WhatsApp Us</em> button and WhatsApp checkout (huge for electronics: customers verify specs before paying)</div></div>
+        <div class="field"><div class="lbl">Store Email / Phone / Address / Default Branch</div><div class="val">Shown to customers; <code>Showroom Floor</code> is where online orders draw stock</div></div>
+        <div class="field"><div class="lbl">Checkout toggles</div><div class="val"><strong>Allow Paystack Checkout</strong> (card/transfer online) &middot; <strong>Allow WhatsApp Orders</strong> &middot; <strong>Allow Pay on Delivery</strong> (PrimeVolt: <em>off</em> for high-value units &mdash; a &#8358;1.2m phone is never sent unpaid)</div></div>
+        <div class="field"><div class="lbl">Display toggles</div><div class="val"><strong>Show Search Bar</strong> &middot; <strong>Show Category Chips</strong> &middot; <strong>Show WhatsApp CTA</strong> &middot; <em>Allow Backorder</em> off &mdash; a serialized unit is either in stock or it isn&rsquo;t</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Public Catalogue &mdash; showcase without checkout</div>
+      <p class="small">The profile also enables the <strong>Public Catalogue</strong>: a read-only storefront &mdash; full catalogue, prices, stock states, WhatsApp CTA, but no cart. PrimeVolt runs the full store; a shop that only wants &ldquo;see our prices online, buy in person&rdquo; switches to catalogue mode instead.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Shipping</div>
+      <table class="blend-table">
+        <thead><tr><th>Approach</th><th>Setup</th><th>PrimeVolt&rsquo;s choice</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Shipping Methods list</strong></td><td>Pickup &mdash; free &middot; Same-day rider (Lagos) &mdash; &#8358;3,000 &middot; Nationwide (GIG) &mdash; &#8358;5,000</td><td>Flat, simple choices</td></tr>
+          <tr><td><strong>City-based shipping</strong></td><td>State &rarr; City &rarr; Fee rows; checkout prices itself by the customer&rsquo;s city</td><td>For growing interstate order volume</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;"><strong>Shipping Notice</strong> at checkout: <em>&ldquo;Phones and laptops dispatch within 24hrs, sealed in factory packaging with your serial on the invoice. Accessories ship same-day.&rdquo;</em></p>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> catalogue content and how an online order flows to delivery.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Online store</span>
+      <h2>Catalogue, content &amp; orders</h2>
+      <p class="lead">The Online Store menu splits three ways: the shop floor (<em>Orders, Online Products</em>), storefront content (<em>Homepage Builder, Banners, Testimonials, FAQs</em>), and configuration (<em>Appearance, Domains, Store Settings</em>).</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Getting products online &mdash; Online Store &rarr; Online Products</div>
+      <p class="small">Toggle each sellable product into the store. A device earns its slot with: a clean product photo, a real spec description (screen, storage, battery, warranty line &mdash; the questions every WhatsApp customer asks anyway), a price, and stock &gt; 0. Flag hero devices <strong>Featured</strong> and new stock <strong>New Arrival</strong> to feed the homepage rails. Serialized units sell by quantity &mdash; the customer doesn&rsquo;t pick an IMEI online; fulfilment picks the physical unit.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Homepage Builder &mdash; the sections that matter</div>
+      <table class="blend-table">
+        <thead><tr><th>Section</th><th>PrimeVolt&rsquo;s content</th></tr></thead>
+        <tbody>
+          <tr><td>Hero banner</td><td>&ldquo;Genuine devices. Real warranty.&rdquo; over a clean device shot &mdash; Shop button to the catalogue</td></tr>
+          <tr><td>Featured categories</td><td>Phones, Laptops, Audio, Accessories &mdash; the tiles customers actually tap first</td></tr>
+          <tr><td>Featured products / best sellers / new arrivals</td><td>Flagged devices plus the store&rsquo;s own best-seller maths; restocks flagged <em>New Arrival</em></td></tr>
+          <tr><td>Promo banner</td><td>&ldquo;Back-to-school laptop bundle&rdquo; &mdash; links to a curated category or product</td></tr>
+          <tr><td>Trust badges</td><td>&ldquo;Genuine sealed units&rdquo; &middot; &ldquo;Warranty on every device&rdquo; &middot; &ldquo;Nationwide delivery&rdquo;</td></tr>
+          <tr><td>Brands row</td><td>Apple, Samsung, Tecno, HP, Anker &mdash; the brands on your product records</td></tr>
+          <tr><td>Testimonials</td><td>&ldquo;Ordered Monday, delivered Tuesday &mdash; sealed unit, real warranty card&rdquo;</td></tr>
+          <tr><td>FAQs</td><td>&ldquo;Is it brand new and sealed?&rdquo; &middot; &ldquo;How does warranty work?&rdquo; &middot; &ldquo;Do you deliver outside Lagos?&rdquo; &middot; &ldquo;Can I pay on delivery?&rdquo;</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">An order arrives &mdash; Online Store &rarr; Orders</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Customer checks out</strong> &mdash; Tecno Camon + case, &#8358;215,000 + delivery fee via Paystack (or a WhatsApp order message)</div>
+        <div class="flow-step"><strong>Order lands</strong> &mdash; Orders list + the Online Orders dashboard card pings</div>
+        <div class="flow-step"><strong>Fulfil</strong> &mdash; Chidi confirms, picks the physical unit from Showroom stock (its IMEI stamps the invoice), packs and prints</div>
+        <div class="flow-step"><strong>Deliver</strong> &mdash; rider assigned, status tracked to the customer&rsquo;s door</div>
+        <div class="flow-step"><strong>Follow up</strong> &mdash; the customer&rsquo;s record now holds the serial &mdash; any future warranty visit starts with proof already in hand</div>
+      </div>
+    </div>
+    <div class="tip"><strong>QR ordering:</strong> print the store&rsquo;s QR code for the counter and the flyer &mdash; a walk-in who says &ldquo;I&rsquo;ll think about it&rdquo; becomes an online browser with your catalogue already open.</div>
+    <div class="next"><strong>Next &rarr;</strong> what the numbers say &mdash; dashboards and reports.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Management</span>
+      <h2>Dashboard &amp; reports</h2>
+      <p class="lead">The electronics dashboard surfaces what this business watches: serialized stock positions, margin by brand, low stock on fast accessories, and money held on account.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Dashboard cards &mdash; what each answers</div>
+      <table class="blend-table">
+        <thead><tr><th>Card</th><th>Answers</th></tr></thead>
+        <tbody>
+          <tr><td>Sales / Purchase / Expense summaries</td><td>Today&rsquo;s money in, stock bought, costs out</td></tr>
+          <tr><td>Serialized Stock</td><td>Which units are in hand, where (branch), and which sold &mdash; the register at a glance</td></tr>
+          <tr><td>Low Stock Alert</td><td>Products at or below alert qty &mdash; the iPhone at 2 units and the cable pack both flag here</td></tr>
+          <tr><td>Online Orders</td><td>Store orders awaiting fulfilment</td></tr>
+          <tr><td>Pending Approvals</td><td>Discounts waiting on the owner&rsquo;s sign-off</td></tr>
+          <tr><td>Customer balances</td><td>Wholesale accounts with unpaid invoices</td></tr>
+          <tr><td>Top products / brands</td><td>What&rsquo;s actually carrying the month &mdash; phones or accessories?</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Reports that run the month</div>
+      <table class="blend-table">
+        <thead><tr><th>Report</th><th>What Kelechi reads from it</th></tr></thead>
+        <tbody>
+          <tr><td>Sales Report</td><td>Revenue by product, category, brand and channel &mdash; is Tecno or Apple paying the rent?</td></tr>
+          <tr><td>Profit / margin by product &amp; brand</td><td>Real unit costs vs sale prices &mdash; a discounted supplier batch shows honestly</td></tr>
+          <tr><td>Stock Report / register</td><td>Serialized units on hand per branch; bulk stock counts; transfer history</td></tr>
+          <tr><td>Warranty register</td><td>Claims lodged, in/out of warranty splits, repeat offenders</td></tr>
+          <tr><td>Customer balances</td><td>Reseller accounts overdue on invoices</td></tr>
+          <tr><td>Stock Adjustments</td><td>Every correction and transfer &mdash; the audit trail when a unit&rsquo;s count doesn&rsquo;t add up</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> who does what &mdash; a day in each role.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Roles</span>
+      <h2>A day at PrimeVolt</h2>
+      <p class="lead">The same shop, seen by the three people who run it.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Kelechi &mdash; Owner</div>
+      <div class="screen-flow">
+        <div class="flow-step">Morning: dashboard &mdash; yesterday&rsquo;s sales, pending approvals, low stock, reseller balances</div>
+        <div class="flow-step">Approve/decline two discount requests; release a wholesale invoice on terms to Jumla Gadgets</div>
+        <div class="flow-step">Weekly: margin by brand report &mdash; drops the two lines that don&rsquo;t move; negotiates next purchase with Stellar</div>
+        <div class="flow-step">Rarely: Business Profile, roles, price catalogue &mdash; owner territory</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Chidi &mdash; Sales rep</div>
+      <div class="screen-flow">
+        <div class="flow-step">POS all day &mdash; scans serials on serialized lines, pack sizes on accessories, wholesale button for resellers</div>
+        <div class="flow-step">Warranty lookups at the counter when claims walk in &mdash; serial first, answers second</div>
+        <div class="flow-step">Fulfils online orders as they land &mdash; pick, IMEI stamp, pack, schedule delivery</div>
+        <div class="flow-step">End of day: sales history vs till count; returns logged against the original sales</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Ngozi &mdash; Stock control</div>
+      <div class="screen-flow">
+        <div class="flow-step">Receives the Stellar shipment &mdash; status Received, every phone&rsquo;s IMEI entered on the purchase row</div>
+        <div class="flow-step">Transfers display units Stockroom &rarr; Showroom; the register always knows where each unit sits</div>
+        <div class="flow-step">Weekly stocktake on serialized items &mdash; physical units vs register, no estimates</div>
+        <div class="flow-step">Raises the accessory restock when cables hit alert qty</div>
+      </div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> one week end-to-end &mdash; shipment in, claims out.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Walkthrough</span>
+      <h2>One week, start to finish</h2>
+      <p class="lead">Ten iPhones land, three sell at the till, five go wholesale, one ships online &mdash; and a claim tests the system. Every number below is what the screens actually show.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The complete week</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Mon &mdash; Receive:</strong> Stellar Devices delivers 10 &times; iPhone 15 128GB Black @ &#8358;1,180,000 + 200 &times; cables @ &#8358;1,800. Ngozi posts the receipt into Stockroom, all 10 IMEIs on the line; transfer 4 units to Showroom Floor</div>
+        <div class="flow-step"><strong>Tue &mdash; Sell:</strong> walk-in buys 1 iPhone + cable. Chidi scans the box, picks IMEI <code>&hellip;4421</code>, takes payment &mdash; receipt prints the 12-month warranty and the serial. Stock: 9 total / 3 showroom</div>
+        <div class="flow-step"><strong>Wed &mdash; Wholesale:</strong> Jumla Gadgets takes 5 iPhones @ &#8358;1,210,000 + 50 cables @ &#8358;150,000 carton &mdash; invoice on account, &#8358;6.2m balance. Each serialized unit&rsquo;s IMEI stamps the invoice lines</div>
+        <div class="flow-step"><strong>Wed &mdash; Approval:</strong> a customer negotiates &#8358;30,000 off a TV &mdash; over Chidi&rsquo;s limit, sale sits in Pending Approvals; Kelechi approves &#8358;20,000 from his phone, sale completes</div>
+        <div class="flow-step"><strong>Thu &mdash; Online:</strong> Paystack order &mdash; Tecno Camon + case, &#8358;215,000 + &#8358;3,000 same-day rider. Chidi picks a sealed unit from Showroom, its IMEI lands on the invoice; rider delivers by 5pm</div>
+        <div class="flow-step"><strong>Fri &mdash; Claim:</strong> customer returns a week-old iPhone that won&rsquo;t charge. IMEI lookup: sold here Tue, in warranty &rarr; swap for a fresh sealed unit &mdash; old unit&rsquo;s serial moves to the claim record, new unit attaches to the customer</div>
+        <div class="flow-step"><strong>Fri &mdash; Close:</strong> serialized stock counts clean (4 showroom + 6 stockroom &minus; 1 claim = 9 on register); margin report shows the week; Jumla balance visible for follow-up</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The same screens, other weeks</div>
+      <table class="blend-table">
+        <thead><tr><th>Scenario</th><th>Difference</th></tr></thead>
+        <tbody>
+          <tr><td>Accessory restock</td><td>Purchase only &mdash; quantity, no identity rows; pack prices do the selling</td></tr>
+          <tr><td>Used / trade-in units</td><td>Separate product per unit (&ldquo;iPhone 13 128GB &mdash; Pre-owned, Battery 89%&rdquo;) with its own serial &mdash; never mix with new stock</td></tr>
+          <tr><td>Supplier gives you terms</td><td>Purchase on account &mdash; supplier balance sits until you settle through supplier payments</td></tr>
+          <tr><td>Showcase only (no online selling)</td><td>Switch to Public Catalogue &mdash; prices and stock visible, checkout off, WhatsApp CTA on</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> every term, explained once &mdash; the glossary.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Reference</span>
+      <h2>Terminology</h2>
+      <p class="lead">Every word this workflow uses, in plain language.</p>
+    </div>
+    <table class="glossary-table">
+      <tr><td>Serial Number</td><td>The manufacturer&rsquo;s unique ID on a device &mdash; laptops, TVs, consoles. One per physical unit; captured on the purchase row and picked at the sale.</td></tr>
+      <tr><td>IMEI</td><td>The cellular device&rsquo;s unique ID &mdash; phones and LTE tablets. Same discipline as serials; read it off the box or the device&rsquo;s own About screen.</td></tr>
+      <tr><td>Serialized item</td><td>A product flagged for serial/IMEI tracking. Stock counts units, but each unit carries identity &mdash; required for phones, laptops and anything warranty-worthy.</td></tr>
+      <tr><td>Bulk item</td><td>An untracked product &mdash; cables, cases, chargers. Stock is a number; sales take a quantity.</td></tr>
+      <tr><td>Selling Unit</td><td>A declared pack on a bulk product &mdash; <code>Pack of 10</code>, <code>Carton of 50</code> &mdash; with its own price. Stock always counts in the base unit (pieces).</td></tr>
+      <tr><td>Warranty Period</td><td>Months of cover from the sale date, set on the product. Prints on the receipt; the claim register shows the end date instantly.</td></tr>
+      <tr><td>Warranty register</td><td>The per-unit claim history &mdash; sale date, customer, warranty end, claims lodged, resolutions. Looked up by serial/IMEI, not by receipt drawer.</td></tr>
+      <tr><td>Wholesale price</td><td>The reseller rate on each product. The POS wholesale button and account invoices apply it &mdash; no hand-typed discounts.</td></tr>
+      <tr><td>Manager approval</td><td>The guard on discounts above a rep&rsquo;s limit &mdash; the sale waits in Pending Approvals for an owner decision.</td></tr>
+      <tr><td>Branch / Warehouse</td><td>Where a unit physically sits &mdash; Showroom Floor sells, Stockroom holds. Transfers move stock between them with a full trail.</td></tr>
+      <tr><td>Price Catalogue</td><td>The clean sell-price list the profile enables &mdash; the shareable, printable answer to &ldquo;how much is it?&rdquo;</td></tr>
+      <tr><td>Public Catalogue</td><td>A read-only storefront &mdash; catalogue, prices, stock states, WhatsApp CTA, no checkout. For shops that showcase but don&rsquo;t sell online.</td></tr>
+      <tr><td>Store Credit</td><td>Refund value held on the customer&rsquo;s record instead of cash-out &mdash; applies to their next purchase automatically.</td></tr>
+      <tr><td>Gift Card</td><td>A prepaid card sold at the till, redeemable in store or online &mdash; balance tracked on the card.</td></tr>
+      <tr><td>QR ordering</td><td>A printed scan-to-shop code &mdash; walk-ins open your online store on their own phone.</td></tr>
+    </table>
+    <div class="screen-card" style="margin-top:calc(var(--space)*2);">
+      <div class="card-title">Quick pick &mdash; the setup order</div>
+      <table class="blend-table">
+        <thead><tr><th>You want</th><th>Set up</th></tr></thead>
+        <tbody>
+          <tr><td>Sell phones &amp; laptops</td><td>Categories + brands + serialized products (IMEI on) + purchases with serial rows</td></tr>
+          <tr><td>Add accessories</td><td>+ bulk products with pack selling units &mdash; no serials needed</td></tr>
+          <tr><td>Serve resellers</td><td>+ wholesale prices + customer accounts + POS wholesale button + account invoices</td></tr>
+          <tr><td>Handle claims confidently</td><td>+ warranty period per product + serial lookup at the counter</td></tr>
+          <tr><td>Sell online</td><td>+ Store Settings (slug, WhatsApp, Paystack) + Online Products + shipping + homepage content</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guides</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -81,18 +81,20 @@
   <script>
     function deleteSubscriber(id, e){
       e.preventDefault();
-      if(!confirm('Remove this subscriber?')) return;
-      var fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      mpFetchJson('<?= base_url('online_store/delete_subscriber/'); ?>' + id, { method: 'POST', body: fd })
-        .then(d => {
-          if(d && d.status === 'success'){
-            document.querySelector('[data-id="' + id + '"]').remove();
-          } else {
-            alert(d && d.message ? d.message : 'The subscriber could not be removed. Please try again.');
-          }
-        })
-        .catch(err => alert(mpErrorText(err, 'The subscriber could not be removed. Please try again.')));
+      mpConfirmAsync('Remove this subscriber?', { title:'Remove Subscriber', okText:'Remove', danger:true }).then(function(ok){
+        if(!ok) return;
+        var fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('online_store/delete_subscriber/'); ?>' + id, { method: 'POST', body: fd })
+          .then(d => {
+            if(d && d.status === 'success'){
+              document.querySelector('[data-id="' + id + '"]').remove();
+            } else {
+              mpError(d && d.message ? d.message : 'The subscriber could not be removed. Please try again.');
+            }
+          })
+          .catch(err => mpError(mpErrorText(err, 'The subscriber could not be removed. Please try again.')));
+      });
     }
   </script>
 </body>

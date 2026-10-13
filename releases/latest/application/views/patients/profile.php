@@ -1,4 +1,6 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $this->load->view('components/dialog'); ?>
+<?php $this->load->view('components/card_lanes'); ?>
 <?php $CI =& get_instance(); $patient_term = mp_label('customer'); ?>
 <style>
 .pp-head{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px}
@@ -8,15 +10,26 @@
 .pp-badge.active{background:#D1FAE5;color:#065F46}
 .pp-badge.inactive{background:#FEF3C7;color:#B45309}
 .pp-badge.deceased{background:#E2E8F0;color:#475569}
-.pp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-.pp-card{background:var(--mp-surface,#fff);border:1px solid var(--mp-border);border-radius:14px;padding:18px}
+/* min-width:0 lets the card shrink below its content width — without it a
+   wide table stretches the lane past the card and off the screen. */
+.pp-card{background:var(--mp-surface,#fff);border:1px solid var(--mp-border);border-radius:14px;padding:18px;min-width:0;overflow-x:auto}
 .pp-card h4{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--mp-muted)}
+.pp-card .table{width:100%;min-width:440px;margin-bottom:0}
 .pp-kv{display:grid;grid-template-columns:130px 1fr;gap:6px 12px;font-size:13px}
 .pp-kv dt{color:var(--mp-muted)}
 .pp-kv dd{margin:0}
 .pp-money{font-size:20px;font-weight:800}
 .pp-ok{color:#059669}.pp-due{color:#DC2626}
 .pp-empty{font-size:13px;color:var(--mp-muted);padding:10px 0}
+/* Episode mini-cards — four across on wide screens, fewer as it narrows. */
+.pp-ep-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:10px}
+@media(max-width:1280px){.pp-ep-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:980px){.pp-ep-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.pp-ep-grid{grid-template-columns:1fr}}
+.pp-ep{border:1px solid var(--mp-border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pp-ep-visits{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--mp-border);padding-top:8px}
+.pp-ep-link{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--mp-ink);font-size:12px;border:1px solid var(--mp-border);border-radius:8px;padding:5px 8px;min-width:0}
+.pp-ep-link:hover{border-color:var(--mp-primary);background:#EFF6FF}
 </style>
 
 <div class="mp-page-head">
@@ -27,6 +40,9 @@
       &nbsp;·&nbsp; <span style="font-family:monospace;"><?= htmlspecialchars($patient->patient_code ?: '—'); ?></span>
       <?php if(function_exists('physio_can') && physio_can('portal_manage')): ?>
         &nbsp;·&nbsp; <a href="<?= base_url('patients/portal_access/'.$patient->id); ?>">Portal Access</a>
+      <?php endif; ?>
+      <?php if(function_exists('physio_can') && physio_can('plans_view')): ?>
+        &nbsp;·&nbsp; <a href="<?= base_url('treatment_plans/index/'.$patient->id); ?>">Treatment Plans</a>
       <?php endif; ?>
     </div>
   </div>
@@ -51,7 +67,7 @@
   </div>
 </div>
 
-<div class="pp-grid">
+<div class="mp-lanes">
   <div class="pp-card">
     <h4>Demographics</h4>
     <dl class="pp-kv">
@@ -80,7 +96,7 @@
       <dt>Balance Due</dt><dd class="pp-money <?= ($patient->sales_due ?? 0) > 0 ? 'pp-due' : 'pp-ok'; ?>"><?= $CI->currency($patient->sales_due ?? 0); ?></dd>
       <dt>Portal</dt><dd><?= htmlspecialchars(ucfirst($patient->portal_status ?: 'none')); ?></dd>
     </dl>
-    <div class="pp-empty" style="margin-top:8px;">Invoices, payments and prepaid sessions are managed on the linked billing account — clinical credit never lives outside the customer ledger.</div>
+    <div class="pp-empty" style="margin-top:8px;">Invoices, payments and prepaid sessions are managed on the linked billing account — clinical credit never lives outside the <?= htmlspecialchars(strtolower($patient_term)); ?> ledger.</div>
 
     <?php if(isset($reminder_pause)): ?>
     <div style="margin-top:10px;border-top:1px solid var(--mp-border);padding-top:10px;font-size:12px;">
@@ -95,27 +111,6 @@
         <?php if($can_reminder): ?><button class="mp-qa-btn" onclick="ppPauseReminder(<?= (int)$patient->id; ?>)">Pause reminders</button><?php endif; ?>
       <?php endif; ?>
     </div>
-    <?php endif; ?>
-  </div>
-
-  <div class="pp-card">
-    <h4>Care Episodes</h4>
-    <?php if(empty($episodes)): ?>
-      <div class="pp-empty">No care episodes yet. Episodes open automatically at first check-in.</div>
-    <?php else: ?>
-      <table class="table" style="font-size:13px;">
-        <thead><tr><th>Episode</th><th>Type</th><th>Started</th><th>Status</th></tr></thead>
-        <tbody>
-        <?php foreach($episodes as $e): ?>
-          <tr>
-            <td><span style="font-family:monospace;"><?= htmlspecialchars($e->episode_code ?: 'EP-'.$e->id); ?></span></td>
-            <td><?= ucfirst($e->episode_type); ?></td>
-            <td><?= $e->started_at ? date('M j, Y', strtotime($e->started_at)) : '—'; ?></td>
-            <td><span class="pp-badge <?= $e->status === 'open' ? 'active' : 'deceased'; ?>"><?= ucfirst($e->status); ?></span></td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
     <?php endif; ?>
   </div>
 
@@ -149,6 +144,91 @@
     </dl>
   </div>
 
+</div>
+
+<?php
+/**
+ * Care episodes — the spine of the record, so they get a full-width band like
+ * referrals and the audit trail. Each episode lists its visits with a
+ * quick-launch into the visit screen, where the clinical detail lives.
+ */
+$visitsByEp = array();
+foreach(($episode_visits ?? array()) as $v){
+  $visitsByEp[(int)$v->episode_id][] = $v;
+}
+$byType = array('inpatient' => array(), 'outpatient' => array(), 'other' => array());
+foreach($episodes as $e){
+  $t = in_array($e->episode_type, array('inpatient','outpatient'), true) ? $e->episode_type : 'other';
+  $byType[$t][] = $e;
+}
+$typeHead = array(
+  'inpatient'  => array('Inpatient spells', '#EEF2FF', '#4338CA', 'Admitted and staying — the ward spell.'),
+  'outpatient' => array('Outpatient visits', '#ECFDF5', '#065F46', 'Seen and home the same day.'),
+  'other'      => array('Not yet marked', '#F1F5F9', '#64748B', 'Raised before care type was recorded.'),
+);
+$episodeLimit = 12;
+$shownEpisodes = 0;
+?>
+<div class="pp-card" style="margin-top:14px;">
+  <h4>Care Episodes</h4>
+  <?php if(empty($episodes)): ?>
+    <div class="pp-empty">No care episodes yet. Episodes open automatically at first check-in.</div>
+  <?php else: ?>
+    <?php foreach($typeHead as $t => $head): if(empty($byType[$t])) continue; ?>
+      <div style="margin:14px 0 0;padding:8px 12px;border-radius:10px;background:<?= $head[1]; ?>;color:<?= $head[2]; ?>;">
+        <b style="font-size:12px;text-transform:uppercase;letter-spacing:.4px;"><?= $head[0]; ?></b>
+        <span style="font-size:11px;opacity:.85;"> — <?= $head[3]; ?> (<?= count($byType[$t]); ?>)</span>
+      </div>
+      <div class="pp-ep-grid">
+      <?php foreach($byType[$t] as $e): if($shownEpisodes++ >= $episodeLimit) break; ?>
+        <?php $evisits = $visitsByEp[(int)$e->id] ?? array(); ?>
+        <div class="pp-ep">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-family:monospace;font-weight:700;font-size:13px;"><?= htmlspecialchars($e->episode_code ?: 'EP-'.$e->id); ?></span>
+            <span class="pp-badge <?= $e->status === 'open' ? 'active' : 'deceased'; ?>"><?= ucfirst($e->status); ?></span>
+          </div>
+          <div style="font-size:11px;color:var(--mp-muted);">
+            <?= $e->started_at ? date('M j, Y', strtotime($e->started_at)) : '—'; ?> · <?= count($evisits); ?> visit(s)
+          </div>
+          <?php if(!empty($e->admission_id)): ?>
+            <a class="pp-ep-link" href="<?= base_url('inpatient/view/' . (int)$e->admission_id); ?>" style="margin-top:4px;">
+              <i class="fa fa-bed" style="color:#4338CA;"></i>
+              <span style="font-family:monospace;font-weight:600;"><?= htmlspecialchars($e->admission_code); ?></span>
+              <span class="pp-badge <?= ($e->admission_status ?? '') === 'active' ? 'active' : 'deceased'; ?>" style="margin-left:auto;">
+                <?= ($e->admission_status ?? '') === 'active' ? 'In the ward' : 'Ward stay finished'; ?>
+              </span>
+            </a>
+          <?php endif; ?>
+          <?php if(empty($evisits)): ?>
+            <div class="pp-ep-visits"><div style="font-size:11px;color:var(--mp-muted);">No visits yet.</div></div>
+          <?php else: ?>
+            <div class="pp-ep-visits">
+              <?php foreach(array_slice($evisits, 0, 4) as $v): ?>
+                <a class="pp-ep-link" href="<?= base_url('care_queue/encounter/' . (int)$v->id); ?>">
+                  <i class="fa fa-external-link" style="color:var(--mp-primary);"></i>
+                  <span style="font-family:monospace;font-weight:600;"><?= htmlspecialchars($v->encounter_code ?: 'Visit #'.$v->id); ?></span>
+                  <span class="pp-badge <?= $v->queue_stage === 'closed' ? 'deceased' : 'active'; ?>" style="margin-left:auto;"><?= htmlspecialchars(mp_code_label($v->queue_stage)); ?></span>
+                </a>
+              <?php endforeach; ?>
+              <?php if(count($evisits) > 4): ?>
+                <div style="font-size:11px;color:var(--mp-muted);">+<?= count($evisits) - 4; ?> more visit(s)</div>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+      </div>
+    <?php endforeach; ?>
+    <?php if(count($episodes) > $episodeLimit): ?>
+      <div class="pp-empty">Showing the <?= $episodeLimit; ?> most recent episodes — open the register for the full history.</div>
+    <?php endif; ?>
+  <?php endif; ?>
+</div>
+
+<?php if(!empty($referral_panel)): ?>
+<div style="margin-top:14px;"><?= $referral_panel; ?></div>
+<?php endif; ?>
+
 <?php
 /**
  * Split the event feed into history carried over from the clinic's previous
@@ -176,8 +256,7 @@ if(!empty($imported)){
     usort($imported, function($a, $b){ return strcmp((string)$b->created_at, (string)$a->created_at); });
 }
 ?>
-<div class="pp-grid" style="margin-top:16px;">
-  <div class="pp-card" <?= empty($imported) ? '' : 'style="grid-column:1/-1;"'; ?>>
+<div class="pp-card" style="margin-top:14px;">
     <h4>Audit Log</h4>
     <?php if(empty($auditOnly)): ?>
       <div class="pp-empty">No audited events yet.</div>
@@ -199,7 +278,7 @@ if(!empty($imported)){
   </div>
 
 <?php if(!empty($imported)): ?>
-  <div class="pp-card" style="grid-column:1/-1;">
+  <div class="pp-card" style="margin-top:14px;">
     <h4>Clinical history — imported from previous system</h4>
     <div class="pp-empty" style="padding:0 0 12px;">
       <?= count($imported); ?> record(s) carried over. These are historical notes only —
@@ -234,18 +313,48 @@ if(!empty($imported)){
     </table>
   </div>
 <?php endif; ?>
-</div>
 
 <script>$(".patients-active-li").addClass("active").closest(".mp-nav-group").addClass("open");
 function ppPauseReminder(pid){
-  var reason = prompt('Pause reason (required)'); if(!reason) return;
-  var resume = prompt('Resume at (optional, Y-m-d H:i)','')||'';
-  var fd = new FormData(); fd.append('scope','patient'); fd.append('target', pid); fd.append('reason', reason); fd.append('resume_at', resume);
-  fetch('<?= base_url('debt_reminders/pause'); ?>', {method:'POST', body:fd})
-    .then(r=>r.json()).then(d=>{ alert(d.message||''); if(d.status==='success') location.reload(); });
+  mpPrompt({
+    title: 'Pause debt reminders',
+    message: 'Why are reminders being paused? The reason is required and stays on the record.',
+    placeholder: 'Reason for pausing',
+    multiline: true,
+    required: true,
+    okText: 'Continue'
+  }).then(function(reason){
+    if(reason === null) return;
+    mpPrompt({
+      title: 'Resume time (optional)',
+      message: 'When should reminders resume? Leave blank to resume them manually later.',
+      placeholder: 'Y-m-d H:i',
+      okText: 'Pause Reminders'
+    }).then(function(resume){
+      if(resume === null) return;
+      var fd = new FormData();
+      fd.append('scope','patient'); fd.append('target', pid);
+      fd.append('reason', reason); fd.append('resume_at', resume || '');
+      fetch('<?= base_url('debt_reminders/pause'); ?>', {method:'POST', body:fd})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d.status === 'success'){ cqSuccess(d.message || 'Reminders paused'); setTimeout(function(){ location.reload(); }, 700); }
+          else cqError(d.message || 'Could not pause reminders');
+        })
+        .catch(function(){ cqError('Could not pause reminders'); });
+    });
+  });
 }
 function ppResumeReminder(id){
-  fetch('<?= base_url('debt_reminders/resume/'); ?>'+id, {method:'POST'})
-    .then(r=>r.json()).then(d=>{ alert(d.message||''); if(d.status==='success') location.reload(); });
+  mpConfirmAsync('Resume debt reminders for this patient now?').then(function(ok){
+    if(!ok) return;
+    fetch('<?= base_url('debt_reminders/resume/'); ?>'+id, {method:'POST'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.status === 'success'){ cqSuccess(d.message || 'Reminders resumed'); setTimeout(function(){ location.reload(); }, 700); }
+        else cqError(d.message || 'Could not resume reminders');
+      })
+      .catch(function(){ cqError('Could not resume reminders'); });
+  });
 }
 </script>

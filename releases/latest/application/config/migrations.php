@@ -280,4 +280,74 @@ return [
           // install_key. This guarantees the three columns exist; the code
           // guards are field_exists() so a missing column is a silent skip.
           '4.0.9.139v'  => '4.0.9.139_fleet_enrol_columns.sql',
+          // .140 Admin & System screens become real permissions. Site Settings,
+          // System Update, Permission Audit and the other technical screens were
+          // reachable by any owner-class role via is_store_admin(); they are now
+          // gated on their own keys, granted to administrators only.
+          '4.0.9.140v'  => '4.0.9.140_admin_system_permission_flags.sql',
+          // .141 Visit history reads as plain English. Strips the duplicated
+          // "<username> — " prefix from stored intake notes (the actor is now
+          // shown in its own "by ..." line as a first name) and sentence-cases
+          // the boilerplate handover note.
+          '4.0.9.141v'  => '4.0.9.141_visit_history_plain_english.sql',
+          // .142 Care Queue rework — the therapist's mandatory completion
+          // remark (assessment_remark / recommended_amount /
+          // recommended_sessions) and the db_sales.encounter_id link that ties
+          // a check-in bill back to its visit.
+          '4.0.9.142v'  => '4.0.9.142_care_queue_billing.sql',
+          // .143 Referral partners — the lab/hospital/doctor directory a
+          // therapist picks from, the per-patient referral to one of them, and
+          // the dated meeting log that records what happened at the partner.
+          '4.0.9.143v'  => '4.0.9.143_physio_referral_partners.sql',
+          // .144 Care Queue visit type. The waiting-for-nurse desk decides
+          // whether a visit is an assessment or a treatment session, which
+          // forks the journey (assessment goes through Finance, a treatment
+          // session closes straight from the therapist) and records the nurse
+          // tasked with a treatment patient.
+          '4.0.9.144v'  => '4.0.9.144_care_queue_visit_type.sql',
+          // .145 Care type at billing. The physio marks the bill inpatient or
+          // outpatient when raising it; the mark lives on the bill and on the
+          // care episode, so a patient's history reads as a series of spells
+          // instead of a status that gets converted.
+          '4.0.9.145v'  => '4.0.9.145_care_type_billing.sql',
+          // .146 Rooms and room-class daily rates. Wards gain physical rooms,
+          // each room belongs to a price category (Private AC, Semi-Private,
+          // General...), and the daily bed charge prices from that category.
+          // Existing installs keep billing on the facility-wide bed rate until
+          // rooms are organised.
+          '4.0.9.146v'  => '4.0.9.146_physio_rooms_and_rate_classes.sql',
+          // .147 Service package permissions reach existing roles. The keys
+          // were listed in the Roles screen but never seeded into any role, so
+          // /service_packages/add answered with a silent access-denied.
+          '4.0.9.147v'  => '4.0.9.147_service_package_permissions.sql',
+          // .148 Referral configuration. Referring a patient stops meaning
+          // free-typing: reasons and urgency statuses become the store's own
+          // editable lists (dropdown with an "Other" write-in), a notable set
+          // of hospitals is seeded as the starting directory, and the partner
+          // table grows source_system/external_key so a shared-directory sync
+          // can land later without a rebuild.
+          '4.0.9.148v'  => '4.0.9.148_referral_options_and_seeds.sql',
+          // .149 Treatment plan from the visit. The physiotherapist's
+          // assessment recommendation now lands as a real treatment plan
+          // linked back to the visit (db_treatment_plans.encounter_id), so
+          // the Treatment Plans screen shows what was prescribed and a
+          // re-saved remark amends that one plan instead of duplicating it.
+          '4.0.9.149v'  => '4.0.9.149_treatment_plan_encounter.sql',
+          // .150 Delivery fee reconciliation. The classic POS wrote a round_off
+          // that swallowed the discount, coupon and delivery fee, and the fee
+          // itself sits on db_sales rather than on any item line — so the
+          // printed breakdown never added up to the grand total (receipt
+          // 22,500 vs 17,500 of goods). Rewrites db_sales.round_off only;
+          // grand_total and paid_amount are never touched, so no money moves.
+          '4.0.9.150v'  => '4.0.9.150_shipping_round_off_repair.sql',
+          // .151 Admissions belong to a care episode. A care episode is one
+          // spell of care under one type, and the patient profile already
+          // groups history that way — but an admission never said which spell
+          // it was, so the ward record and the episode record described the
+          // same stay without meeting. Adds db_admissions.episode_id plus
+          // treatment_plan_id, which replaces the care_plan free-text box
+          // (typed once, shown once, read by nothing). Existing admissions are
+          // backfilled onto the episode that was running when the patient was
+          // admitted.
+          '4.0.9.151v'  => '4.0.9.151_admission_care_episode.sql',
 ];

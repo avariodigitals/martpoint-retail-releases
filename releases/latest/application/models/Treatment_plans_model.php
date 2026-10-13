@@ -38,6 +38,78 @@ class Treatment_plans_model extends CI_Model {
 		return $this->db->order_by('id', 'desc')->get('db_treatment_plans')->result();
 	}
 
+	/** The one plan raised from a care-queue visit (recommendation upsert key). */
+	public function planForEncounter($encounterId){
+		if(!$this->db->field_exists('encounter_id', 'db_treatment_plans')) return null;
+		return $this->db->where('store_id', get_current_store_id())
+			->where('encounter_id', (int)$encounterId)
+			->order_by('id', 'desc')->get('db_treatment_plans')->row();
+	}
+
+	/**
+	 * Upsert the plan raised by a physiotherapist's assessment recommendation.
+	 * A visit owns one live plan: re-saving the remark amends that plan, so the
+	 * Treatment Plans screen shows what was prescribed without duplicates.
+	 * The line mirrors the billed course — one unit per session at the split
+	 * price — so paid units bank one redeemable session each.
+	 */
+	public function upsertRecommendation($enc, $itemId, $amount, $sessions, $careSetting, $remark){
+		$storeId = get_current_store_id();
+		// Without the visit link a re-saved remark would stack duplicate plans,
+		// so say what is missing instead of quietly corrupting the plan list.
+		if(!$this->db->field_exists('encounter_id', 'db_treatment_plans')){
+			return array('ok' => false, 'error' => 'The database needs updating first (System Updates) before a visit can raise a treatment plan');
+		}
+		$item = $this->db->where('id', (int)$itemId)->where('store_id', $storeId)
+			->where('service_bit', 1)->where('status', 1)->get('db_items')->row();
+		if(!$item) return array('ok' => false, 'error' => 'That treatment service is not on the Services list');
+		$patient = $this->db->select('customer_id')->where('id', (int)$enc->patient_id)
+			->where('store_id', $storeId)->get('db_patients')->row();
+		if(!$patient) return array('ok' => false, 'error' => 'Patient not found');
+
+		$sessions = max(1, (int)$sessions);
+		$amount   = round((float)$amount, 2);
+		$items = array(array(
+			'item_id'          => (int)$item->id,
+			'qty'              => $sessions,
+			'unit_price'       => round($amount / $sessions, 2),
+			'sessions_per_unit'=> 1,
+		));
+		$careSetting = $careSetting === 'inpatient' ? 'inpatient' : 'outpatient';
+		$title = $item->item_name . ' — ' . $sessions . ' session(s)';
+
+		$existing = $this->planForEncounter((int)$enc->id);
+		if($existing && !in_array($existing->status, array('completed','cancelled'))){
+			// Re-saving an unchanged remark must not churn plan versions.
+			if((string)$existing->billing_fingerprint === $this->fingerprint($items, $careSetting)
+				&& (string)$existing->care_setting === $careSetting && (string)$existing->title === $title){
+				$res = array('ok' => true, 'plan_id' => (int)$existing->id, 'version' => (int)$existing->version);
+			} else {
+				$res = $this->amendPlan((int)$existing->id, array(
+					'title'        => $title,
+					'goals'        => (string)$remark,
+					'care_setting' => $careSetting,
+				), $items, 'Recommendation updated after assessment');
+			}
+		} else {
+			$res = $this->createPlan(array(
+				'patient_id'   => (int)$enc->patient_id,
+				'customer_id'  => (int)$patient->customer_id,
+				'episode_id'   => !empty($enc->episode_id) ? (int)$enc->episode_id : null,
+				'encounter_id' => (int)$enc->id,
+				'clinician_id' => (int)($enc->clinician_user_id ?: $this->session->userdata('inv_userid')),
+				'branch_id'    => !empty($enc->warehouse_id) ? (int)$enc->warehouse_id : null,
+				'status'       => 'active',
+				'care_setting' => $careSetting,
+				'title'        => $title,
+				'goals'        => (string)$remark,
+			), $items, 'Recommended at assessment for visit ' . ($enc->encounter_code ?: $enc->id));
+		}
+		$res['item_id'] = (int)$item->id;
+		$res['item_name'] = (string)$item->item_name;
+		return $res;
+	}
+
 	public function versions($planId){
 		return $this->db->where('plan_id', $planId)->order_by('version', 'desc')
 			->get('db_treatment_plan_versions')->result();
@@ -66,6 +138,7 @@ class Treatment_plans_model extends CI_Model {
 			'customer_id'  => $plan['customer_id'],
 			'episode_id'   => $plan['episode_id'] ?? null,
 			'assessment_id'=> $plan['assessment_id'] ?? null,
+			'encounter_id' => $plan['encounter_id'] ?? null,
 			'clinician_id' => $plan['clinician_id'],
 			'branch_id'    => $plan['branch_id'] ?? null,
 			'status'       => $plan['status'] ?? 'draft',
@@ -79,6 +152,8 @@ class Treatment_plans_model extends CI_Model {
 			'created_time' => date('H:i:s'),
 			'created_by'   => $this->session->userdata('inv_username') ?: 'system',
 		);
+		// Migration 4.0.9.149 adds the visit link — skip it on an un-migrated database.
+		if(!$this->db->field_exists('encounter_id', 'db_treatment_plans')) unset($data['encounter_id']);
 		$this->db->insert('db_treatment_plans', $data);
 		$planId = $this->db->insert_id();
 		if(!$planId){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Plan save failed'); }

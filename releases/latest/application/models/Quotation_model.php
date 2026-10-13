@@ -151,6 +151,8 @@ class Quotation_model extends CI_Model {
 		$customer_id = (int)$this->input->post('customer_id', TRUE);
 		$customer = $this->db->select('id')->from('db_customers')->where('id', $customer_id)->where('store_id', $store_id)->get()->row();
 		if(!$customer){ return 'Select a customer from this store.'; }
+		// Draft lets the quote be reviewed before it is finalized and emailed.
+		$quotation_status = trim((string)$this->input->post('quotation_status', TRUE)) === 'Draft' ? 'Draft' : 'Quotation';
 		$raw_lines = $this->input->post('lines', TRUE);
 		if(!is_array($raw_lines)){ return 'Add at least one quotation line.'; }
 		$tax_id = (int)$this->input->post('tax_id', TRUE);
@@ -189,7 +191,7 @@ class Quotation_model extends CI_Model {
 				'tax_type' => $tax_id ? 'Exclusive' : null,
 				'tax_amt' => $tax_amount,
 				'total_cost' => $amount + $tax_amount,
-				'quotation_status' => 'Quotation',
+				'quotation_status' => $quotation_status,
 				'status' => 1,
 				'seller_points' => 0,
 				'store_id' => $store_id,
@@ -220,7 +222,7 @@ class Quotation_model extends CI_Model {
 			'quotation_date' => $quote_date,
 			'expire_date' => $expires,
 			'reference_no' => trim((string)$this->input->post('reference_no', TRUE)),
-			'quotation_status' => 'Quotation',
+			'quotation_status' => $quotation_status,
 			// Preserve literal payment terms such as "30% deposit". CI's XSS
 			// cleaner treats "% de" as a spaced URL escape and changes the text.
 			'quotation_note' => trim((string)$this->input->post('quotation_note', FALSE)),

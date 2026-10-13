@@ -4,6 +4,19 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /** Commercial measures shared by the dedicated clinic and plant dashboards. */
 class Workspace_commercial_model extends CI_Model {
 
+    /**
+     * Which db_sales rows are patient bills: plan invoices, care-queue visit
+     * bills and migrated opening balances. Retail POS sales sit in the same
+     * table and must stay out of the clinic money cards.
+     */
+    private function patient_bill_filter() {
+        $f = 's.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%"';
+        if ($this->db->field_exists('encounter_id', 'db_sales')) {
+            $f = 's.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%"';
+        }
+        return $f;
+    }
+
     public function snapshot($store_id, $clinic = false, $range = 'Today') {
         $out = array('invoices_today'=>0, 'billed_today'=>0.0, 'billed_yesterday'=>0.0,
             'collected_today'=>0.0, 'overdue_invoices'=>0, 'outstanding'=>0.0);
@@ -18,7 +31,7 @@ class Workspace_commercial_model extends CI_Model {
                 ->where('s.sales_status', 'Final');
             if ($clinic) {
                 $this->db->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id');
-                $this->db->where('s.plan_id IS NOT NULL', null, false);
+                $this->db->where('(' . $this->patient_bill_filter() . ')', null, false);
             }
         };
         if ($clinic && (!$this->db->table_exists('db_patients') || !$this->db->field_exists('plan_id', 'db_sales'))) return $out;
@@ -46,7 +59,7 @@ class Workspace_commercial_model extends CI_Model {
                 ->where('sp.payment_date >=', $from)->where('sp.payment_date <=', $today)->where('sp.status', 1);
             if ($clinic) {
                 $this->db->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id');
-                $this->db->where('s.plan_id IS NOT NULL', null, false);
+                $this->db->where('(' . $this->patient_bill_filter() . ')', null, false);
             }
             $row = $this->db->select('COALESCE(SUM(sp.payment),0) AS amount', false)->get()->row();
             $out['collected_today'] = (float)($row->amount ?? 0);

@@ -70,13 +70,22 @@ class Inpatient_model extends CI_Model {
 		$id = $this->db->insert_id();
 		return $id ? array('ok' => true, 'ward_id' => $id) : array('ok' => false, 'error' => 'Ward exists or insert failed');
 	}
-	public function saveBed($wardId, $label, $dailyRate = null){
+	public function saveBed($wardId, $label, $dailyRate = null, $roomId = null){
 		$storeId = get_current_store_id();
+		$roomId = $roomId ? (int)$roomId : null;
+		if($roomId){
+			$room = $this->db->where('id',$roomId)->where('store_id',$storeId)->get('db_rooms')->row();
+			if(!$room) return array('ok' => false, 'error' => 'Room not found');
+			// A bed in a room always belongs to that room's ward — the ward is
+			// derived here so it can never disagree with the room.
+			$wardId = (int)$room->ward_id;
+		}
 		$ward = $this->db->where('id', $wardId)->where('store_id', $storeId)->get('db_wards')->row();
 		if(!$ward) return array('ok' => false, 'error' => 'Ward not found');
 		$this->db->trans_begin();
 		$this->db->insert('db_beds', array(
-			'store_id' => $storeId, 'ward_id' => $wardId, 'bed_label' => trim($label),
+			'store_id' => $storeId, 'ward_id' => $wardId, 'room_id' => $roomId,
+			'bed_label' => trim($label),
 			'daily_rate' => ($dailyRate === '' || $dailyRate === null) ? null : (float)$dailyRate,
 			'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
 			'created_by' => $this->session->userdata('inv_username'),
@@ -91,12 +100,44 @@ class Inpatient_model extends CI_Model {
 		$this->db->trans_commit();
 		return array('ok'=>true,'bed_id'=>$id);
 	}
+
+	/**
+	 * Edit a bed that already exists: rename it, move it to another room, and set
+	 * or clear its own-rate override. Leaving the rate blank clears the override so
+	 * the bed returns to its category's rate — the normal state. This is the only
+	 * way to undo an old own-rate that is shadowing the category price.
+	 */
+	public function updateBed($bedId, $label, $dailyRate = null, $roomId = null){
+		$storeId = get_current_store_id();
+		$bed = $this->db->where('id',(int)$bedId)->where('store_id',$storeId)->get('db_beds')->row();
+		if(!$bed) return array('ok'=>false,'error'=>'Bed not found');
+		$label = trim((string)$label);
+		if($label === '') return array('ok'=>false,'error'=>'Bed label is required');
+		$roomId = $roomId ? (int)$roomId : null;
+		$wardId = (int)$bed->ward_id;
+		if($roomId){
+			$room = $this->db->where('id',$roomId)->where('store_id',$storeId)->get('db_rooms')->row();
+			if(!$room) return array('ok'=>false,'error'=>'Room not found');
+			$wardId = (int)$room->ward_id;
+		}
+		$this->db->where('id',(int)$bedId)->where('store_id',$storeId)->update('db_beds', array(
+			'bed_label'  => $label,
+			'ward_id'    => $wardId,
+			'room_id'    => $roomId,
+			'daily_rate' => ($dailyRate === '' || $dailyRate === null) ? null : (float)$dailyRate,
+		));
+		return $this->db->affected_rows() >= 0
+			? array('ok'=>true,'bed_id'=>(int)$bedId)
+			: array('ok'=>false,'error'=>'Bed could not be updated');
+	}
 	public function bedBoard(){
 		$storeId = get_current_store_id();
 		$wards = $this->db->where('store_id', $storeId)->where('status', 1)->order_by('name')->get('db_wards')->result();
-		$beds = $this->db->select('b.*, ac.id AS payment_account_id, o.id AS occupancy_id, o.admission_id, o.patient_id, a.admission_code, p.patient_code, c.customer_name AS patient_name')
+		$beds = $this->db->select('b.*, ac.id AS payment_account_id, o.id AS occupancy_id, o.admission_id, o.patient_id, a.admission_code, p.patient_code, c.customer_name AS patient_name, r.room_label, r.id AS room_id_join, rc.class_name AS room_class_name, rc.id AS room_class_id_join')
 			->from('db_beds b')
 			->join('db_physio_payment_accounts ac','ac.bed_id=b.id AND ac.store_id=b.store_id','left')
+			->join('db_rooms r', 'r.id = b.room_id AND r.store_id=b.store_id', 'left')
+			->join('db_room_classes rc', 'rc.id = r.room_class_id AND rc.store_id=b.store_id', 'left')
 			->join('db_bed_occupancy o', 'o.bed_id = b.id AND o.store_id=b.store_id AND o.to_at IS NULL', 'left')
 			->join('db_admissions a', 'a.id=o.admission_id AND a.store_id=b.store_id', 'left')
 			->join('db_patients p', 'p.id = o.patient_id', 'left')
@@ -110,15 +151,134 @@ class Inpatient_model extends CI_Model {
 	}
 
 	// ------------------------------------------------------------------
-	// Admission — identity reuse, explicit outpatient-package decision.
+	// Rooms & room classes — the price category of a bed-space.
+	// ------------------------------------------------------------------
+	public function roomClasses($includeInactive = false){
+		$q = $this->db->where('store_id', get_current_store_id());
+		if(!$includeInactive) $q->where('status', 1);
+		return $q->order_by('class_name')->get('db_room_classes')->result();
+	}
+	public function saveRoomClass($name, $code = null, $description = null, $id = null){
+		$storeId = get_current_store_id();
+		$name = trim((string)$name);
+		if($name === '') return array('ok'=>false,'error'=>'Category name is required');
+		$code = $code ? strtoupper(preg_replace('/[^A-Za-z0-9_]/','_',trim((string)$code)))
+		             : strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$name));
+		if($code === '') $code = 'CLASS';
+		$exists = $this->db->where('store_id',$storeId)->where('class_code',$code);
+		if($id) $exists->where('id !=',(int)$id);
+		if($exists->count_all_results('db_room_classes'))
+			return array('ok'=>false,'error'=>'A room category with that code already exists');
+		$data = array('store_id'=>$storeId,'class_code'=>$code,'class_name'=>$name,
+			'description'=>$description ? trim((string)$description) : null,'status'=>1);
+		if($id){
+			$this->db->where('id',(int)$id)->where('store_id',$storeId)->update('db_room_classes',$data);
+			return $this->db->affected_rows() >= 0 ? array('ok'=>true,'room_class_id'=>(int)$id)
+				: array('ok'=>false,'error'=>'Category could not be updated');
+		}
+		$data += array('created_date'=>date('Y-m-d'),'created_time'=>date('H:i:s'),
+			'created_by'=>$this->session->userdata('inv_username'));
+		$this->db->insert('db_room_classes',$data);
+		$newId = $this->db->insert_id();
+		return $newId ? array('ok'=>true,'room_class_id'=>$newId) : array('ok'=>false,'error'=>'Category could not be saved');
+	}
+	/** The standard categories, offered one-click so nobody has to invent them. */
+	public function defaultRoomClasses(){
+		return array(
+			array('class_code'=>'PRIVATE_AC','class_name'=>'Private - AC','description'=>'Single-occupancy private room with air conditioning'),
+			array('class_code'=>'PRIVATE_NONAC','class_name'=>'Private - Non-AC','description'=>'Single-occupancy private room without air conditioning'),
+			array('class_code'=>'SEMI_PRIVATE','class_name'=>'Semi-Private','description'=>'Two or more beds sharing one room'),
+			array('class_code'=>'GENERAL','class_name'=>'General Ward','description'=>'Open ward bed space'),
+			array('class_code'=>'HDU','class_name'=>'ICU / High Dependency','description'=>'High-dependency or intensive care space'),
+		);
+	}
+	public function seedDefaultRoomClasses(){
+		$added = 0;
+		foreach($this->defaultRoomClasses() as $c){
+			if($this->db->where('store_id',get_current_store_id())->where('class_code',$c['class_code'])
+				->count_all_results('db_room_classes')) continue;
+			$r = $this->saveRoomClass($c['class_name'], $c['class_code'], $c['description']);
+			if(!empty($r['ok'])) $added++;
+		}
+		return array('ok'=>true,'added'=>$added);
+	}
+	public function rooms($wardId = null){
+		$q = $this->db->select('r.*, rc.class_name, w.name AS ward_name,
+				(SELECT COUNT(*) FROM db_beds b WHERE b.room_id = r.id AND b.store_id = r.store_id) AS bed_count')
+			->from('db_rooms r')
+			->join('db_room_classes rc','rc.id = r.room_class_id','left')
+			->join('db_wards w','w.id = r.ward_id','left')
+			->where('r.store_id', get_current_store_id());
+		if($wardId) $q->where('r.ward_id', (int)$wardId);
+		return $q->order_by('w.name, r.room_label')->get()->result();
+	}
+	public function saveRoom($wardId, $roomClassId, $label, $capacity = 1, $notes = null, $id = null){
+		$storeId = get_current_store_id();
+		$label = trim((string)$label);
+		if($label === '') return array('ok'=>false,'error'=>'Room name is required');
+		$ward = $this->db->where('id',(int)$wardId)->where('store_id',$storeId)->get('db_wards')->row();
+		if(!$ward) return array('ok'=>false,'error'=>'Ward not found');
+		$cls = $this->db->where('id',(int)$roomClassId)->where('store_id',$storeId)->get('db_room_classes')->row();
+		if(!$cls) return array('ok'=>false,'error'=>'Room category not found');
+		$dup = $this->db->where('store_id',$storeId)->where('ward_id',(int)$wardId)->where('room_label',$label);
+		if($id) $dup->where('id !=',(int)$id);
+		if($dup->count_all_results('db_rooms')) return array('ok'=>false,'error'=>'That ward already has a room with this name');
+		$data = array('store_id'=>$storeId,'ward_id'=>(int)$wardId,'room_class_id'=>(int)$roomClassId,
+			'room_label'=>$label,'capacity'=>max(1,(int)$capacity),
+			'notes'=>$notes ? trim((string)$notes) : null);
+		if($id){
+			$this->db->where('id',(int)$id)->where('store_id',$storeId)->update('db_rooms',$data);
+			return $this->db->affected_rows() >= 0 ? array('ok'=>true,'room_id'=>(int)$id)
+				: array('ok'=>false,'error'=>'Room could not be updated');
+		}
+		$data += array('status'=>'active','created_date'=>date('Y-m-d'),'created_time'=>date('H:i:s'),
+			'created_by'=>$this->session->userdata('inv_username'));
+		$this->db->insert('db_rooms',$data);
+		$newId = $this->db->insert_id();
+		return $newId ? array('ok'=>true,'room_id'=>$newId) : array('ok'=>false,'error'=>'Room could not be saved');
+	}
+	/** Point a bed at a room (or clear it back to the ward) — never touches history. */
+	public function assignBedRoom($bedId, $roomId){
+		$storeId = get_current_store_id();
+		$bed = $this->db->where('id',(int)$bedId)->where('store_id',$storeId)->get('db_beds')->row();
+		if(!$bed) return array('ok'=>false,'error'=>'Bed not found');
+		$roomId = $roomId ? (int)$roomId : null;
+		if($roomId){
+			$room = $this->db->where('id',$roomId)->where('store_id',$storeId)->get('db_rooms')->row();
+			if(!$room || (int)$room->ward_id !== (int)$bed->ward_id)
+				return array('ok'=>false,'error'=>'Room not found in that ward');
+		}
+		$this->db->where('id',$bed->id)->where('store_id',$storeId)->update('db_beds', array('room_id'=>$roomId));
+		return array('ok'=>true);
+	}
+	/** The room class a bed-day is priced by; null when the bed is unorganised. */
+	public function bedRoomClassId($bedId){
+		if(!$bedId) return null;
+		$row = $this->db->select('rc.id')->from('db_beds b')
+			->join('db_rooms r','r.id = b.room_id','left')
+			->join('db_room_classes rc','rc.id = r.room_class_id','left')
+			->where('b.id',(int)$bedId)->get()->row();
+		return $row && $row->id ? (int)$row->id : null;
+	}
+
+	// ------------------------------------------------------------------
+	// Admission — identity reuse, care-episode link, session-package decision.
 	// ------------------------------------------------------------------
 	public function admit($patientId, array $d){
 		$storeId = get_current_store_id();
 		$bedId   = !empty($d['bed_id']) ? (int)$d['bed_id'] : null;
 		$decision= in_array(($d['outpatient_decision'] ?? ''), array('continue','pause','replace'), true)
 			? $d['outpatient_decision'] : null;
-		if(!$decision) return array('ok' => false, 'error' => 'Outpatient package decision is required (continue / pause / replace)');
 		if(trim((string)($d['reason'] ?? '')) === '') return array('ok' => false, 'error' => 'Admission reason is required');
+
+		// The session-package question only matters when there is something to
+		// decide. Compulsory for every patient is what made it read as nonsense
+		// on a patient with nothing prepaid.
+		$remaining = $this->sessionsRemaining($patientId);
+		if($remaining > 0 && !$decision){
+			return array('ok' => false, 'error' => "This patient still has {$remaining} prepaid session(s) coming. Say what should happen to them during the stay.");
+		}
+		if(!$decision) $decision = 'continue';
 
 		$this->db->trans_begin();
 		// Patient row is the financial mutex — one active admission per patient.
@@ -130,6 +290,26 @@ class Inpatient_model extends CI_Model {
 			->where('status', 'active')->get('db_admissions')->row();
 		if($active){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'Patient already has an active admission ' . $active->admission_code, 'conflict' => true, 'admission_id' => $active->id); }
 
+		// The stay belongs to a care episode — the spell of care this ward work
+		// is part of, so the patient profile reads as one story instead of a
+		// ward record and a visit record that never meet. It joins the patient's
+		// open inpatient spell when there is one; an open outpatient spell is
+		// left alone, because those visits are a different kind of care.
+		$episodeId = !empty($d['episode_id']) ? (int)$d['episode_id'] : 0;
+		if($episodeId){
+			$ownsIt = $this->db->select('id')->where('id', $episodeId)
+				->where('patient_id', $patientId)->where('store_id', $storeId)->get('db_care_episodes')->row();
+			if(!$ownsIt){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'That care episode does not belong to this patient'); }
+		} else {
+			$episodeId = $this->openInpatientEpisode($storeId, $patientId);
+		}
+		$planId = !empty($d['treatment_plan_id']) ? (int)$d['treatment_plan_id'] : 0;
+		if($planId){
+			$ownsPlan = $this->db->select('id')->where('id', $planId)
+				->where('patient_id', $patientId)->where('store_id', $storeId)->get('db_treatment_plans')->row();
+			if(!$ownsPlan){ $this->db->trans_rollback(); return array('ok' => false, 'error' => 'That treatment plan does not belong to this patient'); }
+		}
+
 		$count = $this->db->where('store_id', $storeId)->count_all_results('db_admissions') + 1;
 		$code  = 'ADM-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 		while($this->db->where('store_id',$storeId)->where('admission_code',$code)->count_all_results('db_admissions')){ $count++; $code='ADM-'.str_pad($count,5,'0',STR_PAD_LEFT); }
@@ -138,7 +318,8 @@ class Inpatient_model extends CI_Model {
 		$insertData = array(
 			'store_id' => $storeId,
 			'branch_id' => function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null,
-			'patient_id' => $patientId, 'admission_code' => $code,
+			'patient_id' => $patientId, 'episode_id' => $episodeId ?: null,
+			'treatment_plan_id' => $planId ?: null, 'admission_code' => $code,
 			'reason' => trim($d['reason']), 'care_plan' => trim((string)($d['care_plan'] ?? '')),
 			'clinician_user_id' => !empty($d['clinician_user_id']) ? (int)$d['clinician_user_id'] : (int)$this->session->userdata('inv_userid'),
 			'admitted_by' => (int)$this->session->userdata('inv_userid'),
@@ -175,23 +356,198 @@ class Inpatient_model extends CI_Model {
 		$this->_applyOutpatientDecision($patientId, $decision);
 		$this->generateTasks($admId, date('Y-m-d'));
 
+		// Admitting the patient IS the inpatient decision — patients who come
+		// straight for admission never pass a physio assessment. Stamp any visits
+		// still on the care queue so their bills follow this spell.
+		$this->load->model('patient_billing_model', 'billing');
+		$openEncs = $this->db->select('id')->where('patient_id', $patientId)
+			->where('store_id', $storeId)->where('queue_stage !=', 'closed')->get('db_encounters')->result();
+		foreach($openEncs as $oe){ $this->billing->applyCareType((int)$oe->id, 'inpatient'); }
+
 		$this->db->trans_commit();
 		return array('ok' => true, 'admission_id' => $admId, 'admission_code' => $code);
 	}
 
+	/** The patient's open inpatient spell — opened fresh when there is none. */
+	private function openInpatientEpisode($storeId, $patientId){
+		$ep = $this->db->select('id')->where('store_id', $storeId)->where('patient_id', $patientId)
+			->where('status', 'open')->where('episode_type', 'inpatient')
+			->order_by('id', 'desc')->get('db_care_episodes')->row();
+		if($ep) return (int)$ep->id;
+		$countId = get_count_id('db_care_episodes', $storeId);
+		$this->db->insert('db_care_episodes', array(
+			'store_id' => $storeId, 'patient_id' => (int)$patientId, 'count_id' => $countId,
+			'episode_code' => 'EP-'.str_pad($countId, 5, '0', STR_PAD_LEFT),
+			'warehouse_id' => function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null,
+			'episode_type' => 'inpatient', 'started_at' => date('Y-m-d H:i:s'),
+			'status' => 'open', 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
+			'created_by' => $this->session->userdata('inv_username') ?: 'system',
+		));
+		return (int)$this->db->insert_id();
+	}
+
+	/** Prepaid physio sessions still owed to the patient. */
+	public function sessionsRemaining($patientId){
+		if(!$this->db->table_exists('db_plan_entitlements')) return 0;
+		$row = $this->db->select('COALESCE(SUM(GREATEST(units_total - units_used, 0)),0) AS units_left', false)
+			->where('patient_id', (int)$patientId)->where('store_id', $this->_sid())
+			->where('status', 'active')->get('db_plan_entitlements')->row();
+		return (int)($row->units_left ?? 0);
+	}
+
+	/**
+	 * Everything the New Admission form needs once a patient is chosen. The
+	 * form used to make staff retype a reason the physio had already written
+	 * and guess at a bed the bill already named — this pulls both through,
+	 * alongside the plan, the episode and the emergency contact.
+	 */
+	public function admitContext($patientId){
+		$storeId = $this->_sid();
+		$patient = $this->db->select('p.id, p.patient_code, p.customer_id, p.nok_name, p.nok_phone, p.nok_relationship, c.customer_name')
+			->from('db_patients p')->join('db_customers c', 'c.id = p.customer_id', 'left')
+			->where('p.id', (int)$patientId)->where('p.store_id', $storeId)->get()->row();
+		if(!$patient) return array('ok' => false, 'error' => 'Patient not found');
+
+		$ctx = array(
+			'ok' => true, 'patient_id' => (int)$patient->id,
+			'reason' => '', 'reason_from' => null,
+			'bed_id' => null, 'bed_label' => null, 'bed_from' => null,
+			'episode' => null, 'plans' => array(), 'suggested_plan_id' => null,
+			'sessions_left' => $this->sessionsRemaining($patientId),
+			'nok' => array('name' => $patient->nok_name, 'phone' => $patient->nok_phone, 'relationship' => $patient->nok_relationship),
+			'active_admission' => null,
+		);
+
+		// Reason — the physio's own words from the last visit beat anything typed here.
+		if($this->db->field_exists('assessment_remark', 'db_encounters')){
+			$enc = $this->db->select('assessment_remark, checkin_at')
+				->where('patient_id', (int)$patientId)->where('store_id', $storeId)
+				->where('assessment_remark IS NOT NULL')->where('assessment_remark !=', '')
+				->order_by('id', 'desc')->get('db_encounters')->row();
+			if($enc){
+				$ctx['reason'] = trim((string)$enc->assessment_remark);
+				$ctx['reason_from'] = 'Physio assessment remark' . ($enc->checkin_at ? ' · ' . date('d M Y', strtotime($enc->checkin_at)) : '');
+			}
+		}
+
+		// Bed — the one already being charged on the patient's bill.
+		if($this->db->field_exists('physio_account_id', 'db_salesitems')){
+			$bed = $this->db->select('pa.bed_id, b.bed_label, w.name AS ward_name', false)
+				->from('db_salesitems si')
+				->join('db_sales s', 's.id = si.sales_id')
+				->join('db_physio_payment_accounts pa', 'pa.id = si.physio_account_id')
+				->join('db_beds b', 'b.id = pa.bed_id')
+				->join('db_wards w', 'w.id = b.ward_id', 'left')
+				->where('s.customer_id', (int)$patient->customer_id)->where('s.store_id', $storeId)
+				->where('pa.bed_id IS NOT NULL', null, false)
+				->order_by('si.id', 'desc')->limit(1)->get()->row();
+			if($bed){
+				$ctx['bed_id'] = (int)$bed->bed_id;
+				$ctx['bed_label'] = trim(($bed->ward_name ? $bed->ward_name . ' / ' : '') . $bed->bed_label);
+				$ctx['bed_from'] = 'already charged on the bill';
+			}
+		}
+		if(!$ctx['bed_id'] && $this->db->field_exists('bed_id', 'db_daily_charges')){
+			$bed = $this->db->select('c.bed_id, b.bed_label, w.name AS ward_name')
+				->from('db_daily_charges c')
+				->join('db_admissions a', 'a.id = c.admission_id')
+				->join('db_beds b', 'b.id = c.bed_id')
+				->join('db_wards w', 'w.id = b.ward_id', 'left')
+				->where('a.patient_id', (int)$patientId)->where('a.store_id', $storeId)
+				->where('c.bed_id IS NOT NULL', null, false)
+				->order_by('c.id', 'desc')->limit(1)->get()->row();
+			if($bed){
+				$ctx['bed_id'] = (int)$bed->bed_id;
+				$ctx['bed_label'] = trim(($bed->ward_name ? $bed->ward_name . ' / ' : '') . $bed->bed_label);
+				$ctx['bed_from'] = 'billed on the last stay';
+			}
+		}
+
+		// Care episode — the spell of care this stay joins.
+		$ep = $this->db->select('id, episode_code, episode_type, started_at, status')
+			->where('patient_id', (int)$patientId)->where('store_id', $storeId)
+			->where('status', 'open')->order_by('id', 'desc')->get('db_care_episodes')->row();
+		if($ep) $ctx['episode'] = $ep;
+
+		// Treatment plans — what replaces the old free-text Care plan box.
+		$ctx['plans'] = $this->db->select('id, plan_code, title, care_setting, status, version, goals')
+			->where('patient_id', (int)$patientId)->where('store_id', $storeId)
+			->where_in('status', array('draft', 'active'))
+			->order_by('id', 'desc')->limit(10)->get('db_treatment_plans')->result();
+		foreach($ctx['plans'] as $p){
+			if($p->status === 'active' && $p->care_setting === 'inpatient'){ $ctx['suggested_plan_id'] = (int)$p->id; break; }
+			if(!$ctx['suggested_plan_id'] && $p->status === 'active'){ $ctx['suggested_plan_id'] = (int)$p->id; }
+		}
+
+		// Reason falls back to the plan when the physio left no remark — better
+		// a labelled draft than an empty box, but it says where it came from so
+		// nobody mistakes it for the physiotherapist's own words.
+		if($ctx['reason'] === '' && $ctx['plans']){
+			$src = null;
+			foreach($ctx['plans'] as $p){ if($ctx['suggested_plan_id'] && (int)$p->id === $ctx['suggested_plan_id']){ $src = $p; break; } }
+			if(!$src) $src = $ctx['plans'][0];
+			$draft = trim((string)$src->title);
+			if($draft === '' && trim((string)$src->goals) !== '') $draft = trim((string)$src->goals);
+			if($draft !== ''){
+				$ctx['reason'] = $draft;
+				$ctx['reason_from'] = 'treatment plan ' . ($src->plan_code ?: '') . ' — write the ward’s reason in your own words';
+			}
+		}
+
+		$adm = $this->db->select('id, admission_code, admitted_at')
+			->where('patient_id', (int)$patientId)->where('store_id', $storeId)
+			->where('status', 'active')->get('db_admissions')->row();
+		if($adm) $ctx['active_admission'] = $adm;
+
+		return $ctx;
+	}
+
+	/**
+	 * Care episodes the physio has called inpatient that have no ward stay yet.
+	 * Admitting stays a deliberate act — this only stops the decision being
+	 * forgotten between the assessment and the ward.
+	 */
+	public function pendingAdmissions(){
+		$storeId = $this->_sid();
+		return $this->db->select("e.id AS episode_id, e.episode_code, e.started_at, e.patient_id,
+				p.patient_code, c.customer_name, c.mobile AS patient_mobile,
+				(SELECT COUNT(*) FROM db_encounters x WHERE x.episode_id = e.id) AS visits,
+				(SELECT x.assessment_remark FROM db_encounters x WHERE x.episode_id = e.id
+					AND x.assessment_remark IS NOT NULL AND x.assessment_remark != ''
+					ORDER BY x.id DESC LIMIT 1) AS reason", false)
+			->from('db_care_episodes e')
+			->join('db_patients p', 'p.id = e.patient_id')
+			->join('db_customers c', 'c.id = p.customer_id', 'left')
+			->where('e.store_id', $storeId)
+			->where('e.episode_type', 'inpatient')
+			->where('e.status', 'open')
+			->where("NOT EXISTS (SELECT 1 FROM db_admissions a WHERE a.episode_id = e.id
+				OR (a.patient_id = e.patient_id AND a.store_id = e.store_id AND a.status = 'active'))", null, false)
+			->order_by('e.id', 'desc')->limit(20)->get()->result();
+	}
+
 	public function getAdmission($id){
-		return $this->db->select('a.*, c.customer_name AS full_name, p.patient_code, p.customer_id, c.mobile AS patient_mobile, u.username AS clinician_name')
+		return $this->db->select('a.*, c.customer_name AS full_name, p.patient_code, p.customer_id, c.mobile AS patient_mobile,
+				p.nok_name, p.nok_phone, p.nok_relationship,
+				u.username AS clinician_name, u.role_id AS clinician_role_id,
+				e.episode_code, e.episode_type, e.started_at AS episode_started_at,
+				tp.plan_code, tp.title AS plan_title, tp.goals AS plan_goals, tp.care_setting AS plan_care_setting', false)
 			->from('db_admissions a')
 			->join('db_patients p', 'p.id = a.patient_id')
 			->join('db_customers c', 'c.id = p.customer_id', 'left')
 			->join('db_users u', 'u.id = a.clinician_user_id', 'left')
+			->join('db_care_episodes e', 'e.id = a.episode_id', 'left')
+			->join('db_treatment_plans tp', 'tp.id = a.treatment_plan_id', 'left')
 			->where('a.id', $id)->where('a.store_id', get_current_store_id())->get()->row();
 	}
 	public function admissions($status = 'active'){
-		$q = $this->db->select('a.*, c.customer_name AS full_name, p.patient_code, b.bed_label, w.name AS ward_name')
+		$q = $this->db->select('a.*, c.customer_name AS full_name, p.patient_code, b.bed_label, w.name AS ward_name,
+				p.nok_name, p.nok_phone, e.episode_code, tp.title AS plan_title', false)
 			->from('db_admissions a')
 			->join('db_patients p', 'p.id = a.patient_id')
 			->join('db_customers c', 'c.id = p.customer_id', 'left')
+			->join('db_care_episodes e', 'e.id = a.episode_id', 'left')
+			->join('db_treatment_plans tp', 'tp.id = a.treatment_plan_id', 'left')
 			->join('db_bed_occupancy o', 'o.admission_id = a.id AND o.to_at IS NULL', 'left')
 			->join('db_beds b', 'b.id = o.bed_id', 'left')
 			->join('db_wards w', 'w.id = b.ward_id', 'left')
@@ -552,28 +908,82 @@ class Inpatient_model extends CI_Model {
 	// via UNIQUE(admission_id, charge_date, charge_code). Runs repeatedly:
 	// a re-run of the same date posts nothing twice.
 	// ------------------------------------------------------------------
-	public function saveRate($code, $name, $amount, $effectiveFrom){
+	public function saveRate($code, $name, $amount, $effectiveFrom, $roomClassId = null){
 		$storeId = get_current_store_id();
 		if($amount === '' || !is_numeric($amount)) return array('ok'=>false,'error'=>'Amount required');
+		$classId = $roomClassId ? (int)$roomClassId : null;
+		if($classId && !$this->db->where('id',$classId)->where('store_id',$storeId)->count_all_results('db_room_classes'))
+			return array('ok'=>false,'error'=>'Room class not found');
 		$this->db->trans_begin();
-		// Close the current version the day before the new one starts.
-		$this->db->where('store_id',$storeId)->where('rate_code',$code)->where('effective_to IS NULL')
+		// Close the current version the day before the new one starts. The
+		// scope must match exactly — a class rate never closes the facility-wide
+		// rate, and vice versa.
+		$this->db->where('store_id',$storeId)->where('rate_code',$code)
+			->where('room_class_id', $classId)->where('effective_to IS NULL')
 			->update('db_daily_rates', array('effective_to'=>date('Y-m-d', strtotime($effectiveFrom.' -1 day'))));
 		$this->db->insert('db_daily_rates', array(
-			'store_id'=>$storeId,'rate_code'=>$code,'name'=>trim($name),'amount'=>(float)$amount,
+			'store_id'=>$storeId,'rate_code'=>$code,'room_class_id'=>$classId,'name'=>trim($name),'amount'=>(float)$amount,
 			'effective_from'=>$effectiveFrom,'status'=>1,
 			'created_by'=>$this->session->userdata('inv_username'),'created_at'=>date('Y-m-d H:i:s')));
 		$id=$this->db->insert_id();
 		$this->db->trans_commit();
 		return $id ? array('ok'=>true,'rate_id'=>$id) : array('ok'=>false,'error'=>'Rate insert failed');
 	}
-	public function rateFor($code, $date){
-		return $this->db->where('store_id',get_current_store_id())->where('rate_code',$code)
-			->where('effective_from <=',$date)
-			->group_start()->where('effective_to IS NULL')->or_where('effective_to >=',$date)->group_end()
-			->where('status',1)->order_by('effective_from','desc')->get('db_daily_rates')->row();
+	/**
+	 * Versioned rate for a date. A room-class rate wins over the facility-wide
+	 * one, so a category is priced once and every bed in it follows.
+	 */
+	public function rateFor($code, $date, $roomClassId = null){
+		$fetch = function($classId) use ($code, $date){
+			$this->db->select('*')->where('store_id',$this->_sid())->where('rate_code',$code)
+				->where('effective_from <=',$date)
+				->group_start()->where('effective_to IS NULL')->or_where('effective_to >=',$date)->group_end()
+				->where('status',1)->where('room_class_id',$classId)
+				->order_by('effective_from','desc')->limit(1);
+			return $this->db->get('db_daily_rates')->row();
+		};
+		if($roomClassId){
+			$r = $fetch((int)$roomClassId);
+			if($r) return $r;
+		}
+		return $fetch(null);
 	}
 	public function rates(){ return $this->db->where('store_id',get_current_store_id())->order_by('rate_code, effective_from desc')->get('db_daily_rates')->result(); }
+
+	/**
+	 * The active 'bed' daily rate for every room class right now, plus the
+	 * facility-wide fallback. Keyed by class id; the fallback sits under key 0.
+	 * Used to show what a bed-space bills at before anyone is admitted.
+	 */
+	public function currentBedRates(){
+		$rows = $this->db->select('room_class_id, amount')->from('db_daily_rates')
+			->where('store_id', get_current_store_id())->where('rate_code', 'bed')
+			->where('status', 1)->where('effective_to IS NULL', null, false)
+			->order_by('effective_from', 'desc')->get()->result();
+		$byClass = array(); $fallback = null;
+		foreach($rows as $r){
+			if($r->room_class_id === null){ if($fallback === null) $fallback = (float)$r->amount; }
+			elseif(!array_key_exists((int)$r->room_class_id, $byClass)) $byClass[(int)$r->room_class_id] = (float)$r->amount;
+		}
+		return array('by_class' => $byClass, 'fallback' => $fallback);
+	}
+
+	/**
+	 * Resolve what one bed bills at per day: its own override wins, then its
+	 * room's category rate, then the facility fallback. Returns rate + source.
+	 */
+	public function resolveBedRate($bed){
+		$rates = $this->currentBedRates();
+		if(isset($bed->daily_rate) && $bed->daily_rate !== null)
+			return array('rate' => (float)$bed->daily_rate, 'source' => 'own', 'label' => 'own rate');
+		$classId = isset($bed->room_class_id_join) ? (int)$bed->room_class_id_join : 0;
+		if($classId && isset($rates['by_class'][$classId]))
+			return array('rate' => $rates['by_class'][$classId], 'source' => 'category',
+				'label' => isset($bed->room_class_name) && $bed->room_class_name ? $bed->room_class_name : 'room category');
+		if($rates['fallback'] !== null)
+			return array('rate' => $rates['fallback'], 'source' => 'fallback', 'label' => 'fallback bed rate');
+		return array('rate' => null, 'source' => 'none', 'label' => 'not priced yet');
+	}
 
 	private function _invoice($admId){
 		return $this->db->where('admission_id',$admId)->where('store_id',$this->_sid())
@@ -662,83 +1072,110 @@ class Inpatient_model extends CI_Model {
 		$adms = $this->db->where('store_id',$storeId)
 			->where_in('status', array('active','discharged','deceased','transferred_out'))
 			->get('db_admissions')->result();
-		foreach($adms as $a0){
-			$this->db->trans_begin();
-			$adm = $this->db->query('SELECT a.*, p.customer_id FROM db_admissions a JOIN db_patients p ON p.id=a.patient_id WHERE a.id = ? AND a.store_id = ? FOR UPDATE', array($a0->id,$storeId))->row();
-			if(!$adm){ $this->db->trans_rollback(); continue; }
-			$from = substr($adm->admitted_at, 0, 10);
-			$to   = $date;
-			if($adm->closed_at){
-				$closedDay = substr($adm->closed_at, 0, 10);
-				if($closedDay < $to) $to = $closedDay;
-			}
-			if($from > $to){ $this->db->trans_commit(); continue; }
-			// Leave days: policy-adjusted bed charge while the patient is out.
-			$leaveDays = array();
-			$leaves = $this->db->where('admission_id',$adm->id)->where_in('status',array('out','returned'))->get('db_leave_records')->result();
-			foreach($leaves as $l){
-				$d1 = substr($l->departed_at ?: '',0,10); $d2 = substr($l->returned_at ?: $date.' 23:59',0,10);
-				for($d=$d1; $d && $d<=$d2; $d=date('Y-m-d',strtotime($d.' +1 day'))) $leaveDays[$d]=$l->billing_policy;
-			}
-			for($d=$from; $d<=$to; $d=date('Y-m-d',strtotime($d.' +1 day'))){
-				$isDischargeDay = $adm->closed_at && $d === substr($adm->closed_at,0,10);
-				$skipBed = $isDischargeDay && $this->policyFor($storeId,'discharge_day_charge','none') === 'none';
-				if(!$skipBed){
-					// Bed transfer mid-day never double-charges: one 'bed'
-					// charge per admission-day, priced at the LAST bed held
-					// that day (override rate if the bed has one).
-					$occ = $this->db->query('SELECT o.bed_id, b.daily_rate FROM db_bed_occupancy o JOIN db_beds b ON b.id=o.bed_id AND b.store_id=o.store_id WHERE o.store_id=? AND o.admission_id=? AND o.from_at < ? AND (o.to_at IS NULL OR o.to_at > ?) ORDER BY o.from_at DESC,o.id DESC LIMIT 1',
-						array($storeId, $adm->id, date('Y-m-d',strtotime($d.' +1 day')), $d.' 00:00:00'))->row();
-					if($occ){
-						$rate = $occ->daily_rate !== null ? (object)array('amount'=>$occ->daily_rate) : $this->rateFor('bed',$d);
-						$amt = $rate ? (float)$rate->amount : 0;
-						$desc = 'Bed charge';
-						if(isset($leaveDays[$d])){
-							$p = $leaveDays[$d];
-							if($p === 'none'){ $amt = 0; $desc='Bed charge (authorised leave — not charged)'; }
-							elseif($p === 'half'){ $amt = round($amt/2,2); $desc='Bed charge (authorised leave — 50%)'; }
-						}
-						$r = $this->_postCharge($adm,$d,'bed',$desc,1,$amt,(int)$occ->bed_id);
-						!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
-					}
-				}
-				// Nursing day rate (optional rule)
-				$nrate = $this->rateFor('nursing',$d);
-				if($nrate && (float)$nrate->amount > 0 && !$skipBed){
-					$r = $this->_postCharge($adm,$d,'nursing','Nursing care — daily',1,$nrate->amount);
-					!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
-				}
-				// Provided meals on this date each post once (meal:<order_id>)
-				$meals = $this->db->where('admission_id',$adm->id)->where('meal_date',$d)
-					->where('status','provided')->where('charge_amount >',0)->get('db_meal_orders')->result();
-				foreach($meals as $m){
-					$r = $this->_postCharge($adm,$d,'meal:'.$m->id,'Meal — '.$m->slot.' ('.$d.')',1,$m->charge_amount);
-					!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
-				}
-			}
-			// Wallet auto-settlement — available wallet covers the new debt;
-			// same-amount retries replay on the payment_reference.
-			if($this->policyFor($storeId,'auto_settle_wallet','1') === '1'){
-				$inv = $this->_invoice($adm->id);
-				if($inv){
-					$due = round($inv->grand_total - $inv->paid_amount, 2);
-					if($due > 0){
-						$this->load->model('Patient_funds_model','pf');
-						$bal = $this->pf->getBalances($adm->patient_id);
-						$pay = min($due, $bal['available']);
-						if($pay > 0.001){
-							$this->load->model('Patient_billing_model','pb');
-							$r = $this->pb->addPayment($inv->id, $pay, 'patient_wallet',
-								'Inpatient wallet settlement '.$date, 'ipd-settle:'.$adm->id.':'.$date.':'.$pay);
-							if(!empty($r['ok'])) $results['settled'] += $pay;
-						}
-					}
-				}
-			}
-			$this->db->trans_commit();
-		}
+		foreach($adms as $a0) $this->_chargeAdmissionWindow($storeId, $a0->id, null, $date, $results);
 		$this->_ipdStoreId = null;
 		return $results;
+	}
+
+	/**
+	 * Post one admission's missing charges over a chosen window — the manual
+	 * counterpart of the nightly run, so nobody has to wait for the timer to
+	 * bill a stretch of days. Days already charged are skipped by the unique
+	 * key, so billing "7 days" twice bills 7 days once.
+	 */
+	public function postChargesForAdmission($admId, $from = null, $to = null){
+		$results = array('posted'=>0,'skipped'=>0,'settled'=>0,'errors'=>array());
+		$this->_chargeAdmissionWindow($this->_sid(), (int)$admId, $from, $to ?: date('Y-m-d'), $results);
+		return $results;
+	}
+	/** Convenience for the cashier flow: bill the last N days ending on $to. */
+	public function billAdmissionDays($admId, $days, $to = null){
+		$days = (int)$days;
+		if($days < 1) return array('ok'=>false,'error'=>'Choose at least one day');
+		$to   = $to ? substr($to,0,10) : date('Y-m-d');
+		$from = date('Y-m-d', strtotime($to.' - '.($days-1).' days'));
+		$res  = $this->postChargesForAdmission($admId, $from, $to);
+		return array('ok'=>true) + $res;
+	}
+
+	private function _chargeAdmissionWindow($storeId, $admId, $fromOverride, $toOverride, &$results){
+		$this->db->trans_begin();
+		$adm = $this->db->query('SELECT a.*, p.customer_id FROM db_admissions a JOIN db_patients p ON p.id=a.patient_id WHERE a.id = ? AND a.store_id = ? FOR UPDATE', array($admId,$storeId))->row();
+		if(!$adm){ $this->db->trans_rollback(); return; }
+		$from = $fromOverride ? substr($fromOverride, 0, 10) : substr($adm->admitted_at, 0, 10);
+		$to   = substr($toOverride, 0, 10);
+		if($adm->closed_at){
+			$closedDay = substr($adm->closed_at, 0, 10);
+			if($closedDay < $to) $to = $closedDay;
+		}
+		if($from > $to){ $this->db->trans_commit(); return; }
+		// Leave days: policy-adjusted bed charge while the patient is out.
+		$leaveDays = array();
+		$leaves = $this->db->where('admission_id',$adm->id)->where_in('status',array('out','returned'))->get('db_leave_records')->result();
+		foreach($leaves as $l){
+			$d1 = substr($l->departed_at ?: '',0,10); $d2 = substr($l->returned_at ?: $to.' 23:59',0,10);
+			for($d=$d1; $d && $d<=$d2; $d=date('Y-m-d',strtotime($d.' +1 day'))) $leaveDays[$d]=$l->billing_policy;
+		}
+		for($d=$from; $d<=$to; $d=date('Y-m-d',strtotime($d.' +1 day'))){
+			$isDischargeDay = $adm->closed_at && $d === substr($adm->closed_at,0,10);
+			$skipBed = $isDischargeDay && $this->policyFor($storeId,'discharge_day_charge','none') === 'none';
+			if(!$skipBed){
+				// Bed transfer mid-day never double-charges: one 'bed'
+				// charge per admission-day, priced at the LAST bed held
+				// that day (override rate if the bed has one, otherwise the
+				// rate of the room category the bed sits in).
+				$occ = $this->db->query('SELECT o.bed_id, b.daily_rate, r.room_label, rc.id AS room_class_id, rc.class_name FROM db_bed_occupancy o JOIN db_beds b ON b.id=o.bed_id AND b.store_id=o.store_id LEFT JOIN db_rooms r ON r.id=b.room_id LEFT JOIN db_room_classes rc ON rc.id=r.room_class_id WHERE o.store_id=? AND o.admission_id=? AND o.from_at < ? AND (o.to_at IS NULL OR o.to_at > ?) ORDER BY o.from_at DESC,o.id DESC LIMIT 1',
+					array($storeId, $adm->id, date('Y-m-d',strtotime($d.' +1 day')), $d.' 00:00:00'))->row();
+				if($occ){
+					$rate = $occ->daily_rate !== null ? (object)array('amount'=>$occ->daily_rate) : $this->rateFor('bed',$d,$occ->room_class_id);
+					$amt = $rate ? (float)$rate->amount : 0;
+					$desc = 'Bed charge';
+					if($occ->room_label){
+						$desc .= ' - '.$occ->room_label.($occ->class_name ? ' ('.$occ->class_name.')' : '');
+					}
+					if(isset($leaveDays[$d])){
+						$p = $leaveDays[$d];
+						if($p === 'none'){ $amt = 0; $desc='Bed charge (authorised leave - not charged)'; }
+						elseif($p === 'half'){ $amt = round($amt/2,2); $desc='Bed charge (authorised leave - 50%)'; }
+					}
+					$r = $this->_postCharge($adm,$d,'bed',$desc,1,$amt,(int)$occ->bed_id);
+					!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
+				}
+			}
+			// Nursing day rate (optional rule)
+			$nrate = $this->rateFor('nursing',$d);
+			if($nrate && (float)$nrate->amount > 0 && !$skipBed){
+				$r = $this->_postCharge($adm,$d,'nursing','Nursing care — daily',1,$nrate->amount);
+				!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
+			}
+			// Provided meals on this date each post once (meal:<order_id>)
+			$meals = $this->db->where('admission_id',$adm->id)->where('meal_date',$d)
+				->where('status','provided')->where('charge_amount >',0)->get('db_meal_orders')->result();
+			foreach($meals as $m){
+				$r = $this->_postCharge($adm,$d,'meal:'.$m->id,'Meal — '.$m->slot.' ('.$d.')',1,$m->charge_amount);
+				!empty($r['replayed']) ? $results['skipped']++ : $results['posted']++;
+			}
+		}
+		// Wallet auto-settlement — available wallet covers the new debt;
+		// same-amount retries replay on the payment_reference.
+		if($this->policyFor($storeId,'auto_settle_wallet','1') === '1'){
+			$inv = $this->_invoice($adm->id);
+			if($inv){
+				$due = round($inv->grand_total - $inv->paid_amount, 2);
+				if($due > 0){
+					$this->load->model('Patient_funds_model','pf');
+					$bal = $this->pf->getBalances($adm->patient_id);
+					$pay = min($due, $bal['available']);
+					if($pay > 0.001){
+						$this->load->model('Patient_billing_model','pb');
+						$r = $this->pb->addPayment($inv->id, $pay, 'patient_wallet',
+							'Inpatient wallet settlement '.$to, 'ipd-settle:'.$adm->id.':'.$to.':'.$pay);
+						if(!empty($r['ok'])) $results['settled'] += $pay;
+					}
+				}
+			}
+		}
+		$this->db->trans_commit();
 	}
 	public function chargeRegister($admId){
 		return $this->db->where('admission_id',$admId)->order_by('charge_date, charge_code')->get('db_daily_charges')->result();

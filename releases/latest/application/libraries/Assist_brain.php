@@ -101,7 +101,7 @@ class Assist_brain {
 	public function extractBulkRows($message, array $columns, $entityLabel){
 		if(!$this->enabled()) return [];
 
-		$system = 'You are a data-entry parser for a retail app. '
+		$system = 'You are a data-entry parser for a business management app. '
 			. 'Extract a list of '.$entityLabel.' records from the user text. '
 			. 'Respond ONLY with JSON like {"rows":[{...},{...}]}. '
 			. 'Each row is an object with these keys: '.implode(', ', $columns).'. '
@@ -141,8 +141,9 @@ class Assist_brain {
 		$caps  = $context['capabilities'] ?? [];
 		$flow  = $context['active_flow'] ?? null;
 
-		$p  = 'You are Azera, the assistant inside MartPoint, a retail/POS app. ';
-		$p .= 'Business type: '.($biz['industry_label'] ?? 'retail').'. ';
+		$p  = 'You are Azera, the assistant inside MartPoint, a business management and POS app. ';
+		$p .= 'Business type: '.($biz['industry_label'] ?? 'general business').'. ';
+		$p .= 'Use this business\'s own vocabulary (for example a clinic has patients and appointments, a plant has production runs and materials) and never assume a shop/retail context. ';
 		if(!empty($biz['labels'])){
 			$p .= 'This business calls things: ';
 			$l = [];

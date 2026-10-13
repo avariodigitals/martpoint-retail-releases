@@ -31,6 +31,11 @@
     .ss-acts button, .ss-acts a { flex: 1; min-width: 80px; padding: 10px; border-radius: 10px; border: 1px solid var(--mp-border); background: var(--mp-bg); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; text-align: center; text-decoration: none; color: var(--mp-ink); }
     .ss-acts button.primary { background: var(--mp-teal); color: #fff; border-color: var(--mp-teal); }
     .empty { text-align: center; padding: 50px 24px; color: var(--mp-muted); font-size: 14px; }
+    .ss-days { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+    .ss-days a { font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--mp-border); color: var(--mp-muted); text-decoration: none; background: #fff; }
+    .ss-days a.on { background: #EEF2FF; border-color: #6366F1; color: #4338CA; }
+    .ss-next { font-size: 12px; line-height: 1.5; color: var(--mp-muted); margin: 0 0 12px; }
+    .ss-next b { color: #166534; }
   </style>
 </head>
 <body>
@@ -44,8 +49,24 @@
       </div>
     </div>
 
+    <div class="ss-days">
+      <?php foreach($sess_ranges as $key => $lbl): ?>
+        <a class="<?= $sess_range === $key ? 'on' : ''; ?>" href="<?= base_url('mobile/sessions') . '?range=' . $key; ?>"><?= htmlspecialchars($lbl); ?></a>
+      <?php endforeach; ?>
+    </div>
+
+    <?php if(!empty($next_sess)): ?>
+      <p class="ss-next">Next up: <b><?= htmlspecialchars($next_sess->patient_name ?: 'Patient'); ?></b> —
+        <?= date('D d M H:i', strtotime($next_sess->scheduled_at)); ?>, session <?= (int)$next_sess->session_no; ?> of <?= (int)$next_sess->units_total; ?>.</p>
+    <?php endif; ?>
+
+    <?php if((int)$sess_hidden > 0): ?>
+      <p class="ss-next"><?= (int)$sess_hidden ?> booked session(s) are on other days —
+        <a href="<?= base_url('mobile/sessions') . '?range=all'; ?>" style="color:var(--mp-primary);font-weight:700;">show everything</a>.</p>
+    <?php endif; ?>
+
     <?php if(empty($sessions)): ?>
-      <div class="empty"><i class="fa fa-clock-o" style="font-size:30px;display:block;margin-bottom:10px;"></i>No sessions scheduled.</div>
+      <div class="empty"><i class="fa fa-clock-o" style="font-size:30px;display:block;margin-bottom:10px;"></i><?php if((int)$sess_hidden > 0): ?>Nothing in this window — the sessions are booked on other days.<?php else: ?>No sessions scheduled.<?php endif; ?></div>
     <?php endif; ?>
 
     <?php foreach($sessions as $s): ?>
@@ -76,6 +97,7 @@
   </div>
   <?php $this->load->view('mobile/bottom_nav', ['active' => 'more']); ?>
 </div>
+<?php $this->load->view('mobile/mp_alert'); ?>
 <?php $this->load->view('mobile/chat'); ?>
 <script>
 var CSRF = {'<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'};
@@ -84,15 +106,17 @@ function sact(id, to){
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams(Object.assign({to: to}, CSRF))
-  }).then(function(r){ return r.json(); }).then(function(x){ alert(x.message); if(x.status==='success') location.reload(); });
+  }).then(function(r){ return r.json(); }).then(function(x){ mpAlert(x.message, x.status==='success'?'success':'danger'); if(x.status==='success') setTimeout(function(){location.reload();},700); });
 }
 function sns(id){
-  var r = prompt('No-show reason:'); if(!r) return;
-  fetch('<?= base_url('mobile/session_action/'); ?>' + id, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: new URLSearchParams(Object.assign({to: 'no_show', reason: r}, CSRF))
-  }).then(function(x){ return x.json(); }).then(function(x){ alert(x.message); if(x.status==='success') location.reload(); });
+  mpPrompt({ title:'No-show reason', placeholder:'Reason', multiline:true, required:true, okText:'Continue' }).then(function(r){
+    if(r === null) return;
+    fetch('<?= base_url('mobile/session_action/'); ?>' + id, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams(Object.assign({to: 'no_show', reason: r}, CSRF))
+    }).then(function(x){ return x.json(); }).then(function(x){ mpAlert(x.message, x.status==='success'?'success':'danger'); if(x.status==='success') setTimeout(function(){location.reload();},700); });
+  });
 }
 </script>
 </body>

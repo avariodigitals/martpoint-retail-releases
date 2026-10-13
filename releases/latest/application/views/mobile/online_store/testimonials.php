@@ -184,14 +184,16 @@
       window.scrollTo({top:0, behavior:'smooth'});
     }
     function deleteTestimonial(id, btn){
-      if(!confirm('Delete this testimonial?')) return;
-      btn.disabled = true;
-      const fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      mpFetchJson('<?= base_url('online_store/delete_testimonial/'); ?>'+id, {method:'POST', body:fd})
-      .then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The testimonial could not be deleted. Please try again.', true); btn.disabled = false; }
-      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      mpConfirmAsync('Delete this testimonial?', { title:'Delete Testimonial', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        btn.disabled = true;
+        const fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('online_store/delete_testimonial/'); ?>'+id, {method:'POST', body:fd})
+        .then(res=>{
+          if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The testimonial could not be deleted. Please try again.', true); btn.disabled = false; }
+        }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      });
     }
   </script>
 </body>

@@ -83,16 +83,18 @@
   <script>
     function deleteFaq(id, e){
       e.preventDefault();
-      if(!confirm('Delete this FAQ?')) return;
-      mpFetchJson('<?= base_url('online_store/delete_faq/'); ?>' + id, { method: 'POST' })
-        .then(d => {
-          if(d && d.status === 'success'){
-            document.querySelector('[data-id="' + id + '"]').remove();
-          } else {
-            alert(d && d.message ? d.message : 'The FAQ could not be deleted. Please try again.');
-          }
-        })
-        .catch(err => alert(mpErrorText(err, 'The FAQ could not be deleted. Please try again.')));
+      mpConfirmAsync('Delete this FAQ?', { title:'Delete FAQ', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        mpFetchJson('<?= base_url('online_store/delete_faq/'); ?>' + id, { method: 'POST' })
+          .then(d => {
+            if(d && d.status === 'success'){
+              document.querySelector('[data-id="' + id + '"]').remove();
+            } else {
+              mpError(d && d.message ? d.message : 'The FAQ could not be deleted. Please try again.');
+            }
+          })
+          .catch(err => mpError(mpErrorText(err, 'The FAQ could not be deleted. Please try again.')));
+      });
     }
   </script>
 </body>

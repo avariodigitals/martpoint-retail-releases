@@ -85,6 +85,7 @@
   </div>
   <?php $this->load->view('mobile/bottom_nav', ['active' => 'more']); ?>
 </div>
+<?php $this->load->view('mobile/mp_alert'); ?>
 <?php $this->load->view('mobile/chat'); ?>
 <script>
 var CSRF = {'<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'};
@@ -92,14 +93,16 @@ function wtAct(id, act){
   fetch('<?= base_url('mobile/ward_task_action/'); ?>' + id, {
     method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams(Object.assign({act: act}, CSRF))
-  }).then(function(r){ return r.json(); }).then(function(x){ alert(x.message); if(x.status==='success') location.reload(); });
+  }).then(function(r){ return r.json(); }).then(function(x){ mpAlert(x.message, x.status==='success'?'success':'danger'); if(x.status==='success') setTimeout(function(){location.reload();},700); });
 }
 function wtNurse(id){
-  var n = prompt('Result note (optional)') || '';
-  fetch('<?= base_url('mobile/ward_task_action/'); ?>' + id, {
-    method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: new URLSearchParams(Object.assign({act: 'nurse_done', note: n}, CSRF))
-  }).then(function(r){ return r.json(); }).then(function(x){ alert(x.message); if(x.status==='success') location.reload(); });
+  mpPrompt({ title: 'Result note', message: 'Add a result note (optional).', placeholder: 'Result note', multiline: true, okText: 'Mark Done' }).then(function(n){
+    if(n === null) return;
+    fetch('<?= base_url('mobile/ward_task_action/'); ?>' + id, {
+      method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams(Object.assign({act: 'nurse_done', note: n}, CSRF))
+    }).then(function(r){ return r.json(); }).then(function(x){ mpAlert(x.message, x.status==='success'?'success':'danger'); if(x.status==='success') setTimeout(function(){location.reload();},700); });
+  });
 }
 </script>
 </body>

@@ -336,15 +336,17 @@
     </div>
   </div>
 </template>
+<?php $this->load->view('components/dialog'); ?>
 <script>
   (function(){
     if(typeof window.mpLogout !== 'function'){
       window.mpLogout = function(el, ev){
         if(ev && ev.preventDefault) ev.preventDefault();
         if(ev && ev.stopPropagation) ev.stopPropagation();
-        if(confirm('Are you sure you want to log out?')){
+        mpConfirmAsync('Are you sure you want to log out?', { title:'Confirm', okText:'Log Out' }).then(function(ok){
+          if(!ok) return;
           window.location.href = el.getAttribute('href') || el.href;
-        }
+        });
         return false;
       };
     }

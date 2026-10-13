@@ -188,7 +188,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
           <thead>
             <tr>
               <?php if($oilPlantQuote): ?>
-                <th>S.No</th><th>Part code</th><th>Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price</th><th class="num">Line total</th>
+                <th>S.No</th><th><?= htmlspecialchars(mp_label('sku')) ?></th><th>Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price</th><th class="num">Line total</th>
               <?php else: ?>
                 <th>#</th><th><?= $this->lang->line('item_name'); ?></th><th class="num"><?= $this->lang->line('unit_price'); ?></th><th class="num"><?= $this->lang->line('quantity'); ?></th><th class="num"><?= $this->lang->line('net_cost'); ?></th><th class="num"><?= $this->lang->line('tax'); ?></th><th class="num"><?= $this->lang->line('tax_amount'); ?></th><th class="num"><?= $this->lang->line('discount'); ?></th><th class="num"><?= $this->lang->line('discount_amount'); ?></th><th class="num"><?= $this->lang->line('unit_cost'); ?></th><th class="num"><?= $this->lang->line('total_amount'); ?></th>
               <?php endif; ?>

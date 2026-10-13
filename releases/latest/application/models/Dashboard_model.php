@@ -994,7 +994,9 @@ class Dashboard_model extends CI_Model
 		// Outstanding debt
 		$debts = $this->get_outstanding_debts($warehouse_id);
 		if($debts['total'] > 0){
-			$insights[] = number_format($debts['count']) . " customers owe money.";
+			// Never say "customer" on a clinical store — the register is Patients.
+			$who = function_exists('mp_label') ? strtolower(mp_label('customer')) : 'customer';
+			$insights[] = number_format($debts['count']) . " {$who}s have unpaid bills.";
 		}
 
 		return $insights;
@@ -1193,8 +1195,20 @@ class Dashboard_model extends CI_Model
 		$cost_result = $this->db->get()->row();
 		$cost = floatval($cost_result->cost);
 
+		// The delivery fee is takings but not profit (it rides on the courier),
+		// so it is taken back out of the margin here.
+		$ship_total = 0;
+		if($this->db->field_exists('shipping_fee','db_sales')){
+			$this->db->select("COALESCE(SUM(shipping_fee),0) as ship_total");
+			$this->db->from("db_sales");
+			$dateWhere('sales_date');
+			$this->db->where("sales_status", "Final");
+			$this->db->where("store_id", $store_id);
+			$ship_total = floatval($this->db->get()->row()->ship_total);
+		}
+
 		if($cost > 0 || $summary['sales']['total'] > 0){
-			$summary['profit']['gross_profit'] = $summary['sales']['total'] - $cost;
+			$summary['profit']['gross_profit'] = $summary['sales']['total'] - $cost - $ship_total;
 			$summary['profit']['margin'] = ($summary['sales']['total'] > 0) ? round((($summary['profit']['gross_profit'] / $summary['sales']['total']) * 100), 1) : 0;
 			$summary['profit']['available'] = true;
 		}

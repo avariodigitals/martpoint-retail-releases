@@ -5,6 +5,8 @@ class Mobile extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		// Defines physio_staff_select() — a no-op filter for non-physio stores.
+		if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
 
 		$site = get_site_details();
 		$favicon_path = !empty($site->favicon) ? $site->favicon : '';
@@ -1147,10 +1149,8 @@ class Mobile extends MY_Controller {
 		$data['page_title'] = 'Staff Attendance';
 		$store_id = get_current_store_id();
 
-		$this->db->select("id, username, first_name, last_name, role_name, status, updated_at");
-		$this->db->where("store_id", $store_id);
-		$this->db->order_by("first_name", "asc");
-		$data['staff_list'] = $this->db->get("db_users")->result();
+		if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
+		$data['staff_list'] = physio_staff_select($store_id, false, 'first_name');
 
 		$this->load->model('attendance_model');
 		$selected_date = date('Y-m-d');
@@ -1286,16 +1286,18 @@ class Mobile extends MY_Controller {
 			$data['clinic']['patients'] = $this->patients_m->getPatientStats($storeId);
 		}
 
-		// Live care queue — encounters whose queue stage is still open
+		// Live care queue — every visit still open (days=0), so the count on
+		// this tile matches the board the link opens.
 		if(physio_can('care_queue_view')){
 			$this->load->model('encounters_model', 'encounters_m');
-			$queue = $this->encounters_m->getQueue($storeId, $branchIds);
+			$queue = $this->encounters_m->getQueue($storeId, $branchIds, 0);
 			$waiting = 0;
 			foreach(array('waiting_nurse','nursing_intake','waiting_physio','with_physio','awaiting_finance') as $stage){
 				$waiting += isset($queue[$stage]) ? count($queue[$stage]) : 0;
 			}
 			$data['clinic']['queue_total'] = $waiting;
 			$data['clinic']['queue'] = $queue;
+			$data['clinic']['queue_url'] = 'mobile/care_queue?days=0';
 		}
 
 		// Today's booked appointments
@@ -1344,7 +1346,7 @@ class Mobile extends MY_Controller {
 				->from('db_sales s')
 				->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
 				->where('s.store_id', $storeId)
-				->where('(s.plan_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
+				->where('(s.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
 				->where('s.grand_total > s.paid_amount', null, false)
 				->get()->row()->due;
 			$data['clinic']['billing_due'] = $this->currency($outstanding, true);
@@ -1376,7 +1378,8 @@ class Mobile extends MY_Controller {
 		$data['clinic_analytics'] = $analytics;
 		$data['staff_birthdays'] = array();
 		if($this->db->table_exists('db_users')){
-			$staff = $this->db->select('username, first_name, last_name, firstname, lastname, dob')->where('store_id', $storeId)->where('status', 1)->where('dob IS NOT NULL', null, false)->get('db_users')->result();
+			if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
+			$staff = physio_staff_select($storeId, false);
 			$today = new DateTimeImmutable(date('Y-m-d'));
 			foreach($staff as $person){
 				if(empty($person->dob)) continue;
@@ -1578,12 +1581,50 @@ class Mobile extends MY_Controller {
 		}
 		$data = $this->data;
 		$data['page_title'] = 'Care Queue';
-		$data['queue'] = $this->db->table_exists('db_encounters') ? $this->encounters_m->getQueue($store_id, $branchIds) : array();
+		// How far back the board reaches for visits still ON the queue.
+		// 365 = this year, 0 = every visit still open, however old.
+		$days = in_array((int)$this->input->get('days'), array(1, 7, 30, 365, 0), TRUE) ? (int)$this->input->get('days') : 1;
+		$data['queue'] = $this->db->table_exists('db_encounters') ? $this->encounters_m->getQueue($store_id, $branchIds, $days) : array();
+		$data['queue_days'] = $days;
+		$data['queue_hidden'] = $this->db->table_exists('db_encounters')
+			? $this->encounters_m->countQueueOutside($store_id, $branchIds, $days) : 0;
+		$data['queue_elsewhere'] = $this->db->table_exists('db_encounters')
+			? $this->encounters_m->countQueueElsewhere($store_id, $branchIds) : 0;
+		// Therapist picker + the therapist's own view, same rules as the desk board.
+		$therapists = function_exists('physio_therapist_select') ? physio_therapist_select($store_id, 'first_name') : array();
+		$therapistIds = array();
+		foreach($therapists as $t){ $therapistIds[(int)$t->id] = true; }
+		$me = (int)$this->session->userdata('inv_userid');
+		$data['is_therapist'] = isset($therapistIds[$me]);
+		$data['queue_mine'] = ($data['is_therapist'] && (int)$this->input->get('mine')) ? 1 : 0;
+		if($data['queue_mine']){
+			foreach($data['queue'] as $qSt => $qCards){
+				$data['queue'][$qSt] = array_values(array_filter($qCards, function($c) use ($me){
+					$who = (int)($c->clinician_user_id ?? 0);
+					return $who === 0 || $who === $me;
+				}));
+			}
+		}
+		$data['therapists'] = $therapists;
+		// Paid sessions per patient — the treatment route draws from a package,
+		// so the card can grey the option out before anyone taps it.
+		$queuePatientIds = array();
+		foreach($data['queue'] as $qCards){ foreach($qCards as $qC){ $queuePatientIds[] = (int)$qC->patient_id; } }
+		$this->load->model('Sessions_model', 'sessions_m');
+		$data['session_ent'] = $this->sessions_m->activeEntitlements($queuePatientIds);
+		// Diary bookings whose day has arrived and whose patient is not on the
+		// board yet — checked in here, which raises the ticket and vitals.
+		$data['booked'] = $this->sessions_m->dueBookings($store_id);
 		$data['arrivals'] = $arrivals;
 		$data['patients'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatients($store_id, 'active', '', 300) : array();
+		// Staff who can take a treatment patient — the tasked-nurse picker.
+		// Nurse PROFILES only: vitals_add alone would list the store admin.
+		if(!function_exists('physio_nurse_select')){ $this->load->helper('physio'); }
+		$data['nurses'] = physio_nurse_select($store_id, 'first_name');
 		$data['can_checkin'] = physio_can('care_checkin');
 		$data['can_vitals'] = physio_can('vitals_add');
 		$data['can_physio'] = physio_can('encounters_add');
+		$data['can_route'] = physio_can_any(array('care_checkin','vitals_add','encounters_add'));
 		$data['can_finance'] = physio_can('patient_funds_view');
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
@@ -1604,6 +1645,7 @@ class Mobile extends MY_Controller {
 		}
 		$res = $this->encounters_m->checkin(array(
 			'appointment_id' => (int)$this->input->post('appointment_id') ?: null,
+			'session_id'     => (int)$this->input->post('session_id') ?: null,
 			'patient_id'     => (int)$this->input->post('patient_id') ?: null,
 			'checkin_key'    => trim($this->input->post('checkin_key', TRUE) ?: ''),
 			'warehouse_id'   => $warehouseId ?: null,
@@ -1655,11 +1697,24 @@ class Mobile extends MY_Controller {
 			$this->show_access_denied_page(); return;
 		}
 		$store_id = get_current_store_id();
+		/*
+		 * Care Queue stage contract, same as the desktop workspace:
+		 *   waiting_nurse — registration + billing only. No vitals, no history.
+		 *   business_only — a finance holder (billing/funds, no clinical keys)
+		 *                   sees bills and payments, never clinical records.
+		 */
+		$clinical = physio_can_any(array('vitals_view', 'assessments_view',
+			'investigations_view', 'encounters_view', 'patient_docs_view'));
+		$business_only = !$clinical && (physio_can('patient_billing_view') || physio_can('patient_funds_view'));
+		$show_clinical = !$business_only && $enc->queue_stage !== 'waiting_nurse';
+
 		$data = $this->data;
 		$data['page_title'] = 'Visit ' . $enc->encounter_code;
 		$data['enc'] = $enc;
 		$data['patient'] = $this->patients_m->getPatient((int)$enc->patient_id);
-		$data['vitals_sets'] = physio_can('vitals_view') ? $this->encounters_m->getVitals((int)$id) : array();
+		$data['business_only'] = $business_only;
+		$data['show_clinical'] = $show_clinical;
+		$data['vitals_sets'] = ($show_clinical && physio_can('vitals_view')) ? $this->encounters_m->getVitals((int)$id) : array();
 
 		/*
 		 * The OPEN DRAFT, so the vitals form continues it instead of starting a
@@ -1683,15 +1738,15 @@ class Mobile extends MY_Controller {
 				}
 			}
 		}
-		$data['assessments'] = physio_can('assessments_view') ? $this->assessments_m->listForEncounter((int)$id) : array();
-		$data['investigations'] = physio_can('investigations_view') ? $this->investigations_m->listRows($store_id, array('encounter_id' => (int)$id)) : array();
-		$data['consents'] = physio_can('patient_docs_view') ? $this->consents_m->listRows($store_id, array('patient_id' => (int)$enc->patient_id)) : array();
-		$data['documents'] = physio_can('patient_docs_view') ? $this->docs_m->listForPatient((int)$enc->patient_id) : array();
+		$data['assessments'] = ($show_clinical && physio_can('assessments_view')) ? $this->assessments_m->listForEncounter((int)$id) : array();
+		$data['investigations'] = ($show_clinical && physio_can('investigations_view')) ? $this->investigations_m->listRows($store_id, array('encounter_id' => (int)$id)) : array();
+		$data['consents'] = ($show_clinical && physio_can('patient_docs_view')) ? $this->consents_m->listRows($store_id, array('patient_id' => (int)$enc->patient_id)) : array();
+		$data['documents'] = ($show_clinical && physio_can('patient_docs_view')) ? $this->docs_m->listForPatient((int)$enc->patient_id) : array();
 		$data['can'] = array(
-			'vitals_add' => physio_can('vitals_add'),
-			'assessments'=> physio_can('assessments_add'),
-			'inv_review' => physio_can('investigations_review'),
-			'docs_upload'=> physio_can('patient_docs_upload'),
+			'vitals_add' => $show_clinical && physio_can('vitals_add'),
+			'assessments'=> $show_clinical && physio_can('assessments_add'),
+			'inv_review' => $show_clinical && physio_can('investigations_review'),
+			'docs_upload'=> $show_clinical && physio_can('patient_docs_upload'),
 		);
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
@@ -1710,6 +1765,11 @@ class Mobile extends MY_Controller {
 		$enc = $this->encounters_m->getEncounter((int)$id);
 		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
 			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		// The waiting-for-nurse desk is registration + billing only — vitals
+		// begin once the patient is called into Nursing Intake.
+		if($enc->queue_stage === 'waiting_nurse'){
+			echo json_encode(array('status' => 'error', 'message' => 'Move the patient into Nursing Intake before recording vitals')); return;
 		}
 		$entries = array();
 		$keys   = (array)$this->input->post('vit_key');
@@ -1757,8 +1817,70 @@ class Mobile extends MY_Controller {
 		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
 			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
 		}
-		$res = $this->encounters_m->completeIntake((int)$id, null);
+		$res = $this->encounters_m->completeIntake((int)$id,
+			trim($this->input->post('note', TRUE) ?: '') ?: null);
 		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Intake complete — handed to physiotherapy') : $res);
+	}
+
+	/** POST visit type — the desk decides assessment vs treatment session, and for
+	 *  treatment which nurse is tasked. Same contract as Care_queue::set_visit_type. */
+	public function care_visit_type($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || (!physio_can('care_checkin') && !physio_can('vitals_add'))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$res = $this->encounters_m->setVisitType((int)$id,
+			trim($this->input->post('visit_type', TRUE) ?: ''),
+			(int)$this->input->post('nurse_user_id') ?: null);
+		echo json_encode($res === true
+			? array('status' => 'success', 'message' => 'Visit type saved — the patient can move on')
+			: $res);
+	}
+
+	/** POST tasked nurse for a treatment visit. */
+	public function care_assign_nurse($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || (!physio_can('care_checkin') && !physio_can('vitals_add'))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$res = $this->encounters_m->assignNurse((int)$id, (int)$this->input->post('nurse_user_id'));
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Nurse tasked') : $res);
+	}
+
+	/**
+	 * POST care_route_therapist — send a patient to a named therapist, or move
+	 * them to another one, from the phone. Same model call as the desk board, so
+	 * a routing done at the bedside reads identically on the desktop.
+	 */
+	public function care_route_therapist($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()
+			|| (!physio_can('care_checkin') && !physio_can('vitals_add') && !physio_can('encounters_add'))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		echo json_encode($this->encounters_m->routeTherapist((int)$id,
+			(int)$this->input->post('clinician_user_id')));
 	}
 
 	public function appt_transition($id = 0)
@@ -1788,15 +1910,17 @@ class Mobile extends MY_Controller {
 		if(!physio_can('sessions_view')){ $this->show_access_denied_page(); return; }
 		$this->load->model('sessions_model', 'sessions_m');
 		$store_id = get_current_store_id();
-		$rows = $this->db->select('s.*, p.patient_code, c.customer_name AS patient_name')
-			->from('db_treatment_sessions s')
-			->join('db_patients p', 'p.id = s.patient_id')
-			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
-			->where('s.store_id', $store_id)
-			->order_by('s.scheduled_at', 'desc')->limit(100)->get()->result();
+		// Same diary windows as the desktop screen, so phone and desk agree.
+		$range = $this->input->get('range') !== NULL ? (string)$this->input->get('range') : 'week';
+		if(!isset($this->sessions_m->diaryRanges()[$range])) $range = 'week';
+		$rows = $this->sessions_m->diarySessions($store_id, $range, 100);
 		$data = $this->data;
 		$data['page_title'] = 'Sessions';
 		$data['sessions'] = $rows;
+		$data['sess_range'] = $range;
+		$data['sess_ranges'] = $this->sessions_m->diaryRanges();
+		$data['sess_hidden'] = $this->sessions_m->countDiaryOutside($store_id, $range);
+		$data['next_sess'] = $this->sessions_m->nextUpcoming($store_id);
 		$data['can'] = array(
 			'checkin'  => physio_can('sessions_checkin'),
 			'complete' => physio_can('sessions_complete'),
@@ -4477,10 +4601,10 @@ class Mobile extends MY_Controller {
 				['title' => 'Inpatient occupancy', 'desc' => 'Admissions and bed activity', 'icon' => 'fa-bed', 'url' => 'inpatient/beds', 'physio_perm' => 'admissions_view', 'color' => 'orange'],
 			];
 			$menu_groups['Administration'] = [
-				['title' => 'Facility settings', 'desc' => 'Store identity, contacts and branding', 'icon' => 'fa-building-o', 'url' => 'business_profile', 'perm' => 'business_setup', 'color' => 'blue'],
-				['title' => 'Store profile', 'desc' => 'Address, phone and receipt identity', 'icon' => 'fa-id-card-o', 'url' => 'store_profile/update/'.get_current_store_id(), 'perm' => 'store_edit', 'color' => 'blue'],
+				['title' => 'Facility settings', 'desc' => 'Store identity, contacts and branding', 'icon' => 'fa-building-o', 'url' => 'business_profile', 'perm' => 'business_profile', 'color' => 'blue'],
+				['title' => 'Store profile', 'desc' => 'Address, phone and receipt identity', 'icon' => 'fa-id-card-o', 'url' => 'store_profile/update/'.get_current_store_id(), 'perm' => 'store_profile', 'color' => 'blue'],
 				['title' => 'Branches', 'desc' => 'Clinic locations and access scope', 'icon' => 'fa-map-marker', 'url' => 'warehouse', 'perm' => 'warehouse_view', 'feature' => 'warehouse', 'color' => 'teal'],
-				['title' => 'Features & subscription', 'desc' => 'Business type, enabled modules and limits', 'icon' => 'fa-toggle-on', 'url' => 'business_profile', 'perm' => 'business_setup', 'color' => 'purple'],
+				['title' => 'Features & subscription', 'desc' => 'Business type, enabled modules and limits', 'icon' => 'fa-toggle-on', 'url' => 'business_profile', 'perm' => 'business_profile', 'color' => 'purple'],
 				['title' => 'Users & staff', 'desc' => 'Staff accounts and branch assignments', 'icon' => 'fa-users', 'url' => 'mobile/users', 'perm' => 'users_view', 'color' => 'yellow'],
 				['title' => 'Roles & permissions', 'desc' => 'Clinical grants and administrator access', 'icon' => 'fa-shield', 'url' => 'roles/view', 'perm' => 'roles_view', 'color' => 'purple'],
 				['title' => 'Site & printing settings', 'desc' => 'Invoice, receipt and clinic defaults', 'icon' => 'fa-print', 'url' => 'site', 'admin_role_only' => true, 'color' => 'blue'],
@@ -4887,7 +5011,7 @@ class Mobile extends MY_Controller {
 		$data['items'] = $this->db->select('id, item_name, sales_price, custom_order_fields_json')
 			->where('store_id', $store_id)->where('status', 1)->where('accept_custom_order', 1)
 			->order_by('item_name', 'asc')->get('db_items')->result();
-		$data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['staff'] = physio_staff_select($store_id, false, 'first_name');
 		$data['item_fields'] = [];
 		foreach($data['items'] as $it){
 			$f = json_decode($it->custom_order_fields_json ?: '[]', true);
@@ -5028,7 +5152,7 @@ class Mobile extends MY_Controller {
 		$data['page_title'] = $id ? 'Edit Treatment Note' : 'New Treatment Note';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
-		$data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['staff'] = physio_staff_select($store_id, true, 'first_name');
 		$data['services'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('service_name', 'asc')->get('db_services')->result();
 		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
 
@@ -5152,7 +5276,7 @@ class Mobile extends MY_Controller {
 		$data['page_title'] = $id ? 'Edit Medical Note' : 'New Medical Note';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['customers'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('customer_name', 'asc')->get('db_customers')->result();
-		$data['staff'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['staff'] = physio_staff_select($store_id, true, 'first_name');
 		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
 
 		$data['_view'] = 'op_medical_note_form';
@@ -5280,7 +5404,7 @@ class Mobile extends MY_Controller {
 		$data['service_label'] = mp_label('service');
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['services'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('service_name', 'asc')->get('db_services')->result();
-		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['staff_list'] = physio_staff_select($store_id, true, 'first_name');
 		$assignments = [];
 		foreach($this->db->where('store_id', $store_id)->where('status', 1)->get('db_service_staff')->result() as $a){
 			$assignments[$a->service_id][$a->staff_id] = true;
@@ -5357,7 +5481,7 @@ class Mobile extends MY_Controller {
 		$this->db->group_by('si.staff_id');
 		$data['summary'] = $this->db->get()->result();
 
-		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('first_name', 'asc')->get('db_users')->result();
+		$data['staff_list'] = physio_staff_select($store_id, false, 'first_name');
 		$data['selected_staff_id'] = $staff_id;
 		$data['from_date'] = $from_date;
 		$data['to_date'] = $to_date;
@@ -5990,7 +6114,7 @@ class Mobile extends MY_Controller {
 
 	public function business_profile()
 	{
-		$this->permission_check('business_setup');
+		$this->permission_check('business_profile');
 		$data = $this->data;
 		$data['page_title'] = 'Business Profile';
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
@@ -6683,7 +6807,7 @@ class Mobile extends MY_Controller {
 				} else {
 					$this->permission_check($id > 0 ? 'tills_edit' : 'tills_add');
 					$this->load->model('tills_model','tills');
-					$data['users'] = $this->db->where('status', 1)->where('store_id', $store_id)->get('db_users')->result();
+					$data['users'] = physio_staff_select($store_id, false);
 					if($id > 0){
 						$data['till'] = $this->tills->get($id);
 						if(empty($data['till'])){ show_404(); exit; }

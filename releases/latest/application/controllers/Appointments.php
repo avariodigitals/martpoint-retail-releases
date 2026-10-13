@@ -44,7 +44,8 @@ class Appointments extends MY_Controller {
 			'status_filter' => $status,
 			'patients'   => $this->patients->getPatients($storeId, 'active', '', 500),
 			'services'   => $this->db->where('store_id', $storeId)->where('status', 1)->get('db_services')->result(),
-			'clinicians' => $this->db->where('store_id', $storeId)->where('status', 1)->get('db_users')->result(),
+			// Clinical pickers: clinical roles only, never system accounts.
+			'clinicians' => physio_staff_select($storeId),
 			'branches'   => empty($branches) ? array()
 				: $this->db->where('store_id', $storeId)->where_in('id', $branches)->get('db_warehouse')->result(),
 			'can_book'   => physio_can('appointments_add'),
@@ -136,6 +137,19 @@ class Appointments extends MY_Controller {
 		if(!$appt || ($appt->warehouse_id && !physio_can_branch($appt->warehouse_id))){
 			$this->_json(array('status' => 'error', 'message' => 'Access denied')); return;
 		}
-		$this->_json(array('status' => 'success', 'events' => $this->appts->getEvents((int)$id)));
+		// Plain-English labels server-side — the feed must never print a raw
+		// code such as "rescheduled" or "checked_in".
+		$events = array();
+		foreach($this->appts->getEvents((int)$id) as $ev){
+			$events[] = array(
+				'label'      => mp_event_label($ev->event),
+				'from_label' => $ev->from_value ? mp_code_label($ev->from_value) : '',
+				'to_label'   => $ev->to_value ? mp_code_label($ev->to_value) : '',
+				'note'       => $ev->note,
+				'created_by_name' => $ev->created_by_name,
+				'created_at' => $ev->created_at,
+			);
+		}
+		$this->_json(array('status' => 'success', 'events' => $events));
 	}
 }

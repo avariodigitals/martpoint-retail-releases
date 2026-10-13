@@ -355,19 +355,19 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
               if($q3->num_rows()>0){
                 $i=1;
                 $total_paid = 0;
-                foreach ($q3->result() as $res3) { ?>
+                foreach ($q3->result() as $pay_row) { ?>
             <tr>
               <td><?= $i++; ?></td>
-              <td><?= show_date($res3->payment_date); ?></td>
+              <td><?= show_date($pay_row->payment_date); ?></td>
               <td>
-                <?= htmlspecialchars($res3->payment_type); ?>
-                <?php if(!empty($res3->cheque_number)){ ?><br><small>Cheque no.: <?= htmlspecialchars($res3->cheque_number); ?> &middot; Period: <?= htmlspecialchars($res3->cheque_period); ?></small><?php } ?>
+                <?= htmlspecialchars($pay_row->payment_type); ?>
+                <?php if(!empty($pay_row->cheque_number)){ ?><br><small>Cheque no.: <?= htmlspecialchars($pay_row->cheque_number); ?> &middot; Period: <?= htmlspecialchars($pay_row->cheque_period); ?></small><?php } ?>
               </td>
-              <td><?= get_account_name($res3->account_id); ?></td>
-              <td><?= htmlspecialchars($res3->payment_note); ?></td>
-              <td class="num"><?= store_number_format($res3->payment); ?></td>
+              <td><?= get_account_name($pay_row->account_id); ?></td>
+              <td><?= htmlspecialchars($pay_row->payment_note); ?></td>
+              <td class="num"><?= store_number_format($pay_row->payment); ?></td>
             </tr>
-            <?php $total_paid +=$res3->payment; } ?>
+            <?php $total_paid +=$pay_row->payment; } ?>
             <tr style="font-weight:700;background:rgba(0,87,255,.03);">
               <td colspan="5" class="num">Total</td>
               <td class="num"><?= store_number_format($total_paid); ?></td>
@@ -439,6 +439,12 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
           <span class="label"><?= $this->lang->line('round_off'); ?></span>
           <span class="value"><?= store_number_format($round_off); ?></span>
         </div>
+        <?php if($tot_tax_amt > 0){ ?>
+        <div class="totals-row">
+          <span class="label"><?= $this->lang->line('tax'); ?></span>
+          <span class="value"><?= store_number_format($tot_tax_amt); ?></span>
+        </div>
+        <?php } ?>
         <?php $ship_fee=(float)($res3->shipping_fee ?? 0); $ship_lbl=(string)($res3->shipping_label ?? ''); if($ship_fee > 0){ ?>
         <div class="totals-row">
           <span class="label">Shipping<?= $ship_lbl!=='' ? ' ('.htmlspecialchars($ship_lbl).')' : ''; ?></span>

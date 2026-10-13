@@ -162,17 +162,20 @@
       }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
     }
     function sendInstructions(id){
-      const email = prompt('Send DNS setup instructions to (email):');
-      if(!email) return;
-      const name = prompt('Recipient name (optional):') || '';
-      const fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fd.append('domain_id', id);
-      fd.append('email', email);
-      fd.append('name', name);
-      mpFetchJson('<?= base_url('online_store/send_domain_instructions'); ?>', {method:'POST', body:fd})
-      .then(res=>{ showToast(res.message || 'Done', res.status !== 'success'); })
-      .catch(err=>showToast(mpErrorText(err), true));
+      mpPrompt({ title:'Send DNS Setup Instructions', message:'Enter the email address the DNS setup instructions should be sent to.', placeholder:'Email address', required:true, okText:'Continue' }).then(function(email){
+        if(email === null) return;
+        mpPrompt({ title:'Recipient Name', message:'Optional name of the recipient.', placeholder:'Recipient name (optional)', okText:'Send Instructions' }).then(function(name){
+          if(name === null) return;
+          const fd = new FormData();
+          fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+          fd.append('domain_id', id);
+          fd.append('email', email);
+          fd.append('name', name);
+          mpFetchJson('<?= base_url('online_store/send_domain_instructions'); ?>', {method:'POST', body:fd})
+          .then(res=>{ showToast(res.message || 'Done', res.status !== 'success'); })
+          .catch(err=>showToast(mpErrorText(err), true));
+        });
+      });
     }
     function updateStatus(id, status){
       const fd = new FormData();
@@ -185,12 +188,14 @@
       }).catch(err=>showToast(mpErrorText(err), true));
     }
     function deleteDomain(id, btn){
-      if(!confirm('Delete this domain?')) return;
-      btn.disabled = true;
-      mpFetchJson('<?= base_url('online_store/delete_domain'); ?>/'+id, {method:'POST'})
-      .then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The domain could not be deleted. Please try again.', true); btn.disabled = false; }
-      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      mpConfirmAsync('Delete this domain? This cannot be undone.', { title:'Delete Domain', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        btn.disabled = true;
+        mpFetchJson('<?= base_url('online_store/delete_domain'); ?>/'+id, {method:'POST'})
+        .then(res=>{
+          if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The domain could not be deleted. Please try again.', true); btn.disabled = false; }
+        }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      });
     }
   </script>
 </body>

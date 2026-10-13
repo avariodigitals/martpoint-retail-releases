@@ -1,4 +1,4 @@
-<?php $this->load->view('admin/desktop/_styles'); $CI =& get_instance(); ?>
+<?php $this->load->view('admin/desktop/_styles'); $this->load->view('components/dialog'); $CI =& get_instance(); ?>
 <style>
 .op-box{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:14px!important;margin-bottom:14px!important}
 .op-box h4{font-size:11px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:var(--mp-muted)!important;margin:0 0 10px 0!important}
@@ -63,10 +63,10 @@
           </div>
         <?php endforeach; ?>
       </td>
-      <td><?= htmlspecialchars($p->entered_by_name ?? '—'); ?></td>
-      <td><?= htmlspecialchars($p->reviewed_by_name ?? '—'); ?></td>
-      <td><?= htmlspecialchars($p->approved_by_name ?? '—'); ?><?= $p->reject_reason ? '<br><small>' . htmlspecialchars($p->reject_reason) . '</small>' : ''; ?></td>
-      <td><span class="op-badge op-<?= htmlspecialchars($p->status); ?>"><?= htmlspecialchars($p->status); ?></span></td>
+      <td><?= htmlspecialchars(mp_first_name($p->entered_by, $p->entered_by_name ?? '')); ?></td>
+      <td><?= $p->reviewed_by ? htmlspecialchars(mp_first_name($p->reviewed_by, $p->reviewed_by_name ?? '')) : '—'; ?></td>
+      <td><?= $p->approved_by ? htmlspecialchars(mp_first_name($p->approved_by, $p->approved_by_name ?? '')) : '—'; ?><?= $p->reject_reason ? '<br><small>' . htmlspecialchars($p->reject_reason) . '</small>' : ''; ?></td>
+      <td><span class="op-badge op-<?= htmlspecialchars($p->status); ?>"><?= htmlspecialchars(mp_code_label($p->status)); ?></span></td>
       <td>
         <?php if($can['review'] && $p->status === 'entered'): ?>
           <button class="mp-qa-btn blue" onclick="opAct(<?= (int)$p->id; ?>,'opening_review')">Review</button>
@@ -77,6 +77,9 @@
         <?php if($can['review'] && !in_array($p->status, array('approved','rejected'))): ?>
           <button class="mp-qa-btn" onclick="opReject(<?= (int)$p->id; ?>)">Reject</button>
         <?php endif; ?>
+        <?php if(($can['delete'] ?? false) && in_array($p->status, array('entered','rejected'))): ?>
+          <button class="mp-qa-btn" style="color:#B91C1C;border-color:#FCA5A5" onclick="opDelete(<?= (int)$p->id; ?>)">Delete</button>
+        <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -85,22 +88,46 @@
 </div>
 
 <script>
+function opToast(m, t){ if(window.cqToast) window.cqToast(m, t || 'info'); }
 function opTypeChange(){ document.getElementById('opUnits').disabled = document.getElementById('opType').value !== 'unused_sessions'; }
+function opPost(url, data){
+  var fd = new FormData();
+  Object.keys(data||{}).forEach(function(k){ fd.append(k, data[k]); });
+  // Every mutating call needs the session token — without it the server
+  // silently refuses and the buttons look dead.
+  if(window.csrfName){ fd.append(window.csrfName, window.csrfHash); }
+  else {
+    var tok = document.querySelector('input[name="<?= $CI->security->get_csrf_token_name(); ?>"]');
+    if(tok) fd.append(tok.name, tok.value);
+  }
+  return fetch(url, {method:'POST', body:fd}).then(function(r){ return r.json(); });
+}
 function opEnter(f){
   var fd = new FormData(f);
   if(document.getElementById('opType').value !== 'unused_sessions') fd.delete('units_total');
   fetch('<?= base_url('patient_funds/opening_enter/'); ?>' + fd.get('patient_id'), {method:'POST', body:fd})
-    .then(r=>r.json()).then(d=>{ alert(d.message || ''); if(d.status==='success') location.reload(); });
+    .then(function(r){ return r.json(); })
+    .then(function(d){ opToast(d.message || '', d.status==='success'?'success':'error'); if(d.status==='success') location.reload(); });
   return false;
 }
 function opAct(id, act){
-  fetch('<?= base_url('patient_funds/'); ?>' + act + '/' + id, {method:'POST'})
-    .then(r=>r.json()).then(d=>{ alert(d.message || ''); if(d.status==='success') location.reload(); });
+  opPost('<?= base_url('patient_funds/'); ?>' + act + '/' + id, {})
+    .then(function(d){ opToast(d.message || '', d.status==='success'?'success':'error'); if(d.status==='success') location.reload(); });
 }
 function opReject(id){
-  var reason = prompt('Reject reason'); if(!reason) return;
-  var fd = new FormData(); fd.append('reason', reason);
-  fetch('<?= base_url('patient_funds/opening_reject/'); ?>' + id, {method:'POST', body:fd})
-    .then(r=>r.json()).then(d=>{ alert(d.message || ''); if(d.status==='success') location.reload(); });
+  window.mpPrompt({title:'Reject this opening position', message:'Why is it being rejected? The reason is kept with the record.', required:true, okText:'Reject', danger:true})
+    .then(function(reason){
+      if(!reason) return;
+      opPost('<?= base_url('patient_funds/opening_reject/'); ?>' + id, {reason: reason})
+        .then(function(d){ opToast(d.message || '', d.status==='success'?'success':'error'); if(d.status==='success') location.reload(); });
+    });
+}
+function opDelete(id){
+  window.mpConfirmAsync('Delete this opening position? Nothing has been posted from it, so no balances change. This cannot be undone.', {title:'Delete opening position', okText:'Delete'})
+    .then(function(ok){
+      if(!ok) return;
+      opPost('<?= base_url('patient_funds/opening_delete/'); ?>' + id, {})
+        .then(function(d){ opToast(d.message || '', d.status==='success'?'success':'error'); if(d.status==='success') location.reload(); });
+    });
 }
 </script>

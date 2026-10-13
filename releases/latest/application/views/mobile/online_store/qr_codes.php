@@ -172,15 +172,17 @@
       }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.innerHTML = '<i class="fa fa-qrcode"></i> Generate QR'; });
     }
     function deleteQr(id, btn){
-      if(!confirm('Delete this QR code?')) return;
-      btn.disabled = true;
-      const fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      mpFetchJson('<?= base_url('online_store/delete_qr/'); ?>'+id, {method:'POST', body:fd})
-      .then(res=>{
-        if(res.status === 'success'){ showToast(res.message); setTimeout(()=>location.reload(), 800); }
-        else { showToast(res.message || 'The QR code could not be deleted. Please try again.', true); btn.disabled = false; }
-      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      mpConfirmAsync('Delete this QR code?', { title:'Delete QR Code', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        btn.disabled = true;
+        const fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('online_store/delete_qr/'); ?>'+id, {method:'POST', body:fd})
+        .then(res=>{
+          if(res.status === 'success'){ showToast(res.message); setTimeout(()=>location.reload(), 800); }
+          else { showToast(res.message || 'The QR code could not be deleted. Please try again.', true); btn.disabled = false; }
+        }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      });
     }
   </script>
 </body>

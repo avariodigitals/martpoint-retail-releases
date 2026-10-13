@@ -188,7 +188,7 @@
     }
     function saveLead(){
       var name = document.getElementById('ld_name').value.trim();
-      if(!name){ alert('Lead name is required'); return; }
+      if(!name){ mpError('Lead name is required'); return; }
       post('<?= base_url('leads/save'); ?>', {
         lead_id: document.getElementById('lead_id').value,
         name: name,
@@ -209,16 +209,20 @@
         .catch(function(err){ mpError(mpErrorText(err)); });
     }
     function convertLead(id){
-      if(!confirm('Convert this lead to a customer?')) return;
-      post('<?= base_url('leads/convert/'); ?>' + id, {})
-        .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError(d && d.message ? d.message : 'The lead could not be converted. Please try again.'); } })
-        .catch(function(err){ mpError(mpErrorText(err)); });
+      mpConfirmAsync('Convert this lead to a customer?', { okText:'Convert' }).then(function(ok){
+        if(!ok) return;
+        post('<?= base_url('leads/convert/'); ?>' + id, {})
+          .then(function(d){ if(d && d.status === 'success'){ location.reload(); } else { mpError(d && d.message ? d.message : 'The lead could not be converted. Please try again.'); } })
+          .catch(function(err){ mpError(mpErrorText(err)); });
+      });
     }
     function deleteLead(id){
-      if(!confirm('Delete this lead?')) return;
-      post('<?= base_url('leads/delete/'); ?>' + id, {})
-        .then(function(d){ if(d && d.status === 'success'){ document.querySelector('[data-id="' + id + '"]').remove(); } else { mpError(d && d.message ? d.message : 'The lead could not be deleted. Please try again.'); } })
-        .catch(function(err){ mpError(mpErrorText(err)); });
+      mpConfirmAsync('Delete this lead?', { danger:true, okText:'Delete' }).then(function(ok){
+        if(!ok) return;
+        post('<?= base_url('leads/delete/'); ?>' + id, {})
+          .then(function(d){ if(d && d.status === 'success'){ document.querySelector('[data-id="' + id + '"]').remove(); } else { mpError(d && d.message ? d.message : 'The lead could not be deleted. Please try again.'); } })
+          .catch(function(err){ mpError(mpErrorText(err)); });
+      });
     }
   </script>
 </body>

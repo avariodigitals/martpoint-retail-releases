@@ -185,3 +185,10 @@ $route['migrate/upload'] = 'migrate/upload';
 $route['migrate/import'] = 'migrate/import';
 $route['migrate/restore_uploads'] = 'migrate/restore_uploads';
 $route['migrate/cleanup'] = 'migrate/cleanup';
+
+/* Ward & admissions. The register lives on the Inpatient controller but is
+   reached as "admission(s)" so the address matches the screen name. */
+$route['admission'] = 'inpatient/index';
+$route['admissions'] = 'inpatient/index';
+$route['admission/(:any)'] = 'inpatient/$1';
+$route['admissions/(:any)'] = 'inpatient/$1';

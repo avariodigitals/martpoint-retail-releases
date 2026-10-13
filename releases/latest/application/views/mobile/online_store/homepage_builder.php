@@ -180,16 +180,18 @@
     function deleteSection(btn){
       const block = btn.closest('.section-block');
       const key = block.querySelector('.section-row').dataset.key;
-      if(!confirm('Remove this section copy? This cannot be undone.')) return;
-      btn.disabled = true;
-      const fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fd.append('section_key', key);
-      mpFetchJson('<?= base_url('online_store/delete_homepage_section'); ?>', {method:'POST', body:fd})
-      .then(res=>{
-        if(res.status === 'success'){ showToast(res.message); block.remove(); }
-        else { showToast(res.message || 'The section could not be removed. Please try again.', true); btn.disabled = false; }
-      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      mpConfirmAsync('Remove this section copy? This cannot be undone.', { title:'Remove Section', okText:'Remove', danger:true }).then(function(ok){
+        if(!ok) return;
+        btn.disabled = true;
+        const fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        fd.append('section_key', key);
+        mpFetchJson('<?= base_url('online_store/delete_homepage_section'); ?>', {method:'POST', body:fd})
+        .then(res=>{
+          if(res.status === 'success'){ showToast(res.message); block.remove(); }
+          else { showToast(res.message || 'The section could not be removed. Please try again.', true); btn.disabled = false; }
+        }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      });
     }
   </script>
 </body>

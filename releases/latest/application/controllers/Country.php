@@ -6,6 +6,7 @@ class Country extends MY_Controller {
 		parent::__construct();
 		$this->load_global();
 		$this->load->model('country_model','country');
+		$this->permission_check('countries_view');
 	}
 
 	public function index(){

@@ -156,14 +156,16 @@
       window.scrollTo({top:0, behavior:'smooth'});
     }
     function deleteBrand(id, btn){
-      if(!confirm('Delete this brand?')) return;
-      btn.disabled = true;
-      const fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      mpFetchJson('<?= base_url('online_store/delete_brand/'); ?>'+id, {method:'POST', body:fd})
-      .then(res=>{
-        if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The brand could not be deleted. Please try again.', true); btn.disabled = false; }
-      }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      mpConfirmAsync('Delete this brand?', { title:'Delete Brand', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        btn.disabled = true;
+        const fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        mpFetchJson('<?= base_url('online_store/delete_brand/'); ?>'+id, {method:'POST', body:fd})
+        .then(res=>{
+          if(res.status === 'success'){ showToast(res.message); location.reload(); } else { showToast(res.message || 'The brand could not be deleted. Please try again.', true); btn.disabled = false; }
+        }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; });
+      });
     }
   </script>
 </body>

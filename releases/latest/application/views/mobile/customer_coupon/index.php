@@ -145,13 +145,15 @@
       .catch(err => mpAlert(mpErrorText(err, 'The coupon status could not be updated. Please try again.'), 'danger'));
     }
     function deleteCoupon(id){
-      if(!confirm('Delete this coupon?')) return;
-      var fd = new FormData();
-      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
-      fd.append('q_id', id);
-      mpFetchText('<?= base_url('customer_coupon/delete_coupon'); ?>', {method:'POST', body:fd})
-      .then(res=>{ if(res.trim() === 'success') location.reload(); else mpAlert(res || 'The coupon could not be deleted. Please try again.', 'danger'); })
-      .catch(err => mpAlert(mpErrorText(err, 'The coupon could not be deleted. Please try again.'), 'danger'));
+      mpConfirmAsync('Delete this coupon?', { title:'Delete Coupon', okText:'Delete', danger:true }).then(function(ok){
+        if(!ok) return;
+        var fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        fd.append('q_id', id);
+        mpFetchText('<?= base_url('customer_coupon/delete_coupon'); ?>', {method:'POST', body:fd})
+        .then(res=>{ if(res.trim() === 'success') location.reload(); else mpAlert(res || 'The coupon could not be deleted. Please try again.', 'danger'); })
+        .catch(err => mpAlert(mpErrorText(err, 'The coupon could not be deleted. Please try again.'), 'danger'));
+      });
     }
   </script>
 </body>

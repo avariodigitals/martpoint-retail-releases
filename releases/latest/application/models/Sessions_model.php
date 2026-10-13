@@ -59,6 +59,83 @@ class Sessions_model extends CI_Model {
 	}
 
 	/**
+	 * The live session packages a patient may actually draw on — one per
+	 * patient, keyed by patient_id. This is what decides whether a session
+	 * ticket can be printed at all.
+	 *
+	 * An entitlement only ever exists because money was received, but the
+	 * backing package bill is checked regardless: an unpaid package must
+	 * never produce a session ticket. Also filtered to unexpired packages
+	 * with sessions still owed.
+	 */
+	public function activeEntitlements(array $patientIds){
+		$patientIds = array_values(array_filter(array_map('intval', $patientIds)));
+		if(empty($patientIds)) return array();
+		$rows = $this->db->select('e.*, i.item_name AS treatment_name, s.sales_code, s.payment_status, s.paid_amount')
+			->from('db_plan_entitlements e')
+			->join('db_items i', 'i.id = e.service_id', 'left')
+			->join('db_sales s', 's.id = e.sale_id', 'left')
+			->where('e.store_id', get_current_store_id())
+			->where_in('e.patient_id', $patientIds)
+			->where('e.status', 'active')
+			->where('e.units_total > e.units_used', null, FALSE)
+			->group_start()
+				->where('e.expiry_date IS NULL', null, FALSE)
+				->or_where('e.expiry_date >=', date('Y-m-d'))
+			->group_end()
+			->group_start()
+				->where('e.sale_id IS NULL', null, FALSE)
+				->or_where('s.paid_amount > 0', null, FALSE)
+			->group_end()
+			->order_by('e.id', 'desc')
+			->get()->result();
+		$out = array();
+		foreach($rows as $r){ if(!isset($out[(int)$r->patient_id])) $out[(int)$r->patient_id] = $r; }
+		return $out;
+	}
+
+	/**
+	 * The package a patient's NEXT session would draw from — the entitlement
+	 * the session just finished came out of while it still owes sessions, else
+	 * any live package that does. Null when the course is finished or fully
+	 * committed to bookings already made.
+	 */
+	public function nextOffer($patientId, $preferEntId = null){
+		$patientId = (int)$patientId;
+		if(!$patientId) return null;
+		$ent = null;
+		if($preferEntId){
+			$pref = $this->getEntitlement((int)$preferEntId);
+			if($pref && (int)$pref->patient_id === $patientId && $pref->status === 'active'
+					&& (float)$pref->units_total > (float)$pref->units_used){
+				$ent = $pref;
+				$ent->treatment_name = null;
+				if($ent->service_id){
+					$item = $this->db->select('item_name')->where('id', (int)$ent->service_id)->get('db_items')->row();
+					$ent->treatment_name = $item ? $item->item_name : null;
+				}
+			}
+		}
+		if(!$ent){
+			$ents = $this->activeEntitlements(array($patientId));
+			$ent = isset($ents[$patientId]) ? $ents[$patientId] : null;
+		}
+		if(!$ent) return null;
+		// Sessions already booked but not yet drawn are owed too — the offer is
+		// only real while a booking can still be made.
+		$free = (int)((float)$ent->units_total - (float)$ent->units_used) - $this->openSessionsOnEntitlement((int)$ent->id);
+		if($free <= 0) return null;
+		return (object)array(
+			'entitlement_id' => (int)$ent->id,
+			'patient_id'     => $patientId,
+			'treatment_name' => $ent->treatment_name ?: 'Treatment course',
+			'sessions_left'  => $free,
+			'sessions_total' => (int)$ent->units_total,
+			'fee'            => (float)$ent->units_total > 0 ? round((float)$ent->funded_amount / (float)$ent->units_total, 2) : 0,
+		);
+	}
+
+	/**
 	 * Create a plan-bound entitlement. $source: purchase|migration|grant.
 	 * For migration: funded_amount records the historical value paid —
 	 * NO sale, NO wallet txn (no duplicate revenue/credit).
@@ -124,6 +201,92 @@ class Sessions_model extends CI_Model {
 		return $this->db->where('patient_id', $patientId)->where('store_id', get_current_store_id())
 			->where_in('status', array('scheduled','checked_in','in_progress','interrupted'))
 			->order_by('scheduled_at')->get('db_treatment_sessions')->result();
+	}
+
+	/**
+	 * Diary windows. The desk's question is "who is coming up next", so the
+	 * list opens on the coming week, ordered soonest first, instead of an
+	 * undated dump. Desktop and mobile share these so a session is never
+	 * "missing" because two screens defaulted to different slices.
+	 */
+	public function diaryRanges(){
+		return array('today' => 'Today', 'week' => 'This week', 'month' => 'This month', 'all' => 'Everything');
+	}
+
+	public function diaryWindow($range){
+		$w = array(
+			'today' => array(date('Y-m-d 00:00:00'), date('Y-m-d 23:59:59')),
+			'week'  => array(date('Y-m-d 00:00:00'), date('Y-m-d 23:59:59', strtotime('+6 days'))),
+			'month' => array(date('Y-m-01 00:00:00'), date('Y-m-t 23:59:59')),
+			'all'   => array(null, null),
+		);
+		return isset($w[$range]) ? $w[$range] : $w['week'];
+	}
+
+	public function diarySessions($storeId, $range, $limit = 300){
+		if(!$this->db->table_exists('db_treatment_sessions')) return array();
+		$this->db->select('s.*, p.patient_code, c.customer_name AS patient_name')
+			->from('db_treatment_sessions s')
+			->join('db_patients p', 'p.id = s.patient_id')
+			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->where('s.store_id', (int)$storeId);
+		$w = $this->diaryWindow($range);
+		if($w[0] !== null){
+			$this->db->where('s.scheduled_at >=', $w[0])->where('s.scheduled_at <=', $w[1]);
+		}
+		// The whole backlog is only useful most-recent-first; a window is a
+		// running order, so the next appointment reads at the top.
+		$this->db->order_by('s.scheduled_at', $range === 'all' ? 'desc' : 'asc');
+		return $this->db->limit((int)$limit)->get()->result();
+	}
+
+	/** Booked sessions the current window hides — so an empty week never reads
+	 *  as an empty diary. */
+	public function countDiaryOutside($storeId, $range){
+		if(!$this->db->table_exists('db_treatment_sessions')) return 0;
+		$w = $this->diaryWindow($range);
+		if($w[0] === null) return 0;
+		$this->db->where('store_id', (int)$storeId)
+			->group_start()->where('scheduled_at <', $w[0])
+				->or_where('scheduled_at >', $w[1])->group_end();
+		return (int)$this->db->count_all_results('db_treatment_sessions');
+	}
+
+	/** The very next session the clinic is waiting for, whatever window is on
+	 *  screen. */
+	public function nextUpcoming($storeId){
+		if(!$this->db->table_exists('db_treatment_sessions')) return null;
+		return $this->db->select('s.id, s.scheduled_at, s.session_no, s.units_total, s.status,
+				p.patient_code, c.customer_name AS patient_name')
+			->from('db_treatment_sessions s')
+			->join('db_patients p', 'p.id = s.patient_id')
+			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->where('s.store_id', (int)$storeId)
+			->where_in('s.status', array('scheduled', 'checked_in'))
+			->where('s.scheduled_at >=', date('Y-m-d H:i:s'))
+			->order_by('s.scheduled_at', 'asc')->limit(1)->get()->row();
+	}
+
+	/**
+	 * Booked sessions due on or before $date whose patient has not been raised
+	 * on the Care Queue yet — the arrivals the desk is waiting for. A session
+	 * leaves this list the moment its check-in raises a visit (encounter_id
+	 * set), so a booked day always surfaces exactly one arrival card.
+	 */
+	public function dueBookings($storeId, $date = null, $limit = 30){
+		if(!$this->db->table_exists('db_treatment_sessions')) return array();
+		return $this->db->select('s.id, s.patient_id, s.scheduled_at, s.session_no, s.units_total, s.status,
+				p.patient_code, c.customer_name AS patient_name, i.item_name AS treatment_name')
+			->from('db_treatment_sessions s')
+			->join('db_patients p', 'p.id = s.patient_id')
+			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->join('db_plan_entitlements e', 'e.id = s.entitlement_id', 'left')
+			->join('db_items i', 'i.id = e.service_id', 'left')
+			->where('s.store_id', (int)$storeId)
+			->where_in('s.status', array('scheduled', 'checked_in'))
+			->where('DATE(s.scheduled_at) <=', $date ?: date('Y-m-d'))
+			->where('(s.encounter_id IS NULL OR s.encounter_id = 0)', null, false)
+			->order_by('s.scheduled_at', 'asc')->limit((int)$limit)->get()->result();
 	}
 
 	/**
@@ -333,6 +496,11 @@ class Sessions_model extends CI_Model {
 				'consumed_amount' => $ent->consumed_amount + $s->fee,
 				'status'          => ($ent->units_used + 1 >= $entNow->units_total) ? 'exhausted' : 'active',
 			));
+			// A package-funded entitlement keeps its customer-package counter in
+			// step — the Session Packages screen must never disagree with the
+			// sessions the care queue has actually drawn.
+			$this->load->model('Service_package_model', 'spkg');
+			$this->spkg->record_use_for_entitlement($ent, 1);
 		}
 
 		$this->db->where('id', $s->id)->update('db_treatment_sessions', array(

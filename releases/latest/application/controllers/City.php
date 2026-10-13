@@ -5,6 +5,7 @@ class City extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		$this->permission_check('cities_view');
 	}
 
 	public function index(){

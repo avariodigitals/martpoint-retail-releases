@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Shipping Creation Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}.step{border:1px solid var(--mp-border);border-radius:var(--radius);padding:18px;background:#fff}.step .num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--mp-primary);color:#fff;font-weight:700;margin-bottom:10px}.step h3{margin:0 0 7px}.step p,.step li{font-size:.86rem}.field-list{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}.field{background:#FAFAF9;border-radius:8px;padding:10px;font-size:.82rem}.field strong{display:block;color:var(--mp-ink)}.field span{color:var(--mp-muted)}.note{padding:13px 16px;border-left:4px solid var(--mp-primary);background:#EFF6FF;border-radius:0 9px 9px 0;font-size:.86rem}.check{color:var(--mp-success);margin-right:6px}@media(max-width:700px){.flow,.field-list{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="document"><section class="page">
+  <a href="./index.html" class="back-link"><i class="fa fa-chevron-left"></i> Customer Guide</a>
+  <span class="label">Shared retail guide</span>
+  <h1>Shipping Creation Guide</h1>
+  <p class="lead">Create the delivery choices customers see online and the delivery fees staff select in-store. The same setup works for fashion, skincare, perfume, beauty, electronics, frozen foods and other retail shops.</p>
+
+  <div class="note"><strong>Two places, two jobs.</strong> Online shipping is configured in <strong>Online Store settings</strong>. In-store shipping is configured in <strong>Sales → Shipping Fees</strong>. Set up each one separately.</div>
+
+  <h2>Part 1 — Create shipping for the online store</h2>
+  <div class="flow">
+    <div class="step"><div class="num">1</div><h3>Open Online Store</h3><p>Go to <strong>Online Store → Settings</strong>. Open the <strong>Shipping &amp; delivery</strong> area.</p></div>
+    <div class="step"><div class="num">2</div><h3>Add a method</h3><p>Create a method such as <strong>Standard delivery</strong>, <strong>Express delivery</strong> or <strong>Store pickup</strong>.</p></div>
+    <div class="step"><div class="num">3</div><h3>Save and preview</h3><p>Save the method, open the storefront in a private window, add an item and confirm it appears at checkout.</p></div>
+  </div>
+  <div class="field-list">
+    <div class="field"><strong>Method name</strong><span>The customer-facing name, for example “Lagos standard delivery”.</span></div>
+    <div class="field"><strong>Fee</strong><span>Use a fixed amount when every order in the zone costs the same.</span></div>
+    <div class="field"><strong>Quote at checkout</strong><span>Use this when the courier price depends on the address or parcel.</span></div>
+    <div class="field"><strong>Enabled</strong><span>Only enabled methods appear to online customers.</span></div>
+  </div>
+  <p><i class="fa fa-check check"></i>For city-based pricing, turn on city shipping and add each city/zone with its fee. The checkout calculates the selected zone automatically.</p>
+
+  <h2>Part 2 — Create shipping for the physical store</h2>
+  <div class="flow">
+    <div class="step"><div class="num">1</div><h3>Turn on the feature</h3><p>Go to <strong>Settings → Business Profile → Feature Flags</strong> and enable <strong>Manual Shipping (POS Delivery Fee)</strong>.</p></div>
+    <div class="step"><div class="num">2</div><h3>Create delivery fees</h3><p>Open <strong>Sales → Shipping Fees</strong> and click <strong>Add Shipping Fee</strong> for each service area.</p></div>
+    <div class="step"><div class="num">3</div><h3>Use it at checkout</h3><p>At POS, add the items, choose <strong>Shipping / Delivery</strong>, select the area, then take payment.</p></div>
+  </div>
+  <div class="field-list">
+    <div class="field"><strong>Name</strong><span>What staff select, such as “Lekki delivery” or “Pickup”.</span></div>
+    <div class="field"><strong>Location / area</strong><span>Optional detail customers and staff can recognise.</span></div>
+    <div class="field"><strong>Fee</strong><span>The amount added as a separate shipping line on the receipt.</span></div>
+    <div class="field"><strong>Active</strong><span>Turn a fee off without deleting it or changing old sales.</span></div>
+  </div>
+  <p><i class="fa fa-check check"></i>Shipping is added after products and before payment. The receipt and invoice show the location and delivery amount separately.</p>
+
+  <h2>Daily use and checks</h2>
+  <ul>
+    <li><strong>Online orders:</strong> open <strong>Online Store → Orders</strong>, confirm the shipping method and address, then fulfil the order.</li>
+    <li><strong>In-store orders:</strong> select shipping before payment so the customer total includes the correct fee.</li>
+    <li><strong>Pickup:</strong> create a zero-fee pickup method and keep delivery off for that order.</li>
+    <li><strong>Price changes:</strong> edit the method or fee for new orders; saved invoices retain the amount already charged.</li>
+    <li><strong>No shipping option:</strong> check that the feature is enabled and at least one method/fee is active.</li>
+  </ul>
+  <div class="note"><strong>Team rule:</strong> keep names consistent across online and in-store setup (for example, “Lagos standard delivery”). This makes reports, receipts and customer conversations easier to follow.</div>
+  <div class="spacer"></div><div class="footer-strip"><span>MartPoint Shipping Creation Guide</span><span>martpoint.com.ng</span></div>
+</section></div>
+</body></html>

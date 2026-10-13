@@ -465,5 +465,94 @@ if(typeof jQuery !== 'undefined'){
 }
 </script>
 
+<!-- Row-action dropdowns must escape their scroll container.
+     .mp-dt-scroll sets overflow-x:auto to scroll wide tables, which also makes
+     it a scroll box on the vertical axis. The absolutely-positioned
+     .dropdown-menu inside it was therefore clipped — it rendered "inside" the
+     table and you had to scroll down to see it. Moving the menu to <body> while
+     it is open puts it above the table instead of inside it. -->
+<script>
+if (typeof jQuery !== 'undefined') (function($){
+  var TOGGLE = '[data-toggle="dropdown"], .dropdown-toggle';
+
+  function toggleOf(host){ return $(host).children(TOGGLE).first(); }
+
+  function escapedFor(host){
+    var found = null;
+    $('.mp-menu-escaped').each(function(){
+      if ($(this).data('mp-escape-host') === host) { found = this; }
+    });
+    return found;
+  }
+
+  function place($menu, $toggle){
+    if (!$toggle.length || !$toggle[0].isConnected) { return; }
+    var r   = $toggle[0].getBoundingClientRect();
+    var pad = 4;
+    var vw  = window.innerWidth, vh = window.innerHeight;
+    var mw  = $menu.outerWidth()  || 200;
+    var mh  = $menu.outerHeight() || 120;
+
+    var left = r.left;
+    if ($menu.hasClass('pull-right') || $menu.hasClass('dropdown-menu-right')) {
+      left = r.right - mw;
+    }
+    if (left + mw > vw - pad) { left = vw - mw - pad; }
+    if (left < pad) { left = pad; }
+
+    var top = r.bottom + 2;
+    if (top + mh > vh - pad) { top = r.top - mh - 2; }   // flip above the button
+    if (top < pad) { top = pad; }                        // never off the top
+    if (top + mh > vh - pad) { top = Math.max(pad, vh - mh - pad); }
+
+    $menu.css({ top: top + 'px', left: left + 'px', right: 'auto', bottom: 'auto' });
+  }
+
+  $(document).on('show.bs.dropdown', function(e){
+    var host    = e.target;
+    var $menu   = $(host).children('.dropdown-menu').first();
+    var $toggle = toggleOf(host);
+    if (!$menu.length || !$toggle.length) { return; }
+    $menu.data('mp-escape-host', host)
+         .css({ position: 'fixed', display: 'block', zIndex: 10050 })
+         .appendTo(document.body)
+         .addClass('mp-menu-escaped');
+    place($menu, $toggle);
+    // The toggle's box is not final until the menu is out of the table and the
+    // row has stopped reflowing — measure again once the browser has settled.
+    requestAnimationFrame(function(){
+      var m = escapedFor(host);
+      if (m) { place($(m), toggleOf(host)); }
+    });
+  });
+
+  $(document).on('shown.bs.dropdown', function(e){
+    var m = escapedFor(e.target);
+    if (m) { place($(m), toggleOf(e.target)); }
+  });
+
+  $(document).on('hide.bs.dropdown', function(e){
+    var host = e.target;
+    var m = escapedFor(host);
+    if (!m) { return; }
+    $(m).removeClass('mp-menu-escaped')
+        .css({ position: '', display: '', zIndex: '', top: '', left: '', right: '', bottom: '' })
+        .removeData('mp-escape-host');
+    $(host).append(m);
+  });
+
+  // Keep the pinned menu glued to its button while anything scrolls or resizes.
+  function reposition(){
+    $('.mp-menu-escaped').each(function(){
+      var host = $(this).data('mp-escape-host');
+      if (!host) { return; }
+      place($(this), toggleOf(host));
+    });
+  }
+  $(window).on('resize.mpMenuEsc', reposition);
+  window.addEventListener('scroll', reposition, true);
+})(jQuery);
+</script>
+
 </body>
 </html>

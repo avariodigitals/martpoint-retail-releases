@@ -199,6 +199,34 @@ textarea.mp-form-control { min-height: 90px; resize: vertical; }
 $(document).ready(function() {
   $('.datepicker').datepicker({ format: 'yyyy-mm-dd', autoclose: true });
 
+  // Defined before the toggles below run it — calling it earlier throws and
+  // silently kills the rest of this block (the Save button never wires up).
+  window.recalcPrice = function() {
+    var total = 0;
+    $('.package-item-row').each(function() {
+      var price = parseFloat($(this).data('price')) || 0;
+      var qty = parseFloat($(this).find('.item-qty').val()) || 0;
+      var sub = price * qty;
+      $(this).find('.item-subtotal').text(sub.toFixed(2));
+      total += sub;
+    });
+
+    $('#individual_total').text(total.toFixed(2));
+
+    var finalPrice = total;
+    if ($('#pricing_model').val() == 'fixed') {
+      finalPrice = parseFloat($('#package_price').val()) || 0;
+    } else {
+      var discount = parseFloat($('#discount').val()) || 0;
+      var dtype = $('#discount_type').val();
+      if (dtype == 'fixed') finalPrice = total - discount;
+      else if (dtype == 'percentage') finalPrice = total * (1 - discount / 100);
+      if (finalPrice < 0) finalPrice = 0;
+    }
+    $('#final_price').text(finalPrice.toFixed(2));
+    $('#savings').text(Math.max(0, total - finalPrice).toFixed(2));
+  };
+
   // Pricing model toggle
   $('#pricing_model').change(function() {
     if ($(this).val() == 'fixed') {
@@ -274,32 +302,6 @@ $(document).ready(function() {
     $('.package-item-row .pkg-item-rank').each(function(i){ $(this).text(i+1); });
     if ($('.package-item-row').length === 0) $('#pkg_empty').show();
     recalcPrice();
-  };
-
-  window.recalcPrice = function() {
-    var total = 0;
-    $('.package-item-row').each(function() {
-      var price = parseFloat($(this).data('price')) || 0;
-      var qty = parseFloat($(this).find('.item-qty').val()) || 0;
-      var sub = price * qty;
-      $(this).find('.item-subtotal').text(sub.toFixed(2));
-      total += sub;
-    });
-
-    $('#individual_total').text(total.toFixed(2));
-
-    var finalPrice = total;
-    if ($('#pricing_model').val() == 'fixed') {
-      finalPrice = parseFloat($('#package_price').val()) || 0;
-    } else {
-      var discount = parseFloat($('#discount').val()) || 0;
-      var dtype = $('#discount_type').val();
-      if (dtype == 'fixed') finalPrice = total - discount;
-      else if (dtype == 'percentage') finalPrice = total * (1 - discount / 100);
-      if (finalPrice < 0) finalPrice = 0;
-    }
-    $('#final_price').text(finalPrice.toFixed(2));
-    $('#savings').text(Math.max(0, total - finalPrice).toFixed(2));
   };
 
   $('#package_price, #discount, #discount_type').on('input change', recalcPrice);

@@ -327,29 +327,31 @@
         .catch(err => { showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true); btn.disabled = false; });
     }
     function syncAllOnline(){
-      if(!confirm('This will publish ALL eligible offline products to your online store (respecting your plan quota). Continue?')) return;
-      var btn = document.getElementById('syncBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing...';
-      var fd = new FormData();
-      fd.append('category_id', <?= (int)($category_id ?? 0); ?>);
-      for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      mpFetchJson('<?= base_url('online_store/sync_all_online'); ?>', {method:'POST', body:fd})
-        .then(d => {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
-          if(d.status === 'success'){
-            showToast(d.message, false);
-            setTimeout(() => window.location.reload(), 2000);
-          } else {
-            showToast(d.message || 'The sync could not be completed. Please try again.', true);
-          }
-        })
-        .catch(err => {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
-          showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true);
-        });
+      mpConfirmAsync('This will publish ALL eligible offline products to your online store (respecting your plan quota). Continue?', { title:'Sync All Products Online', okText:'Sync All' }).then(function(ok){
+        if(!ok) return;
+        var btn = document.getElementById('syncBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing...';
+        var fd = new FormData();
+        fd.append('category_id', <?= (int)($category_id ?? 0); ?>);
+        for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
+        mpFetchJson('<?= base_url('online_store/sync_all_online'); ?>', {method:'POST', body:fd})
+          .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
+            if(d.status === 'success'){
+              showToast(d.message, false);
+              setTimeout(() => window.location.reload(), 2000);
+            } else {
+              showToast(d.message || 'The sync could not be completed. Please try again.', true);
+            }
+          })
+          .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-refresh"></i> Sync All Products Online';
+            showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true);
+          });
+      });
     }
 
     // === Batch selection ===
@@ -387,22 +389,24 @@
         'mark_featured':'Mark '+ids.length+' as Featured?',
         'unmark_featured':'Remove '+ids.length+' from Featured?'
       };
-      if(!confirm(labels[action] || 'Apply to '+ids.length+' products?')) return;
-      var fd = new FormData();
-      ids.forEach(function(id){ fd.append('product_ids[]', id); });
-      fd.append('action', action);
-      for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
-      mpFetchJson('<?= base_url('online_store/batch_update'); ?>', {method:'POST', body:fd})
-        .then(d => {
-          if(d.status === 'success'){
-            showToast(d.message, false);
-            clearSelection();
-            setTimeout(() => window.location.reload(), 2000);
-          } else {
-            showToast(d.message || 'The update could not be applied. Please try again.', true);
-          }
-        })
-        .catch(err => showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true));
+      mpConfirmAsync(labels[action] || 'Apply to '+ids.length+' products?', { title:'Confirm Bulk Action', okText:'Apply' }).then(function(ok){
+        if(!ok) return;
+        var fd = new FormData();
+        ids.forEach(function(id){ fd.append('product_ids[]', id); });
+        fd.append('action', action);
+        for(const [k,v] of Object.entries(csrfField())) fd.append(k, v);
+        mpFetchJson('<?= base_url('online_store/batch_update'); ?>', {method:'POST', body:fd})
+          .then(d => {
+            if(d.status === 'success'){
+              showToast(d.message, false);
+              clearSelection();
+              setTimeout(() => window.location.reload(), 2000);
+            } else {
+              showToast(d.message || 'The update could not be applied. Please try again.', true);
+            }
+          })
+          .catch(err => showToast((typeof mpErrorText==='function'?mpErrorText(err):'Request failed. Please try again.'), true));
+      });
     }
     // === Bulk field edit (preview → apply) ===
     var beHashes = {};

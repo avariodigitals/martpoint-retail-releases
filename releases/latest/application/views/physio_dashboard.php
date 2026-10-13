@@ -58,6 +58,8 @@ if(!empty($clinic_access['procurement']))  $workspaces[] = array('Procurement','
 .clinic-workspace-link small{display:block;margin-top:2px;color:var(--mp-muted);font-size:12px;line-height:1.45}
 .clinic-activity-item{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--mp-border)}
 .clinic-activity-item:last-child{border-bottom:0}
+a.clinic-activity-item:hover .t{color:var(--mp-primary-dark);text-decoration:underline}
+a.clinic-activity-item:hover i{background:#dcebe3}
 .clinic-activity-item i{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:9px;background:#eef3f0;color:var(--mp-primary-dark);font-size:13px}
 .clinic-activity-item .t{font-size:13.5px;font-weight:600;display:block}
 .clinic-activity-item .m{font-size:12px;color:var(--mp-muted);margin-top:1px;display:block}
@@ -67,10 +69,10 @@ if(!empty($clinic_access['procurement']))  $workspaces[] = array('Procurement','
 .clinic-chart{border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);box-shadow:var(--mp-shadow-sm);padding:18px}
 .clinic-chart h2{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mp-muted)}
 .clinic-bar{margin:12px 0}.clinic-bar-head{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:600}.clinic-bar-head span:last-child{color:var(--mp-muted);font-weight:700}.clinic-bar-track{height:9px;margin-top:6px;border-radius:99px;background:#edf2ef;overflow:hidden}.clinic-bar-fill{height:100%;border-radius:99px;background:var(--mp-primary)}.clinic-bar-fill.blue{background:#477ca3}.clinic-chart-sub{margin:0;color:var(--mp-muted);font-size:12px}
-.clinic-birthdays{margin:0 0 18px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);box-shadow:var(--mp-shadow-sm);overflow:hidden}.clinic-birthdays h2{margin:0;padding:15px 18px;border-bottom:1px solid var(--mp-border);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mp-muted)}.clinic-birthday-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 18px}.clinic-birthday{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--mp-border);border-radius:9px}.clinic-birthday-avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#e3efe9;color:var(--mp-primary-dark);font-weight:700;font-size:12px}.clinic-birthday strong{display:block;font-size:13px}.clinic-birthday small{display:block;margin-top:2px;color:var(--mp-muted);font-size:11px}.clinic-birthday-empty{padding:18px;color:var(--mp-muted);font-size:13px}.clinic-range{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 20px;padding:12px 14px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface)}.clinic-range-label{font-size:12px;color:var(--mp-muted)}.clinic-range-links{display:flex;gap:6px;flex-wrap:wrap}.clinic-range-links a{padding:7px 11px;border-radius:8px;color:var(--mp-muted);font-size:12px;font-weight:700;text-decoration:none}.clinic-range-links a.active,.clinic-range-links a:hover{background:#e3efe9;color:var(--mp-primary-dark)}.clinic-range-links a.range-primary{background:#dff0e8;color:#104d40;border:1px solid #8dbba6;padding-inline:15px}
+.clinic-birthday-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin:0 0 18px}.clinic-birthday-cards .clinic-birthdays{margin:0}.clinic-birthdays{border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);box-shadow:var(--mp-shadow-sm);overflow:hidden}.clinic-birthdays h2{margin:0;padding:15px 18px;border-bottom:1px solid var(--mp-border);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mp-muted)}.clinic-birthday-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;padding:14px 18px}.clinic-birthday{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--mp-border);border-radius:9px}.clinic-birthday-avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#e3efe9;color:var(--mp-primary-dark);font-weight:700;font-size:12px}.clinic-birthday strong{display:block;font-size:13px}.clinic-birthday small{display:block;margin-top:2px;color:var(--mp-muted);font-size:11px}.clinic-birthday-empty{padding:18px;color:var(--mp-muted);font-size:13px}.clinic-range{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 20px;padding:12px 14px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface)}.clinic-range-label{font-size:12px;color:var(--mp-muted)}.clinic-range-links{display:flex;gap:6px;flex-wrap:wrap}.clinic-range-links a{padding:7px 15px;border:1px solid transparent;border-radius:8px;color:var(--mp-muted);font-size:12px;font-weight:700;text-decoration:none}.clinic-range-links a:hover{background:#e3efe9;color:var(--mp-primary-dark)}.clinic-range-links a.active{background:#dff0e8;color:#104d40;border-color:#8dbba6}
 @media(max-width:1100px){.clinic-columns{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:760px){
-  .clinic-insights-grid{grid-template-columns:minmax(0,1fr)}.clinic-birthday-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .clinic-insights-grid{grid-template-columns:minmax(0,1fr)}.clinic-birthday-cards{grid-template-columns:minmax(0,1fr)}
   .clinic-workspace-grid{grid-template-columns:minmax(0,1fr)}
   .clinic-head h1{font-size:24px}
   .clinic-kpi-value{font-size:25px}
@@ -86,7 +88,7 @@ if(!empty($clinic_access['procurement']))  $workspaces[] = array('Procurement','
   <div class="clinic-range" aria-label="Dashboard date range">
     <span class="clinic-range-label">Dashboard period: <strong><?= htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?></strong></span>
     <nav class="clinic-range-links">
-      <?php foreach(array('Today'=>'Today','7Days'=>'7 Days','30Days'=>'30 Days','ThisMonth'=>'This Month','LastMonth'=>'Last Month','ThisYear'=>'This Year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active ' : ''; ?><?= $value === 'Today' ? 'range-primary' : ''; ?>" href="<?= base_url('dashboard?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?>
+      <?php foreach(array('Today'=>'Today','7Days'=>'7 Days','30Days'=>'30 Days','ThisMonth'=>'This Month','LastMonth'=>'Last Month','ThisYear'=>'This Year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active' : ''; ?>" href="<?= base_url('dashboard?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?>
     </nav>
   </div>
 </div>
@@ -134,15 +136,36 @@ $finance_max = max(1, (float)($analytics['sales'] ?? 0), (float)($analytics['exp
   </section>
 </div>
 
-<section class="clinic-birthdays" aria-label="Staff birthdays">
-  <h2>Staff birthdays · next 90 days</h2>
-  <?php if(!empty($staff_birthdays)): ?><div class="clinic-birthday-list">
-    <?php foreach($staff_birthdays as $birthday): ?><div class="clinic-birthday"><span class="clinic-birthday-avatar"><?= htmlspecialchars(strtoupper(substr($birthday['name'], 0, 1))); ?></span><span><strong><?= htmlspecialchars($birthday['name']); ?></strong><small><?= htmlspecialchars($birthday['date']); ?><?= $birthday['days'] === 0 ? ' · Today' : ' · in '.(int)$birthday['days'].' days'; ?></small></span></div><?php endforeach; ?>
-  </div><?php else: ?><div class="clinic-birthday-empty">No staff birthdays recorded in the next 90 days.</div><?php endif; ?>
-</section>
+<?php
+$birthday_cards = array(array(
+	'label' => 'Staff birthdays',
+	'title' => 'Staff birthdays · this week',
+	'empty' => 'No staff birthdays this week.',
+	'items' => isset($staff_birthdays) && is_array($staff_birthdays) ? $staff_birthdays : array(),
+));
+// Null means the viewer may not see the patient register — the card is omitted.
+if(isset($patient_birthdays) && $patient_birthdays !== null){
+	$birthday_cards[] = array(
+		'label' => 'Patient birthdays',
+		'title' => 'Patient birthdays · this week',
+		'empty' => 'No patient birthdays this week.',
+		'items' => $patient_birthdays,
+	);
+}
+?>
+<div class="clinic-birthday-cards">
+  <?php foreach($birthday_cards as $card): ?>
+  <section class="clinic-birthdays" aria-label="<?= htmlspecialchars($card['label']); ?>">
+    <h2><?= htmlspecialchars($card['title']); ?></h2>
+    <?php if($card['items']): ?><div class="clinic-birthday-list">
+      <?php foreach($card['items'] as $birthday): ?><div class="clinic-birthday"><span class="clinic-birthday-avatar"><?= htmlspecialchars(strtoupper(substr($birthday['name'], 0, 1))); ?></span><span><strong><?= htmlspecialchars($birthday['name']); ?></strong><small><?= htmlspecialchars($birthday['date']); ?><?= $birthday['days'] === 0 ? ' · Today' : ' · in '.(int)$birthday['days'].' day'.((int)$birthday['days'] === 1 ? '' : 's'); ?></small></span></div><?php endforeach; ?>
+    </div><?php else: ?><div class="clinic-birthday-empty"><?= htmlspecialchars($card['empty']); ?></div><?php endif; ?>
+  </section>
+  <?php endforeach; ?>
+</div>
 
-<?php $this->load->view('comman/license_usage_card'); ?>
 <?php $this->load->view('comman/workspace_intelligence', array('intel'=>$intel ?? array())); ?>
+<?php $this->load->view('comman/license_usage_card'); ?>
 
 <div class="clinic-columns">
   <section class="clinic-panel">
@@ -168,10 +191,17 @@ $finance_max = max(1, (float)($analytics['sales'] ?? 0), (float)($analytics['exp
     <div class="clinic-panel-body">
       <?php if($activity): ?>
         <?php foreach($activity as $a): ?>
-          <div class="clinic-activity-item">
-            <i class="fa <?= htmlspecialchars($a['icon']); ?>" aria-hidden="true"></i>
-            <span><span class="t"><?= htmlspecialchars($a['title']); ?></span><span class="m"><?= htmlspecialchars($a['meta']); ?></span></span>
-          </div>
+          <?php if(!empty($a['url'])): ?>
+            <a class="clinic-activity-item" href="<?= base_url($a['url']); ?>" style="text-decoration:none;color:inherit;">
+              <i class="fa <?= htmlspecialchars($a['icon']); ?>" aria-hidden="true"></i>
+              <span><span class="t"><?= htmlspecialchars($a['title']); ?></span><span class="m"><?= htmlspecialchars($a['meta']); ?></span></span>
+            </a>
+          <?php else: ?>
+            <div class="clinic-activity-item">
+              <i class="fa <?= htmlspecialchars($a['icon']); ?>" aria-hidden="true"></i>
+              <span><span class="t"><?= htmlspecialchars($a['title']); ?></span><span class="m"><?= htmlspecialchars($a['meta']); ?></span></span>
+            </div>
+          <?php endif; ?>
         <?php endforeach; ?>
       <?php else: ?>
         <div class="clinic-empty">No recent registrations to show.</div>

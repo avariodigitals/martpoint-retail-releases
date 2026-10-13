@@ -50,6 +50,9 @@ class Investigations_model extends CI_Model {
 	/** Create a request. Caller holds investigations_request. */
 	public function request(array $d){
 		$storeId = get_current_store_id();
+		if(!empty($d['encounter_id']) && physio_visit_locked((int)$d['encounter_id'])){
+			return array('error' => physio_visit_locked_error());
+		}
 		$patientId = (int)($d['patient_id'] ?? 0);
 		if(!$patientId && !empty($d['encounter_id'])){
 			$enc = $this->db->where('id', (int)$d['encounter_id'])->where('store_id', $storeId)
@@ -109,6 +112,7 @@ class Investigations_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Investigation not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($row->status === 'reviewed')  return array('error' => 'Reviewed results are locked — use Amend result');
 		if($row->status === 'cancelled') return array('error' => 'Investigation is cancelled');
 		if($documentId){
@@ -145,6 +149,7 @@ class Investigations_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Investigation not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($row->status !== 'reviewed') return array('error' => 'Only a reviewed result needs amendment — record a result instead');
 		if($documentId){
 			$doc = $this->db->where('id', (int)$documentId)->where('store_id', $storeId)
@@ -217,6 +222,7 @@ class Investigations_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Investigation not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($row->status !== 'result_received'){
 			return array('error' => 'Only a received result can be reviewed (current: ' . $row->status . ')');
 		}
@@ -247,6 +253,7 @@ class Investigations_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Investigation not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if($row->status === 'reviewed') return array('error' => 'Reviewed investigations cannot be cancelled');
 		if($row->status === 'cancelled') return array('error' => 'Already cancelled');
 		$this->db->where('id', (int)$id)->where('store_id', $storeId)->update('db_investigations', array(
@@ -263,6 +270,7 @@ class Investigations_model extends CI_Model {
 		$storeId = get_current_store_id();
 		$row = $this->get($id, $storeId);
 		if(!$row) return array('error' => 'Investigation not found');
+		if(physio_visit_locked((int)$row->encounter_id)) return array('error' => physio_visit_locked_error());
 		if(!in_array($row->status, $from)) return array('error' => 'Cannot move from ' . $row->status . ' to ' . $to);
 		$this->db->where('id', (int)$id)->where('store_id', $storeId)
 			->update('db_investigations', array('status' => $to, 'updated_at' => date('Y-m-d H:i:s')));

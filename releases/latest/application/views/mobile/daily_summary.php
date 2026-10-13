@@ -485,9 +485,10 @@
           doSendEmail(email);
         });
       } else {
-        var email = prompt("Enter email address to send the summary:");
-        if(!email) return;
-        doSendEmail(email);
+        mpPrompt({ title: "Send Summary by Email", message: "Enter the recipient email address:", placeholder: "Email address", required: true, okText: "Send" }).then(function(email){
+          if(!email) return;
+          doSendEmail(email);
+        });
       }
     }
 

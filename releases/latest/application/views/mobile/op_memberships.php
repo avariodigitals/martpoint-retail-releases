@@ -120,16 +120,18 @@
     var csrf_hash = '<?= $this->security->get_csrf_hash(); ?>';
 
     function cancelMembership(id){
-      if(!confirm('Cancel this membership?')){ return; }
-      var fd = new FormData();
-      fd.append('id', id); fd.append(csrf_token, csrf_hash);
-      mpFetchJson(base_url + 'mobile/membership_cancel', { method: 'POST', body: fd })
-        .then(function(d){
-          if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
-          if(d && d.success){ window.location.reload(); }
-          else { mpError(d && d.message ? d.message : 'The membership could not be cancelled. Please try again.'); }
-        })
-        .catch(function(err){ mpError(mpErrorText(err)); });
+      mpConfirmAsync('Cancel this membership?', { danger:true, okText:'Cancel membership' }).then(function(ok){
+        if(!ok) return;
+        var fd = new FormData();
+        fd.append('id', id); fd.append(csrf_token, csrf_hash);
+        mpFetchJson(base_url + 'mobile/membership_cancel', { method: 'POST', body: fd })
+          .then(function(d){
+            if(d && d.csrf_hash){ csrf_hash = d.csrf_hash; }
+            if(d && d.success){ window.location.reload(); }
+            else { mpError(d && d.message ? d.message : 'The membership could not be cancelled. Please try again.'); }
+          })
+          .catch(function(err){ mpError(mpErrorText(err)); });
+      });
     }
   </script>
 </body>

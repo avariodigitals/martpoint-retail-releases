@@ -9,9 +9,7 @@ class Subscription_plans extends MY_Controller {
 	}
 
 	public function index(){
-		if(!special_access()){
-			redirect('dashboard','refresh');
-		}
+		$this->permission_check('subscription_plans');
 		$this->load->model('subscription_plans_model','plans');
 		$data = $this->data;
 		$data['plans'] = $this->plans->get_all();
@@ -21,9 +19,7 @@ class Subscription_plans extends MY_Controller {
 	}
 
 	public function add(){
-		if(!special_access()){
-			redirect('dashboard','refresh');
-		}
+		$this->permission_check('subscription_plans');
 		$data = $this->data;
 		$data['page_title'] = 'Create Plan';
 		$data['plan'] = null;
@@ -32,9 +28,7 @@ class Subscription_plans extends MY_Controller {
 	}
 
 	public function edit($id){
-		if(!special_access()){
-			redirect('dashboard','refresh');
-		}
+		$this->permission_check('subscription_plans');
 		$this->load->model('subscription_plans_model','plans');
 		$plan = $this->plans->get_by_id($id);
 		if(!$plan){
@@ -48,10 +42,7 @@ class Subscription_plans extends MY_Controller {
 	}
 
 	public function save(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('subscription_plans');
 		$this->load->model('subscription_plans_model','plans');
 
 		$id = (int) $this->input->post('id');
@@ -89,10 +80,7 @@ class Subscription_plans extends MY_Controller {
 	}
 
 	public function delete_plan(){
-		if(!special_access()){
-			echo json_encode(['status'=>'error','message'=>'Unauthorized']);
-			exit;
-		}
+		$this->permission_check_with_msg('subscription_plans');
 		$this->load->model('subscription_plans_model','plans');
 		$id = (int) $this->input->post('id');
 		if($this->plans->delete($id)){

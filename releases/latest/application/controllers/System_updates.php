@@ -37,10 +37,7 @@ class System_updates extends MY_Controller {
         }
 
         $this->load_global();
-        if (!is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1) {
-            echo json_encode(['status' => 'error', 'message' => 'Access denied']);
-            exit;
-        }
+        $this->permission_check('system_updates');
         $this->load->library('Updater');
     }
 

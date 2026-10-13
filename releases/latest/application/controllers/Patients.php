@@ -68,12 +68,23 @@ class Patients extends MY_Controller {
 			'page_title'   => $patient->customer_name,
 			'patient'      => $patient,
 			'episodes'     => $this->patients->getEpisodes($patient->id, $storeId),
+			'episode_visits' => physio_can('encounters_view')
+				? $this->patients->getEpisodeVisits($patient->id, $storeId) : array(),
 			'appointments' => $this->patients->getAppointments($patient->id, $storeId),
 			'events'       => $this->patients->getEvents($patient->id, $storeId),
 			'deceased_by'  => $deceasedBy,
 			'can_edit'     => physio_can('patients_edit'),
 			'can_reminder' => physio_can('debt_reminder_manage'),
 		));
+
+		// Referral partners panel — same partial the assessment and visit
+		// screens render, so a therapist sees one referral history everywhere.
+		$data['referral_panel'] = '';
+		if(physio_can_any(array('referrals_view','referrals_manage'))){
+			$this->load->model('referrals_model', 'referrals');
+			$data['referral_panel'] = $this->load->view('referrals/patient_panel',
+				$this->referrals->panelData((int)$patient->id), TRUE);
+		}
 
 		// Patient-level debt-reminder pause status (shown only when the
 		// viewer can manage reminders; read-only otherwise).

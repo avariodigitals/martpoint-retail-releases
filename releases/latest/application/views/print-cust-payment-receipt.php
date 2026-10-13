@@ -24,6 +24,7 @@
   	$q3=$this->db->query("SELECT b.customer_previous_due,b.customer_total_due,b.store_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
                            a.opening_balance,a.country_id,a.state_id,
                            a.postcode,a.address,c.payment_date,c.created_time,b.reference_no,
+                           c.sales_id, c.payment, c.payment_type,
                            b.sales_code,b.sales_note,
                            coalesce(b.grand_total,0) as grand_total,
                            coalesce(b.subtotal,0) as subtotal,
@@ -62,6 +63,10 @@
     $created_time=show_time($res3->created_time);
     $sales_code=$res3->sales_code;
     $sales_note=$res3->sales_note;
+    // This receipt must explain the bill, not just the money that came in.
+    $sales_id=(int)$res3->sales_id;
+    $this_payment=round((float)$res3->payment,2);
+    $paid_before=round((float)$res3->paid_amount-$this_payment,2);
     $previous_due=$res3->customer_previous_due;
     $total_due=$res3->customer_total_due;
 
@@ -157,7 +162,40 @@
 						<td style="text-align: right;"><?= $this->lang->line('time').":".$created_time; ?></td>
 					</tr>
 				</table>
-				
+
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<table width="100%" cellpadding="0" cellspacing="0">
+					<thead>
+					<tr style="border-top-style: dashed;border-bottom-style: dashed;border-width: 0.1px;">
+						<th style="font-size: 11px; text-align: left;padding-left: 2px;padding-right: 2px;" colspan="2">What this bill covers</th>
+						<th style="font-size: 11px; text-align: center;padding-left: 2px;padding-right: 2px;">Qty</th>
+						<th style="font-size: 11px; text-align: right;padding-left: 2px;padding-right: 2px;">Amount</th>
+					</tr>
+					</thead>
+					<tbody style="border-bottom-style: dashed;border-width: 0.1px;">
+						<?php
+						$qItems=$this->db->query("SELECT COALESCE(NULLIF(TRIM(a.description),''), c.item_name, 'Item') AS item_name,
+							a.sales_qty, COALESCE(a.total_cost,0) AS total_cost
+							FROM db_salesitems a LEFT JOIN db_items c ON c.id=a.item_id
+							WHERE a.sales_id=".$sales_id." ORDER BY a.id");
+						$shownItems=0;
+						foreach($qItems->result() as $ri){
+							$shownItems++;
+							echo "<tr>";
+							echo "<td colspan='2' style='padding-left: 2px; padding-right: 2px; font-weight: normal;'>".htmlspecialchars($ri->item_name)."</td>";
+							echo "<td style='text-align:center;padding-left: 2px; padding-right: 2px; font-weight: normal;'>".htmlspecialchars(rtrim(rtrim(number_format((float)$ri->sales_qty,2,'.',''),'0'),'.'))."</td>";
+							echo "<td style='text-align:right;padding-left: 2px; padding-right: 2px; font-weight: normal;'>".number_format((float)$ri->total_cost,2,'.','')."</td>";
+							echo "</tr>";
+						}
+						if(!$shownItems){
+							echo "<tr><td colspan='4' style='padding-left: 2px; padding-right: 2px; font-weight: normal;'>No itemised lines on this bill.</td></tr>";
+						}
+						?>
+					</tbody>
+				</table>
 			</td>
 		</tr>
 		<tr>
@@ -167,29 +205,54 @@
 					<thead>
 					<tr style="border-top-style: dashed;border-bottom-style: dashed;border-width: 0.1px;">
 						<th style="font-size: 11px; text-align: left;padding-left: 2px; padding-right: 2px;">#</th>
-						<th colspan=3 style="font-size: 11px; text-align: left;padding-left: 2px; padding-right: 2px;"><?= $this->lang->line('payment_type'); ?></th>
+						<th style="font-size: 11px; text-align: left;padding-left: 2px; padding-right: 2px;">Date</th>
+						<th style="font-size: 11px; text-align: left;padding-left: 2px; padding-right: 2px;" colspan="2"><?= $this->lang->line('payment_type'); ?></th>
 						<th style="font-size: 11px; text-align: right;padding-left: 2px; padding-right: 2px;"><?= $this->lang->line('payment'); ?></th>
-					
+
 					</tr>
 					</thead>
 					<tbody style="border-bottom-style: dashed;border-width: 0.1px;">
 						<?php
 			              $i=0;
-			              $tot_qty=0;
-			              $subtotal=0;
-			              $tax_amt=0;
-			              $q2=$this->db->query("select * from db_salespayments where id=$payment_id");
+			              $q2=$this->db->query("select * from db_salespayments where sales_id=".$sales_id." order by id");
 			              foreach ($q2->result() as $res2) {
-			                  echo "<tr>";  
+			                  $isThis = ((int)$res2->id === (int)$payment_id);
+			                  echo "<tr>";
 			                  echo "<td style='padding-left: 2px; padding-right: 2px;' valign='top'>".++$i."</td>";
-			                  echo "<td colspan=3 style='padding-left: 2px; padding-right: 2px;'>".$res2->payment_type."</td>";
-			                  
+			                  echo "<td style='padding-left: 2px; padding-right: 2px;'>".htmlspecialchars(show_date($res2->payment_date))."</td>";
+			                  echo "<td colspan=2 style='padding-left: 2px; padding-right: 2px;'>".htmlspecialchars($res2->payment_type).($isThis ? ' &nbsp;&#8592; this receipt' : '')."</td>";
 			                  echo "<td style='text-align: right;padding-left: 2px; padding-right: 2px;'>".number_format(($res2->payment),2,'.','')."</td>";
-			                  echo "</tr>";  
+			                  echo "</tr>";
 			              }
 			              ?>
 					
 				   </tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<table width="100%" cellpadding="0" cellspacing="0" style="border-top-style: dashed;border-width: 0.1px;">
+					<tr>
+						<td style="padding-top: 6px;">Bill total</td>
+						<td style="text-align: right;"><?= number_format((float)$grand_total,2,'.',''); ?></td>
+					</tr>
+					<tr>
+						<td>Paid before <?= htmlspecialchars($payment_date); ?></td>
+						<td style="text-align: right;"><?= number_format($paid_before,2,'.',''); ?></td>
+					</tr>
+					<tr>
+						<td><strong>Received on this receipt</strong></td>
+						<td style="text-align: right;"><strong><?= number_format($this_payment,2,'.',''); ?></strong></td>
+					</tr>
+					<tr>
+						<td>Paid to date</td>
+						<td style="text-align: right;"><?= number_format((float)$paid_amount,2,'.',''); ?></td>
+					</tr>
+					<tr style="border-top-style: dashed;border-width: 0.1px;">
+						<td style="padding-top: 6px;"><strong>BALANCE OUTSTANDING</strong></td>
+						<td style="text-align: right; padding-top: 6px;"><strong><?= number_format(max(0,(float)$grand_total-(float)$paid_amount),2,'.',''); ?></strong></td>
+					</tr>
 				</table>
 			</td>
 		</tr>
