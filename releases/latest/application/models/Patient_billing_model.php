@@ -134,6 +134,9 @@ class Patient_billing_model extends CI_Model {
 				'description' => $desc,
 				'qty'         => $qty,
 				'unit_price'  => $price,
+				'plan_id'     => (int)($ln['plan_id'] ?? 0) ?: null,
+				'plan_item_id'=> (int)($ln['plan_item_id'] ?? 0) ?: null,
+				'plan_version'=> (int)($ln['plan_version'] ?? 0) ?: null,
 			);
 			$subtotal += $qty * $price;
 		}
@@ -204,12 +207,16 @@ class Patient_billing_model extends CI_Model {
 				'purchase_price'  => 0,
 				'status'          => 1,
 			));
-			// Clinical itemisation mirrors the sales line; plan fields stay
-			// NULL because a visit bill is not plan-linked.
+			// Clinical itemisation mirrors the sales line. Plan fields are only
+			// populated when a clinician recommendation explicitly supplies them;
+			// ordinary visit/admission bills remain financial-only.
 			$this->db->insert('db_patient_bill_items', array(
 				'store_id'      => $storeId,
 				'sales_id'      => $salesId,
 				'sales_item_id' => (int)$this->db->insert_id(),
+				'plan_id'       => $ln['plan_id'],
+				'plan_item_id'  => $ln['plan_item_id'],
+				'plan_version'  => $ln['plan_version'],
 				'item_id'       => $ln['item_id'] ?: 0,
 				'description'   => $ln['description'],
 				'qty'           => $ln['qty'],
@@ -337,6 +344,9 @@ class Patient_billing_model extends CI_Model {
 			'store_id'      => $storeId,
 			'sales_id'      => (int)$salesId,
 			'sales_item_id' => (int)$this->db->insert_id(),
+			'plan_id'       => (int)($line['plan_id'] ?? 0) ?: null,
+			'plan_item_id'  => (int)($line['plan_item_id'] ?? 0) ?: null,
+			'plan_version'  => (int)($line['plan_version'] ?? 0) ?: null,
 			'item_id'       => (int)($line['item_id'] ?? 0) ?: 0,
 			'description'   => $desc,
 			'qty'           => $qty,
@@ -633,6 +643,11 @@ class Patient_billing_model extends CI_Model {
 		$remaining = min($sale->paid_amount, $sale->grand_total);
 		$items = $this->db->where('sales_id', $salesId)->order_by('id')->get('db_patient_bill_items')->result();
 		foreach($items as $it){
+			// A visit/admission bill is a financial record only. Treatment
+			// capacity is created exclusively by an explicitly linked treatment
+			// plan line, never by the catalogue item or the fact that the bill
+			// was paid.
+			if(empty($it->plan_id) || empty($it->plan_item_id)) continue;
 			$cover = max(0, min($remaining, $it->total));
 			$remaining -= $cover;
 			$unitsCovered = ($it->unit_price > 0) ? floor(($cover + 0.0001) / $it->unit_price) : 0;

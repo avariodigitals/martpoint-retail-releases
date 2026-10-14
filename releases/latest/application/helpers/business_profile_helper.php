@@ -60,6 +60,7 @@ if (!function_exists('mp_get_business_types')) {
             'paint_store'           => 'Paint Store',
             'plumbing_store'        => 'Plumbing Store',
             'agro_dealer'           => 'Agro Dealer',
+            'garden_centre_landscaping' => 'Garden Centre & Landscaping',
             'feed_store'            => 'Feed Store',
             'auto_parts'            => 'Auto Parts',
             'tyre_shop'             => 'Tyre Shop',
@@ -532,6 +533,13 @@ if (!function_exists('mp_get_business_presets')) {
                 'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
                 'labels'=>['item'=>'Agro Input','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+            ],
+            'garden_centre_landscaping' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','multi_unit_inventory','multi_unit_selling','batch_tracking','appointments','service_workflow','custom_orders','staff_assignment','delivery_scheduling','customer_notes','customer_contacts','customer_sites','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
+                // Use the existing commerce/service screens until the dedicated workspace ships.
+                'theme_key'=>'agro','dashboard_template'=>'general_retail','workflow_template'=>'service_standard',
+                'labels'=>['item'=>'Plant / Garden Product','product'=>'Plant / Garden Product','service'=>'Landscaping Service','service_order'=>'Landscaping Job','appointment'=>'Site Visit','custom_order'=>'Landscaping Order','customer'=>'Client','warehouse'=>'Garden Centre / Nursery','staff'=>'Team Member'],
             ],
             'feed_store' => [
                 'business_model'=>'product_based',

@@ -55,7 +55,7 @@
     <div><b><?= (float)$e->units_total; ?> sessions</b> · used <?= (float)$e->units_used; ?> · <b><?= (float)$rem; ?> remaining</b>
       <span class="tp-badge st-scheduled"><?= htmlspecialchars($e->source); ?></span>
       <span class="tp-badge st-<?= $e->status === 'active' ? 'completed' : 'cancelled'; ?>"><?= strtoupper($e->status); ?></span>
-      <div style="font-size:11px;color:var(--mp-muted);">Funded <?= $CI->currency($e->funded_amount); ?> · consumed <?= $CI->currency($e->consumed_amount); ?></div>
+      <div style="font-size:11px;color:var(--mp-muted);">Purchase date <?= htmlspecialchars($e->purchase_date ?? '—'); ?> · Funded <?= $CI->currency($e->funded_amount); ?> · consumed <?= $CI->currency($e->consumed_amount); ?></div>
     </div>
     <?php if($e->status === 'active' && $rem > 0 && $can['sessions']): ?>
     <button class="mp-qa-btn blue" onclick="scheduleSession(<?= (int)$e->id; ?>, <?= (float)$e->funded_amount / max(1,(float)$e->units_total); ?>)">Schedule session</button>

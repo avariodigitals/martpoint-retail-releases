@@ -2,6 +2,9 @@
 $storeId = get_current_store_id();
 $_store = $CI->db->where('id', $storeId)->get('db_store')->row();
 $_storeName = $_store->store_name ?? ($SITE_TITLE ?? 'MartPoint');
+$patientScope = !empty($bill_patient)
+  ? trim((string)(($bill_patient->customer_name ?? '') . (!empty($bill_patient->patient_code) ? ' · ' . $bill_patient->patient_code : '')))
+  : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -34,6 +37,7 @@ tfoot td { font-weight: bold; border-top: 1pt solid #111827; background: #f9fafb
   </div>
   <div style="text-align:right;">
     <div class="doc-title">Patient Bills Statement</div>
+    <?php if($patientScope !== ''): ?><div class="doc-sub"><?= htmlspecialchars($patientScope); ?></div><?php endif; ?>
     <div class="doc-sub"><?= htmlspecialchars($bill_window); ?> · <?= (int)$bill_totals['count']; ?> bill(s)</div>
   </div>
 </div>

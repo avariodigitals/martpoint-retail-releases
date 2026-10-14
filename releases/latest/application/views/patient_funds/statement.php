@@ -36,9 +36,9 @@ table{width:100%;border-collapse:collapse;font-size:12px} th{text-align:left;pad
 <?php endforeach; ?></table>
 
 <h2>Session entitlements</h2>
-<table><tr><th>Plan</th><th>Source</th><th>Total</th><th>Used</th><th>Remaining</th><th>Funded / consumed</th></tr>
+<table><tr><th>Plan</th><th>Purchase date</th><th>Source</th><th>Total</th><th>Used</th><th>Remaining</th><th>Funded / consumed</th></tr>
 <?php foreach($entitlements as $e): ?>
-<tr><td><?= $e->plan_id ? '#'.(int)$e->plan_id : '—'; ?></td><td><?= htmlspecialchars($e->source); ?></td>
+<tr><td><?= $e->plan_id ? '#'.(int)$e->plan_id : '—'; ?></td><td><?= htmlspecialchars($e->purchase_date ?? '—'); ?></td><td><?= htmlspecialchars($e->source); ?></td>
 <td><?= (float)$e->units_total; ?></td><td><?= (float)$e->units_used; ?></td><td><?= (float)($e->units_total - $e->units_used); ?></td>
 <td><?= $CI->currency($e->funded_amount); ?> / <?= $CI->currency($e->consumed_amount); ?></td></tr>
 <?php endforeach; ?></table>

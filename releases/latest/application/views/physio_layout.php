@@ -131,8 +131,8 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 .pace .pace-progress-inner{box-shadow:0 0 8px var(--mp-primary)!important}
 .pace .pace-activity{display:none!important}
 .physio-shell a:hover,.physio-shell a:focus{color:var(--mp-primary-dark)}
-.physio-shell .physio-rail a:hover,.physio-shell .physio-rail a:focus{color:#fff;background:rgba(255,255,255,.08)}
-.physio-shell .physio-rail a.active:hover,.physio-shell .physio-rail a.active:focus{color:#104d40;background:#dcefe7}
+.physio-shell .physio-rail a:hover,.physio-shell .physio-rail a:focus{color:#104d40;background:#edf6f1}
+.physio-shell .physio-rail a.active:hover,.physio-shell .physio-rail a.active:focus{color:#fff;background:#176753}
 .physio-shell .btn-primary:hover,.physio-shell .btn-primary:focus,.physio-shell .mp-btn-primary:hover,.physio-shell .mp-btn-primary:focus{color:#fff!important;background:var(--mp-primary-dark)!important;border-color:var(--mp-primary-dark)!important}
 .physio-shell .mp-qa-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--mp-border);border-radius:9px;text-decoration:none;font-weight:600}
 .physio-shell .mp-qa-btn.green,.physio-shell .mp-qa-btn.blue{background:#e3efe9;color:var(--mp-primary-dark)}
@@ -152,6 +152,7 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 html{margin:0!important;height:100%!important;overflow:hidden!important}
 body{margin:0!important;height:100%!important;background:var(--mp-bg)!important;color:var(--mp-text)!important;font-family:'DM Sans',sans-serif!important;font-size:15.5px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;line-height:1.6!important}
 .mp-shell.physio-shell{display:grid!important;grid-template-columns:264px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;flex:1 1 auto!important;min-height:0!important;align-items:stretch!important}
+.mp-shell.physio-shell.physio-collapsed{grid-template-columns:72px minmax(0,1fr)!important}
 /* Paint the rail's own 264px column the rail colour for the WHOLE shell height,
    so the sidebar background can never show a gap at the bottom of the screen.
 
@@ -162,7 +163,8 @@ body{margin:0!important;height:100%!important;background:var(--mp-bg)!important;
    the rail's own 264px column with a pseudo-element, and let the content area
    keep the normal page background. */
 .mp-shell.physio-shell{position:relative}
-.mp-shell.physio-shell::before{content:'';position:absolute;left:0;top:0;bottom:0;width:264px;background:#153b32;pointer-events:none;z-index:0}
+.mp-shell.physio-shell::before{content:'';position:absolute;left:0;top:0;bottom:0;width:264px;background:#f7faf8;pointer-events:none;z-index:0;transition:width .18s ease}
+.mp-shell.physio-shell.physio-collapsed::before{width:72px}
 .physio-rail{position:relative;z-index:2}
 /*
  * The content background must be set on a selector that outranks
@@ -177,44 +179,50 @@ body{margin:0!important;height:100%!important;background:var(--mp-bg)!important;
  * Stacking is handled by the rail's own z-index instead, which only needs to
  * sit above the ::before column. */
 .mp-shell.physio-shell>.physio-main{position:static;background:var(--mp-bg)!important;min-height:0!important;overflow:hidden!important}
-.physio-rail{min-height:0;height:100%;overflow-y:auto;display:flex;flex-direction:column;padding:0 14px 16px;background:#153b32;color:#e7f1ec}
+.physio-rail{min-height:0;height:100%;overflow-y:auto;display:flex;flex-direction:column;padding:0 12px 16px;background:#f7faf8;color:#1e2d28;border-right:1px solid #dfe8e3}
 /* Slim, dark scrollbar so the nav does not gain a bright strip when it scrolls. */
-.physio-rail{scrollbar-width:thin;scrollbar-color:rgba(230,244,237,.28) transparent}
+.physio-rail{scrollbar-width:thin;scrollbar-color:#cbdad3 transparent}
 .physio-rail::-webkit-scrollbar{width:8px}
 .physio-rail::-webkit-scrollbar-track{background:transparent}
-.physio-rail::-webkit-scrollbar-thumb{background:rgba(230,244,237,.22);border-radius:4px}
-.physio-rail::-webkit-scrollbar-thumb:hover{background:rgba(230,244,237,.34)}
+.physio-rail::-webkit-scrollbar-thumb{background:#cbdad3;border-radius:4px}
+.physio-rail::-webkit-scrollbar-thumb:hover{background:#b7c9c0}
 /* Brand and user chip stay pinned while the menu between them scrolls — the
    logo must not ride up the screen just because the clinic menu is long, and
    the last links must not sit hidden under a dead edge at the bottom. */
-.physio-brand{position:sticky;top:0;z-index:3;flex:0 0 auto;display:flex;align-items:center;gap:11px;padding:22px 10px 20px;text-decoration:none;color:inherit;background:#153b32;box-shadow:0 12px 18px -14px rgba(0,0,0,.55)}
-.physio-brand-logo{max-width:100%;width:auto;max-height:52px;object-fit:contain;flex-shrink:0}
+.physio-brand-wrap{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;flex:0 0 auto;margin:0 -12px 12px;padding:12px 12px 10px;background:#fff;border-bottom:1px solid #dfe8e3;box-shadow:0 12px 24px -22px rgba(18,63,53,.45);transition:padding .18s ease}
+.physio-brand{display:flex;align-items:center;justify-content:center;gap:12px;min-width:0;flex:1;padding:6px;text-decoration:none;color:#123f35;background:transparent}
+.physio-collapse-btn{width:32px;height:32px;flex:0 0 32px;display:grid;place-items:center;border:1px solid #dfe8e3;border-radius:8px;background:#f7faf8;color:#176753;cursor:pointer;transition:background .15s ease,color .15s ease,transform .18s ease}
+.physio-collapse-btn:hover,.physio-collapse-btn:focus{background:#176753;color:#fff;outline:none}
+.physio-collapse-btn .fa{font-size:13px}
+.physio-brand-logo{display:block;max-width:198px;width:auto;max-height:68px;object-fit:contain;flex-shrink:0}
 .physio-brand.has-wide-logo{justify-content:center}.physio-brand.has-wide-logo .physio-brand-text{display:none}
-.physio-brand:not(.has-wide-logo) .physio-brand-logo{max-width:52px;max-height:44px}.physio-user{border-top:0!important}.physio-nav-list{gap:2px}.physio-nav-group{margin-bottom:3px}
-.physio-brand-mark{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;background:#b8e0cf;color:#153b32;font-size:17px}
-.physio-brand strong{display:block;font-size:14px;letter-spacing:.03em}.physio-brand small{display:block;margin-top:3px;color:#a9c9bb;font-size:10px;letter-spacing:.1em}
-.physio-nav-label{padding:22px 11px 9px;color:#8eb4a3;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.physio-brand:not(.has-wide-logo){justify-content:flex-start}.physio-brand:not(.has-wide-logo) .physio-brand-logo{max-width:64px;max-height:54px}.physio-user{border-top:0!important}.physio-nav-list{gap:3px}.physio-nav-group{margin-bottom:4px}
+.physio-brand-mark{width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border-radius:12px;background:#e3efe9;color:#123f35;font-size:18px}
+.physio-brand strong{display:block;font-size:14px;line-height:1.2;letter-spacing:.02em;color:#123f35}.physio-brand small{display:block;margin-top:4px;color:#4f6b60;font-size:9.5px;line-height:1.3;letter-spacing:.11em}
+.physio-nav-label{padding:18px 10px 8px;color:#7b8e86;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
 /* Subsection heading inside Administration (Settings / Access / Setup & tools).
    Smaller and quieter than a section label so the rail still reads as one
    section with three parts rather than four competing ones. Only rendered when
    the subsection actually contains links. */
-.physio-nav-sub-label{padding:14px 11px 6px;color:#6f9784;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
-.physio-nav-list{display:grid;gap:4px}.physio-nav-link{min-height:42px;display:flex;align-items:center;gap:11px;padding:0 12px;border-radius:7px;color:#c3d8ce;font-size:13.5px;text-decoration:none}.physio-nav-link i{width:19px;text-align:center;font-size:15px}.physio-nav-link:hover{background:rgba(255,255,255,.08);color:white;text-decoration:none}.physio-nav-link.active{background:#dcefe7;color:#104d40;font-weight:700}
+.physio-nav-sub-label{padding:14px 10px 6px;color:#8b9c94;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.physio-nav-list{display:grid;gap:4px}.physio-nav-link{min-height:38px;display:flex;align-items:center;gap:10px;padding:0 11px;border-radius:8px;color:#42534c;font-size:13px;font-weight:650;text-decoration:none;transition:background .15s ease,color .15s ease,box-shadow .15s ease}.physio-nav-link i{width:18px;text-align:center;font-size:14px;color:#7f938a}.physio-nav-link:hover{background:#edf6f1;color:#104d40;text-decoration:none}.physio-nav-link:hover i{color:#176753}.physio-nav-link.active{background:#176753;color:#fff;font-weight:800;box-shadow:0 10px 22px rgba(23,103,83,.22)}.physio-nav-link.active i{color:#fff}
 /* Collapsible groups — a long rail of flat links is unusable, so groups
    collapse to their heading with the active one opened automatically. */
 .physio-nav-group{display:block}
-.physio-nav-group-toggle{min-height:42px;display:flex;align-items:center;gap:11px;padding:0 12px;border-radius:7px;color:#c3d8ce;font-size:13.5px;font-weight:600;cursor:pointer;user-select:none}
-.physio-nav-group-toggle>i.fa{width:19px;text-align:center;font-size:15px}
-.physio-nav-group-toggle:hover{background:rgba(255,255,255,.08);color:#fff}
-.physio-nav-group-toggle .physio-nav-chevron{margin-left:auto;font-size:11px;color:#8eb4a3;transition:transform .18s ease}
-.physio-nav-group.open .physio-nav-group-toggle{color:#fff}
+.physio-nav-group-toggle{min-height:38px;display:flex;align-items:center;gap:10px;padding:0 11px;border-radius:8px;color:#42534c;font-size:13px;font-weight:750;cursor:pointer;user-select:none}
+.physio-nav-group-toggle>i.fa{width:18px;text-align:center;font-size:14px;color:#7f938a}
+.physio-nav-group-toggle:hover{background:#edf6f1;color:#104d40}
+.physio-nav-group-toggle:hover>i.fa{color:#176753}
+.physio-nav-group-toggle .physio-nav-chevron{margin-left:auto;font-size:10px;color:#8b9c94;transition:transform .18s ease}
+.physio-nav-group.open .physio-nav-group-toggle{color:#104d40;background:#eef5f1}
 .physio-nav-group.open>.physio-nav-group-toggle .physio-nav-chevron{transform:rotate(90deg)}
-.physio-nav-submenu{display:none;padding:4px 0 8px 14px;margin-left:9px}
+.physio-nav-submenu{display:none;padding:5px 0 8px 13px;margin-left:9px;border-left:1px solid #d8e4de}
 .physio-nav-group.open>.physio-nav-submenu{display:grid;gap:3px}
-.physio-nav-submenu .physio-nav-link{min-height:36px;font-size:13px;padding:0 10px}
+.physio-nav-submenu .physio-nav-link{min-height:35px;font-size:12.8px;padding:0 10px;border-radius:8px}
 .physio-nav-submenu .physio-nav-link i{font-size:13px;width:17px}
 .physio-nav-link .physio-nav-badge{margin-left:auto;min-width:19px;padding:1px 6px;border-radius:9px;background:#c95f49;color:#fff;font-size:11px;font-weight:700;text-align:center}
-.physio-rail-spacer{flex:1}.physio-user{position:sticky;bottom:0;z-index:3;flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:15px 8px 16px;border-top:1px solid rgba(230,244,237,.14);background:#153b32;box-shadow:0 -12px 18px -14px rgba(0,0,0,.55);color:#e7f1ec;font-size:12px}.physio-user i{color:#b8e0cf;font-size:15px}.physio-user span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.physio-rail-spacer{flex:1}.physio-user{position:sticky;bottom:0;z-index:3;flex:0 0 auto;display:flex;align-items:center;gap:10px;margin:14px -2px 0;padding:12px 10px;border:1px solid #dfe8e3;border-radius:12px;background:#fff;box-shadow:0 -12px 18px -22px rgba(18,63,53,.45);color:#42534c;font-size:12px}.physio-user i{color:#176753;font-size:15px}.physio-user span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.physio-collapsed .physio-brand-wrap{padding-left:10px;padding-right:10px}.physio-collapsed .physio-brand{justify-content:center}.physio-collapsed .physio-brand-logo{max-width:42px;max-height:42px}.physio-collapsed .physio-brand-text,.physio-collapsed .physio-nav-label,.physio-collapsed .physio-nav-sub-label{display:none}.physio-collapsed .physio-collapse-btn .fa{transform:rotate(180deg)}.physio-collapsed .physio-nav-link,.physio-collapsed .physio-nav-group-toggle{justify-content:center;padding-left:0;padding-right:0}.physio-collapsed .physio-nav-link span,.physio-collapsed .physio-nav-group-toggle span,.physio-collapsed .physio-nav-group-toggle .physio-nav-chevron{display:none}.physio-collapsed .physio-nav-link i,.physio-collapsed .physio-nav-group-toggle>i.fa{width:auto;font-size:16px}.physio-collapsed .physio-nav-submenu{display:none!important}.physio-collapsed .physio-nav-list{gap:5px}
 .physio-main{min-width:0;display:flex;flex-direction:column}.physio-topbar{flex:0 0 auto;min-height:78px;display:flex;align-items:center;gap:18px;padding:16px 32px;border-bottom:1px solid var(--mp-border);background:#fff}
 /* The actions block is pinned to the right edge and the title keeps a floor
    width, so the row cannot reflow between screens. It used to be positioned
@@ -361,10 +369,15 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
 <body>
 <div class="mp-shell physio-shell">
   <aside class="physio-rail" aria-label="Physiotherapy workspace navigation">
-    <a class="physio-brand" href="<?= base_url('dashboard'); ?>" aria-label="<?= htmlspecialchars($storeName); ?>">
-      <?php if($physioLogo): ?><img class="physio-brand-logo" src="<?= htmlspecialchars(base_url($physioLogo)); ?>" alt="<?= htmlspecialchars($storeName); ?>" onload="this.parentNode.classList.toggle('has-wide-logo',this.naturalWidth/this.naturalHeight>=2)"><?php else: ?><span class="physio-brand-mark"><i class="fa fa-heartbeat"></i></span><?php endif; ?>
-      <span class="physio-brand-text"><strong><?= htmlspecialchars($storeName); ?></strong><small>PHYSIO + REHABILITATION</small></span>
-    </a>
+    <div class="physio-brand-wrap">
+      <a class="physio-brand" href="<?= base_url('dashboard'); ?>" aria-label="<?= htmlspecialchars($storeName); ?>">
+        <?php if($physioLogo): ?><img class="physio-brand-logo" src="<?= htmlspecialchars(base_url($physioLogo)); ?>" alt="<?= htmlspecialchars($storeName); ?>" onload="this.parentNode.classList.toggle('has-wide-logo',this.naturalWidth/this.naturalHeight>=2)"><?php else: ?><span class="physio-brand-mark"><i class="fa fa-heartbeat"></i></span><?php endif; ?>
+        <span class="physio-brand-text"><strong><?= htmlspecialchars($storeName); ?></strong><small>PHYSIO + REHABILITATION</small></span>
+      </a>
+      <button type="button" class="physio-collapse-btn" id="physioCollapseBtn" aria-label="Collapse navigation" aria-expanded="true" title="Collapse navigation">
+        <i class="fa fa-angle-double-left" aria-hidden="true"></i>
+      </button>
+    </div>
     <div class="physio-nav-label">Clinic</div><nav class="physio-nav-list" aria-label="Clinical workspaces">
       <?= $nav('Reception','dashboard','fa-inbox',physio_can_any(array('patients_view','appointments_view','care_queue_view','admissions_view'))); ?>
       <?= $nav('Patients','patients','fa-address-book-o',physio_can('patients_view'),'patient_registry'); ?>
@@ -421,14 +434,15 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
        * unchanged — only the location is.
        */
       $canLeads      = $CI->permissions('leads_view') || $CI->permissions('leads_add');
-      $canFinances   = $CI->permissions('expense_view') || $CI->permissions('payment_modes_view')
+      $canFinances   = $CI->permissions('expense_view') || $CI->permissions('expense_category_view') || $CI->permissions('payment_modes_view')
                        || $CI->permissions('accounts_view') || $CI->permissions('suppliers_view')
                        || $CI->permissions('purchase_view');
       $workspaceItems = '';
       $workspaceItems .= $nav('Leads','leads','fa-bullhorn',$canLeads);
       $workspaceItems .= $nav('Purchases','purchase','fa-cart-arrow-down',$CI->permissions('purchase_view'));
       $workspaceItems .= $nav('Suppliers','suppliers','fa-truck',$CI->permissions('suppliers_view'));
-      $workspaceItems .= $nav('Expenses','expense','fa-receipt',$CI->permissions('expense_view'));
+      $workspaceItems .= $nav('Expenses','expense','fa-credit-card',$CI->permissions('expense_view'));
+      $workspaceItems .= $nav('Expense categories','expense/category','fa-tags',$CI->permissions('expense_category_view'));
       $workspaceItems .= $nav('Payment modes','payment_modes','fa-money',$CI->permissions('payment_modes_view'));
       $workspaceItems .= $nav('Accounts','accounts','fa-calculator',accounts_module() && $CI->permissions('accounts_view'));
     ?>
@@ -469,6 +483,7 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
       ));
       $gSettings .= $group('Clinical configuration', 'fa-stethoscope', array(
         array('Assessment templates', 'assessment_templates', 'fa-file-text-o', physio_can('assessment_templates_manage')),
+        array('Document secret', 'physio_settings/documents', 'fa-lock', physio_can('md_authority') || physio_can('can_approve')),
         array('Session packages', 'service_packages', 'fa-cubes', $CI->permissions('service_packages_view'), 'packages'),
         array('Billing & ward policy', 'inpatient/billing_setup', 'fa-bed', physio_can('beds_manage'), 'inpatient_care'),
         array('Document categories', 'patient_docs', 'fa-folder-open-o', physio_can('patient_docs_view'), 'patient_documents'),
@@ -536,7 +551,7 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
     <nav class="physio-nav-list" aria-label="Clinic help">
       <?= $nav('Help & guides','dashboard/help','fa-question-circle',true); ?>
     </nav>
-    <div class="physio-rail-spacer"></div><div class="physio-user"><i class="fa fa-user-circle"></i><span><?= htmlspecialchars($userName); ?> · <?= htmlspecialchars($CI->session->userdata('role_name') ?: 'Clinic staff'); ?></span></div>
+    <div class="physio-rail-spacer"></div>
   </aside>
   <main class="physio-main mp-main" id="mp-main">
     <?php
@@ -669,6 +684,32 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
       <?php if(!empty($extra_js_files) && is_array($extra_js_files)): foreach($extra_js_files as $js): ?><script src="<?= $theme_link . $js; ?>"></script><?php endforeach; endif; ?>
       <script>window.csrfName=<?= json_encode($this->security->get_csrf_token_name()); ?>;window.csrfHash=<?= json_encode($this->security->get_csrf_hash()); ?>;</script>
       <script>
+      /* Keep the desktop rail foldable without changing route or permission
+         behaviour. The preference is local to this browser and is ignored by
+         the responsive mobile shell, where the rail is hidden. */
+      (function(){
+        var shell = document.querySelector('.physio-shell');
+        var button = document.getElementById('physioCollapseBtn');
+        if(!shell || !button) return;
+        var storageKey = 'martpoint.physio.sidebar.collapsed';
+        function readCollapsed(){
+          try { return window.localStorage.getItem(storageKey) === '1'; } catch(e) { return false; }
+        }
+        function writeCollapsed(value){
+          try { window.localStorage.setItem(storageKey, value ? '1' : '0'); } catch(e) {}
+        }
+        function setCollapsed(value){
+          shell.classList.toggle('physio-collapsed', value);
+          button.setAttribute('aria-expanded', value ? 'false' : 'true');
+          button.setAttribute('aria-label', value ? 'Expand navigation' : 'Collapse navigation');
+          button.setAttribute('title', value ? 'Expand navigation' : 'Collapse navigation');
+          writeCollapsed(value);
+        }
+        setCollapsed(readCollapsed());
+        button.addEventListener('click', function(){
+          setCollapsed(!shell.classList.contains('physio-collapsed'));
+        });
+      })();
       /* User menu. Bound in plain JS rather than jQuery so it still works if a
          screen fails to load jQuery for any reason — the shell must never be
          dead again because a library is missing. */

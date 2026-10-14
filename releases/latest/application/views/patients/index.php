@@ -21,6 +21,22 @@
 .pt-code{font-family:monospace!important;font-size:12px!important;color:var(--mp-muted)!important}
 .pt-dup-panel{background:#FEF3C7!important;border:1px solid #F59E0B!important;border-radius:10px!important;padding:12px!important;margin:10px 0!important;font-size:13px!important}
 .pt-dup-panel ul{margin:6px 0 0 18px!important}
+#patientModal .modal-dialog{width:calc(100vw - 32px);max-width:920px;margin:24px auto}
+#patientModal .modal-content{display:flex;flex-direction:column;max-height:calc(100vh - 48px);overflow:hidden}
+#patientModal #patientForm{display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
+#patientModal .modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:20px 24px}
+#patientModal .patient-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px}
+#patientModal .patient-field-full{grid-column:1/-1}
+#patientModal .patient-form-grid .mp-form-group{margin-bottom:16px}
+#patientModal .patient-photo-hint{font-size:12px;color:var(--mp-muted);margin-top:6px}
+#patientModal .modal-footer{flex:0 0 auto}
+@media (max-width:700px){
+  #patientModal .modal-dialog{width:calc(100vw - 20px);margin:10px auto}
+  #patientModal .modal-content{max-height:calc(100vh - 20px)}
+  #patientModal .modal-body{padding:16px}
+  #patientModal .patient-form-grid{grid-template-columns:1fr}
+  #patientModal .patient-field-full{grid-column:auto}
+}
 </style>
 
 <div class="mp-page-head">
@@ -82,7 +98,8 @@
               data-nok-phone="<?= htmlspecialchars($p->nok_phone ?? ''); ?>"
               data-nok-rel="<?= htmlspecialchars($p->nok_relationship ?? ''); ?>"
               data-address="<?= htmlspecialchars($p->address ?? ''); ?>"
-              data-city="<?= htmlspecialchars($p->city ?? ''); ?>">
+              data-city="<?= htmlspecialchars($p->city ?? ''); ?>"
+              data-photo="<?= htmlspecialchars($p->customer_photo ?? ''); ?>">
             <td><span class="pt-code"><?= htmlspecialchars($p->patient_code ?: '—'); ?></span></td>
             <td class="row-name"><a href="<?= base_url('patients/profile/'.(int)$p->id); ?>"><?= htmlspecialchars($p->customer_name); ?></a>
               <?php if($p->duplicate_of_id): ?><div><span class="pt-badge dup">Duplicate of #<?= (int)$p->duplicate_of_id; ?></span></div><?php endif; ?>
@@ -129,7 +146,7 @@
 <div class="modal fade" id="patientModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="patientForm" method="post" onsubmit="return false;">
+      <form id="patientForm" method="post" enctype="multipart/form-data" onsubmit="return false;">
         <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
         <input type="hidden" name="patient_id" id="patient_id" value="">
         <input type="hidden" name="confirm_duplicate" id="confirm_duplicate" value="0">
@@ -140,40 +157,56 @@
         </div>
         <div class="modal-body">
           <div id="dupWarning" class="pt-dup-panel" style="display:none;"></div>
-          <div class="mp-form-group"><label>Full Name *</label><input type="text" class="mp-form-control" name="name" id="pt_name" required></div>
-          <div class="row">
-            <div class="col-sm-6"><div class="mp-form-group"><label>Mobile / WhatsApp</label><input type="text" class="mp-form-control" name="mobile" id="pt_mobile"></div></div>
-            <div class="col-sm-6"><div class="mp-form-group"><label>Alt. Phone</label><input type="text" class="mp-form-control" name="phone" id="pt_phone"></div></div>
-          </div>
-          <div class="row">
-            <div class="col-sm-6"><div class="mp-form-group"><label>Email</label><input type="email" class="mp-form-control" name="email" id="pt_email"></div></div>
-            <div class="col-sm-6"><div class="mp-form-group"><label>Date of Birth</label><input type="date" class="mp-form-control" name="dob" id="pt_dob"></div></div>
-          </div>
-          <div class="row">
-            <div class="col-sm-4"><div class="mp-form-group"><label>Gender</label>
+          <div class="patient-form-grid">
+            <div class="mp-form-group patient-field-full"><label>Full Name *</label><input type="text" class="mp-form-control" name="name" id="pt_name" required></div>
+            <div class="mp-form-group"><label>Mobile / WhatsApp</label><input type="text" class="mp-form-control" name="mobile" id="pt_mobile"></div>
+            <div class="mp-form-group"><label>Alt. Phone</label><input type="text" class="mp-form-control" name="phone" id="pt_phone"></div>
+            <div class="mp-form-group"><label>Email</label><input type="email" class="mp-form-control" name="email" id="pt_email"></div>
+            <div class="mp-form-group"><label>Date of Birth</label><input type="date" class="mp-form-control" name="dob" id="pt_dob"></div>
+            <div class="mp-form-group"><label>Gender</label>
               <select class="mp-form-control" name="gender" id="pt_gender">
                 <option value="">—</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
-              </select></div></div>
-            <div class="col-sm-4"><div class="mp-form-group"><label>Marital Status</label><input type="text" class="mp-form-control" name="marital_status" id="pt_marital"></div></div>
-            <div class="col-sm-4"><div class="mp-form-group"><label>Blood Group</label>
+              </select></div>
+            <div class="mp-form-group"><label>Marital Status</label>
+              <select class="mp-form-control" name="marital_status" id="pt_marital">
+                <option value="">Not specified</option>
+                <option value="single">Single</option>
+                <option value="married">Married</option>
+                <option value="divorced">Divorced</option>
+                <option value="widowed">Widowed</option>
+                <option value="separated">Separated</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="mp-form-group"><label>Blood Group</label>
               <select class="mp-form-control" name="blood_group" id="pt_blood">
                 <option value="">—</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option><option value="unknown">Unknown</option>
-              </select></div></div>
-          </div>
-          <div class="mp-form-group"><label>Occupation</label><input type="text" class="mp-form-control" name="occupation" id="pt_occupation"></div>
-          <div class="mp-form-group"><label>Address</label><input type="text" class="mp-form-control" name="address" id="pt_address"></div>
-          <div class="row">
-            <div class="col-sm-6"><div class="mp-form-group"><label>City</label><input type="text" class="mp-form-control" name="city" id="pt_city"></div></div>
-          </div>
-          <div class="mp-form-group"><label>Next of Kin — Name</label><input type="text" class="mp-form-control" name="nok_name" id="pt_nok_name"></div>
-          <div class="row">
-            <div class="col-sm-6"><div class="mp-form-group"><label>NOK Phone</label><input type="text" class="mp-form-control" name="nok_phone" id="pt_nok_phone"></div></div>
-            <div class="col-sm-6"><div class="mp-form-group"><label>Relationship</label><input type="text" class="mp-form-control" name="nok_relationship" id="pt_nok_rel" placeholder="e.g. Spouse, Parent"></div></div>
+              </select></div>
+            <div class="mp-form-group"><label>Occupation</label><input type="text" class="mp-form-control" name="occupation" id="pt_occupation"></div>
+            <div class="mp-form-group"><label>City</label><input type="text" class="mp-form-control" name="city" id="pt_city"></div>
+            <div class="mp-form-group"><label>Profile Photo</label><input type="file" class="mp-form-control" name="photo" id="pt_photo" accept="image/png,image/jpeg,image/webp,image/gif"><div id="pt_photo_current" class="patient-photo-hint">No photo saved yet.</div></div>
+            <div class="mp-form-group patient-field-full"><label>Address</label><input type="text" class="mp-form-control" name="address" id="pt_address"></div>
+            <div class="mp-form-group patient-field-full"><label>Next of Kin — Name</label><input type="text" class="mp-form-control" name="nok_name" id="pt_nok_name"></div>
+            <div class="mp-form-group"><label>NOK Phone</label><input type="text" class="mp-form-control" name="nok_phone" id="pt_nok_phone"></div>
+            <div class="mp-form-group"><label>Relationship</label>
+              <select class="mp-form-control" name="nok_relationship" id="pt_nok_rel" onchange="syncNokRelationship()">
+                <option value="">—</option>
+                <option value="spouse">Spouse</option>
+                <option value="parent">Parent</option>
+                <option value="child">Child</option>
+                <option value="sibling">Sibling</option>
+                <option value="guardian">Guardian</option>
+                <option value="relative">Other relative</option>
+                <option value="friend">Friend</option>
+                <option value="other">Other</option>
+              </select>
+              <input type="text" class="mp-form-control" name="nok_relationship_other" id="pt_nok_rel_other" placeholder="Enter relationship" style="display:none;margin-top:7px;">
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" onclick="savePatient()">Save <?= htmlspecialchars($patient_term); ?></button>
+          <button type="button" class="btn btn-primary" id="patientSaveButton" onclick="savePatient()">Save <?= htmlspecialchars($patient_term); ?></button>
         </div>
       </form>
     </div>
@@ -212,6 +245,9 @@ function openPatientModal(){
   $('#patientForm')[0].reset();
   $('#patient_id, #link_customer_id').val(''); $('#confirm_duplicate').val(0);
   $('#dupWarning').hide().html('');
+  $('#pt_photo_current').text('No photo saved yet.');
+  $('#pt_nok_rel_other').val('').hide();
+  $('#patientSaveButton').text('Save <?= addslashes($patient_term); ?>');
   $('#patientModalTitle').text('Register <?= addslashes($patient_term); ?>');
   $('#patientModal').modal('show');
 }
@@ -222,19 +258,44 @@ function editPatient(btn){
   $('#pt_name').val(tr.data('name')); $('#pt_mobile').val(tr.data('mobile'));
   $('#pt_phone').val(tr.data('phone')); $('#pt_email').val(tr.data('email'));
   $('#pt_dob').val(tr.data('dob')); $('#pt_gender').val(tr.data('gender'));
-  $('#pt_marital').val(tr.data('marital')); $('#pt_occupation').val(tr.data('occupation'));
+  $('#pt_marital').val(String(tr.data('marital') || '').toLowerCase().trim()); $('#pt_occupation').val(tr.data('occupation'));
   $('#pt_blood').val(tr.data('blood')); $('#pt_address').val(tr.data('address'));
   $('#pt_city').val(tr.data('city'));
   $('#pt_nok_name').val(tr.data('nokName')); $('#pt_nok_phone').val(tr.data('nokPhone'));
-  $('#pt_nok_rel').val(tr.data('nokRel'));
+  var nokRel = String(tr.data('nokRel') || '').trim();
+  var nokRelOptions = ['spouse','parent','child','sibling','guardian','relative','friend'];
+  if(nokRelOptions.indexOf(nokRel.toLowerCase()) >= 0){
+    $('#pt_nok_rel').val(nokRel.toLowerCase());
+    $('#pt_nok_rel_other').val('');
+  } else if(nokRel){
+    $('#pt_nok_rel').val('other');
+    $('#pt_nok_rel_other').val(nokRel);
+  } else {
+    $('#pt_nok_rel').val('');
+    $('#pt_nok_rel_other').val('');
+  }
+  syncNokRelationship();
+  $('#pt_photo_current').text(tr.data('photo') ? 'A photo is already saved. Choose a new file to replace it.' : 'No photo saved yet.');
   $('#patientModalTitle').text('Edit ' + tr.data('name'));
+  $('#patientSaveButton').text('Save changes');
+}
+function syncNokRelationship(){
+  $('#pt_nok_rel_other').toggle($('#pt_nok_rel').val() === 'other');
 }
 function savePatient(){
   if(!$('#pt_name').val().trim()){ toastr.error('Patient name is required'); return; }
   const fd = new FormData(document.getElementById('patientForm'));
   $.ajax({ url:'<?= base_url('patients/save'); ?>', type:'POST', data:fd, processData:false, contentType:false, dataType:'json',
     success:function(res){
-      if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); }
+      if(res.status==='success'){
+        toastr.success(res.message);
+        var editedId = $('#patient_id').val();
+        setTimeout(function(){
+          location.href = editedId
+            ? '<?= base_url('patients/profile/'); ?>' + res.patient_id
+            : '<?= base_url('patients'); ?>';
+        }, 800);
+      }
       else if(res.status==='duplicates'){
         let html = '<b>Possible duplicate record(s):</b><ul>';
         (res.duplicates||[]).forEach(function(d){ html += '<li>'+ (d.customer_name||'') +' — '+ (d.patient_code||'') +' '+ (d.mobile||'') +'</li>'; });
@@ -275,6 +336,10 @@ $(document).ready(function(){
     "responsive": false,
     "columnDefs": [{ "targets": [7], "orderable": false }]
   });
+  <?php if(!empty($edit_id) && !empty($can_edit)): ?>
+  var requestedEdit = $('#patients-table tbody tr[data-id="<?= (int)$edit_id; ?>"]');
+  if(requestedEdit.length){ editPatient(requestedEdit[0]); }
+  <?php endif; ?>
 });
 </script>
 <script>$(".patients-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

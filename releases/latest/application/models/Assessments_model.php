@@ -160,13 +160,17 @@ class Assessments_model extends CI_Model {
 
 	/** Canonical structure derived from the supplied five-page assessment PDF. */
 	private function physioPdfSections(){
-		$field = function($key, $label, $type = 'textarea', $required = false, $options = array()){
+		$field = function($key, $label, $type = 'textarea', $required = false, $options = array(), $extra = array()){
 			$out = array('key'=>$key, 'label'=>$label, 'type'=>$type, 'required'=>$required);
 			if($options) $out['options'] = $options;
+			if($extra) $out = array_merge($out, $extra);
 			return $out;
 		};
-		$checks = function($key, $label, $options){
-			return array('key'=>$key, 'label'=>$label, 'type'=>'checkboxes', 'required'=>false, 'options'=>$options);
+		$heading = function($key, $label){
+			return array('key'=>$key, 'label'=>$label, 'type'=>'heading');
+		};
+		$checks = function($key, $label, $options, $span = 'half'){
+			return array('key'=>$key, 'label'=>$label, 'type'=>'checkboxes', 'required'=>false, 'options'=>$options, 'span'=>$span);
 		};
 		return array(
 			array('key'=>'administration','title'=>'Physiotherapy assessment','fields'=>array(
@@ -174,48 +178,50 @@ class Assessments_model extends CI_Model {
 				$field('position','Position','readonly'), $field('signature','Signature','signature'), $field('date_of_assessment','Date','readonly',true),
 			)),
 			array('key'=>'subjective','title'=>'Subjective evaluation','fields'=>array(
-				$field('history_of_complaints','A. History of present complaints'), $field('details_of_onset','1. Details of onset'),
+				$heading('history_of_complaints','A. History of present complaints'), $field('details_of_onset','1. Details of onset'),
 				$field('symptoms_location','2. Symptoms and location'), $field('effect_lifestyle','3. Effect on lifestyle'),
 				$field('treatment_so_far','4. Treatment so far'), $field('effect_treatment','5. Effect of treatment'),
-				$field('family_social_history','B. Family and social history'), $field('occupational_demands','1. Occupational demands'),
+				$heading('family_social_history','B. Family and social history'), $field('occupational_demands','1. Occupational demands'),
 				$field('position_in_family','2. Position in family'), $field('recreational_activities','3. Recreational activities'),
 				$field('social_habits','4. Social habits e.g. smoking, alcohol'), $field('accommodation_living_condition','5. Type of accommodation / living condition'),
-				$field('similar_family_illness','6. Similar history of illness in family'), $field('medical_history','C. Medical history'),
+				$field('similar_family_illness','6. Similar history of illness in family'), $heading('medical_history','C. Medical history'),
 				$field('serious_illness_admission','1. Serious illness and admission'), $field('surgical_operations','2. Surgical operations'),
 				$field('prevailing_conditions','3. Prevailing conditions'), $field('medications_treatment','4. Current medications and treatment'),
 				$field('previous_physiotherapy','5. Previous physiotherapy'),
 			)),
 			array('key'=>'objective','title'=>'Objective evaluation','fields'=>array(
-				$field('observation','A. Observation','textarea',false),
-				$checks('general_observation_checks','1. General observation of patient',array('Appearance e.g. body build','Mental state','Communication','Ambulation','Posture','Others')),
-				$checks('local_observation_checks','2. Local observation of affected part',array('Skin condition','Contour and alignment of part','Deformity','Swelling','Respiratory movements','Others')),
-				$checks('active_rom_upper_limb_checks','3. Active range of motion for upper limb',array('Overhead movement','Hands behind neck','Supination with arms straight','Index finger to mouth','External rotation with upper arm tucked to the side','Hands behind neck')),
-				$checks('resting_position_checks','Resting position',array('Standing','Sitting')),
-				$checks('palpation_checks','B. Palpation',array('Muscle tone','Tenderness','Swelling','Skin texture')),
-			)),
-			array('key'=>'medical','title'=>'Important information from medical assessments','fields'=>array(
-				$field('nursing_vitals','Nursing intake vitals (this visit)','readonly'), $field('medical_assessment_information','Important information from medical assessments'), $field('impression','Impression'),
-				$field('bmi','BMI result','text'), $field('bmi_category','BMI result category','select',false,array('Very severely underweight (<16)','Severely underweight (16–17)','Underweight (17–18.5)','Normal (18.5–25.0)','Overweight (25.0–30.0)','Obese Class I (30.0–35.0)','Obese Class II (35.0–40.0)','Morbid / mobility obesity (>40)')), $field('ideal_weight_range','Ideal weight range (kg)','text'),
-				$field('imaging_reports','X-ray, MRI, CT scan etc. reports'), $field('laboratory_results','Laboratory results e.g. PCV, blood glucose, cholesterol levels'),
-				$field('blood_pressure_ecg','Blood pressure, ECG, EEG etc.'), $field('blood_pressure','Blood pressure','text'),
+				$heading('observation','A. Observation'),
+				$field('general_observation','1. General observation of patient'),
+				$field('local_observation','2. Local observation of affected part'),
+				$field('active_rom_upper_limb','3. Assessment of active range of motion for upper limb'),
+				$field('resting_position','Resting position'),
+				$field('palpation','B. Palpation'),
 			)),
 			array('key'=>'measurements','title'=>'Test and measurements','fields'=>array(
 				$field('joint_movement_measurements','Range of joint movement (separate chart)'), $field('muscle_power','Assessment of muscle power'),
 				$field('weight','Weight (kg)','text'), $field('height','Height (cm)','text'), $field('bmi_measurement','BMI','text'),
+				$field('bmi_category','BMI result category','select',false,array('Very severely underweight (<16)','Severely underweight (16-17)','Underweight (17-18.5)','Normal (18.5-25.0)','Overweight (25.0-30.0)','Obese Class I (30.0-35.0)','Obese Class II (35.0-40.0)','Mobility obesity (>40)')),
+				$field('ideal_weight_range','Ideal weight range (kg)','text'),
+				$field('sensory_tests','Sensory tests'), $field('respiratory_circumference','Respiratory circumference of limb'),
+				$field('limb_length_circumference','Length and circumference of limb'), $field('deformity','Deformity'), $field('other_tests','Other tests'),
 			)),
 			array('key'=>'function','title'=>'Functional assessment','fields'=>array(
 				$checks('adl_with_assistance_checks','ADL with assistance',array('Sitting','Standing','Walking / ambulation','Dressing','Stair climbing','Feeding')),
 				$checks('adl_without_assistance_checks','ADL without assistance',array('Sitting','Standing','Walking / ambulation','Dressing','Stair climbing','Feeding')),
-				$field('occupational_postures','Occupational postures'), $field('sensory_tests','Sensory tests'), $field('respiratory_circumference','Respiratory circumference of limb'),
-				$field('limb_length_circumference','Length and circumference of limb'), $field('deformity','Deformity'), $field('other_tests','Other tests'),
+				$checks('occupational_postures','Occupational postures',array('Sitting','Standing','Walking / ambulation','Bending','Lifting','Squatting','Kneeling','Overhead work')),
+			)),
+			array('key'=>'medical','title'=>'Important information from medical assessments','fields'=>array(
+				$field('nursing_vitals','Nursing intake vitals (this visit)','readonly'), $field('imaging_reports','X-ray, MRI, CT scan etc. reports'),
+				$field('laboratory_results','Laboratory results e.g. PCV, blood glucose, cholesterol levels'),
+				$field('blood_pressure_ecg','Blood pressure, ECG, EEG etc.'), $field('impression','Impression'),
 			)),
 			array('key'=>'interpretation','title'=>'Interpretation of findings','fields'=>array(
-				$field('clinical_problems','A. List of clinical problems or physiotherapy diagnosis in order of priority','textarea',true),
+				$heading('clinical_problems_heading','A. List of clinical problems or physiotherapy diagnosis in order of priority e.g. pain, decreased ROM, etc.'),
 				$field('clinical_problem_1','1. Priority problem'), $field('clinical_problem_2','2. Priority problem'), $field('clinical_problem_3','3. Priority problem'), $field('clinical_problem_4','4. Priority problem'),
-				$field('principles_treatment','B. Principles of treatment'), $field('physiotherapy_goals','Aims / goals of physiotherapy'),
+				$heading('principles_treatment','B. Principles of treatment'), $heading('physiotherapy_goals','Aims / goals of physiotherapy'),
 				$field('goal_1','1. Goal'), $field('goal_2','2. Goal'), $field('goal_3','3. Goal'), $field('goal_4','4. Goal'),
 				$field('short_term_goals','a) Short-term goals'), $field('long_term_goals','b) Long-term goals'),
-				$field('means_treatment','Means of treatment based on available facilities, stage of pathology and precautions'),
+				$heading('means_treatment','Means of treatment based on available facilities, stage of pathology and precautions'),
 				$field('means_1','1. Treatment means'), $field('means_2','2. Treatment means'), $field('means_3','3. Treatment means'), $field('means_4','4. Treatment means'),
 				$field('treatment_plan_reassessment','C. Treatment plan (including plan for reassessments)','textarea',true), $field('recommendations','D. Recommendations'),
 			)),

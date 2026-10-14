@@ -88,7 +88,7 @@ a.clinic-activity-item:hover i{background:#dcebe3}
   <div class="clinic-range" aria-label="Dashboard date range">
     <span class="clinic-range-label">Dashboard period: <strong><?= htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?></strong></span>
     <nav class="clinic-range-links">
-      <?php foreach(array('Today'=>'Today','7Days'=>'7 Days','30Days'=>'30 Days','ThisMonth'=>'This Month','LastMonth'=>'Last Month','ThisYear'=>'This Year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active' : ''; ?>" href="<?= base_url('dashboard?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?>
+      <?php foreach(array('Today'=>'Today','Yesterday'=>'Yesterday','7Days'=>'7 Days','30Days'=>'30 Days','ThisMonth'=>'This Month','LastMonth'=>'Last Month','ThisYear'=>'This Year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active' : ''; ?>" href="<?= base_url('dashboard?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?>
     </nav>
   </div>
 </div>
@@ -164,7 +164,7 @@ if(isset($patient_birthdays) && $patient_birthdays !== null){
   <?php endforeach; ?>
 </div>
 
-<?php $this->load->view('comman/workspace_intelligence', array('intel'=>$intel ?? array())); ?>
+<?php $this->load->view('comman/workspace_intelligence', array('intel'=>$intel ?? array(), 'show_empty'=>true)); ?>
 <?php $this->load->view('comman/license_usage_card'); ?>
 
 <div class="clinic-columns">

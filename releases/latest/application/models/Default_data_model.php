@@ -246,7 +246,7 @@ class Default_data_model extends CI_Model {
             // Register, episodes, appointments and the care queue
             'patients_view','patients_add','patients_edit','patients_merge','patients_export',
             'episodes_view','episodes_add','episodes_edit','episodes_close',
-            'appointments_view','appointments_add','appointments_edit','appointments_cancel',
+            'appointments_view','appointments_add','appointments_edit','appointments_cancel','appointments_reschedule',
             'care_queue_view','care_checkin',
             'vitals_view','vitals_add',
             // Encounters, assessments, investigations
@@ -256,7 +256,7 @@ class Default_data_model extends CI_Model {
             'investigations_result_enter','investigations_review',
             // Plans and treatment sessions
             'plans_view','plans_add','plans_amend',
-            'sessions_view','sessions_checkin','sessions_complete',
+            'sessions_view','sessions_checkin','sessions_complete','sessions_note_add',
             // Ward, nursing and portering
             'admissions_view','admissions_manage','beds_manage',
             'nursing_tasks_view','nursing_tasks_complete','nursing_notes_add',
@@ -1150,7 +1150,7 @@ class Default_data_model extends CI_Model {
             'assessments_view','assessments_add','assessments_finalize',
             'investigations_view','investigations_request','investigations_review',
             'plans_view','plans_add','plans_amend',
-            'sessions_view','sessions_checkin','sessions_complete',
+            'sessions_view','sessions_checkin','sessions_complete','sessions_note_add',
             'admissions_view',
             'referrals_view','referrals_manage',
             'leave_manage',
@@ -1182,7 +1182,7 @@ class Default_data_model extends CI_Model {
             'dashboard_view',
             'leads_view','leads_add','leads_edit',
             'patients_view','patients_add','patients_edit',
-            'appointments_view','appointments_add','appointments_edit','appointments_cancel',
+            'appointments_view','appointments_add','appointments_edit','appointments_cancel','appointments_reschedule',
             'care_queue_view','care_checkin',
             'sessions_view','sessions_checkin',
             'patient_funds_view','patient_billing_view',
@@ -1662,6 +1662,7 @@ class Default_data_model extends CI_Model {
             'skincare'             => 'skincare',
             'jewellery_store'      => 'jewellery',
             'agro_dealer'          => 'agro',
+            'garden_centre_landscaping' => 'garden_centre',
             'feed_store'           => 'agro',
             'auto_parts'           => 'auto_parts',
             'tyre_shop'            => 'auto_parts',
@@ -2191,6 +2192,23 @@ class Default_data_model extends CI_Model {
                     'Earrings'  => 'Studs, hoops and drop earrings',
                     'Bracelets' => 'Bangles and bracelets',
                     'Watches'   => 'Wrist watches',
+                ),
+            ),
+            'garden_centre' => array(
+                'units' => array(
+                    'Piece'      => array('PCS', null, 1, 1),
+                    'Bag'        => array('BAG', null, 1, 0),
+                    'Kilogram'   => array('KG', null, 1, 0),
+                    'Litre'      => array('L', null, 1, 0),
+                    'Square Metre' => array('SQM', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Plants & Seedlings' => 'Indoor and outdoor plants, trees, shrubs and seedlings',
+                    'Pots & Planters'    => 'Plant pots, planters and containers',
+                    'Soil & Compost'    => 'Potting mixes, compost, mulch and soil conditioners',
+                    'Plant Nutrition & Care' => 'Fertilizers and plant care supplies',
+                    'Garden Tools & Irrigation' => 'Garden tools, watering and irrigation supplies',
+                    'Landscaping Materials' => 'Turf, stones, edging and other landscaping materials',
                 ),
             ),
             'agro' => array(

@@ -1346,7 +1346,9 @@ public function services(){
                     'discount'          =>  !empty($this->xss_html_filter($importdata[18]))?$this->xss_html_filter(string_to_number($importdata[18])):0,
                     'item_group'        =>  $item_group,
                     'child_bit'         =>  0,
-                    'publish_online'    =>  0,
+                    // Advanced imports are intended for catalogue onboarding: make
+                    // imported items available to the online store immediately.
+                    'publish_online'    =>  1,
                     'status'            =>  1,
                     'created_date'      =>  $CUR_DATE,
                     'created_time'      =>  $CUR_TIME,
@@ -1891,7 +1893,7 @@ public function services(){
                     'discount'          => !empty($this->xss_html_filter($d['discount'])) ? $this->xss_html_filter(string_to_number($d['discount'])) : 0,
                     'item_group'        => $item_group,
                     'child_bit'         => 0,
-                    'publish_online'    => 0,
+                    'publish_online'    => 1,
                     'status'            => 1,
                     'created_date'      => $CUR_DATE,
                     'created_time'      => $CUR_TIME,

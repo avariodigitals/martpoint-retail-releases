@@ -665,7 +665,7 @@ class Dashboard extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Clinic overview';
 		$data['clinic_access'] = $access;
-		$valid_clinic_ranges = array('Today','7Days','30Days','ThisMonth','LastMonth','ThisYear');
+		$valid_clinic_ranges = array('Today','Yesterday','7Days','30Days','ThisMonth','LastMonth','ThisYear');
 		$clinic_range = $this->input->get('range', TRUE);
 		if(!in_array($clinic_range, $valid_clinic_ranges, true)) $clinic_range = 'Today';
 		$data['clinic_range'] = $clinic_range;
@@ -785,8 +785,8 @@ class Dashboard extends MY_Controller {
 			// A missing date of birth is stored as a zero date, which a bound
 			// comparison rejects as an invalid DATE under strict SQL mode.
 			->where('p.dob IS NOT NULL', null, false)
-			->where('p.dob <> 0', null, false)
-			->where("DATE_FORMAT(p.dob, '%m-%d') IN (".$in.")", null, false)
+			->where("CAST(p.dob AS CHAR) <> '0000-00-00'", null, false)
+			->where("DATE_FORMAT(CASE WHEN CAST(p.dob AS CHAR) = '0000-00-00' THEN NULL ELSE p.dob END, '%m-%d') IN (".$in.")", null, false)
 			->get()->result();
 		$people = array();
 		foreach($rows as $row){
@@ -831,12 +831,16 @@ class Dashboard extends MY_Controller {
 			);
 		}
 		if($access['appointments']){
+			$booked = (int)$this->db->where('store_id', $storeId)
+				->where('DATE(scheduled_at) >=', $rangeInfo['from'])->where('DATE(scheduled_at) <=', $rangeInfo['to'])->count_all_results('db_appointments');
+			// The tile must open on the window it counted; the Appointments screen
+			// defaults to today alone, so a "7 booked" tile used to land on an
+			// empty diary.
 			$out['appointments'] = array(
 				'label' => 'Booked · '.$periodLabel,
-				'value' => (int)$this->db->where('store_id', $storeId)
-					->where('DATE(scheduled_at) >=', $rangeInfo['from'])->where('DATE(scheduled_at) <=', $rangeInfo['to'])->count_all_results('db_appointments'),
-				'sub'   => 'appointments in the diary',
-				'url'   => 'appointments',
+				'value' => $booked,
+				'sub'   => date('M j', strtotime($rangeInfo['from'])) . ' – ' . date('M j', strtotime($rangeInfo['to'])),
+				'url'   => 'appointments?from=' . $rangeInfo['from'] . '&to=' . $rangeInfo['to'],
 				'icon'  => 'fa-calendar',
 			);
 		}
@@ -925,14 +929,17 @@ class Dashboard extends MY_Controller {
 				'money' => true,
 			);
 		}
-		if(physio_can('patient_funds_view') && $this->db->table_exists('db_fund_reservations')){
-			$reserved = (float)$this->db->select('COALESCE(SUM(amount_reserved - amount_consumed),0) AS s', false)
-				->where('store_id', $storeId)->where('status', 'active')
-				->get('db_fund_reservations')->row()->s;
+		// "Funds held" is the money the clinic already has for care not yet given:
+		// the un-spent part of every live session package plus active wallet
+		// reservations. Package payments and manual wallet holds arrive through
+		// different tables, but the dashboard needs one operational number.
+		if(physio_can('patient_funds_view') && ($this->db->table_exists('db_plan_entitlements') || $this->db->table_exists('db_fund_reservations'))){
+			$this->load->model('patient_funds_model');
+			$held = $this->patient_funds_model->heldForPeriod($storeId, $rangeInfo['from'], $rangeInfo['to']);
 			$out['funds'] = array(
 				'label' => 'Funds held',
-				'value' => $this->currency($reserved, true),
-				'sub'   => 'reserved against treatment plans',
+				'value' => $this->currency($held, true),
+				'sub'   => 'remaining from purchases / holds recorded in '.$periodLabel,
 				'url'   => 'patient_funds',
 				'icon'  => 'fa-money',
 				'money' => true,

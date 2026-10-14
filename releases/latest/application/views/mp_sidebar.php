@@ -421,8 +421,8 @@ $mp_icons = [
           <?php if($CI->permissions('cash_transactions')): ?><a href="<?= base_url('accounts/cash_transactions'); ?>" class="mp-nav-item cash_transactions-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Cash Transactions</a><?php endif; ?>
         <?php endif; ?>
         <?php if($CI->permissions('tills_view')): ?><a href="<?= base_url('tills'); ?>" class="mp-nav-item tills-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Tills</a><?php endif; ?>
-        <?php if($CI->permissions('expense_view')): ?><a href="<?= base_url('expense'); ?>" class="mp-nav-item expense-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Expense List</a><?php endif; ?>
-        <?php if($CI->permissions('expense_category_view')): ?><a href="<?= base_url('expense/category'); ?>" class="mp-nav-item expense-category-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Expense Categories</a><?php endif; ?>
+        <?php if($CI->permissions('expense_view')): ?><a href="<?= base_url('expense'); ?>" class="mp-nav-item expense-list-active-li"><span class="mp-nav-icon"><i class="fa fa-credit-card"></i></span> Expense List</a><?php endif; ?>
+        <?php if($CI->permissions('expense_category_view')): ?><a href="<?= base_url('expense/category'); ?>" class="mp-nav-item expense-category-list-active-li"><span class="mp-nav-icon"><i class="fa fa-tags"></i></span> Expense Categories</a><?php endif; ?>
       </div>
     </div></div>
     <?php endif; ?>

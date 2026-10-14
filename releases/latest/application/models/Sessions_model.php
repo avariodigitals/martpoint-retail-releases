@@ -49,13 +49,21 @@ class Sessions_model extends CI_Model {
 	}
 
 	public function entitlementsForPlan($planId){
-		return $this->db->where('plan_id', $planId)->where('store_id', get_current_store_id())
-			->order_by('id')->get('db_plan_entitlements')->result();
+		return $this->entitlementList()->where('e.plan_id', $planId)
+			->order_by('e.id')->get()->result();
 	}
 
 	public function entitlementsForPatient($patientId){
-		return $this->db->where('patient_id', $patientId)->where('store_id', get_current_store_id())
-			->order_by('id')->get('db_plan_entitlements')->result();
+		return $this->entitlementList()->where('e.patient_id', $patientId)
+			->order_by('e.id')->get()->result();
+	}
+
+	private function entitlementList(){
+		// Invoice date is the purchase date; migration/creation dates are not.
+		return $this->db->select("e.*, NULLIF(CAST(s.sales_date AS CHAR), '0000-00-00') AS purchase_date", false)
+			->from('db_plan_entitlements e')
+			->join('db_sales s', 's.id = e.sale_id AND s.store_id = e.store_id', 'left')
+			->where('e.store_id', get_current_store_id());
 	}
 
 	/**
@@ -197,6 +205,18 @@ class Sessions_model extends CI_Model {
 			->order_by('scheduled_at,id')->get('db_treatment_sessions')->result();
 	}
 
+	/**
+	 * The session a care-queue visit is delivering. Check-in links a booked
+	 * session to the visit it raises, so this is how the treatment screens find
+	 * "session N of M" for the patient standing in front of the physio.
+	 */
+	public function sessionForEncounter($encounterId){
+		if((int)$encounterId <= 0 || !$this->db->table_exists('db_treatment_sessions')) return null;
+		return $this->db->where('encounter_id', (int)$encounterId)
+			->where('store_id', get_current_store_id())
+			->order_by('id', 'desc')->get('db_treatment_sessions')->row();
+	}
+
 	public function upcomingForPatient($patientId){
 		return $this->db->where('patient_id', $patientId)->where('store_id', get_current_store_id())
 			->where_in('status', array('scheduled','checked_in','in_progress','interrupted'))
@@ -247,6 +267,7 @@ class Sessions_model extends CI_Model {
 		$w = $this->diaryWindow($range);
 		if($w[0] === null) return 0;
 		$this->db->where('store_id', (int)$storeId)
+			->where_in('status', array('scheduled','checked_in','in_progress','interrupted'))
 			->group_start()->where('scheduled_at <', $w[0])
 				->or_where('scheduled_at >', $w[1])->group_end();
 		return (int)$this->db->count_all_results('db_treatment_sessions');
@@ -285,6 +306,33 @@ class Sessions_model extends CI_Model {
 			->where('s.store_id', (int)$storeId)
 			->where_in('s.status', array('scheduled', 'checked_in'))
 			->where('DATE(s.scheduled_at) <=', $date ?: date('Y-m-d'))
+			->where('(s.encounter_id IS NULL OR s.encounter_id = 0)', null, false)
+			->order_by('s.scheduled_at', 'asc')->limit((int)$limit)->get()->result();
+	}
+
+	/**
+	 * Booked sessions still ahead in the diary whose patient has turned up
+	 * early — the desk-led bring-forward. Without this list a session booked
+	 * for a later day never reaches the board when the patient walks in today,
+	 * and the booking then looks lost. Same shape as dueBookings().
+	 */
+	public function upcomingBookings($storeId, $fromDate = null, $toDate = null, $limit = 20){
+		if(!$this->db->table_exists('db_treatment_sessions')) return array();
+		// Strictly after $fromDate — today's bookings already come from
+		// dueBookings(), and listing them twice would double the desk's count.
+		$from = $fromDate ?: date('Y-m-d');
+		$to = $toDate ?: date('Y-m-d', strtotime('+60 days'));
+		return $this->db->select('s.id, s.patient_id, s.scheduled_at, s.session_no, s.units_total, s.status,
+				p.patient_code, c.customer_name AS patient_name, i.item_name AS treatment_name')
+			->from('db_treatment_sessions s')
+			->join('db_patients p', 'p.id = s.patient_id')
+			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+			->join('db_plan_entitlements e', 'e.id = s.entitlement_id', 'left')
+			->join('db_items i', 'i.id = e.service_id', 'left')
+			->where('s.store_id', (int)$storeId)
+			->where('s.status', 'scheduled')
+			->where('DATE(s.scheduled_at) >', $from)
+			->where('DATE(s.scheduled_at) <=', $to)
 			->where('(s.encounter_id IS NULL OR s.encounter_id = 0)', null, false)
 			->order_by('s.scheduled_at', 'asc')->limit((int)$limit)->get()->result();
 	}
@@ -530,6 +578,21 @@ class Sessions_model extends CI_Model {
 				$this->pf->releaseReservation($res->id, 'Session ' . $to . ': ' . $reason);
 			}
 		}
+		/* The two screens have to agree. When check-in raised a visit for this
+		   session the patient is sitting on the Care Queue, and cancelling the
+		   booking without ending that visit leaves them "Waiting for Nurse"
+		   for ever. Close it here, drawing no session and charging nothing. */
+		$r['visit_closed'] = false;
+		if(!empty($s->encounter_id)){
+			if(!function_exists('mp_first_name')) $this->load->helper('physio');
+			$who = mp_first_name($this->session->userdata('inv_userid'), $this->session->userdata('first_name'));
+			$this->load->model('Encounters_model', 'enc');
+			$what = $asNoShow ? 'did not attend' : 'cancelled';
+			$note = 'Visit closed — the booked ' . ($s->session_no ? 'session ' . (int)$s->session_no . ' of ' . (int)$s->units_total : 'session')
+				. ' was ' . $what . ' by ' . $who . '. Reason: ' . $reason;
+			$closed = $this->enc->closeUnattended((int)$s->encounter_id, $note, $asNoShow ? 'no_show' : 'cancelled');
+			$r['visit_closed'] = !isset($closed['error']);
+		}
 		return $r;
 	}
 
@@ -537,6 +600,24 @@ class Sessions_model extends CI_Model {
 		return $this->db->where('entitlement_id', $entitlementId)
 			->where_in('status', array('scheduled','checked_in','in_progress','interrupted'))
 			->count_all_results('db_treatment_sessions');
+	}
+
+	/**
+	 * Open bookings per entitlement in one pass, for the lists that show
+	 * "still owed" next to "free to book" — the same arithmetic nextOffer()
+	 * uses, so a card and the booking dialog can never disagree.
+	 */
+	public function openBookedCounts(array $entitlementIds){
+		$ids = array_values(array_filter(array_map('intval', $entitlementIds)));
+		if(empty($ids)) return array();
+		$rows = $this->db->select('entitlement_id, COUNT(*) n')
+			->where_in('entitlement_id', $ids)
+			->where_in('status', array('scheduled','checked_in','in_progress','interrupted'))
+			->group_by('entitlement_id')->get('db_treatment_sessions')->result();
+		$out = array();
+		foreach($ids as $id){ $out[$id] = 0; }
+		foreach($rows as $r){ $out[(int)$r->entitlement_id] = (int)$r->n; }
+		return $out;
 	}
 
 	public function interrupt($id, $reason){

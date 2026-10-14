@@ -143,7 +143,7 @@ $patientTerm = mp_label('customer');
       <?php endif; ?>
 
       <?php if(isset($c['billing_due'])): ?>
-      <a class="kpi money" href="<?= base_url('patient_billing'); ?>">
+      <a class="kpi money" href="<?= base_url('mobile/patient_accounts'); ?>">
         <div class="label">Bills due</div>
         <div class="value"><?= htmlspecialchars($c['billing_due']); ?></div>
         <div class="sub">across patient accounts</div>
@@ -151,10 +151,10 @@ $patientTerm = mp_label('customer');
       <?php endif; ?>
 
       <?php if(isset($c['funds_reserved'])): ?>
-      <a class="kpi money wide" href="<?= base_url('patient_funds'); ?>">
+      <a class="kpi money wide" href="<?= base_url('mobile/patient_accounts'); ?>">
         <div class="label">Funds reserved for treatment</div>
         <div class="value"><?= htmlspecialchars($c['funds_reserved']); ?></div>
-        <div class="sub">held against active treatment plans</div>
+        <div class="sub">remaining from purchases / holds recorded in <?= htmlspecialchars($clinic_range_info['label']); ?></div>
       </a>
       <?php endif; ?>
       <?php if(!empty($commercial)): ?>
@@ -168,11 +168,12 @@ $patientTerm = mp_label('customer');
     <?php $ma = $clinic_analytics ?? array(); $mmax = max(1,(int)($ma['inpatient'] ?? 0),(int)($ma['outpatient'] ?? 0)); $fmax = max(1,(float)($ma['sales'] ?? 0),(float)($ma['expenses'] ?? 0)); ?>
     <div class="mobile-chart"><h2>Patient activity</h2><p class="mobile-chart-sub">Episodes opened in <?= htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?></p><div class="mobile-bar"><div class="mobile-bar-head"><span>Outpatient</span><span><?= (int)($ma['outpatient'] ?? 0); ?></span></div><div class="mobile-bar-track"><div class="mobile-bar-fill" style="width:<?= round(((int)($ma['outpatient'] ?? 0)/$mmax)*100); ?>%"></div></div></div><div class="mobile-bar"><div class="mobile-bar-head"><span>Inpatient</span><span><?= (int)($ma['inpatient'] ?? 0); ?></span></div><div class="mobile-bar-track"><div class="mobile-bar-fill blue" style="width:<?= round(((int)($ma['inpatient'] ?? 0)/$mmax)*100); ?>%"></div></div></div></div>
     <div class="mobile-chart"><h2>Sales vs expenses</h2><p class="mobile-chart-sub">Financial movement in <?= htmlspecialchars($clinic_range_info['label'] ?? 'Today'); ?></p><div class="mobile-bar"><div class="mobile-bar-head"><span>Sales</span><span><?= htmlspecialchars(mp_format_money($ma['sales'] ?? 0)); ?></span></div><div class="mobile-bar-track"><div class="mobile-bar-fill" style="width:<?= round(((float)($ma['sales'] ?? 0)/$fmax)*100); ?>%"></div></div></div><div class="mobile-bar"><div class="mobile-bar-head"><span>Expenses</span><span><?= htmlspecialchars(mp_format_money($ma['expenses'] ?? 0)); ?></span></div><div class="mobile-bar-track"><div class="mobile-bar-fill blue" style="width:<?= round(((float)($ma['expenses'] ?? 0)/$fmax)*100); ?>%"></div></div></div></div>
-    <section class="mobile-birthdays"><h2>Staff birthdays · next 90 days</h2><?php if(!empty($staff_birthdays)): foreach($staff_birthdays as $birthday): ?><div class="mobile-birthday"><span class="mobile-birthday-avatar"><?= htmlspecialchars(strtoupper(substr($birthday['name'],0,1))); ?></span><span><strong><?= htmlspecialchars($birthday['name']); ?></strong><small><?= htmlspecialchars($birthday['date']); ?><?= $birthday['days'] === 0 ? ' · Today' : ' · in '.(int)$birthday['days'].' days'; ?></small></span></div><?php endforeach; else: ?><div style="font-size:12px;color:var(--mp-muted);">No staff birthdays recorded in the next 90 days.</div><?php endif; ?></section>
-    <nav class="mobile-range" aria-label="Dashboard date range"><?php foreach(array('Today'=>'Today','7Days'=>'7 days','30Days'=>'30 days','ThisMonth'=>'This month','LastMonth'=>'Last month','ThisYear'=>'This year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active' : ''; ?>" href="<?= base_url('dashboard?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?></nav>
+    <section class="mobile-birthdays"><h2>Staff birthdays · this week</h2><?php if(!empty($staff_birthdays)): foreach($staff_birthdays as $birthday): ?><div class="mobile-birthday"><span class="mobile-birthday-avatar"><?= htmlspecialchars(strtoupper(substr($birthday['name'],0,1))); ?></span><span><strong><?= htmlspecialchars($birthday['name']); ?></strong><small><?= htmlspecialchars($birthday['date']); ?><?= $birthday['days'] === 0 ? ' · Today' : ' · in '.(int)$birthday['days'].' day'.((int)$birthday['days'] === 1 ? '' : 's'); ?></small></span></div><?php endforeach; else: ?><div style="font-size:12px;color:var(--mp-muted);">No staff birthdays this week.</div><?php endif; ?></section>
+    <?php if(!empty($acc['patients'])): ?><section class="mobile-birthdays"><h2><?= htmlspecialchars($patientTerm); ?> birthdays · this week</h2><?php if(!empty($patient_birthdays)): foreach($patient_birthdays as $birthday): ?><div class="mobile-birthday"><span class="mobile-birthday-avatar"><?= htmlspecialchars(strtoupper(substr($birthday['name'],0,1))); ?></span><span><strong><?= htmlspecialchars($birthday['name']); ?></strong><small><?= htmlspecialchars($birthday['date']); ?><?= $birthday['days'] === 0 ? ' · Today' : ' · in '.(int)$birthday['days'].' day'.((int)$birthday['days'] === 1 ? '' : 's'); ?></small></span></div><?php endforeach; else: ?><div style="font-size:12px;color:var(--mp-muted);">No <?= htmlspecialchars(strtolower($patientTerm)); ?> birthdays this week.</div><?php endif; ?></section><?php endif; ?>
+    <nav class="mobile-range" aria-label="Dashboard date range"><?php foreach(array('Today'=>'Today','Yesterday'=>'Yesterday','7Days'=>'7 days','30Days'=>'30 days','ThisMonth'=>'This month','LastMonth'=>'Last month','ThisYear'=>'This year') as $value=>$label): ?><a class="<?= ($clinic_range ?? 'Today') === $value ? 'active' : ''; ?>" href="<?= base_url('mobile?range='.$value); ?>"><?= htmlspecialchars($label); ?></a><?php endforeach; ?></nav>
 
     <?php $this->load->view('comman/license_usage_card', array('license_usage_mobile'=>true)); ?>
-    <?php $this->load->view('comman/workspace_intelligence', array('intel'=>$intel ?? array())); ?>
+    <?php $this->load->view('comman/workspace_intelligence', array('intel'=>$intel ?? array(), 'show_empty'=>true)); ?>
 
     <?php
       $hasTiles = !empty($acc['patients']) || !empty($acc['queue']) || !empty($acc['appointments'])
@@ -230,7 +231,7 @@ $patientTerm = mp_label('customer');
       <?php endif; ?>
 
       <?php if(!empty($acc['accounts'])): ?>
-      <a class="tile rose" href="<?= base_url('patient_funds'); ?>">
+      <a class="tile rose" href="<?= base_url('mobile/patient_accounts'); ?>">
         <span class="icon"><i class="fa fa-money"></i></span>
         <span>Patient accounts</span>
         <span class="desc">Bills, funds and payment evidence</span>

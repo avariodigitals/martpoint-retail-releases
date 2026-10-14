@@ -350,4 +350,17 @@ return [
           // backfilled onto the episode that was running when the patient was
           // admitted.
           '4.0.9.151v'  => '4.0.9.151_admission_care_episode.sql',
+          // .152 The treatment chart a physio signs for each session
+          // (db_session_treatment_notes, one signed row per booked session),
+          // plus two grants the Care Queue review asked for: sessions_note_add
+          // for whoever completes a session, and appointments_reschedule split
+          // out of appointments_edit so re-dating a booking is the desk's call,
+          // not every login that can edit one.
+          '4.0.9.152v'  => '4.0.9.152_session_treatment_notes.sql',
+          // .153 The chart names the physio who gave the session, separately
+          // from the one who typed it, and credits whoever amends it later —
+          // because whoever is on duty may be covering someone else's course.
+          '4.0.9.153v'  => '4.0.9.153_treatment_chart_therapist.sql',
+          // Run on already-updated fleets too; this column was previously unregistered.
+          '4.0.9.154v' => '4.0.9.154_physio_document_secret.sql',
 ];

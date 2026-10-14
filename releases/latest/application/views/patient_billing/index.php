@@ -1,4 +1,7 @@
-<?php $this->load->view('admin/desktop/_styles'); $CI =& get_instance(); ?>
+<?php $this->load->view('admin/desktop/_styles'); $CI =& get_instance();
+$bill_patient_id = (int)($bill_patient_id ?? 0);
+$scope_query = $bill_patient_id > 0 ? '&patient_id=' . $bill_patient_id : '';
+?>
 <style>
 .pb-table{width:100%!important;border-collapse:collapse!important;font-size:13px!important;background:#fff!important;border-radius:14px!important;overflow:hidden!important}
 .pb-table th{text-align:left!important;padding:8px 10px!important;border-bottom:1px solid var(--mp-border)!important;font-size:11px!important;text-transform:uppercase!important;color:var(--mp-muted)!important}
@@ -24,18 +27,27 @@
 
 <div class="mp-page-head">
   <div><h2><?= htmlspecialchars($page_title); ?></h2>
-  <div class="mp-page-sub">Plan-generated bills · partial payments · visible outstanding debt</div></div>
+  <div class="mp-page-sub">
+    <?php if(!empty($bill_patient)): ?>
+      <?= htmlspecialchars($bill_patient->customer_name ?: 'Patient'); ?> · <?= htmlspecialchars($bill_patient->patient_code ?: ''); ?>
+    <?php else: ?>
+      Plan-generated bills · partial payments · visible outstanding debt
+    <?php endif; ?>
+  </div></div>
+  <?php if(!empty($bill_patient)): ?>
+    <div><a class="mp-qa-btn teal" href="<?= base_url('patients/profile/' . (int)$bill_patient->id); ?>"><i class="fa fa-user"></i> Back to Patient</a></div>
+  <?php endif; ?>
 </div>
 
 <div class="pb-days">
   <span class="pb-days-lbl">Show</span>
   <?php foreach(array(1 => 'Today', 7 => '7 days', 30 => '30 days', 365 => 'This year', 0 => 'All') as $d => $lbl): ?>
-    <a class="<?= (int)$bill_days === $d ? 'on' : ''; ?>" href="<?= base_url('patient_billing') . '?days=' . $d; ?>"><?= $lbl; ?></a>
+    <a class="<?= (int)$bill_days === $d ? 'on' : ''; ?>" href="<?= base_url('patient_billing') . '?days=' . $d . $scope_query; ?>"><?= $lbl; ?></a>
   <?php endforeach; ?>
   <span class="pb-days-note">Bills raised in this window.
     <?php if((int)$bill_hidden > 0): ?>
       <b style="color:#B45309"><?= (int)$bill_hidden ?> older bill(s) are outside it</b> &mdash;
-      <a href="<?= base_url('patient_billing') . '?days=0'; ?>" style="text-decoration:underline">show everything</a>.
+      <a href="<?= base_url('patient_billing') . '?days=0' . $scope_query; ?>" style="text-decoration:underline">show everything</a>.
     <?php endif; ?>
   </span>
 </div>
@@ -46,8 +58,8 @@
   <span>Collected: <b><?= $CI->currency($bill_totals['collected']); ?></b></span>
   <span>Outstanding: <b style="color:#991B1B;"><?= $CI->currency($bill_totals['outstanding']); ?></b></span>
   <span class="pb-actions">
-    <a class="pb-btn" href="<?= base_url('patient_billing/export') . '?days=' . (int)$bill_days; ?>"><i class="fa fa-download"></i> CSV</a>
-    <a class="pb-btn" href="<?= base_url('patient_billing/export_pdf') . '?days=' . (int)$bill_days; ?>" target="_blank"><i class="fa fa-file-pdf-o"></i> PDF</a>
+    <a class="pb-btn" href="<?= base_url('patient_billing/export') . '?days=' . (int)$bill_days . $scope_query; ?>"><i class="fa fa-download"></i> CSV</a>
+    <a class="pb-btn" href="<?= base_url('patient_billing/export_pdf') . '?days=' . (int)$bill_days . $scope_query; ?>" target="_blank"><i class="fa fa-file-pdf-o"></i> PDF</a>
   </span>
 </div>
 

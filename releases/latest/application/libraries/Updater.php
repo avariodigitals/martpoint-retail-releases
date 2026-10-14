@@ -2055,6 +2055,11 @@ subscription to receive updates.';
      */
     protected function manifestPayload(array $manifest): string {
         unset($manifest['signature']);
+        // _channel_ref is stamped on by fetchManifest() after the HTTP read — it
+        // is a client-side download pin, never part of the bytes Central signed.
+        // Leaving it in here made the verified payload differ from the signed one
+        // and every enforcing install refused the release as "compromised".
+        unset($manifest['_channel_ref']);
         return json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 

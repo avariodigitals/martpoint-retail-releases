@@ -81,7 +81,14 @@
             </select></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Marital Status</label><input type="text" id="pt_marital" value="<?= htmlspecialchars($patient->marital_status ?? ''); ?>"></div>
+          <div class="field"><label>Marital Status</label>
+            <select id="pt_marital">
+              <option value="">Not specified</option>
+              <?php foreach(['single'=>'Single','married'=>'Married','divorced'=>'Divorced','widowed'=>'Widowed','separated'=>'Separated','prefer_not_to_say'=>'Prefer not to say'] as $v=>$t): ?>
+              <option value="<?= $v; ?>" <?= strtolower((string)($patient->marital_status ?? '')) === $v ? 'selected' : ''; ?>><?= $t; ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
           <div class="field"><label>Blood Group</label>
             <select id="pt_blood">
               <option value="">—</option>
@@ -91,6 +98,11 @@
             </select></div>
         </div>
         <div class="field"><label>Occupation</label><input type="text" id="pt_occupation" value="<?= htmlspecialchars($patient->occupation ?? ''); ?>"></div>
+        <div class="field">
+          <label>Profile Photo</label>
+          <input type="file" id="pt_photo" accept="image/png,image/jpeg,image/webp,image/gif">
+          <small style="display:block;color:var(--mp-muted);margin-top:5px;">Choose a new image to replace the current photo.</small>
+        </div>
         <div class="field"><label>Address</label><input type="text" id="pt_address" value="<?= htmlspecialchars($patient->address ?? ''); ?>"></div>
         <div class="field"><label>City</label><input type="text" id="pt_city" value="<?= htmlspecialchars($patient->city ?? ''); ?>"></div>
 
@@ -98,7 +110,17 @@
         <div class="field"><label>Name</label><input type="text" id="pt_nok_name" value="<?= htmlspecialchars($patient->nok_name ?? ''); ?>"></div>
         <div class="row2">
           <div class="field"><label>Phone</label><input type="tel" id="pt_nok_phone" value="<?= htmlspecialchars($patient->nok_phone ?? ''); ?>"></div>
-          <div class="field"><label>Relationship</label><input type="text" id="pt_nok_rel" value="<?= htmlspecialchars($patient->nok_relationship ?? ''); ?>" placeholder="e.g. Spouse"></div>
+          <div class="field"><label>Relationship</label>
+            <?php $mobileNokRel = strtolower(trim((string)($patient->nok_relationship ?? ''))); $mobileNokKnown = in_array($mobileNokRel, ['spouse','parent','child','sibling','guardian','relative','friend'], true); ?>
+            <select id="pt_nok_rel">
+              <option value="">—</option>
+              <?php foreach(['spouse'=>'Spouse','parent'=>'Parent','child'=>'Child','sibling'=>'Sibling','guardian'=>'Guardian','relative'=>'Other relative','friend'=>'Friend'] as $v=>$t): ?>
+              <option value="<?= $v; ?>" <?= $mobileNokRel === $v ? 'selected' : ''; ?>><?= $t; ?></option>
+              <?php endforeach; ?>
+              <option value="other" <?= (!$mobileNokKnown && $mobileNokRel !== '') ? 'selected' : ''; ?>>Other</option>
+            </select>
+            <input type="text" id="pt_nok_rel_other" value="<?= (!$mobileNokKnown ? htmlspecialchars($patient->nok_relationship ?? '') : ''); ?>" placeholder="Enter relationship" style="<?= (!$mobileNokKnown && $mobileNokRel !== '') ? '' : 'display:none;'; ?>margin-top:7px;">
+          </div>
         </div>
 
         <button type="button" class="save" onclick="savePatient()">Save <?= htmlspecialchars($patient_term); ?></button>
@@ -161,6 +183,11 @@
       document.querySelectorAll('select').forEach(buildMpSelect);
     })();
 
+    document.getElementById('pt_nok_rel').addEventListener('change', function(){
+      document.getElementById('pt_nok_rel_other').style.display = this.value === 'other' ? 'block' : 'none';
+      if(this.value !== 'other') document.getElementById('pt_nok_rel_other').value = '';
+    });
+
     function savePatient(){
       var name = document.getElementById('pt_name').value.trim();
       if(!name){ mpError('Patient name is required'); return; }
@@ -177,11 +204,14 @@
       fd.append('marital_status', document.getElementById('pt_marital').value);
       fd.append('blood_group', document.getElementById('pt_blood').value);
       fd.append('occupation', document.getElementById('pt_occupation').value);
+      var photo = document.getElementById('pt_photo');
+      if(photo.files && photo.files[0]) fd.append('photo', photo.files[0]);
       fd.append('address', document.getElementById('pt_address').value);
       fd.append('city', document.getElementById('pt_city').value);
       fd.append('nok_name', document.getElementById('pt_nok_name').value);
       fd.append('nok_phone', document.getElementById('pt_nok_phone').value);
       fd.append('nok_relationship', document.getElementById('pt_nok_rel').value);
+      fd.append('nok_relationship_other', document.getElementById('pt_nok_rel_other').value);
       mpFetchJson('<?= base_url('mobile/save_patient'); ?>', { method: 'POST', body: fd })
         .then(function(d){
           if(d && d.status === 'success'){ location.href = '<?= base_url('mobile/patient_profile/'); ?>' + d.patient_id; }

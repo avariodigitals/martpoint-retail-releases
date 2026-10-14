@@ -28,19 +28,33 @@ class Appointments extends MY_Controller {
 		$this->output->set_content_type('application/json')->set_output(json_encode($arr));
 	}
 
+	/** Strict Y-m-d so a hand-typed query string can't reach the SQL as junk. */
+	private function _isDate($d){
+		$d = (string)$d;
+		return preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) && checkdate((int)substr($d,5,2), (int)substr($d,8,2), (int)substr($d,0,4));
+	}
+
 	// ============== LIST ==============
 
 	public function index(){
 		$storeId = get_current_store_id();
-		$date   = trim($this->input->get('date', TRUE) ?: date('Y-m-d'));
+		// From/to diary window. A bare ?date= link (dashboard tiles, older
+		// bookmarks) still works and sets both ends of the window.
+		$day  = trim($this->input->get('date', TRUE) ?: '');
+		$from = trim($this->input->get('from', TRUE) ?: ($day ?: date('Y-m-d')));
+		$to   = trim($this->input->get('to', TRUE) ?: ($day ?: date('Y-m-d')));
+		if(!$this->_isDate($from)) $from = date('Y-m-d');
+		if(!$this->_isDate($to)) $to = $from;
+		if(strtotime($to) < strtotime($from)) $to = $from;
 		$status = trim($this->input->get('status', TRUE) ?: '');
-		$filters = array('date' => $date, 'status' => $status);
+		$filters = array('date_from' => $from, 'date_to' => $to, 'status' => $status);
 		if(!physio_can('clinical_cross_branch')) $filters['branch_ids'] = physio_branch_ids();
 		$branches = physio_branch_ids();
 		$data = array_merge($this->data, array(
 			'page_title' => 'Appointments',
 			'appointments' => $this->appts->getAppointments($storeId, $filters),
-			'filter_date' => $date,
+			'filter_from' => $from,
+			'filter_to' => $to,
 			'status_filter' => $status,
 			'patients'   => $this->patients->getPatients($storeId, 'active', '', 500),
 			'services'   => $this->db->where('store_id', $storeId)->where('status', 1)->get('db_services')->result(),
@@ -51,6 +65,9 @@ class Appointments extends MY_Controller {
 			'can_book'   => physio_can('appointments_add'),
 			'can_edit'   => physio_can('appointments_edit'),
 			'can_cancel' => physio_can('appointments_cancel'),
+			// Re-dating a booking is the desk's call, not every editor's: it moves
+			// the clinic's diary, so it needs the dedicated grant.
+			'can_reschedule' => physio_can('appointments_reschedule'),
 			'can_checkin'=> physio_can('care_checkin'),
 		));
 		$data['content'] = $this->load->view('appointments/index', $data, TRUE);
@@ -120,7 +137,7 @@ class Appointments extends MY_Controller {
 	}
 
 	public function reschedule($id = 0){
-		if(!physio_can('appointments_edit')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
+		if(!physio_can('appointments_reschedule')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
 		$when = trim($this->input->post('scheduled_at', TRUE) ?: '');
 		$reason = trim($this->input->post('reason', TRUE) ?: '') ?: null;
 		if(!$when || !strtotime($when)){ $this->_json(array('status' => 'error', 'message' => 'New date/time required')); return; }

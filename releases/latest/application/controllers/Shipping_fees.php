@@ -26,6 +26,62 @@ class Shipping_fees extends MY_Controller {
         $this->load->view('mp_layout', $data);
     }
 
+    /** Download the CSV columns accepted by import_csv(). */
+    public function download_template(){
+        $this->permission_check('sales_view');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="shipping-fees-example.csv"');
+        echo "label,location,fee,is_enabled,sort_order\n";
+        echo "Lekki Delivery,Lekki,2500,1,10\n";
+        exit;
+    }
+
+    /** Import per-store POS shipping fees. Existing label + location rows are updated. */
+    public function import_csv(){
+        $this->permission_check('sales_add');
+        if(empty($_FILES['shipping_file']['tmp_name']) || !is_uploaded_file($_FILES['shipping_file']['tmp_name'])){
+            $this->session->set_flashdata('error', 'Please choose a CSV file.');
+            redirect('shipping_fees');
+            return;
+        }
+        $handle = fopen($_FILES['shipping_file']['tmp_name'], 'r');
+        $header = fgetcsv($handle);
+        $expected = ['label','location','fee','is_enabled','sort_order'];
+        $normal = array_map(function($v){ return strtolower(trim((string)$v)); }, (array)$header);
+        if($normal !== $expected){
+            fclose($handle);
+            $this->session->set_flashdata('error', 'Invalid shipping CSV. Use the template columns: label, location, fee, is_enabled, sort_order.');
+            redirect('shipping_fees');
+            return;
+        }
+        $store_id = get_current_store_id();
+        $inserted = 0; $updated = 0; $rowNo = 1; $errors = [];
+        $this->db->trans_begin();
+        while(($row = fgetcsv($handle)) !== false){
+            $rowNo++;
+            if(count(array_filter($row, function($v){ return trim((string)$v) !== ''; })) === 0) continue;
+            $label = trim((string)($row[0] ?? ''));
+            $location = trim((string)($row[1] ?? ''));
+            $fee = parse_amount($row[2] ?? '');
+            $enabled = (int)($row[3] ?? 1) ? 1 : 0;
+            $sort = (int)($row[4] ?? 0);
+            if($label === '' || $fee < 0){ $errors[] = 'Row '.$rowNo.' has an empty name or invalid fee.'; continue; }
+            $existing = $this->db->where('store_id',$store_id)->where('label',$label)->where('location',$location)->get('db_shipping_fees')->row();
+            $data = ['store_id'=>$store_id,'label'=>$label,'location'=>$location,'fee'=>$fee,'is_enabled'=>$enabled,'sort_order'=>$sort];
+            if($existing){ $this->db->where('id',(int)$existing->id)->update('db_shipping_fees',$data); $updated++; }
+            else { $this->db->insert('db_shipping_fees',$data); $inserted++; }
+        }
+        fclose($handle);
+        if($errors || !$this->db->trans_status()){
+            $this->db->trans_rollback();
+            $this->session->set_flashdata('error', 'Shipping import failed: '.implode(' ', $errors ?: ['database error']).' No rows were changed.');
+        } else {
+            $this->db->trans_commit();
+            $this->session->set_flashdata('success', 'Shipping import completed: '.$inserted.' added, '.$updated.' updated.');
+        }
+        redirect('shipping_fees');
+    }
+
     /**
      * JSON list of enabled fees — consumed by POS.
      */

@@ -18,7 +18,7 @@ $collectRate = (float)$r['charged'] > 0 ? round(100 * (float)$r['collected'] / (
       $collectRate === null ? 'nothing charged in period' : 'of the period\'s charges',
       array('alert' => ($collectRate !== null && $collectRate < 70)));
   cr_kpi('Funds held', cr_money($r['held']),
-      number_format($r['held_reservations']) . ' active reservation(s)', array('money' => true));
+      number_format($r['held_reservations']) . ' session package(s) still owed', array('money' => true));
   ?>
 </div>
 
@@ -26,7 +26,7 @@ $collectRate = (float)$r['charged'] > 0 ? round(100 * (float)$r['collected'] / (
   <strong>What these figures mean.</strong> <em>Charged</em> is the total of patient-linked
   invoices raised in the period, and <em>collected</em> is what has been recorded as paid
   against them — so the gap is what is still owed, not a loss. <em>Funds held</em> is money a
-  patient has paid in advance that is reserved against treatment plans but not yet consumed.
+  patient has already paid in for sessions they have not yet used.
   Booking a refund changes a state; it does not move money.
 </p>
 

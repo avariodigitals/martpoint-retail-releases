@@ -40,6 +40,7 @@ class Patients extends MY_Controller {
 		$data = array_merge($this->data, array(
 			'page_title'    => mp_label('customer').'s',
 			'patients'      => $this->patients->getPatients($storeId, $status, $search),
+			'edit_id'       => (int)$this->input->get('edit'),
 			'stats'         => $this->patients->getPatientStats($storeId),
 			'status_filter' => $status,
 			'search'        => $search,
@@ -136,7 +137,9 @@ class Patients extends MY_Controller {
 				'blood_group'     => in_array($blood, Patients_model::BLOOD_GROUPS) ? $blood : null,
 				'nok_name'        => trim($this->input->post('nok_name', TRUE) ?: '') ?: null,
 				'nok_phone'       => trim($this->input->post('nok_phone', TRUE) ?: '') ?: null,
-				'nok_relationship'=> trim($this->input->post('nok_relationship', TRUE) ?: '') ?: null,
+				'nok_relationship'=> trim($this->input->post('nok_relationship', TRUE) === 'other'
+					? ($this->input->post('nok_relationship_other', TRUE) ?: '')
+					: ($this->input->post('nok_relationship', TRUE) ?: '')) ?: null,
 				'updated_at'      => date('Y-m-d H:i:s'),
 			);
 			$customer = array(

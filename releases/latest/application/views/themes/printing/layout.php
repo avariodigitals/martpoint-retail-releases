@@ -133,5 +133,6 @@
   // print page that has none of those elements.
   $this->load->view('themes/printing/scripts');
 ?>
+<?php $this->load->view('themes/shared/product_image_fallbacks'); ?>
 </body>
 </html>

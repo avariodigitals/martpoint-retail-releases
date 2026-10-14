@@ -1,6 +1,9 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <style>
 .ap-filters{display:flex!important;gap:10px!important;margin-bottom:16px!important;flex-wrap:wrap!important;align-items:center!important}
+.ap-flabel{font-size:11px!important;font-weight:700!important;letter-spacing:.05em!important;text-transform:uppercase!important;color:var(--mp-muted)!important}
+.ap-fdate{width:165px!important;max-width:165px!important;flex:0 0 auto!important}
+.ap-fstatus{width:155px!important;max-width:155px!important;flex:0 0 auto!important}
 .ap-badge{font-size:11px!important;font-weight:700!important;padding:4px 10px!important;border-radius:20px!important;white-space:nowrap!important;text-transform:capitalize!important}
 .ap-badge.requested{background:#DBEAFE!important;color:#1D4ED8!important}
 .ap-badge.proposed{background:#E0E7FF!important;color:#4338CA!important}
@@ -33,19 +36,22 @@
 </div>
 
 <form method="get" action="<?= base_url('appointments'); ?>" class="ap-filters">
-  <input type="date" name="date" value="<?= htmlspecialchars($filter_date); ?>" class="mp-form-control" style="max-width:170px;">
-  <select name="status" class="mp-form-control" style="max-width:170px;">
+  <label class="ap-flabel">From</label>
+  <input type="date" name="from" value="<?= htmlspecialchars($filter_from); ?>" class="mp-form-control ap-fdate">
+  <label class="ap-flabel">To</label>
+  <input type="date" name="to" value="<?= htmlspecialchars($filter_to); ?>" class="mp-form-control ap-fdate">
+  <select name="status" class="mp-form-control ap-fstatus">
     <option value="">All statuses</option>
     <?php foreach(array('requested','proposed','confirmed','checked_in','completed','cancelled','no_show') as $st): ?>
       <option value="<?= $st; ?>" <?= $status_filter === $st ? 'selected' : ''; ?>><?= ucfirst(str_replace('_',' ',$st)); ?></option>
     <?php endforeach; ?>
   </select>
   <button type="submit" class="mp-qa-btn blue"><i class="fa fa-search"></i> Filter</button>
-  <a href="<?= base_url('appointments?date=' . $filter_date); ?>" class="mp-qa-btn"><i class="fa fa-times"></i> Clear status</a>
+  <a href="<?= base_url('appointments?from=' . $filter_from . '&amp;to=' . $filter_to); ?>" class="mp-qa-btn"><i class="fa fa-times"></i> Clear status</a>
 </form>
 
 <div class="mp-table-wrap">
-  <div class="mp-card-head"><h3><?= date('l, M j Y', strtotime($filter_date)); ?></h3></div>
+  <div class="mp-card-head"><h3><?= $filter_from === $filter_to ? date('l, M j Y', strtotime($filter_from)) : date('M j', strtotime($filter_from)) . ' – ' . date('M j, Y', strtotime($filter_to)); ?></h3></div>
   <div class="box-body">
     <div class="mp-dt-scroll">
       <table id="appt-table" class="table mp-dt-table" width="100%">
@@ -70,7 +76,7 @@
                 <?php if($can_edit && in_array($a->status, array('requested','proposed'))): ?>
                   <button class="mp-edit" title="Confirm" onclick="apptDo(<?= (int)$a->id; ?>,'confirmed')"><i class="fa fa-check"></i></button>
                 <?php endif; ?>
-                <?php if($can_edit && in_array($a->status, array('requested','proposed','confirmed'))): ?>
+                <?php if($can_reschedule && in_array($a->status, array('requested','proposed','confirmed'))): ?>
                   <button class="mp-edit" title="Reschedule" onclick="rescheduleAppt(<?= (int)$a->id; ?>)"><i class="fa fa-calendar"></i></button>
                 <?php endif; ?>
                 <?php if($can_edit && $a->status === 'confirmed'): ?>

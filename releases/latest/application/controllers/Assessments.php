@@ -40,6 +40,14 @@ class Assessments extends MY_Controller {
 		return array($a, null);
 	}
 
+	private function _physioDocumentSecret(){
+		if(!$this->db->field_exists('physio_document_secret', 'db_sitesettings')){
+			$this->db->query("ALTER TABLE `db_sitesettings` ADD COLUMN `physio_document_secret` VARCHAR(120) DEFAULT NULL");
+		}
+		$row = $this->db->select('physio_document_secret')->order_by('id', 'asc')->limit(1)->get('db_sitesettings')->row();
+		return $row ? trim((string)$row->physio_document_secret) : '';
+	}
+
 	public function form($id = 0){
 		$encId = (int)$this->input->get('encounter_id');
 		if($id){
@@ -155,6 +163,21 @@ class Assessments extends MY_Controller {
 		list($a, $err) = $this->_loadAssessment($id);
 		if($err){ $this->_json(array('status' => 'error', 'message' => $err)); return; }
 		$res = $this->assessments->finalize((int)$id);
+		if($res === true && (string)($a->template_key ?? '') === 'physio_initial'){
+			$answers = json_decode($a->answers_json, true) ?: array();
+			$planRemark = trim((string)($answers['interpretation_treatment_plan_reassessment'] ?? ''));
+			if($planRemark !== ''){
+				$enc = $this->encounters->getEncounter((int)$a->encounter_id);
+				if($enc && trim((string)($enc->assessment_remark ?? '')) === ''){
+					$this->db->where('id', (int)$enc->id)->where('store_id', get_current_store_id())->update('db_encounters', array(
+						'assessment_remark' => $planRemark,
+						'remark_by' => (int)$this->session->userdata('inv_userid') ?: null,
+						'remark_at' => date('Y-m-d H:i:s'),
+					));
+					$this->encounters->logEvent((int)$enc->id, get_current_store_id(), 'assessment_remark', null, null, 'Pulled from finalised assessment treatment plan');
+				}
+			}
+		}
 		$this->_json($res === true
 			? array('status' => 'success', 'message' => 'Assessment finalised — locked')
 			: array('status' => 'error', 'message' => $res['error']));
@@ -182,6 +205,11 @@ class Assessments extends MY_Controller {
 		$patient = $this->db->select('p.*, c.customer_name, c.mobile, c.email')
 			->from('db_patients p')->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
 			->where('p.id', (int)$a->patient_id)->where('p.store_id', (int)$a->store_id)->get()->row();
+		$secret = $this->_physioDocumentSecret();
+		if($secret === ''){
+			show_error('Physio document secret is not set. Ask the Clinical Director to set it under Physio Document Settings before downloading assessment PDFs.', 403);
+			return;
+		}
 		$view = $this->load->view('assessments/print', array(
 			'assessment' => $a,
 			'template' => $template,
@@ -194,6 +222,10 @@ class Assessments extends MY_Controller {
 		$this->dompdf->loadHtml($view);
 		$this->dompdf->setPaper('A4', 'portrait');
 		$this->dompdf->render();
+		$canvas = $this->dompdf->getCanvas();
+		if($canvas && method_exists($canvas, 'get_cpdf')){
+			$canvas->get_cpdf()->setEncryption($secret, $secret, array('print'));
+		}
 		$this->dompdf->stream('physio-assessment-'.$a->id.'.pdf', array('Attachment' => 1));
 	}
 }

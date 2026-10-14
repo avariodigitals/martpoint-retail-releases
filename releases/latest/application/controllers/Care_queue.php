@@ -42,6 +42,10 @@ class Care_queue extends MY_Controller {
 		$storeId = get_current_store_id();
 		$branchIds = physio_can('clinical_cross_branch') ? null : physio_branch_ids();
 		$today = date('Y-m-d');
+		// Clear old queue rows whose booking was cancelled/no-showed before the
+		// cleanup existed, so the board and dashboard do not keep counting them.
+		$this->encounters->closeTerminalAppointmentVisits($storeId);
+		$this->encounters->closeTerminalSessionVisits($storeId);
 		// Today's arrivals not yet checked in — reception's pending list
 		$waiting = $this->appts->getAppointments($storeId, array(
 			'date' => $today,
@@ -110,10 +114,33 @@ class Care_queue extends MY_Controller {
 		foreach($queue as $cards){ foreach($cards as $c){ $patientIds[] = (int)$c->patient_id; } }
 		$this->load->model('Sessions_model', 'sessions');
 		$sessionEnt = $this->sessions->activeEntitlements($patientIds);
+		// How many of each package's remaining sessions are already on the diary,
+		// so a card can say "4 still owed · 2 free to book" instead of implying
+		// four slots are still there to take.
+		$sessionBooked = $this->sessions->openBookedCounts(array_map(function($en){ return (int)$en->id; }, $sessionEnt));
 		// Sessions booked on the diary whose day has arrived (or passed) and
 		// whose patient is not on the board yet — reception checks them in here,
 		// which raises the ticket and sends them to vitals like any arrival.
-		$booked = $this->sessions->dueBookings($storeId, $today);
+		$canCheckin = physio_can('care_checkin');
+		$booked = $canCheckin ? $this->sessions->dueBookings($storeId, $today) : array();
+		// …and the ones still ahead in the diary, for the patient who comes in
+		// early. The desk checks those in from here too, so a booking made for
+		// another day is never invisible on the day the patient actually arrives.
+		$bookedUpcoming = $canCheckin ? $this->sessions->upcomingBookings($storeId, $today, date('Y-m-d', strtotime('+60 days')), 20) : array();
+		// The same trap for plain bookings: a patient booked for a later day who
+		// turns up today. Listed here (capped) so the desk can check them in.
+		$arrivalsAhead = array();
+		if($canCheckin){
+			$future = $this->appts->getAppointments($storeId, array(
+				'date_from' => date('Y-m-d', strtotime('+1 day')),
+				'date_to'   => date('Y-m-d', strtotime('+60 days')),
+				'branch_ids' => $branchIds,
+			));
+			foreach($future as $f){
+				if(count($arrivalsAhead) >= 10) break;
+				if(in_array($f->status, array('confirmed','requested','proposed'), true) && !$f->arrived_at) $arrivalsAhead[] = $f;
+			}
+		}
 
 		// Staff who can take a treatment patient — the tasked-nurse picker.
 		// Nurse PROFILES only: vitals_add alone would list the store admin.
@@ -139,7 +166,10 @@ class Care_queue extends MY_Controller {
 				: array(),
 			'bill_summary' => $billSummary,
 			'session_ent'  => $sessionEnt,
+			'session_booked' => $sessionBooked,
 			'booked'       => $booked,
+			'booked_upcoming' => $bookedUpcoming,
+			'arrivals_ahead' => $arrivalsAhead,
 			'nurses'       => $nurses,
 			'can_checkin' => physio_can('care_checkin'),
 			'can_vitals'  => physio_can('vitals_add'),
@@ -367,11 +397,14 @@ class Care_queue extends MY_Controller {
 		// The ticket must tell the patient what today's visit does to their
 		// count. A session row only exists once the treatment journey reserves
 		// one, and it is drawn at completion — never at check-in.
-		$today = null;
-		if($this->db->table_exists('db_treatment_sessions')){
-			$today = $this->db->where('encounter_id', (int)$enc->id)
-				->where('store_id', get_current_store_id())
-				->order_by('id', 'desc')->get('db_treatment_sessions')->row();
+		$today = $this->sessions->sessionForEncounter((int)$enc->id);
+
+		// When the physio has already charted this session, the slip carries the
+		// same line the paper chart has — what was done and who signed for it.
+		$note = null;
+		if($today){
+			$this->load->model('Session_notes_model', 'notes');
+			$note = $this->notes->forSession((int)$today->id);
 		}
 
 		$this->load->view('care_queue/session_ticket', array(
@@ -379,6 +412,7 @@ class Care_queue extends MY_Controller {
 			'patient' => $this->patients->getPatient((int)$enc->patient_id),
 			'ent'     => $ents[(int)$enc->patient_id],
 			'today'   => $today,
+			'note'    => $note,
 		));
 	}
 
@@ -543,6 +577,18 @@ class Care_queue extends MY_Controller {
 		if(empty($planRes['ok'])){
 			$this->_json(array('status' => 'error', 'message' => $planRes['error'] ?: 'The treatment plan could not be saved')); return;
 		}
+		$planRow = $this->tpm->getPlan((int)$planRes['plan_id']);
+		$planItem = null;
+		if($planRow){
+			$planItem = $this->db->where('store_id', get_current_store_id())
+				->where('plan_id', (int)$planRow->id)
+				->where('plan_version', (int)$planRow->version)
+				->where('item_id', (int)$planRes['item_id'])
+				->order_by('id', 'desc')->get('db_treatment_plan_items')->row();
+		}
+		if(!$planRow || !$planItem){
+			$this->_json(array('status' => 'error', 'message' => 'The treatment plan line could not be linked to the bill')); return;
+		}
 
 		$desc = ($planRes['item_name'] ?: 'Recommended plan') . ($sessions > 0 ? ' — ' . $sessions . ' session(s)' : '');
 		if($note !== '') $desc .= ': ' . mb_substr($note, 0, 120);
@@ -572,10 +618,12 @@ class Care_queue extends MY_Controller {
 			}
 			$res = $this->billing->addLineToBill((int)$target->id, array(
 				'item_id' => (int)$planRes['item_id'], 'description' => $desc, 'qty' => $qty, 'unit_price' => $unit,
+				'plan_id' => (int)$planRow->id, 'plan_item_id' => (int)$planItem->id, 'plan_version' => (int)$planRow->version,
 			));
 		} else {
 			$res = $this->billing->createVisitBill((int)$id, array(
-				array('item_id' => (int)$planRes['item_id'], 'description' => $desc, 'qty' => $qty, 'unit_price' => $unit),
+				array('item_id' => (int)$planRes['item_id'], 'description' => $desc, 'qty' => $qty, 'unit_price' => $unit,
+					'plan_id' => (int)$planRow->id, 'plan_item_id' => (int)$planItem->id, 'plan_version' => (int)$planRow->version),
 			), 'Clinician recommendation — ' . $enc->encounter_code);
 		}
 
@@ -636,6 +684,24 @@ class Care_queue extends MY_Controller {
 		$this->load->model('Sessions_model', 'sessions');
 		$entMap = $this->sessions->activeEntitlements(array((int)$enc->patient_id));
 
+		/* The treatment chart belongs to a session, not to the visit: check-in
+		   links today's booked session here, so the physio writes against the
+		   exact "session 3 of 5" rather than against the encounter at large. */
+		$encSession = $this->sessions->sessionForEncounter((int)$id);
+		$this->load->model('Session_notes_model', 'session_notes');
+		// Chart text is clinical — a business-only viewer never receives it.
+		$encNote  = ($show_clinical && $encSession) ? $this->session_notes->forSession((int)$encSession->id) : null;
+		$encChart = $show_clinical ? $this->session_notes->forPatient((int)$enc->patient_id, 8) : array();
+		// The chart opens on the physio the booking — or the visit assignment —
+		// names, so whoever is on duty only has to correct it when covering.
+		$encTreatedBy = null;
+		if($encNote && !empty($encNote->treated_by)){
+			$encTreatedBy = (int)$encNote->treated_by;
+		} elseif($encSession){
+			$found = $this->session_notes->treatedByFor($encSession, $enc);
+			$encTreatedBy = $found[0];
+		}
+
 		// The plan this visit's recommendation already produced, so the
 		// remark form reopens with the same treatment service chosen.
 		$this->load->model('treatment_plans_model', 'tpm');
@@ -652,6 +718,10 @@ class Care_queue extends MY_Controller {
 			'bills'         => $bills,
 			'bill_due'      => round($billDue, 2),
 			'session_ent'   => isset($entMap[(int)$enc->patient_id]) ? $entMap[(int)$enc->patient_id] : null,
+			'enc_session'   => $encSession,
+			'enc_note'      => $encNote,
+			'enc_chart'     => $encChart,
+			'enc_treated_by' => $encTreatedBy,
 			'vitals_sets'   => ($show_clinical && physio_can('vitals_view')) ? $this->encounters->getVitals((int)$id) : array(),
 			'assessments'   => ($show_clinical && physio_can('assessments_view')) ? $this->assessments->listForEncounter((int)$id) : array(),
 			'templates'     => ($show_clinical && physio_can('assessments_add')) ? $this->assessments->listTemplates() : array(),
@@ -677,12 +747,16 @@ class Care_queue extends MY_Controller {
 				'bill_add'        => !$locked && physio_can('patient_billing_add'),
 				'remark'          => !$locked && physio_can('encounters_finalize')
 					&& in_array($stage, array('nursing_intake', 'waiting_physio', 'with_physio')),
+				/* The treatment chart is keyed to the session this visit is
+				   delivering, so it only exists once check-in has linked one —
+				   and only the roles that give treatment may sign it. */
+				'treatment_note'  => $show_clinical && !$locked && $encSession && physio_can('sessions_note_add'),
 			),
 			// Assign-to picker: clinical roles only, never system accounts.
 			'staff'         => $show_clinical ? physio_staff_select($storeId) : array(),
 			// Billable services for the raise-bill form and the physio's
 			// recommendation picker on this screen.
-			'services'      => physio_can_any(array('patient_billing_add','encounters_finalize'))
+			'services'      => physio_can_any(array('patient_billing_add','encounters_finalize','sessions_note_add'))
 				? $this->db->select('id, item_name, sales_price')->where('store_id', $storeId)
 					->where('service_bit', 1)->where('status', 1)->order_by('item_name')->get('db_items')->result()
 				: array(),

@@ -437,6 +437,7 @@ if (!function_exists('mp_event_label')) {
                 'assessment_finalised'  => 'Assessment completed',
                 'assessment_amended'    => 'Assessment amended',
                 'assessment_remark'     => 'Assessment remark recorded',
+                'treatment_charted'     => 'Treatment charted for the session',
                 'investigation_reviewed'=> 'Investigation reviewed',
                 'assessment_remark'    => 'Assessment remark recorded',
                 'visit_type'           => 'Visit type chosen',

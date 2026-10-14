@@ -7,6 +7,10 @@ $vt      = $e->visit_type ?? null;
 $bs      = isset($bill_summary[$eid]) ? $bill_summary[$eid] : null;
 $sEnt    = isset($session_ent[(int)$e->patient_id]) ? $session_ent[(int)$e->patient_id] : null;
 $sLeft   = $sEnt ? (int)((float)$sEnt->units_total - (float)$sEnt->units_used) : 0;
+/* Of the sessions still owed, the ones already on the diary cannot be booked
+   again — the board shows both numbers so "4 left" never reads as "4 to take". */
+$sOpen   = ($sEnt && isset($session_booked[(int)$sEnt->id])) ? (int)$session_booked[(int)$sEnt->id] : 0;
+$sFree   = max(0, $sLeft - $sOpen);
 $sFee    = ($sEnt && (float)$sEnt->units_total > 0) ? round((float)$sEnt->funded_amount / (float)$sEnt->units_total, 2) : 0;
 /* A visit raised from the diary carries its booking on the check-in key —
    that is how the desk can see today's visit is somebody's paid slot. */
@@ -75,16 +79,25 @@ $nurseLbl = !empty($e->nurse_name) ? physio_staff_label($e->nurse_name, $e->nurs
     <?php if(!empty($can_route) && ($stage === 'waiting_physio' || $stage === 'with_physio')): ?>
     <div class="cq-nurse">
       <label><?= $stage === 'with_physio' ? 'Re-route to therapist' : 'Send to therapist'; ?></label>
-      <select onchange="cqRoute(<?= $eid; ?>, this.value)">
-        <option value="" disabled <?= (int)($e->clinician_user_id ?? 0) ? '' : 'selected'; ?>>— choose —</option>
-        <?php foreach($therapists as $t): ?>
-        <option value="<?= (int)$t->id; ?>" <?= (int)($e->clinician_user_id ?? 0) === (int)$t->id ? 'selected' : ''; ?>><?= htmlspecialchars(trim($t->first_name . ' ' . $t->last_name) ?: $t->username); ?></option>
-        <?php endforeach; ?>
-      </select>
+      <?php if(empty($therapists)): ?>
+        <select disabled aria-label="Therapist">
+          <option>No therapist configured for this store</option>
+        </select>
+        <div style="font-size:11px;color:#B45309;margin-top:4px;">
+          Add an active staff user with the <b>Physiotherapist</b> role before routing this patient.
+        </div>
+      <?php else: ?>
+        <select onchange="cqRoute(<?= $eid; ?>, this.value)">
+          <option value="" disabled <?= (int)($e->clinician_user_id ?? 0) ? '' : 'selected'; ?>>— choose —</option>
+          <?php foreach($therapists as $t): ?>
+          <option value="<?= (int)$t->id; ?>" <?= (int)($e->clinician_user_id ?? 0) === (int)$t->id ? 'selected' : ''; ?>><?= htmlspecialchars(trim($t->first_name . ' ' . $t->last_name) ?: $t->username); ?></option>
+          <?php endforeach; ?>
+        </select>
+      <?php endif; ?>
       <div style="font-size:11px;color:var(--mp-muted);margin-top:4px;">
-        <?= $stage === 'with_physio'
+        <?php if(!empty($therapists)): ?><?= $stage === 'with_physio'
           ? 'Moves the patient to that therapist now — the visit history records who changed it.'
-          : 'Puts the patient on that therapist’s queue. They still take the patient with “Start Consult”.'; ?>
+          : 'Puts the patient on that therapist’s queue. They still take the patient with “Start Consult”.'; ?><?php endif; ?>
       </div>
     </div>
     <?php endif; ?>
@@ -92,7 +105,8 @@ $nurseLbl = !empty($e->nurse_name) ? physio_staff_label($e->nurse_name, $e->nurs
     <?php if($sEnt && $stage !== 'closed'): ?>
       <div class="cq-money">
         <i class="fa fa-credit-card"></i>
-        <b><?= (int)$sLeft; ?> of <?= (int)$sEnt->units_total; ?> session(s) left</b>
+        <b><?= $sLeft; ?> of <?= (int)$sEnt->units_total; ?> session(s) still owed</b>
+        · <b><?= $sFree; ?> free to book</b>
         on <?= htmlspecialchars($sEnt->treatment_name ?: 'this package'); ?>
         <?= $bookedSess ? ' &middot; this visit is for a booked session' : ''; ?>
         <?= $vt === 'assessment' ? ' &middot; an Assessment visit draws none of them' : ''; ?>

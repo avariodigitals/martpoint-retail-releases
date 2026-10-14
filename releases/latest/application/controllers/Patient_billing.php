@@ -32,22 +32,27 @@ class Patient_billing extends MY_Controller {
 	}
 
 	/** Bills base query — joins keep rows with no patient record out, exactly like the on-screen list. */
-	private function _billsBase($storeId){
-		return $this->db->select('s.*, p.patient_code, c.customer_name AS patient_name')
+	private function _billsBase($storeId, $patientId = 0){
+		$q = $this->db->select('s.*, p.id AS patient_id, p.patient_code, c.customer_name AS patient_name')
 			->from('db_sales s')
 			->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
 			->join('db_customers c', 'c.id = s.customer_id AND c.store_id = s.store_id', 'left')
 			->where('s.store_id', $storeId)
 			->where('(s.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false);
+		if((int)$patientId > 0){
+			$q->where('p.id', (int)$patientId);
+		}
+		return $q;
 	}
 
 	/** Charged / collected / outstanding across the whole window (not just the 200 shown). */
-	private function _windowTotals($storeId, $days){
+	private function _windowTotals($storeId, $days, $patientId = 0){
 		$row = $this->db->select('COUNT(*) AS cnt, COALESCE(SUM(s.grand_total),0) AS charged, COALESCE(SUM(s.paid_amount),0) AS collected', false)
 			->from('db_sales s')
 			->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
 			->where('s.store_id', $storeId)
 			->where('(s.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false);
+		if((int)$patientId > 0){ $row = $row->where('p.id', (int)$patientId); }
 		if($days > 0){ $row = $row->where('s.sales_date >=', date('Y-m-d', strtotime('-'.($days - 1).' days'))); }
 		$row = $row->get()->row();
 		return array(
@@ -63,21 +68,29 @@ class Patient_billing extends MY_Controller {
 		$storeId = get_current_store_id();
 		// Same window as the Care Queue: 1=today, 7/30/365 days back, 0=everything.
 		$days = $this->_windowDays();
-		$rowsQ = $this->_billsBase($storeId);
+		$patientId = (int)$this->input->get('patient_id');
+		$patient = null;
+		if($patientId > 0){
+			$patient = $this->patients->getPatient($patientId, $storeId);
+			if(!$patient){ show_404(); return; }
+		}
+		$rowsQ = $this->_billsBase($storeId, $patientId);
 		if($days > 0){ $rowsQ->where('s.sales_date >=', date('Y-m-d', strtotime('-'.($days - 1).' days'))); }
 		$rows = $rowsQ->order_by('s.id', 'desc')->limit(200)->get()->result();
 		$billsHidden = 0;
 		if($days > 0){
-			$outQ = $this->_billsBase($storeId);
+			$outQ = $this->_billsBase($storeId, $patientId);
 			$outQ->where('s.sales_date <', date('Y-m-d', strtotime('-'.($days - 1).' days')));
 			$billsHidden = $outQ->count_all_results();
 		}
 		$data = array_merge($this->data, array(
-			'page_title' => 'Patient Billing',
+			'page_title' => $patient ? 'Patient Bills' : 'Patient Billing',
 			'bills'      => $rows,
 			'bill_days'  => $days,
 			'bill_hidden' => $billsHidden,
-			'bill_totals' => $this->_windowTotals($storeId, $days),
+			'bill_totals' => $this->_windowTotals($storeId, $days, $patientId),
+			'bill_patient' => $patient,
+			'bill_patient_id' => $patientId,
 			'can_add'    => physio_can('patient_billing_add'),
 		));
 		$data['content'] = $this->load->view('patient_billing/index', $data, TRUE);
@@ -88,9 +101,14 @@ class Patient_billing extends MY_Controller {
 	public function export(){
 		$storeId = get_current_store_id();
 		$days = $this->_windowDays();
-		$rows = $this->_exportRows($storeId, $days);
+		$patientId = (int)$this->input->get('patient_id');
+		$patient = $patientId > 0 ? $this->patients->getPatient($patientId, $storeId) : null;
+		if($patientId > 0 && !$patient){ show_404(); return; }
+		$rows = $this->_exportRows($storeId, $days, $patientId);
 		$store = get_store_details($storeId);
-		$filename = 'patient-bills-' . preg_replace('/[^a-z0-9]+/i', '-', strtolower($store->store_name ?? 'store'))
+		$scope = $patient ? ($patient->patient_code ?: ('patient-'.$patientId)) : 'all';
+		$filename = 'patient-bills-' . preg_replace('/[^a-z0-9]+/i', '-', strtolower($scope))
+			. '-' . preg_replace('/[^a-z0-9]+/i', '-', strtolower($store->store_name ?? 'store'))
 			. '-' . ($days > 0 ? $days . 'd' : 'all') . '-' . date('Ymd') . '.csv';
 		header('Content-Type: text/csv; charset=utf-8');
 		header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -111,11 +129,15 @@ class Patient_billing extends MY_Controller {
 	public function export_pdf(){
 		$storeId = get_current_store_id();
 		$days = $this->_windowDays();
+		$patientId = (int)$this->input->get('patient_id');
+		$patient = $patientId > 0 ? $this->patients->getPatient($patientId, $storeId) : null;
+		if($patientId > 0 && !$patient){ show_404(); return; }
 		$this->load->view('patient_billing/statement_a4', array(
-			'bills'       => $this->_exportRows($storeId, $days),
+			'bills'       => $this->_exportRows($storeId, $days, $patientId),
 			'bill_days'   => $days,
 			'bill_window' => $this->_windowLabel($days),
-			'bill_totals' => $this->_windowTotals($storeId, $days),
+			'bill_totals' => $this->_windowTotals($storeId, $days, $patientId),
+			'bill_patient' => $patient,
 		));
 	}
 
@@ -126,8 +148,8 @@ class Patient_billing extends MY_Controller {
 		return 'Last ' . $days . ' days';
 	}
 
-	private function _exportRows($storeId, $days){
-		$q = $this->_billsBase($storeId);
+	private function _exportRows($storeId, $days, $patientId = 0){
+		$q = $this->_billsBase($storeId, $patientId);
 		if($days > 0){ $q->where('s.sales_date >=', date('Y-m-d', strtotime('-'.($days - 1).' days'))); }
 		return $q->order_by('s.id', 'desc')->limit(10000)->get()->result();
 	}

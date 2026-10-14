@@ -47,6 +47,10 @@ class Sessions extends MY_Controller {
 					->or_where('e.expiry_date >=', date('Y-m-d'))
 				->group_end()
 				->order_by('e.id', 'desc')->limit(50)->get()->result();
+			// Sessions already on the diary are owed too but can no longer be
+			// booked, so the card has to say both numbers apart.
+			$booked = $this->sessions->openBookedCounts(array_map(function($w){ return (int)$w->id; }, $waiting));
+			foreach($waiting as $w){ $w->booked_open = isset($booked[(int)$w->id]) ? (int)$booked[(int)$w->id] : 0; }
 		}
 		$data = array_merge($this->data, array(
 			'page_title' => 'Treatment Sessions',
@@ -140,19 +144,62 @@ class Sessions extends MY_Controller {
 			$this->_json(array('status' => 'error', 'message' => 'Access denied')); return;
 		}
 		$res = $this->sessions->cancel((int)$id, trim($this->input->post('reason', TRUE) ?: ''), false);
-		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Session cancelled — hold released') : array('status' => 'error', 'message' => $res['error']));
+		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Session cancelled — hold released' . (empty($res['visit_closed']) ? '' : ', and the visit was taken off the Care Queue')) : array('status' => 'error', 'message' => $res['error']));
 	}
 
 	public function no_show($id = 0){
 		if(!physio_can('sessions_checkin')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
 		$res = $this->sessions->cancel((int)$id, trim($this->input->post('reason', TRUE) ?: ''), true);
-		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Marked no-show — hold released') : array('status' => 'error', 'message' => $res['error']));
+		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Marked no-show — hold released' . (empty($res['visit_closed']) ? '' : ', and the visit was taken off the Care Queue')) : array('status' => 'error', 'message' => $res['error']));
 	}
 
 	public function interrupt($id = 0){
 		if(!physio_can('sessions_complete')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
 		$res = $this->sessions->interrupt((int)$id, trim($this->input->post('reason', TRUE) ?: ''));
 		$this->_json($res['ok'] ? array('status' => 'success', 'message' => 'Session interrupted') : array('status' => 'error', 'message' => $res['error']));
+	}
+
+	/**
+	 * POST note — the signed treatment chart for one session. It is keyed to the
+	 * session, not the visit, so the chart line knows it is "session 3 of 5" and
+	 * the assessment remark (the physio's note to Finance) stays a different
+	 * record doing a different job.
+	 */
+	public function note($id = 0){
+		if(!physio_can('sessions_note_add')){ $this->_json(array('status' => 'error', 'message' => 'Access denied')); return; }
+		$this->load->model('Session_notes_model', 'notes');
+		$res = $this->notes->save(array(
+			'session_id'        => (int)$id,
+			'treatment_date'    => trim($this->input->post('treatment_date', TRUE) ?: ''),
+			'treatment_offered' => trim($this->input->post('treatment_offered', TRUE) ?: ''),
+			'remarks'           => trim($this->input->post('remarks', TRUE) ?: ''),
+			'treated_by'        => (int)$this->input->post('treated_by') ?: null,
+			'encounter_id'      => (int)$this->input->post('encounter_id') ?: null,
+		));
+		if(empty($res['ok'])){
+			$this->_json(array('status' => 'error', 'message' => $res['error'])); return;
+		}
+		// The ward sheet and the screen must tell the same story — record the
+		// signature on the visit's history too.
+		$s = $this->sessions->getSession((int)$id);
+		if($s && !empty($s->encounter_id)){
+			$this->load->model('Encounters_model', 'enc');
+			$line = (int)$s->session_no > 0
+				? 'session ' . (int)$s->session_no . ' of ' . (int)$s->units_total
+				: 'the session';
+			/* Say who gave the treatment, not only who typed it — the physio on
+			   duty may be covering another therapist's course. */
+			$chart = $this->notes->forSession((int)$id);
+			$by = '';
+			if($chart && $chart->treated_by_name
+				&& (int)$chart->treated_by !== (int)$chart->signed_by){
+				$by = ' — given by ' . $chart->treated_by_name;
+			}
+			$this->enc->logEvent((int)$s->encounter_id, get_current_store_id(), 'treatment_charted', null, null,
+				($res['amended'] ? 'Treatment chart amended for ' : 'Treatment charted for ') . $line . $by);
+		}
+		$this->_json(array('status' => 'success',
+			'message' => !empty($res['amended']) ? 'Treatment chart updated' : 'Treatment chart signed'));
 	}
 
 	/**

@@ -1,6 +1,9 @@
 <?php $this->load->view('admin/desktop/_styles'); $this->load->view('components/dialog'); $this->load->view('components/book_session'); $CI =& get_instance(); ?>
 <style>
-.ss-card{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:14px!important;margin-bottom:10px!important;display:flex!important;justify-content:space-between!important;align-items:center!important;flex-wrap:wrap!important;gap:10px!important}
+.ss-card{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:14px!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;gap:10px!important;min-height:120px!important}
+.ss-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(255px,1fr))!important;gap:12px!important;align-items:stretch!important;justify-content:start!important;margin-bottom:8px!important}
+.ss-grid .ss-card{margin-bottom:0!important;text-align:left!important}
+.ss-card .ss-acts{display:flex!important;gap:6px!important;flex-wrap:wrap!important;margin-top:auto!important}
 .ss-badge{font-size:10px!important;font-weight:700!important;padding:2px 8px!important;border-radius:12px!important}
 .st-scheduled{background:#E0E7FF!important;color:#4338CA!important}.st-checked_in{background:#FEF3C7!important;color:#92400E!important}
 .st-in_progress{background:#DBEAFE!important;color:#1E40AF!important}.st-completed{background:#DCFCE7!important;color:#166534!important}
@@ -29,23 +32,38 @@
 <?php if(empty($waiting)): ?>
   <p class="ss-note">None waiting. Sessions become available here when a course is paid for — a paid plan bill or a sold session package.</p>
 <?php else: ?>
-  <p class="ss-note">These are paid for but not yet booked. Booking one puts it on the diary below.</p>
-  <?php foreach($waiting as $w): $rem = (float)$w->units_total - (float)$w->units_used; ?>
+  <p class="ss-note">Still owed, but not yet had. Booking one puts it on the diary below.</p>
+  <div class="ss-grid">
+  <?php foreach($waiting as $w):
+    $rem = (int)((float)$w->units_total - (float)$w->units_used);
+    $openBooked = (int)($w->booked_open ?? 0);
+    $free = max(0, $rem - $openBooked);
+    $perSession = (float)$w->units_total > 0 ? round((float)$w->funded_amount / (float)$w->units_total, 2) : 0;
+  ?>
   <div class="ss-card">
     <div>
       <b><?= htmlspecialchars($w->patient_name ?: '—'); ?></b> <span style="color:var(--mp-muted);font-size:12px;"><?= htmlspecialchars($w->patient_code); ?></span>
       <div style="font-size:12px;color:var(--mp-muted);margin-top:3px;">
         <?= htmlspecialchars($w->treatment_name ?: 'Treatment course'); ?> —
-        <b><?= (int)$rem; ?> of <?= (int)$w->units_total; ?> session(s) left</b>
+        <b><?= $rem; ?> of <?= (int)$w->units_total; ?> session(s) still owed</b>
+        · <b><?= $free; ?> free to book</b>
+        <?php if($openBooked > 0): ?><span title="<?= $openBooked; ?> session(s) already on the diary">(<?= $openBooked; ?> booked)</span><?php endif; ?>
         · funded <?= $CI->currency($w->funded_amount); ?>
         <?= $w->expiry_date ? ' · expires ' . htmlspecialchars($w->expiry_date) : ''; ?>
       </div>
     </div>
     <?php if(!empty($can['schedule'])): ?>
-    <button class="mp-qa-btn blue" onclick="bookSession(<?= (int)$w->id; ?>, <?= (float)$w->units_total > 0 ? round((float)$w->funded_amount / (float)$w->units_total, 2) : 0; ?>)"><i class="fa fa-calendar-plus-o"></i> Book a session</button>
+      <div class="ss-acts">
+      <?php if($free < 1): ?>
+        <button class="mp-qa-btn blue" disabled style="opacity:.5;cursor:not-allowed;" title="Every remaining session is already booked"><i class="fa fa-calendar-plus-o"></i> Book a session</button>
+      <?php else: ?>
+        <button class="mp-qa-btn blue" onclick="bookSession(<?= (int)$w->id; ?>, <?= $perSession; ?>)"><i class="fa fa-calendar-plus-o"></i> Book a session</button>
+      <?php endif; ?>
+      </div>
     <?php endif; ?>
   </div>
   <?php endforeach; ?>
+  </div>
 <?php endif; ?>
 
 <div class="ss-sec">Booked sessions (the diary)</div>
@@ -67,6 +85,7 @@
 <?php if(empty($sessions)): ?>
   <div class="ss-card"><?php if((int)$sess_hidden > 0): ?>Nothing in this window — the sessions are booked on other days, use the choices above.<?php else: ?>Nothing booked yet. Book one from the waiting list above, or check in a visit as a Treatment session on the Care Queue.<?php endif; ?></div>
 <?php endif; ?>
+<div class="ss-grid">
 <?php foreach($sessions as $s): ?>
 <div class="ss-card">
   <div>
@@ -77,7 +96,10 @@
       <?= $s->fee_posted ? ' · fee posted' : ''; ?>
     </div>
   </div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+  <div class="ss-acts">
+    <?php if(!empty($s->encounter_id)): ?>
+      <a class="mp-qa-btn blue" href="<?= base_url('care_queue/encounter/' . (int)$s->encounter_id); ?>"><i class="fa fa-list-ol"></i> On the Care Queue</a>
+    <?php endif; ?>
     <?php if($s->status === 'scheduled' && $can['checkin']): ?>
       <button class="mp-qa-btn" onclick="act(<?= (int)$s->id; ?>,'checkin')">Check in</button>
     <?php endif; ?>
@@ -94,6 +116,7 @@
   </div>
 </div>
 <?php endforeach; ?>
+</div>
 
 <script>
 var CSRF = {'<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'};

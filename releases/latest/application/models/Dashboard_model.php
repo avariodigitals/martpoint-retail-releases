@@ -1371,6 +1371,14 @@ class Dashboard_model extends CI_Model
 	public function get_range_info($range){
 		$today = date('Y-m-d');
 		switch($range){
+			case 'Yesterday':
+				return [
+					'from' => date('Y-m-d', strtotime('-1 day')),
+					'to' => date('Y-m-d', strtotime('-1 day')),
+					'prev_from' => date('Y-m-d', strtotime('-2 days')),
+					'prev_to' => date('Y-m-d', strtotime('-2 days')),
+					'label' => 'Yesterday'
+				];
 			case '7Days':
 				return [
 					'from' => date('Y-m-d', strtotime('-7 days')),

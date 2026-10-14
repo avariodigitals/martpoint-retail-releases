@@ -84,8 +84,12 @@ textarea.mp-form-control{min-height:80px!important;resize:vertical!important}
 .dataTables_paginate .paginate_button{border:1px solid var(--mp-border)!important;border-radius:8px!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;margin:0!important;padding:7px 12px!important;font-size:13px!important;font-weight:600!important;cursor:pointer!important;transition:all .15s ease!important;list-style:none!important}
 .dataTables_paginate .paginate_button a{padding:0!important;color:inherit!important;text-decoration:none!important}
 .dataTables_paginate .paginate_button:hover{background:var(--mp-bg)!important;color:var(--mp-ink)!important;border-color:var(--mp-border)!important}
-.dataTables_paginate .paginate_button.current{background:var(--mp-primary)!important;color:#fff!important;border-color:var(--mp-primary)!important}
+/* Bootstrap renderer marks the current page with .active; legacy DataTables uses .current. Style both. */
+.dataTables_paginate .paginate_button.current,.dataTables_paginate .paginate_button.active{background:var(--mp-surface)!important;color:var(--mp-primary)!important;border-color:var(--mp-primary)!important;box-shadow:0 0 0 1px var(--mp-primary) inset!important}
+.dataTables_paginate .paginate_button.current a,.dataTables_paginate .paginate_button.active a,.dataTables_paginate .paginate_button.active>span,.dataTables_paginate .paginate_button.current>span{color:var(--mp-primary)!important;background:transparent!important}
 .dataTables_paginate .paginate_button.disabled{color:var(--mp-muted)!important;background:var(--mp-bg)!important;cursor:not-allowed!important;opacity:.6!important}
+.dataTables_paginate .pagination>li{list-style:none!important;margin:0!important;padding:0!important;border:none!important;background:transparent!important}
+.dataTables_paginate .pagination>li.paginate_button.disabled a{color:var(--mp-muted)!important}
 
 /* Export buttons */
 .dt-buttons{display:flex!important;gap:6px!important;flex-wrap:wrap!important}

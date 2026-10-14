@@ -173,6 +173,58 @@ class Encounters_model extends CI_Model {
 		return $queue;
 	}
 
+	/**
+	 * Repair stale queue rows whose appointment has already been cancelled or
+	 * marked no-show. This is called before the board is counted/rendered so
+	 * historical stuck rows disappear too, not only new transitions.
+	 */
+	public function closeTerminalAppointmentVisits($storeId){
+		if(!$this->db->table_exists('db_appointments')) return 0;
+		$rows = $this->db->select('e.id, e.queue_stage, a.status AS appt_status, a.cancel_reason')
+			->from('db_encounters e')
+			->join('db_appointments a', 'a.id = e.appointment_id AND a.store_id = e.store_id')
+			->where('e.store_id', (int)$storeId)
+			->where('e.appointment_id IS NOT NULL', null, false)
+			->where('e.queue_stage !=', 'closed')
+			->where_in('a.status', array('cancelled','no_show'))
+			->limit(100)->get()->result();
+		$n = 0;
+		foreach($rows as $r){
+			$note = 'Visit closed — linked appointment is ' . str_replace('_', ' ', $r->appt_status)
+				. (!empty($r->cancel_reason) ? '. Reason: ' . $r->cancel_reason : '.');
+			$res = $this->closeUnattended((int)$r->id, $note, $r->appt_status);
+			if(!isset($res['error'])) $n++;
+		}
+		return $n;
+	}
+
+	/**
+	 * Same repair for treatment-session arrivals. Some older no-show/cancel
+	 * paths changed db_treatment_sessions but left the visit open because the
+	 * session row did not carry encounter_id. The encounter's checkin_key still
+	 * names the session, so close it from there.
+	 */
+	public function closeTerminalSessionVisits($storeId){
+		if(!$this->db->table_exists('db_treatment_sessions')) return 0;
+		$rows = $this->db->select('e.id, e.queue_stage, s.id AS session_id, s.status AS session_status, s.cancel_reason, s.session_no, s.units_total')
+			->from('db_encounters e')
+			->join('db_treatment_sessions s', 's.id = CAST(SUBSTRING(e.checkin_key,6) AS UNSIGNED) AND s.store_id = e.store_id')
+			->where('e.store_id', (int)$storeId)
+			->where('e.checkin_key LIKE', 'sess:%')
+			->where('e.queue_stage !=', 'closed')
+			->where_in('s.status', array('cancelled','no_show'))
+			->limit(100)->get()->result();
+		$n = 0;
+		foreach($rows as $r){
+			$line = (int)$r->session_no > 0 ? 'session ' . (int)$r->session_no . ' of ' . (int)$r->units_total : 'session #' . (int)$r->session_id;
+			$note = 'Visit closed — booked ' . $line . ' is ' . str_replace('_', ' ', $r->session_status)
+				. (!empty($r->cancel_reason) ? '. Reason: ' . $r->cancel_reason : '.');
+			$res = $this->closeUnattended((int)$r->id, $note, $r->session_status);
+			if(!isset($res['error'])) $n++;
+		}
+		return $n;
+	}
+
 	/** Open (or create) the current care episode for a patient + branch. */
 	public function openEpisode($storeId, $patientId, $warehouseId, $type = 'outpatient'){
 		$ep = $this->db->where('store_id', $storeId)->where('patient_id', $patientId)
@@ -442,6 +494,41 @@ class Encounters_model extends CI_Model {
 		}
 		$this->db->trans_complete();
 		return $this->db->trans_status() === FALSE ? array('error' => 'Update failed') : true;
+	}
+
+	/**
+	 * Close a visit that will not happen: the desk marked its booked session a
+	 * no-show (or cancelled it) while the patient was still on the board.
+	 *
+	 * This deliberately steps around the stage machine and its grants. The
+	 * permission that was tested is the session cancel that called it, and a
+	 * visit must never be left in "Waiting for Nurse" after the patient has
+	 * gone home. No money moves and no package session is drawn — care that
+	 * was not given consumes nothing.
+	 */
+	public function closeUnattended($encId, $note, $appointmentStatus = 'no_show'){
+		$storeId = get_current_store_id();
+		$enc = $this->getEncounter($encId, $storeId);
+		if(!$enc) return array('error' => 'Visit not found');
+		if((string)$enc->queue_stage === 'closed' || !in_array((string)$enc->status, array('open','in_progress'), true)){
+			return array('ok' => true, 'skipped' => true);
+		}
+		$now = date('Y-m-d H:i:s');
+		$this->db->trans_start();
+		$this->db->where('id', (int)$enc->id)->where('store_id', $storeId)->update('db_encounters', array(
+			'queue_stage' => 'closed', 'queue_stage_at' => $now, 'status' => 'cancelled',
+		));
+		$this->logEvent((int)$enc->id, $storeId, 'stage_change', $enc->queue_stage, 'closed', $note);
+		if(!empty($enc->appointment_id)){
+			$this->db->where('id', (int)$enc->appointment_id)->where('store_id', $storeId)
+				->where_in('status', array('requested','proposed','confirmed','checked_in'))
+				->update('db_appointments', array('status' => $appointmentStatus, 'updated_at' => $now));
+		}
+		$this->db->trans_complete();
+		if($this->db->trans_status() === FALSE){
+			return array('error' => 'Could not close the visit');
+		}
+		return array('ok' => true, 'encounter_id' => (int)$enc->id);
 	}
 
 	/**

@@ -111,6 +111,7 @@
         $shipping_location_link = $shipping_location_link ?? '';
         $nin_bvn = $nin_bvn ?? '';
         $nin_verified = $nin_verified ?? 0;
+        $photo = $photo ?? '';
 
         $country_name = '';
         if(!empty($country_id)){
@@ -298,6 +299,12 @@
               <div class="help-text"><a href="<?= base_url($attachment_1); ?>" target="_blank">View current attachment</a></div>
             <?php endif; ?>
             <input type="file" name="attachment_1" accept=".gif,.jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xlsx,.txt">
+          </div>
+          <div class="form-group">
+            <label>Profile Photo</label>
+            <?php if(!empty($photo)): ?><div class="help-text"><a href="<?= base_url($photo); ?>" target="_blank">View current photo</a></div><?php endif; ?>
+            <input type="file" name="photo" accept="image/png,image/jpeg,image/webp,image/gif">
+            <div class="help-text">Image only · max 2MB</div>
           </div>
         </div>
 

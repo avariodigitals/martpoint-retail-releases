@@ -92,6 +92,13 @@
   <div>
     <div class="mp-card">
       <div class="mp-card-body">
+        <div style="width:86px;height:86px;border-radius:18px;overflow:hidden;background:#eef8f5;color:var(--mp-primary,#176753);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;margin:0 auto 14px;">
+          <?php if(!empty($customer->photo)): ?>
+            <img src="<?= base_url($customer->photo); ?>" alt="Customer photo" style="width:100%;height:100%;object-fit:cover;display:block;">
+          <?php else: ?>
+            <?= htmlspecialchars(strtoupper(substr((string)($customer->customer_name ?? 'C'), 0, 1))); ?>
+          <?php endif; ?>
+        </div>
         <h3 style="margin:0 0 4px;font-size:18px;font-weight:700;"><?= htmlspecialchars($customer->customer_name ?? ''); ?></h3>
         <p style="margin:0 0 12px;color:var(--mp-muted);"><?= htmlspecialchars($customer->customer_code ?? ''); ?></p>
         <table class="mp-tbl" style="margin-bottom:12px;">

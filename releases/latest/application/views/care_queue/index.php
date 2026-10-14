@@ -59,7 +59,20 @@
 .cq-nurse{margin:6px 0 2px!important}
 .cq-nurse label{font-size:9px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.4px!important;color:var(--mp-muted)!important;display:block!important;margin:0 0 3px!important}
 .cq-nurse select{width:100%!important;font-size:11px!important;padding:5px 7px!important;border:1px solid var(--mp-border)!important;border-radius:7px!important;background:#fff!important}
-.cq-arrive{background:#FFFBEB!important;border:1px solid #F59E0B!important;border-radius:14px!important;padding:14px!important;margin-bottom:18px!important}
+.cq-bell{position:relative!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:42px!important;height:42px!important;border-radius:12px!important;border:1px solid #F59E0B!important;background:#FFFBEB!important;color:#B45309!important;font-size:16px!important;cursor:pointer!important}
+.cq-bell:hover{background:#FEF3C7!important}
+.cq-bell-n{position:absolute!important;top:-7px!important;right:-7px!important;min-width:19px!important;height:19px!important;padding:0 5px!important;border-radius:10px!important;background:#DC2626!important;color:#fff!important;font-size:11px!important;font-weight:800!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.cq-arrive-panel{display:none!important;background:#FFFBEB!important;border:1px solid #F59E0B!important;border-radius:14px!important;padding:14px!important;margin-bottom:18px!important}
+.cq-arrive-panel.open{display:block!important}
+.cq-arrive-sec{font-size:10px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:#92400E!important;margin:14px 0 6px!important}
+.cq-arrive-sec:first-child{margin-top:0!important}
+.cq-arrive-row{display:flex!important;align-items:center!important;gap:12px!important;background:#fff!important;border:1px solid #FCD34D!important;border-radius:11px!important;padding:9px 12px!important;margin-bottom:6px!important}
+.cq-row-when{font-size:12px!important;font-weight:800!important;color:#92400E!important;min-width:104px!important;flex:none!important;white-space:nowrap!important}
+.cq-row-who{flex:1 1 auto!important;min-width:0!important;font-size:13px!important}
+.cq-row-sub{display:block!important;font-size:11px!important;color:var(--mp-muted)!important;margin-top:2px!important}
+.cq-arrive-row .mp-qa-btn{flex:none!important}
+.cq-arrive-foot{font-size:11px!important;color:var(--mp-muted)!important;margin-top:10px!important}
+@media (max-width:640px){.cq-arrive-row{flex-wrap:wrap!important}.cq-row-when{min-width:0!important}.cq-arrive-row .mp-qa-btn{margin-left:auto!important}}
 .cq-days{display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important;margin:0 0 16px!important}
 .cq-days-lbl{font-size:10px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:var(--mp-muted)!important;margin-right:2px!important}
 .cq-days a{font-size:11px!important;font-weight:700!important;padding:5px 11px!important;border-radius:999px!important;border:1px solid var(--mp-border)!important;color:var(--mp-muted)!important;text-decoration:none!important;background:#fff!important}
@@ -88,12 +101,28 @@
 @media (max-width:640px){.vt-grid{grid-template-columns:1fr!important}.vt-foot{grid-template-columns:1fr!important}}
 </style>
 
+<?php
+/* The desk's bell: everything waiting to be checked in, counted once and read
+   on click. Only care_checkin sees it — the queue board itself stays readable
+   for the clinical desks, which do not check anyone in. */
+$cqArrivals = $can_checkin ? $arrivals : array();
+$cqDue      = $can_checkin ? $booked : array();
+$cqAhead    = $can_checkin ? ($booked_upcoming ?? array()) : array();
+$cqAheadAppt = $can_checkin ? ($arrivals_ahead ?? array()) : array();
+$cqPending  = count($cqArrivals) + count($cqDue) + count($cqAhead) + count($cqAheadAppt);
+?>
 <div class="mp-page-head">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
     <div class="mp-page-sub">Check-in &rarr; register/bill &rarr; nursing intake &rarr; therapist &rarr; finance — each stage shows only what that desk does</div>
   </div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <?php if($cqPending > 0): ?>
+    <button type="button" class="cq-bell" id="cqBell" onclick="cqToggleArrivals()" aria-expanded="false" title="Who is due to be checked in">
+      <i class="fa fa-bell"></i>
+      <span class="cq-bell-n"><?= (int)$cqPending; ?></span>
+    </button>
+    <?php endif; ?>
     <a href="<?= base_url('appointments'); ?>" class="mp-qa-btn blue"><i class="fa fa-calendar"></i> Appointments</a>
     <?php if($can_checkin): ?><button class="mp-qa-btn green" onclick="openWalkin()"><i class="fa fa-user-plus"></i> Walk-in Check-in</button><?php endif; ?>
   </div>
@@ -135,30 +164,57 @@ $cqQs = function($over = array()) use ($queue_days, $queue_mine){
     Cleared visits are history &mdash; read them on the patient's page.</span>
 </div>
 
-<?php if(!empty($arrivals) && $can_checkin): ?>
-<div class="cq-arrive">
-  <b><i class="fa fa-bell"></i> Expected arrivals — <?= count($arrivals); ?> booked patient(s) not yet checked in:</b>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-    <?php foreach($arrivals as $a): ?>
-    <button class="mp-qa-btn" onclick="checkinAppt(<?= (int)$a->id; ?>)">
-      <i class="fa fa-sign-in"></i> <?= date('H:i', strtotime($a->scheduled_at)); ?> — <?= htmlspecialchars($a->customer_name ?: 'Patient'); ?>
-    </button>
-    <?php endforeach; ?>
+<?php if($cqPending > 0): ?>
+<div class="cq-arrive-panel" id="cqArrivals">
+  <?php if(!empty($cqArrivals)): ?>
+  <div class="cq-arrive-sec">Expected arrivals today — <?= count($cqArrivals); ?></div>
+  <?php foreach($cqArrivals as $a): ?>
+  <div class="cq-arrive-row">
+    <span class="cq-row-when"><?= date('H:i', strtotime($a->scheduled_at)); ?></span>
+    <span class="cq-row-who"><b><?= htmlspecialchars($a->customer_name ?: 'Patient'); ?></b>
+      <span class="cq-row-sub"><?= htmlspecialchars($a->service_name ?: 'Visit'); ?><?= !empty($a->booking_ref) ? ' · ' . htmlspecialchars($a->booking_ref) : ''; ?></span></span>
+    <button class="mp-qa-btn" onclick="checkinAppt(<?= (int)$a->id; ?>)"><i class="fa fa-sign-in"></i> Check in</button>
   </div>
-</div>
-<?php endif; ?>
+  <?php endforeach; ?>
+  <?php endif; ?>
 
-<?php if(!empty($booked) && $can_checkin): ?>
-<div class="cq-arrive">
-  <b><i class="fa fa-ticket"></i> Sessions booked on the diary — <?= count($booked); ?> patient(s) due for a treatment session:</b>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-    <?php foreach($booked as $b): ?>
-    <button class="mp-qa-btn" onclick="checkinSess(<?= (int)$b->id; ?>)" title="Check in raises today's queue ticket and sends the patient to vitals">
-      <i class="fa fa-sign-in"></i> <?= date('D d M H:i', strtotime($b->scheduled_at)); ?> — <?= htmlspecialchars($b->patient_name ?: 'Patient'); ?> · session <?= (int)$b->session_no; ?> of <?= (int)$b->units_total; ?>
-    </button>
-    <?php endforeach; ?>
+  <?php if(!empty($cqDue)): ?>
+  <div class="cq-arrive-sec">Sessions due today, or waiting since an earlier day — <?= count($cqDue); ?></div>
+  <?php foreach($cqDue as $b): ?>
+  <div class="cq-arrive-row">
+    <span class="cq-row-when"><?= date('D d M H:i', strtotime($b->scheduled_at)); ?></span>
+    <span class="cq-row-who"><b><?= htmlspecialchars($b->patient_name ?: 'Patient'); ?></b>
+      <span class="cq-row-sub"><?= htmlspecialchars($b->treatment_name ?: 'Treatment session'); ?> · session <?= (int)$b->session_no; ?> of <?= (int)$b->units_total; ?></span></span>
+    <button class="mp-qa-btn" onclick="checkinSess(<?= (int)$b->id; ?>)" title="Check-in raises today's queue ticket and sends the patient to vitals"><i class="fa fa-sign-in"></i> Check in</button>
   </div>
-  <div style="font-size:11px;color:var(--mp-muted);margin-top:6px;">Check-in raises the queue ticket and sends the patient to vitals — the visit then draws exactly this booked session.</div>
+  <?php endforeach; ?>
+  <?php endif; ?>
+
+  <?php if(!empty($cqAhead)): ?>
+  <div class="cq-arrive-sec">Booked for a later day — bring forward if they are here now — <?= count($cqAhead); ?></div>
+  <?php foreach($cqAhead as $b): ?>
+  <div class="cq-arrive-row">
+    <span class="cq-row-when"><?= date('D d M H:i', strtotime($b->scheduled_at)); ?></span>
+    <span class="cq-row-who"><b><?= htmlspecialchars($b->patient_name ?: 'Patient'); ?></b>
+      <span class="cq-row-sub"><?= htmlspecialchars($b->treatment_name ?: 'Treatment session'); ?> · session <?= (int)$b->session_no; ?> of <?= (int)$b->units_total; ?></span></span>
+    <button class="mp-qa-btn" onclick="checkinSess(<?= (int)$b->id; ?>)" title="Checks the patient in today and moves this booked session onto today's visit"><i class="fa fa-arrow-right"></i> Check in today</button>
+  </div>
+  <?php endforeach; ?>
+  <?php endif; ?>
+
+  <?php if(!empty($cqAheadAppt)): ?>
+  <div class="cq-arrive-sec">Appointments booked for a later day — <?= count($cqAheadAppt); ?></div>
+  <?php foreach($cqAheadAppt as $a): ?>
+  <div class="cq-arrive-row">
+    <span class="cq-row-when"><?= date('D d M H:i', strtotime($a->scheduled_at)); ?></span>
+    <span class="cq-row-who"><b><?= htmlspecialchars($a->customer_name ?: 'Patient'); ?></b>
+      <span class="cq-row-sub"><?= htmlspecialchars($a->service_name ?: 'Visit'); ?><?= !empty($a->booking_ref) ? ' · ' . htmlspecialchars($a->booking_ref) : ''; ?></span></span>
+    <button class="mp-qa-btn" onclick="checkinAppt(<?= (int)$a->id; ?>)" title="Checks the patient in today and frees the booking from its later slot"><i class="fa fa-arrow-right"></i> Check in today</button>
+  </div>
+  <?php endforeach; ?>
+  <?php endif; ?>
+
+  <div class="cq-arrive-foot">Checking a patient in raises their queue ticket and sends them to vitals. A booked session then draws exactly that session &mdash; nothing is charged at the desk.</div>
 </div>
 <?php endif; ?>
 
@@ -477,6 +533,13 @@ var CSRF_BODY = { '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->s
 var SERVICES = <?= json_encode($__srv); ?>;
 var BILL_ENC = 0, PAY_ENC = 0;
 
+function cqToggleArrivals(){
+  var p = document.getElementById('cqArrivals');
+  if(!p) return;
+  var open = p.classList.toggle('open');
+  var bell = document.getElementById('cqBell');
+  if(bell) bell.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
 function checkinAppt(apptId){
   $.post('<?= base_url('care_queue/checkin'); ?>', $.extend({}, CSRF_BODY, {appointment_id:apptId}), function(res){
     if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 700); } else { toastr.error(res.message || res.error || 'Failed'); }

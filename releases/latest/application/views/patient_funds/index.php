@@ -1,4 +1,13 @@
-<?php $this->load->view('admin/desktop/_styles'); $CI =& get_instance(); ?>
+<?php
+$this->load->view('admin/desktop/_styles');
+$CI =& get_instance();
+$packageHeldTotal = 0;
+foreach(($entitlements ?? array()) as $e){
+  if((string)$e->status === 'active' && (float)$e->units_total > (float)$e->units_used){
+    $packageHeldTotal += max(0, (float)$e->funded_amount - (float)$e->consumed_amount);
+  }
+}
+?>
 <style>
 .pf-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))!important;gap:10px!important;margin-bottom:16px!important}
 .pf-bal{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:14px!important}
@@ -24,11 +33,19 @@
 </div>
 
 <div class="pf-grid">
+  <div class="pf-bal pf-resv"><div class="l">Package held</div><div class="v"><?= $CI->currency($packageHeldTotal); ?></div></div>
   <div class="pf-bal pf-avail"><div class="l">Available funds</div><div class="v"><?= $CI->currency($balances['available']); ?></div></div>
   <div class="pf-bal pf-resv"><div class="l">Reserved</div><div class="v"><?= $CI->currency($balances['reserved']); ?></div></div>
   <div class="pf-bal pf-pend"><div class="l">Pending verification</div><div class="v"><?= $CI->currency($balances['pending']); ?></div></div>
   <div class="pf-bal pf-debt"><div class="l">Outstanding debt</div><div class="v"><?= $CI->currency($outstanding); ?></div></div>
   <div class="pf-bal pf-retail"><div class="l">Retail store credit</div><div class="v"><?= $CI->currency($balances['retail_advance']); ?></div></div>
+</div>
+
+<div class="pf-box" style="border-left:3px solid #a96e24;">
+  <div style="font-size:13px;color:var(--mp-muted);line-height:1.55;">
+    Wallet money is the flexible ledger balance. Use <b>Wallet → Advance</b> when money should return to ordinary store credit for other purchases.
+    Package-held money is tied to paid sessions and appears under Session entitlements below; it does not show as wallet ledger cash until a proper package reversal/refund workflow is done.
+  </div>
 </div>
 
 <?php if($can['add']): ?>
@@ -86,12 +103,12 @@
 <div class="pf-box">
   <h4>Session entitlements</h4>
   <table class="pf-table">
-    <tr><th>Plan</th><th>Source</th><th>Total</th><th>Used</th><th>Remaining</th><th>Funded</th><th>Status</th></tr>
-    <?php foreach($entitlements as $e): ?>
-    <tr><td><?= $e->plan_id ? '#' . (int)$e->plan_id : '—'; ?></td><td><?= htmlspecialchars($e->source); ?></td>
+    <tr><th>Plan</th><th>Purchase date</th><th>Source</th><th>Total</th><th>Used</th><th>Remaining</th><th>Funded</th><th>Held left</th><th>Status</th></tr>
+    <?php foreach($entitlements as $e): $heldLeft = max(0, (float)$e->funded_amount - (float)$e->consumed_amount); ?>
+    <tr><td><?= $e->plan_id ? '#' . (int)$e->plan_id : '—'; ?></td><td><?= htmlspecialchars($e->purchase_date ?? '—'); ?></td><td><?= htmlspecialchars($e->source); ?></td>
       <td><?= (float)$e->units_total; ?></td><td><?= (float)$e->units_used; ?></td>
       <td><b><?= (float)($e->units_total - $e->units_used); ?></b></td>
-      <td><?= $CI->currency($e->funded_amount); ?></td><td><?= strtoupper($e->status); ?></td></tr>
+      <td><?= $CI->currency($e->funded_amount); ?></td><td><b><?= $CI->currency($heldLeft); ?></b></td><td><?= strtoupper($e->status); ?></td></tr>
     <?php endforeach; ?>
   </table>
 </div>

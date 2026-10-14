@@ -17,7 +17,22 @@ $btn_id   = $is_edit ? 'update' : 'save';
   </div>
 </div>
 
-<div class="mp-card-form">
+<style>
+  .mp-expense-form .mp-card-body{max-width:980px!important}
+  .mp-expense-form .mp-form-grid{grid-template-columns:repeat(2,minmax(220px,320px))!important;justify-content:start!important}
+  .mp-expense-form .mp-form-group.full{max-width:664px!important}
+  .mp-expense-form .select2-container{width:100%!important;max-width:320px!important}
+  .mp-expense-form .mp-form-actions{width:auto!important;align-items:center!important;justify-content:flex-start!important}
+  .mp-expense-form .mp-form-actions .mp-btn-primary,
+  .mp-expense-form .mp-form-actions .mp-btn-secondary{width:auto!important;min-width:108px!important;flex:0 0 auto!important;text-align:center!important}
+  @media(max-width:768px){
+    .mp-expense-form .mp-card-body{max-width:none!important}
+    .mp-expense-form .mp-form-grid{grid-template-columns:minmax(0,1fr)!important}
+    .mp-expense-form .mp-form-group.full{max-width:none!important}
+    .mp-expense-form .select2-container{max-width:none!important}
+  }
+</style>
+<div class="mp-card-form mp-expense-form">
   <div class="mp-card-head">
     <h3><?= $is_edit ? 'Update Expense' : 'New Expense'; ?></h3>
   </div>
@@ -42,7 +57,7 @@ $btn_id   = $is_edit ? 'update' : 'save';
 
         <div class="mp-form-group">
           <label for="category_id"><?= $this->lang->line('category'); ?> <span class="text-danger">*</span></label>
-          <select class="form-control select2 mp-form-control" id="category_id" name="category_id" style="width:100%;">
+          <select class="form-control select2 mp-form-control" id="category_id" name="category_id">
             <?php
               $query1 = "select * from db_expense_category where status=1 and store_id=".get_current_store_id();
               $q1 = $this->db->query($query1);
@@ -68,7 +83,7 @@ $btn_id   = $is_edit ? 'update' : 'save';
 
         <div class="mp-form-group">
           <label for="payment_type"><?= $this->lang->line('payment_mode'); ?> <span class="text-danger">*</span></label>
-          <select class="form-control select2 mp-form-control" id="payment_type" name="payment_type" style="width:100%;">
+          <select class="form-control select2 mp-form-control" id="payment_type" name="payment_type">
             <option value="">— Select —</option>
             <?= get_payment_modes_select_list(get_current_store_id(), $payment_type); ?>
           </select>
@@ -77,7 +92,7 @@ $btn_id   = $is_edit ? 'update' : 'save';
 
         <div class="mp-form-group">
           <label for="account_id"><?= $this->lang->line('account'); ?></label>
-          <select class="form-control select2 mp-form-control" id="account_id" name="account_id" style="width:100%;">
+          <select class="form-control select2 mp-form-control" id="account_id" name="account_id">
             <option value="">— None —</option>
             <?= get_accounts_select_list($account_id); ?>
           </select>

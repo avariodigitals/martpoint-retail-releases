@@ -56,6 +56,8 @@ class Appointments_model extends CI_Model {
 		}
 		if(!empty($filters['status'])) $this->db->where('a.status', $filters['status']);
 		if(!empty($filters['date'])) $this->db->where('DATE(a.scheduled_at) =', $filters['date']);
+		if(!empty($filters['date_from'])) $this->db->where('DATE(a.scheduled_at) >=', $filters['date_from']);
+		if(!empty($filters['date_to'])) $this->db->where('DATE(a.scheduled_at) <=', $filters['date_to']);
 		if(!empty($filters['staff_user_id'])) $this->db->where('a.staff_user_id', $filters['staff_user_id']);
 		if(!empty($filters['patient_id'])) $this->db->where('a.patient_id', $filters['patient_id']);
 		return $this->db->order_by('a.scheduled_at', 'asc')->limit(300)->get()->result();
@@ -170,7 +172,31 @@ class Appointments_model extends CI_Model {
 		$this->db->where('id', $id)->where('store_id', $storeId)->update('db_appointments', $update);
 		$this->_logEvent($id, $storeId, $to, $appt->status, $to, $note);
 		$this->db->trans_complete();
-		return $this->db->trans_status() === FALSE ? array('error' => 'Update failed') : true;
+		if($this->db->trans_status() === FALSE) return array('error' => 'Update failed');
+
+		/* A booking that was already checked in has a visit on the Care Queue.
+		   Killing the booking while that visit stays open leaves the patient in
+		   "Waiting for Nurse" for good, and any session ticket drawn at
+		   check-in bound to a dead visit. End the visit and hand the session
+		   back to the diary so the package still owes it. */
+		if(in_array($to, array('cancelled','no_show'), true) && $appt->status === 'checked_in'){
+			$openEnc = $this->db->select('id')->where('store_id', $storeId)->where('appointment_id', $id)
+				->where('queue_stage !=', 'closed')->get('db_encounters')->row();
+			$encId = $openEnc ? (int)$openEnc->id : 0;
+			if($encId){
+				$this->load->model('encounters_model', 'enc');
+				$this->enc->closeUnattended($encId, 'Visit closed — the appointment was '
+					. ($to === 'no_show' ? 'marked as did not attend' : 'cancelled')
+					. ($note ? '. Reason: ' . $note : '.'), $to);
+				$this->db->where('encounter_id', $encId)->where('store_id', $storeId)
+					->where('status !=', 'completed')->where('fee_posted', 0)
+					->update('db_treatment_sessions', array(
+						'status' => 'scheduled', 'encounter_id' => null, 'checkin_key' => null,
+						'checked_in_at' => null, 'updated_at' => date('Y-m-d H:i:s'),
+					));
+			}
+		}
+		return true;
 	}
 
 	/**

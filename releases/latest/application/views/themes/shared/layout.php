@@ -241,5 +241,6 @@
 (function(){var b=document.getElementById('mp-consent-bar');try{if(b && localStorage.getItem(<?= json_encode($mpConsentKey); ?>)===null){b.style.display='block';}}catch(e){if(b)b.style.display='block';}})();
 </script>
 <?php endif; ?>
+<?php $this->load->view('themes/shared/product_image_fallbacks'); ?>
 </body>
 </html>

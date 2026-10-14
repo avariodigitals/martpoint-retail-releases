@@ -1351,18 +1351,18 @@ class Mobile extends MY_Controller {
 				->get()->row()->due;
 			$data['clinic']['billing_due'] = $this->currency($outstanding, true);
 		}
-		if(physio_can('patient_funds_view') && $this->db->table_exists('db_fund_reservations')){
-			$held = (float)$this->db->select('COALESCE(SUM(amount_reserved - amount_consumed),0) AS reserved', false)
-				->where('store_id', $storeId)->where('status', 'active')
-				->get('db_fund_reservations')->row()->reserved;
-			$data['clinic']['funds_reserved'] = $this->currency($held, true);
-		}
 		// Compact dashboard analytics use the same range choices as desktop.
-		$valid_ranges = array('Today','7Days','30Days','ThisMonth','LastMonth','ThisYear');
+		$valid_ranges = array('Today','Yesterday','7Days','30Days','ThisMonth','LastMonth','ThisYear');
 		$range = $this->input->get('range', TRUE);
 		if(!in_array($range, $valid_ranges, true)) $range = 'Today';
 		$this->load->model('dashboard_model');
 		$range_info = $this->dashboard_model->get_range_info($range);
+		if(physio_can('patient_funds_view')){
+			$this->load->model('patient_funds_model');
+			$held = $this->patient_funds_model->heldForPeriod($storeId, $range_info['from'], $range_info['to']);
+			$data['clinic']['funds_reserved'] = $this->currency($held, true);
+		}
+
 		$analytics = array('inpatient'=>0,'outpatient'=>0,'sales'=>0,'expenses'=>0);
 		if($this->db->table_exists('db_care_episodes')){
 			$episode_rows = $this->db->select('episode_type, COUNT(*) AS n', false)->where('store_id', $storeId)
@@ -1377,18 +1377,47 @@ class Mobile extends MY_Controller {
 		$data['clinic_range_info'] = $range_info;
 		$data['clinic_analytics'] = $analytics;
 		$data['staff_birthdays'] = array();
+		$birthdayDays = 7;
 		if($this->db->table_exists('db_users')){
 			if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
 			$staff = physio_staff_select($storeId, false);
 			$today = new DateTimeImmutable(date('Y-m-d'));
 			foreach($staff as $person){
 				if(empty($person->dob)) continue;
-				$dob = new DateTimeImmutable(substr($person->dob, 0, 10)); $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d'));
-				if($next < $today) $next = $next->modify('+1 year'); $days = (int)$today->diff($next)->format('%a'); if($days > 90) continue;
+				try { $dob = new DateTimeImmutable(substr($person->dob, 0, 10)); $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d')); }
+				catch(Exception $e){ continue; }
+				if($next < $today) $next = $next->modify('+1 year'); $days = (int)$today->diff($next)->format('%a'); if($days > $birthdayDays) continue;
 				$name = trim(($person->first_name ?: $person->firstname ?: '').' '.($person->last_name ?: $person->lastname ?: '')); if($name === '') $name = (string)$person->username;
 				$data['staff_birthdays'][] = array('name'=>$name,'date'=>$next->format('M j'),'days'=>$days);
 			}
 			usort($data['staff_birthdays'], function($a,$b){ return $a['days'] <=> $b['days']; }); $data['staff_birthdays'] = array_slice($data['staff_birthdays'], 0, 8);
+		}
+		$data['patient_birthdays'] = array();
+		if(physio_can('patients_view') && $this->db->table_exists('db_patients') && $this->db->field_exists('dob', 'db_patients')){
+			$today = new DateTimeImmutable(date('Y-m-d'));
+			$md = array();
+			for($i = 0; $i <= $birthdayDays; $i++){ $md[] = $today->modify('+'.$i.' day')->format('m-d'); }
+			$in = implode(',', array_map(function($v){ return "'".$v."'"; }, $md));
+			$rows = $this->db->select('p.dob, TRIM(c.customer_name) AS customer_name', false)
+				->from('db_patients p')
+				->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+				->where('p.store_id', $storeId)->where('p.deceased', 0)->where('p.status', 1)
+				->where('p.dob IS NOT NULL', null, false)
+				->where("CAST(p.dob AS CHAR) <> '0000-00-00'", null, false)
+				->where("DATE_FORMAT(CASE WHEN CAST(p.dob AS CHAR) = '0000-00-00' THEN NULL ELSE p.dob END, '%m-%d') IN (".$in.")", null, false)
+				->get()->result();
+			foreach($rows as $person){
+				$name = trim((string)$person->customer_name);
+				if($name === '') continue;
+				try { $dob = new DateTimeImmutable(substr($person->dob, 0, 10)); $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d')); }
+				catch(Exception $e){ continue; }
+				if($next < $today) $next = $next->modify('+1 year');
+				$days = (int)$today->diff($next)->format('%a');
+				if($days > $birthdayDays) continue;
+				$data['patient_birthdays'][] = array('name'=>$name,'date'=>$next->format('M j'),'days'=>$days);
+			}
+			usort($data['patient_birthdays'], function($a,$b){ return $a['days'] <=> $b['days']; });
+			$data['patient_birthdays'] = array_slice($data['patient_birthdays'], 0, 8);
 		}
 
 		// Tiles the current user may work from — each one is a real route.
@@ -1406,8 +1435,8 @@ class Mobile extends MY_Controller {
 		if(physio_can('patient_billing_view')){
 			try {
 				$this->load->model('workspace_commercial_model', 'workspace_commercial');
-				$data['commercial'] = $this->workspace_commercial->snapshot($storeId, true);
-				$data['intel'] = $this->workspace_commercial->insights($data['commercial'], true, array(), true);
+				$data['commercial'] = $this->workspace_commercial->snapshot($storeId, true, $range);
+				$data['intel'] = $this->workspace_commercial->insights($data['commercial'], true, array(), true, $range_info['label']);
 			} catch(Throwable $e) {
 				log_message('error', 'Mobile clinic commercial dashboard failed: '.$e->getMessage());
 			}
@@ -1493,6 +1522,60 @@ class Mobile extends MY_Controller {
 		$this->load->view('mobile/patient_profile', $data);
 	}
 
+	public function patient_accounts()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can_any(array('patient_billing_view','patient_funds_view'))){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Patient Accounts';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_funds'] = physio_can('patient_funds_view');
+		$data['can_billing'] = physio_can('patient_billing_view');
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data['search'] = $search;
+		$this->load->model('Patient_funds_model', 'patient_funds_m');
+		$this->db->select('p.id, p.patient_code, p.customer_id, c.customer_name, c.mobile')
+			->from('db_patients p')
+			->join('db_customers c', 'c.id = p.customer_id', 'left')
+			->where('p.store_id', $store_id)
+			->where('p.status', 1);
+		if($search !== ''){
+			$this->db->group_start()
+				->like('c.customer_name', $search)
+				->or_like('c.mobile', $search)
+				->or_like('p.patient_code', $search)
+				->group_end();
+		}
+		$patients = $this->db->order_by('c.customer_name', 'asc')->limit(80)->get()->result();
+		$rows = array();
+		foreach($patients as $p){
+			$balances = $data['can_funds'] ? $this->patient_funds_m->getBalances((int)$p->id, $store_id) : null;
+			$packageHeld = 0.0;
+			$sessionsLeft = 0.0;
+			if($data['can_funds'] && $this->db->table_exists('db_plan_entitlements')){
+				$ent = $this->db->select('COALESCE(SUM(total_value - value_consumed),0) AS held, COALESCE(SUM(sessions_total - sessions_consumed),0) AS sessions_left', false)
+					->where('store_id', $store_id)
+					->where('patient_id', (int)$p->id)
+					->where('status', 'active')
+					->get('db_plan_entitlements')->row();
+				$packageHeld = $ent ? (float)$ent->held : 0.0;
+				$sessionsLeft = $ent ? (float)$ent->sessions_left : 0.0;
+			}
+			$rows[] = array(
+				'patient' => $p,
+				'balances' => $balances ?: array('available'=>0,'reserved'=>0,'pending'=>0,'retail_advance'=>0),
+				'package_held' => $packageHeld,
+				'sessions_left' => $sessionsLeft,
+			);
+		}
+		$data['accounts'] = $rows;
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patient_accounts', $data);
+	}
+
 	public function save_patient()
 	{
 		header('Content-Type: application/json');
@@ -1550,13 +1633,18 @@ class Mobile extends MY_Controller {
 		if(!physio_can('appointments_view')){ $this->show_access_denied_page(); return; }
 		$this->load->model('appointments_model', 'appts_m');
 		$store_id = get_current_store_id();
-		$date = trim($this->input->get('date', TRUE) ?: date('Y-m-d'));
-		$filters = array('date' => $date);
+		$from = trim($this->input->get('from', TRUE) ?: trim($this->input->get('date', TRUE) ?: '') ?: date('Y-m-d'));
+		$to   = trim($this->input->get('to', TRUE) ?: $from);
+		if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) || !checkdate((int)substr($from,5,2),(int)substr($from,8,2),(int)substr($from,0,4))) $from = date('Y-m-d');
+		if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to) || !checkdate((int)substr($to,5,2),(int)substr($to,8,2),(int)substr($to,0,4))) $to = $from;
+		if(strtotime($to) < strtotime($from)) $to = $from;
+		$filters = array('date_from' => $from, 'date_to' => $to);
 		if(!physio_can('clinical_cross_branch')) $filters['branch_ids'] = physio_branch_ids();
 		$data = $this->data;
 		$data['page_title'] = 'Appointments';
 		$data['appointments'] = $this->db->table_exists('db_appointments') ? $this->appts_m->getAppointments($store_id, $filters) : array();
-		$data['filter_date'] = $date;
+		$data['filter_from'] = $from;
+		$data['filter_to'] = $to;
 		$data['can_checkin'] = physio_can('care_checkin');
 		$data['can_edit'] = physio_can('appointments_edit');
 		$data['can_cancel'] = physio_can('appointments_cancel');
@@ -1615,6 +1703,8 @@ class Mobile extends MY_Controller {
 		// Diary bookings whose day has arrived and whose patient is not on the
 		// board yet — checked in here, which raises the ticket and vitals.
 		$data['booked'] = $this->sessions_m->dueBookings($store_id);
+		// Booked for a later day but here today — the desk brings them forward.
+		$data['booked_upcoming'] = physio_can('care_checkin') ? $this->sessions_m->upcomingBookings($store_id, date('Y-m-d'), date('Y-m-d', strtotime('+60 days')), 20) : array();
 		$data['arrivals'] = $arrivals;
 		$data['patients'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatients($store_id, 'active', '', 300) : array();
 		// Staff who can take a treatment patient — the tasked-nurse picker.
@@ -4535,6 +4625,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Cash Transactions', 'desc' => 'Sales, purchase & expense payments', 'icon' => 'fa-money', 'url' => 'mobile/finance/cash_transactions', 'perm' => 'accounts_view', 'color' => 'teal'],
 				['title' => 'Tills / Cash-in-Hand', 'desc' => 'Tills and cash balances', 'icon' => 'fa-inbox', 'url' => 'mobile/finance/tills', 'perm' => 'tills_view', 'color' => 'yellow'],
 				['title' => 'Expense List', 'desc' => 'Track business expenses', 'icon' => 'fa-credit-card', 'url' => 'mobile/finance/expenses', 'perm' => 'expense_view', 'color' => 'red'],
+				['title' => 'Expense Categories', 'desc' => 'Organise expense heads', 'icon' => 'fa-tags', 'url' => 'mobile/finance/expense_categories', 'perm' => 'expense_category_view', 'color' => 'purple'],
 			],
 			'Reports' => [
 				['title' => 'Quotation Report', 'desc' => 'Quotation status summary', 'icon' => 'fa-quote-left', 'url' => 'mobile/quotation_report', 'perm' => 'quotation_view', 'color' => 'purple'],
@@ -4590,15 +4681,16 @@ class Mobile extends MY_Controller {
 			$menu_groups['Procurement'] = $menu_groups['Suppliers'] ?? array();
 			unset($menu_groups['Suppliers']);
 			$menu_groups['Finance'] = [
-				['title' => 'Patient Accounts', 'desc' => 'Billing, funds and reservations', 'icon' => 'fa-file-text-o', 'url' => 'patient_funds', 'physio_perm' => 'patient_funds_view', 'color' => 'green'],
-				['title' => 'Patient Billing', 'desc' => 'Charges, invoices and balances', 'icon' => 'fa-credit-card', 'url' => 'patient_billing', 'physio_perm' => 'patient_billing_view', 'color' => 'blue'],
-				['title' => 'Opening Positions', 'desc' => 'Review and approve migrated balances', 'icon' => 'fa-sign-in', 'url' => 'patient_funds/openings', 'physio_perm' => 'opening_positions_view', 'color' => 'orange'],
-				['title' => 'Payment Methods', 'desc' => 'Accepted clinic payment modes', 'icon' => 'fa-money', 'url' => 'payment_modes', 'perm' => 'payment_modes_view', 'color' => 'teal'],
+				['title' => 'Patient Accounts', 'desc' => 'Billing, funds and reservations', 'icon' => 'fa-file-text-o', 'url' => 'mobile/patient_accounts', 'physio_perm' => 'patient_funds_view', 'color' => 'green'],
+				['title' => 'Patient Billing', 'desc' => 'Charges, invoices and balances', 'icon' => 'fa-credit-card', 'url' => 'mobile/patient_accounts', 'physio_perm' => 'patient_billing_view', 'color' => 'blue'],
+				['title' => 'Opening Positions', 'desc' => 'Review account balances', 'icon' => 'fa-sign-in', 'url' => 'mobile/patient_accounts', 'physio_perm' => 'opening_positions_view', 'color' => 'orange'],
+				['title' => 'Expenses', 'desc' => 'Clinic expense list', 'icon' => 'fa-credit-card', 'url' => 'mobile/finance/expenses', 'perm' => 'expense_view', 'color' => 'red'],
+				['title' => 'Expense Categories', 'desc' => 'Clinic spending heads', 'icon' => 'fa-tags', 'url' => 'mobile/finance/expense_categories', 'perm' => 'expense_category_view', 'color' => 'purple'],
 			];
 			$menu_groups['Reports'] = [
-				['title' => 'Appointments & arrivals', 'desc' => 'Clinic schedule and attendance', 'icon' => 'fa-calendar', 'url' => 'appointments', 'physio_perm' => 'appointments_view', 'color' => 'blue'],
-				['title' => 'Session utilization', 'desc' => 'Treatment sessions and entitlements', 'icon' => 'fa-stethoscope', 'url' => 'sessions', 'physio_perm' => 'sessions_view', 'color' => 'green'],
-				['title' => 'Inpatient occupancy', 'desc' => 'Admissions and bed activity', 'icon' => 'fa-bed', 'url' => 'inpatient/beds', 'physio_perm' => 'admissions_view', 'color' => 'orange'],
+				['title' => 'Appointments & arrivals', 'desc' => 'Clinic schedule and attendance', 'icon' => 'fa-calendar', 'url' => 'mobile/appointments', 'physio_perm' => 'appointments_view', 'color' => 'blue'],
+				['title' => 'Session utilization', 'desc' => 'Treatment sessions and entitlements', 'icon' => 'fa-stethoscope', 'url' => 'mobile/sessions', 'physio_perm' => 'sessions_view', 'color' => 'green'],
+				['title' => 'Inpatient occupancy', 'desc' => 'Admissions and bed activity', 'icon' => 'fa-bed', 'url' => 'mobile/admissions', 'physio_perm' => 'admissions_view', 'color' => 'orange'],
 			];
 			$menu_groups['Administration'] = [
 				['title' => 'Facility settings', 'desc' => 'Store identity, contacts and branding', 'icon' => 'fa-building-o', 'url' => 'business_profile', 'perm' => 'business_profile', 'color' => 'blue'],
@@ -6846,6 +6938,13 @@ class Mobile extends MY_Controller {
 						$data['expense_code'] = get_init_code('expense');
 					}
 				}
+				break;
+
+			case 'expense_categories':
+				if($action != 'list'){ show_404(); return; }
+				$this->permission_check('expense_category_view');
+				$data['page_title'] = 'Expense Categories';
+				$data['records'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('category_name', 'asc')->get('db_expense_category')->result();
 				break;
 		}
 

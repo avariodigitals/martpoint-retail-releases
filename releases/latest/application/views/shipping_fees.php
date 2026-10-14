@@ -12,7 +12,18 @@
     <div class="mp-page-sub">Delivery locations &amp; fees selectable at POS checkout</div>
   </div>
   <button class="mp-qa-btn green" onclick="openModal()"><i class="fa fa-plus"></i> Add Shipping Fee</button>
+  <a class="mp-qa-btn" href="<?= base_url('shipping_fees/download_template'); ?>" style="margin-left:8px;"><i class="fa fa-download"></i> CSV Template</a>
 </div>
+
+<?php if($this->session->flashdata('success')): ?><div class="alert alert-success"><?= htmlspecialchars($this->session->flashdata('success')); ?></div><?php endif; ?>
+<?php if($this->session->flashdata('error')): ?><div class="alert alert-danger"><?= htmlspecialchars($this->session->flashdata('error')); ?></div><?php endif; ?>
+
+<form method="post" action="<?= base_url('shipping_fees/import_csv'); ?>" enctype="multipart/form-data" class="ship-hint" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+  <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+  <strong>Import shipping fees</strong>
+  <input type="file" name="shipping_file" accept=".csv" required>
+  <button class="btn btn-primary" type="submit"><i class="fa fa-upload"></i> Upload CSV</button>
+</form>
 
 <div class="ship-hint">
   <i class="fa fa-truck" style="color:var(--mp-primary);"></i>

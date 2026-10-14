@@ -20,7 +20,7 @@ class Patients_model extends CI_Model {
 
 	public function getPatients($storeId = null, $status = '', $search = '', $limit = 500, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('p.*, c.customer_name, c.mobile, c.email, c.customer_code, c.tot_advance, c.sales_due')
+		$this->db->select('p.*, c.customer_name, c.mobile, c.email, c.customer_code, c.photo AS customer_photo, c.tot_advance, c.sales_due')
 			->from('db_patients p')
 			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
 			->where('p.store_id', $storeId);
@@ -45,7 +45,7 @@ class Patients_model extends CI_Model {
 
 	public function getPatient($id, $storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
-		return $this->db->select('p.*, c.customer_name, c.mobile, c.email, c.phone, c.address, c.city, c.customer_code, c.tot_advance, c.sales_due, c.opening_balance')
+		return $this->db->select('p.*, c.customer_name, c.mobile, c.email, c.phone, c.address, c.city, c.customer_code, c.photo AS customer_photo, c.tot_advance, c.sales_due, c.opening_balance, c.sales_return_due, c.store_credit_balance, c.gift_card_balance')
 			->from('db_patients p')
 			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
 			->where('p.id', $id)->where('p.store_id', $storeId)
@@ -137,6 +137,9 @@ class Patients_model extends CI_Model {
 			}
 		}
 
+		$photo = $this->_upload_patient_photo();
+		if(is_array($photo) && isset($photo['error'])) return $photo;
+
 		$this->db->trans_start();
 
 		if($id){
@@ -144,14 +147,16 @@ class Patients_model extends CI_Model {
 			if(!$existing){ $this->db->trans_complete(); return array('error' => 'Patient not found'); }
 			$customerId = (int)$existing->customer_id;
 			// Keep linked customer contact fields in sync
-			$this->db->where('id', $customerId)->where('store_id', $storeId)->update('db_customers', array(
+			$customerUpdate = array(
 				'customer_name' => $customer['name'],
 				'mobile'        => $customer['mobile'],
 				'email'         => $customer['email'],
 				'phone'         => $customer['phone'],
 				'address'       => $customer['address'],
 				'city'          => $customer['city'],
-			));
+			);
+			if($photo !== null) $customerUpdate['photo'] = $photo;
+			$this->db->where('id', $customerId)->where('store_id', $storeId)->update('db_customers', $customerUpdate);
 			$this->db->where('id', $id)->where('store_id', $storeId)->update('db_patients', $patient);
 		} else {
 			$customerId = !empty($customer['link_customer_id']) ? (int)$customer['link_customer_id'] : 0;
@@ -161,7 +166,7 @@ class Patients_model extends CI_Model {
 			} else {
 				// Create the financial identity (db_customers) for this patient
 				$count_id = get_count_id('db_customers', $storeId);
-				$this->db->insert('db_customers', array(
+				$newCustomer = array(
 					'store_id'      => $storeId,
 					'count_id'      => $count_id,
 					'customer_code' => get_init_code('customer', $storeId),
@@ -177,7 +182,9 @@ class Patients_model extends CI_Model {
 					'created_time'  => date('H:i:s'),
 					'created_by'    => $this->session->userdata('inv_username') ?: 'system',
 					'system_ip'     => $this->input->ip_address(),
-				));
+				);
+				if($photo !== null) $newCustomer['photo'] = $photo;
+				$this->db->insert('db_customers', $newCustomer);
 				$customerId = (int)$this->db->insert_id();
 				if(!$customerId){ $this->db->trans_complete(); return array('error' => 'Failed to create customer record'); }
 			}
@@ -204,6 +211,26 @@ class Patients_model extends CI_Model {
 		$this->db->trans_complete();
 		if($this->db->trans_status() === FALSE){ return array('error' => 'Database error'); }
 		return $id;
+	}
+
+	/** Save an optional patient photo on the linked financial customer record. */
+	private function _upload_patient_photo(){
+		if(empty($_FILES['photo']['name'])) return null;
+		if(!$this->db->field_exists('photo', 'db_customers')) return array('error' => 'The customer photo field is not available.');
+
+		$uploadDir = FCPATH.'uploads/customers/photos/';
+		if(!is_dir($uploadDir)) @mkdir($uploadDir, 0755, true);
+		$config = array(
+			'upload_path'   => './uploads/customers/photos/',
+			'allowed_types' => 'gif|jpg|jpeg|png|webp',
+			'max_size'      => 2048,
+			'file_name'     => 'patient_'.date('YmdHis').'_'.mt_rand(1000, 9999),
+			'overwrite'     => false,
+		);
+		$this->load->library('upload');
+		$this->upload->initialize($config);
+		if(!$this->upload->do_upload('photo')) return array('error' => 'Photo: '.trim(strip_tags($this->upload->display_errors())));
+		return 'uploads/customers/photos/'.$this->upload->data('file_name');
 	}
 
 	public function setStatus($id, $status, $storeId = null){

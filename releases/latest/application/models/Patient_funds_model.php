@@ -40,6 +40,32 @@ class Patient_funds_model extends CI_Model {
 	// Balance derivation
 	// ------------------------------------------------------------------
 
+	/** Current unspent balances originating in the inclusive selected period.
+	 * This is a purchase/hold cohort, not a reconstructed historical balance.
+	 */
+	public function heldForPeriod($storeId, $from, $to){
+		$held = 0.0;
+		if($this->db->table_exists('db_plan_entitlements')){
+			$date = "COALESCE(NULLIF(CAST(s.sales_date AS CHAR), '0000-00-00'), NULLIF(CAST(e.created_date AS CHAR), '0000-00-00'))";
+			$row = $this->db->select('COALESCE(SUM(GREATEST(e.funded_amount - e.consumed_amount,0)),0) AS held', false)
+				->from('db_plan_entitlements e')
+				->join('db_sales s', 's.id = e.sale_id AND s.store_id = e.store_id', 'left')
+				->where('e.store_id', (int)$storeId)->where('e.status', 'active')
+				->where('e.units_total > e.units_used', null, false)
+				->where($date.' >=', $from)->where($date.' <=', $to)
+				->get()->row();
+			$held += (float)($row->held ?? 0);
+		}
+		if($this->db->table_exists('db_fund_reservations')){
+			$row = $this->db->select('COALESCE(SUM(GREATEST(amount_reserved - amount_consumed,0)),0) AS held', false)
+				->where('store_id', (int)$storeId)->where('status', 'active')
+				->where('created_date >=', $from)->where('created_date <=', $to)
+				->get('db_fund_reservations')->row();
+			$held += (float)($row->held ?? 0);
+		}
+		return $held;
+	}
+
 	/** Lock the customer's financial row inside an open transaction. */
 	public function lockCustomer($customerId){
 		return $this->db->query(

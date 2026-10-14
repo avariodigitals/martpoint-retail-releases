@@ -223,6 +223,7 @@
         ]],
         ['Appointments & Queue', 'appointments', [
           ['appointments_view','View'], ['appointments_add','Book'], ['appointments_edit','Edit'], ['appointments_cancel','Cancel'],
+          ['appointments_reschedule','Reschedule'],
           ['care_queue_view','Queue View'], ['care_checkin','Check-in'],
         ]],
         ['Clinical Records', 'clinical', [
@@ -236,6 +237,7 @@
         ['Plans & Sessions', 'plans_sessions', [
           ['plans_view','Plans View'], ['plans_add','Plans Add'], ['plans_amend','Amend Plan'],
           ['sessions_view','Sessions View'], ['sessions_checkin','Session Check-in'], ['sessions_complete','Complete Session'],
+          ['sessions_note_add','Treatment Note'],
         ]],
         ['Inpatient Care', 'inpatient', [
           ['admissions_view','Admissions View'], ['admissions_manage','Manage Admissions'], ['beds_manage','Manage Beds'],

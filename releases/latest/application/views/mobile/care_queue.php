@@ -140,6 +140,17 @@
         <?php endforeach; ?>
       <?php endif; ?>
 
+      <?php if(!empty($booked_upcoming) && $can_checkin): ?>
+        <div class="stage-h">Booked for a later day<span class="n"><?= count($booked_upcoming); ?></span></div>
+        <?php foreach($booked_upcoming as $b): ?>
+          <div class="arrive">
+            <div class="nm"><?= date('D d M H:i', strtotime($b->scheduled_at)); ?> — <?= htmlspecialchars($b->patient_name ?: 'Patient'); ?></div>
+            <div style="font-size:11px;color:var(--mp-muted);margin-top:2px;"><?= htmlspecialchars($b->treatment_name ?: 'Treatment course'); ?> · session <?= (int)$b->session_no; ?> of <?= (int)$b->units_total; ?></div>
+            <button onclick="checkinSess(<?= (int)$b->id; ?>)">Check In Today</button>
+          </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
+
       <?php
       /* No Closed stage — a cleared visit is finished business and the queue
          lists only what is still moving. History lives on the patient page. */

@@ -8,6 +8,23 @@ class Customers extends MY_Controller {
 		$this->load->model('customers_model','customers');
 	}
 
+	private function _linked_patient_for_customer($customer_id, $store_id = null){
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		$store_id = $store_id ?: get_current_store_id();
+		if(!physio_enabled($store_id) || !mp_feature_enabled('patient_registry')){
+			return null;
+		}
+		if(!$this->db->table_exists('db_patients')){
+			return null;
+		}
+		return $this->db->select('id, patient_code')
+			->where('customer_id', (int)$customer_id)
+			->where('store_id', (int)$store_id)
+			->order_by('id', 'desc')
+			->get('db_patients')
+			->row();
+	}
+
 	public function index()
 	{
 		$this->permission_check('customers_view');
@@ -266,6 +283,11 @@ class Customers extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Customer Statement';
 		$data['customer'] = $this->db->where('id', $id)->get('db_customers')->row();
+		$linked_patient = $this->_linked_patient_for_customer($id);
+		$data['linked_patient'] = $linked_patient;
+		$data['profile_url'] = $linked_patient
+			? base_url('patients/profile/' . (int)$linked_patient->id)
+			: base_url('customers/profile/' . (int)$id);
 		$from = $this->input->get('from');
 		$to = $this->input->get('to');
 		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
@@ -392,6 +414,11 @@ class Customers extends MY_Controller {
 		$this->permission_check('customers_view');
 		$data = $this->data;
 		$store_id = get_current_store_id();
+		$linked_patient = $this->_linked_patient_for_customer($id, $store_id);
+		if($linked_patient && $this->input->get('retail') !== '1'){
+			redirect('patients/profile/' . (int)$linked_patient->id);
+			return;
+		}
 
 		// Customer details
 		$customer = $this->db->where('id', $id)->get('db_customers')->row();

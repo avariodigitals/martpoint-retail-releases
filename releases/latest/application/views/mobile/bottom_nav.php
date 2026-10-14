@@ -225,7 +225,7 @@
 <div class="mp-mobile-footer">
   <nav class="mp-mobile-bottom-nav <?= $is_physio ? 'physio-mobile-bottom-nav' : ''; ?>" aria-label="Mobile workspace navigation">
   <?php if($is_physio): ?>
-    <?php if(physio_can_any(array('patients_view','appointments_view','care_queue_view','admissions_view'))): ?><a href="<?= base_url('dashboard'); ?>" class="nav-item <?= $active === 'home' ? 'active' : ''; ?>"><i class="fa fa-inbox icon"></i><span>Home</span></a><?php endif; ?>
+    <?php if(physio_can_any(array('patients_view','appointments_view','care_queue_view','admissions_view'))): ?><a href="<?= base_url('mobile'); ?>" class="nav-item <?= $active === 'home' ? 'active' : ''; ?>"><i class="fa fa-inbox icon"></i><span>Home</span></a><?php endif; ?>
     <?php if(physio_can('patients_view')): ?><a href="<?= base_url('mobile/patients'); ?>" class="nav-item <?= $active === 'patients' ? 'active' : ''; ?>"><i class="fa fa-address-book-o icon"></i><span>Patients</span></a><?php endif; ?>
     <?php if(physio_can('care_queue_view')): ?><a href="<?= base_url('mobile/care_queue'); ?>" class="nav-item <?= $active === 'care_queue' ? 'active' : ''; ?>"><i class="fa fa-list-ol icon"></i><span>Queue</span></a><?php endif; ?>
     <?php if(physio_can('sessions_view')): ?><a href="<?= base_url('mobile/sessions'); ?>" class="nav-item <?= $active === 'sessions' ? 'active' : ''; ?>"><i class="fa fa-stethoscope icon"></i><span>Sessions</span></a><?php endif; ?>
@@ -248,7 +248,7 @@
     <a href="<?= base_url('mobile/ward_tasks'); ?>" class="nav-item <?= $active === 'ward_tasks' ? 'active' : ''; ?>"><i class="fa <?= $wardIcon; ?> icon"></i><span><?= $wardLabel; ?></span></a>
     <?php endif; ?>
     <?php if(physio_can('admissions_view')): ?><a href="<?= base_url('mobile/admissions'); ?>" class="nav-item <?= $active === 'admissions' ? 'active' : ''; ?>"><i class="fa fa-bed icon"></i><span>Beds</span></a><?php endif; ?>
-    <?php if(physio_can_any(array('patient_billing_view','patient_funds_view'))): ?><a href="<?= base_url('patient_funds'); ?>" class="nav-item <?= $active === 'accounts' ? 'active' : ''; ?>"><i class="fa fa-file-text-o icon"></i><span>Accounts</span></a><?php endif; ?>
+    <?php if(physio_can_any(array('patient_billing_view','patient_funds_view'))): ?><a href="<?= base_url('mobile/patient_accounts'); ?>" class="nav-item <?= $active === 'accounts' ? 'active' : ''; ?>"><i class="fa fa-file-text-o icon"></i><span>Accounts</span></a><?php endif; ?>
     <?php if($can_more): ?><a href="<?= base_url('mobile/more'); ?>" class="nav-item <?= $active === 'more' ? 'active' : ''; ?>"><i class="fa fa-ellipsis-h icon"></i><span>More</span></a><?php endif; ?>
   <?php else: ?>
   <?php if($can_home): ?>

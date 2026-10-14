@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.151",
+    "version": "4.0.9.154",
     "previous_version": "4.0.9.139",
-    "release_date": "2026-10-13",
+    "release_date": "2026-10-15",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -71,8 +71,8 @@
         },
         {
             "path": "application/views/marketing/desktop/_styles.php",
-            "hash": "89561309cfc00190f2a56db52ddb5ec2b6814e40000c9fc8056c6e8a8930ccdb",
-            "size": 18442
+            "hash": "60c8cc0dc2ac0c93b7572b23dd0bfc48dae075e64f8dce0344a3d3591addbc22",
+            "size": 19179
         },
         {
             "path": "application/views/marketing/desktop/gift_cards/list.php",
@@ -136,8 +136,8 @@
         },
         {
             "path": "application/views/components/card_lanes.php",
-            "hash": "2ed34c098e2fb36bdc37e7f275fddf683d4d14857fbc6d56ad16e5be251b11e3",
-            "size": 2067
+            "hash": "4e85bfaf6d3c0e17ba2df6e5d8de3fa810d47a4cc04c67aebe4a03640479291c",
+            "size": 2090
         },
         {
             "path": "application/views/components/book_session.php",
@@ -153,6 +153,11 @@
             "path": "application/views/report-cash-flow.php",
             "hash": "81d097fabd25a6d9e13d5d9787b653e2d73c070ee595089013d3e10914852ae4",
             "size": 10402
+        },
+        {
+            "path": "application/views/physio_settings/documents.php",
+            "hash": "db99758d46535a48d800e3f396f6685bca8d752641ad45b0d0ebee48a33a6432",
+            "size": 2119
         },
         {
             "path": "application/views/dashboard.php",
@@ -656,8 +661,8 @@
         },
         {
             "path": "application/views/patient_billing/statement_a4.php",
-            "hash": "f7aaf8426e14166195302b810ac5a6eb333a8a854e94c3ddb714c64e72e98bb0",
-            "size": 3482
+            "hash": "d1547bfff627829bd43fbfa3bca039142e7b9633c4668c7d3868211fbd68b4b1",
+            "size": 3789
         },
         {
             "path": "application/views/patient_billing/system_account.php",
@@ -666,8 +671,8 @@
         },
         {
             "path": "application/views/patient_billing/index.php",
-            "hash": "de979e51f57104dc25ee3eb895a6570e9d6c59106d211d93031d5dfdf78d0052",
-            "size": 6755
+            "hash": "6ce0680f816a02f28d378b4ce5ca7fe4e7d3915b20645e58a92c2afb3f3fd190",
+            "size": 7382
         },
         {
             "path": "application/views/patient_billing/invoice_a4.php",
@@ -1091,8 +1096,8 @@
         },
         {
             "path": "application/views/themes/printing/layout.php",
-            "hash": "767ba9f99c7259761053322f7cdaad71e7326e2768a7a54d812c2ae618dcee09",
-            "size": 7216
+            "hash": "4edf3d099879944391eb9fc1aa87871bf7e11f97a40733d959d1d32842115d31",
+            "size": 7285
         },
         {
             "path": "application/views/themes/printing/scripts.php",
@@ -1450,6 +1455,11 @@
             "size": 154
         },
         {
+            "path": "application/views/themes/shared/product_image_fallbacks.php",
+            "hash": "4eea5af8ce16a061740210b7daaee3ca46bb7d3e6bbae2aad8d5ccdade0ae14e",
+            "size": 1528
+        },
+        {
             "path": "application/views/themes/shared/about.php",
             "hash": "8033bce1057cc11f03f889afda3d633459784c901a6648605b8cdc3b017bcbfd",
             "size": 1584
@@ -1601,8 +1611,8 @@
         },
         {
             "path": "application/views/themes/shared/layout.php",
-            "hash": "8ad6a336cb134587d8f9689a202eddf25f8d72236557c93529635ded186c30ee",
-            "size": 13724
+            "hash": "3c04bd1360ea3ef6f1e8f0b7b6d850a1efcdd4428615b4ff0c15b5a9930dca86",
+            "size": 13793
         },
         {
             "path": "application/views/themes/shared/vehicle.php",
@@ -1986,8 +1996,8 @@
         },
         {
             "path": "application/views/mobile/bottom_nav.php",
-            "hash": "7ed683d0849a3ed4ee74341790d9270c0bd46b1a266dc1456a1636729b3bf5b0",
-            "size": 22934
+            "hash": "96705ada6a0907575f564c3237ae3580c2c8a9786dc72f882b7bcacd85893552",
+            "size": 22941
         },
         {
             "path": "application/views/mobile/printing.php",
@@ -2036,8 +2046,8 @@
         },
         {
             "path": "application/views/mobile/appointments.php",
-            "hash": "2dc322868a1d658b59b2dc9ad8a3012bb669a55bc8ce1cfa1eca57e3157ad0e8",
-            "size": 8054
+            "hash": "b668bd603b924edf15ab58173b7902fbc39721399a0da56ea2eb895007a8e362",
+            "size": 8475
         },
         {
             "path": "application/views/mobile/sessions.php",
@@ -2331,8 +2341,8 @@
         },
         {
             "path": "application/views/mobile/patient_profile.php",
-            "hash": "970d7dfe8cc2b3079e5d30a6d92f2583b3ce19d1d4aa03e5da4e07d33ede8ce5",
-            "size": 9440
+            "hash": "159771b0b80f8bc56ddb0e6f740c20b335dc26793c2d78bc36b86ddae43d66eb",
+            "size": 15996
         },
         {
             "path": "application/views/mobile/sales_payments.php",
@@ -2491,8 +2501,8 @@
         },
         {
             "path": "application/views/mobile/care_queue.php",
-            "hash": "797416ca678193639464a3974cae2666a1457b1dd1c356a78424c3a3f5b92780",
-            "size": 28420
+            "hash": "bf62b8e0f75297ab7bb0b59126537392db002bbec95395e1dce1360857f69971",
+            "size": 29201
         },
         {
             "path": "application/views/mobile/sale.php",
@@ -2551,8 +2561,8 @@
         },
         {
             "path": "application/views/mobile/patient_form.php",
-            "hash": "6e7427b3ad52c252146888c5c1729ef9df3f8ff233953da4622d618494818463",
-            "size": 13030
+            "hash": "5b5b8dc936e3306806591d563786c299365226539559d07b66e2c8bef1e2631d",
+            "size": 15191
         },
         {
             "path": "application/views/mobile/loyalty/product_points.php",
@@ -2596,8 +2606,8 @@
         },
         {
             "path": "application/views/mobile/customer_form.php",
-            "hash": "90fd3da1c6e5495405b3e8537b91c911c2042911bf32d410bce66bb22b5d9fad",
-            "size": 24568
+            "hash": "6dff6ddca3b6b1edd022538978b20af584e0038576208971cda1ed8c25e9ed8d",
+            "size": 25009
         },
         {
             "path": "application/views/mobile/help.php",
@@ -2656,8 +2666,8 @@
         },
         {
             "path": "application/views/mobile/clinic_home.php",
-            "hash": "8872eb18015b1e22af2e1220eb8f8985b0bb224b7ddc06442d23b8d294ccc2ab",
-            "size": 17706
+            "hash": "6c39e7229748fe9a958911fa03f0165d3da006f3065eb4004d5d26e010c58185",
+            "size": 18690
         },
         {
             "path": "application/views/mobile/nylon_jobs.php",
@@ -2691,18 +2701,23 @@
         },
         {
             "path": "application/views/mobile/customer_profile.php",
-            "hash": "67af3a5b58ea20f75abae3e66b65bcd576f45e98fd2a09d866db016227c405b9",
-            "size": 41844
+            "hash": "c9d25f7032b42829767350259d045359a319d7715b7284e19f29231df9806092",
+            "size": 42132
         },
         {
             "path": "application/views/mobile/finance_list.php",
-            "hash": "eda9d7422e4334cb74e4f8bc996755e340a608bdddbfb81722330234be2ce842",
-            "size": 12684
+            "hash": "5091b290d65320d42b2f80fe4edad4997d8aabf8e35d289696d83879997a2fb0",
+            "size": 13208
         },
         {
             "path": "application/views/mobile/support.php",
             "hash": "76bbe79adb40a44ce6588459e62e4a4ebb60927076cd3b3e22cd37fb1a7fd856",
             "size": 5531
+        },
+        {
+            "path": "application/views/mobile/patient_accounts.php",
+            "hash": "976461c3776c429d525ee647e18ea3303f402b722c673cb5595fce5c7e71620f",
+            "size": 6378
         },
         {
             "path": "application/views/mobile/supplier_form.php",
@@ -3206,8 +3221,8 @@
         },
         {
             "path": "application/views/reports/clinical/revenue.php",
-            "hash": "ed35c736b8fdcef7a2b3d4b0e3aa3de81b55deeb9290a4b5e734cf76baacb2df",
-            "size": 3613
+            "hash": "b352482b2782b03417911479e27f96e98151e610ea3c74396ef0905125f0108b",
+            "size": 3595
         },
         {
             "path": "application/views/reports/clinical/procurement.php",
@@ -3606,8 +3621,8 @@
         },
         {
             "path": "application/views/mp_header.php",
-            "hash": "7e0e7bda4022aa596caafb7c722d3d29c2acdad641107595b4a79158700d2028",
-            "size": 66654
+            "hash": "450a39584fef4c2c67b0fb2c6491aff134eeb939f60e175ab1f5469308167e4a",
+            "size": 67214
         },
         {
             "path": "application/views/finance/desktop/tills/list.php",
@@ -3656,8 +3671,8 @@
         },
         {
             "path": "application/views/finance/desktop/expense/form.php",
-            "hash": "e421410317915cb544475a134ad2f44b2aad6e26176896656d3ff128df59e817",
-            "size": 6263
+            "hash": "b01c39452e9dfdef52c2f147685af093a38af194ed4972efa51f5c245f8a458a",
+            "size": 7214
         },
         {
             "path": "application/views/finance/desktop/expense/category_list.php",
@@ -3666,8 +3681,8 @@
         },
         {
             "path": "application/views/finance/desktop/_styles.php",
-            "hash": "e0d83fc780c94830928864546aa0e389dd0bee34edf5202a143ab05caf115e8a",
-            "size": 18715
+            "hash": "6e44a2ff7640de6838392921f757bc396ac9e075a92074cdcf93134927919c38",
+            "size": 19452
         },
         {
             "path": "application/views/finance/desktop/accounts/list.php",
@@ -3816,23 +3831,23 @@
         },
         {
             "path": "application/views/care_queue/_card.php",
-            "hash": "b6cede6d9cb51ab67fb7d85d3b8bde7159efe56619c7437b4d10dce13066f99d",
-            "size": 11348
+            "hash": "cb6f1736e1018d27f1b1bcd086fdf2f66bad3dcd60396549937c55eb9177523c",
+            "size": 12157
         },
         {
             "path": "application/views/care_queue/encounter.php",
-            "hash": "29928f7d1d98ede5904e0fe8213bdc33cd4042c6f1c0cb3ac84cc694a7d0fa10",
-            "size": 38258
+            "hash": "f3eda4e50b28fa99a34f80fdd348132bda44187f156dcb81bb729a455efa316a",
+            "size": 49707
         },
         {
             "path": "application/views/care_queue/session_ticket.php",
-            "hash": "9d824afa9594a7727bc3123516b877744cbb6b52dfae22fd83905c47fb8527bf",
-            "size": 4099
+            "hash": "aa2d4b893941567b4df451eb9cf1090d8c05e9930ed0eae65f8c23e667d39860",
+            "size": 4989
         },
         {
             "path": "application/views/care_queue/index.php",
-            "hash": "9e2fc017cd26757692c18997e46479dd60c34f74d9d73e40c62ce66038f8f531",
-            "size": 48327
+            "hash": "83b4190a2f319540a2d305482c5a50937038c61441cc835622d2dee4c97c08c2",
+            "size": 53431
         },
         {
             "path": "application/views/sms-templates-list.php",
@@ -3951,8 +3966,8 @@
         },
         {
             "path": "application/views/comman/workspace_intelligence.php",
-            "hash": "3ae8c53c8864b5b033e17f531797442e108f95b7ce9d97d84c906b505663d546",
-            "size": 2573
+            "hash": "5bf55efbd7aa09b4cb6363683281b2845c6cb26bed614299883ecdbbae204bdd",
+            "size": 3057
         },
         {
             "path": "application/views/comman/code_js_language.php",
@@ -4006,13 +4021,13 @@
         },
         {
             "path": "application/views/physio_dashboard.php",
-            "hash": "80515d3cc79f9f3d13d795c90d90b6a31c3fe4fc6b0dd05001b07c65cb56fd23",
-            "size": 18454
+            "hash": "3a2eaa271c1327d771819a399a6e7356b896a2e446837e871e9669fb6b05d87d",
+            "size": 18499
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "b424d911a3515cacd5ea794b1e789c2727b62e7582a8e05aabfa58e5a47e3edf",
-            "size": 92788
+            "hash": "0920834fd870a48f5d620ba1b21035f1d5ee5c1662fccbb96611f8b667be0f59",
+            "size": 92797
         },
         {
             "path": "application/views/report-stock.php",
@@ -4046,13 +4061,13 @@
         },
         {
             "path": "application/views/assessments/form.php",
-            "hash": "c454bc160269b8111f13bd3c0a89e89e8c2aa58d0d14d3b90b451b6a5dcfd25f",
-            "size": 15511
+            "hash": "d68091afbef5c370b6b09040b85015975d46183f69338e4122fc3c5785e19f7a",
+            "size": 19007
         },
         {
             "path": "application/views/assessments/print.php",
-            "hash": "a61202ef1318d8ce0fd5cceb60cfc6f7dc8a43c9a5d0d034e00c578d1413c525",
-            "size": 3485
+            "hash": "f58ff12addf1d8860f8fcce9cff32f4915f47888b4f4128d690023ee8719947e",
+            "size": 3797
         },
         {
             "path": "application/views/ninverify_usage.php",
@@ -4256,13 +4271,13 @@
         },
         {
             "path": "application/views/patients/profile.php",
-            "hash": "c34243e1ddade02ddb0711bf0956a7d1e82a54c630c5d314eb21939644ff2376",
-            "size": 19385
+            "hash": "efa93e20babb0e53037026b57b4910bf53d237bb26929d3c1455b34c9000e20c",
+            "size": 37863
         },
         {
             "path": "application/views/patients/index.php",
-            "hash": "d53ad29238a5f0729130e9e83b1a6b18b66926376ca60844d8351a82c470b712",
-            "size": 19495
+            "hash": "dd4d7f92bd3e580e8f7a2a101be302a2807b30b5c2527e1a352774d40af9fba0",
+            "size": 23128
         },
         {
             "path": "application/views/sales-list.php",
@@ -4796,8 +4811,8 @@
         },
         {
             "path": "application/views/treatment_plans/view.php",
-            "hash": "66b420875265c853b1d62c50570bf77ba7ad54bd356c51fda4d1dcf4e93ee0a8",
-            "size": 10609
+            "hash": "6ab1f9b57c1164e488131d49ebdf2cf77af52a413b49d56b684b5da479985ffb",
+            "size": 10679
         },
         {
             "path": "application/views/treatment_plans/form.php",
@@ -4856,8 +4871,8 @@
         },
         {
             "path": "application/views/sessions/index.php",
-            "hash": "0db9058ad01cc2844a3431d8464af0c471af0fad1d8ccff50874a1d91528487d",
-            "size": 9933
+            "hash": "9ac54b9993c4542cec19705e506d8507d3b5e18b7cfe7d924f4585125c83491c",
+            "size": 11192
         },
         {
             "path": "application/views/sessions/ticket.php",
@@ -4961,13 +4976,13 @@
         },
         {
             "path": "application/views/shipping_fees.php",
-            "hash": "ded6eecdc38f684fc40b8b2ffed31e9922f370faac45b51c08c08960ba34b213",
-            "size": 6466
+            "hash": "8655d08bc014d78fa5fa66a48d1a213bbfc06da7836e9de198d42ee127df9148",
+            "size": 7478
         },
         {
             "path": "application/views/patient_funds/statement.php",
-            "hash": "c614de07150e1fe879a610b71dd04fc5506cc2faa14f4ff8c538c2dc1af8f9cb",
-            "size": 4579
+            "hash": "a484eba0805b6479b436adade19532862b8ba601e209181973bc744bbfe8b422",
+            "size": 4662
         },
         {
             "path": "application/views/patient_funds/openings.php",
@@ -4976,13 +4991,13 @@
         },
         {
             "path": "application/views/patient_funds/picker.php",
-            "hash": "bc90293e15d48e62667f9f1f70e6533584dc30d76e12105314248a4e39ddc705",
-            "size": 3949
+            "hash": "2ac2c135072ebd248a381892a7df1c1d2ae5b0bcd6743041cc911f29619682f1",
+            "size": 6030
         },
         {
             "path": "application/views/patient_funds/index.php",
-            "hash": "41c0e837357cfdd140cfb649ee0982c9937a5759b618c9ea8122f364ba8524d6",
-            "size": 9247
+            "hash": "64f922150aaf4e9c75d2f8e0c1b1c91a60b99ea4c25187ebffacc888d9a40c35",
+            "size": 10339
         },
         {
             "path": "application/views/report-sales-item.php",
@@ -5051,8 +5066,8 @@
         },
         {
             "path": "application/views/admin/desktop/roles_form.php",
-            "hash": "d4eefedacc61ef1669f10910bf1c4d26f30a0bcb60b8fb0a714bc87512f24383",
-            "size": 25537
+            "hash": "17e76fb809050db679b82bc54f0bd5923de70c24b04a3ae47d9a7af4b6e26ba9",
+            "size": 25639
         },
         {
             "path": "application/views/admin/desktop/crud_list.php",
@@ -5106,8 +5121,8 @@
         },
         {
             "path": "application/views/customers/desktop/statement.php",
-            "hash": "f839148fa8c8014428c086e39707703729fd9d805338cefcbc7de4d7a518c455",
-            "size": 4894
+            "hash": "d5af0f58ad933df462e7f3950c15e5be95a4b9f33c5542b3afc350711ccb0665",
+            "size": 7992
         },
         {
             "path": "application/views/customers/desktop/advance_form.php",
@@ -5121,13 +5136,13 @@
         },
         {
             "path": "application/views/customers/desktop/form.php",
-            "hash": "ef4ad980025c522ddad3b816cb0307b8e89a07fc424c75bb19b51ff2cfe887a9",
-            "size": 21926
+            "hash": "b413617c0d2cd9b46dae8b1a6d19a8743ce0f22e5dbd93844d25c893a2907ff0",
+            "size": 22513
         },
         {
             "path": "application/views/customers/desktop/profile.php",
-            "hash": "8f26516231fdf6858ba483b376edf9eeb300b4c68526ad98ccfa0922b710968e",
-            "size": 65664
+            "hash": "a94504137e9ab2b494adf8bc347385a8bae0ad25cd091b83260fd645a005f574",
+            "size": 66265
         },
         {
             "path": "application/views/customers/desktop/advance_list.php",
@@ -5206,8 +5221,8 @@
         },
         {
             "path": "application/views/appointments/index.php",
-            "hash": "7e350a46fa6620be064038a21b15e00e9cb3606b47723b48fb55ffd70df8814e",
-            "size": 17664
+            "hash": "5ab90670db27a66efc85454c83caad74f9c0abfa77396f948980e656ce9d892e",
+            "size": 18302
         },
         {
             "path": "application/views/accounts/money_transfer.php",
@@ -5261,8 +5276,8 @@
         },
         {
             "path": "application/views/physio_layout.php",
-            "hash": "9c2178345f468a224f4199d454d018c3f5defc3b19f1972affb487cb84ec16c1",
-            "size": 52555
+            "hash": "f434fc672da8b6dd6b344d554434121964eb84e39a881a4cfe9e0f11fec567a2",
+            "size": 56440
         },
         {
             "path": "application/config/assist_ai.php",
@@ -5311,8 +5326,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "42ac0b8bcf5320c9319086270176998ea3435bcdf2b4a2bd3c20bbbd4bae6991",
-            "size": 21848
+            "hash": "5b1aab305af8421ae330781b11faaf7a47c12e4981fb102109220f5e541c23cc",
+            "size": 22815
         },
         {
             "path": "application/config/routes.php",
@@ -5556,8 +5571,8 @@
         },
         {
             "path": "application/models/Customers_model.php",
-            "hash": "0922da3f84fa522c4cb140bb8034eac3ab0e234edbec7bb467a4b7bbff60b6e9",
-            "size": 66867
+            "hash": "1c9a4cee9c31dce8a9a0f2110db2931080afe2ae7d1be39911f2dbf5c507c8e2",
+            "size": 67940
         },
         {
             "path": "application/models/Installments_model.php",
@@ -5576,8 +5591,8 @@
         },
         {
             "path": "application/models/Patients_model.php",
-            "hash": "7bd69b03b7049eda38f61debb9e5a467a0f70ffc67c88f4f2a4e341ba64566ed",
-            "size": 15136
+            "hash": "476754f9e0322cd31c763d419d007d9710fdc73d4817b4eebde8675f5e089c25",
+            "size": 16487
         },
         {
             "path": "application/models/Subscription_model.php",
@@ -5591,8 +5606,8 @@
         },
         {
             "path": "application/models/Appointments_model.php",
-            "hash": "5db3f7126d4c225ab87025ad19d32eea77a77bf9eaec739aa15faccfb54d2d93",
-            "size": 10531
+            "hash": "192d1d75b60d50924abb2996e1c540c22d5023dc1bb83830912f726371c74e2c",
+            "size": 12008
         },
         {
             "path": "application/models/Debt_reminder_model.php",
@@ -5613,6 +5628,11 @@
             "path": "application/models/Email_templates_model.php",
             "hash": "3e96653212a24cd1d10864102266baf8fa71146e8120791a7f1f90f58b926240",
             "size": 5410
+        },
+        {
+            "path": "application/models/Session_notes_model.php",
+            "hash": "8c33f14f167b208826334b4aa63d113a005a44447fd99c3fe81cc99457d8da4a",
+            "size": 7693
         },
         {
             "path": "application/models/Online_payments_model.php",
@@ -5711,8 +5731,8 @@
         },
         {
             "path": "application/models/Patient_billing_model.php",
-            "hash": "4d118dcb122f12630c785cc093187301032023f172613ad18ec63e242855bf71",
-            "size": 41867
+            "hash": "6cb614394b84bc68597fef93356c0d5a6315eaa90666aad2ba18e5c65307db20",
+            "size": 42742
         },
         {
             "path": "application/models/Treatment_notes_model.php",
@@ -5761,8 +5781,8 @@
         },
         {
             "path": "application/models/Sessions_model.php",
-            "hash": "d15372663afde671994fa5b1ed401f816285e6a81e0abe6ba0ad877d2f92de45",
-            "size": 31569
+            "hash": "029c34ff748d3dbd2ef36cca5d98de0a4302e4224693313b86a3ce6b841972ff",
+            "size": 35813
         },
         {
             "path": "application/models/Oil_processing_model.php",
@@ -5816,8 +5836,8 @@
         },
         {
             "path": "application/models/Encounters_model.php",
-            "hash": "87ebd986b9f8dd4c042a5619797dfbd2db5e7ba1b11ab9d9bc2b53a9b733ee86",
-            "size": 44940
+            "hash": "18c10d3c9f3c66709d05c4c8c05d5c8f5cc2c52772a532bf4a6b159243b92559",
+            "size": 49175
         },
         {
             "path": "application/models/Tax_group_model.php",
@@ -5846,8 +5866,8 @@
         },
         {
             "path": "application/models/Assessments_model.php",
-            "hash": "761c1e257e63a523390c2c659c7ff8b724b47af21f7cb4c9d2038c1d7a2e01e3",
-            "size": 22262
+            "hash": "26cfe528da874422cb6b645aaca11846fa786fa6e7b311bfa548a10be930b063",
+            "size": 21909
         },
         {
             "path": "application/models/Items_model.php",
@@ -5906,8 +5926,8 @@
         },
         {
             "path": "application/models/Dashboard_model.php",
-            "hash": "b16f0ee44a358c2230ce8ab71fae68e029d107c9f0347bc782132cfdf7eaef7d",
-            "size": 60442
+            "hash": "499820d12625b80e113133cfd1c23a8464c1de0c443393a198a9f1b872ab6acd",
+            "size": 60731
         },
         {
             "path": "application/models/Membership_model.php",
@@ -6001,8 +6021,8 @@
         },
         {
             "path": "application/models/Reports_clinical_model.php",
-            "hash": "e32cea0df35f1d29c564e69f87e675bbfa87ee70021643ce1d0ed18e40ee65a0",
-            "size": 49150
+            "hash": "bbb3e8d489224d92ce864ece51be9616ca05f8b1175cfc3366c2054fd4284ae2",
+            "size": 49458
         },
         {
             "path": "application/models/Laundry_model.php",
@@ -6126,8 +6146,8 @@
         },
         {
             "path": "application/models/Patient_funds_model.php",
-            "hash": "4c8cc3ebcac328d8509c5fca12e6742913ec0cbef4eb58af65414aa4da515a8a",
-            "size": 41831
+            "hash": "0a2f63b04d351db07c825e3fb9d8d0e4ad614a1d59bfcbb417daa87a669c39d4",
+            "size": 43115
         },
         {
             "path": "application/models/Storefront_model.php",
@@ -6156,8 +6176,8 @@
         },
         {
             "path": "application/models/Roles_model.php",
-            "hash": "31e785559b8232f158b763f9f20cf01a95f18046fc473711203e46bbd59a5a45",
-            "size": 27603
+            "hash": "de9b64396ad3bdbb7524890f1abc81db6eb861c707497c2883a9c381b39a6717",
+            "size": 27649
         },
         {
             "path": "application/models/Business_profile_model.php",
@@ -6191,8 +6211,8 @@
         },
         {
             "path": "application/models/Default_data_model.php",
-            "hash": "d9e80425cc307caf5ded2ff3da5026d1813a3b60b5644170575727ec543396d5",
-            "size": 130241
+            "hash": "c3f09822639819596ebd84c8dc4f431214a7c52989a70c5ff2824775aca19b0e",
+            "size": 131445
         },
         {
             "path": "application/models/Patient_docs_model.php",
@@ -6390,6 +6410,11 @@
             "size": 50720
         },
         {
+            "path": "application/controllers/Physio_settings.php",
+            "hash": "21b6266207cb42bce35949346a8d2d6da3fd5241ee9d464219896015b64f8f6a",
+            "size": 2244
+        },
+        {
             "path": "application/controllers/Business_profile.php",
             "hash": "c89a4c7445f3a86bae9df6c93396fed0b1b4ea3fb2d726d04bc228aa23d73552",
             "size": 11491
@@ -6411,8 +6436,8 @@
         },
         {
             "path": "application/controllers/Sessions.php",
-            "hash": "0a9e545ebe04430fc4f9e3b17bb0d6c016684fedc98a8bb4b2f6bc3631527980",
-            "size": 10010
+            "hash": "23b958f4a03867f683cbfc1bd4af3a8ef987ea7fa9de14b01d2868e2029877b7",
+            "size": 12671
         },
         {
             "path": "application/controllers/Printing_ops.php",
@@ -6471,8 +6496,8 @@
         },
         {
             "path": "application/controllers/Dashboard.php",
-            "hash": "c7ec25bc5a5846363e976fd19e245d9dc6d8a2a4fbeed7662dddbba4fe3bc3a2",
-            "size": 41983
+            "hash": "03402387362af29f92d2e7981ecc878091794897105d94a936bce6c961737fa8",
+            "size": 42707
         },
         {
             "path": "application/controllers/Feedback.php",
@@ -6491,8 +6516,8 @@
         },
         {
             "path": "application/controllers/Care_queue.php",
-            "hash": "f520b3151bf7f2e42b96035724204c28653ea56dc4daf5f4ac91ec60091447c8",
-            "size": 40727
+            "hash": "72d520ac098f59d6d1107762fa4bdcf3d474f9a33f230b5ca1bcdcddf6b834f9",
+            "size": 44862
         },
         {
             "path": "application/controllers/Nylon.php",
@@ -6501,8 +6526,8 @@
         },
         {
             "path": "application/controllers/Patients.php",
-            "hash": "9d9e7af874df6d33184e27b0296bcd2d3f5f2bec3426adc9e137d53d4faee2ca",
-            "size": 15338
+            "hash": "14fbb0cfa33f52d76a8872ab343ff609775948cb16a5830b89ceea4ab298c56d",
+            "size": 15524
         },
         {
             "path": "application/controllers/Automobile.php",
@@ -6636,8 +6661,8 @@
         },
         {
             "path": "application/controllers/Customers.php",
-            "hash": "3c5bdbbf99a9a13046024cd8ed96fd903e1bb50c8af9e16509aab5b0da54bddf",
-            "size": 34027
+            "hash": "beb513b687a8511c704e9290a4b2f88a4c7e9d6a87230c7870f76f8442ae3467",
+            "size": 35065
         },
         {
             "path": "application/controllers/Assessment_templates.php",
@@ -6676,8 +6701,8 @@
         },
         {
             "path": "application/controllers/Assessments.php",
-            "hash": "bc199ce693d296c17e27c1c3d452bd4f08763985e5fde760ab514db100872871",
-            "size": 9838
+            "hash": "d80e62765ca22033cf460986f690f913707844ffa8ef85a28cb2228441d05a9c",
+            "size": 11533
         },
         {
             "path": "application/controllers/Verify_rail.php",
@@ -6731,8 +6756,8 @@
         },
         {
             "path": "application/controllers/Appointments.php",
-            "hash": "030416ba056ffadf003cdb927873a5331ba3b54f60180abdd00998ebd98fbcd9",
-            "size": 6959
+            "hash": "ada7809b0623fa2579716ee044c06490a2418badaf42571e06770b4897ea4057",
+            "size": 7880
         },
         {
             "path": "application/controllers/Printing.php",
@@ -6791,8 +6816,8 @@
         },
         {
             "path": "application/controllers/Patient_funds.php",
-            "hash": "28ec73b799e05da5d6da198dd88518e73e9379ac138a63694f820683d3d71cc2",
-            "size": 15704
+            "hash": "27d99e65f45cbb62dfb022bedf1a4faa7c6f94f23a0afc21c15d7d4915572cfc",
+            "size": 17163
         },
         {
             "path": "application/controllers/Customers_advance.php",
@@ -6831,8 +6856,8 @@
         },
         {
             "path": "application/controllers/Import.php",
-            "hash": "7414a71684d67d63f32b6568f5aaac65a83397209c68ee29dd34ffc1ad1b4bf5",
-            "size": 116575
+            "hash": "3b49dfd5fc3c6b4442b0f70cfd98a6af534da9c546725c79396fef6dc0b7d89f",
+            "size": 116742
         },
         {
             "path": "application/controllers/Session_lock.php",
@@ -6871,8 +6896,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "fd59e8e7891f7856fbe9f7a139ce2c545eb7e1af579f9d34aefa1bea4a7b3919",
-            "size": 394726
+            "hash": "f76ca962cb9cb9849afdbaf74dda64f42fa84f16bec3011bce1d577955e13fb5",
+            "size": 400287
         },
         {
             "path": "application/controllers/Migrate.php",
@@ -6891,8 +6916,8 @@
         },
         {
             "path": "application/controllers/Shipping_fees.php",
-            "hash": "db281d5fce489aee4f95b14968265a4a618209d737542b4328929e4f4ea476c4",
-            "size": 3362
+            "hash": "341fd70ed8c9034a97ea5cab6c4a3e23f1692e33d2e84d2a28c62fcf5420797a",
+            "size": 6466
         },
         {
             "path": "application/controllers/Users.php",
@@ -6911,8 +6936,8 @@
         },
         {
             "path": "application/controllers/Patient_billing.php",
-            "hash": "177408fa7e5942a552c70b864eadbb0824f31ae9fee23df513a919168ab8952f",
-            "size": 17467
+            "hash": "4ac6755422142060962c66c9a3e05393797f34a47cc8f01a2c0bd46fd5698b13",
+            "size": 18649
         },
         {
             "path": "application/controllers/Publicpdf.php",
@@ -7606,8 +7631,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "b897d7c50bc97d4eea2c7623fc66ff0acf9005bddf92cb4c1533a2764e216ef7",
-            "size": 36519
+            "hash": "117afe2aed43086082b92cf34e018c2cb8584c5b1ee3b4655620b88a066dd1d2",
+            "size": 39427
         },
         {
             "path": "application/libraries/stripe/init.php",
@@ -9916,8 +9941,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "1b9adce2b2ff28d44276c7769139f1c677c276f66ff1eaa1c83caf44e5b034d7",
-            "size": 167204
+            "hash": "243a144c0fd7e015a3d9ec40596f4ae517e48025769aed56b791cf14f85d16ec",
+            "size": 167572
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -11361,7 +11386,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "d9d7759990ffa3ce0de3b46a91b140117229aa67214a5bd07a2a00780ffeb67e",
+            "hash": "d866237361baa21c7688849befc995d4721c20f6ef174a653b7c0f80957de147",
             "size": 106508
         },
         {
@@ -11425,9 +11450,14 @@
             "size": 6142
         },
         {
+            "path": "application/helpers/storefront_product_image_helper.php",
+            "hash": "edd62284a26268158062c33b19b2e06170ff5e990153aeefe5df7f79e5cd5a28",
+            "size": 2479
+        },
+        {
             "path": "application/helpers/physio_helper.php",
-            "hash": "6b79fc97ab0723876a465536b0db97f05abd5f14a882fff432364b0ff4ad82e9",
-            "size": 41296
+            "hash": "ea4dc56dd48b450e5f43e823e398274db5c6d35a1f7a89967ea9a59206f3a0a1",
+            "size": 41376
         },
         {
             "path": "application/helpers/appinfo_helper.php",
@@ -11466,8 +11496,8 @@
         },
         {
             "path": "application/helpers/business_profile_helper.php",
-            "hash": "3d86585423c6c66f5a71c0880722a2928cb58f4753a30cb3dace82f17b8474dc",
-            "size": 85080
+            "hash": "7685e1cf7ae7cccd71c6d3c46379b2803f02d75f1abc406289b4212502cdcab1",
+            "size": 86181
         },
         {
             "path": "application/helpers/approval_helper.php",
@@ -17871,6 +17901,9 @@
         "4.0.9.149_treatment_plan_encounter.sql",
         "4.0.9.150_shipping_round_off_repair.sql",
         "4.0.9.151_admission_care_episode.sql",
+        "4.0.9.152_session_treatment_notes.sql",
+        "4.0.9.153_treatment_chart_therapist.sql",
+        "4.0.9.154_physio_document_secret.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
         "4.0.9.24_audit_trail.sql",
@@ -17958,6 +17991,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "bb6255750f4dfa37b5deb473b8d5cf1ba590b945f2255de202cff8dd24283d882f87fd8cfba8314d7a81080b4ac7e9433eaf9a7e23b1262b77b737e974133e01",
-    "changelog": "Release 4.0.9.151"
+    "signature": "b09f3b05a7a864e9e8c9431277dde9d23b831aa1ea2ba2183be0105797eb5786f0b2eab8357972a614c4b960c6921cedb0bcbe35af2b0ac0ffeddc7c2e868c04",
+    "changelog": "Release 4.0.9.154"
 }

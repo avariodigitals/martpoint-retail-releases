@@ -63,6 +63,7 @@
             case 'money_deposits': $can_add = permissions('money_deposit_add'); break;
             case 'tills': $can_add = permissions('tills_add'); break;
             case 'expenses': $can_add = permissions('expense_add'); break;
+            case 'expense_categories': $can_add = false; break;
           }
         ?>
         <?php if($can_add): ?>
@@ -93,7 +94,8 @@
               (($type == 'money_deposits') ? ($r->reference_no.' '.get_account_name($r->credit_account_id)) :
               (($type == 'tills') ? ($r->till_name) :
               (($type == 'expenses') ? ($r->expense_for.' '.$r->reference_no) :
-              (($type == 'cash_transactions') ? ($r->payment_code.' '.$r->payment_note) : '')))))
+              (($type == 'expense_categories') ? ($r->category_name) :
+              (($type == 'cash_transactions') ? ($r->payment_code.' '.$r->payment_note) : ''))))))
             ); ?>">
 
               <?php if($type == 'accounts'): ?>
@@ -162,6 +164,10 @@
                     <a href="<?= base_url('mobile/finance/expenses/form/'.$r->id); ?>" class="action edit"><i class="fa fa-edit"></i> Edit</a>
                   <?php endif; ?>
                 </div>
+              <?php elseif($type == 'expense_categories'): ?>
+                <div class="fin-title"><?= htmlspecialchars($r->category_name); ?></div>
+                <div class="fin-meta"><i class="fa fa-tags"></i> Expense category</div>
+                <div class="fin-meta"><i class="fa fa-calendar"></i> <?= !empty($r->created_date) ? show_date($r->created_date) : 'Active'; ?></div>
               <?php endif; ?>
             </div>
           <?php endforeach; ?>

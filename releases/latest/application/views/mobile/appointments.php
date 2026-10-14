@@ -20,7 +20,9 @@
     .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
     .topbar h1 { font-size: 22px; font-weight: 700; margin: 0; }
     .datebar { display: flex; gap: 8px; margin-bottom: 14px; }
-    .datebar input { flex: 1; padding: 11px 14px; border: 1px solid var(--mp-border); border-radius: 10px; font-size: 14px; }
+    .datebar .dfield { flex: 1; min-width: 0; }
+    .datebar label { display: block; font-size: 11px; font-weight: 700; color: var(--mp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+    .datebar input { width: 100%; padding: 11px 14px; border: 1px solid var(--mp-border); border-radius: 10px; font-size: 14px; }
     .ap-card { background: #fff; border-radius: 16px; border: 1px solid var(--mp-border); padding: 14px 16px; margin-bottom: 10px; }
     .ap-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
     .ap-time { font-size: 18px; font-weight: 800; color: var(--mp-ink); }
@@ -54,7 +56,8 @@
       </div>
 
       <form method="get" action="<?= base_url('mobile/appointments'); ?>" class="datebar">
-        <input type="date" name="date" value="<?= htmlspecialchars($filter_date); ?>" onchange="this.form.submit()">
+        <div class="dfield"><label>From</label><input type="date" name="from" value="<?= htmlspecialchars($filter_from); ?>" onchange="this.form.submit()"></div>
+        <div class="dfield"><label>To</label><input type="date" name="to" value="<?= htmlspecialchars($filter_to); ?>" onchange="this.form.submit()"></div>
       </form>
 
       <?php if(!empty($appointments)): ?>

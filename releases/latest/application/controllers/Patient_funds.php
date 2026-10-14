@@ -41,10 +41,41 @@ class Patient_funds extends MY_Controller {
 			}
 			$storeId = get_current_store_id();
 			$search = trim($this->input->get('search', TRUE) ?: '');
+			$patients = $this->patients->getPatients($storeId, 'active', $search, 100);
+			$summaries = array();
+			$patientIds = array();
+			foreach($patients as $p){ $patientIds[] = (int)$p->id; }
+			$packageHeld = array();
+			if($patientIds && $this->db->table_exists('db_plan_entitlements')){
+				$rows = $this->db->select('patient_id, COALESCE(SUM(GREATEST(funded_amount - consumed_amount,0)),0) AS held, COALESCE(SUM(units_total - units_used),0) AS sessions_left', false)
+					->where('store_id', $storeId)->where('status', 'active')
+					->where('units_total > units_used', null, false)
+					->where_in('patient_id', $patientIds)
+					->group_by('patient_id')->get('db_plan_entitlements')->result();
+				foreach($rows as $r){
+					$packageHeld[(int)$r->patient_id] = array(
+						'held' => round((float)$r->held, 2),
+						'sessions_left' => (float)$r->sessions_left,
+					);
+				}
+			}
+			foreach($patients as $p){
+				$bal = $this->funds->getBalances((int)$p->id, $storeId);
+				$pkg = isset($packageHeld[(int)$p->id]) ? $packageHeld[(int)$p->id] : array('held' => 0, 'sessions_left' => 0);
+				$summaries[(int)$p->id] = array(
+					'available' => $bal ? (float)$bal['available'] : 0,
+					'reserved'  => $bal ? (float)$bal['reserved'] : 0,
+					'pending'   => $bal ? (float)$bal['pending'] : 0,
+					'retail_advance' => $bal ? (float)$bal['retail_advance'] : 0,
+					'package_held' => (float)$pkg['held'],
+					'sessions_left' => (float)$pkg['sessions_left'],
+				);
+			}
 			$data = array_merge($this->data, array(
 				'page_title' => 'Patient accounts',
-				'patients'   => $this->patients->getPatients($storeId, 'active', $search, 100),
+				'patients'   => $patients,
 				'search'     => $search,
+				'account_summaries' => $summaries,
 				'openings_pending' => $this->funds->openingPositionsPendingCount(),
 			));
 			$data['content'] = $this->load->view('patient_funds/picker', $data, TRUE);

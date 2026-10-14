@@ -626,11 +626,15 @@ class Reports_clinical_model extends CI_Model {
 			->get()->row();
 		$out['collected'] = (float) ($paid->t ?? 0);
 
-		// Funds held against treatment plans.
-		if ($this->has('db_fund_reservations')) {
-			$r = $this->db->select('COALESCE(SUM(amount_reserved - amount_consumed),0) AS s, COUNT(*) n', false)
+		/* Funds held — the same figure the dashboard tile shows: money paid in
+		   for sessions that have not been drawn yet. A wallet reservation is only
+		   part of this picture (most packages are paid at the counter), so the
+		   entitlement counters are the authoritative source. */
+		if ($this->has('db_plan_entitlements')) {
+			$r = $this->db->select('COALESCE(SUM(GREATEST(funded_amount - consumed_amount,0)),0) AS s, COUNT(*) n', false)
 				->where('store_id', $store)->where('status', 'active')
-				->get('db_fund_reservations')->row();
+				->where('units_total > units_used', null, false)
+				->get('db_plan_entitlements')->row();
 			$out['held'] = (float) ($r->s ?? 0);
 			$out['held_reservations'] = (int) ($r->n ?? 0);
 		}

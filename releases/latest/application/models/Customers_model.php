@@ -28,6 +28,30 @@ class Customers_model extends CI_Model {
 		parent::__construct();
 	}
 
+	private function _upload_customer_photo(){
+		if(empty($_FILES['photo']['name']) || !$this->db->field_exists('photo', 'db_customers')){
+			return null;
+		}
+		$upload_dir = FCPATH . 'uploads/customers/photos/';
+		if(!is_dir($upload_dir)){
+			@mkdir($upload_dir, 0755, true);
+		}
+		$config = array(
+			'file_name'     => 'customer_' . time() . '_' . mt_rand(1000, 9999),
+			'upload_path'   => './uploads/customers/photos/',
+			'allowed_types' => 'gif|jpg|jpeg|png|webp',
+			'max_size'      => 2048,
+			'overwrite'     => false,
+		);
+		$this->load->library('upload');
+		$this->upload->initialize($config);
+		if(!$this->upload->do_upload('photo')){
+			print('Photo: ' . $this->upload->display_errors());
+			exit();
+		}
+		return 'uploads/customers/photos/' . $this->upload->data('file_name');
+	}
+
 	private function _get_datatables_query()
 	{
 		/*If account receivable checked*/
@@ -238,6 +262,10 @@ class Customers_model extends CI_Model {
 		           }
 		      }
 	    /*Attchment Upload End*/
+		$photo = $this->_upload_customer_photo();
+		if($photo !== null){
+			$info['photo'] = $photo;
+		}
 
 	    /*custom helper*/
         if(gst_number()){
@@ -306,6 +334,7 @@ class Customers_model extends CI_Model {
 			$data['opening_balance']=$query->opening_balance;
 			$data['location_link']=$query->location_link;
 			$data['attachment_1']=$query->attachment_1;
+			$data['photo']= property_exists($query, 'photo') ? $query->photo : '';
 			$data['price_level_type']=$query->price_level_type;
 			$data['price_level']=$query->price_level;
 			$data['credit_limit']=$query->credit_limit;
@@ -420,6 +449,10 @@ class Customers_model extends CI_Model {
 			               $info['attachment_1'] = $attachment_1;
 			           }
 			      }
+				$photo = $this->_upload_customer_photo();
+				if($photo !== null){
+					$info['photo'] = $photo;
+				}
 			      
 			     /*custom helper*/
 		        if(gst_number()){

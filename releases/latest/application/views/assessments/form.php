@@ -1,15 +1,30 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <style>
-.ass-sec{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:16px!important;margin-bottom:14px!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
-.ass-sec h4{font-size:12px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:var(--mp-muted)!important;margin:0 0 12px 0!important}
-.ass-sec h4{grid-column:1/-1}.ass-field-full{grid-column:1/-1}.ass-signature{display:flex;align-items:center;min-height:54px;padding:8px 12px;border:1px solid var(--mp-border);border-radius:10px;background:#fff}.ass-signature img{max-width:220px;max-height:58px;object-fit:contain}
+.ass-sec{background:var(--mp-surface,#fff)!important;border:1px solid var(--mp-border)!important;border-radius:14px!important;padding:16px!important;margin-bottom:14px!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ass-sec h4{font-size:12px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.5px!important;color:var(--mp-muted)!important;margin:0!important}
+.ass-sec h4{grid-column:1/-1}.ass-field-full{grid-column:1/-1}.ass-field-half{grid-column:auto}.ass-subhead{grid-column:1/-1!important;background:#eaf3ee!important;border-left:4px solid #176753!important;border-radius:9px!important;padding:9px 12px!important;color:#104d40!important;font-size:12px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.35px!important}.ass-signature{display:flex;align-items:center;min-height:54px;padding:8px 12px;border:1px solid var(--mp-border);border-radius:10px;background:#fff}.ass-signature img{max-width:220px;max-height:58px;object-fit:contain}
 .ass-role{font-weight:800!important;text-transform:uppercase;letter-spacing:.2px}
 .ass-req{color:#DC2626!important}
 .ass-lock{background:#F8FAFC!important;border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:10px 12px!important;font-size:12px!important;margin-bottom:8px!important}
 .ass-amend{border-left:3px solid #8B5CF6!important;padding:8px 12px!important;margin:8px 0!important;font-size:12px!important;background:#FAF5FF!important}
 .final-banner{background:#D1FAE5!important;border:1px solid #10B981!important;color:#065F46!important;font-size:12px!important;padding:8px 12px!important;border-radius:8px!important;margin-bottom:14px!important}
 .ass-voice-wrap{position:relative}.ass-voice-wrap textarea,.ass-voice-wrap input{padding-right:104px}.ass-voice{position:absolute;right:8px;top:8px;border:1px solid #b8d5c7;background:#eaf3ee;color:#104d40;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer}.ass-voice.listening{background:#fee2e2;border-color:#fca5a5;color:#991b1b}.ass-voice-note{font-size:11px;color:#64748b;margin:5px 0 12px}
-.ass-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;border:1px solid var(--mp-border);border-radius:9px;background:#fbfdfc}.ass-check{display:flex;align-items:flex-start;gap:7px;font-size:13px;font-weight:500}.ass-check input{margin-top:3px}.amend-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:5px}.amend-check{display:flex;gap:6px;font-size:12px;font-weight:500}@media(max-width:760px){.ass-sec{grid-template-columns:1fr}.ass-check-grid,.amend-check-grid{grid-template-columns:1fr}}
+.ass-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;border:1px solid var(--mp-border);border-radius:9px;background:#fbfdfc}.ass-radio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:10px;border:1px solid var(--mp-border);border-radius:9px;background:#fbfdfc}.ass-check{display:flex;align-items:flex-start;gap:7px;font-size:13px;font-weight:500}.ass-check input{margin-top:3px}.amend-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:5px}.amend-check{display:flex;gap:6px;font-size:12px;font-weight:500}@media(max-width:760px){.ass-sec{grid-template-columns:1fr}.ass-check-grid,.amend-check-grid{grid-template-columns:1fr}.ass-field-half{grid-column:1/-1}}
+.ass-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+.ass-referrals{background:var(--mp-surface,#fff);border:1px solid var(--mp-border);border-radius:12px;margin:14px 0 12px;overflow:hidden}
+.ass-referrals summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;color:var(--mp-muted);font-size:11px;font-weight:800;letter-spacing:.45px;text-transform:uppercase}
+.ass-referrals summary::-webkit-details-marker{display:none}
+.ass-referrals summary:after{content:"\f078";font-family:FontAwesome;color:#7b9288;transition:transform .18s ease}
+.ass-referrals[open] summary:after{transform:rotate(180deg)}
+.ass-referrals small{font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;color:#8aa09a}
+.ass-referrals-body{border-top:1px solid var(--mp-border);padding:12px 14px 14px;background:#fbfdfc}
+.ass-referrals .rpp-box{border:0!important;background:transparent!important;border-radius:0!important;padding:0!important;margin:0!important}
+.ass-referrals .rpp-box>h4{display:none!important}
+.ass-referrals .rpp-empty{margin:0 0 10px!important;color:#64748b!important}
+.ass-referrals .rpp-form{margin-top:10px!important;background:#fff!important;border-radius:10px!important;padding:12px!important}
+.ass-referrals .rpp-grid{grid-template-columns:repeat(4,minmax(150px,1fr))!important;gap:10px!important;align-items:end!important}
+@media(max-width:980px){.ass-referrals .rpp-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:560px){.ass-actions{align-items:stretch}.ass-actions .mp-qa-btn{width:100%;justify-content:center}.ass-referrals summary{align-items:flex-start;flex-direction:column}.ass-referrals .rpp-grid{grid-template-columns:1fr!important}}
 </style>
 
 <?php $assessmentTitle = ($template->template_key ?? '') === 'physio_initial' ? 'Physiotherapy Initial Assessment' : $template->name; $headerAssessor = $assessment->assessor_name ?? ''; if($headerAssessor === '' && !empty($physio_user)){ $headerAssessor = trim(($physio_user->first_name ?? '').' '.($physio_user->last_name ?? '')) ?: ($physio_user->username ?? ''); } if($headerAssessor === '') $headerAssessor = $this->session->userdata('inv_username'); ?>
@@ -49,9 +64,19 @@
         $k = $sec['key'] . '_' . $f['key'];
         $v = $answers[$k] ?? '';
       ?>
-        <?php $compactField = in_array(($f['type'] ?? 'text'), array('text','readonly','signature','select'), true); ?>
+        <?php if(($f['type'] ?? '') === 'heading'): ?>
+          <div class="ass-subhead"><?= htmlspecialchars($f['label'] ?? $f['key']); ?></div>
+          <?php continue; ?>
+        <?php endif; ?>
+        <?php
+          $fieldType = $f['type'] ?? 'text';
+          $fullTypes = array();
+          $span = $f['span'] ?? '';
+          $fullField = ($span === 'full') || in_array($fieldType, $fullTypes, true);
+          $fieldClass = $fullField ? 'ass-field-full' : 'ass-field-half';
+        ?>
         <?php $fieldLabel = $f['label'] ?? $f['key']; $isRoleLabel = preg_match('/^[A-D]\./', $fieldLabel); ?>
-        <div class="mp-form-group <?= $compactField ? '' : 'ass-field-full'; ?>">
+        <div class="mp-form-group <?= $fieldClass; ?>">
           <label class="<?= $isRoleLabel ? 'ass-role' : ''; ?>"><?= htmlspecialchars($fieldLabel); ?><?= !empty($f['required']) ? ' <span class="ass-req">*</span>' : ''; ?></label>
           <?php if($isFinal): ?>
             <?php $displayValue = is_array($v) ? implode(', ', $v) : (string)$v; ?>
@@ -67,6 +92,12 @@
             <div class="ass-check-grid">
               <?php foreach(($f['options'] ?? array()) as $opt): ?>
                 <label class="ass-check"><input type="checkbox" name="ans__<?= $k; ?>[]" value="<?= htmlspecialchars($opt); ?>" <?= in_array($opt, $selected, true) ? 'checked' : ''; ?>> <span><?= htmlspecialchars($opt); ?></span></label>
+              <?php endforeach; ?>
+            </div>
+          <?php elseif(($f['type'] ?? '') === 'radio' || ($f['type'] ?? '') === 'rating'): ?>
+            <div class="ass-radio-grid">
+              <?php foreach(($f['options'] ?? array()) as $opt): ?>
+                <label class="ass-check"><input type="radio" name="ans__<?= $k; ?>" value="<?= htmlspecialchars($opt); ?>" <?= (string)$v === (string)$opt ? 'checked' : ''; ?>> <span><?= htmlspecialchars($opt); ?></span></label>
               <?php endforeach; ?>
             </div>
           <?php elseif(($f['type'] ?? 'text') === 'textarea'): ?>
@@ -86,21 +117,29 @@
     </div>
   <?php endforeach; ?>
 
-  <?php if(!$isFinal && $can['save']): ?>
-    <button class="mp-qa-btn" onclick="saveDraft()"><i class="fa fa-save"></i> Save draft</button>
-  <?php endif; ?>
-  <?php if(!$isFinal && $can['finalize']): ?>
-    <button class="mp-qa-btn green" onclick="finalizeAss()"><i class="fa fa-check"></i> Save &amp; Finalise</button>
-  <?php endif; ?>
-  <?php if($assessment): ?><a id="downloadLink" class="mp-qa-btn blue" href="<?= base_url('assessments/download/'.(int)$assessment->id); ?>"><i class="fa fa-download"></i> Download copy</a><?php else: ?><a id="downloadLink" class="mp-qa-btn blue" href="#" style="display:none"><i class="fa fa-download"></i> Download copy</a><?php endif; ?>
+  <div class="ass-actions">
+    <?php if(!$isFinal && $can['save']): ?>
+      <button class="mp-qa-btn" onclick="saveDraft()"><i class="fa fa-save"></i> Save draft</button>
+    <?php endif; ?>
+    <?php if(!$isFinal && $can['finalize']): ?>
+      <button class="mp-qa-btn green" onclick="finalizeAss()"><i class="fa fa-check"></i> Save &amp; Finalise</button>
+    <?php endif; ?>
+    <?php if($assessment): ?><a id="downloadLink" class="mp-qa-btn blue" href="<?= base_url('assessments/download/'.(int)$assessment->id); ?>"><i class="fa fa-download"></i> Download copy</a><?php else: ?><a id="downloadLink" class="mp-qa-btn blue" href="#" style="display:none"><i class="fa fa-download"></i> Download copy</a><?php endif; ?>
+  </div>
 </form>
-<?php if(!empty($referral_panel)): ?><?= $referral_panel; ?><?php endif; ?>
 <div class="ass-voice-note"><i class="fa fa-info-circle"></i> Voice fills the focused narrative field using your browser microphone. Review the transcript before saving.</div>
+<?php if(!empty($referral_panel)): ?>
+<details class="ass-referrals">
+  <summary><span><i class="fa fa-share-square-o"></i> Referrals to partners</span><small>Lab, hospital or doctor hand-off</small></summary>
+  <div class="ass-referrals-body"><?= $referral_panel; ?></div>
+</details>
+<?php endif; ?>
 
 <?php if($isFinal && $can['amend']): ?>
 <div class="ass-sec">
   <h4>Record an Amendment (originals are preserved)</h4>
   <?php foreach($sections as $sec): foreach(($sec['fields'] ?? array()) as $f):
+    if(($f['type'] ?? '') === 'heading') continue;
     $k = $sec['key'] . '_' . $f['key'];
   ?>
     <div class="mp-form-group">

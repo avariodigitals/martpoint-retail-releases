@@ -33,20 +33,16 @@ $GLOBALS['__mp_card_lanes_loaded'] = true;
     grid.innerHTML = '';
     grid.style.display = 'flex';
     grid.style.alignItems = 'flex-start';
-    var cols = [], h = [], i;
+    var cols = [], i;
     for(i = 0; i < n; i++){
       var lane = document.createElement('div');
       lane.className = 'mp-lane';
       grid.appendChild(lane);
       cols.push(lane);
-      h.push(0);
     }
-    cards.forEach(function(card){
-      var m = 0;
-      for(var j = 1; j < n; j++) if(h[j] < h[m]) m = j;
-      cols[m].appendChild(card);
-      h[m] += card.offsetHeight + 14;
-    });
+    // Round-robin, not shortest-column: card i always lands in lane i % n, so
+    // the same card cannot hop between columns when heights change on reload.
+    cards.forEach(function(card, idx){ cols[idx % n].appendChild(card); });
     grid.setAttribute('data-lanes', String(n));
   }
   function run(){

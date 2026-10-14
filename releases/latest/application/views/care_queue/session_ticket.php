@@ -5,6 +5,7 @@ $_total = (float)$ent->units_total;
 $_used  = (float)$ent->units_used;
 $_left  = max(0, $_total - $_used);
 $today  = isset($today) ? $today : null;
+$note   = isset($note) ? $note : null;
 
 /* The count on this slip is money, not arrival: a paid session is drawn only
    when the physio marks the visit complete. Say what today does to the number,
@@ -52,6 +53,18 @@ body{width:76mm;margin:0 auto;font-family:'Courier New',monospace;font-size:12px
 </div>
 <div class="t-bar">
   <div class="t-row"><span>Today’s session</span><span><?= $todayStatus; ?></span></div>
+  <?php if($today && (int)$today->session_no > 0): ?>
+    <div class="t-row"><span>Which one</span><span><?= (int)$today->session_no; ?> of <?= (int)$today->units_total; ?></span></div>
+  <?php endif; ?>
+  <?php if(!empty($note)): ?>
+    <div style="border-top:1px dashed #000;margin-top:4px;padding-top:4px;">
+      <div class="t-row"><span>Treatment given</span><span><?= htmlspecialchars(mb_substr((string)$note->treatment_offered, 0, 42)); ?></span></div>
+      <?php if(!empty($note->treated_by_name) && $note->treated_by_name !== $note->signed_by_name): ?>
+      <div class="t-row"><span>Given by</span><span><?= htmlspecialchars($note->treated_by_name); ?></span></div>
+      <?php endif; ?>
+      <div class="t-row"><span>Signed by</span><span><?= htmlspecialchars($note->signed_by_name ?: '—'); ?></span></div>
+    </div>
+  <?php endif; ?>
   <?php if($afterToday !== null): ?>
     <div style="font-size:10px;">It is counted when the physio marks this visit complete — <b><?= $afterToday; ?> of <?= (int)$_total; ?></b> will remain.</div>
   <?php else: ?>

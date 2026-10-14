@@ -1,6 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
-if (empty($intel) || !is_array($intel)) return;
+$intel = isset($intel) && is_array($intel) ? $intel : array();
+// Workspaces can keep the report discoverable even when no signal qualifies.
+if (empty($intel) && empty($show_empty)) return;
 ?>
 <style>
 .mp-workspace-intel{margin:18px 0 22px;border:1px solid var(--mp-border,var(--line,#d8e2dc));border-radius:14px;background:var(--mp-surface,#fff);color:var(--mp-ink,var(--ink,#172033));overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
@@ -8,6 +10,11 @@ if (empty($intel) || !is_array($intel)) return;
 </style>
 <section class="mp-workspace-intel" aria-label="Intelligence Report">
   <div class="mp-workspace-intel-head"><h2><i class="fa fa-lightbulb-o" aria-hidden="true"></i> Intelligence Report</h2><span><?= count($intel); ?> insight<?= count($intel) === 1 ? '' : 's'; ?></span></div>
+  <?php if (empty($intel)): ?>
+  <div class="mp-workspace-intel-row">
+    <div class="mp-workspace-intel-text" style="color:var(--mp-muted,var(--muted,#667085));" role="status">No new insights to show from the records available to you. Recommendations will appear here when there is enough relevant activity.</div>
+  </div>
+  <?php endif; ?>
   <?php foreach($intel as $item):
     $tone = $item['tone'] ?? 'info';
     $color = $tone === 'warn' ? '#ad6800' : ($tone === 'good' ? '#16805a' : '#0e7490');

@@ -22,6 +22,7 @@ if (!isset($customer_name)) {
     $store_credit_balance = 0;
     $gift_card_balance = 0;
     $referral_code = '';
+    $photo = '';
 }
 ?>
 
@@ -32,7 +33,7 @@ if (!isset($customer_name)) {
   </div>
 </div>
 
-<form class="form-horizontal box" id="customers-form" method="post">
+<form class="form-horizontal box" id="customers-form" method="post" enctype="multipart/form-data">
   <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
   <input type="hidden" id="base_url" value="<?= $base_url; ?>">
   <input type="hidden" name="store_id" id="store_id" value="<?= !empty($store_id) ? $store_id : get_current_store_id(); ?>">
@@ -117,6 +118,14 @@ if (!isset($customer_name)) {
           <input type="file" class="mp-form-control" name="attachment_1" id="attachment_1">
           <span id="attachment_1_msg" style="display:block;" class="text-danger">Size: 2MB</span>
           <span onclick="show_attachment('<?= (empty($attachment_1)) ? "" : base_url($attachment_1); ?>')" class="mp-pill ok" style="cursor:pointer;">Click to view</span>
+        </div>
+        <div class="mp-form-group">
+          <label for="photo">Profile Photo</label>
+          <input type="file" class="mp-form-control" name="photo" id="photo" accept="image/png,image/jpeg,image/webp,image/gif">
+          <span id="photo_msg" style="display:block;" class="text-danger">Image only · max 2MB</span>
+          <?php if(!empty($photo)): ?>
+            <span onclick="show_attachment('<?= base_url($photo); ?>')" class="mp-pill ok" style="cursor:pointer;">View current photo</span>
+          <?php endif; ?>
         </div>
       </div>
     </div>

@@ -1,4 +1,26 @@
-<?php $CI =& get_instance(); ?>
+<?php
+$CI =& get_instance();
+$mpCardStoreId = get_current_store_id();
+$mobileCardLogo = function_exists('mp_get_store_theme_setting') ? trim((string)mp_get_store_theme_setting($mpCardStoreId, 'store_logo', '')) : '';
+if($mobileCardLogo === '' || !file_exists(FCPATH . ltrim($mobileCardLogo, '/'))){
+  $mobileCardLogo = function_exists('get_site_logo') ? get_site_logo() : '';
+}
+$mobileCardLogoUrl = $mobileCardLogo !== '' ? base_url(ltrim($mobileCardLogo, '/')) : '';
+$mobileCardPhoto = '';
+foreach(array('customer_photo','patient_photo','photo','image_path','profile_picture') as $photoField){
+  if(empty($patient->{$photoField})) continue;
+  $candidate = trim((string)$patient->{$photoField});
+  if(preg_match('/^https?:\/\//i', $candidate)){
+    $mobileCardPhoto = $candidate;
+    break;
+  }
+  $candidate = ltrim($candidate, '/');
+  if($candidate !== '' && file_exists(FCPATH . $candidate)){
+    $mobileCardPhoto = base_url($candidate);
+    break;
+  }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,7 +46,9 @@
     .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
     .topbar .edit { padding: 8px 14px; border-radius: 10px; background: var(--mp-primary); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
     .hero { background: #fff; border: 1px solid var(--mp-border); border-radius: 16px; padding: 16px; margin-bottom: 12px; display: flex; gap: 14px; align-items: center; }
-    .avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; flex-shrink: 0; }
+    .avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; flex-shrink: 0; overflow: hidden; }
+    .avatar.has-photo { background: transparent; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .hero .name { font-size: 17px; font-weight: 700; }
     .hero .code { font-size: 11px; font-family: monospace; color: var(--mp-muted); margin-top: 2px; }
     .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
@@ -42,6 +66,24 @@
     .row-item:last-child { border-bottom: none; }
     .row-item .r-sub { font-size: 11px; color: var(--mp-muted); margin-top: 2px; }
     .empty { color: var(--mp-muted); font-size: 13px; padding: 6px 0; }
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .action-row a { flex: 1 1 130px; text-align: center; text-decoration: none; color: #fff; background: var(--mp-primary); border-radius: 12px; padding: 10px 8px; font-size: 12px; font-weight: 700; }
+    .action-row a.soft { color: var(--mp-ink); background: var(--mp-bg); border: 1px solid var(--mp-border); }
+    .loyalty-card { position: relative; overflow: hidden; border-radius: 16px; padding: 14px 14px 0; color: #07131a; background: linear-gradient(110deg,#fff 0%,#f8fffd 58%,#dff5f1 100%); min-height: 210px; border: 1px solid rgba(15,61,53,.12); }
+    .loyalty-card:after { content: ""; position: absolute; right: -38px; top: 22px; width: 150px; height: 150px; border-radius: 50%; background: rgba(23,103,83,.14); }
+    .loyalty-brand { display: flex; align-items: center; min-height: 46px; max-width: 48%; position: relative; z-index: 1; }
+    .loyalty-brand img { width: auto; max-width: 120px; height: 46px; object-fit: contain; border-radius: 0; background: transparent; }
+    .loyalty-type { position: absolute; right: 14px; top: 16px; z-index: 2; color: #fff; background: linear-gradient(135deg,var(--mp-primary),#075546); border-radius: 999px; padding: 8px 16px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
+    .loyalty-main { position: relative; z-index: 1; display: grid; grid-template-columns: 70px minmax(0,1fr); gap: 12px; align-items: center; margin: 16px 90px 0 0; }
+    .loyalty-photo { width: 70px; height: 70px; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg,#eef8f5,#d8eee8); display: flex; align-items: center; justify-content: center; color: var(--mp-primary); font-size: 28px; font-weight: 900; }
+    .loyalty-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .loyalty-line { display: grid; grid-template-columns: 40px minmax(0,1fr); gap: 7px; align-items: baseline; margin-bottom: 7px; }
+    .loyalty-line span { font-size: 9px; font-weight: 900; color: rgba(7,19,26,.58); text-transform: uppercase; letter-spacing: .05em; }
+    .loyalty-line strong { font-size: 15px; line-height: 1.1; word-break: break-word; }
+    .loyalty-return { position: absolute; left: 14px; right: 14px; bottom: 58px; z-index: 2; font-size: 9px; font-weight: 800; color: rgba(7,19,26,.66); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .loyalty-foot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; color: #fff; background: linear-gradient(135deg,var(--mp-primary),#075546); }
+    .loyalty-points { font-size: 21px; font-weight: 900; line-height: 1; }
+    .loyalty-points small { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; opacity: .8; }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 120px; } }
   </style>
 </head>
@@ -60,7 +102,10 @@
       </div>
 
       <div class="hero">
-        <div class="avatar"><?= strtoupper(substr($patient->customer_name, 0, 1)); ?></div>
+        <div class="avatar <?= $mobileCardPhoto ? 'has-photo' : ''; ?>">
+          <?php if($mobileCardPhoto): ?><img src="<?= htmlspecialchars($mobileCardPhoto); ?>" alt="Patient photo">
+          <?php else: ?><?= htmlspecialchars(strtoupper(substr($patient->customer_name, 0, 1))); ?><?php endif; ?>
+        </div>
         <div style="flex:1;min-width:0;">
           <div class="name"><?= htmlspecialchars($patient->customer_name); ?></div>
           <div class="code"><?= htmlspecialchars($patient->patient_code ?: '—'); ?> · <?= htmlspecialchars($patient->customer_code ?: '—'); ?></div>
@@ -102,7 +147,46 @@
         <dl class="kv">
           <dt>Prepaid / Advance</dt><dd class="money ok"><?= $CI->currency($patient->tot_advance ?? 0); ?></dd>
           <dt>Balance Due</dt><dd class="money <?= ($patient->sales_due ?? 0) > 0 ? 'due' : 'ok'; ?>"><?= $CI->currency($patient->sales_due ?? 0); ?></dd>
+          <?php if(mp_feature_enabled('store_credit')): ?><dt>Store Credit</dt><dd><?= $CI->currency($patient->store_credit_balance ?? 0); ?></dd><?php endif; ?>
+          <?php if(mp_feature_enabled('gift_cards')): ?><dt>Gift Card Bal.</dt><dd><?= $CI->currency($patient->gift_card_balance ?? 0); ?></dd><?php endif; ?>
         </dl>
+        <div class="action-row">
+          <?php if(function_exists('physio_can') && physio_can('patient_funds_view')): ?>
+            <a href="<?= base_url('mobile/patient_accounts?search=' . rawurlencode($patient->patient_code ?: $patient->customer_name)); ?>"><i class="fa fa-credit-card"></i> Wallet</a>
+          <?php endif; ?>
+          <?php if($CI->permissions('customers_view') && !empty($patient->customer_id)): ?>
+            <a class="soft" href="<?= base_url('customers/statement/' . (int)$patient->customer_id); ?>"><i class="fa fa-file-text-o"></i> Ledger</a>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Patient Card</h3>
+        <div class="loyalty-card">
+          <div class="loyalty-brand">
+            <?php if($mobileCardLogoUrl): ?><img src="<?= htmlspecialchars($mobileCardLogoUrl); ?>" alt="Store logo"><?php endif; ?>
+          </div>
+          <div class="loyalty-type">Patient</div>
+          <div class="loyalty-main">
+            <div class="loyalty-photo">
+              <?php if($mobileCardPhoto): ?>
+                <img src="<?= htmlspecialchars($mobileCardPhoto); ?>" alt="Patient photo">
+              <?php else: ?>
+                <?= htmlspecialchars(strtoupper(substr((string)($patient->customer_name ?: 'P'), 0, 1))); ?>
+              <?php endif; ?>
+            </div>
+            <div>
+              <div class="loyalty-line name">
+                <span>Name:</span>
+                <strong><?= htmlspecialchars($patient->customer_name); ?></strong>
+              </div>
+            </div>
+          </div>
+          <div class="loyalty-return">If found, please return to any <?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> location.</div>
+          <div class="loyalty-foot">
+            <div class="loyalty-points"><small>ID</small><?= htmlspecialchars($patient->customer_code ?: ('C'.(int)$patient->customer_id)); ?></div>
+          </div>
+        </div>
       </div>
 
       <div class="card">

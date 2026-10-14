@@ -415,6 +415,7 @@ class Theme_engine {
             'theme_key' => $themeKey,
             'logo_url' => $this->logoUrl()
         ]);
+        $merged = $this->withProductImageFallbacks($merged);
 
         // The printing home reads $print_categories to build its category
         // filters and to map products onto print categories. Nothing supplied
@@ -468,9 +469,57 @@ class Theme_engine {
         return $this->CI->load->view($legacyView, $merged, $return);
     }
 
-    /**
-     * Generate CSS variables for the active theme
-     */
+    /** Apply presentation-only images to every retail theme without changing inventory. */
+    private function withProductImageFallbacks($data){
+        if (!$this->sellsProducts()) return $data;
+        $this->CI->load->helper('storefront_product_image');
+        $lists = ['products', 'all_products', 'featured_products', 'best_sellers', 'new_arrivals', 'related_products', 'product_variants'];
+        $ids = [];
+        foreach ($lists as $key) {
+            foreach ($data[$key] ?? [] as $p) if (is_object($p) && !empty($p->id)) $ids[(int)$p->id] = (int)$p->id;
+        }
+        if (!empty($data['product']->id)) $ids[(int)$data['product']->id] = (int)$data['product']->id;
+        if (!$ids) return $data;
+        $sid = (int)$this->store->id;
+        // One store-scoped query, including variant children whose brand belongs to the parent.
+        $rows = $this->CI->db->select('i.id, b.brand_name')
+            ->from('db_items i')
+            ->join('db_items parent', 'parent.id=i.parent_id AND parent.store_id=i.store_id', 'left')
+            ->join('db_brands b', 'b.id=COALESCE(NULLIF(i.brand_id,0),parent.brand_id) AND b.store_id=i.store_id', 'left')
+            ->where('i.store_id', $sid)->where_in('i.id', array_values($ids))->get()->result();
+        $brands = [];
+        foreach ($rows as $row) $brands[(int)$row->id] = trim((string)$row->brand_name);
+        $color = $this->resolveBrandColor('primary');
+        $fallbacks = [];
+        $decorate = function($p) use ($brands, $sid, $color, &$fallbacks) {
+            $copy = clone $p;
+            $brand = $brands[(int)$p->id] ?? '';
+            // With no item brand, the merchant's store name is its display brand.
+            $brand = $brand !== '' ? $brand : $this->store->store_name;
+            $fallback = sf_product_placeholder_path($sid, $brand, $color);
+            if ($fallback && !empty($p->item_image)) {
+                $source = (string)$p->item_image;
+                $fallbacks[$source] = base_url($fallback);
+            }
+            if ($fallback && !sf_product_image_exists($copy->item_image ?? '')) $copy->item_image = $fallback;
+            return $copy;
+        };
+        foreach ($lists as $key) {
+            if (!isset($data[$key])) continue;
+            foreach ($data[$key] as $index => $p) {
+                if (is_object($p) && isset($brands[(int)$p->id])) $data[$key][$index] = $decorate($p);
+            }
+        }
+        if (!empty($data['product']) && isset($brands[(int)$data['product']->id])) {
+            $data['product'] = $decorate($data['product']);
+            $path = $data['product']->item_image;
+            $data['seo_image'] = preg_match('~^https?://~i', $path) ? $path : base_url($path);
+            if (isset($data['seo_jsonld']['image'])) $data['seo_jsonld']['image'] = $data['seo_image'];
+        }
+        $data['product_image_fallbacks'] = $fallbacks;
+        return $data;
+    }
+
     /**
      * Resolve a brand colour ($which = 'primary' | 'secondary').
      *

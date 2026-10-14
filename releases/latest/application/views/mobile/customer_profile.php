@@ -20,7 +20,8 @@
     .topbar .back { color: var(--mp-primary); font-size: 20px; text-decoration: none; }
     .topbar h1 { font-size: 20px; font-weight: 700; margin: 0;}
     .profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-    .avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+    .avatar { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex: 0 0 56px; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .profile-title { flex: 1; }
     .profile-title .name { font-size: 18px; font-weight: 700; }
     .profile-title .code { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
@@ -121,7 +122,9 @@
       </div>
 
       <div class="profile-header">
-        <div class="avatar"><?= strtoupper(substr($customer->customer_name, 0, 1)); ?></div>
+        <div class="avatar">
+          <?php if(!empty($customer->photo)): ?><img src="<?= htmlspecialchars(base_url($customer->photo)); ?>" alt="Customer photo"><?php else: ?><?= strtoupper(substr($customer->customer_name, 0, 1)); ?><?php endif; ?>
+        </div>
         <div class="profile-title">
           <div class="name"><?= $customer->customer_name; ?></div>
           <div class="code"><?= $customer->customer_code; ?></div>
