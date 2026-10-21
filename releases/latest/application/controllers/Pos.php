@@ -8,6 +8,11 @@ class Pos extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){
+			if($this->input->method() === 'get') redirect('attendance/workspace');
+			else $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['status'=>'error','message'=>'POS is not available in the Building Materials workspace. Use quotations and invoices.']))->_display();
+			exit;
+		}
 		$this->load->model('pos_model','pos_model');
 		$this->load->helper('sms_template_helper');
 		$this->load->helper('accounts');
@@ -118,7 +123,9 @@ class Pos extends MY_Controller {
 		}
 
 		// Staff list for commission assignment
-		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		$excluded_roles = get_excluded_staff_roles(get_current_store_id());
+		$excluded_users = get_excluded_user_ids(get_current_store_id());
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->where_not_in('role_id', $excluded_roles)->where_not_in('id', $excluded_users)->get('db_users')->result();
 		// Service-to-staff mapping for POS staff assignment dropdown filtering
 		$service_staff = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_service_staff')->result();
 		$service_staff_map = [];
@@ -131,16 +138,23 @@ class Pos extends MY_Controller {
 		// No hard LIMIT — the view filters client-side, so capping here would silently hide
 		// products created on mobile/elsewhere.
 		$store_id = get_current_store_id();
+		$data['show_sale_stock_labels'] = 1;
+		if($this->db->table_exists('db_storefront_settings') && $this->db->field_exists('show_sale_stock_labels', 'db_storefront_settings')){
+			$storefrontSettings = $this->db->select('show_sale_stock_labels')->where('store_id', $store_id)->get('db_storefront_settings')->row();
+			$data['show_sale_stock_labels'] = (int)($storefrontSettings->show_sale_stock_labels ?? 1) === 1 ? 1 : 0;
+		}
 		$this->load->model('expiry_settings_model');
 		$expiry_settings = $this->expiry_settings_model->get_settings($store_id);
 		$data['stop_selling_expired'] = (int) ($expiry_settings->stop_selling_expired ?? 1);
 		$today = date('Y-m-d');
 		$products_query = $this->db->query("
 			SELECT a.id, a.item_name AS name, COALESCE(NULLIF(a.mrp,0), a.sales_price) AS price,
-			       a.sales_price AS wholesale, c.category_name AS category,
+			       a.sales_price AS wholesale, a.mrp, a.online_price, a.discount_type, a.discount,
+			       c.category_name AS category,
 			       a.category_id, a.brand_id, a.sku, a.item_code, u.unit_name AS unit,
 			       COALESCE(a.alert_qty, 0) AS alert_qty,
-			       a.tax_id, a.tax_type,
+			       a.tax_id, a.tax_type, a.weight_pricing_enabled, a.weight_pricing_base_kg,
+			       a.weight_pricing_increment_kg, a.weight_pricing_increment_charge,
 			       IF(a.tax_id > 0, 1, 0) AS tax,
 			       a.item_image AS image,
 			       a.item_group,
@@ -167,7 +181,30 @@ class Pos extends MY_Controller {
 			ORDER BY a.item_name
 		", [$store_id]);
 		$products = $products_query->result_array();
-		$warehouse_id = get_store_warehouse_id();
+
+		// Restaurant POS must sell from the operator's selected outlet. Keep the
+		// selection tenant-scoped and server-validated; never accept a warehouse
+		// belonging to another store or an inactive outlet.
+		$outlet_rows = $this->db->select('id, warehouse_name, warehouse_type')
+			->where('store_id', $store_id)->where('status', 1)
+			->order_by('warehouse_type', 'asc')->order_by('warehouse_name', 'asc')
+			->get('db_warehouse')->result_array();
+		$requested_warehouse_id = (int) $this->input->get('warehouse_id', TRUE);
+		// CI3 installations with query-string routing disabled can still expose
+		// the raw query value; accept it only as a numeric, tenant-validated id.
+		if (!$requested_warehouse_id && isset($_GET['warehouse_id'])) {
+			$requested_warehouse_id = (int) $_GET['warehouse_id'];
+		}
+		$warehouse_id = 0;
+		foreach ($outlet_rows as $outlet) {
+			if ($requested_warehouse_id && (int) $outlet['id'] === $requested_warehouse_id) {
+				$warehouse_id = $requested_warehouse_id;
+				break;
+			}
+		}
+		if (!$warehouse_id) $warehouse_id = (int) get_pos_default_warehouse_id($store_id);
+		$data['warehouse_id'] = $warehouse_id;
+		$data['warehouse_options'] = $outlet_rows;
 
 		// Resolve soonest-expiring batch per product for expiry warnings
 		$batch_map = [];
@@ -187,9 +224,44 @@ class Pos extends MY_Controller {
 			$p['id'] = (int) $p['id'];
 			$p['price'] = (float) $p['price'];
 			$p['wholesale'] = (float) $p['wholesale'];
+			$p['mrp'] = (float)($p['mrp'] ?? 0);
+			$p['online_price'] = (float)($p['online_price'] ?? 0);
+			$p['discount'] = (float)($p['discount'] ?? 0);
+			$p['discount_type'] = (string)($p['discount_type'] ?? 'Percentage');
+			$p['original_price'] = $p['price'];
+			// Item-level discounts are the always-on sale price source. Active
+			// promotions are layered below using the same engine as item lookup.
+			if($p['discount'] > 0){
+				if(strtolower($p['discount_type']) === 'percentage'){
+					$p['price'] = max(0, $p['price'] - ($p['price'] * ($p['discount'] / 100)));
+				} else {
+					$p['price'] = max(0, $p['price'] - $p['discount']);
+				}
+			}
+			$p['sale_price'] = round($p['price'], 2);
+			$p['onSale'] = $p['sale_price'] < $p['original_price'];
+			$p['promo_name'] = '';
+			$p['promo_discount'] = 0;
+			try {
+				if($this->db->table_exists('db_promotions')){
+					if(!isset($this->promotions_model)) $this->load->model('promotions_model');
+					$promo = $this->promotions_model->compute_effective_price((int)$p['id'], (float)$p['price']);
+					if(!empty($promo['has_promo'])){
+						$p['price'] = (float)$promo['price'];
+						$p['sale_price'] = round($p['price'], 2);
+						$p['onSale'] = $p['sale_price'] < $p['original_price'];
+						$p['promo_name'] = (string)($promo['promo_name'] ?? '');
+						$p['promo_discount'] = (float)($promo['discount_amount'] ?? 0);
+					}
+				}
+			} catch(Throwable $e) { /* Legacy installs may not have promotions ready. */ }
 			$p['tax'] = (bool) $p['tax'];
 			$p['tax_value'] = (float) $p['tax_value'];
 			$p['tax_id'] = (int) $p['tax_id'];
+			$p['weight_pricing_enabled'] = (bool)($p['weight_pricing_enabled'] ?? 0);
+			$p['weight_pricing_base_kg'] = (float)($p['weight_pricing_base_kg'] ?? 1);
+			$p['weight_pricing_increment_kg'] = (float)($p['weight_pricing_increment_kg'] ?? 0.05);
+			$p['weight_pricing_increment_charge'] = (float)($p['weight_pricing_increment_charge'] ?? 0);
 			$p['parent_id'] = isset($p['parent_id']) ? (int) $p['parent_id'] : null;
 			// Add stock information
 			$p['stock'] = (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']);
@@ -290,7 +362,7 @@ class Pos extends MY_Controller {
 		$this->db->limit(3);
 		$data['top_selling'] = $this->db->get()->result_array();
 
-		$data['warehouse_id'] = get_store_warehouse_id();
+		$data['warehouse_id'] = $warehouse_id;
 
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['user_id'] = $this->session->userdata('inv_userid') ?? 0;
@@ -405,7 +477,9 @@ class Pos extends MY_Controller {
 		}
 
 		// Staff list for commission assignment
-		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		$excluded_roles = get_excluded_staff_roles(get_current_store_id());
+		$excluded_users = get_excluded_user_ids(get_current_store_id());
+		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->where_not_in('role_id', $excluded_roles)->where_not_in('id', $excluded_users)->get('db_users')->result();
 		// Cashier shift (Z-Report) status
 		$data['open_shift'] = null;
 		$data['can_manage_shifts'] = false;

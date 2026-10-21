@@ -24,6 +24,7 @@
     <div class="mp-page-sub">Customise your storefront theme, colours, branding and SEO</div>
   </div>
   <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" target="_blank" class="mp-qa-btn blue"><i class="fa fa-external-link"></i> View Store</a>
+  <a href="<?= base_url('online_store/html_themes'); ?>" class="mp-qa-btn" style="margin-left:8px;"><i class="fa fa-upload"></i> HTML Themes</a>
 </div>
 
 <div class="mp-card-form">
@@ -43,6 +44,9 @@
   </div>
 </div>
 
+<?php $osThemeKey=(string)($current_theme->theme_key ?? '');$osBuildingTheme=in_array($osThemeKey,['framework_atelier','vector_systems'],true); ?>
+<?php if($osThemeKey==='botanical_elegance'): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Rename the garden shop, edit page headings, navigation, buttons and sign-in artwork in the grouped content editor.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit storefront content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Edit homepage text & images</a></div></div><?php elseif($osBuildingTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Edit this theme's brand line, hero, page headings, imagery and calls to action. Product specifications and project stories have their own screens.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit theme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/product_b2b'); ?>">Specifications &amp; documents</a> <a class="mp-qa-btn" href="<?= base_url('online_store/journal'); ?>">Applications &amp; projects</a></div></div><?php endif; ?>
+<p><a href="<?= base_url('online_store/content_settings'); ?>"><?= $osBuildingTheme?'Manage enquiry page & privacy policies':'Manage contact page, journal & product conversion features'; ?> ↗</a></p>
 <form id="appearance-form" onsubmit="return false;">
   <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
 
@@ -58,6 +62,7 @@
     $os_mode = $settings->catalogue_mode ?? '';
     if(!in_array($os_mode, ['services', 'products', 'both'], true)){ $os_mode = 'products'; }
   ?>
+  <?php if(!$osBuildingTheme): ?>
   <div class="mp-card-form">
     <div class="mp-card-head"><h3><i class="fa fa-shopping-bag"></i> What You Sell</h3></div>
     <div class="mp-card-body">
@@ -84,6 +89,11 @@
       </div>
     </div>
   </div>
+  <?php endif; ?>
+
+<?php if($osBuildingTheme): ?>
+  <div class="mp-card-form"><div class="mp-card-head"><h3><i class="fa fa-comment-o"></i> Enquiry-led B2B website</h3></div><div class="mp-card-body"><p>Framework Atelier and Vector Systems receive project enquiries, survey requests and service requests. There is no cart, checkout or public price list.</p><p><a href="<?= base_url('online_store'); ?>">Open website inbox & operational handoffs ↗</a> · <a href="<?= base_url('online_store/settings'); ?>">Contact & publishing settings</a></p><input type="hidden" name="catalogue_mode" value="<?= htmlspecialchars($os_mode,ENT_QUOTES); ?>"><input type="hidden" name="selling_mode" value="catalogue"><input type="hidden" name="show_prices" value="0"></div></div>
+<?php endif; ?>
 
 <?php
 /**
@@ -194,6 +204,24 @@ $themeS = htmlspecialchars($current_theme->default_secondary_color ?? '#10B981')
           <?php if($osLogo): ?><div style="margin-bottom:8px;"><img src="<?= $osLogo; ?>" alt="Logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
           <input type="file" class="mp-form-control" id="store_logo" name="store_logo" accept="image/*">
           <div class="mp-form-hint">Shown in the storefront header and footer. Leave empty to keep the current logo.</div>
+        </div>
+        <div class="mp-form-group">
+          <label for="footer_logo">Footer Logo</label>
+          <?php
+            $osFooterLogo = '';
+            if(!empty($settings->footer_logo) && is_file(FCPATH . ltrim($settings->footer_logo, '/'))) $osFooterLogo = base_url(ltrim($settings->footer_logo, '/'));
+          ?>
+          <?php if($osFooterLogo): ?><div style="margin-bottom:8px;"><img src="<?= $osFooterLogo; ?>" alt="Footer logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
+          <input type="file" class="mp-form-control" id="footer_logo" name="footer_logo" accept="image/*">
+          <div class="mp-form-hint">Used only in the shared online-store footer. Leave empty to use the store logo there.</div>
+        </div>
+        <div class="mp-form-group">
+          <label for="show_sale_stock_labels">Sale &amp; Stock Labels</label>
+          <label style="display:flex;align-items:center;gap:10px;font-weight:500;margin-top:8px;">
+            <input type="checkbox" id="show_sale_stock_labels" name="show_sale_stock_labels" value="1" <?= ((int)($settings->show_sale_stock_labels ?? 1) === 1) ? 'checked' : ''; ?> style="width:18px;height:18px;">
+            Show sale prices, sale badges and out-of-stock labels
+          </label>
+          <div class="mp-form-hint">Applies to the online store and POS product catalogue. Checkout and stock validation remain server-controlled.</div>
         </div>
         <div class="mp-form-group"><label for="store_headline">Store Headline</label><input type="text" class="mp-form-control" id="store_headline" name="store_headline" value="<?= htmlspecialchars($settings->store_headline ?? ''); ?>" placeholder="Welcome to our store"></div>
         <div class="mp-form-group"><label for="store_subheadline">Store Subheadline</label><input type="text" class="mp-form-control" id="store_subheadline" name="store_subheadline" value="<?= htmlspecialchars($settings->store_subheadline ?? ''); ?>" placeholder="Discover amazing products"></div>

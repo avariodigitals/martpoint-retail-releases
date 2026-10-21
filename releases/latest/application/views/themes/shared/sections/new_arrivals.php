@@ -7,9 +7,10 @@
   </div>
   <div class="mp-grid">
     <?php foreach($na as $p):
+      $showSaleStockLabels = (int)($settings->show_sale_stock_labels ?? 1) === 1;
       $price = $p->effective_price ?? $p->sales_price;
       $oldPrice = $p->original_price ?? $p->sales_price;
-      $hasDiscount = $oldPrice > $price;
+      $hasDiscount = $showSaleStockLabels && $oldPrice > $price;
       $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
       $pType = $p->product_type ?? 'physical';
       $isPhysical = $pType === 'physical';
@@ -43,7 +44,7 @@
           <?php if($hasDiscount): ?><span class="mp-card-old"><?= sf_currency($oldPrice, $store_currency ?? null); ?></span><?php endif; ?>
         </div>
         <div style="font-size:12px; color:var(--mp-gray); margin-top:4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <?php if($outOfStock): ?>
+          <?php if($outOfStock && $showSaleStockLabels): ?>
             <span style="padding:2px 8px; border-radius:999px; background:rgba(239,68,68,.1); color:#B91C1C; font-weight:600;">Out of Stock</span>
           <?php else: ?>
             <span style="padding:2px 8px; border-radius:999px; background:rgba(5,150,105,.1); color:#047857; font-weight:600;">Available</span>
@@ -55,7 +56,7 @@
             <?php endif; ?>
           <?php endif; ?>
         </div>
-        <?php if($outOfStock): ?>
+        <?php if($outOfStock && $showSaleStockLabels): ?>
           <div class="mp-card-stock">Out of Stock</div>
         <?php elseif(!$isPhysical): ?>
           <div class="mp-card-stock" style="color:#7C3AED;background:rgba(124,58,237,.06);"><?php echo ['digital'=>'Instant download','course'=>'Self-paced','membership'=>'Recurring'][$pType] ?? ''; ?></div>

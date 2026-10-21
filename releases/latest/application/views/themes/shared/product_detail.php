@@ -1,4 +1,5 @@
 <?php
+$showSaleStockLabels = (int)($settings->show_sale_stock_labels ?? 1) === 1;
 $pType = $product->product_type ?? 'physical';
 $isDigital = in_array($pType, ['digital','course','membership']);
 $ctaLabel = [
@@ -35,13 +36,13 @@ $badgeLabel = [
       <h1 style="font-size:28px; font-weight:800; margin-bottom:12px;"><?= htmlspecialchars($product->item_name); ?></h1>
       <div style="margin-bottom:16px;">
         <span id="detail-price" style="font-size:28px; font-weight:800; color:var(--mp-primary);"><?= sf_currency($product->effective_price, $store_currency ?? null); ?></span>
-        <?php if($product->original_price > $product->effective_price): ?>
+        <?php if($showSaleStockLabels && $product->original_price > $product->effective_price): ?>
           <span style="font-size:18px; color:var(--mp-gray); text-decoration:line-through; margin-left:8px;"><?= sf_currency($product->original_price, $store_currency ?? null); ?></span>
         <?php endif; ?>
       </div>
       <?php $sfOos = ($pType === 'physical' && (int)$product->stock <= 0 && empty($settings->allow_backorder)); ?>
       <div style="font-size:14px; color:var(--mp-gray); margin-bottom:24px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <?php if($sfOos): ?>
+        <?php if($sfOos && $showSaleStockLabels): ?>
         <span style="padding:3px 10px; border-radius:999px; background:rgba(239,68,68,.1); color:#B91C1C; font-weight:600; font-size:12px;">Out of stock</span>
         <?php else: ?>
         <span style="padding:3px 10px; border-radius:999px; background:rgba(5,150,105,.1); color:#047857; font-weight:600; font-size:12px;">Available</span>
@@ -72,6 +73,7 @@ $badgeLabel = [
 
       <button id="detail-add-btn" onclick="addDetailToCart()" <?= $sfOos ? 'disabled' : ''; ?> style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-primary); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-bottom:12px; <?= $sfOos ? 'opacity:.5;cursor:not-allowed;' : ''; ?>"><?= $sfOos ? 'Out of Stock' : $ctaLabel; ?></button>
       <?php if($sfOos) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
+      <?php if(!empty($garden_product_experience)): ?><div data-sf-product-mount></div><?php endif; ?>
       <?php
       // Delivery information for physical products — from merchant shipping config
       if($pType === 'physical'):
@@ -91,7 +93,7 @@ $badgeLabel = [
       </div>
       <?php endif; ?>
       <?php endif; ?>
-      <?php if($pType === 'physical' && !empty($settings->whatsapp_number)): ?>
+      <?php if(empty($garden_product_experience) && $pType === 'physical' && !empty($settings->whatsapp_number)): ?>
       <button id="detail-wa-btn" onclick="sendDetailWhatsApp()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:#25D366; color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px;"><?= $sfOos ? 'Ask about availability' : 'Order via WhatsApp'; ?></button>
       <?php endif; ?>
     </div>

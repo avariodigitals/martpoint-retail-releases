@@ -1747,6 +1747,7 @@ class Default_data_model extends CI_Model {
                     'First Aid & Wound Care'    => 'Bandages, antiseptics and wound care',
                     'Mother & Baby'             => 'Mother and baby care products',
                     'Personal Care & Hygiene'   => 'Soaps, sanitizers and hygiene products',
+                    'Skincare'                  => 'Cleansers, moisturisers, sunscreen and skin-care products',
                     'Medical Devices'           => 'Thermometers, BP monitors and devices',
                 ),
             ),
@@ -2371,7 +2372,7 @@ class Default_data_model extends CI_Model {
      * @param string $industry_type  e.g. 'perfume_shop'
      * @return array counts created
      */
-    public function seed_industry_defaults($store_id, $industry_type) {
+    public function seed_industry_defaults($store_id, $industry_type, $reactivate_existing = false) {
         $results = array(
             'units_created' => 0,
             'categories_created' => 0,
@@ -2404,6 +2405,9 @@ class Default_data_model extends CI_Model {
                     $parent_id = $unit_ids[$parent_sc];
                 }
                 if ($exists) {
+                    if ($reactivate_existing && $this->db->field_exists('status', 'db_units')) {
+                        $this->db->where('id', $exists->id)->update('db_units', array('status' => 1));
+                    }
                     $unit_ids[$shortcode] = $exists->id;
                     // Repair hierarchy/conversion on existing rows — an earlier
                     // version of this map seeded the parent/child direction backwards
@@ -2459,7 +2463,12 @@ class Default_data_model extends CI_Model {
             foreach ($cfg['item_categories'] as $cat_name => $desc) {
                 $exists = $this->db->where('store_id', $store_id)
                     ->where('category_name', $cat_name)->get('db_category')->row();
-                if ($exists) continue;
+                if ($exists) {
+                    if ($reactivate_existing && $this->db->field_exists('status', 'db_category')) {
+                        $this->db->where('id', $exists->id)->update('db_category', array('status' => 1));
+                    }
+                    continue;
+                }
                 $maxid = $this->db->query("SELECT COALESCE(MAX(count_id),0)+1 AS maxid FROM db_category WHERE store_id = ?", array($store_id))->row()->maxid;
                 $data = array(
                     'store_id'      => $store_id,
@@ -2482,7 +2491,12 @@ class Default_data_model extends CI_Model {
             foreach ($cfg['recipe_categories'] as $rc_name) {
                 $exists = $this->db->where('store_id', $store_id)
                     ->where('name', $rc_name)->get('db_recipe_categories')->row();
-                if ($exists) continue;
+                if ($exists) {
+                    if ($reactivate_existing && $this->db->field_exists('status', 'db_recipe_categories')) {
+                        $this->db->where('id', $exists->id)->update('db_recipe_categories', array('status' => 1));
+                    }
+                    continue;
+                }
                 if ($this->db->insert('db_recipe_categories', array(
                     'store_id' => $store_id, 'name' => $rc_name, 'status' => 1,
                 ))) {
@@ -2496,7 +2510,12 @@ class Default_data_model extends CI_Model {
             foreach ($cfg['brands'] as $brand_name) {
                 $exists = $this->db->where('store_id', $store_id)
                     ->where('brand_name', $brand_name)->get('db_brands')->row();
-                if ($exists) continue;
+                if ($exists) {
+                    if ($reactivate_existing && $this->db->field_exists('status', 'db_brands')) {
+                        $this->db->where('id', $exists->id)->update('db_brands', array('status' => 1));
+                    }
+                    continue;
+                }
                 $data = array(
                     'store_id'   => $store_id,
                     'brand_name' => $brand_name,
@@ -2519,7 +2538,13 @@ class Default_data_model extends CI_Model {
             foreach ($cfg['services'] as $svc_name => $svc) {
                 $exists = $this->db->where('store_id', $store_id)
                     ->where('service_name', $svc_name)->get('db_services')->row();
-                if ($exists) { $sort++; continue; }
+                if ($exists) {
+                    if ($reactivate_existing && $this->db->field_exists('status', 'db_services')) {
+                        $this->db->where('id', $exists->id)->update('db_services', array('status' => 1));
+                    }
+                    $sort++;
+                    continue;
+                }
                 if ($this->db->insert('db_services', array(
                     'store_id'             => $store_id,
                     'service_name'         => $svc_name,

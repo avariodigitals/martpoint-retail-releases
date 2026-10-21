@@ -363,4 +363,82 @@ return [
           '4.0.9.153v'  => '4.0.9.153_treatment_chart_therapist.sql',
           // Run on already-updated fleets too; this column was previously unregistered.
           '4.0.9.154v' => '4.0.9.154_physio_document_secret.sql',
+          '4.0.9.155v' => '4.0.9.155_garden_foundation.sql',
+          '4.0.9.156v' => '4.0.9.156_service_schedules.sql',
+          '4.0.9.157v' => '4.0.9.157_service_project_context.sql',
+          '4.0.9.158v' => '4.0.9.158_service_fulfilment_sources.sql',
+          '4.0.9.159v' => '4.0.9.159_garden_project_workbench.sql',
+          '4.0.9.160v' => '4.0.9.160_garden_production.sql',
+          '4.0.9.161v' => '4.0.9.161_branch_addresses.sql',
+          // .162 An online or table-QR order now belongs to one outlet, so a
+          // customer ordering from one of several locations actually orders
+          // from that location — it is the premise for per-outlet stock,
+          // kitchen routing and outlet reports, not a reporting nicety.
+          '4.0.9.162v' => '4.0.9.162_online_order_locations.sql',
+          // .163/.164/.165 are the storefront content, journal and category
+          // hierarchy changes already present on disk. Keep them in the
+          // canonical chain so existing fleets receive the same storefront
+          // schema as fresh installs.
+          '4.0.9.163v' => '4.0.9.163_storefront_theme_content.sql',
+          '4.0.9.164v' => '4.0.9.164_storefront_journal.sql',
+          '4.0.9.165v' => '4.0.9.165_shared_category_hierarchy.sql',
+          // .166 One lifecycle for every channel that takes an order, and a
+          // written record of each move. Counter, Online Store and table QR
+          // orders are now driven by the same rules instead of two status
+          // columns that could contradict each other. Numbered past the
+          // storefront migrations already on disk so no install can mark one
+          // applied and silently skip the other.
+          '4.0.9.166v' => '4.0.9.166_order_status_log.sql',
+          // .167 The storefront menu becomes merchant-configured. nav_json on
+          // db_storefront_settings holds the menu tree (pages, categories,
+          // custom links, one level of submenus); empty means the automatic
+          // All-Products-plus-six-categories rail stays as it was.
+          '4.0.9.167v' => '4.0.9.167_storefront_nav_menu.sql',
+          '4.0.9.168v' => '4.0.9.168_restaurant_order_engine.sql',
+          '4.0.9.169v' => '4.0.9.169_production_exact_once.sql',
+		  // .170 M3 cashier, delivery and offline replay controls. Keep this in
+		  // the canonical registry so existing installs receive the controls
+		  // through the normal updater rather than only through test fixtures.
+		  '4.0.9.170v' => '4.0.9.170_restaurant_m3_controls.sql',
+		  // .171 adds the shared WhatsApp/Instagram/Messenger conversation log
+		  // used by the omnichannel workspace. It is additive and idempotent.
+		  '4.0.9.171v' => '4.0.9.171_messaging_channels.sql',
+		  '4.0.9.172v' => '4.0.9.172_restaurant_food_dispositions.sql',
+		  '4.0.9.173v' => '4.0.9.173_weight_pricing.sql',
+		  // .174 registers the two building-materials themes without touching
+		  // any existing theme selection. .175 adds the B2B selling mode,
+		  // specification tables, editorial kinds and product documents they
+		  // rely on. Additive and idempotent.
+		  '4.0.9.174v' => '4.0.9.174_building_materials_themes.sql',
+		  '4.0.9.175v' => '4.0.9.175_storefront_b2b.sql',
+		  // .176 hardens manual invoice receipts with a store-scoped
+		  // idempotency key. Additive; legacy callers are unchanged.
+		  '4.0.9.176v' => '4.0.9.176_sales_payment_idempotency.sql',
+		  // .177 retires the generic Hardware & Materials storefront entry now
+		  // that Building Materials has two dedicated catalogue themes.
+		  '4.0.9.177v' => '4.0.9.177_retire_hardware_theme.sql',
+		  // .178 adds the optional prescription attachment consumed by pharmacy
+		  // storefront checkout; it remains additive for all other stores.
+		  '4.0.9.178v' => '4.0.9.178_pharmacy_online_prescription.sql',
+		  '4.0.9.179v' => '4.0.9.179_uploadable_html_themes.sql',
+		  // .180 is an opt-in-only partner catalogue/fulfilment flag. Existing
+		  // storefronts remain first-party by default.
+		  '4.0.9.180v' => '4.0.9.180_partner_marketplace_flag.sql',
+		  '4.0.9.181v' => '4.0.9.181_building_project_procurement.sql',
+		  '4.0.9.182v' => '4.0.9.182_building_project_delivery.sql',
+		  '4.0.9.183v' => '4.0.9.183_building_project_installation.sql',
+		  '4.0.9.184v' => '4.0.9.184_building_project_finance.sql',
+		  '4.0.9.185v' => '4.0.9.185_building_project_after_sales.sql',
+		  // .186 exposes pharmacy branches and controlled partner/pickup hubs to
+		  // the public store while retaining the actual stock source separately.
+		  '4.0.9.186v' => '4.0.9.186_pharmacy_fulfilment_locations.sql',
+		  // .187 connects public prescription requests to the existing
+		  // pharmacy medical-notes queue and records review state separately.
+		  '4.0.9.187v' => '4.0.9.187_pharmacy_online_workflow.sql',
+		  // .188 adds an optional footer-only logo for the shared retail
+		  // storefront shell; existing header branding remains unchanged.
+		  '4.0.9.188v' => '4.0.9.188_storefront_footer_logo.sql',
+		  // .189 controls sale and stock labels without changing stock or price
+		  // authority. It defaults on for existing and new stores.
+		  '4.0.9.189v' => '4.0.9.189_sale_stock_labels.sql',
 ];

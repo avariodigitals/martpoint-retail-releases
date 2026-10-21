@@ -9,9 +9,13 @@ class Storefront_model extends CI_Model {
 
 	private static $themesSeeded = false;
 
+	/** Why the last status change was refused, in staff's words. */
+	public $last_status_error = '';
+
 	public function __construct(){
 		parent::__construct();
 		$this->ensureTables();
+        $this->load->helper('category_tree');
 	}
 
 	/**
@@ -32,7 +36,8 @@ class Storefront_model extends CI_Model {
 			'db_storefront_settings', 'db_services', 'db_online_orders', 'db_online_order_items',
 			'db_storefront_themes', 'db_storefront_banners', 'db_storefront_homepage_sections',
 			'db_storefront_domains', 'db_qr_codes', 'db_storefront_brands', 'db_storefront_testimonials',
-			'db_storefront_instagram', 'db_storefront_faqs', 'db_storefront_analytics'
+			'db_storefront_instagram', 'db_storefront_faqs', 'db_storefront_analytics',
+			'db_storefront_uploaded_themes', 'db_storefront_uploaded_theme_settings'
 		];
 		foreach($tables as $table){
 			if(!$this->db->table_exists($table)){
@@ -127,6 +132,8 @@ class Storefront_model extends CI_Model {
 				$have = $this->db->list_fields('db_storefront_settings');
 				$need = [
 					'store_logo' => "VARCHAR(255) NULL DEFAULT NULL",
+					'footer_logo' => "VARCHAR(255) NULL DEFAULT NULL",
+					'show_sale_stock_labels' => "TINYINT(1) NOT NULL DEFAULT 1",
 					'shipping_notice' => "TEXT NULL DEFAULT NULL",
 					'shipping_methods_json' => "TEXT NULL DEFAULT NULL",
 					'theme_id' => "INT NULL DEFAULT NULL",
@@ -168,6 +175,7 @@ class Storefront_model extends CI_Model {
 					'custom_head_scripts' => "TEXT NULL DEFAULT NULL",
 					'testimonial_source' => "VARCHAR(20) NULL DEFAULT 'custom'",
 					'trust_badges_json' => "TEXT NULL DEFAULT NULL",
+					'theme_content_json' => "MEDIUMTEXT NULL",
 					'newsletter_title' => "VARCHAR(255) NULL DEFAULT 'Stay in the Loop'",
 					'newsletter_subtitle' => "VARCHAR(500) NULL DEFAULT 'Subscribe for updates, deals and new arrivals.'",
 					'instagram_access_token' => "VARCHAR(500) NULL DEFAULT NULL",
@@ -176,7 +184,9 @@ class Storefront_model extends CI_Model {
 					'gmb_place_id' => "VARCHAR(100) NULL DEFAULT NULL",
 					'sendchamp_json' => "TEXT NULL DEFAULT NULL",
 					'city_shipping_enabled' => "TINYINT(1) NULL DEFAULT 0",
-					'city_shipping_json' => "TEXT NULL DEFAULT NULL"
+					'city_shipping_json' => "TEXT NULL DEFAULT NULL",
+					// Opt-in only: existing storefronts remain first-party/catalogue-only.
+					'partner_marketplace_enabled' => "TINYINT(1) NOT NULL DEFAULT 0"
 				];
 				foreach($need as $col => $def){
 					if(!in_array($col, $have)){
@@ -221,6 +231,25 @@ class Storefront_model extends CI_Model {
 				if(!$this->db->field_exists('fulfilled_at', 'db_online_orders')){
 					$this->db->query("ALTER TABLE db_online_orders ADD fulfilled_at DATETIME NULL DEFAULT NULL");
 				}
+				if(!$this->db->field_exists('warehouse_id', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD warehouse_id INT(11) NOT NULL DEFAULT 0 AFTER store_id");
+				}
+				if(!$this->db->field_exists('source_warehouse_id', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD source_warehouse_id INT(11) NULL DEFAULT NULL AFTER warehouse_id");
+				}
+			}
+			if($this->db->table_exists('db_warehouse')){
+				$warehouseFields = [
+					'stock_source_id' => "INT(11) NULL DEFAULT NULL",
+					'business_hours' => "VARCHAR(255) NULL DEFAULT NULL",
+					'delivery_coverage' => "VARCHAR(500) NULL DEFAULT NULL",
+					'delivery_fee' => "DECIMAL(20,2) NOT NULL DEFAULT 0",
+					'pickup_enabled' => "TINYINT(1) NOT NULL DEFAULT 1",
+					'public_enabled' => "TINYINT(1) NOT NULL DEFAULT 1",
+				];
+				foreach($warehouseFields as $field => $definition){
+					if(!$this->db->field_exists($field, 'db_warehouse')) $this->db->query("ALTER TABLE db_warehouse ADD {$field} {$definition}");
+				}
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Storefront ensureTables optional migration failed: ' . $e->getMessage());
@@ -228,6 +257,41 @@ class Storefront_model extends CI_Model {
 	}
 
 	// ============== STOREFRONT SETTINGS ==============
+
+	/**
+	 * Outlets a shopper can order from. A store with one till gets no choice
+	 * anywhere in the storefront — the picker only exists when there is
+	 * genuinely somewhere else to order from.
+	 *
+	 * Deliberately the same definition the public "Our Branches" page uses
+	 * (Theme_engine::branches()): only locations the merchant has published as
+	 * customer-facing branches count. The store's own System warehouse is a
+	 * stock back office, so including it here would have popped an outlet
+	 * picker onto every retail and clinic storefront that has never advertised
+	 * a second location.
+	 */
+	public function getOrderableOutlets($storeId = null){
+		$storeId = $storeId ?: get_current_store_id();
+		if(!$this->db->table_exists('db_warehouse')) return [];
+		// address/city arrive with migration 4.0.9.161 — omit them on older schemas.
+		$cols = ['id', 'warehouse_name'];
+		foreach(['address', 'city', 'state', 'country', 'business_hours', 'delivery_coverage', 'delivery_fee', 'pickup_enabled', 'branch_type', 'stock_source_id', 'public_enabled', 'email'] as $col){
+			if($this->db->field_exists($col, 'db_warehouse')) $cols[] = $col;
+		}
+		$this->db->select(implode(', ', $cols))
+			->where('store_id', (int)$storeId)
+			->where('status', 1)
+			->order_by('warehouse_name', 'asc')
+			->limit(24);
+		if($this->db->field_exists('warehouse_type', 'db_warehouse')){
+			$this->db->where('warehouse_type', 'Custom');
+		}
+		if($this->db->field_exists('public_enabled', 'db_warehouse')){
+			$this->db->where('public_enabled', 1);
+		}
+		$rows = $this->db->get('db_warehouse')->result();
+		return $rows ? $rows : [];
+	}
 
 	public function getSettings($storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
@@ -241,6 +305,8 @@ class Storefront_model extends CI_Model {
 				'store_description' => '',
 				'store_banner' => '',
 				'store_logo' => '',
+				'footer_logo' => '',
+				'show_sale_stock_labels' => 1,
 				'whatsapp_number' => '',
 				'store_email' => $store ? $store->email : '',
 				'store_phone' => $store ? $store->mobile : '',
@@ -250,6 +316,7 @@ class Storefront_model extends CI_Model {
 				'allow_paystack' => 1,
 				'allow_whatsapp' => 1,
 				'allow_pay_on_delivery' => 1,
+				'partner_marketplace_enabled' => 0,
 			'shipping_notice' => '',
 			'shipping_methods_json' => '',
 				'city_shipping_enabled' => 0,
@@ -281,6 +348,13 @@ class Storefront_model extends CI_Model {
 			'preview_mode' => 0,
 			'instagram_access_token' => '',
 			'instagram_username' => '',
+			'instagram_business_account_id' => '',
+			'whatsapp_api_token' => '',
+			'whatsapp_phone_number_id' => '',
+			'whatsapp_webhook_verify_token' => '',
+			'whatsapp_api_enabled' => 0,
+			'facebook_page_access_token' => '',
+			'facebook_page_id' => '',
 			'google_places_api_key' => '',
 			'gmb_place_id' => '',
 			'testimonial_source' => 'custom',
@@ -320,7 +394,7 @@ class Storefront_model extends CI_Model {
 	public function saveSettings($storeId, $data){
 		$storeId = $storeId ?: get_current_store_id();
 		// Drop keys for columns that may not exist yet on un-migrated installs
-		foreach(['marquee_items', 'city_shipping_enabled', 'city_shipping_json', 'background_color'] as $col){
+		foreach(['marquee_items', 'city_shipping_enabled', 'city_shipping_json', 'background_color', 'nav_json', 'partner_marketplace_enabled'] as $col){
 			if(isset($data[$col]) && !$this->db->field_exists($col, 'db_storefront_settings')) unset($data[$col]);
 		}
 		$exists = $this->db->where('store_id', $storeId)->get('db_storefront_settings')->num_rows() > 0;
@@ -332,78 +406,17 @@ class Storefront_model extends CI_Model {
 	}
 
 	public function getStoreBySlug($slug){
+		// Public storefront resolution must be explicit. Never infer a store from
+		// a numeric id/name, the current session, or the first active storefront:
+		// an omitted or mistyped slug must not display another merchant's shop.
+		$slug = trim((string)$slug);
+		if($slug === '') return null;
+
 		// 1. Exact match
 		$row = $this->db->where('store_slug', $slug)->get('db_storefront_settings')->row();
 		if(!$row){
 			// 2. Case-insensitive match
 			$row = $this->db->where('LOWER(store_slug)', strtolower($slug))->get('db_storefront_settings')->row();
-		}
-		if(!$row && $slug){
-			// 3. Try to find store by matching store name slug and create settings
-			$stores = $this->db->get('db_store')->result();
-			foreach($stores as $s){
-				$expectedSlug = strtolower(preg_replace('/[^a-z0-9-]/', '-', $s->store_name));
-				$expectedSlug = trim($expectedSlug, '-');
-				if($expectedSlug === $slug || $s->id == (int)$slug){
-					$defaults = [
-						'store_id' => $s->id,
-						'store_slug' => $slug,
-						'store_status' => 'active',
-						'allow_paystack' => 1,
-						'allow_whatsapp' => 1,
-						'allow_pay_on_delivery' => 1,
-						'allow_services' => 1,
-						'allow_backorder' => 0,
-						'show_search' => 1,
-						'show_categories' => 1,
-						'show_whatsapp_cta' => 1,
-						'featured_products_limit' => 8,
-						'theme_id' => null,
-						'primary_color' => '#3B82F6',
-						'secondary_color' => '#10B981',
-						'font_family' => 'Inter',
-						'button_style' => 'rounded',
-						'store_headline' => '',
-						'store_subheadline' => '',
-						'instagram_url' => '',
-						'facebook_url' => '',
-						'tiktok_url' => '',
-						'x_url' => '',
-						'youtube_url' => '',
-						'business_hours' => '',
-						'announcement_bar' => '',
-						'announcement_bar_color' => '#0F172A',
-						'preview_mode' => 0,
-						'preview_theme_id' => null,
-						'meta_title' => '',
-						'meta_description' => '',
-						'footer_bg_color' => '#0F172A',
-						'header_text_color' => '',
-						'background_color' => '',
-						'button_color' => '#3B82F6',
-						'footer_style' => 'standard',
-						'footer_about_us' => '',
-						'footer_text_color' => '#94A3B8',
-						'footer_address_url' => '',
-						'meta_keywords' => '',
-						'google_analytics_id' => '',
-						'facebook_pixel_id' => '',
-						'require_tracking_consent' => 1,
-						'robots_index' => 1,
-						'custom_head_scripts' => ''
-					];
-					$this->db->insert('db_storefront_settings', $defaults);
-					return (object)$defaults;
-				}
-			}
-		}
-		if(!$row && (!$slug || $slug === '')){
-			// 4. If slug is empty, return first active storefront settings
-			$row = $this->db->where('store_status', 'active')->order_by('id', 'asc')->get('db_storefront_settings')->row();
-		}
-		if(!$row){
-			// 5. Last resort: return settings for current store
-			$row = $this->getSettings();
 		}
 		return $row;
 	}
@@ -505,7 +518,7 @@ class Storefront_model extends CI_Model {
 
 	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
+		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -516,7 +529,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		if($categoryId){
-			$this->db->where('a.category_id', $categoryId);
+			mp_category_filter('a.category_id',$categoryId,$storeId,true);
 		}
 		if($search){
 			$this->db->group_start();
@@ -532,7 +545,7 @@ class Storefront_model extends CI_Model {
 
 	public function getFeaturedProducts($storeId = null, $limit = 8, $includeVariantFlags = false){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
+		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -598,7 +611,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where($this->_listedItemsWhere('a'), NULL, FALSE);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		if($categoryId){
-			$this->db->where('a.category_id', $categoryId);
+			mp_category_filter('a.category_id',$categoryId,$storeId,true);
 		}
 		if($search){
 			$this->db->group_start();
@@ -633,7 +646,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.available_online', 1);
 		$this->db->where('a.status', 1);
 		if($categoryId){
-			$this->db->where('a.category_id', $categoryId);
+			mp_category_filter('a.category_id',$categoryId,$storeId,true);
 		}
 		if($search){
 			$this->db->group_start();
@@ -666,7 +679,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.available_online', 1);
 		$this->db->where('a.status', 1);
 		if($categoryId){
-			$this->db->where('a.category_id', $categoryId);
+			mp_category_filter('a.category_id',$categoryId,$storeId,true);
 		}
 		if($search){
 			$this->db->group_start();
@@ -683,36 +696,199 @@ class Storefront_model extends CI_Model {
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.id, a.category_name, a.category_image');
 		$this->db->from('db_category a');
-		$this->db->join('db_items b', "b.category_id=a.id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.not_for_sale IS NULL OR b.not_for_sale = 0) AND " . $this->_listedItemsWhere('b'), 'inner');
+		$this->db->join('db_items b', "b.category_id=a.id AND b.store_id=a.store_id AND b.publish_online=1 AND b.status=1 AND b.service_bit=0 AND (b.not_for_sale IS NULL OR b.not_for_sale = 0) AND " . $this->_listedItemsWhere('b'), 'inner');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.status', 1);
 		$this->db->where($this->_expiredWhere('b', $storeId), NULL, FALSE);
 		$this->db->group_by('a.id');
-		return $this->db->get()->result();
+		$published=$this->db->get()->result();$tree=mp_category_tree_model()->public_tree($storeId,$published);$flat=[];$walk=function($nodes)use(&$walk,&$flat){foreach($nodes as $node){$flat[]=$node;$walk($node->children);}};$walk($tree);return $flat;
 	}
 
 	public function getServiceCategories($storeId = null){
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.id, a.category_name, a.category_image');
 		$this->db->from('db_category a');
-		$this->db->join('db_services b', 'b.category_id=a.id AND b.available_online=1 AND b.status=1', 'inner');
+		$this->db->join('db_services b', 'b.category_id=a.id AND b.store_id=a.store_id AND b.available_online=1 AND b.status=1', 'inner');
 		$this->db->where('a.store_id', $storeId);
 		$this->db->where('a.status', 1);
 		$this->db->group_by('a.id');
 		$this->db->order_by('a.category_name', 'asc');
-		return $this->db->get()->result();
+		$published=$this->db->get()->result();$tree=mp_category_tree_model()->public_tree($storeId,$published);$flat=[];$walk=function($nodes)use(&$walk,&$flat){foreach($nodes as $node){$flat[]=$node;$walk($node->children);}};$walk($tree);return $flat;
 	}
 
 	// ============== ONLINE ORDERS ==============
+	public $last_order_duplicate = false;
 
 	public function createOrder($data){
+		$this->last_order_duplicate = false;
+		if(!empty($data['idempotency_key']) && $this->db->field_exists('idempotency_key', 'db_online_orders')){
+			$existing = $this->db->where('store_id', (int)$data['store_id'])
+				->where('idempotency_key', substr((string)$data['idempotency_key'], 0, 96))
+				->get('db_online_orders')->row();
+			if($existing){
+				$this->last_order_duplicate = true;
+				return (int)$existing->id;
+			}
+			$data['idempotency_key'] = substr((string)$data['idempotency_key'], 0, 96);
+		}
 		$data['order_code'] = $this->generateOrderCode();
 		$this->db->insert('db_online_orders', $data);
 		return $this->db->insert_id();
 	}
 
+	/**
+	 * Post an online/QR order into the existing sales ledger exactly once.
+	 * This deliberately does not touch stock: online checkout already owns the
+	 * reservation/commit state, while db_sales is only the financial/reporting
+	 * representation of the same order.
+	 */
+	public function ensureSalesLedger($orderId){
+		$order = $this->getOrder((int)$orderId);
+		if(!$order || !$this->db->field_exists('sales_id', 'db_online_orders')
+			|| !$this->db->field_exists('online_order_id', 'db_sales')) return false;
+		if((int)$order->sales_id > 0) return (int)$order->sales_id;
+		$this->db->trans_begin();
+		$locked = $this->db->query('SELECT * FROM db_online_orders WHERE id = ? AND store_id = ? FOR UPDATE', [(int)$orderId, (int)$order->store_id])->row();
+		if(!$locked){ $this->db->trans_rollback(); return false; }
+		$linked = $this->db->where('store_id', (int)$locked->store_id)->where('online_order_id', (int)$orderId)->get('db_sales')->row();
+		if($linked){
+			$this->db->where('id', (int)$orderId)->update('db_online_orders', ['sales_id' => (int)$linked->id]);
+			$this->db->trans_commit(); return (int)$linked->id;
+		}
+		$saleCode = substr((string)$locked->order_code, 0, 50);
+		$customerId = (int)($locked->customer_id ?? 0);
+		$sale = [
+			'store_id' => (int)$locked->store_id, 'warehouse_id' => (int)($locked->warehouse_id ?? 0),
+			'online_order_id' => (int)$orderId, 'restaurant_order_key' => $locked->idempotency_key ?? null,
+			'source_channel' => $locked->source_channel ?? 'web', 'sales_code' => $saleCode,
+			'reference_no' => $saleCode, 'sales_date' => date('Y-m-d'), 'sales_status' => 'Final',
+			'customer_id' => $customerId > 0 ? $customerId : null, 'subtotal' => (float)$locked->subtotal,
+			'grand_total' => (float)$locked->grand_total, 'payment_status' => ($locked->payment_status === 'paid' ? 'Paid' : 'Unpaid'),
+			'paid_amount' => 0, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
+			'created_by' => 'RestaurantOS', 'status' => 1, 'table_id' => 0,
+		];
+		$this->db->insert('db_sales', $sale);
+		$salesId = (int)$this->db->insert_id();
+		if(!$salesId){ $this->db->trans_rollback(); return false; }
+		foreach($this->getOrderItems($orderId) as $line){
+			if(!in_array((string)$line->item_type, ['product','bundle'], true)) continue;
+			$this->db->insert('db_salesitems', [
+				'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'sales_status' => 'Final',
+				'item_id' => (int)$line->item_id, 'sales_qty' => (float)$line->qty,
+				'base_unit_qty' => (float)$line->qty, 'price_per_unit' => (float)$line->unit_price,
+				'total_cost' => (float)$line->total_price, 'unit_total_cost' => (float)$line->unit_price,
+				'status' => 1,
+			]);
+		}
+		if($locked->payment_status === 'paid'){
+			$this->db->insert('db_salespayments', [
+				'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'payment_date' => date('Y-m-d'),
+				'payment_type' => $locked->payment_method ?: 'Online', 'payment' => (float)$locked->grand_total,
+				'payment_reference' => $locked->paystack_reference ?: $locked->order_code,
+				'confirmation_status' => 1, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
+				'created_by' => 'RestaurantOS', 'status' => 1, 'customer_id' => $customerId > 0 ? $customerId : null,
+			]);
+		}
+		// Recipe ingredients are a stock movement of the same order, not a
+		// second financial or finished-product ledger.  Keep this inside the
+		// locked ledger transaction so a retry cannot consume them twice.
+		if(!$this->ensureRecipeConsumption($locked, $orderId)){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->where('id', (int)$orderId)->where('store_id', (int)$locked->store_id)
+			->update('db_online_orders', ['sales_id' => $salesId]);
+		if($this->db->trans_status() === false){ $this->db->trans_rollback(); return false; }
+		$this->db->trans_commit();
+		return $salesId;
+	}
+
+	/**
+	 * Consume made-to-order recipe ingredients once for an online/QR order.
+	 * Finished-product reservation remains owned by the normal order stock
+	 * state machine.  This only handles items explicitly configured as
+	 * component/sale_deplete, and uses the shared stock-adjustment ledger.
+	 */
+	private function ensureRecipeConsumption($order, $orderId){
+		if(!$this->db->field_exists('source_order_id', 'db_stockadjustment')
+			|| !$this->db->field_exists('source_action', 'db_stockadjustment')) return true;
+		// Legacy desktop POS records recipe depletion as SALE-<sales_id>.
+		// Recognise that movement so the operational bridge cannot double it.
+		if(!empty($order->sales_id) && $this->db->where('store_id', (int)$order->store_id)
+			->where('reference_no', 'SALE-' . (int)$order->sales_id)
+			->count_all_results('db_stockadjustment') > 0) return true;
+		$existing = $this->db->where('store_id', (int)$order->store_id)
+			->where('source_order_id', (int)$orderId)
+			->where('source_action', 'recipe')
+			->get('db_stockadjustment')->row();
+		if($existing) return true;
+
+		$ingredientTotals = [];
+		$this->load->model('recipe_model');
+		foreach($this->getOrderItems((int)$orderId) as $line){
+			if((string)$line->item_type !== 'product' || (int)$line->item_id <= 0) continue;
+			$item = $this->db->where('id', (int)$line->item_id)
+				->where('store_id', (int)$order->store_id)->get('db_items')->row();
+			if(!$item || !in_array((string)$item->item_production_mode, ['component', 'sale_deplete'], true)
+				|| empty($item->recipe_id)) continue;
+			$recipe = $this->recipe_model->get((int)$item->recipe_id);
+			if(!$recipe) continue;
+			$yield = (float)$recipe->yield_qty > 0 ? (float)$recipe->yield_qty : 1;
+			$scale = (float)$line->qty / $yield;
+			foreach($this->recipe_model->get_ingredients((int)$item->recipe_id) as $ingredient){
+				$ingredientId = (int)$ingredient->item_id;
+				$qty = (float)$ingredient->qty * $scale;
+				if($ingredientId <= 0 || $qty <= 0) continue;
+				$ingredientTotals[$ingredientId] = ($ingredientTotals[$ingredientId] ?? 0) + $qty;
+			}
+		}
+		if(empty($ingredientTotals)) return true;
+
+		// A pickup-only hub is the customer-facing handover point, not the
+		// warehouse that owns the stock. Reserve and ledger against the source
+		// warehouse while keeping order.warehouse_id as the fulfilment location.
+		$warehouseId = (int)($order->source_warehouse_id ?? 0);
+		if($warehouseId <= 0) $warehouseId = (int)($order->warehouse_id ?? 0);
+		if($warehouseId <= 0 && function_exists('get_store_warehouse_id')) $warehouseId = (int)get_store_warehouse_id();
+		$ledger = [
+			'store_id' => (int)$order->store_id,
+			'warehouse_id' => $warehouseId,
+			'source_order_id' => (int)$orderId,
+			'source_action' => 'recipe',
+			'reference_no' => 'RECIPE-ORDER-' . (int)$orderId,
+			'adjustment_date' => date('Y-m-d'),
+			'adjustment_note' => 'Made-to-order recipe consumption #' . (int)$orderId,
+			'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
+			'created_by' => 'RestaurantOS', 'system_ip' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+			'system_name' => 'RestaurantOS', 'status' => 1,
+		];
+		if(!$this->db->insert('db_stockadjustment', $ledger)) return false;
+		$adjustmentId = (int)$this->db->insert_id();
+		foreach($ingredientTotals as $ingredientId => $qty){
+			if(!$this->db->insert('db_stockadjustmentitems', [
+				'store_id' => (int)$order->store_id, 'warehouse_id' => $warehouseId,
+				'adjustment_id' => $adjustmentId, 'item_id' => (int)$ingredientId,
+				'adjustment_qty' => -$qty,
+				'description' => 'Recipe for online order #' . (int)$orderId, 'status' => 1,
+			])) return false;
+		}
+		$this->load->model('pos_model');
+		foreach(array_keys($ingredientTotals) as $ingredientId){
+			if(!$this->pos_model->update_items_quantity((int)$ingredientId)) return false;
+			if($warehouseId > 0 && function_exists('update_warehousewise_items_qty')
+				&& !update_warehousewise_items_qty((int)$ingredientId, $warehouseId, (int)$order->store_id)) return false;
+		}
+		return true;
+	}
+
 	public function addOrderItem($data){
 		return $this->db->insert('db_online_order_items', $data);
+	}
+
+	/** Used by the walk-in order bridge after Sales_model has committed. */
+	public function ensureRecipeConsumptionForOrder($orderId){
+		$order = $this->getOrder((int)$orderId);
+		return $order ? $this->ensureRecipeConsumption($order, (int)$orderId) : false;
 	}
 
 	public function getOrder($orderId){
@@ -743,10 +919,13 @@ class Storefront_model extends CI_Model {
 	 */
 	public function claimPaidOrder($orderId, $data = []){
 		$data['payment_status'] = 'paid';
+		// Payment is a separate fact from preparation. Do not force an order
+		// back to "paid" when the kitchen has already moved it to processing or
+		// ready; the lifecycle model owns that state.
+		unset($data['order_status']);
 		$data['updated_at'] = date('Y-m-d H:i:s');
 		$this->db->where('id', $orderId)
-			->where('payment_status', 'unpaid')
-			->where('order_status', 'pending');
+			->where('payment_status', 'unpaid');
 		if($this->db->field_exists('stock_state', 'db_online_orders')){
 			$this->db->where_in('stock_state', ['none', 'reserved']);
 		}
@@ -781,13 +960,69 @@ class Storefront_model extends CI_Model {
 	}
 
 	public function updateOrderStatus($orderId, $status){
-		return $this->db->where('id', $orderId)->update('db_online_orders', ['order_status' => $status, 'updated_at' => date('Y-m-d H:i:s')]);
+		$this->last_status_error = '';
+		$order=$this->getOrder($orderId);
+		if (!$order) return false;
+		$profile=mp_get_store_profile($order->store_id);
+		if (($profile['industry_type'] ?? '')==='garden_centre_landscaping') {
+			$allowed=['pending'=>['paid','processing','cancelled'],'paid'=>['processing','cancelled'],'processing'=>['ready','cancelled'],'ready'=>['completed','cancelled']];
+			if ($status!==$order->order_status && !in_array($status,$allowed[$order->order_status] ?? [],true)) {
+				$this->last_status_error = 'A garden or landscaping job moves one stage at a time, so it cannot skip to ' . $status . '.';
+				return false;
+			}
+			if ($status==='paid' && $order->payment_status!=='paid') {
+				$this->last_status_error = 'This order has not been paid for, so it cannot be marked paid.';
+				return false;
+			}
+			if ($this->db->table_exists('db_service_fulfilment_sources')) {
+				$this->load->model('service_fulfilment_model');
+				if ($status==='completed' && !$this->service_fulfilment_model->online_complete($orderId,$order->store_id)) {
+					$this->last_status_error = 'The service work on this order is not recorded as done yet, so it cannot be completed.';
+					return false;
+				}
+				if ($status==='cancelled' && !$this->service_fulfilment_model->cancel_online_work($orderId,$order->store_id)) {
+					$this->last_status_error = 'The booked work on this order could not be released, so it was not cancelled.';
+					return false;
+				}
+			}
+		}
+		// The lifecycle itself — what may follow what, and the written record of
+		// the move — belongs to one machine for every channel, not to this
+		// business type. What stays here are the obligations a garden job has
+		// that a shop does not: a service cannot be completed until the work
+		// behind it has been recorded, and it only moves one stage at a time.
+		$this->load->model('order_lifecycle_model');
+		$moved = $this->order_lifecycle_model->move($order->store_id, $orderId, $status, [
+			'channel' => !empty($order->table_number) ? 'qr' : 'online',
+		]);
+		if (empty($moved['ok'])) {
+			$this->last_status_error = $moved['error'];
+			return false;
+		}
+		return true;
 	}
 
 	public function updatePaymentStatus($orderId, $status, $data = []){
-		$data['payment_status'] = $status;
-		$data['updated_at'] = date('Y-m-d H:i:s');
-		return $this->db->where('id', $orderId)->update('db_online_orders', $data);
+		$this->db->trans_begin();
+		try {
+			if ($status==='refunded' && $this->db->table_exists('db_service_fulfilment_sources')) {
+				$order=$this->getOrder($orderId);if (!$order) throw new RuntimeException('Order not found.');
+				// Product-only restaurant orders can share the service table with
+				// other industries. Only invoke service cancellation when this
+				// order actually owns service-fulfilment source rows.
+				$hasServiceSources = $this->db->where('store_id',(int)$order->store_id)
+					->where('source_type','online')->where('source_parent_id',(int)$orderId)
+					->count_all_results('db_service_fulfilment_sources') > 0;
+				if($hasServiceSources){
+					$this->load->model('service_fulfilment_model');
+					if (!$this->service_fulfilment_model->cancel_online_work($orderId,$order->store_id)) throw new RuntimeException('Could not cancel service work.');
+				}
+			}
+			$data['payment_status'] = $status;
+			$data['updated_at'] = date('Y-m-d H:i:s');
+			if (!$this->db->where('id', $orderId)->update('db_online_orders', $data) || $this->db->trans_status()===false) throw new RuntimeException('Could not update payment status.');
+			$this->db->trans_commit();return true;
+		} catch (Throwable $e) { $this->db->trans_rollback();log_message('error','Payment status update: '.$e->getMessage());return false; }
 	}
 
 	/**
@@ -827,7 +1062,9 @@ class Storefront_model extends CI_Model {
 			if(!in_array($item->item_type, ['product', 'bundle_component'], true)) continue;
 			$draws[] = ['item_id' => (int)$item->item_id, 'qty' => (float)$item->qty];
 		}
-		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $draws, -1, 'commit') || $this->db->trans_status() === FALSE){
+		$sourceWarehouseId = (int)($order->source_warehouse_id ?? 0);
+		if($sourceWarehouseId <= 0) $sourceWarehouseId = (int)($order->warehouse_id ?? 0);
+		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $draws, -1, 'commit', $sourceWarehouseId) || $this->db->trans_status() === FALSE){
 			$this->db->trans_rollback();
 			return false;
 		}
@@ -835,10 +1072,15 @@ class Storefront_model extends CI_Model {
 		return true;
 	}
 
-	private function _writeOrderStockLedger($orderId, $storeId, array $lines, $direction, $action){
+	private function _writeOrderStockLedger($orderId, $storeId, array $lines, $direction, $action, $warehouseId = null){
 		if(empty($lines)) return true;
-		$warehouseId = function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null;
-		if(!$this->db->insert('db_stockadjustment', [
+		// Stock moves at the outlet the customer ordered from. Orders placed
+		// before locations existed (or by a store running a single till) keep
+		// using the store's own warehouse, so nothing regresses.
+		if((int)$warehouseId <= 0){
+			$warehouseId = function_exists('get_store_warehouse_id') ? get_store_warehouse_id() : null;
+		}
+		$ledger = [
 			'store_id' => (int)$storeId,
 			'warehouse_id' => $warehouseId,
 			'reference_no' => 'ONLINE-' . strtoupper($action) . '-' . (int)$orderId,
@@ -850,7 +1092,10 @@ class Storefront_model extends CI_Model {
 			'system_ip' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
 			'system_name' => 'Storefront',
 			'status' => 1,
-		])) return false;
+		];
+		if($this->db->field_exists('source_order_id', 'db_stockadjustment')) $ledger['source_order_id'] = (int)$orderId;
+		if($this->db->field_exists('source_action', 'db_stockadjustment')) $ledger['source_action'] = (string)$action;
+		if(!$this->db->insert('db_stockadjustment', $ledger)) return false;
 		$adjustmentId = (int)$this->db->insert_id();
 		$itemIds = [];
 		foreach($lines as $line){
@@ -871,6 +1116,14 @@ class Storefront_model extends CI_Model {
 		$this->load->model('pos_model');
 		foreach(array_keys($itemIds) as $itemId){
 			if(!$this->pos_model->update_items_quantity($itemId)) return false;
+		}
+		// The outlet's own on-hand figure is derived from the same ledger rows,
+		// so it has to be recomputed here or the till looks right while the
+		// kitchen's outlet still thinks it has the stock.
+		if((int)$warehouseId > 0 && function_exists('update_warehousewise_items_qty')){
+			foreach(array_keys($itemIds) as $itemId){
+				if(!update_warehousewise_items_qty($itemId, (int)$warehouseId, (int)$storeId)) return false;
+			}
 		}
 		return true;
 	}
@@ -898,6 +1151,31 @@ class Storefront_model extends CI_Model {
 		if(!$order){
 			$this->db->trans_rollback();
 			return false;
+		}
+		// Where a store keeps stock by outlet, the units have to exist at the
+		// outlet the customer chose — a full store pool means nothing to a
+		// kitchen that has run out. An outlet that has never been allocated
+		// stock falls back to the store pool instead of blocking every order.
+		$warehouseId = (int)($order->warehouse_id ?? 0);
+		if($warehouseId > 0 && function_exists('warehouse_module') && warehouse_module()){
+			$allocated = $this->db->where('warehouse_id', $warehouseId)
+				->where('store_id', (int)$order->store_id)
+				->count_all_results('db_warehouseitems');
+			if($allocated > 0){
+				$atOutlet = [];
+				$rows = $this->db->select('item_id, available_qty')
+					->where('warehouse_id', $warehouseId)
+					->where('store_id', (int)$order->store_id)
+					->where_in('item_id', array_column($reserved, 'item_id'))
+					->get('db_warehouseitems')->result();
+				foreach($rows as $r) $atOutlet[(int)$r->item_id] = (float)$r->available_qty;
+				foreach($reserved as $r){
+					if((float)($atOutlet[$r['item_id']] ?? 0) < (float)$r['qty']){
+						$this->db->trans_rollback();
+						return false;
+					}
+				}
+			}
 		}
 		if(isset($order->stock_state)){
 			$this->db->where('id', (int)$orderId)->where('stock_state', 'none')
@@ -928,7 +1206,7 @@ class Storefront_model extends CI_Model {
 				return false;
 			}
 		}
-		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $reserved, -1, 'reserve') || $this->db->trans_status() === FALSE){
+		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $reserved, -1, 'reserve', $warehouseId) || $this->db->trans_status() === FALSE){
 			$this->db->trans_rollback();
 			return false;
 		}
@@ -976,7 +1254,9 @@ class Storefront_model extends CI_Model {
 			if(!in_array($item->item_type, ['product', 'bundle_component'], true)) continue;
 			$releaseLines[] = ['item_id' => (int)$item->item_id, 'qty' => (float)$item->qty];
 		}
-		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $releaseLines, 1, 'release')){
+		$sourceWarehouseId = (int)($order->source_warehouse_id ?? 0);
+		if($sourceWarehouseId <= 0) $sourceWarehouseId = (int)($order->warehouse_id ?? 0);
+		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $releaseLines, 1, 'release', $sourceWarehouseId)){
 			$this->db->trans_rollback();
 			return false;
 		}
@@ -985,6 +1265,50 @@ class Storefront_model extends CI_Model {
 			return false;
 		}
 		$this->db->trans_commit();
+		return true;
+	}
+
+	/**
+	 * Mark reserved/committed food as wasted without returning it to sellable
+	 * stock. The reservation/commit movement already reduced stock; this only
+	 * claims the order state and records the physical disposition once.
+	 */
+	public function disposeStock($orderId, $reason = 'Prepared food disposed'){
+		$order = $this->getOrder($orderId);
+		if(!$order || !$this->db->field_exists('stock_state', 'db_online_orders')) return false;
+		$tableProbe = $this->db->query("SHOW TABLES LIKE 'db_order_stock_dispositions'");
+		if(!$tableProbe || $tableProbe->num_rows() < 1) return false;
+		if((string)$order->stock_state === 'wasted') return true;
+		if(!in_array((string)$order->stock_state, ['reserved','committed'], true)) return false;
+		$wasteState = ['stock_state' => 'wasted', 'stock_adjusted' => 0];
+		if($this->db->field_exists('updated_at', 'db_online_orders')) $wasteState['updated_at'] = date('Y-m-d H:i:s');
+		$set = "stock_state = 'wasted', stock_adjusted = 0";
+		if(isset($wasteState['updated_at'])) $set .= ", updated_at = " . $this->db->escape($wasteState['updated_at']);
+		$updated = $this->db->query(
+			"UPDATE db_online_orders SET {$set} WHERE id = ? AND stock_state IN ('reserved','committed')",
+			[(int)$orderId]
+		);
+		if(!$updated){
+			return false;
+		}
+		$claimed = $this->getOrder($orderId);
+		if(!$claimed || (string)$claimed->stock_state !== 'wasted'){
+			return false;
+		}
+		foreach($this->getOrderItems($orderId) as $item){
+			if(!in_array($item->item_type, ['product','bundle_component'], true)) continue;
+			$this->db->insert('db_order_stock_dispositions', [
+				'store_id' => (int)$order->store_id,
+				'online_order_id' => (int)$orderId,
+				'item_id' => (int)$item->item_id,
+				'quantity' => (float)$item->qty,
+				'disposition' => 'wasted',
+				'reason' => mb_substr(trim((string)$reason), 0, 255),
+				'created_by' => (string)($this->session->userdata('inv_username') ?? 'System'),
+				'created_at' => date('Y-m-d H:i:s'),
+			]);
+		}
+		if($this->db->error()['code'] ?? 0) return false;
 		return true;
 	}
 
@@ -1163,7 +1487,33 @@ class Storefront_model extends CI_Model {
 				$price = $price - $discount;
 			}
 		}
+		// Apply active item/category/brand promotions to the public price using
+		// the same promotion engine as POS. This keeps a campaign sale visible
+		// online and ensures checkout resolves the same effective amount.
+		try {
+			if(!empty($prod->id) && $this->db->table_exists('db_promotions')){
+				$this->load->model('promotions_model');
+				$promo = $this->promotions_model->compute_effective_price((int)$prod->id, (float)$price, (int)($prod->store_id ?? get_current_store_id()));
+				if(!empty($promo['has_promo'])) $price = (float)$promo['price'];
+			}
+		} catch(Throwable $e) { /* Keep legacy storefront pricing if promotions are unavailable. */ }
 		return max(0, round($price, 2));
+	}
+
+	/**
+	 * The storefront's undiscounted display price. Online price is the
+	 * merchant's channel-specific base when present; otherwise sales price is
+	 * used. Keeping this beside getProductEffectivePrice prevents cards and
+	 * product pages from comparing a discounted online price with an unrelated
+	 * POS/MRP value.
+	 */
+	public function getProductOriginalPrice($product){
+		if(!is_object($product) && !is_array($product)) return 0.0;
+		$prod = (object)$product;
+		if(!empty($prod->is_bundle)) return $this->getProductEffectivePrice($prod);
+		$onlinePrice = isset($prod->online_price) ? (float)$prod->online_price : 0.0;
+		$salesPrice = isset($prod->sales_price) ? (float)$prod->sales_price : 0.0;
+		return max(0, round($onlinePrice > 0 ? $onlinePrice : $salesPrice, 2));
 	}
 
 	public function getServiceEffectivePrice($service){
@@ -1200,6 +1550,9 @@ class Storefront_model extends CI_Model {
 		if($activeOnly){
 			$this->db->where('status', 1);
 		}
+		if($this->db->field_exists('theme_source', 'db_storefront_themes')){
+			$this->db->group_start()->where('theme_source', 'builtin')->or_where('theme_source IS NULL', null, false)->group_end();
+		}
 		$rows = $this->db->order_by('sort_order', 'asc')
 			->get('db_storefront_themes')->result();
 		$result = [];
@@ -1215,7 +1568,7 @@ class Storefront_model extends CI_Model {
 	 * Map a store industry_type (business profile) to the theme industry group,
 	 * then return the themes that belong to that group.
 	 */
-	public function getThemesByIndustryForStore($industry_type = null, $asObjects = true){
+	public function getThemesByIndustryForStore($industry_type = null, $asObjects = true, $storeId = null){
 		if(empty($industry_type)){
 			if(!function_exists('mp_get_store_profile')){
 				$this->load->helper('business_profile');
@@ -1226,6 +1579,28 @@ class Storefront_model extends CI_Model {
 
 		$themeIndustry = $this->_getThemeIndustryForType($industry_type);
 		$themes = $this->getThemesByIndustry($themeIndustry);
+
+		// Building Materials has two deliberate, quote-led storefronts.  Keep
+		// the legacy Hardware & Materials skin out of this store's selectable
+		// and runtime theme set even before the retirement migration is run.
+		if (strtolower(trim((string)$industry_type)) === 'building_materials') {
+			$themes = array_values(array_filter($themes, function($theme){
+				return (string)($theme->theme_key ?? '') !== 'hardware';
+			}));
+		}
+
+		// Uploaded HTML themes are private to their tenant. They participate in
+		// the same Theme_engine admission rules as built-ins, but are never added
+		// to another merchant's selector or runtime theme set.
+		$storeId = $storeId !== null ? (int)$storeId : (function_exists('get_current_store_id') ? (int)get_current_store_id() : 0);
+		if($this->db->table_exists('db_storefront_themes') && $this->db->field_exists('theme_source', 'db_storefront_themes') && $storeId > 0){
+			$this->db->where('status', 1)->where('theme_source', 'html_zip')->where('owner_store_id', $storeId);
+			$uploaded = $this->db->order_by('created_at', 'desc')->get('db_storefront_themes')->result();
+			$targetIndustry = $this->_normalizeThemeIndustry($themeIndustry);
+			foreach($uploaded as $theme){
+				if($this->_normalizeThemeIndustry($theme->industry ?? '') === $targetIndustry) $themes[] = $theme;
+			}
+		}
 
 		if(empty($themes)){
 			// Fallback to general retail group so the store never has no theme.
@@ -1244,6 +1619,7 @@ class Storefront_model extends CI_Model {
 	 */
 	private function _getThemeIndustryForType($industry_type){
 		$normalized = $this->_normalizeThemeIndustry($industry_type);
+		if ($normalized === 'garden') return 'garden';
 		if(!function_exists('mp_get_business_presets')){
 			$this->load->helper('business_profile');
 		}
@@ -1287,6 +1663,8 @@ class Storefront_model extends CI_Model {
 		// Map legacy / verbose values to canonical names
 		$map = [
 			'generalretail' => 'general',
+			'gardencentrelandscaping' => 'garden',
+			'garden' => 'garden',
 			'general' => 'general',
 			'healthcare' => 'pharmacy',
 			'pharmacy' => 'pharmacy',
@@ -1335,11 +1713,6 @@ class Storefront_model extends CI_Model {
 
 		$themes = [
 			['theme_key' => 'general_retail', 'theme_name' => 'General Retail', 'industry' => 'general', 'description' => 'Clean, modern default theme for any retail store.', 'default_primary_color' => '#3B82F6', 'default_secondary_color' => '#10B981', 'default_font_family' => 'Inter', 'sort_order' => 1],
-			['theme_key' => 'healthcare_pro', 'theme_name' => 'HealthCare Pro', 'industry' => 'pharmacy', 'description' => 'Professional pharmacy and healthcare theme with trust-focused design.', 'default_primary_color' => '#005EB8', 'default_secondary_color' => '#00A86B', 'default_font_family' => 'Inter', 'sort_order' => 2],
-			// Pharmacy presets (3 world-class designs)
-			['theme_key' => 'pharma_clinical', 'theme_name' => 'Pharma Clinical', 'industry' => 'pharmacy', 'description' => 'Medical-grade clinical pharmacy theme with deep trust blues, crisp typography and a professional healthcare-chain aesthetic.', 'default_primary_color' => '#005EB8', 'default_secondary_color' => '#00A86B', 'default_font_family' => 'Inter', 'sort_order' => 3],
-			['theme_key' => 'pharma_wellness', 'theme_name' => 'Pharma Wellness', 'industry' => 'pharmacy', 'description' => 'Modern wellness pharmacy theme with soft sage-teal tones, coral accents and a friendly holistic-health aesthetic.', 'default_primary_color' => '#0D9488', 'default_secondary_color' => '#F97066', 'default_font_family' => 'Poppins', 'sort_order' => 4],
-			['theme_key' => 'pharma_care', 'theme_name' => 'Pharma Care', 'industry' => 'pharmacy', 'description' => 'Warm community pharmacy theme with deep teal, amber accents and serif typography for a trusted neighbourhood care feel.', 'default_primary_color' => '#0F766E', 'default_secondary_color' => '#D97706', 'default_font_family' => 'Lora', 'sort_order' => 5],
 			['theme_key' => 'beauty_luxe', 'theme_name' => 'Beauty Luxe', 'industry' => 'beauty', 'description' => 'Elegant beauty and cosmetics theme with soft aesthetics.', 'default_primary_color' => '#F8A4C8', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 6],
 			// Fashion presets (3-4 designs per industry)
 			['theme_key' => 'urban_fashion', 'theme_name' => 'Urban Editorial', 'industry' => 'fashion', 'description' => 'Bold editorial layout with high-contrast typography and magazine-style hero sections.', 'default_primary_color' => '#111111', 'default_secondary_color' => '#FF3B30', 'default_font_family' => 'Montserrat', 'sort_order' => 7],
@@ -1359,7 +1732,9 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'laundry_fresh', 'theme_name' => 'Fresh', 'industry' => 'laundry', 'description' => 'A clean, modern storefront designed for laundries, dry cleaners and garment-care businesses.', 'default_primary_color' => '#102A43', 'default_secondary_color' => '#2F80ED', 'default_font_family' => 'Inter', 'sort_order' => 20],
 			['theme_key' => 'online_store', 'theme_name' => 'Online Store', 'industry' => 'general', 'description' => 'A storefront-first theme optimized for e-commerce and digital product catalogues.', 'default_primary_color' => '#7C3AED', 'default_secondary_color' => '#F97316', 'default_font_family' => 'Inter', 'sort_order' => 21],
 			['theme_key' => 'wholesale', 'theme_name' => 'Wholesale / B2B', 'industry' => 'wholesale', 'description' => 'Clean B2B wholesale theme designed for distributors, manufacturers and multi-branch operations.', 'default_primary_color' => '#1E3A8A', 'default_secondary_color' => '#10B981', 'default_font_family' => 'Inter', 'sort_order' => 22],
-			['theme_key' => 'hardware', 'theme_name' => 'Hardware & Materials', 'industry' => 'hardware', 'description' => 'Industrial hardware and building materials theme with strong, reliable typography.', 'default_primary_color' => '#374151', 'default_secondary_color' => '#F59E0B', 'default_font_family' => 'Inter', 'sort_order' => 23],
+			['theme_key' => 'botanical_elegance', 'theme_name' => 'Botanical Elegance', 'industry' => 'garden', 'description' => 'Editorial garden retail with care details and service discovery.', 'default_primary_color' => '#24563E', 'default_secondary_color' => '#ACC6A4', 'default_font_family' => 'Inter', 'sort_order' => 46],
+			['theme_key' => 'garden_marketplace', 'theme_name' => 'Garden Marketplace', 'industry' => 'garden', 'description' => 'Search-led garden commerce for plants, supplies and services.', 'default_primary_color' => '#367349', 'default_secondary_color' => '#E6B64B', 'default_font_family' => 'Inter', 'sort_order' => 47],
+			['theme_key' => 'landscape_studio', 'theme_name' => 'Landscape Studio', 'industry' => 'garden', 'description' => 'A service-led garden studio with project and maintenance enquiries.', 'default_primary_color' => '#173F35', 'default_secondary_color' => '#C1B18B', 'default_font_family' => 'Inter', 'sort_order' => 48],
 			['theme_key' => 'agro', 'theme_name' => 'Agro Inputs', 'industry' => 'agro', 'description' => 'Agricultural inputs theme for agro dealers and feed stores with earthy, natural tones.', 'default_primary_color' => '#166534', 'default_secondary_color' => '#A16207', 'default_font_family' => 'Inter', 'sort_order' => 24],
 			['theme_key' => 'automotive', 'theme_name' => 'Automotive Parts', 'industry' => 'automotive', 'description' => 'Automotive parts and tyre shop theme with bold, mechanical styling.', 'default_primary_color' => '#111827', 'default_secondary_color' => '#EF4444', 'default_font_family' => 'Inter', 'sort_order' => 25],
 			['theme_key' => 'auto_modern', 'theme_name' => 'Auto Modern', 'industry' => 'automotive', 'description' => 'Clean, world-class car dealership theme with a blue and white hero, fast minified images, mobile-first grids and WhatsApp leads.', 'default_primary_color' => '#2563EB', 'default_secondary_color' => '#0B1220', 'default_font_family' => 'Inter', 'sort_order' => 26],
@@ -1386,12 +1761,24 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'lumiere', 'theme_name' => 'Lumière', 'industry' => 'skincare', 'description' => 'Cream editorial skincare boutique with dark forest accents, serif headlines and clean product-led sections.', 'default_primary_color' => '#173A2B', 'default_secondary_color' => '#151713', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 43],
 			['theme_key' => 'skinora', 'theme_name' => 'Skinora', 'industry' => 'skincare', 'description' => 'Blush premium skincare storefront with editorial serif type, soft rose surfaces and conversion-focused collections.', 'default_primary_color' => '#6A2730', 'default_secondary_color' => '#311D1E', 'default_font_family' => 'Playfair Display', 'sort_order' => 44],
 			['theme_key' => 'bella_reve', 'theme_name' => 'Bella Rêve', 'industry' => 'skincare', 'description' => 'Dark luxury spa storefront with warm gold accents, treatment booking and premium product merchandising.', 'default_primary_color' => '#D3A74C', 'default_secondary_color' => '#10130D', 'default_font_family' => 'Cormorant Garamond', 'sort_order' => 45],
+			// Building materials / architectural systems (hardware group)
+			['theme_key' => 'framework_atelier', 'theme_name' => 'Framework Atelier', 'industry' => 'hardware', 'description' => 'Editorial architectural-systems catalogue with ivory surfaces, deep ink, serif display type and project-led enquiry journeys.', 'default_primary_color' => '#245C94', 'default_secondary_color' => '#142438', 'default_font_family' => 'Playfair Display', 'sort_order' => 49],
+			['theme_key' => 'vector_systems', 'theme_name' => 'Vector Systems', 'industry' => 'hardware', 'description' => 'Precision industrial catalogue with cool silver surfaces, copper accents, Swiss-grid typography and technical specification tables.', 'default_primary_color' => '#E16D3B', 'default_secondary_color' => '#111820', 'default_font_family' => 'Manrope', 'sort_order' => 50],
 		];
 		foreach($themes as $t){
 			$sql = $this->db->insert_string('db_storefront_themes', $t);
 			$sql = preg_replace('/^INSERT INTO/i', 'INSERT IGNORE INTO', $sql);
 			$this->db->query($sql);
 		}
+
+		// Retire the previous pharmacy storefront family. Keep the rows (rather
+		// than deleting them) so existing appearance history and store settings
+		// remain recoverable, but make every old pharmacy design unavailable to
+		// selectors and runtime theme resolution.
+		$this->db->where_in('theme_key', [
+			'healthcare_pro', 'pharma_clinical', 'pharma_wellness',
+			'pharma_care', 'pharma_mediq'
+		])->update('db_storefront_themes', ['status' => 0]);
 
 		// Normalize legacy industry values for built-in themes so the engine can group them correctly
 		$canonical = [
@@ -1400,6 +1787,7 @@ class Storefront_model extends CI_Model {
 			'pharma_clinical' => 'pharmacy',
 			'pharma_wellness' => 'pharmacy',
 			'pharma_care' => 'pharmacy',
+			'pharma_mediq' => 'pharmacy',
 			'beauty_luxe' => 'beauty',
 			'urban_fashion' => 'fashion',
 			'fashion_modern' => 'fashion',
@@ -1498,7 +1886,7 @@ class Storefront_model extends CI_Model {
 	/**
 	 * Save a section's custom title/subtitle (themes read these via config_json).
 	 */
-	public function saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle, $imageUrl = null, $eyebrow = null){
+	public function saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle, $imageUrl = null, $eyebrow = null, $contentScope = null){
 		$storeId = $storeId ?: get_current_store_id();
 		$row = $this->db->where('store_id', $storeId)->where('section_key', $sectionKey)->get('db_storefront_homepage_sections')->row();
 		if(!$row) return false;
@@ -1508,15 +1896,26 @@ class Storefront_model extends CI_Model {
 			$cfg = json_decode($row->config_json, true);
 			if(!is_array($cfg)) $cfg = [];
 		}
+		$rootCfg = $cfg;
+		if($contentScope === 'building_materials'){
+			$cfg = $rootCfg['industry_content']['building_materials'] ?? [];
+			if(!is_array($cfg)) $cfg = [];
+		}
 		if($title !== '') $cfg['title'] = $title; else unset($cfg['title']);
 		if($subtitle !== '') $cfg['subtitle'] = $subtitle; else unset($cfg['subtitle']);
-		if($imageUrl !== null && in_array(preg_replace('/_\d+$/', '', $sectionKey), ['hero_banner','promo_banner','store_info'], true)){
+		if($imageUrl !== null && in_array(preg_replace('/_\d+$/', '', $sectionKey), ['hero_banner','promo_banner','store_info','contact_section'], true)){
 			if($imageUrl !== '') $cfg['image_url'] = $imageUrl; else unset($cfg['image_url']);
 		}
 		if($eyebrow !== null && in_array(preg_replace('/_\d+$/', '', $sectionKey), ['hero_banner','promo_banner'], true)){
 			if($eyebrow !== '') $cfg['eyebrow'] = $eyebrow; else unset($cfg['eyebrow']);
 		}
 
+		if($contentScope === 'building_materials'){
+			if(!isset($rootCfg['industry_content']) || !is_array($rootCfg['industry_content'])) $rootCfg['industry_content'] = [];
+			$rootCfg['industry_content']['building_materials'] = $cfg;
+			// Do not rename the shared row or alter another industry's copy.
+			return $this->db->where('id', $row->id)->update('db_storefront_homepage_sections', ['config_json'=>json_encode($rootCfg)]);
+		}
 		$data = ['config_json' => json_encode($cfg)];
 		if($title !== ''){
 			$data['section_label'] = $title;
@@ -1533,6 +1932,21 @@ class Storefront_model extends CI_Model {
 			}
 		}
 		return $this->db->where('id', $row->id)->update('db_storefront_homepage_sections', $data);
+	}
+
+	/** Building-only opt-ins; never change another preset's layout or content. */
+	public function saveBuildingHomepageLayout($storeId, $sectionKey, $enabled, $order){
+		$baseKey = preg_replace('/_\d+$/', '', (string)$sectionKey);
+		if(!in_array($baseKey,['trust_badges','promo_banner','featured_categories','featured_services','best_sellers','new_arrivals','brands','testimonials','instagram_gallery','faqs','whatsapp_cta','newsletter','store_hours'],true)) return false;
+		$row = $this->db->where('store_id', $storeId)->where('section_key', $sectionKey)->get('db_storefront_homepage_sections')->row();
+		if(!$row) return false;
+		$cfg = json_decode($row->config_json ?? '', true);
+		if(!is_array($cfg)) $cfg = [];
+		if(!isset($cfg['industry_content']) || !is_array($cfg['industry_content'])) $cfg['industry_content'] = [];
+		if(!isset($cfg['industry_content']['building_materials']) || !is_array($cfg['industry_content']['building_materials'])) $cfg['industry_content']['building_materials'] = [];
+		$cfg['industry_content']['building_materials']['is_enabled'] = (int)!empty($enabled);
+		$cfg['industry_content']['building_materials']['display_order'] = max(0,(int)$order);
+		return $this->db->where('id',$row->id)->where('store_id',$storeId)->update('db_storefront_homepage_sections',['config_json'=>json_encode($cfg)]);
 	}
 
 	private function homepageSectionDefaults(){
@@ -1679,7 +2093,7 @@ class Storefront_model extends CI_Model {
 		// Prefer manually flagged "New Arrival" cards (including variant parents).
 		// Themes may opt out of the recent-product fallback when flags are explicit.
 		$buildQuery = function($storeId, $limit, $flaggedOnly) use ($includeVariantFlags) {
-			$this->db->select('a.id, a.store_id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
+			$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 			$this->db->where('a.store_id', $storeId);
@@ -2057,8 +2471,11 @@ class Storefront_model extends CI_Model {
 
 	public function completeIfNoPhysicalProducts($orderId){
 		$items = $this->getOrderItems($orderId);
+		if (!$items) return false;
 		foreach($items as $item){
-			if($item->item_type === 'product') return false;
+			// Only automatically delivered digital lines can auto-complete.
+			// A paid service or bundle still needs physical/service fulfilment.
+			if(!in_array($item->item_type, ['digital','course','membership'], true)) return false;
 		}
 		$this->db->where('id', $orderId)->update('db_online_orders', ['order_status' => 'completed']);
 		return true;
@@ -2081,6 +2498,10 @@ class Storefront_model extends CI_Model {
 			return true;
 		}
 		try {
+			if ($this->db->table_exists('db_service_fulfilment_sources')) {
+				$this->load->model('service_fulfilment_model');
+				$this->service_fulfilment_model->fulfil_online($orderId);
+			}
 			$this->deliverDigitalOrder($orderId);
 			$this->deliverCourseAndMembership($orderId);
 			$this->completeIfNoPhysicalProducts($orderId);

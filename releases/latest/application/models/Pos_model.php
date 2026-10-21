@@ -119,6 +119,21 @@ class Pos_model extends CI_Model {
       } else {
           $effective_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
       }
+	      // Apply the item's configured sale discount before any dated
+	      // promotion. This keeps the price shown in the POS catalogue equal to
+	      // the price used when the item is opened into the cart.
+	      $original_effective_price = (float)$effective_price;
+	      $item_discount_amount = 0;
+	      if((float)($res1->discount ?? 0) > 0){
+		  $itemDiscount = (float)$res1->discount;
+		  if(strtolower((string)($res1->discount_type ?? '')) === 'percentage'){
+			  $item_discount_amount = $original_effective_price * ($itemDiscount / 100);
+		  } else {
+			  $item_discount_amount = $itemDiscount;
+		  }
+		  $item_discount_amount = min($original_effective_price, max(0, $item_discount_amount));
+		  $effective_price = max(0, $original_effective_price - $item_discount_amount);
+	      }
       $item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($effective_price,$res1->tax) :calculate_exclusive($effective_price,$res1->tax);
 	      
 	      // Check expiry against the resolved effective batch
@@ -148,12 +163,13 @@ class Pos_model extends CI_Model {
       } catch (Exception $e) { /* Promotions module not ready */ }
 
 	      $warehouse_id = $this->input->post('warehouse_id');
+	      if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($res1->store_id);
 	      $warehouse_stock = !empty($res1->is_bundle)
 			? $this->extras_model->bundleAvailability($item_id, $res1->store_id, $warehouse_id)
 			: total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
 
       $purchase_price = $res1->purchase_price;
-      $original_sales_price = $res1->sales_price;
+	      $original_sales_price = $original_effective_price;
       $unit_id = null;
       $unit_name = null;
       $unit_shortcode = null;
@@ -174,6 +190,7 @@ class Pos_model extends CI_Model {
 	      				'stock' 				=> $warehouse_stock,
 	      				'sales_price' 			=> $effective_price,
 	      				'original_sales_price'	=> $original_sales_price,
+							'item_discount_amount' => $item_discount_amount,
 	      				'mrp' 					=> $res1->mrp,
 	      				'batch_lot' 			=> $effective_batch,
 	      				'expire_date' 			=> $effective_expire,
@@ -217,6 +234,7 @@ class Pos_model extends CI_Model {
 		$item_name = $this->input->post('item_name', TRUE);
 		$last_id = $this->input->post('last_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$pos_idempotency_key = trim((string)$this->input->post('pos_idempotency_key', TRUE));
 		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$CI =& get_instance();
@@ -225,7 +243,7 @@ class Pos_model extends CI_Model {
 		  $i=0;
 		 
 		  if(!empty($id)){
-		  	$this->db->where(" a.category_id=$id ");
+			mp_category_filter('a.category_id',$id,$store_id);
 		  }
 		  if($brand_id!=''){
 		  	$this->db->where(" a.brand_id=$brand_id");
@@ -490,6 +508,26 @@ class Pos_model extends CI_Model {
 		//end 
 
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		// A queued/offline request may be retried after the browser lost the
+		// response. Return the original receipt instead of creating another sale.
+		if($command === 'save' && $pos_idempotency_key !== ''
+			&& $this->db->field_exists('pos_idempotency_key', 'db_sales')){
+			$existing = $this->db->where('store_id', (int)$store_id)
+				->where('pos_idempotency_key', substr($pos_idempotency_key, 0, 96))
+				->get('db_sales')->row();
+			if($existing){
+				$this->db->trans_rollback();
+				$advance = $this->db->select('COALESCE(SUM(payment),0) AS amount')->where('sales_id', (int)$existing->id)->get('db_salespayments')->row();
+				echo 'success<<<###>>>'.$existing->id.'<<<###>>>'.($existing->init_code ?? '').'<<<###>>>'.($existing->count_id ?? '').'<<<###>>>'.($advance->amount ?? 0).'<<<###>>>'.($existing->sales_code ?? $existing->id);
+				exit;
+			}
+		}
+		$gardenSaleProfile=mp_get_store_profile($store_id);
+		$isGardenSale=($gardenSaleProfile['industry_type'] ?? '')==='garden_centre_landscaping';
+		if ($isGardenSale && $command==='update' && $this->db->table_exists('db_service_fulfilment_sources')
+			&& $this->db->where('store_id',(int)$store_id)->where('source_type','sale')->where('source_parent_id',(int)$sales_id)->count_all_results('db_service_fulfilment_sources')) {
+			$this->db->trans_rollback();return 'This sale has linked service work. Use the return/correction workflow instead of replacing its lines.';
+		}
 
 		// Serialize invoice-number generation per store for concurrent POS users.
 		if($command == 'save' && !empty($store_id)){
@@ -660,7 +698,7 @@ class Pos_model extends CI_Model {
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
 			}
-				$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
+				$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
 				$q3 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
 				if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
 					$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
@@ -708,7 +746,11 @@ class Pos_model extends CI_Model {
 		    				'pos' 						=> 1,
 		    				'status' 					=> 1,
 		    				'sales_note' 				=> $sales_note,
-		    			);
+			);
+			if($this->db->field_exists('pos_idempotency_key', 'db_sales') && $pos_idempotency_key !== ''){
+				$sales_entry['pos_idempotency_key'] = substr($pos_idempotency_key, 0, 96);
+				$sales_entry['offline_sync_status'] = (stripos($pos_idempotency_key, 'offline:') === 0) ? 'synced' : null;
+			}
 			if($pos_quotation_id > 0 && $this->db->field_exists('quotation_id','db_sales')){
 				$sales_entry['quotation_id'] = $pos_quotation_id;
 			}
@@ -720,7 +762,7 @@ class Pos_model extends CI_Model {
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
 			}
-			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
+			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
 
 			
 			$q3 = $this->db->insert('db_sales', array_merge($sales_entry,$sales_entry_init));
@@ -745,6 +787,7 @@ class Pos_model extends CI_Model {
 				$item_id 	=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
 				$sales_qty 	=$this->xss_html_filter(trim($_REQUEST['item_qty_'.$i]));
 				$price_per_unit =$this->xss_html_filter(trim($_REQUEST['sales_price_'.$i]));
+				$price_per_unit = mp_weight_pricing_unit_price(get_item_details($item_id), $sales_qty, $price_per_unit);
 				$tax_amt =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
 				$tax_type =$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
 				$tax_id =$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
@@ -769,6 +812,7 @@ class Pos_model extends CI_Model {
 				else{//Inclusive
 					$single_unit_total_cost =$price_per_unit;
 				}
+				$total_cost = ($tax_type == 'Exclusive') ? (($price_per_unit * $sales_qty) + (float)$tax_amt) : ($price_per_unit * $sales_qty);
 
 				
 				if($tax_id=='' || $tax_id==0){$tax_id=null;}
@@ -1015,6 +1059,11 @@ class Pos_model extends CI_Model {
 				}
 				//end 
 				$salespayments_entry['advance_adjusted'] = $advance_adjusted;
+				if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+					$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+					$open_shift = $this->m3_cashier_shifts->get_open_shift($store_id, get_current_user_id());
+					if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+				}
 
 
 			  
@@ -1173,6 +1222,10 @@ class Pos_model extends CI_Model {
 		}
 
 		//COMMIT RECORD
+		if ($isGardenSale && $this->db->table_exists('db_service_fulfilment_sources')) {
+			try { $this->load->model('service_fulfilment_model');$this->service_fulfilment_model->fulfil_sale($sales_id,$store_id); }
+			catch (Throwable $e) { $this->db->trans_rollback();log_message('error','POS service fulfilment: '.$e->getMessage());return 'Could not prepare service work. The sale was not saved.'; }
+		}
 		$this->db->trans_commit();
 
 		log_message('error', "[POS SAVE] sales_id=$sales_id date=$sales_date status=Final store=$store_id grand_total=$tot_grand");
@@ -1580,7 +1633,7 @@ class Pos_model extends CI_Model {
 			$sales_entry['shipping_label']  = $shipping_label ?: null;
 			$sales_entry['shipping_fee']    = $shipping_fee ?: null;
 		}
-		$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
+		$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
 		$q3 = $this->db->insert('db_hold', $sales_entry);
 		$hold_id = $this->db->insert_id();
 		
@@ -1617,6 +1670,7 @@ class Pos_model extends CI_Model {
 				else{//Inclusive
 					$single_unit_total_cost =$price_per_unit;
 				}
+				$total_cost = ($tax_type == 'Exclusive') ? (($price_per_unit * $sales_qty) + (float)$tax_amt) : ($price_per_unit * $sales_qty);
 
 				
 				if($tax_id=='' || $tax_id==0){$tax_id=null;}

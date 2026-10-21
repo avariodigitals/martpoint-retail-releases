@@ -1,3 +1,7 @@
+<?php
+$mp_mobile_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+$mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,28 +10,29 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= htmlspecialchars($page_title ?? 'Sale'); ?></title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= htmlspecialchars($mp_is_pharmacy ? 'Dispensing desk' : ($page_title ?? 'Sale')); ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
   <link rel="stylesheet" href="<?= $theme_link; ?>plugins/select2/select2.min.css">
   <style>
     :root {
-      --mp-primary: #0057FF;
-      --mp-primary-dark: #0044CC;
-      --mp-bg: #F1F5F9;
+      --mp-primary: <?= $mp_is_pharmacy ? '#0F766E' : '#0057FF'; ?>;
+      --mp-primary-dark: <?= $mp_is_pharmacy ? '#0B5B55' : '#0044CC'; ?>;
+      --mp-bg: <?= $mp_is_pharmacy ? '#F2F8F7' : '#F1F5F9'; ?>;
       --mp-surface: #FFFFFF;
-      --mp-text: #0F172A;
-      --mp-muted: #64748B;
-      --mp-border: #E2E8F0;
-      --mp-success: #10B981;
-      --mp-danger: #EF4444;
-      --mp-warning: #F59E0B;
-      --mp-ink: #1E293B;
+      --mp-text: <?= $mp_is_pharmacy ? '#16323A' : '#0F172A'; ?>;
+      --mp-muted: <?= $mp_is_pharmacy ? '#6B7F86' : '#64748B'; ?>;
+      --mp-border: <?= $mp_is_pharmacy ? '#D7E7E5' : '#E2E8F0'; ?>;
+      --mp-success: <?= $mp_is_pharmacy ? '#0F766E' : '#10B981'; ?>;
+      --mp-danger: <?= $mp_is_pharmacy ? '#C94F4F' : '#EF4444'; ?>;
+      --mp-warning: <?= $mp_is_pharmacy ? '#B7791F' : '#F59E0B'; ?>;
+      --mp-ink: <?= $mp_is_pharmacy ? '#16323A' : '#1E293B'; ?>;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; font-family: <?= $mp_is_pharmacy ? "'Manrope'" : "'Inter'" ?>, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
     #app { max-width: 430px; margin: 0 auto; background: var(--mp-surface); min-height: 100vh; position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.08); }
     .screen { padding: 16px 16px 120px; min-height: 100vh; }
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-top: 8px; }
@@ -192,15 +197,26 @@
     }
     .topbar .topbar-titles { flex: 1; min-width: 0; }
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+    <?php if($mp_is_pharmacy): ?>
+    body.pharmacy-mobile .topbar { border-bottom-color:#d7e7e5; }
+    body.pharmacy-mobile .pharmacy-consult-card { padding:14px; border:1px solid #cfe4e4; border-radius:16px; background:#eff9f7; }
+    body.pharmacy-mobile .pharmacy-consult-head { display:flex; align-items:center; gap:10px; }
+    body.pharmacy-mobile .pharmacy-consult-head strong, body.pharmacy-mobile .pharmacy-consult-head small { display:block; }
+    body.pharmacy-mobile .pharmacy-consult-head strong { font-size:14px; }
+    body.pharmacy-mobile .pharmacy-consult-head small { margin-top:2px; color:var(--mp-muted); font-size:11px; }
+    body.pharmacy-mobile .pharmacy-consult-card button { margin-top:10px; width:100%; padding:11px; border:1px solid #9bcac7; border-radius:10px; background:#fff; color:#0f766e; font-weight:800; }
+    body.pharmacy-mobile .pharmacy-consult-card textarea { min-height:74px; }
+    body.pharmacy-mobile .pharmacy-mobile-voice { display:inline-flex; align-items:center; justify-content:center; width:42px; min-width:42px; height:42px; padding:0!important; margin:8px 0 0 auto; border-radius:11px; font-size:16px!important; }
+    <?php endif; ?>
   </style>
 </head>
-<body data-no-ptr>
+<body data-no-ptr class="<?= $mp_is_pharmacy ? 'pharmacy-mobile' : ''; ?>">
   <div id="app">
     <section class="screen">
       <div class="topbar">
         <div class="topbar-titles">
             <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
-            <h1><?= $page_title ?? 'Quick Sale'; ?></h1>
+            <h1><?= $mp_is_pharmacy ? 'Dispensing desk' : ($page_title ?? 'Quick Sale'); ?></h1>
           <div class="sub"><?= $init_code . $count_id; ?></div>
         </div>
         <div class="avatar" style="overflow:hidden;">
@@ -220,11 +236,11 @@
       </div>
 
       <div class="form-group">
-        <label>Customer</label>
+        <label><?= $mp_is_pharmacy ? 'Patient' : 'Customer'; ?></label>
         <div class="customer-row">
           <select class="form-control" id="customer_id" style="flex:1">
-            <option value="">Select customer</option>
-            <option value="<?= get_walk_in_customer_id(); ?>" selected>Walk-in Customer</option>
+            <option value=""><?= $mp_is_pharmacy ? 'Select patient' : 'Select customer'; ?></option>
+            <option value="<?= get_walk_in_customer_id(); ?>" selected><?= $mp_is_pharmacy ? 'Walk-in Patient' : 'Walk-in Customer'; ?></option>
           </select>
           <button type="button" onclick="showToast('Add customer flow here', 'warning')">+</button>
         </div>
@@ -245,21 +261,21 @@
 
       <?php if ($pos_retail_button || $pos_wholesale_button): ?>
       <div class="form-group">
-        <label>Price Type</label>
+        <label><?= $mp_is_pharmacy ? 'Price basis' : 'Price Type'; ?></label>
         <input type="hidden" id="price_type" value="<?= $default_price_type; ?>">
         <div class="option-chips" id="price_type_chips">
           <?php if ($pos_retail_button): ?>
-          <button type="button" data-value="retail" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>">Retail (MRP)</button>
+          <button type="button" data-value="retail" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>"><?= $mp_is_pharmacy ? 'Standard' : 'Retail (MRP)'; ?></button>
           <?php endif; ?>
           <?php if ($pos_wholesale_button): ?>
-          <button type="button" data-value="wholesale" class="<?= $default_price_type === 'wholesale' ? 'active' : ''; ?>">Wholesale</button>
+          <button type="button" data-value="wholesale" class="<?= $default_price_type === 'wholesale' ? 'active' : ''; ?>"><?= $mp_is_pharmacy ? 'Trade' : 'Wholesale'; ?></button>
           <?php endif; ?>
         </div>
       </div>
       <?php endif; ?>
 
       <div class="form-group">
-        <label>Barcode / IMEI</label>
+        <label><?= $mp_is_pharmacy ? 'Medicine barcode / code' : 'Barcode / IMEI'; ?></label>
         <div class="search-bar">
           <input type="text" class="form-control" id="barcode_input" placeholder="Scan or type barcode and press Enter" style="border:none;background:transparent;flex:1;min-height:38px;padding:0;" autocomplete="off">
           <button type="button" id="barcode_btn" style="background:none;border:none;color:var(--mp-primary);font-size:20px;">➕</button>
@@ -276,15 +292,15 @@
       </div>
 
       <div class="form-group" id="cart-section">
-        <label>Cart</label>
+        <label><?= $mp_is_pharmacy ? 'Dispensing queue' : 'Cart'; ?></label>
         <div id="cart" style="border:1px solid var(--mp-border); border-radius:16px; padding:0 16px; background:#fff;">
-          <div class="empty-cart">No items yet. Search to add.</div>
+          <div class="empty-cart"><?= $mp_is_pharmacy ? 'No medicines selected. Search to add.' : 'No items yet. Search to add.'; ?></div>
         </div>
       </div>
 
       <div class="form-group">
         <button type="button" class="btn-secondary" id="catalog_toggle" style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; margin-bottom:8px;">
-          <span><i class="fa fa-th-large"></i> Product Catalog</span>
+            <span><i class="fa fa-th-large"></i> <?= $mp_is_pharmacy ? 'Medicine catalogue' : 'Product Catalog'; ?></span>
           <i class="fa fa-chevron-down" id="catalog_chevron"></i>
         </button>
         <div id="catalog_dropdown" class="recent-dropdown" style="display:none;">
@@ -322,13 +338,20 @@
       </div>
       <?php endif; ?>
 
+      <?php if($mp_is_pharmacy): ?>
+      <div class="form-group pharmacy-consult-card" id="pharmacyConsultCard">
+        <div class="pharmacy-consult-head"><i class="fa fa-stethoscope" style="color:#0f766e;font-size:20px;"></i><div><strong>Pharmacist consultation</strong><small>Add assessment, dosage and counselling notes. Dosage will appear on the pharmacy invoice.</small></div></div>
+        <button type="button" onclick="openMobilePharmacyConsult()"><i class="fa fa-clipboard"></i> Add patient guidance</button>
+        <div id="pharmacyConsultSummary" style="display:none;margin-top:9px;padding-top:9px;border-top:1px solid #cfe4e4;font-size:11px;color:#47636a;white-space:pre-line;"></div>
+      </div>
+      <?php endif; ?>
       <div class="form-group">
         <label>Note</label>
         <textarea class="form-control" id="sales_note" rows="2" style="min-height:80px;" placeholder="Optional note..."></textarea>
       </div>
 
       <div class="cart-total">
-        <div class="label">Total Amount</div>
+        <div class="label"><?= $mp_is_pharmacy ? 'Dispensing total' : 'Total Amount'; ?></div>
         <div class="value" id="grand_total">₦ 0.00</div>
       </div>
 
@@ -343,6 +366,21 @@
 
 
   </div>
+
+  <?php if($mp_is_pharmacy): ?>
+  <div class="modal" id="pharmacy_consult_modal">
+    <div class="modal-box" style="text-align:left;">
+      <button class="modal-close" type="button" onclick="closeMobilePharmacyConsult()">&times;</button>
+      <h3 style="padding-right:28px;">Patient guidance</h3>
+      <p style="font-size:12px;color:var(--mp-muted);">Use the microphone controls for hands-free entry before payment.</p>
+      <div class="form-group"><label>Short assessment</label><textarea class="form-control" id="pharmacy_assessment" rows="3" placeholder="Symptoms, duration, relevant context..."></textarea><button type="button" class="btn-secondary pharmacy-mobile-voice" data-target="pharmacy_assessment" aria-label="Dictate assessment" title="Dictate assessment"><i class="fa fa-microphone" aria-hidden="true"></i></button></div>
+      <div class="form-group"><label>Dosage / directions</label><textarea class="form-control" id="pharmacy_dosage" rows="3" placeholder="Example: Take 1 tablet after food, twice daily for 5 days..."></textarea><button type="button" class="btn-secondary pharmacy-mobile-voice" data-target="pharmacy_dosage" aria-label="Dictate dosage" title="Dictate dosage"><i class="fa fa-microphone" aria-hidden="true"></i></button></div>
+      <div class="form-group"><label>Counselling / cautions</label><textarea class="form-control" id="pharmacy_counselling" rows="2" placeholder="Food, driving, storage or follow-up advice..."></textarea><button type="button" class="btn-secondary pharmacy-mobile-voice" data-target="pharmacy_counselling" aria-label="Dictate counselling" title="Dictate counselling"><i class="fa fa-microphone" aria-hidden="true"></i></button></div>
+      <div class="form-group"><label>Allergies / cautions noted</label><input class="form-control" id="pharmacy_allergies" type="text" placeholder="Optional"></div>
+      <div style="display:flex;gap:10px;"><button type="button" class="btn-secondary" onclick="closeMobilePharmacyConsult()">Cancel</button><button type="button" class="btn-primary" onclick="saveMobilePharmacyConsult()">Add to invoice</button></div>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <div id="toast"></div>
 
@@ -512,7 +550,7 @@
     <div class="modal-box">
       <button class="modal-close" type="button" aria-label="Close">&times;</button>
       <h3>Payment Successful</h3>
-      <p id="pay_message">Sale saved.</p>
+      <p id="pay_message"><?= $mp_is_pharmacy ? 'Dispensing record saved.' : 'Sale saved.'; ?></p>
       <button class="btn btn-primary" id="btn_print" type="button">Print Receipt</button>
       <button class="btn btn-secondary" id="btn_share" type="button">Share Receipt</button>
       <button class="btn btn-secondary" id="btn_done" type="button" style="margin-bottom:0;">Done</button>
@@ -533,6 +571,31 @@
     var csrf_name = '<?= $this->security->get_csrf_token_name(); ?>';
     var csrf_hash = '<?= $this->security->get_csrf_hash(); ?>';
     var currency = '<?= $this->session->userdata("currency"); ?>';
+    var isPharmacyMobile = <?= $mp_is_pharmacy ? 'true' : 'false'; ?>;
+    var showSaleStockLabels = <?= !empty($show_sale_stock_labels) ? 'true' : 'false'; ?>;
+
+    function mobilePharmacyNote(){
+      if(!isPharmacyMobile) return '';
+      var parts = [];
+      var fields = [['pharmacy_assessment','Assessment'],['pharmacy_dosage','Dosage / directions'],['pharmacy_counselling','Counselling'],['pharmacy_allergies','Allergies / cautions']];
+      fields.forEach(function(pair){ var el = document.getElementById(pair[0]); var value = el ? el.value.trim() : ''; if(value) parts.push(pair[1] + ': ' + value); });
+      return parts.join('\n');
+    }
+    window.openMobilePharmacyConsult = function(){ $('#pharmacy_consult_modal').addClass('active'); };
+    window.closeMobilePharmacyConsult = function(){ $('#pharmacy_consult_modal').removeClass('active'); };
+    window.saveMobilePharmacyConsult = function(){ var note = mobilePharmacyNote(); $('#pharmacyConsultSummary').text(note || 'No guidance added yet.').show(); closeMobilePharmacyConsult(); };
+    $(document).on('click', '.pharmacy-mobile-voice', function(){
+      var btn = this, Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!Recognition){ showToast('Voice dictation is not supported in this browser. You can type the note instead.', 'warning'); return; }
+      if(btn._recognition){ btn._recognition.stop(); return; }
+      var target = document.getElementById(btn.getAttribute('data-target')); if(!target) return;
+      var recognition = new Recognition(); btn._recognition = recognition; recognition.lang = 'en-NG'; recognition.interimResults = false; recognition.continuous = false;
+      btn.setAttribute('aria-label', 'Stop dictation'); btn.setAttribute('title', 'Stop dictation'); btn.innerHTML = '<i class="fa fa-stop" aria-hidden="true"></i>';
+      recognition.onresult = function(event){ var text = event.results[0][0].transcript.trim(); target.value = (target.value ? target.value + ' ' : '') + text; };
+      recognition.onerror = function(){ showToast('Voice note could not be captured.', 'warning'); };
+      recognition.onend = function(){ btn._recognition = null; btn.setAttribute('aria-label', 'Dictate'); btn.setAttribute('title', 'Dictate'); btn.innerHTML = '<i class="fa fa-microphone" aria-hidden="true"></i>'; };
+      recognition.start();
+    });
 
     function formatMoney(num){
       return currency + ' ' + Number(num).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
@@ -787,7 +850,7 @@
     function renderCart(){
       var html = '';
       if(cart.length === 0){
-        $('#cart').html('<div class="empty-cart">No items yet. Search to add.</div>');
+        $('#cart').html('<div class="empty-cart">' + (isPharmacyMobile ? 'No medicines selected. Search to add.' : 'No items yet. Search to add.') + '</div>');
       } else {
         cart.forEach(function(item, index){
           var unitLabel = item.unit_name ? ' · ' + item.unit_name : '';
@@ -895,9 +958,13 @@
       var html = '';
       items.forEach(function(item){
         searchItemsMap[item.id] = item;
+        var resultPrice = selectedPrice(item);
+        var resultSale = showSaleStockLabels && parseFloat(item.original_price || 0) > resultPrice;
+        var resultOld = resultSale ? ' <del style="color:var(--mp-muted);font-size:11px;">'+formatMoney(item.original_price)+'</del>' : '';
+        var resultStock = (parseFloat(item.stock) || 0) <= 0 ? '<span style="color:var(--mp-danger);font-weight:700;">Out of stock</span>' : 'Stock: '+(item.stock || 0);
         html += '<div class="result-item" data-id="'+item.id+'">' +
           '<div class="title">'+item.item_name+'</div>' +
-          '<div class="meta">'+formatMoney(selectedPrice(item))+' · Stock: '+(item.stock || 0)+'</div>' +
+          '<div class="meta">'+(resultSale ? '<strong style="color:var(--mp-danger);">SALE</strong> ' : '')+formatMoney(resultPrice)+resultOld+' · '+resultStock+'</div>' +
         '</div>';
       });
       $('#item_results').html(html).show();
@@ -986,8 +1053,8 @@
           return;
         }
         catalogItemsMap = {};
-        var activeLabel = activeType === 'retail' ? 'Retail' : 'Wholesale';
-        var altLabel = activeType === 'retail' ? 'Wholesale' : 'Retail';
+        var activeLabel = activeType === 'retail' ? (isPharmacyMobile ? 'Standard' : 'Retail') : (isPharmacyMobile ? 'Trade' : 'Wholesale');
+        var altLabel = activeType === 'retail' ? (isPharmacyMobile ? 'Trade' : 'Wholesale') : (isPharmacyMobile ? 'Standard' : 'Retail');
         var html = '';
         items.forEach(function(item){
           catalogItemsMap[String(item.id)] = item;
@@ -997,11 +1064,12 @@
           if(retail <= 0) retail = wholesale;
           var active = activeType === 'retail' ? retail : wholesale;
           var altPrice = activeType === 'retail' ? wholesale : retail;
+          var catalogSale = showSaleStockLabels && parseFloat(item.original_price || 0) > active;
           var thumb = base_url + getThumb(item.item_image);
           html += '<div class="recent-item" data-id="'+item.id+'">' +
                     '<img src="'+thumb+'" alt="" onerror="this.src=\'' + base_url + 'theme/images/no_image.png\'">' +
                     '<div class="name">'+item.item_name+'</div>' +
-                    '<div class="price">'+formatMoney(active)+'</div>' +
+                    '<div class="price">'+(catalogSale ? '<span style="display:block;color:var(--mp-danger);font-size:10px;text-transform:uppercase;">Sale</span>' : '')+formatMoney(active)+(catalogSale ? ' <del class="price-alt">'+formatMoney(item.original_price)+'</del>' : '')+'</div>' +
                     '<div class="price-alt">'+altLabel+': '+formatMoney(altPrice)+'</div>' +
                   '</div>';
         });
@@ -1250,6 +1318,8 @@
       $(btn).prop('disabled', true).text('Processing...');
       $('#payment_confirm, #payment_cancel').prop('disabled', true);
 
+      var consultationNote = mobilePharmacyNote();
+      var saleNote = ($('#sales_note').val() || '').trim();
       var payload = {
         customer_id: customer_id,
         table_id: $('#table_id').val() || 0,
@@ -1258,7 +1328,8 @@
         action: action,
         warehouse_id: '',
         discount: (parseFloat($('#discount').val()) || 0) + (parseFloat($('#redeem_discount').val()) || 0),
-        sales_note: $('#sales_note').val() || '',
+        sales_note: [consultationNote, saleNote].filter(Boolean).join('\n\n'),
+        pharmacy_assessment: consultationNote,
         amount_paid: amountPaid,
         redeem_points: $('#redeem_points').val() || 0,
         redeem_store_credit: $('#redeem_store_credit_val').val() || 0,
@@ -1268,6 +1339,7 @@
         allow_tot_advance: $('#allow_tot_advance').is(':checked') ? 'checked' : '',
         cart: cart,
         shipping: shippingFeeId ? { id: shippingFeeId } : null
+        ,restaurant_order_key: window.__mpRestaurantOrderKey || (window.__mpRestaurantOrderKey = 'pos-' + Date.now() + '-' + Math.random().toString(36).slice(2))
       };
       if(action === 'split'){
         payload.payment_rows = getPaymentRows();
@@ -1299,6 +1371,7 @@
         headers: headers,
         success: function(res){
           if(res.status === 'success'){
+            window.__mpRestaurantOrderKey = null;
             if(action === 'pay' && res.sales_id){
               lastSalesId = res.sales_id;
               lastWhatsAppUrl = res.whatsapp_url || '';

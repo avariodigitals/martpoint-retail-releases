@@ -7,6 +7,8 @@ class Promotions_model extends CI_Model {
 	var $column_order = array('a.id','a.promotion_name','a.promotion_code','a.discount_type','a.discount_value','a.start_date','a.end_date','a.status');
 	var $column_search = array('a.promotion_name','a.promotion_code','a.description');
 	var $order = array('a.id' => 'desc');
+	private $effective_item_cache = array();
+	private $active_promotions_cache = array();
 
 	public function __construct(){
 		parent::__construct();
@@ -221,8 +223,8 @@ class Promotions_model extends CI_Model {
 	 * @param float $original_price
 	 * @return array
 	 */
-	public function compute_effective_price($item_id, $original_price){
-		$store_id = get_current_store_id();
+	public function compute_effective_price($item_id, $original_price, $store_id = null){
+		$store_id = $store_id ?: get_current_store_id();
 		$today = date('Y-m-d');
 		$result = array(
 			'has_promo' => false,
@@ -236,22 +238,40 @@ class Promotions_model extends CI_Model {
 			return $result;
 		}
 
-		$item = $this->db->select('category_id, brand_id, purchase_price')->where('id', $item_id)->get('db_items')->row();
+		if(!isset($this->effective_item_cache[$store_id])){
+			$this->effective_item_cache[$store_id] = array();
+			$items = $this->db->select('id, category_id, brand_id, purchase_price')->where('store_id',$store_id)->get('db_items')->result();
+			foreach($items as $cachedItem) $this->effective_item_cache[$store_id][(int)$cachedItem->id] = $cachedItem;
+		}
+		$item = $this->effective_item_cache[$store_id][(int)$item_id] ?? null;
 		if(!$item){ return $result; }
 
 		// Find active promotions that apply to this item
-		$this->db->where('store_id', $store_id);
-		$this->db->where('status', 1);
-		$this->db->where('start_date <=', $today);
-		$this->db->where('end_date >=', $today);
-		$this->db->group_start();
-		$this->db->where('applies_to', 'all');
-		if(!empty($item->category_id)){ $this->db->or_group_start()->where('applies_to','category')->where('category_id',$item->category_id)->group_end(); }
-		if(!empty($item->brand_id)){ $this->db->or_group_start()->where('applies_to','brand')->where('brand_id',$item->brand_id)->group_end(); }
-		$this->db->or_group_start()->where('applies_to','items')->where("id IN (SELECT promotion_id FROM db_promotion_items WHERE item_id = ".(int)$item_id.")", null, false)->group_end();
-		$this->db->group_end();
-		$this->db->order_by('discount_value','desc');
-		$promos = $this->db->get('db_promotions')->result();
+		$promoCacheKey = $store_id . '|' . $today;
+		if(!isset($this->active_promotions_cache[$promoCacheKey])){
+			$this->active_promotions_cache[$promoCacheKey] = $this->db
+				->where('store_id', $store_id)
+				->where('status', 1)
+				->where('start_date <=', $today)
+				->where('end_date >=', $today)
+				->order_by('discount_value','desc')
+				->get('db_promotions')->result();
+		}
+		$promos = array();
+		foreach($this->active_promotions_cache[$promoCacheKey] as $candidate){
+			$applies = ($candidate->applies_to ?? '') === 'all';
+			if(!$applies && ($candidate->applies_to ?? '') === 'category' && !empty($item->category_id)){
+				$applies = in_array((int)$candidate->category_id, array_map('intval', mp_category_ancestors($item->category_id,$store_id)), true);
+			}
+			if(!$applies && ($candidate->applies_to ?? '') === 'brand' && !empty($item->brand_id)){
+				$applies = (int)$candidate->brand_id === (int)$item->brand_id;
+			}
+			if(!$applies && ($candidate->applies_to ?? '') === 'items'){
+				$linked = $this->db->where('promotion_id', (int)$candidate->id)->where('item_id', (int)$item_id)->count_all_results('db_promotion_items');
+				$applies = $linked > 0;
+			}
+			if($applies) $promos[] = $candidate;
+		}
 
 		if(empty($promos)){ return $result; }
 

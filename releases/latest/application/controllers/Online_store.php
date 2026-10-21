@@ -72,6 +72,11 @@ class Online_store extends MY_Controller {
 
 	public function index(){
 		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
+		if($this->_building_website()){
+			$canRead=$this->permissions('leads_view') && mp_feature_enabled('leads');
+			$this->_website_render('B2B website','website',array_merge($this->building_website_model->inbox((array)$this->input->get(),$canRead),['can_edit_website'=>$this->_can_edit(),'can_view_leads'=>$canRead]));
+			return;
+		}
 		$data = array_merge($this->data, [
 			'page_title' => 'Online Store Dashboard',
 			'stats' => $this->storefront_model->getTodaysOrderStats(),
@@ -86,6 +91,9 @@ class Online_store extends MY_Controller {
 
 	public function settings(){
 		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
+		if($this->_building_website()){
+			$this->_website_render('Website settings','website_settings');return;
+		}
 		$storeId = get_current_store_id();
 		$data = array_merge($this->data, [
 			'page_title' => 'Online Store Settings',
@@ -98,6 +106,93 @@ class Online_store extends MY_Controller {
 		]);
 		$data['content'] = $this->load->view('online_store/settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
+	}
+
+	/** Building Materials is a website/intake channel, not an order desk. */
+	private function _building_website(){
+		if((mp_get_store_profile()['industry_type'] ?? '')!=='building_materials')return false;
+		$this->load->helper('building_workspace');
+		$this->load->model('building_website_model');
+		return true;
+	}
+	private function _website_render($title,$view,array $extra=[]){
+		$settings=$this->storefront_model->getSettings(get_current_store_id());
+		bm_workspace_render(array_merge($this->data,['page_title'=>$title,'website_settings'=>$settings],$extra),'building_materials/'.$view);
+	}
+	/** Resolve from the signed-in store, never a copied preview slug or query ID. */
+	public function view_website(){
+		if(!mp_feature_enabled('online_store')){show_error('Online Store is not enabled for this business.',403);return;}
+		if(!$this->_can_view()){show_error('Access denied',403);return;}
+		$store=(int)get_current_store_id();
+		$settings=$this->db->where('store_id',$store)->get('db_storefront_settings')->row();
+		if(!$settings || trim((string)$settings->store_slug)===''){
+			show_error('This business has not configured its website address. Open Online Store settings first.',409);return;
+		}
+		$resolved=$this->storefront_model->getStoreBySlug($settings->store_slug);
+		if(!$resolved || (int)$resolved->store_id!==$store){
+			show_error('The website address could not be matched to this business. Please review Online Store settings.',409);return;
+		}
+		$page=$this->input->get('page');
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($store) : [];
+		$isPharmacy = in_array(strtolower((string)($profile['industry_type'] ?? '')), ['pharmacy', 'medical_store', 'healthcare'], true);
+		$basePath = $isPharmacy && !empty($settings->partner_marketplace_enabled)
+			? '/store/'.rawurlencode($settings->store_slug).'/pharmacy'
+			: '/store/'.rawurlencode($settings->store_slug);
+		// Keep legacy content pages on the standard storefront until they are
+		// mapped into the pharmacy journey as well.
+		if($page === 'contact'){
+			redirect(base_url('/store/'.rawurlencode($settings->store_slug).'/contact'));
+			return;
+		}
+		redirect(base_url($basePath));
+	}
+	public function enquiry($id=0){
+		if(!$this->_building_website() || !$this->_can_view()){show_error('Access denied',403);return;}
+		$this->permission_check('leads_view');
+		if(!mp_feature_enabled('leads')){show_error('CRM intake is not enabled',403);return;}
+		$lead=$this->building_website_model->enquiry((int)$id);
+		if(!$lead){show_404();return;}
+		$this->load->model(['building_workspace_model','leads_model']);
+		$handoff=$this->permissions('leads_edit') && $this->permissions('service_jobs_add') && $this->permissions('service_jobs_view') && $this->permissions('customers_view') && mp_feature_enabled('service_jobs');
+		$choices=$handoff?$this->building_workspace_model->choices():['customers'=>[],'sites'=>[],'staff'=>[]];
+		if(!$handoff && $this->permissions('leads_edit'))$choices['staff']=$this->db->select('id,username')->where('store_id',get_current_store_id())->where('status',1)->where_not_in('role_id',get_excluded_staff_roles(get_current_store_id()))->where_not_in('id',get_excluded_user_ids(get_current_store_id()))->get('db_users')->result();
+		$this->_website_render('Website enquiry #'.(int)$id,'website_enquiry',array_merge($choices,[
+			'lead'=>$lead,'activities'=>$this->leads_model->getActivities((int)$id),
+			'linked_records'=>$this->permissions('service_jobs_view')?$this->building_website_model->links($lead):[],
+			'can_triage'=>$this->permissions('leads_edit'),
+			'can_handoff'=>$handoff,
+			'can_create_customer'=>$this->permissions('customers_add'),
+		]));
+	}
+	public function route_enquiry($id=0){
+		if(!$this->_building_website() || !$this->_can_view()){show_error('Access denied',403);return;}
+		$this->permission_check('leads_view');$this->permission_check('leads_edit');
+		if($this->input->method()!=='post'){show_404();return;}
+		$input=(array)$this->input->post(null,true);
+		try{
+			if(($input['action'] ?? '')==='handoff'){
+				$this->permission_check('service_jobs_add');$this->permission_check('service_jobs_view');$this->permission_check('customers_view');
+				if(!mp_feature_enabled('service_jobs') || !mp_feature_enabled('leads'))throw new InvalidArgumentException('Enable CRM and field operations before routing requests.');
+				if(empty($input['customer_id']))$this->permission_check('customers_add');
+				$this->building_website_model->handoff((int)$id,$input);
+				$this->session->set_flashdata('success','Request linked to operations. Open the linked record below.');
+			}else{
+				$this->building_website_model->triage((int)$id,$input);
+				$this->session->set_flashdata('success','CRM owner, status and follow-up updated.');
+			}
+		}catch(InvalidArgumentException $e){$this->session->set_flashdata('website_error',$e->getMessage());}
+		catch(Throwable $e){log_message('error','Website intake: '.$e->getMessage());$this->session->set_flashdata('website_error','Could not save. No partial handoff was retained.');}
+		redirect('online_store/enquiry/'.(int)$id.($this->input->get('screen')==='mobile'?'?screen=mobile':''));
+	}
+	public function save_website_settings(){
+		if(!$this->_building_website() || !$this->_can_edit()){show_error('Access denied',403);return;}
+		if($this->input->method()!=='post'){show_404();return;}
+		try{
+			$this->building_website_model->save_website_settings((array)$this->input->post(null,true));
+			$this->session->set_flashdata('success','Website contact details and publishing updated.');
+		}catch(InvalidArgumentException $e){$this->session->set_flashdata('website_error',$e->getMessage());}
+		catch(Throwable $e){log_message('error','B2B website settings: '.$e->getMessage());$this->session->set_flashdata('website_error','Could not save website settings.');}
+		redirect('online_store/settings'.($this->input->get('screen')==='mobile'?'?screen=mobile':''));
 	}
 
 	public function save_settings(){
@@ -158,6 +253,13 @@ class Online_store extends MY_Controller {
 				'featured_products_limit' => (int)($this->input->post('featured_products_limit') ?: 8),
 				'instagram_access_token' => trim($this->input->post('instagram_access_token')),
 				'instagram_username' => trim($this->input->post('instagram_username')),
+				'instagram_business_account_id' => trim($this->input->post('instagram_business_account_id')),
+				'whatsapp_api_token' => trim($this->input->post('whatsapp_api_token')),
+				'whatsapp_phone_number_id' => trim($this->input->post('whatsapp_phone_number_id')),
+				'whatsapp_webhook_verify_token' => trim($this->input->post('whatsapp_webhook_verify_token')),
+				'whatsapp_api_enabled' => $this->input->post('whatsapp_api_enabled') ? 1 : 0,
+				'facebook_page_access_token' => trim($this->input->post('facebook_page_access_token')),
+				'facebook_page_id' => trim($this->input->post('facebook_page_id')),
 				'google_places_api_key' => trim($this->input->post('google_places_api_key')),
 				'gmb_place_id' => trim($this->input->post('gmb_place_id')),
 				'trust_badges_json' => json_encode([
@@ -174,6 +276,10 @@ class Online_store extends MY_Controller {
 				$data['auto_recovery_enabled'] = $this->input->post('auto_recovery_enabled') ? 1 : 0;
 				$data['auto_recovery_channel'] = $this->input->post('auto_recovery_channel') === 'sms' ? 'sms' : 'email';
 				$data['auto_recovery_test'] = $this->input->post('auto_recovery_test') ? 1 : 0;
+			}
+			// Deliberate store-level opt-in. Keep legacy/unmigrated installs safe.
+			if($this->db->field_exists('partner_marketplace_enabled', 'db_storefront_settings')){
+				$data['partner_marketplace_enabled'] = $this->input->post('partner_marketplace_enabled') ? 1 : 0;
 			}
 
 			$result = $this->storefront_model->saveSettings($storeId, $data);
@@ -331,6 +437,10 @@ class Online_store extends MY_Controller {
 			show_404();
 			return;
 		}
+		if(!empty($order->warehouse_id) && $this->db->table_exists('db_warehouse')){
+			$branch = $this->db->select('warehouse_name')->where('id', (int)$order->warehouse_id)->where('store_id', (int)$order->store_id)->get('db_warehouse')->row();
+			$order->fulfilment_branch = $branch ? $branch->warehouse_name : '';
+		}
 		$data = array_merge($this->data, [
 			'page_title' => 'Order #' . $order->order_code,
 			'order' => $order,
@@ -365,14 +475,23 @@ class Online_store extends MY_Controller {
 		}
 		if($previousStatus === $status){ echo json_encode(['status' => 'success', 'message' => 'Order status unchanged']); return; }
 		$this->db->trans_begin();
-		if($status === 'cancelled' && !$this->storefront_model->restoreStock($orderId)){
+		$prepared = $status === 'cancelled' && in_array($previousStatus, ['processing','ready'], true);
+		if($prepared){
+			$stockOk = $this->storefront_model->disposeStock($orderId, 'Cancellation after kitchen preparation');
+		} else {
+			$stockOk = $status !== 'cancelled' || $this->storefront_model->restoreStock($orderId);
+		}
+		if(!$stockOk){
 			$this->db->trans_rollback();
-			echo json_encode(['status' => 'error', 'message' => 'Stock could not be released; order was not cancelled.']);
+			echo json_encode(['status' => 'error', 'message' => $prepared ? 'Prepared food was not disposed; order was not cancelled.' : 'Stock could not be released; order was not cancelled.']);
 			return;
 		}
 		if(!$this->storefront_model->updateOrderStatus($orderId, $status)){
 			$this->db->trans_rollback();
-			echo json_encode(['status' => 'error', 'message' => 'Order status could not be updated.']);
+			$reason = trim((string) $this->storefront_model->last_status_error);
+			echo json_encode(['status' => 'error', 'message' => $reason !== ''
+				? $reason
+				: 'Order status could not be updated.']);
 			return;
 		}
 		if($status === 'paid' && $previousStatus !== 'paid' && !$this->storefront_model->adjustStock($orderId)){
@@ -449,9 +568,16 @@ class Online_store extends MY_Controller {
 				return;
 			}
 		}
-		$shouldRestock = ($status === 'refunded' && in_array($refundDisposition, ['returned', 'not_shipped'], true));
+		$prepared = $status === 'refunded' && in_array($order->order_status, ['processing','ready'], true);
+		$shouldRestock = ($status === 'refunded' && !$prepared && in_array($refundDisposition, ['returned', 'not_shipped'], true));
 		$this->db->trans_begin();
-		if($shouldRestock && !$this->storefront_model->restoreStock($orderId)){
+		$stockOk = true;
+		if($prepared && $status === 'refunded'){
+			$stockOk = $this->storefront_model->disposeStock($orderId, 'Refund after kitchen preparation');
+		} elseif($shouldRestock){
+			$stockOk = $this->storefront_model->restoreStock($orderId);
+		}
+		if(!$stockOk){
 			$this->db->trans_rollback();
 			echo json_encode(['status' => 'error', 'message' => 'Stock release failed; the refund status was not recorded.']);
 			return;
@@ -624,6 +750,7 @@ class Online_store extends MY_Controller {
 			'services' => $this->storefront_model->getServicesForAdmin(get_current_store_id()),
 			'categories' => $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_category')->result()
 		]);
+		$data['pos_services'] = $this->db->select('id,item_name')->where('store_id',get_current_store_id())->where('service_bit',1)->where('status',1)->order_by('item_name')->get('db_items')->result();
 		$data['content'] = $this->load->view('online_store/services', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -636,6 +763,7 @@ class Online_store extends MY_Controller {
 		}
 		$serviceId = (int)$this->input->post('service_id');
 		$storeId = get_current_store_id();
+		$this->load->helper('offering_policy');
 		if($serviceId && !$this->db->where('id', $serviceId)->where('store_id', $storeId)->get('db_services')->row()){
 			echo json_encode(['status' => 'error', 'message' => 'Service not found for this store']);
 			return;
@@ -656,6 +784,23 @@ class Online_store extends MY_Controller {
 			'deposit_percent' => (float)$this->input->post('deposit_percent'),
 			'status' => $this->input->post('status') ? 1 : 0
 		];
+		if ($this->input->post('price_model') !== null) {
+			$priceModel = $this->input->post('price_model',true);
+			if (!in_array($priceModel,['fixed','starting','quote'],true)) {
+				echo json_encode(['status'=>'error','message'=>'Choose a valid price model.']); return;
+			}
+			$oldService = $serviceId ? $this->db->where('id',$serviceId)->where('store_id',$storeId)->get('db_services')->row() : null;
+			$fields = json_decode($oldService->industry_fields_json ?? '',true) ?: [];
+			$fields['price_model'] = $priceModel;
+			if ($this->input->post('pos_item_id') !== null) {
+				$posItemId = (int)$this->input->post('pos_item_id');
+				if ($posItemId && !$this->db->where('id',$posItemId)->where('store_id',$storeId)->where('service_bit',1)->where('status',1)->get('db_items')->row()) {
+					echo json_encode(['status'=>'error','message'=>'Choose an active POS service from this store.']); return;
+				}
+				$fields['pos_item_id'] = $posItemId ?: null;
+			}
+			$data['industry_fields_json'] = json_encode($fields);
+		}
 		$uploadedPath = null;
 		if(!empty($_FILES['service_image']['name'])){
 			$mediaCheck = check_media_storage_limit();
@@ -671,7 +816,7 @@ class Online_store extends MY_Controller {
 			$this->load->library('upload');
 			$this->upload->initialize([
 				'upload_path' => $uploadDir,
-				'allowed_types' => 'jpg|jpeg|png|webp',
+				'allowed_types' => 'jpg|jpeg|png|webp|avif',
 				'max_size' => 5120,
 				'file_name' => 'service_' . ($serviceId ?: 'new') . '_' . time()
 			]);
@@ -1486,6 +1631,222 @@ class Online_store extends MY_Controller {
 
 	// ============== APPEARANCE ==============
 
+    private function _editor_render($title,$view,$extra=[]){
+        $d=array_merge($this->data,['page_title'=>$title],$extra);$d['content']=$this->load->view($view,$d,true);
+        if($this->input->get('screen')==='mobile')$this->load->view('mobile/storefront_editor',$d);else{$d['content'].=$this->load->view('online_store/editor_screen',['editor_mobile'=>false],true);$this->load->view('mp_layout',$d);}
+    }
+    public function content_settings(){
+        if(!$this->_can_edit()){show_error('Access denied',403);return;}$this->load->model('storefront_content_model');$sid=get_current_store_id();
+        if($this->_building_website()){$this->_website_render('Enquiry form & policies','website_pages',['page_config'=>$this->storefront_content_model->settings($sid)]);return;}
+        $this->_editor_render('Store pages & product features','online_store/content_settings',['page_config'=>$this->storefront_content_model->settings($sid),'settings'=>$this->storefront_model->getSettings($sid)]);
+    }
+    public function save_content_settings(){
+        if(!$this->_can_edit()){show_error('Access denied',403);return;}if($this->input->method()!=='post'){show_404();return;}$this->load->model('storefront_content_model');$sid=get_current_store_id();
+        try{
+            $contact=[];foreach(['store_address','store_phone','store_email','business_hours'] as $key){$value=$this->input->post($key);if(!is_string($value)||mb_strlen($value)>(['store_phone'=>30,'store_email'=>255][$key]??3000))throw new InvalidArgumentException('Please check '.str_replace('_',' ',$key));$contact[$key]=trim($value);}
+            if($contact['store_email']&&!filter_var($contact['store_email'],FILTER_VALIDATE_EMAIL))throw new InvalidArgumentException('Enter a valid store email.');
+            $this->db->trans_begin();$ok=$this->storefront_content_model->save_settings($sid,(array)$this->input->post())&&$this->storefront_model->saveSettings($sid,$contact);if(!$ok||!$this->db->trans_status())throw new RuntimeException('Could not save these settings.');$this->db->trans_commit();$this->session->set_flashdata('content_success','Store pages and product features saved.');
+        }catch(Throwable $e){$this->db->trans_rollback();$this->session->set_flashdata('content_error',$e instanceof InvalidArgumentException?$e->getMessage():'Could not save. Please try again.');}
+        redirect('online_store/content_settings'.($this->input->post('editor_mobile')?'?screen=mobile':''));
+    }
+    public function journal($id=0){
+        if(!$this->_can_edit()){show_error('Access denied',403);return;}$this->load->model('storefront_content_model');$sid=get_current_store_id();$post=$id?$this->storefront_content_model->post($sid,(int)$id):null;if($id&&!$post){show_404();return;}
+        $this->load->library('theme_engine');$this->theme_engine->init($sid);
+        $this->_editor_render('Storefront stories','online_store/journal',['journal_posts'=>$this->storefront_content_model->posts($sid),'edit_post'=>$post,'settings'=>$this->storefront_model->getSettings($sid),'journal_building'=>$this->theme_engine->isBuildingMaterialsTheme()]);
+    }
+    public function save_journal(){
+        if(!$this->_can_edit()){show_error('Access denied',403);return;}if($this->input->method()!=='post'){show_404();return;}$this->load->model('storefront_content_model');$sid=get_current_store_id();$uploaded=null;$id=(int)$this->input->post('id');
+        try{
+            if($id&&!$this->storefront_content_model->post($sid,$id))throw new InvalidArgumentException('Article not found.');
+            if(!empty($_FILES['article_image']['name'])){
+                $quota=check_media_storage_limit();if($quota!==true)throw new InvalidArgumentException($quota);$dir='uploads/storefront/'.(int)$sid.'/journal/';if(!is_dir(FCPATH.$dir))mkdir(FCPATH.$dir,0755,true);
+                $this->load->library('upload');$this->upload->initialize(['upload_path'=>FCPATH.$dir,'allowed_types'=>'jpg|jpeg|png|webp|avif','max_size'=>3072,'file_name'=>'article_'.bin2hex(random_bytes(8))]);
+                if(!$this->upload->do_upload('article_image'))throw new InvalidArgumentException(strip_tags($this->upload->display_errors('','')));$file=$this->upload->data();$uploaded=$dir.$file['file_name'];
+            }
+            $id=$this->storefront_content_model->save_post($sid,(array)$this->input->post(),$uploaded?base_url($uploaded):null);$this->session->set_flashdata('content_success','Article saved.');
+        }catch(Throwable $e){if($uploaded)@unlink(FCPATH.$uploaded);$this->session->set_flashdata('content_error',$e instanceof InvalidArgumentException?$e->getMessage():'Could not save. Please try again.');}
+        redirect('online_store/journal'.($id?'/'.$id:'').($this->input->post('editor_mobile')?'?screen=mobile':''));
+    }
+
+	/**
+	 * Resolve which content catalog the active storefront theme edits.
+	 *
+	 * Building themes keep a block per theme key so switching between
+	 * Framework Atelier and Vector Systems never carries one theme's copy into
+	 * the other. Botanical keeps its historical single block. Any other theme
+	 * opens the Botanical editor, exactly as it did before.
+	 */
+	private function _theme_content_catalog($storeId){
+		$this->load->library('theme_engine');
+		$this->theme_engine->init($storeId);
+		$theme=$this->theme_engine->currentTheme();
+		$key=(string)($theme->theme_key ?? '');
+		$building=in_array($key,['framework_atelier','vector_systems'],true);
+		if($building){
+			$this->load->helper('building_content');
+			return ['key'=>$key,'building'=>true,'name'=>(string)($theme->theme_name ?? 'Building materials'),'fields'=>mp_building_fields($key)];
+		}
+		$this->load->helper('botanical_content');
+		return ['key'=>'botanical_elegance','building'=>false,'name'=>(string)($theme->theme_name ?? 'Botanical Elegance'),'fields'=>mp_botanical_fields()];
+	}
+
+	/** Merchant-editable theme copy; the catalogue and homepage editors own their content. */
+	public function theme_content(){
+		if(!$this->_can_edit()){ show_error('Access denied',403); return; }
+		$storeId=get_current_store_id();
+		$catalog=$this->_theme_content_catalog($storeId);
+		$settings=$this->storefront_model->getSettings($storeId);
+		$json=$settings->theme_content_json ?? '';
+		$data=array_merge($this->data,[
+			'page_title'=>'Storefront Content',
+			'settings'=>$settings,
+			'content_fields'=>$catalog['fields'],
+			'content_values'=>$catalog['building']?mp_building_values($json,$catalog['key']):mp_botanical_values($json),
+			'content_theme_key'=>$catalog['key'],
+			'content_theme_name'=>$catalog['name'],
+			'content_is_building'=>$catalog['building'],
+		]);
+		$data['content']=$this->load->view('online_store/theme_content',$data,true);$this->load->view('mp_layout',$data);
+	}
+
+	public function save_theme_content(){
+		$reply=function($status,$message){echo json_encode(['status'=>$status,'message'=>$message,'csrf_hash'=>$this->security->get_csrf_hash()]);};
+		if(!$this->_can_edit()){ $reply('error','Access denied');return; }
+		if($this->input->method()!=='post'){show_404();return;}
+		$storeId=get_current_store_id();$catalog=$this->_theme_content_catalog($storeId);$fields=$catalog['fields'];$storageKey=$catalog['key'];$posted=$this->input->post('content');
+		if(!is_array($posted)){ $reply('error','No content supplied');return; }
+		$settings=$this->storefront_model->getSettings($storeId);$all=json_decode($settings->theme_content_json ?? '',true);if(!is_array($all))$all=[];
+		$values=is_array($all[$storageKey] ?? null)?$all[$storageKey]:[];
+		foreach($fields as $key=>$field){
+			if(!array_key_exists($key,$posted))continue;
+			if(!is_string($posted[$key])){ $reply('error','Enter text for '.$field['label']);return; }
+			$value=trim($posted[$key]);$max=$field['type']==='image'?1500:($field['type']==='textarea'?3000:500);
+			if(mb_strlen($value)>$max){$reply('error',$field['label'].' is too long');return;}
+			if(isset($field['options']) && $value!=='' && !array_key_exists($value,$field['options'])){$reply('error','Choose a valid option for '.$field['label']);return;}
+			if($field['type']==='image'&&$value!==''&&(!filter_var($value,FILTER_VALIDATE_URL)||!in_array(strtolower((string)parse_url($value,PHP_URL_SCHEME)),['https','http'],true))){$reply('error','Enter an http or https image URL, or upload a photo');return;}
+			if($value===''||$value===$field['default'])unset($values[$key]);else $values[$key]=$value;
+		}
+		$uploads=[];
+		foreach($fields as $key=>$field){
+			$fileKey='theme_image_'.$key;if($field['type']!=='image'||empty($_FILES[$fileKey]['name']))continue;
+			$media=check_media_storage_limit();if($media!==true){foreach($uploads as $path)@unlink(FCPATH.$path);$reply('error',$media);return;}
+			$dir='uploads/storefront/'.(int)$storeId.'/content/';if(!is_dir(FCPATH.$dir))mkdir(FCPATH.$dir,0755,true);
+			$this->load->library('upload');$this->upload->initialize(['upload_path'=>FCPATH.$dir,'allowed_types'=>'jpg|jpeg|png|webp|avif','max_size'=>3072,'file_name'=>$key.'_'.bin2hex(random_bytes(8))]);
+			if(!$this->upload->do_upload($fileKey)){foreach($uploads as $path)@unlink(FCPATH.$path);$reply('error',strip_tags($this->upload->display_errors('','')));return;}
+			$up=$this->upload->data();$path=$dir.$up['file_name'];$uploads[]=$path;$values[$key]=base_url($path);
+		}
+		$all[$storageKey]=$values;$encoded=json_encode($all,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+		if($encoded===false||!$this->storefront_model->saveSettings($storeId,['theme_content_json'=>$encoded])){foreach($uploads as $path)@unlink(FCPATH.$path);$reply('error','Could not save storefront content. Please try again.');return;}
+		$reply('success',$catalog['name'].' content saved');
+	}
+
+	/**
+	 * Technical specifications and datasheets for the building catalogue.
+	 *
+	 * Specs travel on the existing db_items row, and documents on
+	 * db_storefront_documents, so the product page and any future quotation
+	 * read from one source. Nothing here creates an order or touches stock.
+	 */
+	public function product_b2b($itemId=0){
+		if(!$this->_can_edit()){ show_error('Access denied',403); return; }
+		$this->load->model('storefront_content_model');
+		$sid=get_current_store_id();
+		$search=trim((string)$this->input->get('q'));
+		$page=max(1,(int)$this->input->get('page'));
+		$limit=30;
+		$products=$this->storefront_model->getOnlineProducts($sid,null,$search,$limit+1,($page-1)*$limit);
+		$hasMore=count($products)>$limit;
+		if($hasMore)$products=array_slice($products,0,$limit);
+		$item=$itemId?$this->storefront_model->getOnlineProduct((int)$itemId,$sid):null;
+		if($itemId&&!$item){show_404();return;}
+		$this->_editor_render('Specifications & documents','online_store/product_b2b',[
+			'settings'=>$this->storefront_model->getSettings($sid),
+			'product_list'=>$products,
+			'product_search'=>$search,
+			'product_page'=>$page,
+			'product_has_more'=>$hasMore,
+			'edit_product'=>$item,
+			'product_specs'=>$item?$this->storefront_content_model->productSpecs((int)$item->id):[],
+			'product_documents'=>$item?$this->storefront_content_model->documents($sid,(int)$item->id,false):[],
+		]);
+	}
+
+	public function save_product_specs(){
+		if(!$this->_can_edit()){show_error('Access denied',403);return;}
+		if($this->input->method()!=='post'){show_404();return;}
+		if(!$this->db->field_exists('specs_json','db_items')){
+			$this->session->set_flashdata('content_error','Run the storefront update before editing technical specifications.');
+			redirect('online_store/product_b2b');return;
+		}
+		$this->load->model('storefront_content_model');
+		$sid=get_current_store_id();$itemId=(int)$this->input->post('item_id');
+		$rows=[];
+		foreach((array)$this->input->post('specs') as $row){
+			if(!is_array($row))continue;
+			$rows[]=['label'=>(string)($row['label']??''),'value'=>(string)($row['value']??'')];
+		}
+		try{
+			$this->storefront_content_model->saveProductSpecs($sid,$itemId,$rows);
+			$this->session->set_flashdata('content_success','Specifications saved.');
+		}catch(Throwable $e){
+			$this->session->set_flashdata('content_error',$e instanceof InvalidArgumentException?$e->getMessage():'Could not save the specifications. Please try again.');
+		}
+		redirect('online_store/product_b2b/'.$itemId.($this->input->post('editor_mobile')?'?screen=mobile':''));
+	}
+
+	public function save_product_document(){
+		if(!$this->_can_edit()){show_error('Access denied',403);return;}
+		if($this->input->method()!=='post'){show_404();return;}
+		$this->load->model('storefront_content_model');
+		$sid=get_current_store_id();$itemId=(int)$this->input->post('item_id');$id=(int)$this->input->post('id');
+		$uploaded=null;
+		try{
+			if(!$this->storefront_model->getOnlineProduct($itemId,$sid))throw new InvalidArgumentException('Product not found.');
+			if(!empty($_FILES['document_file']['name'])){
+				$quota=check_media_storage_limit();
+				if($quota!==true)throw new InvalidArgumentException($quota);
+				$uploaded=$this->storefront_content_model->storeDocumentFile($sid,$itemId,$_FILES['document_file']);
+			}
+			if(!$id&&!$uploaded)throw new InvalidArgumentException('Choose a file to upload.');
+			$ok=$this->storefront_content_model->saveDocument($sid,$itemId,[
+				'id'=>$id,
+				'title'=>(string)$this->input->post('title'),
+				'doc_type'=>(string)$this->input->post('doc_type'),
+				'visibility'=>(string)$this->input->post('visibility'),
+				'sort_order'=>(string)$this->input->post('sort_order'),
+			],$uploaded);
+			if(!$ok)throw new RuntimeException('Could not save the document.');
+			$this->session->set_flashdata('content_success',$id?'Document updated.':'Document uploaded.');
+		}catch(Throwable $e){
+			if($uploaded&&is_file(FCPATH.$uploaded['path']))@unlink(FCPATH.$uploaded['path']);
+			$this->session->set_flashdata('content_error',$e instanceof InvalidArgumentException?$e->getMessage():'Could not save the document. Please try again.');
+		}
+		redirect('online_store/product_b2b/'.$itemId.($this->input->post('editor_mobile')?'?screen=mobile':''));
+	}
+
+	public function delete_product_document(){
+		if(!$this->_can_edit()){show_error('Access denied',403);return;}
+		if($this->input->method()!=='post'){show_404();return;}
+		$this->load->model('storefront_content_model');
+		$sid=get_current_store_id();$itemId=(int)$this->input->post('item_id');$id=(int)$this->input->post('id');
+		$ok=$this->storefront_content_model->deleteDocument($sid,$itemId,$id);
+		$this->session->set_flashdata($ok?'content_success':'content_error',$ok?'Document removed.':'That document could not be found.');
+		redirect('online_store/product_b2b/'.$itemId.($this->input->post('editor_mobile')?'?screen=mobile':''));
+	}
+
+	/** Signed-in download for private datasheets. Public files use the storefront route. */
+	public function document_download($id=0){
+		if(!$this->_can_edit()){show_error('Access denied',403);return;}
+		$sid=get_current_store_id();
+		$doc=$this->db->where('id',(int)$id)->where('store_id',(int)$sid)->get('db_storefront_documents')->row();
+		if(!$doc){show_404();return;}
+		$root=realpath(mp_private_storage_root(false));
+		$path=realpath(mp_private_storage_path((string)$doc->file_path,true));
+		if($root===false||$path===false||strpos($path,$root.DIRECTORY_SEPARATOR)!==0||!is_file($path)){show_404();return;}
+		$this->load->helper('download');
+		force_download($doc->file_name?:basename($path),file_get_contents($path));
+	}
+
 	public function appearance(){
 		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
 		$storeId = get_current_store_id();
@@ -1508,12 +1869,96 @@ class Online_store extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 
+	/** Tenant-scoped manager for non-PHP HTML theme packages. */
+	public function html_themes(){
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); return; }
+		$this->load->library('html_theme_manager');
+		$storeId = get_current_store_id();
+		$this->load->library('theme_engine');
+		$this->theme_engine->init($storeId);
+		$settings = $this->storefront_model->getSettings($storeId);
+		$data = array_merge($this->data, [
+			'page_title' => 'HTML Themes', 'settings' => $settings, 'store' => get_store_details($storeId),
+			'current_theme' => $this->theme_engine->currentTheme(), 'uploaded_themes' => $this->html_theme_manager->listForStore($storeId),
+		]);
+		$data['content'] = $this->load->view('online_store/html_themes', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function upload_theme(){
+		if(!$this->_can_edit()){ $this->themeJson(['status'=>'error','message'=>'Access denied'], 403); return; }
+		if($this->input->method() !== 'post' || empty($_FILES['theme_zip']['name'])){ $this->themeJson(['status'=>'error','message'=>'Choose a .zip theme package.'], 422); return; }
+		$this->load->library('html_theme_manager');
+		$storeId = (int)get_current_store_id();
+		try{
+			$installed = $this->html_theme_manager->install($_FILES['theme_zip']['tmp_name'], $storeId, get_current_user_id());
+			$this->themeJson(['status'=>'success','message'=>'Theme validated and uploaded. Review it in Preview before activation.', 'theme_id'=>(int)$installed['theme_id'], 'warnings'=>$installed['warnings']]);
+		}catch(Throwable $e){
+			log_message('error', 'HTML theme upload: ' . $e->getMessage());
+			$this->themeJson(['status'=>'error','message'=>$e->getMessage()], 422);
+		}
+	}
+
+	public function preview_html_theme($themeId = 0){
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); return; }
+		$this->load->library('html_theme_manager');
+		$storeId = (int)get_current_store_id();
+		$theme = $this->html_theme_manager->getTheme((int)$themeId, $storeId);
+		$settings = $this->storefront_model->getSettings($storeId);
+		if(!$theme || !$settings){ show_404(); return; }
+		$token = hash_hmac('sha256', $storeId . '|' . (int)$themeId . '|' . date('Y-m-d'), (string)$this->config->item('encryption_key'));
+		$this->session->set_userdata(['html_theme_preview_theme_id'=>(int)$themeId, 'html_theme_preview_token'=>$token]);
+		redirect(base_url('store/' . rawurlencode($settings->store_slug) . '?mp_theme_preview=' . (int)$themeId . '&mp_theme_token=' . rawurlencode($token)));
+	}
+
+	public function activate_html_theme($themeId = 0){
+		if(!$this->_can_edit()){ $this->themeJson(['status'=>'error','message'=>'Access denied'], 403); return; }
+		if($this->input->method() !== 'post'){ $this->themeJson(['status'=>'error','message'=>'Activation must be submitted as POST.'], 405); return; }
+		$this->load->library('html_theme_manager');
+		$storeId = (int)get_current_store_id();
+		$theme = $this->html_theme_manager->getTheme((int)$themeId, $storeId);
+		if(!$theme){ $this->themeJson(['status'=>'error','message'=>'Theme not found for this store.'], 404); return; }
+		$settings = $this->storefront_model->getSettings($storeId);
+		$data = ['theme_id'=>(int)$themeId, 'preview_mode'=>0, 'preview_theme_id'=>null];
+		if($this->db->field_exists('previous_theme_id','db_storefront_settings')) $data['previous_theme_id'] = !empty($settings->theme_id) ? (int)$settings->theme_id : null;
+		if(!$this->storefront_model->saveSettings($storeId, $data)){ $this->themeJson(['status'=>'error','message'=>'Could not activate the theme.'], 500); return; }
+		$this->session->unset_userdata(['html_theme_preview_theme_id','html_theme_preview_token']);
+		if($this->db->field_exists('storefront_theme_key','db_store')) $this->db->where('id',$storeId)->update('db_store',['storefront_theme_key'=>$theme->theme_key]);
+		if($this->db->table_exists('db_store_industry_settings') && $this->db->field_exists('storefront_theme_key','db_store_industry_settings')) $this->db->where('store_id',$storeId)->update('db_store_industry_settings',['storefront_theme_key'=>$theme->theme_key]);
+		$this->themeJson(['status'=>'success','message'=>'Theme activated.','redirect'=>base_url('online_store/html_themes')]);
+	}
+
+	public function restore_previous_theme(){
+		if(!$this->_can_edit()){ $this->themeJson(['status'=>'error','message'=>'Access denied'], 403); return; }
+		if($this->input->method() !== 'post'){ $this->themeJson(['status'=>'error','message'=>'Restore must be submitted as POST.'], 405); return; }
+		$storeId = (int)get_current_store_id();
+		$settings = $this->storefront_model->getSettings($storeId);
+		$previous = (int)($settings->previous_theme_id ?? 0);
+		$previousTheme = $previous ? $this->storefront_model->getTheme($previous) : null;
+		if($previousTheme && ($previousTheme->theme_source ?? '') === 'html_zip' && (int)($previousTheme->owner_store_id ?? 0) !== $storeId) $previousTheme = null;
+		if(!$previous || !$previousTheme){ $this->themeJson(['status'=>'error','message'=>'No previous theme is available for this store.'], 422); return; }
+		$current = (int)($settings->theme_id ?? 0);
+		$data = ['theme_id'=>$previous, 'preview_mode'=>0, 'preview_theme_id'=>null];
+		if($this->db->field_exists('previous_theme_id','db_storefront_settings')) $data['previous_theme_id'] = $current ?: null;
+		$this->storefront_model->saveSettings($storeId, $data);
+		$this->session->unset_userdata(['html_theme_preview_theme_id','html_theme_preview_token']);
+		$theme = $previousTheme;
+		if($theme && $this->db->field_exists('storefront_theme_key','db_store')) $this->db->where('id',$storeId)->update('db_store',['storefront_theme_key'=>$theme->theme_key]);
+		if($theme && $this->db->table_exists('db_store_industry_settings') && $this->db->field_exists('storefront_theme_key','db_store_industry_settings')) $this->db->where('store_id',$storeId)->update('db_store_industry_settings',['storefront_theme_key'=>$theme->theme_key]);
+		$this->themeJson(['status'=>'success','message'=>'Previous theme restored.','redirect'=>base_url('online_store/html_themes')]);
+	}
+
+	private function themeJson(array $payload, $status = 200){
+		$this->output->set_status_header((int)$status)->set_content_type('application/json')->set_output(json_encode($payload));
+	}
+
 	public function save_appearance(){
 		if(!$this->_can_edit()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
 			return;
 		}
 		$storeId = get_current_store_id();
+		$existingAppearanceSettings = $this->storefront_model->getSettings($storeId);
 
 		// Validate theme_id belongs to the store's industry
 		$themeId = (int)$this->input->post('theme_id') ?: null;
@@ -1589,9 +2034,20 @@ class Online_store extends MY_Controller {
 			'robots_index' => (int)$this->input->post('robots_index'),
 			'custom_head_scripts' => trim($this->input->post('custom_head_scripts'))
 		];
+		// Keep one reversible restore point when a merchant switches themes from
+		// the legacy Appearance screen as well as from HTML Themes.
+		if($this->db->field_exists('previous_theme_id','db_storefront_settings') && $themeId && (int)($existingAppearanceSettings->theme_id ?? 0) !== (int)$themeId){
+			$data['previous_theme_id'] = !empty($existingAppearanceSettings->theme_id) ? (int)$existingAppearanceSettings->theme_id : null;
+		}
 		// .73 adds tiktok_pixel_id — drop it on installs not yet migrated.
 		if(!$this->db->field_exists('tiktok_pixel_id', 'db_storefront_settings')){
 			unset($data['tiktok_pixel_id']);
+		}
+		// .189 adds the display preference for sale and availability labels.
+		// Keep this guarded so an older fleet can still save Appearance before
+		// its migrations have been run.
+		if($this->db->field_exists('show_sale_stock_labels', 'db_storefront_settings')){
+			$data['show_sale_stock_labels'] = $this->input->post('show_sale_stock_labels') === '1' ? 1 : 0;
 		}
 
 		// What the storefront sells. Added by migration .96, so guard it the same
@@ -1607,7 +2063,26 @@ class Online_store extends MY_Controller {
 			}
 		}
 
+		// How the store sells — only posted by the building-theme Appearance
+		// form. Guarded by column existence like every other .175 field, and
+		// ignored entirely when the form did not supply it, so saving another
+		// theme's Appearance screen can never rewrite the mode.
+		if($this->db->field_exists('selling_mode', 'db_storefront_settings')
+			&& $this->input->post('selling_mode') !== null){
+			$sellingMode = (string) $this->input->post('selling_mode');
+			if(in_array($sellingMode, ['catalogue', 'ecommerce', 'hybrid'], true)){
+				$data['selling_mode'] = $sellingMode;
+			}
+			if($this->db->field_exists('show_prices', 'db_storefront_settings')){
+				$data['show_prices'] = $this->input->post('show_prices') === '1' ? 1 : 0;
+			}
+		}
+
 		// Store logo upload → db_storefront_settings.store_logo
+		if((mp_get_store_profile()['industry_type'] ?? '')==='building_materials'){
+			if($this->db->field_exists('selling_mode','db_storefront_settings'))$data['selling_mode']='catalogue';
+			if($this->db->field_exists('show_prices','db_storefront_settings'))$data['show_prices']=0;
+		}
 		if(!empty($_FILES['store_logo']['name'])){
 			$media_check = check_media_storage_limit();
 			if($media_check !== true){
@@ -1616,12 +2091,30 @@ class Online_store extends MY_Controller {
 			}
 			$uploadDir = './uploads/storefront/' . $storeId . '/';
 			if(!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp', 'max_size' => 1024, 'file_name' => 'logo_' . time()];
+			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp|avif', 'max_size' => 1024, 'file_name' => 'logo_' . time()];
 			$this->load->library('upload');
 			$this->upload->initialize($config);
 			if($this->upload->do_upload('store_logo')){
 				$up = $this->upload->data();
 				$data['store_logo'] = 'uploads/storefront/' . $storeId . '/' . $up['file_name'];
+			}
+		}
+		// Optional footer-only logo. The header logo remains unchanged when this
+		// is uploaded; the shared storefront footer falls back to store_logo.
+		if($this->db->field_exists('footer_logo', 'db_storefront_settings') && !empty($_FILES['footer_logo']['name'])){
+			$media_check = check_media_storage_limit();
+			if($media_check !== true){
+				echo json_encode(['status' => 'error', 'message' => $media_check]);
+				return;
+			}
+			$uploadDir = './uploads/storefront/' . $storeId . '/';
+			if(!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp|avif', 'max_size' => 1024, 'file_name' => 'footer_logo_' . time()];
+			$this->load->library('upload');
+			$this->upload->initialize($config);
+			if($this->upload->do_upload('footer_logo')){
+				$up = $this->upload->data();
+				$data['footer_logo'] = 'uploads/storefront/' . $storeId . '/' . $up['file_name'];
 			}
 		}
 
@@ -1649,6 +2142,142 @@ class Online_store extends MY_Controller {
 			$dbError = $this->db->error();
 			echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . ($dbError['message'] ?? 'Database error')]);
 		}
+	}
+
+	// ============== NAVIGATION ==============
+
+	/**
+	 * The merchant's own storefront menu (Online Store → Navigation).
+	 *
+	 * Until this screen existed the menu rail was assembled in code — "All
+	 * Products", the first six categories alphabetically, "Services" — so the
+	 * merchant could not decide what appeared or in what order. A saved menu
+	 * (db_storefront_settings.nav_json) replaces the automatic rail on every
+	 * theme; no saved menu keeps it exactly as it was.
+	 */
+	public function navigation(){
+		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
+		$storeId = get_current_store_id();
+		$this->load->library('theme_engine');
+		$this->theme_engine->init($storeId);
+		$settings = $this->theme_engine->settings();
+		$flags = $this->theme_engine->catalogueFlags();
+
+		// The palette offers the same categories the automatic menu shows:
+		// product categories for a product catalogue, service categories for a
+		// service one — never a mix.
+		$categories = $flags['sells_products']
+			? $this->storefront_model->getCategoriesWithItems($storeId)
+			: ($flags['sells_services'] ? $this->storefront_model->getServiceCategories($storeId) : []);
+
+		$configured = [];
+		if(!empty($settings->nav_json)){
+			$decoded = json_decode($settings->nav_json, true);
+			if(is_array($decoded)) $configured = $decoded;
+		}
+
+		$data = array_merge($this->data, [
+			'page_title' => 'Navigation',
+			'settings' => $settings,
+			'store' => get_store_details($storeId),
+			'catalogue_flags' => $flags,
+			'nav_categories' => $categories,
+			'nav_configured' => $configured,
+			'nav_building' => $this->theme_engine->isBuildingMaterialsTheme()
+		]);
+		$data['content'] = $this->load->view('online_store/navigation', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function save_navigation(){
+		if(!$this->_can_edit()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$storeId = get_current_store_id();
+		if(!$this->db->field_exists('nav_json', 'db_storefront_settings')){
+			echo json_encode(['status' => 'error', 'message' => 'This store has not been updated to the latest version yet — the menu cannot be saved.']);
+			return;
+		}
+
+		// Reset: clear the configured menu and hand the storefront back to the
+		// automatic rail.
+		if($this->input->post('reset') === '1'){
+			$this->storefront_model->saveSettings($storeId, ['nav_json' => null]);
+			echo json_encode(['status' => 'success', 'message' => 'Menu cleared — your store is back to the automatic menu.']);
+			return;
+		}
+
+		$items = json_decode((string)$this->input->post('nav_json'), true);
+		if(!is_array($items)){
+			echo json_encode(['status' => 'error', 'message' => 'That menu could not be read. Refresh the page and try again.']);
+			return;
+		}
+
+		// Only this store's own categories can be linked from its menu.
+		$allowedCats = [];
+		foreach($this->db->where('store_id', $storeId)->get('db_category')->result() as $c){
+			$allowedCats[(int)$c->id] = true;
+		}
+		if(($items['version'] ?? 0)===2){
+            $config=['version'=>2];$enabled=0;
+            foreach(['primary','secondary'] as $key){
+                $row=$items[$key] ?? [];if(!is_array($row))$row=[];
+                $source=$row['source'] ?? 'custom';if(!in_array($source,['pages','categories','custom'],true))$source='custom';
+                $list=is_array($row['items'] ?? null)?$row['items']:[];
+                $config[$key]=['enabled'=>!empty($row['enabled']),'source'=>$source,'items'=>$this->_cleanNavItems($list,0,$allowedCats)];
+                if($config[$key]['enabled']){ $enabled++;
+                    if($source==='custom'&&!$config[$key]['items']){echo json_encode(['status'=>'error','message'=>'Add items to each enabled custom menu, or choose Pages or Categories.']);return;}
+                }
+            }
+            if(!$enabled){echo json_encode(['status'=>'error','message'=>'Keep at least one menu enabled.']);return;}
+            $this->storefront_model->saveSettings($storeId,['nav_json'=>json_encode($config)]);
+            echo json_encode(['status'=>'success','message'=>'Both menu settings saved.']);return;
+        }
+        $clean = $this->_cleanNavItems($items, 0, $allowedCats);
+		if(empty($clean)){
+			echo json_encode(['status' => 'error', 'message' => 'The menu is empty. Add at least one item, or use Reset to Automatic.']);
+			return;
+		}
+
+		$this->storefront_model->saveSettings($storeId, ['nav_json' => json_encode($clean)]);
+		echo json_encode(['status' => 'success', 'message' => 'Menu saved. It appears on your storefront straight away.']);
+	}
+
+	/**
+	 * The menu arrives as posted JSON — merchant input that will be rendered to
+	 * the public. Rebuild it field by field: known types only, labels capped,
+	 * one level of submenus, links that cannot carry script.
+	 */
+	private function _cleanNavItems($items, $depth, $allowedCats){
+		$clean = [];
+		foreach($items as $item){
+			if(!is_array($item) || count($clean) >= 30) continue;
+			$type = (string)($item['t'] ?? '');
+			$label = mb_substr(trim((string)($item['l'] ?? '')), 0, 60);
+			if($label === '') continue;
+			if($type === 'page'){
+				$key = (string)($item['k'] ?? '');
+				if(!in_array($key, ['home', 'products', 'services', 'about', 'contact', 'journal', 'privacy'], true)) continue;
+				$row = ['t' => 'page', 'k' => $key, 'l' => $label];
+			} elseif($type === 'cat'){
+				$id = (int)($item['i'] ?? 0);
+				if(!$id || !isset($allowedCats[$id])) continue;
+				$row = ['t' => 'cat', 'i' => $id, 'l' => $label];
+			} elseif($type === 'link'){
+				$url = trim((string)($item['u'] ?? ''));
+				if($url === '' || preg_match('#^\s*(javascript|data|vbscript):#i', $url)) continue;
+				$row = ['t' => 'link', 'l' => $label, 'u' => mb_substr($url, 0, 500)];
+			} else {
+				continue;
+			}
+			if($depth < 1 && !empty($item['c']) && is_array($item['c'])){
+				$kids = $this->_cleanNavItems($item['c'], $depth + 1, $allowedCats);
+				if($kids) $row['c'] = $kids;
+			}
+			$clean[] = $row;
+		}
+		return $clean;
 	}
 
 	// ============== BANNERS ==============
@@ -1724,7 +2353,7 @@ class Online_store extends MY_Controller {
 		$uploadedPaths = [];
 		foreach(['desktop_image' => $hasDesktopImage, 'mobile_image' => $hasMobileImage] as $field => $hasImage){
 			if(!$hasImage) continue;
-			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp', 'max_size' => 5120, 'file_name' => ($field === 'desktop_image' ? 'desktop_' : 'mobile_') . time()];
+			$config = ['upload_path' => $uploadDir, 'allowed_types' => 'jpg|jpeg|png|gif|webp|avif', 'max_size' => 5120, 'file_name' => ($field === 'desktop_image' ? 'desktop_' : 'mobile_') . time()];
 			$this->upload->initialize($config);
 			if(!$this->upload->do_upload($field)){
 				foreach($uploadedPaths as $uploadedPath) @unlink($uploadedPath);
@@ -1772,6 +2401,15 @@ class Online_store extends MY_Controller {
 			'settings' => $this->storefront_model->getSettings($storeId),
 			'store' => get_store_details($storeId)
 		]);
+		$builderTheme = !empty($data['settings']->theme_id) ? $this->storefront_model->getTheme($data['settings']->theme_id) : null;
+		if(in_array($builderTheme->theme_key ?? '', ['framework_atelier','vector_systems'], true)){
+			$data['homepage_content_counts'] = [
+				'faqs'=>count($this->storefront_model->getStorefrontFaqs($storeId)),
+				'brands'=>count($this->storefront_model->getStorefrontBrands($storeId)),
+				'testimonials'=>count($this->storefront_model->getStorefrontTestimonials($storeId)),
+				'instagram_gallery'=>count($this->storefront_model->getStorefrontInstagram($storeId))
+			];
+		}
 		$data['content'] = $this->load->view('online_store/homepage_builder', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -1782,10 +2420,14 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$storeId = get_current_store_id();
+		$layoutSettings = $this->storefront_model->getSettings($storeId);
+		$layoutTheme = !empty($layoutSettings->theme_id) ? $this->storefront_model->getTheme($layoutSettings->theme_id) : null;
+		$isBuildingLayout = in_array($layoutTheme->theme_key ?? '', ['framework_atelier','vector_systems'], true);
 		$sections = $this->input->post('sections');
 		if(is_array($sections)){
 			foreach($sections as $key => $val){
-				$this->storefront_model->saveHomepageSection($storeId, $key, $val['enabled'] ?? 0, $val['order'] ?? 0);
+				if($isBuildingLayout) $this->storefront_model->saveBuildingHomepageLayout($storeId, $key, $val['enabled'] ?? 0, $val['order'] ?? 0);
+				else $this->storefront_model->saveHomepageSection($storeId, $key, $val['enabled'] ?? 0, $val['order'] ?? 0);
 			}
 		}
 		echo json_encode(['status' => 'success', 'message' => 'Homepage layout saved']);
@@ -1798,6 +2440,13 @@ class Online_store extends MY_Controller {
 		}
 		$storeId = get_current_store_id();
 		$sectionKey = preg_replace('/[^a-z0-9_]/i', '', (string)$this->input->post('section_key'));
+		$metaSettings = $this->storefront_model->getSettings($storeId);
+		$metaTheme = !empty($metaSettings->theme_id) ? $this->storefront_model->getTheme($metaSettings->theme_id) : null;
+		$contentScope = in_array($metaTheme->theme_key ?? '', ['framework_atelier','vector_systems'], true) ? 'building_materials' : null;
+		if($contentScope && in_array(preg_replace('/_\d+$/','',$sectionKey), ['hero_banner','featured_products','store_info','contact_section'], true)){
+			echo json_encode(['status'=>'error','message'=>'This part of your website is managed in Theme Content, not Homepage Builder.']);
+			return;
+		}
 		$title    = trim((string)$this->input->post('title'));
 		$subtitle = trim((string)$this->input->post('subtitle'));
 		$imageUrl = $this->input->post('image_url');
@@ -1814,9 +2463,20 @@ class Online_store extends MY_Controller {
 			echo json_encode(['status' => 'error', 'message' => 'No section key provided']);
 			return;
 		}
-		if($this->storefront_model->saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle, $imageUrl, $eyebrow)){
-			echo json_encode(['status' => 'success', 'message' => 'Section updated', 'title' => $title]);
+		$uploadedPath=null;
+		if(!empty($_FILES['section_image']['name'])){
+			$baseKey=preg_replace('/_\d+$/','',$sectionKey);
+			if(!in_array($baseKey,['hero_banner','promo_banner','store_info','contact_section'],true)||!$this->db->where('store_id',$storeId)->where('section_key',$sectionKey)->count_all_results('db_storefront_homepage_sections')){echo json_encode(['status'=>'error','message'=>'Section not found']);return;}
+			$media=check_media_storage_limit();if($media!==true){echo json_encode(['status'=>'error','message'=>$media]);return;}
+			$dir='uploads/storefront/'.(int)$storeId.'/content/';if(!is_dir(FCPATH.$dir))mkdir(FCPATH.$dir,0755,true);
+			$this->load->library('upload');$this->upload->initialize(['upload_path'=>FCPATH.$dir,'allowed_types'=>'jpg|jpeg|png|webp|avif','max_size'=>3072,'file_name'=>$baseKey.'_'.bin2hex(random_bytes(8))]);
+			if(!$this->upload->do_upload('section_image')){echo json_encode(['status'=>'error','message'=>strip_tags($this->upload->display_errors('',''))]);return;}
+			$up=$this->upload->data();$uploadedPath=$dir.$up['file_name'];$imageUrl=base_url($uploadedPath);
+		}
+		if($this->storefront_model->saveHomepageSectionMeta($storeId, $sectionKey, $title, $subtitle, $imageUrl, $eyebrow, $contentScope)){
+			echo json_encode(['status' => 'success', 'message' => 'Section updated', 'title' => $title, 'image_url'=>$imageUrl, 'csrf_hash'=>$this->security->get_csrf_hash()]);
 		} else {
+			if($uploadedPath)@unlink(FCPATH.$uploadedPath);
 			echo json_encode(['status' => 'error', 'message' => 'Section not found']);
 		}
 	}
@@ -2393,7 +3053,7 @@ class Online_store extends MY_Controller {
 					return;
 				}
 				$config['upload_path'] = './uploads/storefront/';
-				$config['allowed_types'] = 'jpg|jpeg|png|webp|svg';
+				$config['allowed_types'] = 'jpg|jpeg|png|webp|avif|svg';
 				$config['max_size'] = 2048;
 				if(!is_dir($config['upload_path'])) mkdir($config['upload_path'], 0777, true);
 				$this->load->library('upload', $config);
@@ -2462,7 +3122,7 @@ class Online_store extends MY_Controller {
 					return;
 				}
 				$config['upload_path'] = './uploads/storefront/';
-				$config['allowed_types'] = 'jpg|jpeg|png|webp';
+				$config['allowed_types'] = 'jpg|jpeg|png|webp|avif';
 				$config['max_size'] = 2048;
 				if(!is_dir($config['upload_path'])) mkdir($config['upload_path'], 0777, true);
 				$this->load->library('upload', $config);
@@ -2529,7 +3189,7 @@ class Online_store extends MY_Controller {
 					return;
 				}
 				$config['upload_path'] = './uploads/storefront/';
-				$config['allowed_types'] = 'jpg|jpeg|png|webp';
+				$config['allowed_types'] = 'jpg|jpeg|png|webp|avif';
 				$config['max_size'] = 2048;
 				if(!is_dir($config['upload_path'])) mkdir($config['upload_path'], 0777, true);
 				$this->load->library('upload', $config);
@@ -2726,6 +3386,101 @@ class Online_store extends MY_Controller {
 		} catch(Exception $e){
 			echo json_encode(['status' => 'error', 'message' => 'Error: '.$e->getMessage()]);
 		}
+	}
+
+	// ============== MESSAGING INBOX (WhatsApp / Instagram / Messenger) ==============
+
+	public function messaging(){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
+		$storeId = get_current_store_id();
+		$settings = $this->storefront_model->getSettings($storeId);
+		$channel = $this->input->get('channel') ?: 'whatsapp';
+		$data = array_merge($this->data, [
+			'page_title' => 'Messaging Inbox',
+			'conversations' => $this->db->where('store_id', $storeId)
+				->where('channel', $channel)
+				->order_by('last_message_at', 'desc')
+				->get('db_messaging_conversations')->result(),
+			'channels' => $this->_messagingChannels($settings),
+			'active_channel' => $channel,
+			'settings' => $settings,
+		]);
+		$data['content'] = $this->load->view('online_store/messaging_inbox', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function messaging_conversation($conversationId = 0){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
+		$storeId = get_current_store_id();
+		$conv = $this->db->where('id', $conversationId)->where('store_id', $storeId)->get('db_messaging_conversations')->row();
+		if(!$conv) show_404();
+		$messages = $this->db->where('conversation_id', $conversationId)
+			->order_by('created_at', 'asc')->get('db_messaging_messages')->result();
+		$data = array_merge($this->data, [
+			'page_title' => 'Conversation',
+			'conversation' => $conv,
+			'messages' => $messages,
+			'settings' => $this->storefront_model->getSettings($storeId),
+		]);
+		$data['content'] = $this->load->view('online_store/messaging_conversation', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function messaging_send(){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
+		}
+		$storeId = get_current_store_id();
+		$convId = (int)$this->input->post('conversation_id');
+		$text = trim($this->input->post('text', TRUE));
+		if(!$convId || !$text){
+			echo json_encode(['status' => 'error', 'message' => 'Missing conversation or message']); return;
+		}
+		$conv = $this->db->where('id', $convId)->where('store_id', $storeId)->get('db_messaging_conversations')->row();
+		if(!$conv){
+			echo json_encode(['status' => 'error', 'message' => 'Conversation not found']); return;
+		}
+		$this->load->library('meta_messaging');
+		$mm = new Meta_messaging($storeId);
+		$result = ['ok'=>false, 'error'=>''];
+		switch($conv->channel){
+			case 'whatsapp':
+				$result = $mm->sendWhatsappText($conv->customer_phone, $text);
+				break;
+			case 'messenger':
+				$result = $mm->sendMessengerText($conv->external_conversation_id, $text);
+				break;
+			case 'instagram':
+				$result = $mm->sendInstagramText($conv->external_conversation_id, $text);
+				break;
+		}
+		if(!$result['ok']){
+			echo json_encode(['status'=>'error','message'=>$result['error'] ?: 'Send failed']); return;
+		}
+		$metaId = $result['data']['messages'][0]['id'] ?? null;
+		$this->db->insert('db_messaging_messages', [
+			'conversation_id' => $convId,
+			'direction' => 'outbound',
+			'message_type' => 'text',
+			'body' => $text,
+			'meta_message_id' => $metaId,
+			'status' => 'sent',
+			'created_at' => date('Y-m-d H:i:s'),
+		]);
+		$this->db->where('id', $convId)->update('db_messaging_conversations', [
+			'last_message_at' => date('Y-m-d H:i:s'),
+			'status' => 'open',
+		]);
+		echo json_encode(['status' => 'success', 'message' => 'Message sent']);
+	}
+
+	private function _messagingChannels($settings){
+		$out = [];
+		if($settings->whatsapp_api_enabled){ $out[] = ['key'=>'whatsapp','label'=>'WhatsApp Business API']; }
+		if(!empty($settings->instagram_access_token)){ $out[] = ['key'=>'instagram','label'=>'Instagram Direct']; }
+		if(!empty($settings->facebook_page_access_token)){ $out[] = ['key'=>'messenger','label'=>'Facebook Messenger']; }
+		if(empty($out)){ $out[] = ['key'=>'whatsapp','label'=>'WhatsApp Business API (not configured)']; }
+		return $out;
 	}
 
 	// ============== GOOGLE MY BUSINESS SYNC ==============

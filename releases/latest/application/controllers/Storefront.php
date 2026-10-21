@@ -19,6 +19,7 @@ class Storefront extends CI_Controller {
 		$this->load->model('customers_model');
 		$this->load->model('paystack_model','paystack');
 		$this->load->library('theme_engine');
+		$this->load->library('html_theme_manager');
 
 		// Table QR: keep the scanned table number in session so it follows the customer
 		// through browsing, the cart page and checkout.
@@ -38,6 +39,14 @@ class Storefront extends CI_Controller {
 	public function index($storeSlug = ''){
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
+		if(!empty($settings->partner_marketplace_enabled) && in_array(strtolower((string)($profile['industry_type'] ?? '')), ['pharmacy', 'medical_store', 'healthcare'], true)){
+			// The pharmacy experience is a separate presentation, but resolves the
+			// same store slug and MartPoint data. The flag keeps every other store
+			// on its existing storefront route.
+			redirect(base_url('store/'.rawurlencode((string)$settings->store_slug).'/pharmacy'));
+			return;
+		}
 		$store = get_store_details($storeId);
 		$previewTheme = $this->_previewThemeForVisitor($settings);
 		$this->theme_engine->init($storeId, $previewTheme);
@@ -54,11 +63,14 @@ class Storefront extends CI_Controller {
 		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 		foreach($allProducts as &$p){
 			$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
-			$p->original_price = !empty($p->is_bundle) ? $p->effective_price : $p->sales_price;
+			$p->original_price = $this->storefront_model->getProductOriginalPrice($p);
+			$p->is_on_sale = $p->original_price > $p->effective_price;
 			$p->sold_count = $soldCounts[$p->id] ?? 0;
 		}
 		$data = [
 			'settings' => $settings,
+			// Themes may opt into controlled partner offers; the setting is off by default.
+			'partner_marketplace_enabled' => !empty($settings->partner_marketplace_enabled),
 			'store' => $store,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'featured_categories' => $this->storefront_model->getCategoriesWithItems($storeId),
@@ -91,7 +103,12 @@ class Storefront extends CI_Controller {
 		];
 
 		foreach(['featured_products','best_sellers','new_arrivals'] as $key){
-			foreach($data[$key] as &$p){ $p->sold_count = $soldCounts[$p->id] ?? 0; }
+			foreach($data[$key] as &$p){
+				$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
+				$p->original_price = $this->storefront_model->getProductOriginalPrice($p);
+				$p->is_on_sale = $p->original_price > $p->effective_price;
+				$p->sold_count = $soldCounts[$p->id] ?? 0;
+			}
 		}
 		foreach($data['featured_services'] as &$service){
 			$service->effective_price = $this->storefront_model->getServiceEffectivePrice($service);
@@ -110,10 +127,217 @@ class Storefront extends CI_Controller {
 		$this->theme_engine->view('store', $data);
 	}
 
+	/** Serve only non-executable uploaded theme assets from private storage. */
+	public function theme_asset($storeId = 0, $themeId = 0, $relative = ''){
+		$theme = $this->html_theme_manager->getTheme((int)$themeId, (int)$storeId);
+		$path = $this->html_theme_manager->assetPath($theme, rawurldecode((string)$relative));
+		$ext = strtolower(pathinfo((string)$relative, PATHINFO_EXTENSION));
+		$types = ['css'=>'text/css','js'=>'application/javascript','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','gif'=>'image/gif','svg'=>'image/svg+xml','ico'=>'image/x-icon','woff'=>'font/woff','woff2'=>'font/woff2','ttf'=>'font/ttf','otf'=>'font/otf'];
+		if(!$path || !isset($types[$ext])){ show_404(); return; }
+		$this->output->set_content_type($types[$ext])->set_header('Cache-Control: public, max-age=3600')->set_output(file_get_contents($path));
+	}
+
 	/**
 	 * Product listing with optional category filter
 	 * URL: /store/{store_slug}/products?category={id}&search={term}
 	 */
+    public function privacy($storeSlug=''){
+        $settings=$this->_getSettingsOr404($storeSlug);$sid=(int)$settings->store_id;$this->theme_engine->init($sid,$this->_previewThemeForVisitor($settings));$this->load->model('storefront_content_model');$config=$this->storefront_content_model->settings($sid);
+        $this->theme_engine->view('privacy',['seo_title'=>$config['privacy_heading'],'site_content'=>$config,'store_currency'=>$this->theme_engine->getStoreCurrency(),'social_links'=>$this->theme_engine->socialLinks()]);
+    }
+    public function contact($storeSlug = ''){
+        $settings = $this->_getSettingsOr404($storeSlug);
+        $sid = (int)$settings->store_id;
+        $this->theme_engine->init($sid, $this->_previewThemeForVisitor($settings));
+        $this->load->model('storefront_content_model');
+        $config = $this->storefront_content_model->settings($sid);
+        if(empty($config['contact_enabled'])){
+            show_404();
+            return;
+        }
+
+        $canForm = mp_feature_enabled_for_store('leads', $sid);
+        $error = null;
+        $received = false;
+
+        if($this->input->method() === 'post'){
+            if(!$canForm){
+                show_error('Contact form unavailable', 403);
+                return;
+            }
+            if($this->input->post('website')){
+                // Honeypot: acknowledge without writing a lead or sending mail.
+                $received = true;
+            } else {
+                try{
+                    $files = (isset($_FILES['documents']) && is_array($_FILES['documents'])) ? $_FILES['documents'] : [];
+                    $this->storefront_content_model->submit_contact($sid, (array)$this->input->post(), $files);
+                    $received = true;
+                } catch(InvalidArgumentException $e){
+                    $error = $e->getMessage();
+                } catch(Throwable $e){
+                    log_message('error', 'Store contact: ' . $e->getMessage());
+                    $error = 'Could not send your message. Please try again.';
+                }
+            }
+        }
+
+        $productId = (int)($this->input->post('product_id') ?: $this->input->get('product_id'));
+        $product = $productId ? $this->storefront_model->getOnlineProduct($productId, $sid) : null;
+        $serviceId = (int)($this->input->post('service_id') ?: $this->input->get('service_id'));
+        $service = $serviceId ? $this->storefront_model->getOnlineService($serviceId, $sid) : null;
+
+        $contactSubject = trim((string)$this->input->get('subject'));
+        if($contactSubject === '' && $service){
+            $contactSubject = (string)($service->service_name ?? $service->item_name ?? '');
+        }
+
+        $this->theme_engine->view('contact', [
+            'seo_title' => $config['contact_heading'],
+            'site_content' => $config,
+            'contact_can_submit' => $canForm,
+            'contact_error' => $error,
+            'contact_received' => $received,
+            'contact_product' => $product,
+            'contact_service' => $service,
+            'contact_subject' => $contactSubject,
+            'contact_key' => 'contact_' . bin2hex(random_bytes(20)),
+            'categories' => $this->storefront_model->getCategoriesWithItems($sid),
+            'business_hours' => $this->theme_engine->businessHours(),
+            'public_branches' => $this->theme_engine->branches(),
+            'store_currency' => $this->theme_engine->getStoreCurrency(),
+            'social_links' => $this->theme_engine->socialLinks(),
+        ]);
+    }
+
+    /**
+     * Editorial journal. The public listing shows insights only; project and
+     * application entries have their own landing pages and still resolve at
+     * their /blog/{slug} address for the "read the full entry" link.
+     */
+    public function blog($storeSlug = '', $slug = ''){
+        $settings = $this->_getSettingsOr404($storeSlug);
+        $sid = (int)$settings->store_id;
+        $this->theme_engine->init($sid, $this->_previewThemeForVisitor($settings));
+        $this->load->model('storefront_content_model');
+        $config = $this->storefront_content_model->settings($sid);
+        if(empty($config['blog_enabled'])){
+            show_404();
+            return;
+        }
+        $page = max(1, (int)$this->input->get('page'));
+        $post = $slug ? $this->storefront_content_model->post($sid, $slug, true) : null;
+        if($slug && !$post){
+            show_404();
+            return;
+        }
+
+        $this->theme_engine->view('blog', [
+            'seo_title' => $post ? $post->title : $config['blog_label'],
+            'seo_description' => $post ? $post->excerpt : $config['blog_intro'],
+            'site_content' => $config,
+            'journal_post' => $post,
+            'journal_posts' => $post ? [] : $this->storefront_content_model->posts($sid, true, $page, 'insight'),
+            'journal_page' => $page,
+            'store_currency' => $this->theme_engine->getStoreCurrency(),
+            'social_links' => $this->theme_engine->socialLinks(),
+        ]);
+    }
+
+    /**
+     * Applications landing page — journal entries with kind "application".
+     * URL: /store/{store_slug}/applications
+     */
+    public function applications($storeSlug = ''){
+        $settings = $this->_getSettingsOr404($storeSlug);
+        $sid = (int)$settings->store_id;
+        $this->theme_engine->init($sid, $this->_previewThemeForVisitor($settings));
+        if(!$this->theme_engine->isBuildingMaterialsTheme()){
+            show_404();
+            return;
+        }
+        $this->load->model('storefront_content_model');
+        $applications = $this->storefront_content_model->entries($sid, 'application', 24);
+        $store = get_store_details($sid);
+
+        $this->theme_engine->view('applications', [
+            'seo_title' => 'Applications',
+            'seo_description' => 'Applications and environments for the systems range at ' . ($store->store_name ?? 'our store') . '.',
+            'seo_canonical' => base_url('store/' . $settings->store_slug . '/applications'),
+            'seo_type' => 'website',
+            'applications' => $applications,
+            'store_currency' => $this->theme_engine->getStoreCurrency(),
+            'social_links' => $this->theme_engine->socialLinks(),
+        ]);
+    }
+
+    /**
+     * Projects landing page — journal entries with kind "project".
+     * URL: /store/{store_slug}/projects
+     */
+    public function projects($storeSlug = ''){
+        $settings = $this->_getSettingsOr404($storeSlug);
+        $sid = (int)$settings->store_id;
+        $this->theme_engine->init($sid, $this->_previewThemeForVisitor($settings));
+        if(!$this->theme_engine->isBuildingMaterialsTheme()){
+            show_404();
+            return;
+        }
+        $this->load->model('storefront_content_model');
+        $projects = $this->storefront_content_model->entries($sid, 'project', 24);
+        $store = get_store_details($sid);
+
+        $this->theme_engine->view('projects', [
+            'seo_title' => 'Projects',
+            'seo_description' => 'Selected projects delivered with the systems range at ' . ($store->store_name ?? 'our store') . '.',
+            'seo_canonical' => base_url('store/' . $settings->store_slug . '/projects'),
+            'seo_type' => 'website',
+            'projects' => $projects,
+            'store_currency' => $this->theme_engine->getStoreCurrency(),
+            'social_links' => $this->theme_engine->socialLinks(),
+        ]);
+    }
+
+    /**
+     * Public technical document download.
+     * URL: /store/{store_slug}/document/{product_id}/{document_id}
+     *
+     * Only rows explicitly marked public are reachable. The resolved path is
+     * confined to uploads/ and the download is served with a neutral filename.
+     */
+    public function document($storeSlug = '', $productId = 0, $documentId = 0){
+        $settings = $this->_getSettingsOr404($storeSlug);
+        $sid = (int)$settings->store_id;
+        $this->theme_engine->init($sid, $this->_previewThemeForVisitor($settings));
+        if(!$this->theme_engine->isBuildingMaterialsTheme()){
+            show_404();
+            return;
+        }
+        $this->load->model('storefront_content_model');
+        // Unpublishing a product must revoke its public documents immediately.
+        $product = $this->storefront_model->getOnlineProduct((int)$productId, $sid);
+        if(!$product){
+            show_404();
+            return;
+        }
+        $document = $this->storefront_content_model->document($sid, (int)$productId, (int)$documentId, true);
+        if(!$document || trim((string)$document->file_path) === ''){
+            show_404();
+            return;
+        }
+
+        $root = realpath(mp_private_storage_root(false));
+        $path = realpath(mp_private_storage_path((string)$document->file_path, true));
+        if(!$root || !$path || strpos($path, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($path)){
+            show_404();
+            return;
+        }
+
+        $this->load->helper('download');
+        $name = trim((string)$document->file_name) !== '' ? basename((string)$document->file_name) : basename($path);
+        force_download($name, file_get_contents($path));
+    }
+
 	public function products($storeSlug = ''){
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
@@ -128,12 +352,17 @@ class Storefront extends CI_Controller {
 		$offset = ($page - 1) * $limit;
 
 		$total = $this->storefront_model->countOnlineProducts($storeId, $categoryId, $search);
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+			$page = min($page, max(1, (int)ceil($total / $limit)));
+			$offset = ($page - 1) * $limit;
+		}
 		$products = $this->storefront_model->getOnlineProducts($storeId, $categoryId, $search, $limit, $offset);
 		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 
 		foreach($products as &$p){
 			$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
-			$p->original_price = !empty($p->is_bundle) ? $p->effective_price : $p->sales_price;
+			$p->original_price = $this->storefront_model->getProductOriginalPrice($p);
+			$p->is_on_sale = $p->original_price > $p->effective_price;
 			$p->sold_count = $soldCounts[$p->id] ?? 0;
 		}
 
@@ -193,6 +422,10 @@ class Storefront extends CI_Controller {
 		$offset = ($page - 1) * $limit;
 
 		$total = $this->storefront_model->countOnlineServices($storeId, $categoryId, $search);
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+			$page = min($page, max(1, (int)ceil($total / $limit)));
+			$offset = ($page - 1) * $limit;
+		}
 		$services = $this->storefront_model->getOnlineServices($storeId, $categoryId, $search, $limit, $offset);
 
 		foreach($services as &$s){
@@ -245,7 +478,8 @@ class Storefront extends CI_Controller {
 		}
 		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 		$product->effective_price = $this->storefront_model->getProductEffectivePrice($product);
-		$product->original_price = !empty($product->is_bundle) ? $product->effective_price : $product->sales_price;
+		$product->original_price = $this->storefront_model->getProductOriginalPrice($product);
+		$product->is_on_sale = $product->original_price > $product->effective_price;
 		$product->sold_count = $soldCounts[$product->id] ?? 0;
 		$productAddons = $this->extras_model->getAddonsForItem($productId, $storeId);
 
@@ -264,7 +498,8 @@ class Storefront extends CI_Controller {
 			$variants = $this->storefront_model->getProductVariants($variantParentId, $storeId);
 			foreach ($variants as $v) {
 				$v->effective_price = $this->storefront_model->getProductEffectivePrice($v);
-				$v->original_price = $v->sales_price;
+				$v->original_price = $this->storefront_model->getProductOriginalPrice($v);
+				$v->is_on_sale = $v->original_price > $v->effective_price;
 				$v->is_current = ((int)$v->id === (int)$product->id);
 				$product_variants[] = $v;
 			}
@@ -273,7 +508,8 @@ class Storefront extends CI_Controller {
 		$relatedProducts = $this->storefront_model->getOnlineProducts($storeId, $product->category_id, '', 4);
 		foreach($relatedProducts as &$rp){
 			$rp->effective_price = $this->storefront_model->getProductEffectivePrice($rp);
-				$rp->original_price = !empty($rp->is_bundle) ? $rp->effective_price : $rp->sales_price;
+				$rp->original_price = $this->storefront_model->getProductOriginalPrice($rp);
+				$rp->is_on_sale = $rp->original_price > $rp->effective_price;
 			$rp->sold_count = $soldCounts[$rp->id] ?? 0;
 		}
 
@@ -476,7 +712,8 @@ class Storefront extends CI_Controller {
 			$products = $this->storefront_model->getOnlineProducts($storeId, $categoryId, $search, $limit, $offset);
 			foreach($products as &$p){
 				$p->effective_price = $this->storefront_model->getProductEffectivePrice($p);
-				$p->original_price = !empty($p->is_bundle) ? $p->effective_price : $p->sales_price;
+				$p->original_price = $this->storefront_model->getProductOriginalPrice($p);
+				$p->is_on_sale = $p->original_price > $p->effective_price;
 			}
 		}
 		if($showServices){
@@ -533,10 +770,18 @@ class Storefront extends CI_Controller {
 		if (!$this->theme_engine->cartEnabled()) {
 			$key = $this->theme_engine->currentTheme()->theme_key ?? '';
 			$printTheme = in_array($key, ['print_works', 'print_inkpress', 'print_papercraft', 'print_neonprint'], true);
-			redirect(base_url('store/' . rawurlencode($settings->store_slug) . ($printTheme ? '#quote' : '/services')));
+			$buildingTheme = in_array($key, ['framework_atelier', 'vector_systems'], true);
+			// A catalogue-mode building store sells through the enquiry desk,
+			// so send a stray cart/checkout hit back to the catalogue it came from.
+			$target = $buildingTheme
+				? ($this->theme_engine->sellsProducts() ? '/products' : '/services')
+				: ($printTheme ? '#quote' : '/services');
+			redirect(base_url('store/' . rawurlencode($settings->store_slug) . $target));
 			return;
 		}
-		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora'], true);
+		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora', 'botanical_elegance'], true);
+		$mediqCheckout = $page === 'checkout' && ($this->theme_engine->currentTheme()->theme_key ?? '') === 'pharma_mediq';
+		$htmlThemeCheckout = $page === 'checkout' && (($this->theme_engine->currentTheme()->theme_source ?? '') === 'html_zip');
 
 		$data = [
 			'settings' => $settings,
@@ -548,9 +793,11 @@ class Storefront extends CI_Controller {
 			'social_links' => $this->theme_engine->socialLinks(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
 			'table_number' => $this->table_number,
-			'seo_title' => $lumiereCheckout ? 'Secure Checkout' : 'Shopping Cart',
-			'seo_description' => ($lumiereCheckout ? 'Complete your order securely at ' : 'Your cart at ') . ($store->store_name ?? 'our store'),
-			'seo_canonical' => base_url('store/' . $settings->store_slug . ($lumiereCheckout ? '/checkout' : '/cart')),
+			'outlets' => $this->storefront_model->getOrderableOutlets($storeId),
+			'cart_page' => $page,
+			'seo_title' => ($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? 'Secure Checkout' : 'Shopping Cart',
+			'seo_description' => (($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? 'Complete your order securely at ' : 'Your cart at ') . ($store->store_name ?? 'our store'),
+			'seo_canonical' => base_url('store/' . $settings->store_slug . (($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? '/checkout' : '/cart')),
 			'seo_type' => 'website',
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash(),
@@ -562,7 +809,7 @@ class Storefront extends CI_Controller {
 				$data['paystack_test_mode'] = $ps->test_mode ?? 1;
 			}
 		}
-		$this->theme_engine->view($lumiereCheckout ? 'checkout' : 'cart', $data);
+		$this->theme_engine->view(($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? 'checkout' : 'cart', $data);
 	}
 
 	/**
@@ -795,6 +1042,18 @@ class Storefront extends CI_Controller {
 		$csrf = ['csrf_hash' => $this->security->get_csrf_hash()];
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
+		$this->theme_engine->init($storeId);
+		if($this->theme_engine->isBuildingMaterialsTheme()){
+			$sections = $this->theme_engine->homepageSections();
+			$newsletterEnabled = false;
+			foreach($sections as $row){
+				if(preg_replace('/_\d+$/', '', $row->section_key) === 'newsletter' && !empty($row->is_enabled)) $newsletterEnabled = true;
+			}
+			if(!$newsletterEnabled || $this->input->post('consent') !== '1'){
+				echo json_encode(['status'=>false,'message'=>$newsletterEnabled ? 'Please agree to receive email updates before subscribing.' : 'Newsletter signup is not available.'] + $csrf);
+				return;
+			}
+		}
 
 		$email = strtolower(trim($this->input->post('email', TRUE) ?: ''));
 		if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)){
@@ -824,6 +1083,37 @@ class Storefront extends CI_Controller {
 	 * Only active when the 'leads' feature flag is on for the store.
 	 * URL: POST /store/{store_slug}/lead
 	 */
+	public function garden_request($storeSlug = '') {
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = (int)$settings->store_id;
+		$this->load->helper('garden');
+		$profile = mp_get_store_profile($storeId);
+		if (($profile['industry_type'] ?? '') !== 'garden_centre_landscaping'
+			|| !mp_feature_enabled_for_store('online_store',$storeId)
+			|| (!mp_garden_has_mode($profile,'landscaping') && !mp_garden_has_mode($profile,'maintenance'))) { show_404(); return; }
+		$this->theme_engine->init($storeId,$this->_previewThemeForVisitor($settings));
+		$error = null; $received = false;
+		if ($this->input->method() === 'post') {
+			if ($this->input->post('website')) $received = true;
+			else {
+				$this->load->model('garden_model');
+				try { $this->garden_model->submit_request($storeId,(array)$this->input->post(),$profile); $received = true; }
+				catch (InvalidArgumentException $e) { $error = $e->getMessage(); }
+				catch (Throwable $e) { log_message('error','Garden intake: '.$e->getMessage()); $error = 'Could not send your request. Please try again.'; }
+			}
+		}
+		$serviceId = (int)($this->input->post('service_id') ?: $this->input->get('service_id'));
+		$service = $serviceId ? $this->storefront_model->getOnlineService($serviceId,$storeId) : null;
+		$productId = (int)($this->input->post('product_id') ?: $this->input->get('product_id'));
+		$product = $productId ? $this->storefront_model->getOnlineProduct($productId,$storeId) : null;
+		$this->theme_engine->view('garden_request',[
+			'garden_request_error'=>$error,'garden_request_received'=>$received,'garden_requested_service'=>$service,'garden_requested_product'=>$product,
+			'garden_request_key'=>$this->input->post('submission_ref') ?: 'garden_'.bin2hex(random_bytes(20)),
+			'seo_title'=>'Garden & Service Request','categories'=>$this->storefront_model->getCategoriesWithItems($storeId),
+			'store_currency'=>$this->theme_engine->getStoreCurrency(),'social_links'=>$this->theme_engine->socialLinks(),
+		]);
+	}
+
 	public function submit_lead($storeSlug = ''){
 		$csrf = ['csrf_hash' => $this->security->get_csrf_hash()];
 		$settings = $this->_getSettingsOr404($storeSlug);
@@ -901,6 +1191,14 @@ class Storefront extends CI_Controller {
 		echo '<?xml version="1.0" encoding="UTF-8"?>';
 		echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
 
+        $this->load->model('storefront_content_model');$editorial=$this->storefront_content_model->settings($storeId);
+        echo '<url><loc>'.htmlspecialchars($base.'/privacy',ENT_XML1,'UTF-8').'</loc><changefreq>monthly</changefreq></url>';
+        if(!empty($editorial['contact_enabled']))echo '<url><loc>'.htmlspecialchars($base.'/contact',ENT_XML1,'UTF-8').'</loc><changefreq>monthly</changefreq></url>';
+        if(!empty($editorial['blog_enabled'])){
+            echo '<url><loc>'.htmlspecialchars($base.'/blog',ENT_XML1,'UTF-8').'</loc><changefreq>weekly</changefreq></url>';
+            $posts=$this->db->select('slug')->where('store_id',$storeId)->where('status','published')->where('published_at <=',gmdate('Y-m-d H:i:s'))->limit(500)->get('db_storefront_posts')->result();
+            foreach($posts as $post)echo '<url><loc>'.htmlspecialchars($base.'/blog/'.rawurlencode($post->slug),ENT_XML1,'UTF-8').'</loc><changefreq>monthly</changefreq></url>';
+        }
 		// Home
 		echo '<url><loc>' . $base . '</loc><changefreq>daily</changefreq><priority>1.0</priority></url>';
 		// Products page
@@ -918,6 +1216,16 @@ class Storefront extends CI_Controller {
 			echo '<url><loc>' . $base . '/services</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>';
 			foreach($services as $s){
 				echo '<url><loc>' . $base . '/service/' . $s->id . '</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>';
+			}
+		}
+		// Editorial landing pages exist only on the building-materials themes.
+		$theme = !empty($settings->theme_id) ? $this->theme_engine->getTheme($settings->theme_id) : null;
+		if(in_array(($theme->theme_key ?? ''), ['framework_atelier', 'vector_systems'], true)){
+			if($this->storefront_content_model->entries($storeId, 'application', 1)){
+				echo '<url><loc>' . $base . '/applications</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>';
+			}
+			if($this->storefront_content_model->entries($storeId, 'project', 1)){
+				echo '<url><loc>' . $base . '/projects</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>';
 			}
 		}
 		// Cart
@@ -970,6 +1278,19 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
+		// Catalogue & enquiry mode is a server-side rule, not just a hidden
+		// button. A crafted POST must not create an order or reserve stock on a
+		// store whose storefront has no cart.
+		$this->theme_engine->init($storeId);
+		if($this->theme_engine->isBuildingMaterialsTheme() && !$this->theme_engine->cartEnabled()){
+			echo json_encode([
+				'status' => false,
+				'message' => 'This store accepts product enquiries and quotations, not online orders.',
+				'csrf_hash' => $this->security->get_csrf_hash(),
+			]);
+			return;
+		}
+
 		// Housekeeping: release stock reserved by abandoned online payments
 		// (paystack orders still unpaid/pending past the TTL). WhatsApp and
 		// pay-on-delivery reservations are merchant-managed and never expire.
@@ -995,9 +1316,74 @@ class Storefront extends CI_Controller {
 		$serviceNote = $this->input->post('service_note');
 		$shippingMethod = trim($this->input->post('shipping_method'));
 		$tableNumber = trim($this->input->post('table_number'));
+		$idempotencyKey = substr(trim((string)$this->input->post('idempotency_key', TRUE)), 0, 96);
+		$storeProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
+		$isPharmacyOrder = in_array(($storeProfile['industry_type'] ?? ''), ['pharmacy', 'medical_store', 'healthcare'], true);
+		$prescriptionFile = null;
+		if($isPharmacyOrder && !empty($_FILES['prescription_file']['name'])){
+			if(!$this->db->field_exists('prescription_file', 'db_online_orders')){
+				echo json_encode(['status' => false, 'message' => 'Prescription uploads are not enabled on this pharmacy yet. Please update the installation.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$uploadPath = FCPATH . 'uploads/prescriptions/';
+			if(!is_dir($uploadPath) && !mkdir($uploadPath, 0775, true) && !is_dir($uploadPath)){
+				echo json_encode(['status' => false, 'message' => 'Prescription upload storage is unavailable. Please try again or contact the pharmacy.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$this->load->library('upload', [
+				'upload_path' => $uploadPath,
+				'allowed_types' => 'jpg|jpeg|png|gif|pdf|webp',
+				'max_size' => 5120,
+				'encrypt_name' => true,
+			]);
+			if(!$this->upload->do_upload('prescription_file')){
+				echo json_encode(['status' => false, 'message' => trim(strip_tags($this->upload->display_errors('', ''))) ?: 'Prescription upload failed. Please try another file.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			$uploadData = $this->upload->data();
+			$prescriptionFile = 'uploads/prescriptions/' . $uploadData['file_name'];
+		}
+
+		// Which outlet is this order for? A customer may pick one where the
+		// store publishes several; anything unrecognised falls back to the
+		// merchant's default branch rather than failing the checkout, so
+		// storefront themes that have not been given a picker keep working
+		// untouched. The accepted set is the published branches, so a crafted
+		// post cannot route stock or work into a back-office warehouse.
+		$orderWarehouseId = (int)$this->input->post('warehouse_id');
+		$sourceWarehouseId = 0;
+		$selectedOutlet = null;
+		$orderableOutlets = $this->storefront_model->getOrderableOutlets($storeId);
+		if($orderWarehouseId > 0){
+			$allowed = array_map('intval', array_column($orderableOutlets, 'id'));
+			if(!in_array($orderWarehouseId, $allowed, true)){
+				$orderWarehouseId = 0;
+			} else {
+				foreach($orderableOutlets as $outlet){
+					if((int)$outlet->id === $orderWarehouseId){
+						$selectedOutlet = $outlet;
+						$sourceWarehouseId = !empty($outlet->stock_source_id) ? (int)$outlet->stock_source_id : $orderWarehouseId;
+						break;
+					}
+				}
+			}
+		}
+		if($orderWarehouseId <= 0 && !empty($settings->default_branch_id)){
+			$defaultBranch = (int)$settings->default_branch_id;
+			// The default is the merchant's own setting, so it may legitimately be
+			// their single System warehouse — only its ownership is verified.
+			if($this->db->where('id', $defaultBranch)->where('store_id', $storeId)->count_all_results('db_warehouse')){
+				$orderWarehouseId = $defaultBranch;
+				$sourceWarehouseId = $defaultBranch;
+			}
+		}
 
 		if(!$customerName || !$customerPhone){
 			echo json_encode(['status' => false, 'message' => 'Name and phone are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		if($selectedOutlet && (string)($selectedOutlet->branch_type ?? '') === 'pickup_hub' && !preg_match('/pick\s*up|collect/i', (string)$shippingMethod)){
+			echo json_encode(['status' => false, 'message' => 'This fulfilment hub is pickup-only. Please choose pickup.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 		if (!in_array($paymentMethod, ['paystack', 'whatsapp', 'pay_on_delivery', 'appointment'], true)) {
@@ -1038,6 +1424,7 @@ class Storefront extends CI_Controller {
 		$orderQty = 0;
 		$itemsToInsert = [];
 		$bundleComponentsByLine = [];
+		$bundleServiceComponentsByLine = [];
 		$addonsByParentLine = [];
 		$this->load->model('Extras_model', 'extras_model');
 		$appendAddons = function($parentType, $parentId, $parentQty, $parentLineIndex, $selections) use (&$addonsByParentLine, &$subtotal, &$hasPhysical, $storeId){
@@ -1072,6 +1459,9 @@ class Storefront extends CI_Controller {
 			if($type == 'product'){
 				$product = $this->storefront_model->getOnlineProduct($id, $storeId);
 				if(!$product) continue;
+				if (!empty($product->requires_quote)) {
+					echo json_encode(['status'=>false,'message'=>'Please request a quotation for this offering.','csrf_hash'=>$this->security->get_csrf_hash()]); return;
+				}
 				// Variant parents are catalogue shells — only a specific
 				// child variant can be ordered.
 				if(($product->item_group ?? '') === 'Variants'){
@@ -1125,6 +1515,7 @@ class Storefront extends CI_Controller {
 					'service_note' => ''
 				];
 				if($isBundle){
+					$bundleServiceComponentsByLine[$lineIndex] = array_values(array_filter($bundleComponents,function($component){ return (int)($component->service_bit ?? 0)===1 && ($component->product_type ?? '')==='service'; }));
 					$bundleComponentsByLine[$lineIndex] = array_values(array_filter($bundleComponents, function($component){
 						return (int)($component->service_bit ?? 0) !== 1;
 					}));
@@ -1139,6 +1530,10 @@ class Storefront extends CI_Controller {
 			} else if($type == 'service'){
 				$service = $this->storefront_model->getOnlineService($id, $storeId);
 				if(!$service) continue;
+				$this->load->helper('offering_policy');
+				if (mp_service_price_model($service) !== 'fixed') {
+					echo json_encode(['status'=>false,'message'=>'Please send a request so the store can confirm the price.','csrf_hash'=>$this->security->get_csrf_hash()]); return;
+				}
 				$price = $this->storefront_model->getServiceEffectivePrice($service);
 				$hasServices = true;
 				$lineIndex = count($itemsToInsert);
@@ -1278,6 +1673,11 @@ class Storefront extends CI_Controller {
 				}
 			}
 		}
+		// Pharmacy location fees are resolved from the selected outlet, while
+		// ordinary storefronts retain their existing configured method fee.
+		if($isPharmacyOrder && $selectedOutlet && !$isPickupMethod && $shippingMethod !== '' && isset($selectedOutlet->delivery_fee)){
+			$shippingFee = (float)$selectedOutlet->delivery_fee;
+		}
 		// Storefront coupon — reuses the existing promotion engine. The code is
 		// resolved server-side (store scope, active flag, date window); the
 		// discount mirrors the POS coupon_amt semantics (% of cart subtotal or
@@ -1325,11 +1725,27 @@ class Storefront extends CI_Controller {
 			'ip_address' => $this->input->ip_address(),
 			'user_agent' => $this->input->user_agent()
 		];
+		if($isPharmacyOrder && $prescriptionFile && $this->db->field_exists('prescription_file', 'db_online_orders')){
+			$orderData['prescription_file'] = $prescriptionFile;
+		}
+		if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key', 'db_online_orders')){
+			$orderData['idempotency_key'] = $idempotencyKey;
+		}
+		if($this->db->field_exists('fulfilment_type', 'db_online_orders')){
+			$orderData['fulfilment_type'] = $tableNumber ? 'dine_in' : (preg_match('/pick\s*up|collect/i', (string)$shippingMethod) ? 'pickup' : 'delivery');
+		}
 		// Coupon columns arrive with migration 4.0.9.69 — omit on older schemas.
 		if($this->db->field_exists('coupon_code', 'db_online_orders')){
 			$orderData['coupon_code'] = $couponCode !== '' ? $couponCode : null;
 			$orderData['coupon_discount'] = $couponDiscount ?: null;
 			$orderData['promotion_id'] = $promo ? (int)$promo->id : null;
+		}
+		// Outlet choice arrives with migration 4.0.9.162 — omit on older schemas.
+		if($orderWarehouseId > 0 && $this->db->field_exists('warehouse_id', 'db_online_orders')){
+			$orderData['warehouse_id'] = $orderWarehouseId;
+		}
+		if($sourceWarehouseId > 0 && $this->db->field_exists('source_warehouse_id', 'db_online_orders')){
+			$orderData['source_warehouse_id'] = $sourceWarehouseId;
 		}
 
 		// Set initial status based on payment method. WhatsApp is an order
@@ -1353,9 +1769,27 @@ class Storefront extends CI_Controller {
 		$this->db->trans_start();
 
 		$orderId = $this->storefront_model->createOrder($orderData);
+		if($this->storefront_model->last_order_duplicate){
+			$this->db->trans_commit();
+			$existing = $this->storefront_model->getOrder($orderId);
+			echo json_encode(['status'=>true, 'duplicate'=>true, 'payment_required'=>($existing && $existing->payment_method === 'paystack' && $existing->payment_status !== 'paid'),
+				'order_id'=>(int)$orderId, 'order_code'=>$existing->order_code, 'redirect_url'=>$this->_orderReceivedUrl($existing),
+				'message'=>'This order was already received.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
 
 		// Link or create customer record
-		$customerId = $this->customers_model->getOrCreateStorefrontCustomer($storeId, $customerName, $customerPhone, $customerEmail);
+		$checkoutProfile = mp_get_store_profile($storeId);
+		if (($checkoutProfile['industry_type'] ?? '') === 'garden_centre_landscaping') {
+			// A guest's typed phone/email is not verified identity. Only a valid
+			// customer portal session may link this order to an existing history.
+			$portalToken = $this->input->cookie('customer_token',true);
+			$portalSession = $portalToken ? $this->storefront_model->getCustomerPortalSession($portalToken,$storeId) : null;
+			$verifiedCustomer = $portalSession ? $this->db->where('id',(int)$portalSession->customer_id)->where('store_id',$storeId)->where('status',1)->get('db_customers')->row() : null;
+			$customerId = $verifiedCustomer ? $verifiedCustomer->id : $this->customers_model->getOrCreateStorefrontCustomer($storeId,$customerName,$customerPhone,$customerEmail,false);
+		} else {
+			$customerId = $this->customers_model->getOrCreateStorefrontCustomer($storeId, $customerName, $customerPhone, $customerEmail);
+		}
 		if($customerId){
 			$this->db->where('id', $orderId)->update('db_online_orders', ['customer_id' => $customerId]);
 		}
@@ -1380,6 +1814,16 @@ class Storefront extends CI_Controller {
 			$item['order_id'] = $orderId;
 			$this->storefront_model->addOrderItem($item);
 			$parentLineId = (int)$this->db->insert_id();
+			if (($checkoutProfile['industry_type'] ?? '')==='garden_centre_landscaping') {
+				$this->load->model('service_fulfilment_model');
+				try {
+					$this->service_fulfilment_model->snapshot_online($orderId,$parentLineId,$storeId);
+					foreach ($bundleServiceComponentsByLine[$lineIndex] ?? [] as $component) $this->service_fulfilment_model->snapshot_online($orderId,$parentLineId,$storeId,$component);
+				} catch (Throwable $e) {
+					$this->db->trans_rollback();log_message('error','Service fulfilment snapshot: '.$e->getMessage());
+					echo json_encode(['status'=>false,'message'=>'Could not prepare service fulfilment. Please try again.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+				}
+			}
 			$reservationItems[] = $item;
 			foreach($addonsByParentLine[$lineIndex] ?? [] as $addonLine){
 				$addonLine['order_id'] = $orderId;
@@ -1416,7 +1860,7 @@ class Storefront extends CI_Controller {
 			return;
 		}
 		if(!empty($bundleDraws)){
-			if($this->extras_model->reserveBundleComponents($bundleDraws, $orderId, !empty($settings->allow_backorder), $storeId) === false){
+			if($this->extras_model->reserveBundleComponents($bundleDraws, $orderId, !empty($settings->allow_backorder), $storeId, (int)($orderData['source_warehouse_id'] ?? $orderData['warehouse_id'] ?? 0)) === false){
 				$this->db->trans_rollback();
 				echo json_encode(['status' => false, 'message' => 'A bundle component just sold out. Please review your cart and try again.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 				return;
@@ -1429,6 +1873,15 @@ class Storefront extends CI_Controller {
 		}
 
 		$this->db->trans_complete();
+		if($this->db->trans_status() === false){
+			echo json_encode(['status'=>false, 'message'=>'The order could not be saved. Please try again.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+		// Pay-on-delivery orders are financially real at acceptance time. Paid
+		// gateway orders are posted after payment verification below.
+		if($paymentMethod !== 'paystack'){
+			$this->storefront_model->ensureSalesLedger($orderId);
+		}
 
 		// Convert the persisted cart + record the funnel's terminal event.
 		// order_placed is transactional truth, recorded server-side so the
@@ -1875,6 +2328,7 @@ class Storefront extends CI_Controller {
 			// Commit the stock reservation (reserved -> committed; no second
 			// decrement — units already moved at order time).
 			$this->storefront_model->adjustStock($order->id);
+			$this->storefront_model->ensureSalesLedger($order->id);
 			// Paid conversion — recorded only on the verified transition;
 			// deduped by event_id across callback/webhook/browser retries.
 			$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_verify');
@@ -2161,7 +2615,16 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		$this->load->view('storefront/verify', $data);
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+			$data['seo_title'] = 'Sign in';
+			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
+			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);
+			$data['social_links'] = $this->theme_engine->socialLinks();
+			$data['favicon_url'] = $this->theme_engine->faviconUrl();
+			$this->theme_engine->view('verify', $data);
+		} else {
+			$this->load->view('storefront/verify', $data);
+		}
 	}
 
 	public function send_otp($storeSlug = ''){
@@ -2386,7 +2849,16 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		$this->load->view('storefront/account', $data);
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+			$data['seo_title'] = 'Your account';
+			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
+			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);
+			$data['social_links'] = $this->theme_engine->socialLinks();
+			$data['favicon_url'] = $this->theme_engine->faviconUrl();
+			$this->theme_engine->view('account', $data);
+		} else {
+			$this->load->view('storefront/account', $data);
+		}
 	}
 
 	public function account_orders($storeSlug = ''){
@@ -2421,7 +2893,16 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		$this->load->view('storefront/account_orders', $data);
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+			$data['seo_title'] = 'Your orders';
+			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
+			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);
+			$data['social_links'] = $this->theme_engine->socialLinks();
+			$data['favicon_url'] = $this->theme_engine->faviconUrl();
+			$this->theme_engine->view('account_orders', $data);
+		} else {
+			$this->load->view('storefront/account_orders', $data);
+		}
 	}
 
 	public function account_logout($storeSlug = ''){
@@ -2556,6 +3037,17 @@ class Storefront extends CI_Controller {
 	 * anonymous visitors. Anonymous traffic always sees the published theme.
 	 */
 	private function _previewThemeForVisitor($settings){
+		$requested = (int)$this->input->get('mp_theme_preview');
+		$token = trim((string)$this->input->get('mp_theme_token'));
+		$sessionPreviewId = (int)$this->session->userdata('html_theme_preview_theme_id');
+		$sessionPreviewToken = trim((string)$this->session->userdata('html_theme_preview_token'));
+		if($requested > 0 && $token !== '' && $sessionPreviewId === $requested && $sessionPreviewToken !== '' && (int)get_current_store_id() === (int)$settings->store_id){
+			$expected = hash_hmac('sha256', (int)$settings->store_id . '|' . $requested . '|' . date('Y-m-d'), (string)$this->config->item('encryption_key'));
+			if(hash_equals($expected, $token) && hash_equals($sessionPreviewToken, $token)){
+				$theme = $this->html_theme_manager->getTheme($requested, (int)$settings->store_id);
+				if($theme) return $requested;
+			}
+		}
 		if(empty($settings->preview_mode) || empty($settings->preview_theme_id)){
 			return null;
 		}
@@ -2575,25 +3067,12 @@ class Storefront extends CI_Controller {
 			}
 		}
 
+		// A public storefront must resolve to an explicit configured slug or
+		// connected domain. Never accept ?store_id= or fall back to another store.
 		$settings = $this->storefront_model->getStoreBySlug($slug);
-		$viaStoreId = false;
 		if(!$settings){
-			$storeId = (int)$this->input->get('store_id');
-			if($storeId){
-				$settings = $this->storefront_model->getSettings($storeId);
-				$viaStoreId = !empty($settings);
-			}
-		}
-		// A slug was supplied but didn't resolve to that store —
-		// getStoreBySlug() falls back to generic/current-store defaults which
-		// would render the wrong shop (or fatal on an empty store_id).
-		if($slug !== '' && !$viaStoreId && (!$settings || strcasecmp((string)($settings->store_slug ?? ''), $slug) !== 0)){
 			show_404();
 			return;
-		}
-		if(!$settings && ($slug === '' || $slug === null)){
-			// Last resort: try first active storefront
-			$settings = $this->db->where('store_status', 'active')->order_by('id', 'asc')->get('db_storefront_settings')->row();
 		}
 		if(!$settings || $settings->store_status != 'active'){
 			$status = ($settings && isset($settings->store_status)) ? $settings->store_status : 'missing';
@@ -2771,16 +3250,26 @@ class Storefront extends CI_Controller {
 				'grand_total'       => $currency . number_format($order->grand_total, 2),
 				'order_link'        => base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code),
 				'dashboard_link'    => base_url('online_store/order_detail/' . (int)$order->id),
+				'fulfilment_branch' => 'Store team',
+				'prescription_link' => !empty($order->prescription_file) ? base_url($order->prescription_file) : 'Not attached',
 			]);
 
 			$ownerTemplate = $isAppointment ? 'appointment_request_owner' : 'online_order_owner';
 			$customerTemplate = $isAppointment ? 'appointment_request_customer' : 'online_order_customer';
 			$logContext = ['related_module' => 'storefront', 'related_record_id' => $order->id];
 
-			// ---- 1. Email to store owner ----
+			// ---- 1. Email to the fulfilment branch and the general store mailbox ----
 			$storeEmail = !empty($settings->store_email) ? $settings->store_email : ($store->email ?? '');
-			if(!empty($storeEmail) && filter_var($storeEmail, FILTER_VALIDATE_EMAIL)){
-				$result = $this->email_service->sendTemplate($ownerTemplate, $storeEmail, $tplData, $logContext);
+			$ownerRecipients = [];
+			if(!empty($storeEmail) && filter_var($storeEmail, FILTER_VALIDATE_EMAIL)) $ownerRecipients[] = $storeEmail;
+			if($this->db->field_exists('warehouse_id', 'db_online_orders') && !empty($order->warehouse_id) && $this->db->table_exists('db_warehouse') && $this->db->field_exists('email', 'db_warehouse')){
+				$branch = $this->db->select('warehouse_name, email')->where('id', (int)$order->warehouse_id)->where('store_id', (int)$order->store_id)->where('status', 1)->get('db_warehouse')->row();
+				if($branch && filter_var($branch->email ?? '', FILTER_VALIDATE_EMAIL)) $ownerRecipients[] = $branch->email;
+				if($branch && !empty($branch->warehouse_name)) $tplData['fulfilment_branch'] = htmlspecialchars($branch->warehouse_name);
+			}
+			$ownerRecipients = array_values(array_unique($ownerRecipients));
+			if(!empty($ownerRecipients)){
+				$result = $this->email_service->sendTemplate($ownerTemplate, count($ownerRecipients) === 1 ? $ownerRecipients[0] : $ownerRecipients, $tplData, $logContext);
 				log_message('debug', 'Storefront: Owner email result: ' . json_encode($result));
 			}
 

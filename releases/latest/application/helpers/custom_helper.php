@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.154';
+    return '4.0.9.189';
   }
   function required_php_version(){
     return 7.4;
@@ -37,6 +37,41 @@
   }
   function store_demo_logo(){
     return 'uploads/site/default.png';
+  }
+
+  /** Whether the current business uses the pharmacy dispensing workflow. */
+  if(!function_exists('mp_is_pharmacy_business')){
+    function mp_is_pharmacy_business($store_id=null){
+      if(!function_exists('mp_get_store_profile')) return false;
+      $profile = mp_get_store_profile($store_id);
+      return in_array(($profile['industry_type'] ?? ''), array('pharmacy', 'medical_store', 'healthcare'), true);
+    }
+  }
+
+  /**
+   * Keep pharmacy dosage and counselling on the invoice. Other industries
+   * retain the existing clean receipt behaviour and have dosage directions
+   * removed if legacy notes contain them.
+   */
+  if(!function_exists('mp_invoice_note_without_dosage')){
+    function mp_invoice_note_without_dosage($note, $store_id=null){
+      $note = trim((string)$note);
+      if($note === ''){ return ''; }
+      if(mp_is_pharmacy_business($store_id)) return $note;
+      $note = preg_replace(
+        '/(?:^|\R)Dosage\s*\/\s*directions\s*:\s*.*?(?=\R(?:Assessment|Counselling|Allergies\s*\/\s*cautions)\s*:|\z)/isu',
+        '',
+        $note
+      );
+      $note = preg_replace("/\R{3,}/", "\n\n", (string)$note);
+      return trim((string)$note);
+    }
+  }
+
+  if(!function_exists('mp_invoice_note_label')){
+    function mp_invoice_note_label($store_id=null){
+      return mp_is_pharmacy_business($store_id) ? 'Pharmacy dosage & guidance' : 'Note';
+    }
   }
   function get_site_logo(){
     $CI =& get_instance();
@@ -139,6 +174,7 @@
 
   function mp_storefront_image_url($path='', $use_thumb = true){
     if(empty($path)) return base_url('theme/images/no_image.png');
+    if(preg_match('#^https?://#i', (string)$path)) return $path;
     $thumb = return_item_image_thumb($path);
     if($use_thumb && file_exists($thumb) && is_file($thumb)){
       return base_url($thumb);
@@ -503,6 +539,39 @@
     log_message('error', "get_store_warehouse_id: No warehouse found for store_id=$store_id");
     return null;
   }
+
+  /**
+   * Return the operational POS warehouse for the current store.
+   *
+   * Most businesses intentionally use the System warehouse as their POS
+   * default. Pharmacy stores are different: their demo/online fulfilment
+   * setup keeps saleable stock in a named branch and may also expose partner
+   * or pickup-only hubs. Keep the legacy helper unchanged for every other
+   * industry, but make the pharmacy till open on its own stock-holding branch.
+   */
+  function get_pos_default_warehouse_id($store_id=''){
+    $CI =& get_instance();
+    $store_id = !empty($store_id) ? (int)$store_id : (int)get_current_store_id();
+
+    $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($store_id) : array();
+    $industry = strtolower(trim((string)($profile['industry_type'] ?? '')));
+    if (in_array($industry, array('pharmacy', 'medical_store', 'healthcare'), true)
+      && $CI->db->table_exists('db_warehouse')) {
+      $query = $CI->db->select('id')
+        ->where('store_id', $store_id)
+        ->where('status', 1);
+      if ($CI->db->field_exists('branch_type', 'db_warehouse')) {
+        $query->where('branch_type', 'branch');
+      }
+      if ($CI->db->field_exists('warehouse_type', 'db_warehouse')) {
+        $query->where('warehouse_type !=', 'System');
+      }
+      $row = $query->order_by('id', 'asc')->limit(1)->get('db_warehouse')->row();
+      if ($row && !empty($row->id)) return (int)$row->id;
+    }
+
+    return (int)get_store_warehouse_id();
+  }
   /*end*/
   function get_only_init_code($value,$store_id=''){
     return get_init_code($value,null,$only_code_flag=true);
@@ -691,6 +760,62 @@
       $ids[] = (int) $row->id;
     }
     return $ids;
+  }
+
+  /**
+   * User IDs that belong to the store-owner account(s).
+   *
+   * db_store.user_id is the authoritative owner link. The role lookup is a
+   * compatibility fallback for stores that have an owner role but whose
+   * legacy store row was provisioned without that link.
+   */
+  function store_owner_user_ids($store_id = null){
+    $CI =& get_instance();
+    if($store_id === null || $store_id === ''){
+      $store_id = $CI->session->userdata('store_id');
+    }
+    $store_id = (int) $store_id;
+    if($store_id <= 0){
+      return array();
+    }
+
+    $ids = array();
+    // Use isolated parameterized queries here. This helper is frequently
+    // called while another Query Builder statement is being assembled; using
+    // the shared builder would leak its SELECT/FROM/WHERE state into these
+    // owner lookups and can turn a normal page into a 500.
+    $store = $CI->db->query(
+      'SELECT user_id FROM db_store WHERE id = ? LIMIT 1',
+      array($store_id)
+    )->row();
+    if($store && !empty($store->user_id)){
+      $ids[] = (int) $store->user_id;
+    }
+
+    $role_ids = store_owner_role_ids($store_id);
+    if(!empty($role_ids)){
+      $owners = $CI->db->query(
+        'SELECT id FROM db_users WHERE store_id = ? AND role_id IN ('.implode(',', array_map('intval', $role_ids)).')',
+        array($store_id)
+      )->result();
+      foreach($owners as $owner){
+        $ids[] = (int) $owner->id;
+      }
+    }
+
+    return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
+  }
+
+  /**
+   * User IDs excluded from tenant-facing staff lists and billable seats.
+   * The owner remains a normal authenticated account with full authority; it
+   * is simply not an operational staff member for display or licensing.
+   */
+  function get_excluded_user_ids($store_id = ''){
+    $store_id = (!empty($store_id)) ? (int)$store_id : (int)get_current_store_id();
+    $ids = array(1);
+    $ids = array_merge($ids, store_owner_user_ids($store_id));
+    return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
   }
 
   /**
@@ -1285,6 +1410,50 @@
     return $profile_picture;
   }
 
+  /**
+   * Return the signed-in user's first name for friendly UI greetings.
+   *
+   * Resolve from the database first so a profile edit is reflected on the
+   * next render even if an older session was created before first_name was
+   * populated. The session remains the fallback for installations where the
+   * user row cannot be read.
+   */
+  if (!function_exists('mp_current_user_first_name')) {
+    function mp_current_user_first_name($fallback = 'User'){
+      $CI =& get_instance();
+      $name = trim((string)$CI->session->userdata('first_name'));
+      $userId = (int)$CI->session->userdata('inv_userid');
+      if($userId > 0 && $CI->db->field_exists('first_name', 'db_users')){
+        $row = $CI->db->select('first_name,last_name,username')->where('id', $userId)->limit(1)->get('db_users')->row();
+        if($row){
+          $name = trim((string)$row->first_name);
+          if($name === '') $name = trim((string)$row->last_name);
+          if($name === '' && !empty($row->username)) $name = trim((string)$row->username);
+        }
+      }
+      if($name === ''){
+        $display = trim((string)$CI->session->userdata('display_name'));
+        if($display !== '') $name = preg_split('/\s+/', $display)[0];
+      }
+      return $name !== '' ? $name : $fallback;
+    }
+  }
+
+  /** Saved personal name, never a role label from an older login session. */
+  function mp_current_user_full_name($fallback = 'User'){
+    $CI =& get_instance();
+    $row = $CI->db->select('first_name,last_name,username')
+      ->where('id',(int)$CI->session->userdata('inv_userid'))
+      ->where('store_id',(int)get_current_store_id())->where('status',1)
+      ->limit(1)->get('db_users')->row();
+    if($row){
+      $name = trim(trim((string)$row->first_name).' '.trim((string)$row->last_name));
+      if($name !== '') return $name;
+      if(trim((string)$row->username) !== '') return trim((string)$row->username);
+    }
+    return $fallback;
+  }
+
   function get_sales_id_of_quotation($quotation_id){
     $CI =& get_instance();
     return $CI->db->select('id')->where('quotation_id',$quotation_id)->get('db_sales')->row()->id;
@@ -1347,6 +1516,27 @@
             ->from("db_items")
             ->where('store_id',get_current_store_id())
             ->where("id=",$item_id)->get()->row();
+  }
+
+  /** Calculate effective unit price for stepped weight pricing. */
+  function mp_weight_pricing_unit_price($item, $qty, $unit_price, $line_count = null){
+    if(!$item || empty($item->weight_pricing_enabled)) return (float)$unit_price;
+    $qty = (float)$qty; $unit_price = (float)$unit_price;
+    $included = (float)($item->weight_pricing_base_kg ?? 0);
+    $increment = (float)($item->weight_pricing_increment_kg ?? 0);
+    $charge = (float)($item->weight_pricing_increment_charge ?? 0);
+    if($qty <= 0 || $included <= 0 || $increment <= 0 || $charge < 0) return $unit_price;
+    // Frozen-food pricing: when the POS supplies lines explicitly, use the
+    // separate whole-kg and line values. Legacy callers derive lines from qty.
+    if($line_count !== null && is_numeric($line_count)) {
+      $steps = max(0, (int)$line_count);
+      $whole_units = max(0, $qty - ($steps * $increment)) / $included;
+    } else {
+      $whole_units = (int)floor(($qty / $included) + 0.00000001);
+      $remainder = max(0, $qty - ($whole_units * $included));
+      $steps = $remainder > 0 ? (int)ceil(round($remainder / $increment, 8)) : 0;
+    }
+    return (($whole_units * $unit_price) + ($steps * $charge)) / $qty;
   }
   function get_brand_details($brand_id){
     $CI =& get_instance();
@@ -1546,23 +1736,30 @@
     //   - Partner (role_name = 'Partner', implementation/setup role)
     // These roles manage the store but are not operational users (cashiers,
     // managers, accountants) that consume a paid subscription seat.
-    $excluded_role_ids = [1, (int)store_admin_id()];
-    // Look up Partner role id(s) for this store by name
-    $partner_roles = $CI->db->select('id')
-                             ->where('store_id', $store_id)
-                             ->where('UPPER(role_name)', 'PARTNER')
-                             ->get('db_roles')->result();
-    foreach($partner_roles as $pr){
-      $pid = (int)$pr->id;
-      if(!in_array($pid, $excluded_role_ids)){
-        $excluded_role_ids[] = $pid;
-      }
+    $excluded_role_ids = get_excluded_staff_roles($store_id);
+    $excluded_user_ids = get_excluded_user_ids($store_id);
+    $role_sql = implode(',', array_map('intval', $excluded_role_ids ?: array(0)));
+    $user_sql = implode(',', array_map('intval', $excluded_user_ids ?: array(0)));
+    // Keep licence usage independent of any active Query Builder statement.
+    $query = $CI->db->query(
+      "SELECT COUNT(*) AS total FROM db_users
+       WHERE store_id = ? AND status = 1
+         AND role_id NOT IN ($role_sql)
+         AND id NOT IN ($user_sql)",
+      array($store_id)
+    );
+    return $query ? (int)$query->row()->total : 0;
+  }
+
+  /** Count billable active users across every store for central dashboards. */
+  function get_user_usage_all_stores(){
+    $CI =& get_instance();
+    $total = 0;
+    $stores = $CI->db->query('SELECT id FROM db_store')->result();
+    foreach($stores as $store){
+      $total += get_user_usage((int)$store->id);
     }
-    $CI->db->where('store_id', $store_id)
-           ->where('status', 1)
-           ->where_not_in('role_id', $excluded_role_ids);
-    $total = $CI->db->count_all_results('db_users');
-    return (int) $total;
+    return (int)$total;
   }
 
   /**
@@ -1575,12 +1772,15 @@
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
     $excluded = [1, (int)store_admin_id()];
-    $CI->db->reset_query();
-    $query = $CI->db->select('id')
-                    ->where('store_id', $store_id)
-                    ->where('UPPER(role_name)', 'PARTNER')
-                    ->get('db_roles');
-    $partner_roles = ($query) ? $query->result() : [];
+    $excluded = array_merge($excluded, store_owner_role_ids($store_id));
+    // Keep this lookup isolated as callers often invoke it inside a Query
+    // Builder chain. Resetting the shared builder here drops the caller's
+    // store/status filters; leaving it shared contaminates the lookup.
+    $query = $CI->db->query(
+      "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = 'PARTNER'",
+      array($store_id)
+    );
+    $partner_roles = ($query) ? $query->result() : array();
     foreach($partner_roles as $pr){
       $pid = (int)$pr->id;
       if(!in_array($pid, $excluded)){
@@ -1989,9 +2189,12 @@
       }
       if($column=='max_users'){
         if($get_subscription_rec->max_users != -1){
-
-          $store_admin_count =1;
-          if((get_tot_table_rec($table_name,$store_id)-$store_admin_count) >= $get_subscription_rec->max_users){
+          // The store owner/admin account is an operationally exempt account;
+          // use the same billable-seat calculation shown in the licence UI.
+          $used_users = ($table_name === 'db_users')
+            ? get_user_usage($store_id)
+            : get_tot_table_rec($table_name,$store_id);
+          if($used_users >= $get_subscription_rec->max_users){
             echo $CI->lang->line('max_users_used');exit;
           }  
           
@@ -2091,6 +2294,77 @@
     // Blocking them just sends them to a competitor.
     // The sale always proceeds; the cashier can see the balance and decide.
     return true;
+  }
+
+  /**
+   * Which industries require customer acceptance before a quotation can be
+   * converted to an invoice. Building Materials is quote-first; retail keeps
+   * its existing, quicker counter workflow.
+   */
+  function mp_quote_acceptance_required($store_id = null){
+    if (!function_exists('mp_get_store_profile')) return false;
+    $store_id = $store_id ?: get_current_store_id();
+    $profile = mp_get_store_profile($store_id);
+    return (($profile['industry_type'] ?? '') === 'building_materials');
+  }
+
+  /**
+   * Private storefront files live outside the web root. Apache .htaccess is
+   * not portable (nginx serves static files without reading it), so path
+   * protection cannot depend on it. MP_PRIVATE_STORAGE may point at a mounted
+   * secret volume; otherwise a sibling directory of the app root is used.
+   */
+  function mp_private_storage_root($create = true){
+    $configured = trim((string) getenv('MP_PRIVATE_STORAGE'));
+    if ($configured !== '') {
+      $root = rtrim(str_replace('\\', '/', $configured), '/');
+    } else {
+      $appRoot = rtrim(str_replace('\\', '/', FCPATH), '/');
+      $root = dirname($appRoot) . '/martpoint-private/' . basename($appRoot);
+    }
+    if ($create && !is_dir($root)) {
+      @mkdir($root, 0700, true);
+    }
+    return $root;
+  }
+
+  /**
+   * Resolve a stored relative path against the private root. Legacy files
+   * still under uploads/private are moved on first access, so existing
+   * documents keep working after deployment without a destructive migration.
+   */
+  function mp_private_storage_path($storedPath, $mustExist = false){
+    $relative = ltrim(str_replace('\\', '/', trim((string) $storedPath)), '/');
+    if ($relative === '' || preg_match('~(^|/)\.\.(/|$)~', $relative)) return null;
+    $root = mp_private_storage_root(!$mustExist);
+    $target = rtrim($root, '/') . '/' . $relative;
+    if (is_file($target)) return $target;
+    $legacy = rtrim(str_replace('\\', '/', FCPATH), '/') . '/' . $relative;
+    if (is_file($legacy)) {
+      $dir = dirname($target);
+      if (!is_dir($dir)) @mkdir($dir, 0700, true);
+      if (@rename($legacy, $target)) return $target;
+      // Do not fall back to serving a file from the public web root. A broken
+      // deployment must fail the download, then run the migration helper.
+      if (function_exists('log_message')) log_message('error', 'Private storage migration failed for ' . $relative . '. Move uploads/private outside the web root.');
+      return null;
+    }
+    return $mustExist ? null : $target;
+  }
+
+  /** Move every legacy uploads/private file into the private root. */
+  function mp_private_storage_migrate_legacy(){
+    $legacyRoot = rtrim(str_replace('\\', '/', FCPATH), '/') . '/uploads/private';
+    if (!is_dir($legacyRoot)) return 0;
+    $moved = 0;
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($legacyRoot, FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $file) {
+      if (!$file->isFile() || $file->getFilename() === '.htaccess') continue;
+      $relative = 'uploads/private/' . ltrim(str_replace('\\', '/', substr($file->getPathname(), strlen($legacyRoot))), '/');
+      $target = mp_private_storage_path($relative, false);
+      if ($target && is_file($target) && strpos($target, rtrim(mp_private_storage_root(false), '/') . '/') === 0) $moved++;
+    }
+    return $moved;
   }
 
   function xss_html_filter($input){

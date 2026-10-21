@@ -5,6 +5,14 @@ class Mobile extends MY_Controller {
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){
+			$entry = strtolower((string)$this->uri->segment(2));
+			if(in_array($entry,['pos','hold','holds','get_hold','delete_hold','clock'],true)){
+				if($this->input->method() === 'get') redirect('attendance/workspace?screen=mobile');
+				else $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['status'=>'error','message'=>'POS is not available in the Building Materials workspace.']))->_display();
+				exit;
+			}
+		}
 		// Defines physio_staff_select() — a no-op filter for non-physio stores.
 		if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
 
@@ -241,6 +249,13 @@ class Mobile extends MY_Controller {
 
 	public function index()
 	{
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){
+			redirect($this->permissions('dashboard_view') ? 'building_workspace/actions?screen=mobile' : 'attendance/workspace?screen=mobile');return;
+		}
+		$gardenHomeProfile = mp_get_store_profile();
+		if (($gardenHomeProfile['industry_type'] ?? '') === 'garden_centre_landscaping' && $this->db->table_exists('db_garden_item_attributes')) {
+			redirect('garden?screen=mobile'); return;
+		}
 		// Physiotherapy & rehabilitation stores get a clinical home: the retail
 		// sales/profit dashboard and its POS/Sale tiles are meaningless for a
 		// clinic. Clinical access stays behind explicit physio_can() grants.
@@ -485,11 +500,12 @@ class Mobile extends MY_Controller {
 		}
 
 		// Staff status (must be before insights)
-		$excluded_roles = get_excluded_staff_roles($store_id); // resolve first: helper calls reset_query()
+		$excluded_roles = get_excluded_staff_roles($store_id);
 		$this->db->select("COUNT(*) as total");
 		$this->db->where("store_id", $store_id);
 		$this->db->where("status", 1);
 		$this->db->where_not_in("role_id", $excluded_roles);
+		$this->db->where_not_in("id", get_excluded_user_ids($store_id));
 		$staff_count = $this->db->get("db_users")->row()->total ?? 0;
 		$data['staff_count'] = $staff_count;
 
@@ -549,6 +565,7 @@ class Mobile extends MY_Controller {
 
 		$data['greeting'] = $greeting;
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['greeting_name'] = function_exists('mp_current_user_first_name') ? mp_current_user_first_name('User') : $data['display_name'];
 		$data['branch_name'] = get_store_name() . ' · Today';
 
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
@@ -577,6 +594,11 @@ class Mobile extends MY_Controller {
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name() . ' · Today';
 		$store_id = get_current_store_id();
+		$data['show_sale_stock_labels'] = 1;
+		if($this->db->table_exists('db_storefront_settings') && $this->db->field_exists('show_sale_stock_labels', 'db_storefront_settings')){
+			$storefrontSettings = $this->db->select('show_sale_stock_labels')->where('store_id', $store_id)->get('db_storefront_settings')->row();
+			$data['show_sale_stock_labels'] = (int)($storefrontSettings->show_sale_stock_labels ?? 1) === 1 ? 1 : 0;
+		}
 		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
 		$data['till_account_id'] = get_cash_account_id();
 		$data['shipping_fees'] = (mp_feature_enabled('manual_shipping') && $this->db->table_exists('db_shipping_fees'))
@@ -612,6 +634,11 @@ class Mobile extends MY_Controller {
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name() . ' · Today';
 		$store_id = get_current_store_id();
+		$data['show_sale_stock_labels'] = 1;
+		if($this->db->table_exists('db_storefront_settings') && $this->db->field_exists('show_sale_stock_labels', 'db_storefront_settings')){
+			$storefrontSettings = $this->db->select('show_sale_stock_labels')->where('store_id', $store_id)->get('db_storefront_settings')->row();
+			$data['show_sale_stock_labels'] = (int)($storefrontSettings->show_sale_stock_labels ?? 1) === 1 ? 1 : 0;
+		}
 		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
 		$data['till_account_id'] = get_cash_account_id();
 		$data['shipping_fees'] = (mp_feature_enabled('manual_shipping') && $this->db->table_exists('db_shipping_fees'))
@@ -2698,7 +2725,7 @@ class Mobile extends MY_Controller {
 		}
 
 		if($recent == 1){
-			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count');
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count');
 			$this->db->from('db_items a');
 		$this->db->where('a.item_group !=', 'Variants');
 			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
@@ -2706,7 +2733,7 @@ class Mobile extends MY_Controller {
 			$this->db->where('a.store_id', $store_id);
 			$this->db->where('a.status', 1);
 			if(!empty($category_id) && is_numeric($category_id)){
-				$this->db->where('a.category_id', $category_id);
+				mp_category_filter('a.category_id',$category_id,$store_id);
 			}
 			if(!empty($brand_id) && is_numeric($brand_id)){
 				$this->db->where('a.brand_id', $brand_id);
@@ -2716,14 +2743,14 @@ class Mobile extends MY_Controller {
 			$this->db->limit(10);
 		}
 		else {
-			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, b.tax as tax_value, b.tax_name');
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name');
 			$this->db->from('db_items a');
 		$this->db->where('a.item_group !=', 'Variants');
 			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
 			$this->db->where('a.store_id', $store_id);
 			$this->db->where('a.status', 1);
 			if(!empty($category_id) && is_numeric($category_id)){
-				$this->db->where('a.category_id', $category_id);
+				mp_category_filter('a.category_id',$category_id,$store_id);
 			}
 			if(!empty($brand_id) && is_numeric($brand_id)){
 				$this->db->where('a.brand_id', $brand_id);
@@ -2745,12 +2772,19 @@ class Mobile extends MY_Controller {
 		// Apply active promotions (with margin protection) if module is available
 		$has_promotions = FALSE;
 		try { $has_promotions = $this->db->table_exists('db_promotions'); } catch(Exception $e) {}
-		if($has_promotions){
-			$this->load->model('promotions_model');
-			$today = date('Y-m-d');
-			foreach($rows as &$row){
+		if($has_promotions) $this->load->model('promotions_model');
+		foreach($rows as &$row){
 				$base_price = ($price_type == 'retail' && !empty($row->mrp_price) && $row->mrp_price > 0) ? $row->mrp_price : $row->sales_price;
-				try {
+				$row->original_price = (float)$base_price;
+				$itemDiscount = (float)($row->discount ?? 0);
+				if($itemDiscount > 0){
+					$amount = strtolower((string)($row->discount_type ?? '')) === 'percentage'
+						? ((float)$base_price * ($itemDiscount / 100)) : $itemDiscount;
+					$base_price = max(0, (float)$base_price - min((float)$base_price, max(0, $amount)));
+					if($price_type === 'retail') $row->mrp_price = $base_price;
+					else $row->sales_price = $base_price;
+				}
+				if($has_promotions) try {
 					$promo = $this->promotions_model->compute_effective_price($row->id, $base_price);
 					if($promo['has_promo']){
 						$row->sales_price = $promo['price'];
@@ -2760,9 +2794,8 @@ class Mobile extends MY_Controller {
 						$row->original_price = $base_price;
 					}
 				} catch(Exception $e) {}
-			}
-			unset($row);
 		}
+		unset($row);
 
 		// Attach selling units for pack/piece/carton picker
 		if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
@@ -2856,7 +2889,8 @@ class Mobile extends MY_Controller {
 		}
 
 		$store_id = get_current_store_id();
-		$warehouse_id = (warehouse_module() && warehouse_count()>1) ? $input['warehouse_id'] : get_store_warehouse_id();
+		$warehouse_id = (warehouse_module() && warehouse_count()>1 && !empty($input['warehouse_id']))
+			? (int)$input['warehouse_id'] : get_pos_default_warehouse_id($store_id);
 		$customer_id = $input['customer_id'] ?? 0;
 		$cart = $input['cart'] ?? [];
 		$discount = parse_amount($input['discount'] ?? 0);
@@ -2883,6 +2917,7 @@ class Mobile extends MY_Controller {
 			$item_id = (int) ($item['id'] ?? 0);
 			$qty = (float) ($item['qty'] ?? 1);
 			$price = (float) ($item['price'] ?? 0);
+			$base_price = (float) ($item['base_price'] ?? $price);
 			$tax_value = (float) ($item['tax_value'] ?? 0);
 			$tax_type = $item['tax_type'] ?? 'Exclusive';
 			$price_type = $item['price_type'] ?? 'wholesale';
@@ -2894,6 +2929,8 @@ class Mobile extends MY_Controller {
 				exit;
 			}
 
+			$item_details = get_item_details($item_id);
+			if($item_details) $price = mp_weight_pricing_unit_price($item_details, $qty, $base_price, $item['weight_lines'] ?? null);
 			$line = $qty * $price;
 			if($tax_type == 'Exclusive'){
 				$tax_amount = ($line * $tax_value) / 100;
@@ -3109,7 +3146,23 @@ class Mobile extends MY_Controller {
 		}
 
 		$store_id = get_current_store_id();
-		$warehouse_id = (warehouse_module() && warehouse_count()>1) ? $input['warehouse_id'] : get_store_warehouse_id();
+		$restaurant_order_key = substr(trim((string)($input['restaurant_order_key'] ?? '')), 0, 96);
+		$restaurant_mode = function_exists('mp_feature_enabled') && mp_feature_enabled('restaurant_workspace');
+		// A browser retry must return the committed invoice instead of entering
+		// Sales_model a second time. The key is tenant-scoped and only applies to
+		// restaurant POS requests that explicitly carry the client retry token.
+		if($restaurant_mode && $restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+			$existing_restaurant_sale = $this->db->where('store_id', $store_id)
+				->where('restaurant_order_key', $restaurant_order_key)->get('db_sales')->row();
+			if($existing_restaurant_sale){
+				ob_end_clean();
+				echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+					'sales_id'=>(int)$existing_restaurant_sale->id, 'sales_code'=>(string)$existing_restaurant_sale->sales_code,
+					'redirect'=>base_url('mobile')]); exit;
+			}
+		}
+		$warehouse_id = (warehouse_module() && warehouse_count()>1 && !empty($input['warehouse_id']))
+			? (int)$input['warehouse_id'] : get_pos_default_warehouse_id($store_id);
 		$init_code = get_only_init_code('sales');
 		$count_id = get_last_count_id('db_sales');
 		$sales_code = $init_code . $count_id;
@@ -3155,6 +3208,12 @@ class Mobile extends MY_Controller {
 		$_POST['sales_id'] = '';
 		$_POST['warehouse_id'] = $warehouse_id;
 		$_POST['store_id'] = $store_id;
+		// Pass the client retry key into Sales_model's transaction so the
+		// unique restaurant_order_key constraint protects the insert itself,
+		// not only the post-save operational-order bridge.
+		if($restaurant_order_key !== ''){
+			$_POST['restaurant_order_key'] = $restaurant_order_key;
+		}
 		$_POST['count_id'] = $count_id;
 		$_POST['init_code'] = $init_code;
 		$_POST['coupon_code'] = $input['coupon_code'] ?? '';
@@ -3312,6 +3371,21 @@ class Mobile extends MY_Controller {
 		if(stripos($result, 'success') !== false){
 			$parts = explode('<<<###>>>', $result);
 			$sales_id = isset($parts[1]) ? (int) $parts[1] : 0;
+			if($restaurant_mode && $sales_id > 0 && $restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+				$this->db->where('id', $sales_id)->where('store_id', $store_id)->update('db_sales', [
+					'restaurant_order_key' => $restaurant_order_key,
+					'source_channel' => 'walk_in',
+				]);
+				$this->load->model('order_lifecycle_model');
+				$this->order_lifecycle_model->ensure_counter_order($store_id, $sales_id, [
+					'idempotency_key' => $restaurant_order_key,
+				]);
+				// A completed walk-in sale must enter the kitchen queue as part of
+				// the same request. The KDS screen may still synchronize later, but
+				// POS success must never leave the canonical order without a ticket.
+				$this->load->model('kitchen_model', 'kitchen');
+				$this->kitchen->sync_new_orders($store_id);
+			}
 
 			// Create PayPlan / installment schedule when needed
 			$plan_id = 0;
@@ -3429,6 +3503,16 @@ class Mobile extends MY_Controller {
 			ob_end_clean();
 			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'sales_code' => $invoice_code, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]); exit;
 		} else {
+			if($restaurant_mode && $restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+				$existing_restaurant_sale = $this->db->where('store_id', $store_id)
+					->where('restaurant_order_key', $restaurant_order_key)->get('db_sales')->row();
+				if($existing_restaurant_sale){
+					ob_end_clean();
+					echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+						'sales_id'=>(int)$existing_restaurant_sale->id, 'sales_code'=>(string)$existing_restaurant_sale->sales_code,
+						'redirect'=>base_url('mobile')]); exit;
+				}
+			}
 			ob_end_clean();
 			$clean = is_string($result) ? trim(strip_tags($result)) : '';
 			if($clean === '' || stripos($clean, 'EXCEPTION:') === 0){
@@ -3479,6 +3563,9 @@ class Mobile extends MY_Controller {
 		$config = [
 			'upload_path' => $upload_dir,
 			'allowed_types' => 'jpg|jpeg|png|gif|webp',
+			'max_size' => 2048,
+			'max_width' => 1600,
+			'max_height' => 1600,
 			'encrypt_name' => TRUE,
 		];
 		$this->load->library('upload', $config);
@@ -4176,7 +4263,7 @@ class Mobile extends MY_Controller {
 			$this->db->group_end();
 		}
 		if($category_id){
-			$this->db->where('a.category_id', $category_id);
+			mp_category_filter('a.category_id',$category_id,$store_id);
 		}
 		$this->db->order_by('a.item_name', 'asc');
 		$this->db->limit($limit, $offset);
@@ -4511,6 +4598,7 @@ class Mobile extends MY_Controller {
 
 	public function more()
 	{
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){redirect('building_workspace/more?screen=mobile');return;}
 		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
 			redirect(base_url().'mobile/pos');
 		}
@@ -4637,7 +4725,7 @@ class Mobile extends MY_Controller {
 				['title' => 'Best Seller by Attribute', 'desc' => 'Best selling variants', 'icon' => 'fa-star', 'url' => 'mobile/report/variant_attribute', 'perm' => 'variant_attribute_report', 'color' => 'purple'],
 				['title' => 'Sell-Through Report', 'desc' => 'Sell-through rates', 'icon' => 'fa-line-chart', 'url' => 'mobile/report/sell_through', 'perm' => 'sell_through_report', 'color' => 'orange'],
 				['title' => 'Reorder Suggestions', 'desc' => 'Items to reorder', 'icon' => 'fa-shopping-basket', 'url' => 'mobile/report/reorder_suggestion', 'perm' => 'reorder_suggestion_report', 'color' => 'yellow'],
-				['title' => 'Sales & Payment Report', 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'url' => 'mobile/report/sales_and_payments', 'perm' => 'sales_report', 'color' => 'primary'],
+				['title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'url' => 'mobile/report/sales_and_payments', 'perm' => 'sales_report', 'color' => 'primary'],
 				['title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'url' => 'mobile/report/sales_tax', 'perm' => 'sales_tax_report', 'color' => 'red'],
 				['title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/report/sales', 'perm' => 'sales_report', 'color' => 'primary'],
 				['title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'url' => 'mobile/report/sales_return', 'perm' => 'sales_return_report', 'color' => 'orange'],
@@ -4749,6 +4837,19 @@ class Mobile extends MY_Controller {
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+        if((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') {
+            $this->load->helper('garden');$profile=mp_get_store_profile();$primary=[];
+            foreach(['mobile','mobile/catalogue','mobile/online_store/dashboard','mobile/report/sales_and_payments','mobile/service_jobs','mobile/production','mobile/recipes'] as $alias)$primary[trim((string)parse_url(base_url($alias),PHP_URL_PATH),'/')]=true;
+            foreach(mp_garden_navigation_groups() as $links)foreach($links as $link){
+                if($link[1]==='garden/business_tools'||!mp_garden_navigation_visible($link,$profile))continue;
+                $primary[trim((string)parse_url(mp_garden_mobile_url(base_url($link[1])),PHP_URL_PATH),'/')]=true;
+            }
+            foreach($data['menu_groups'] as $group=>$items){
+                $items=array_values(array_filter($items,function($item)use($primary){$path=trim((string)parse_url(base_url($item['url']),PHP_URL_PATH),'/');return !isset($primary[$path]) && strpos($path,'subscription_license')===false;}));
+                if($items)$data['menu_groups'][$group]=$items;else unset($data['menu_groups'][$group]);
+            }
+            $data['page_title']='Business tools';
+        }
 		$this->load->view('mobile/more', $data);
 	}
 
@@ -4942,7 +5043,11 @@ class Mobile extends MY_Controller {
 		$this->load->model('kitchen_model', 'kitchen');
 		$ok = $this->kitchen->update_status($kitchen_order_id, $status);
 		header('Content-Type: application/json');
-		echo json_encode(['success' => $ok, 'status' => $status]);
+		echo json_encode([
+			'success' => $ok,
+			'status'  => $status,
+			'message' => $ok ? '' : trim((string) ($this->kitchen->last_move['error'] ?? '')),
+		]);
 	}
 
 	public function table_management()
@@ -5826,13 +5931,16 @@ class Mobile extends MY_Controller {
 		$store_id = get_current_store_id();
 		$q_id = (int)$this->input->post('q_id', TRUE);
 
+		if($q_id && !$this->delivery_model->get_details($q_id)){echo json_encode(['success'=>false,'message'=>'Schedule not found.']);return;}
+		foreach((array)$this->input->post('sales_id') as $saleId){if($saleId&&!$this->db->where('id',(int)$saleId)->where('store_id',$store_id)->count_all_results('db_sales')){echo json_encode(['success'=>false,'message'=>'Sale not found.']);return;}}
 		if($q_id){
 			// Update header only — save_and_update() would wipe existing stops
 			$driver_id = $this->input->post('driver_id', TRUE);
 			$driver_name = '';
 			if(!empty($driver_id)){
-				$drv = $this->db->where('id', $driver_id)->get('db_delivery_drivers')->row();
-				$driver_name = $drv ? $drv->name : '';
+				$drv = $this->db->where('id', $driver_id)->where('store_id',$store_id)->get('db_delivery_drivers')->row();
+				if(!$drv){echo json_encode(['success'=>false,'message'=>'Driver not found.']);return;}
+				$driver_name = $drv->name;
 			}
 			$this->db->where('id', $q_id)->where('store_id', $store_id)->update('db_delivery_schedules', [
 				'route_name'    => $this->input->post('route_name', TRUE),
@@ -5854,7 +5962,7 @@ class Mobile extends MY_Controller {
 					if($exists) continue;
 					$sale = $this->db->select('s.sales_code, s.customer_id, c.customer_name, c.mobile, s.shippingaddress_id')
 						->from('db_sales s')->join('db_customers c', 'c.id = s.customer_id', 'left')
-						->where('s.id', $sales_id)->get()->row();
+						->where('s.id', $sales_id)->where('s.store_id',$store_id)->get()->row();
 					$address = '';
 					if(!empty($sale->shippingaddress_id)){
 						$addr = $this->db->where('id', $sale->shippingaddress_id)->get('db_shippingaddress')->row();
@@ -6376,7 +6484,7 @@ class Mobile extends MY_Controller {
 				$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 				$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
 				if($category_id){
-					$this->db->where('a.category_id', $category_id);
+					mp_category_filter('a.category_id',$category_id,$store_id);
 				}
 				if($search){
 					$this->db->group_start();
@@ -6612,7 +6720,7 @@ class Mobile extends MY_Controller {
 			['type' => 'variant_attribute', 'title' => 'Best Seller by Attribute', 'desc' => 'Best selling variants', 'icon' => 'fa-star', 'perm' => 'variant_attribute_report', 'color' => 'purple'],
 			['type' => 'sell_through', 'title' => 'Sell-Through Report', 'desc' => 'Sell-through rates', 'icon' => 'fa-line-chart', 'perm' => 'sell_through_report', 'color' => 'orange'],
 			['type' => 'reorder_suggestion', 'title' => 'Reorder Suggestions', 'desc' => 'Items to reorder', 'icon' => 'fa-shopping-basket', 'perm' => 'reorder_suggestion_report', 'color' => 'yellow'],
-			['type' => 'sales_and_payments', 'title' => 'Sales & Payment Report', 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'perm' => 'sales_report', 'color' => 'primary'],
+			['type' => 'sales_and_payments', 'title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'perm' => 'sales_report', 'color' => 'primary'],
 			['type' => 'sales_tax', 'title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'perm' => 'sales_tax_report', 'color' => 'red'],
 			['type' => 'sales', 'title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'perm' => 'sales_report', 'color' => 'primary'],
 			['type' => 'sales_return', 'title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'perm' => 'sales_return_report', 'color' => 'orange'],
@@ -6639,6 +6747,7 @@ class Mobile extends MY_Controller {
 
 	public function report($type = '')
 	{
+        if ($type==='sales_and_payments' && (mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') { $this->permission_check('sales_report');redirect('garden/sales_report?screen=mobile');return; }
 		$map = [
 			'sales' => ['title' => 'Sales Report', 'perm' => 'sales_report', 'endpoint' => 'reports/show_sales_report'],
 			'sales_return' => ['title' => 'Sales Return', 'perm' => 'sales_return_report', 'endpoint' => 'reports/show_sales_return_report'],
@@ -6656,7 +6765,7 @@ class Mobile extends MY_Controller {
 			'variant_attribute' => ['title' => 'Best Seller by Attribute', 'perm' => 'variant_attribute_report', 'endpoint' => 'reports/show_variant_attribute_report'],
 			'sell_through' => ['title' => 'Sell-Through Report', 'perm' => 'sell_through_report', 'endpoint' => 'reports/show_sell_through_report'],
 			'reorder_suggestion' => ['title' => 'Reorder Suggestions', 'perm' => 'reorder_suggestion_report', 'endpoint' => 'reports/show_reorder_suggestion_report'],
-			'sales_and_payments' => ['title' => 'Sales & Payment Report', 'perm' => 'sales_report', 'endpoint' => 'reports/sales_and_payments_report'],
+			'sales_and_payments' => ['title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'perm' => 'sales_report', 'endpoint' => 'reports/sales_and_payments_report'],
 			'sales_tax' => ['title' => 'Tax Report', 'perm' => 'sales_tax_report', 'endpoint' => 'reports/show_sales_tax_report'],
 			'sales_return_payments' => ['title' => 'Sales Return Payments', 'perm' => 'sales_payments_report', 'endpoint' => 'reports/show_sales_return_payments_report'],
 			'stock_transfer' => ['title' => 'Stock Transfer Report', 'perm' => 'stock_transfer_report', 'endpoint' => 'reports/show_stock_transfer_report'],
@@ -6694,9 +6803,9 @@ class Mobile extends MY_Controller {
 		$this->db->join('db_roles b', 'b.id = a.role_id', 'left');
 		if(!is_admin()){
 			$this->db->where('a.store_id', $store_id);
-		}
-		if(!is_admin() && !is_store_admin()){
-			$this->db->where('a.role_id !=', store_admin_id());
+			$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+			$this->db->where_not_in('a.id', get_excluded_user_ids($store_id));
+			$this->db->where_not_in('a.role_id', $owner_roles);
 		}
 		$this->db->order_by('a.id', 'desc');
 		$users = $this->db->get()->result();
@@ -7812,14 +7921,15 @@ class Mobile extends MY_Controller {
 		}
 	}
 
-	public function category_form()
+	public function category_form($id=0)
 	{
-		$this->permission_check('items_category_add');
+		$this->permission_check((int)$id?'items_category_edit':'items_category_add');
 		$data = $this->data;
-		$data['page_title'] = 'Add Category';
+		$data['page_title'] = (int)$id?'Edit Category':'Add Category';
 		$data['q_id'] = 0;
 		$data['category_name'] = '';
 		$data['description'] = '';
+		if((int)$id){$this->load->model('category_model');$data=$this->category_model->get_details((int)$id,$data);}
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name();
 
@@ -7831,7 +7941,8 @@ class Mobile extends MY_Controller {
 
 	public function save_category()
 	{
-		$this->permission_check('items_category_add');
+		$id=(int)$this->input->post('q_id');
+		$this->permission_check($id?'items_category_edit':'items_category_add');
 		$this->load->library('form_validation');
 		$this->form_validation->set_rules('category', 'Category Name', 'trim|required');
 
@@ -7841,7 +7952,7 @@ class Mobile extends MY_Controller {
 		}
 
 		$this->load->model('category_model');
-		$result = $this->category_model->verify_and_save();
+		$result = $id?$this->category_model->update_category():$this->category_model->verify_and_save();
 
 		if($result == 'success'){
 			echo json_encode(['status' => 'success', 'message' => 'Category saved successfully.', 'redirect' => base_url('mobile/more')]);

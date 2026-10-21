@@ -10,34 +10,38 @@
  * type, and a Clinapp link is offered so a clinic user is never stranded inside
  * the till with no way back.
  */
-$mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'physiotherapy_rehabilitation';
+$mp_pos_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+$mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && (($mp_pos_profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation');
+$mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — Point of Sale</title>
+  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — <?= $mp_is_pharmacy ? 'Dispensing & Checkout' : 'Point of Sale' ?></title>
   <link rel="icon" href="<?= $favicon_url ?>">
   <link rel="apple-touch-icon" href="<?= $favicon_url ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
   <style>
     :root {
-      --mp-primary: <?= $mp_is_clinic ? '#176753' : '#0057FF' ?>;
-      --mp-primary-dark: <?= $mp_is_clinic ? '#104d40' : '#0044CC' ?>;
+      --mp-primary: <?= $mp_is_clinic ? '#176753' : ($mp_is_pharmacy ? '#0F766E' : '#0057FF') ?>;
+      --mp-primary-dark: <?= $mp_is_clinic ? '#104d40' : ($mp_is_pharmacy ? '#0B5B55' : '#0044CC') ?>;
       --mp-pay: #D97706;
       --mp-pay-dark: #B45309;
-      --mp-bg: <?= $mp_is_clinic ? '#eef3f0' : '#F5F4F0' ?>;
+      --mp-bg: <?= $mp_is_clinic ? '#eef3f0' : ($mp_is_pharmacy ? '#F2F8F7' : '#F5F4F0') ?>;
       --mp-surface: #FFFFFF;
-      --mp-text: <?= $mp_is_clinic ? '#1e2d28' : '#292524' ?>;
-      --mp-muted: <?= $mp_is_clinic ? '#687a72' : '#78716C' ?>;
-      --mp-border: <?= $mp_is_clinic ? '#d8e2dc' : '#E7E5E4' ?>;
-      --mp-success: <?= $mp_is_clinic ? '#176753' : '#059669' ?>;
-      --mp-danger: <?= $mp_is_clinic ? '#c95f49' : '#DC2626' ?>;
-      --mp-warning: <?= $mp_is_clinic ? '#a96e24' : '#F59E0B' ?>;
-      --mp-ink: <?= $mp_is_clinic ? '#1e2d28' : '#44403C' ?>;
+      --mp-text: <?= $mp_is_clinic ? '#1e2d28' : ($mp_is_pharmacy ? '#16323A' : '#292524') ?>;
+      --mp-muted: <?= $mp_is_clinic ? '#687a72' : ($mp_is_pharmacy ? '#6B7F86' : '#78716C') ?>;
+      --mp-border: <?= $mp_is_clinic ? '#d8e2dc' : ($mp_is_pharmacy ? '#D7E7E5' : '#E7E5E4') ?>;
+      --mp-success: <?= $mp_is_clinic ? '#176753' : ($mp_is_pharmacy ? '#0F766E' : '#059669') ?>;
+      --mp-danger: <?= $mp_is_clinic ? '#c95f49' : ($mp_is_pharmacy ? '#C94F4F' : '#DC2626') ?>;
+      --mp-warning: <?= $mp_is_clinic ? '#a96e24' : ($mp_is_pharmacy ? '#B7791F' : '#F59E0B') ?>;
+      --mp-ink: <?= $mp_is_clinic ? '#1e2d28' : ($mp_is_pharmacy ? '#16323A' : '#44403C') ?>;
       --shadow-sm: 0 1px 2px rgba(41, 37, 36, 0.05);
       --shadow: 0 10px 25px -5px rgba(41, 37, 36, 0.08), 0 4px 10px -4px rgba(41, 37, 36, 0.04);
     }
@@ -53,13 +57,49 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; height: 100%; }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: <?= $mp_is_pharmacy ? "'Manrope'" : "'Inter'" ?>, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--mp-bg);
       color: var(--mp-text);
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
+    <?php if($mp_is_pharmacy): ?>
+    body.pharmacy-pos .app-header { background:#fbfefe; border-bottom-color:#d7e7e5; }
+    body.pharmacy-pos .app-header { box-shadow:0 1px 0 rgba(15,118,110,.08); }
+    body.pharmacy-pos .catalog, body.pharmacy-pos .cart, body.pharmacy-pos .sidebar { background:#f8fcfc; }
+    body.pharmacy-pos .workspace { grid-template-columns:220px minmax(0,1fr) 440px; gap:16px; padding:18px; background:#eef6f5; }
+    body.pharmacy-pos .panel, body.pharmacy-pos .catalog, body.pharmacy-pos .cart { border-radius:12px; box-shadow:0 4px 14px rgba(22,50,58,.05); }
+    body.pharmacy-pos .panel-title { letter-spacing:.01em; }
+    body.pharmacy-pos .catalog-header { flex-wrap:wrap; padding:14px 16px; background:#fbfefe; }
+    body.pharmacy-pos .pharmacy-catalog-title { width:100%; display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+    body.pharmacy-pos .pharmacy-catalog-title strong { font-size:15px; color:#16323a; }
+    body.pharmacy-pos .pharmacy-catalog-title small { color:#6b7f86; font-size:11px; }
+    body.pharmacy-pos .product-card { border-radius:12px; padding:14px; }
+    body.pharmacy-pos .product-card:hover { transform:none; box-shadow:0 7px 18px rgba(15,118,110,.10); }
+    body.pharmacy-pos .product-thumb { border-radius:10px; }
+    body.pharmacy-pos .pharmacy-medicine-thumb { background:#e5f4f1; color:#0f766e; }
+    body.pharmacy-pos .pharmacy-medicine-thumb i { font-size:24px; }
+    body.pharmacy-pos .cart { border-top:3px solid #0f766e; }
+    body.pharmacy-pos .cart-header { padding:15px 16px 13px; }
+    body.pharmacy-pos .cart-header h2 { font-size:17px; letter-spacing:-.02em; }
+    body.pharmacy-pos .customer-name-display { color:#0f766e!important; }
+    body.pharmacy-pos .pay-btn { font-size:16px; letter-spacing:.01em; }
+    body.pharmacy-pos .panel, body.pharmacy-pos .cart-header, body.pharmacy-pos .cart-summary { border-color:#d7e7e5; }
+    body.pharmacy-pos .pay-btn { background:#0f766e; }
+    body.pharmacy-pos .pay-btn:hover { background:#0b5b55; }
+    body.pharmacy-pos .pharmacy-consult-card { margin:12px 0 0; padding:12px; border:1px solid #cfe4e4; border-radius:14px; background:#eff9f7; }
+    body.pharmacy-pos .pharmacy-consult-copy { display:flex; gap:9px; align-items:center; min-width:0; }
+    body.pharmacy-pos .pharmacy-consult-copy strong, body.pharmacy-pos .pharmacy-consult-copy small { display:block; }
+    body.pharmacy-pos .pharmacy-consult-copy strong { font-size:12px; }
+    body.pharmacy-pos .pharmacy-consult-copy small { color:#6b7f86; font-size:10px; margin-top:2px; }
+    body.pharmacy-pos .pharmacy-consult-icon { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; background:#d9f0ea; color:#0f766e; flex-shrink:0; }
+    body.pharmacy-pos .pharmacy-consult-btn { width:100%; margin-top:9px; border:1px solid #9bcac7; border-radius:9px; background:#fff; color:#0f766e; padding:8px 10px; font-size:12px; font-weight:800; cursor:pointer; }
+    body.pharmacy-pos .pharmacy-consult-summary { margin-top:8px; color:#47636a; font-size:11px; white-space:pre-line; border-top:1px solid #cfe4e4; padding-top:8px; }
+    body.pharmacy-pos .pharmacy-consult-modal .modal { max-width:560px; }
+    body.pharmacy-pos .pharmacy-voice-btn { width:36px; height:36px; flex:0 0 36px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cfe4e4; border-radius:9px; background:#eff9f7; color:#0f766e; padding:0; font-size:13px; font-weight:800; cursor:pointer; }
+    body.pharmacy-pos .pharmacy-voice-btn.listening { background:#0f766e; color:#fff; }
+    <?php endif; ?>
 
     .app-header {
       display: flex;
@@ -519,6 +559,20 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       color: var(--mp-primary);
       white-space: nowrap;
     }
+    .pos-sale-badge {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(220,38,38,.1);
+      color: var(--mp-danger, #dc2626);
+      border-radius: 20px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      margin-right: 5px;
+    }
+    .pos-old-price { color: var(--mp-muted); text-decoration: line-through; font-size: 11px; font-weight: 500; margin-left: 5px; }
     .product-row .add-btn {
       width: 32px;
       height: 32px;
@@ -566,6 +620,19 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       top: 10px;
       left: 10px;
       background: var(--mp-success);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .sale-tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(220,38,38,.95);
       color: #fff;
       font-size: 10px;
       font-weight: 800;
@@ -700,11 +767,16 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       box-shadow: var(--shadow);
     }
     .customer-option {
+      display: flex;
+      align-items: center;
+      gap: 9px;
       padding: 10px 14px;
       font-size: 14px;
       cursor: pointer;
       border-bottom: 1px solid var(--mp-border);
     }
+    .customer-option .mp-person-avatar { flex-shrink: 0; }
+    .customer-option-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .customer-option:last-child { border-bottom: none; }
     .customer-option:hover, .customer-option.active { background: var(--mp-primary); color: #fff; }
     .customer-option.hidden { display: none; }
@@ -733,6 +805,17 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     .cart-item .item-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cart-item .item-meta { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     .cart-item .item-total { font-weight: 700; font-size: 14px; white-space: nowrap; }
+    .cart-item.weight-cart-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 10px;
+      row-gap: 8px;
+    }
+    .weight-cart-item .item-info { grid-column: 1 / -1; }
+    .weight-cart-item .qty-control { grid-column: 1 / -1; width:100%; justify-content:space-between; }
+    .weight-cart-item .weight-entry { flex:1; justify-content:space-between; }
+    .weight-cart-item .item-total { grid-column: 1; justify-self:end; align-self:center; }
+    .weight-cart-item .remove-btn { grid-column: 2; align-self:center; }
     .qty-control {
       display: flex;
       align-items: center;
@@ -756,6 +839,11 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       justify-content: center;
     }
     .qty-control span { min-width: 24px; text-align: center; font-weight: 700; font-size: 14px; }
+    .weight-entry { display:flex; align-items:center; gap:28px; width:100%; min-width:0; white-space:nowrap; }
+    .weight-part { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+    .weight-part .weight-label { color:var(--mp-muted); font-size:11px; font-weight:700; text-transform:uppercase; }
+    .weight-entry input { width:96px; height:38px; padding:4px 8px; border:1px solid var(--mp-border); border-radius:8px; background:var(--mp-surface); color:var(--mp-ink); font-size:18px; font-weight:700; text-align:center; }
+    .weight-entry .weight-total { min-width:96px; color:var(--mp-ink); font-size:12px; font-weight:700; text-align:center; }
     .remove-btn {
       width: 28px;
       height: 28px;
@@ -1017,6 +1105,12 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     .modal-actions .btn-primary { background: var(--mp-primary); color: #fff; }
     .modal-actions #paymentSubmitBtn { background: #22c55e; }
     .modal-actions #paymentSubmitBtn:hover { background: #16a34a; }
+    .calculator-display { width:100%; padding:14px 16px; border:1px solid var(--mp-border); border-radius:12px; background:var(--mp-bg); color:var(--mp-ink); font-size:28px; font-weight:700; text-align:right; box-sizing:border-box; }
+    .calculator-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:14px; }
+    .calculator-key { min-height:48px; border:1px solid var(--mp-border); border-radius:10px; background:var(--mp-surface); color:var(--mp-ink); font-size:18px; font-weight:700; cursor:pointer; }
+    .calculator-key:hover { background:var(--mp-bg); }
+    .calculator-key.operator { color:var(--mp-primary); background:var(--mp-bg); }
+    .calculator-key.equals { background:var(--mp-primary); color:#fff; border-color:var(--mp-primary); }
 
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -1245,7 +1339,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     }
   </style>
 </head>
-<body>
+<body class="<?= $mp_is_pharmacy ? 'pharmacy-pos' : ''; ?>">
 
   <header class="app-header">
     <?php if($mp_is_clinic): ?>
@@ -1253,8 +1347,18 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     <?php endif; ?>
     <a href="<?= base_url() ?>" class="brand" style="text-decoration: none; color: inherit; cursor: pointer;">
       <h1><?= htmlspecialchars(get_store_name() ?: 'Metro Mart') ?></h1>
-      <div class="sub">Point of Sale</div>
+      <div class="sub"><?= $mp_is_pharmacy ? 'Pharmacy dispensing desk' : 'Point of Sale'; ?></div>
     </a>
+    <?php if(!empty($warehouse_options) && count($warehouse_options) > 1): ?>
+    <label for="posOutletSelector" style="display:flex;align-items:center;gap:7px;margin:0 12px;font-size:12px;color:#475569;white-space:nowrap;">
+      Outlet
+      <select id="posOutletSelector" class="form-control input-sm" style="min-width:150px;border-radius:8px;" onchange="if(this.value){window.location.href='<?= htmlspecialchars(base_url('pos?warehouse_id='), ENT_QUOTES, 'UTF-8') ?>'+encodeURIComponent(this.value);}">
+        <?php foreach($warehouse_options as $outlet): ?>
+          <option value="<?= (int)$outlet['id'] ?>" <?= (int)$outlet['id'] === (int)$warehouse_id ? 'selected' : '' ?>><?= htmlspecialchars($outlet['warehouse_name']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <?php endif; ?>
     <div class="intelligence">
       <div class="intelligence-label">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2v4M4.93 4.93l2.83 2.83M19.07 4.93l-2.83 2.83M6 12H2M22 12h-4M12 7a5 5 0 0 0-5 5c0 2.5 2 4 2 5h6c0-1 2-2.5 2-5a5 5 0 0 0-5-5z"/></svg>
@@ -1266,14 +1370,18 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       </div>
     </div>
     <div class="header-actions">
-      <a class="header-btn" href="#">
+      <button class="header-btn" onclick="openCalculator()" title="Calculator">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg>
+        <span>Calculator</span>
+      </button>
+      <a class="header-btn" href="<?= base_url('sales'); ?>">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-        Sales List
+        <?= $mp_is_pharmacy ? 'Dispensing history' : 'Sales List'; ?>
       </a>
       <?php $CI =& get_instance(); if($CI->permissions('customers_add')): ?>
       <button class="header-btn" onclick="openAddCustomer()">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-      Add Customer
+      <?= $mp_is_pharmacy ? 'Add Patient' : 'Add Customer'; ?>
     </button>
     <?php endif; ?>
     <button class="header-btn" id="themeBtn" onclick="toggleTheme()" style="color: var(--mp-text);">
@@ -1288,7 +1396,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     <?php endif; ?>
       <button class="header-btn primary" onclick="confirmResetCart()">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New Invoice
+        <?= $mp_is_pharmacy ? 'New dispensing' : 'New Invoice'; ?>
       </button>
       <div class="user-menu">
         <div class="user-chip" onclick="toggleUserMenu()">
@@ -1327,15 +1435,15 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
   <main class="workspace">
     <aside class="sidebar">
       <div class="panel">
-        <div class="panel-title">Categories</div>
+        <div class="panel-title"><?= $mp_is_pharmacy ? 'Therapy areas' : 'Categories'; ?></div>
         <ul class="category-list" id="categoryList"></ul>
       </div>
       <div class="panel">
-        <div class="panel-title" style="padding-bottom:12px">Top Sellers This Week</div>
+        <div class="panel-title" style="padding-bottom:12px"><?= $mp_is_pharmacy ? 'Frequently dispensed' : 'Top Sellers This Week'; ?></div>
         <div class="insight-list" id="insightList"></div>
       </div>
       <div class="panel" style="padding:16px">
-        <div class="panel-title" style="padding:0 0 10px">Today's Sales Target</div>
+        <div class="panel-title" style="padding:0 0 10px"><?= $mp_is_pharmacy ? "Today's dispensing" : "Today's Sales Target"; ?></div>
         <?php
           $pos_initial_pct = ($daily_target > 0) ? min(100, round(($today_sales / $daily_target) * 100)) : 0;
           $pos_currency = get_store_details();
@@ -1350,19 +1458,20 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
         </div>
       </div>
       <div class="panel" style="padding:16px">
-        <div class="panel-title" style="padding:0 0 8px">Invoice</div>
+        <div class="panel-title" style="padding:0 0 8px"><?= $mp_is_pharmacy ? 'Dispensing record' : 'Invoice'; ?></div>
         <div style="font-size:24px;font-weight:700;color:var(--mp-primary)">#<?= $init_code ?><?= str_pad($count_id, 4, '0', STR_PAD_LEFT) ?></div>
         <div style="font-size:12px;color:var(--mp-muted);margin-bottom:12px">Next invoice number</div>
         <div id="posClock" style="font-size:22px;font-weight:700;color:var(--mp-ink);font-variant-numeric:tabular-nums">--:--:--</div>
-        <div style="font-size:11px;color:var(--mp-muted)">Local Time</div>
+        <div style="font-size:11px;color:var(--mp-muted)"><?= $mp_is_pharmacy ? 'Local time · dispensing desk' : 'Local Time'; ?></div>
       </div>
     </aside>
 
     <section class="catalog">
       <div class="catalog-header">
+        <?php if($mp_is_pharmacy): ?><div class="pharmacy-catalog-title"><strong>Medicine catalogue</strong><small>Search by name, SKU or barcode</small></div><?php endif; ?>
         <div class="search-bar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="searchInput" placeholder="Scan barcode or search product...">
+          <input type="text" id="searchInput" placeholder="<?= $mp_is_pharmacy ? 'Scan barcode or search medicine...' : 'Scan barcode or search product...'; ?>">
         </div>
         <div class="view-toggle" role="group" aria-label="Product view">
           <button type="button" id="gridViewBtn" class="active" onclick="setProductView('grid')" title="Thumbnail view" aria-label="Thumbnail view">
@@ -1378,31 +1487,38 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
 
     <aside class="cart">
       <div class="cart-header">
-        <h2>Current Sale</h2>
+        <h2><?= $mp_is_pharmacy ? 'Dispensing queue' : 'Current Sale'; ?></h2>
         <?php if ($pos_retail_button || $pos_wholesale_button): ?>
         <div class="price-type">
-          <span class="price-type-label">Price Type</span>
+          <span class="price-type-label"><?= $mp_is_pharmacy ? 'Price basis' : 'Price Type'; ?></span>
           <div class="option-chips">
             <?php if ($pos_retail_button): ?>
-            <button id="retailBtn" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>" onclick="setPriceType('retail')">Retail</button>
+            <button id="retailBtn" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>" onclick="setPriceType('retail')"><?= $mp_is_pharmacy ? 'Standard' : 'Retail'; ?></button>
             <?php endif; ?>
             <?php if ($pos_wholesale_button): ?>
-            <button id="wholesaleBtn" class="<?= $default_price_type === 'wholesale' ? 'active' : ''; ?>" onclick="setPriceType('wholesale')">Wholesale</button>
+            <button id="wholesaleBtn" class="<?= $mp_is_pharmacy ? 'trade' : ''; ?> <?= $default_price_type === 'wholesale' ? 'active' : ''; ?>" onclick="setPriceType('wholesale')"><?= $mp_is_pharmacy ? 'Trade' : 'Wholesale'; ?></button>
             <?php endif; ?>
           </div>
         </div>
         <?php endif; ?>
         <div class="customer-select">
-          <div id="customerNameDisplay" style="font-size:14px;font-weight:600;color:var(--mp-ink);padding:8px 0;">Walk-in Customer</div>
+          <div id="customerNameDisplay" class="customer-name-display" style="font-size:14px;font-weight:600;color:var(--mp-ink);padding:8px 0;"><?= $mp_is_pharmacy ? 'Walk-in Patient' : 'Walk-in Customer'; ?></div>
           <div id="customerBalanceInfo" style="display:none;font-size:12px;font-weight:500;padding:2px 0 6px;"></div>
-          <input type="text" id="customerSearchInput" class="customer-search" placeholder="Search customer..." autocomplete="off" oninput="filterCustomerDropdown()" onkeydown="handleCustomerSearchKey(event)" onfocus="showCustomerDropdown()" onblur="setTimeout(function(){ autoSelectCustomer(); hideCustomerDropdown(); }, 200)">
+          <input type="text" id="customerSearchInput" class="customer-search" placeholder="Search <?= $mp_is_pharmacy ? 'patient' : 'customer'; ?>..." autocomplete="off" oninput="filterCustomerDropdown()" onkeydown="handleCustomerSearchKey(event)" onfocus="showCustomerDropdown()" onblur="setTimeout(function(){ autoSelectCustomer(); hideCustomerDropdown(); }, 200)">
           <div id="customerDropdown" class="customer-dropdown" style="display:none">
             <?php if(!empty($customers) && is_array($customers)): ?>
               <?php foreach($customers as $c): ?>
-                <div class="customer-option" data-id="<?= $c['id'] ?? $c->id ?>" data-name="<?= htmlspecialchars($c['customer_name'] ?? $c->customer_name) ?>" onmousedown="selectCustomer('<?= $c['id'] ?? $c->id ?>')"><?= htmlspecialchars($c['customer_name'] ?? $c->customer_name) ?><?= !empty($c['mobile']) ? ' (' . htmlspecialchars($c['mobile']) . ')' : '' ?></div>
+                <?php $mp_customer_name = $c['customer_name'] ?? $c->customer_name; $mp_customer_avatar = $c['photo'] ?? ($c['customer_photo'] ?? ($c['profile_picture'] ?? '')); ?>
+                <div class="customer-option" data-id="<?= $c['id'] ?? $c->id ?>" data-name="<?= htmlspecialchars($mp_customer_name) ?>" onmousedown="selectCustomer('<?= $c['id'] ?? $c->id ?>')">
+                  <?php $avatar_url = $mp_customer_avatar; $avatar_name = $mp_customer_name; $avatar_size = 30; $avatar_class = 'customer-option-avatar'; $this->load->view('components/person_avatar'); ?>
+                  <span class="customer-option-copy"><?= htmlspecialchars($mp_customer_name) ?><?= !empty($c['mobile']) ? ' (' . htmlspecialchars($c['mobile']) . ')' : '' ?></span>
+                </div>
               <?php endforeach; ?>
             <?php else: ?>
-              <div class="customer-option" data-id="" data-name="Walk-in Customer" onmousedown="selectCustomer('')">Walk-in Customer</div>
+              <div class="customer-option" data-id="" data-name="Walk-in Customer" onmousedown="selectCustomer('')">
+                <?php $avatar_url = ''; $avatar_name = $mp_is_pharmacy ? 'Walk-in Patient' : 'Walk-in Customer'; $avatar_size = 30; $avatar_class = 'customer-option-avatar'; $this->load->view('components/person_avatar'); ?>
+                <span class="customer-option-copy"><?= $mp_is_pharmacy ? 'Walk-in Patient' : 'Walk-in Customer'; ?></span>
+              </div>
             <?php endif; ?>
           </div>
           <select id="customerSelect" onchange="handleCustomerChange()">
@@ -1425,8 +1541,15 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
         </div>
       </div>
       <div class="cart-items" id="cartItems">
-        <div class="cart-empty">Tap a product to start selling.</div>
+          <div class="cart-empty"><?= $mp_is_pharmacy ? 'Select a medicine to start a dispensing record.' : 'Tap a product to start selling.'; ?></div>
       </div>
+      <?php if($mp_is_pharmacy): ?>
+      <div class="pharmacy-consult-card" id="pharmacyConsultCard">
+        <div class="pharmacy-consult-copy"><span class="pharmacy-consult-icon"><i class="fa fa-stethoscope"></i></span><div><strong>Pharmacist consultation</strong><small>Add assessment, dosage and counselling notes. Dosage will appear on the pharmacy invoice.</small></div></div>
+        <button type="button" class="pharmacy-consult-btn" onclick="openPharmacyConsult()"><i class="fa fa-clipboard"></i> Add patient guidance</button>
+        <div class="pharmacy-consult-summary" id="pharmacyConsultSummary" style="display:none"></div>
+      </div>
+      <?php endif; ?>
       <div class="cart-summary">
         <div class="summary-row"><span>Subtotal</span><span id="subtotal">₦0.00</span></div>
         <div class="summary-row" id="taxRow" style="display:none"><span id="taxLabel">Tax</span><span id="tax">₦0.00</span></div>
@@ -1472,6 +1595,22 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       </div>
     </aside>
   </main>
+
+  <?php if($mp_is_pharmacy): ?>
+  <div class="modal-backdrop pharmacy-consult-modal" id="pharmacyConsultModal">
+    <div class="modal" style="max-width:560px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">
+        <div><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0f766e;">Pharmacist note</div><h3 style="margin:5px 0 0;">Capture patient guidance</h3><p style="margin:4px 0 0;color:var(--mp-muted);font-size:12px;">Use the microphone controls for hands-free entry.</p></div>
+        <button type="button" class="btn-secondary" onclick="closePharmacyConsult()" style="padding:6px 10px;">×</button>
+      </div>
+      <div class="form-group"><label for="pharmacyAssessment">Short assessment</label><div style="display:flex;gap:8px;align-items:flex-start;"><textarea id="pharmacyAssessment" rows="3" placeholder="Symptoms, duration, relevant context..." style="flex:1;width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea><button type="button" class="pharmacy-voice-btn" data-voice-target="pharmacyAssessment" aria-label="Dictate assessment" title="Dictate assessment"><i class="fa fa-microphone" aria-hidden="true"></i></button></div></div>
+      <div class="form-group"><label for="pharmacyDosage">Dosage / directions</label><div style="display:flex;gap:8px;align-items:flex-start;"><textarea id="pharmacyDosage" rows="3" placeholder="Example: Take 1 tablet after food, twice daily for 5 days..." style="flex:1;width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea><button type="button" class="pharmacy-voice-btn" data-voice-target="pharmacyDosage" aria-label="Dictate dosage" title="Dictate dosage"><i class="fa fa-microphone" aria-hidden="true"></i></button></div></div>
+      <div class="form-group"><label for="pharmacyCounselling">Counselling / cautions</label><div style="display:flex;gap:8px;align-items:flex-start;"><textarea id="pharmacyCounselling" rows="2" placeholder="Food, driving, storage or follow-up advice..." style="flex:1;width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea><button type="button" class="pharmacy-voice-btn" data-voice-target="pharmacyCounselling" aria-label="Dictate counselling" title="Dictate counselling"><i class="fa fa-microphone" aria-hidden="true"></i></button></div></div>
+      <div class="form-group"><label for="pharmacyAllergies">Allergies / cautions noted</label><input id="pharmacyAllergies" type="text" placeholder="Optional" style="width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;"></div>
+      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closePharmacyConsult()">Cancel</button><button type="button" class="btn-primary" onclick="savePharmacyConsult()">Add to invoice</button></div>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <footer class="copyright">
     &copy; <?= date('Y'); ?> <?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?>. Powered by MartPoint.
@@ -1655,6 +1794,22 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     </div>
   </div>
 
+  <div class="modal-backdrop" id="calculatorModal">
+    <div class="modal" style="max-width:360px;">
+      <h3>Calculator</h3>
+      <p>Quick calculations for sales and retail work.</p>
+      <input id="calculatorDisplay" class="calculator-display" type="text" value="0" readonly aria-label="Calculator display">
+      <div class="calculator-grid">
+        <button class="calculator-key operator" onclick="calculatorClear()">C</button><button class="calculator-key operator" onclick="calculatorBackspace()">⌫</button><button class="calculator-key operator" onclick="calculatorInput('%')">%</button><button class="calculator-key operator" onclick="calculatorInput('/')">÷</button>
+        <button class="calculator-key" onclick="calculatorInput('7')">7</button><button class="calculator-key" onclick="calculatorInput('8')">8</button><button class="calculator-key" onclick="calculatorInput('9')">9</button><button class="calculator-key operator" onclick="calculatorInput('*')">×</button>
+        <button class="calculator-key" onclick="calculatorInput('4')">4</button><button class="calculator-key" onclick="calculatorInput('5')">5</button><button class="calculator-key" onclick="calculatorInput('6')">6</button><button class="calculator-key operator" onclick="calculatorInput('-')">−</button>
+        <button class="calculator-key" onclick="calculatorInput('1')">1</button><button class="calculator-key" onclick="calculatorInput('2')">2</button><button class="calculator-key" onclick="calculatorInput('3')">3</button><button class="calculator-key operator" onclick="calculatorInput('+')">+</button>
+        <button class="calculator-key" onclick="calculatorInput('0')">0</button><button class="calculator-key" onclick="calculatorInput('.')">.</button><button class="calculator-key equals" style="grid-column:span 2;" onclick="calculatorEquals()">=</button>
+      </div>
+      <div class="modal-actions"><button class="btn-secondary" onclick="closeCalculator()">Close</button></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="unitPickerModal">
     <div class="modal" style="max-width: 420px;">
       <h3 id="unitPickerTitle">Select Unit</h3>
@@ -1691,6 +1846,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     </div>
   </div>
 
+  <script src="<?= rtrim($theme_link, '/') ?>/js/mp-offline-db.js?v=4"></script>
   <script>
     const products = <?= json_encode($products ?? []) ?>;
     const baseUrl = '<?= rtrim(base_url(), '/') ?>';
@@ -1699,8 +1855,62 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     const WALKIN_CUSTOMER_ID = '<?= $walkin_customer_id ?>';
     const csrfToken = '<?= $this->security->get_csrf_hash() ?>';
     const stopSellingExpired = <?= (int)($stop_selling_expired ?? 1) ?>;
+    const showSaleStockLabels = <?= !empty($show_sale_stock_labels) ? 'true' : 'false' ?>;
     const medicalNoteId = <?= (int)($medical_note_id ?? 0) ?>;
     const medicalNoteCustomerId = <?= ($medical_note_customer_id ?? 'null') ?>;
+    const isPharmacyPos = <?= $mp_is_pharmacy ? 'true' : 'false' ?>;
+
+    function pharmacyFieldValue(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
+    function buildPharmacySalesNote() {
+      if (!isPharmacyPos) return '';
+      const blocks = [];
+      const assessment = pharmacyFieldValue('pharmacyAssessment');
+      const dosage = pharmacyFieldValue('pharmacyDosage');
+      const counselling = pharmacyFieldValue('pharmacyCounselling');
+      const allergies = pharmacyFieldValue('pharmacyAllergies');
+      if (assessment) blocks.push('Assessment: ' + assessment);
+      if (dosage) blocks.push('Dosage / directions: ' + dosage);
+      if (counselling) blocks.push('Counselling: ' + counselling);
+      if (allergies) blocks.push('Allergies / cautions: ' + allergies);
+      return blocks.join('\n');
+    }
+    window.openPharmacyConsult = function() {
+      const modal = document.getElementById('pharmacyConsultModal');
+      if (modal) modal.classList.add('active');
+    };
+    window.closePharmacyConsult = function() {
+      const modal = document.getElementById('pharmacyConsultModal');
+      if (modal) modal.classList.remove('active');
+    };
+    window.savePharmacyConsult = function() {
+      const note = buildPharmacySalesNote();
+      const summary = document.getElementById('pharmacyConsultSummary');
+      if (summary) { summary.textContent = note || 'No guidance added yet.'; summary.style.display = 'block'; }
+      closePharmacyConsult();
+    };
+    (function initPharmacyVoice() {
+      if (!isPharmacyPos) return;
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      document.querySelectorAll('.pharmacy-voice-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          if (!Recognition) { openAlertModal('Voice unavailable', 'This browser does not support voice dictation. You can type the note instead.'); return; }
+          if (btn._recognition) { btn._recognition.stop(); return; }
+          const target = document.getElementById(btn.getAttribute('data-voice-target'));
+          if (!target) return;
+          const recognition = new Recognition();
+          btn._recognition = recognition;
+          recognition.lang = 'en-NG'; recognition.interimResults = false; recognition.continuous = false;
+          btn.classList.add('listening'); btn.setAttribute('aria-label', 'Stop dictation'); btn.setAttribute('title', 'Stop dictation'); btn.innerHTML = '<i class="fa fa-stop" aria-hidden="true"></i>';
+          recognition.onresult = function(event) { const text = event.results[0][0].transcript.trim(); target.value = (target.value ? target.value + ' ' : '') + text; };
+          recognition.onerror = function() { showToast('Voice note could not be captured. You can type it instead.', 'warning'); };
+          recognition.onend = function() { btn._recognition = null; btn.classList.remove('listening'); btn.setAttribute('aria-label', 'Dictate'); btn.setAttribute('title', 'Dictate'); btn.innerHTML = '<i class="fa fa-microphone" aria-hidden="true"></i>'; };
+          recognition.start();
+        });
+      });
+    })();
 
     const topSelling = <?= json_encode($top_selling ?? []) ?>;
 
@@ -1780,6 +1990,23 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       }
       if (product) return priceType === 'wholesale' ? product.wholesale : product.price;
       return 0;
+    }
+
+    function getWeightPricing(item, qty) {
+      const enabled = !!(item && item.weight_pricing_enabled);
+      const base = parseFloat(item && item.weight_pricing_base_kg) || 0;
+      const step = parseFloat(item && item.weight_pricing_increment_kg) || 0;
+      const charge = parseFloat(item && item.weight_pricing_increment_charge) || 0;
+      const q = parseFloat(qty) || 0;
+      if (!enabled || q <= 0 || base <= 0 || step <= 0 || charge < 0) return { total: (parseFloat(item.unitPrice) || 0) * q, unit: parseFloat(item.unitPrice) || 0 };
+      let total;
+      const wholeUnits = Math.floor((q / base) + 0.00000001);
+      const remainder = Math.max(0, q - (wholeUnits * base));
+      const lines = (item.weight_lines !== undefined) ? Math.max(0, parseInt(item.weight_lines, 10) || 0) : (remainder > 0 ? Math.ceil(Math.round((remainder / step) * 100000000) / 100000000) : 0);
+      const enteredWholeUnits = (item.weight_base_qty !== undefined) ? Math.max(0, parseFloat(item.weight_base_qty) || 0) : wholeUnits;
+      total = (wholeUnits * (parseFloat(item.unitPrice) || 0)) + (lines * charge);
+      if (item.weight_base_qty !== undefined) total = (enteredWholeUnits * (parseFloat(item.unitPrice) || 0)) + (lines * charge);
+      return { total: total, unit: total / q };
     }
 
     function openUnitPicker(product, onSelect) {
@@ -1959,7 +2186,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
           <div class="insight-top">
             <span class="rank">#${i + 1}</span>
             <span class="name">${t.name}</span>
-            <span class="sold">${t.sold} sold</span>
+            <span class="sold">${t.sold} ${isPharmacyPos ? 'dispensed' : 'sold'}</span>
           </div>
           <div class="insight-bar">
             <div class="fill" style="width:${(t.sold / max) * 100}%"></div>
@@ -1979,7 +2206,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       const items = topSelling.map((t, i) => `
         <span class="marquee-item trend">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-          ${t.name} — ${t.sold} sold this week
+          ${t.name} — ${t.sold} ${isPharmacyPos ? 'dispensed' : 'sold'} this week
         </span>
       `).join('');
       
@@ -2002,7 +2229,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       cart.forEach(item => { item.unitPrice = getPrice(item, item.unit); });
       updateCart();
       renderProducts();
-      showToast('Price type changed', 'Switched to ' + type + ' prices', 'success');
+      showToast(isPharmacyPos ? 'Price basis changed' : 'Price type changed', 'Switched to ' + (isPharmacyPos ? (type === 'wholesale' ? 'trade' : 'standard') : type) + ' prices', 'success');
     }
 
     function getFilteredProducts() {
@@ -2027,15 +2254,19 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       if (productView === 'list') {
         grid.innerHTML = filtered.map(p => {
           const displayPrice = getPrice(p);
-          const stockChip = p.outOfStock
+          const stockChip = !showSaleStockLabels ? '' : (p.outOfStock
             ? '<span class="stock-chip out">Out of stock</span>'
             : (p.alert_qty > 0 && p.stock <= p.alert_qty
               ? `<span class="stock-chip low">Low · ${p.stock}${p.unit ? ' ' + p.unit : ''}</span>`
-              : `<span class="stock-chip in">${p.stock}${p.unit ? ' ' + p.unit : ''} in stock</span>`);
+              : `<span class="stock-chip in">${p.stock}${p.unit ? ' ' + p.unit : ''} in stock</span>`));
           const rowThumb = p.image
             ? `<div class="row-thumb"><img src="${baseUrl}/${p.image}" alt="" onerror="this.remove();"></div>`
-            : `<div class="row-thumb"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`;
+            : (isPharmacyPos
+              ? '<div class="row-thumb pharmacy-medicine-thumb"><i class="fa fa-medkit" aria-hidden="true"></i></div>'
+              : `<div class="row-thumb"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`);
           const meta = [p.category, p.unit, p.sku].filter(Boolean).join(' · ');
+          const saleTag = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-sale-badge">Sale</span>' : '';
+          const oldPrice = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-old-price">' + formatMoney(Number(p.original_price) || 0) + '</span>' : '';
           return `
           <div class="product-row${p.outOfStock ? ' out' : ''}" onclick="${p.outOfStock ? '' : 'addToCart(' + p.id + ')'}">
             ${rowThumb}
@@ -2044,7 +2275,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
               <div class="row-meta">${meta}</div>
             </div>
             ${stockChip}
-            <div class="row-price">${formatMoney(displayPrice)}</div>
+            <div class="row-price">${saleTag}${formatMoney(displayPrice)}${oldPrice}</div>
             <button class="add-btn" ${p.outOfStock ? 'disabled' : ''} onclick="event.stopPropagation(); addToCart(${p.id})">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
@@ -2056,18 +2287,25 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       grid.innerHTML = filtered.map(p => {
         const displayPrice = getPrice(p);
         const newTag = isNew(p.createdAt) ? '<div class="new-tag">New</div>' : '';
-        const wholesaleTag = priceType === 'wholesale' ? '<div class="price-tag">WS</div>' : '';
-        const outOfStockOverlay = p.outOfStock ? '<div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);border-radius:14px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-weight:700;font-size:12px;">OUT OF STOCK</span></div>' : '';
-        const thumb = p.image ? `<div class="product-thumb" style="padding:0;position:relative;"><img src="${baseUrl}/${p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" onerror="this.remove();">${outOfStockOverlay}</div>` : `<div class="product-thumb"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`;
+        const saleTag = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<div class="sale-tag">Sale</div>' : '';
+        const oldPrice = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-old-price">' + formatMoney(Number(p.original_price) || 0) + '</span>' : '';
+        const wholesaleTag = priceType === 'wholesale' ? '<div class="price-tag">' + (isPharmacyPos ? 'Trade' : 'WS') + '</div>' : '';
+        const outOfStockOverlay = showSaleStockLabels && p.outOfStock ? '<div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);border-radius:14px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-weight:700;font-size:12px;">OUT OF STOCK</span></div>' : '';
+        const thumb = p.image
+          ? `<div class="product-thumb" style="padding:0;position:relative;"><img src="${baseUrl}/${p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" onerror="this.remove();">${outOfStockOverlay}</div>`
+          : (isPharmacyPos
+            ? '<div class="product-thumb pharmacy-medicine-thumb"><i class="fa fa-medkit" aria-hidden="true"></i></div>'
+            : `<div class="product-thumb"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`);
         const cardClass = p.outOfStock ? 'product-card' : 'product-card';
         const cardStyle = p.outOfStock ? 'opacity: 0.6; cursor: not-allowed;' : '';
         return `
         <div class="${cardClass}" style="${cardStyle}" onclick="${p.outOfStock ? '' : 'addToCart(' + p.id + ')'}">
+          ${saleTag}
           ${newTag}
           ${wholesaleTag}
           ${thumb}
           <div class="product-name">${p.name}</div>
-          <div class="product-price">${formatMoney(displayPrice)}</div>
+          <div class="product-price">${formatMoney(displayPrice)}${oldPrice}</div>
           <button class="add-btn" ${p.outOfStock ? 'disabled' : ''} onclick="event.stopPropagation(); addToCart(${p.id})">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -2118,7 +2356,14 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       const unitPrice = getPrice(product, selectedUnit);
       const item = existing;
       if (item) {
-        item.qty++;
+        if (item.weight_pricing_enabled) {
+          item.weight_base_qty = (parseFloat(item.weight_base_qty) || 0) + 1;
+          const baseKg = parseFloat(item.weight_pricing_base_kg) || 1;
+          const lineStep = parseFloat(item.weight_pricing_increment_kg) || 0.05;
+          item.qty = (item.weight_base_qty * baseKg) + ((parseInt(item.weight_lines, 10) || 0) * lineStep);
+        } else {
+          item.qty++;
+        }
       } else {
         cart.push({
           ...product,
@@ -2128,6 +2373,8 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
           conversion_factor: conversionFactor,
           unitPrice: unitPrice,
           qty: 1,
+          weight_base_qty: product.weight_pricing_enabled ? 1 : undefined,
+          weight_lines: product.weight_pricing_enabled ? 0 : undefined,
           tax_value: product.tax_value,
           tax_id: product.tax_id,
           tax_type: product.tax_type
@@ -2177,16 +2424,56 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       if (!item) return;
       const product = products.find(p => p.id === item.id);
       const conversion = parseFloat(item.conversion_factor || 1);
-      const nextQty = item.qty + delta;
+      const weightStep = item.weight_pricing_enabled ? (parseFloat(item.weight_pricing_increment_kg) || 0.05) : 1;
+      const nextQty = item.weight_pricing_enabled ? ((parseFloat(item.weight_base_qty || 0) + delta) * (parseFloat(item.weight_pricing_base_kg) || 1)) + ((parseInt(item.weight_lines, 10) || 0) * weightStep) : item.qty + (delta * weightStep);
       if (product && product.stock < nextQty * conversion) {
         showToast('Not enough stock', product.name + ': 1 ' + (item.unit_name || 'unit') + ' uses ' + conversion + ' stock units — only ' + product.stock + ' available', 'warning');
         return;
       }
+      if (item.weight_pricing_enabled) item.weight_base_qty = Math.max(0, (parseFloat(item.weight_base_qty || 0) + delta));
       item.qty = nextQty;
-      if (item.qty < 1) {
+      if (item.qty <= 0) {
         cart.splice(index, 1);
       }
       updateCart();
+    }
+
+    function setWeightQty(index, value) {
+      const item = cart[index];
+      if (!item) return;
+      const qty = parseFloat(value);
+      const product = products.find(p => p.id === item.id);
+      const conversion = parseFloat(item.conversion_factor || 1);
+      if (!isFinite(qty) || qty <= 0) { cart.splice(index, 1); updateCart(); return; }
+      if (product && product.stock < qty * conversion) {
+        showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
+        updateCart(); return;
+      }
+      item.qty = qty;
+      updateCart();
+    }
+
+    function setWeightParts(index, part, value) {
+      const item = cart[index];
+      if (!item) return;
+      if (part === 'kg') item.weight_base_qty = Math.max(0, parseFloat(value) || 0);
+      if (part === 'lines') item.weight_lines = Math.max(0, parseInt(value, 10) || 0);
+      const baseKg = parseFloat(item.weight_pricing_base_kg) || 1;
+      const step = parseFloat(item.weight_pricing_increment_kg) || 0.05;
+      item.qty = (item.weight_base_qty * baseKg) + (item.weight_lines * step);
+      const product = products.find(p => p.id === item.id);
+      if (product && product.stock < item.qty * (parseFloat(item.conversion_factor || 1))) {
+        showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
+        updateCart(); return;
+      }
+      updateCart();
+    }
+
+    function changeWeightPart(index, part, delta) {
+      const item = cart[index];
+      if (!item) return;
+      const current = part === 'kg' ? (parseFloat(item.weight_base_qty) || 0) : (parseInt(item.weight_lines, 10) || 0);
+      setWeightParts(index, part, current + delta);
     }
 
     function removeItem(index) {
@@ -2205,6 +2492,10 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     }
 
     function resetCart() {
+      // A new invoice gets a fresh retry key. Keep the current key alive until
+      // the post-sale receipt is dismissed so an accidental second payment
+      // click resolves to the original sale instead of creating another one.
+      window.__mpRestaurantOrderKey = null;
       // Auto-wipe hold if it was loaded but not processed
       if (currentLoadedHoldId && holdLoadedAt) {
         const timeElapsed = Date.now() - holdLoadedAt;
@@ -2234,7 +2525,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       if (retailBtn) retailBtn.className = priceType === 'retail' ? 'active' : '';
       if (wholesaleBtn) wholesaleBtn.className = priceType === 'wholesale' ? 'active' : '';
       updateCart();
-      showToast('New invoice', 'Cart cleared for the next customer', 'success');
+      showToast(isPharmacyPos ? 'New dispensing record' : 'New invoice', isPharmacyPos ? 'Queue cleared for the next patient' : 'Cart cleared for the next customer', 'success');
     }
 
     function updateClockBtn() {
@@ -2528,32 +2819,34 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
     function updateCart() {
       const itemsContainer = document.getElementById('cartItems');
       if (cart.length === 0) {
-        itemsContainer.innerHTML = '<div class="cart-empty">Tap a product to start selling.</div>';
+        itemsContainer.innerHTML = '<div class="cart-empty">' + (isPharmacyPos ? 'Select a medicine to start a dispensing record.' : 'Tap a product to start selling.') + '</div>';
       } else {
         itemsContainer.innerHTML = cart.map((item, index) => {
           const taxValue = (item.tax_value || 0) / 100;
           const taxType = item.tax_type || 'Exclusive';
-          let displayPrice = item.unitPrice;
-          let displayTotal = item.unitPrice * item.qty;
+          const weightPricing = getWeightPricing(item, item.qty);
+          let displayPrice = weightPricing.unit;
+          let displayTotal = weightPricing.total;
 
           // For inclusive tax, show the price without tax
           if (taxType === 'Inclusive' && taxValue > 0) {
-            displayPrice = item.unitPrice / (1 + taxValue);
-            displayTotal = displayPrice * item.qty;
+            // Remove VAT from the complete stepped-weight price. Removing it
+            // from the base price alone makes the item row disagree with the
+            // subtotal once additional weight charges are applied.
+            displayPrice = weightPricing.unit / (1 + taxValue);
+            displayTotal = weightPricing.total / (1 + taxValue);
           }
 
           const unitLabel = item.unit_name ? ' • ' + item.unit_name : '';
 
           return `
-          <div class="cart-item">
+          <div class="cart-item${item.weight_pricing_enabled ? ' weight-cart-item' : ''}">
             <div class="item-info">
               <div class="item-name">${item.name}</div>
-              <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? 'Wholesale' : 'Retail'}${unitLabel}</div>
+              <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? (isPharmacyPos ? 'Trade' : 'Wholesale') : (isPharmacyPos ? 'Standard' : 'Retail')}${unitLabel}</div>
             </div>
             <div class="qty-control">
-              <button onclick="changeQty(${index}, -1)">-</button>
-              <span>${item.qty}</span>
-              <button onclick="changeQty(${index}, 1)">+</button>
+              ${item.weight_pricing_enabled ? '<span class="weight-entry"><span class="weight-part"><span class="weight-label">KG</span><input type="number" min="0" step="1" value="' + (item.weight_base_qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'kg\', this.value)"></span><span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span><span class="weight-total">= ' + Number(item.qty || 0).toFixed(2) + ' kg</span></span>' : '<button onclick="changeQty(' + index + ', -1)">-</button><span>' + item.qty + '</span><button onclick="changeQty(' + index + ', 1)">+</button>'}
             </div>
             <div class="item-total">${formatMoney(displayTotal)}</div>
             <button class="remove-btn" onclick="removeItem(${index})">
@@ -2569,7 +2862,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       
       // Calculate subtotal and tax based on each item's tax type
       cart.forEach(i => {
-        const lineTotal = i.unitPrice * i.qty;
+        const lineTotal = getWeightPricing(i, i.qty).total;
         const taxValue = (i.tax_value || 0) / 100;
         const taxType = i.tax_type || 'Exclusive';
         
@@ -2807,7 +3100,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       params.append('invoice_type', 'sales');
       params.append('coupon_code', code);
       params.append('customer_id', customerId);
-      params.append('cart_subtotal', cart.reduce((s, i) => s + (i.unitPrice * i.qty), 0));
+      params.append('cart_subtotal', cart.reduce((s, i) => s + getWeightPricing(i, i.qty).total, 0));
       params.append('csrf_test_name', csrfToken);
       posFetchJson(baseUrl + '/customer_coupon/get_coupon_details', {
         method: 'POST',
@@ -2879,7 +3172,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       } else {
         cart.forEach(i => {
           if(isItemCouponEligible(i)) {
-            eligibleSubtotal += i.unitPrice * i.qty;
+            eligibleSubtotal += getWeightPricing(i, i.qty).total;
           }
         });
       }
@@ -3073,6 +3366,39 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       document.getElementById('alertModal').classList.add('active');
     }
 
+    let calculatorExpression = '';
+    function openCalculator() {
+      calculatorExpression = '';
+      document.getElementById('calculatorDisplay').value = '0';
+      document.getElementById('calculatorModal').classList.add('active');
+    }
+    function closeCalculator() { document.getElementById('calculatorModal').classList.remove('active'); }
+    function calculatorInput(value) {
+      calculatorExpression += value;
+      document.getElementById('calculatorDisplay').value = calculatorExpression || '0';
+    }
+    function calculatorClear() {
+      calculatorExpression = '';
+      document.getElementById('calculatorDisplay').value = '0';
+    }
+    function calculatorBackspace() {
+      calculatorExpression = calculatorExpression.slice(0, -1);
+      document.getElementById('calculatorDisplay').value = calculatorExpression || '0';
+    }
+    function calculatorEquals() {
+      if (!calculatorExpression) return;
+      if (!/^[0-9+\-*/%.() ]+$/.test(calculatorExpression)) return;
+      try {
+        const result = Function('"use strict"; return (' + calculatorExpression + ')')();
+        if (!Number.isFinite(result)) throw new Error('Invalid result');
+        calculatorExpression = String(result);
+        document.getElementById('calculatorDisplay').value = calculatorExpression;
+      } catch (e) {
+        calculatorExpression = '';
+        document.getElementById('calculatorDisplay').value = 'Error';
+      }
+    }
+
     function closeAlertModal() {
       document.getElementById('alertModal').classList.remove('active');
     }
@@ -3121,13 +3447,18 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
         openAlertModal('Hold failed', 'No branch found for this store. Please set up a branch first.');
         return;
       }
+      const paymentNote = (document.getElementById('sales_note') && document.getElementById('sales_note').value || '').trim();
+      const pharmacyNote = buildPharmacySalesNote();
       const payload = {
         warehouse_id: warehouseId,
         customer_id: parseInt(document.getElementById('customerSelect').value) || 0,
         cart: cart.map(item => ({
           id: item.id,
           qty: item.qty,
-          price: item.unitPrice,
+          weight_base_qty: item.weight_base_qty,
+          weight_lines: item.weight_lines,
+          price: getWeightPricing(item, item.qty).unit,
+          base_price: item.unitPrice,
           tax_value: item.tax_value || 0,
           tax_type: item.tax_type || 'Exclusive',
           price_type: priceType,
@@ -3135,7 +3466,8 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
         })),
         discount: discountAmount || 0,
         shipping: shippingFeeId ? { id: shippingFeeId } : null,
-        sales_note: '',
+        sales_note: [pharmacyNote, paymentNote].filter(Boolean).join('\n\n'),
+        pharmacy_assessment: pharmacyNote,
         reference_id: reference,
         csrf_test_name: csrfToken
       };
@@ -3739,7 +4071,10 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       const cartItems = cart.map(item => ({
         id: item.id,
         qty: item.qty,
-        price: item.unitPrice,
+        weight_base_qty: item.weight_base_qty,
+        weight_lines: item.weight_lines,
+        price: getWeightPricing(item, item.qty).unit,
+        base_price: item.unitPrice,
         tax_value: item.tax_value || 0,
         tax_type: item.tax_type || 'Exclusive',
         price_type: priceType,
@@ -3764,6 +4099,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
         payment_type: paymentRows[0] ? paymentRows[0].payment_type : window.defaultPaymentMode,
         account_id: paymentRows[0] ? paymentRows[0].account_id : '',
         payment_rows: paymentRows,
+        restaurant_order_key: window.__mpRestaurantOrderKey || (window.__mpRestaurantOrderKey = 'pos-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
         medical_note_id: medicalNoteId,
         csrf_test_name: csrfToken
       };
@@ -3819,7 +4155,7 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
         if (res.status === 'success') {
           closePaymentPopup();
           const salesId = res.sales_id;
-          const msg = res.message || 'Sale saved';
+          const msg = res.message || (isPharmacyPos ? 'Dispensing record saved' : 'Sale saved');
           showToast('Sale Completed', msg, 'success');
 
           // Show post-sale actions if sales_id is available
@@ -3838,9 +4174,52 @@ $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('l
       .catch(err => {
         submitBtn.disabled = false;
         submitBtn.textContent = mode === 'plan' ? 'Create Plan' : 'Pay';
+        const networkError = !navigator.onLine || /Could not reach the server|network|failed to fetch|load failed/i.test(posErrorText(err, ''));
+        if (networkError && window.MPOfflineDB) {
+          const queued = Object.assign({}, payload, { idempotencyKey: payload.restaurant_order_key });
+          MPOfflineDB.queueSale({
+            url: baseUrl + '/mobile/save',
+            payload: queued,
+            transport: 'json',
+            idempotencyKey: queued.idempotencyKey,
+            receiptPayload: queued,
+            status: 'pending'
+          }).then(queueId => {
+            closePaymentPopup();
+            showToast('Sale queued offline', 'Saved on this device and will sync when the connection returns. Queue #' + queueId, 'warning');
+            resetCart();
+          }).catch(() => openAlertModal('Payment failed', 'The connection failed and this sale could not be saved locally. Keep the page open and try again.'));
+          return;
+        }
         openAlertModal('Payment failed', posErrorText(err, 'Could not save the sale. Please check the details and try again.'));
       });
     };
+
+    async function syncQueuedDesktopSales() {
+      if (!navigator.onLine || !window.MPOfflineDB) return;
+      const queued = await MPOfflineDB.getPendingSales();
+      for (const sale of queued) {
+        if (!sale.payload || sale.transport !== 'json') continue;
+        await MPOfflineDB.updateSaleStatus(sale.queueId, 'syncing').catch(() => {});
+        try {
+          const res = await posFetchJson(sale.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(sale.payload)
+          });
+          if (res.status === 'success') {
+            await MPOfflineDB.removeQueuedSale(sale.queueId);
+            showToast('Offline sale synced', 'The queued sale was posted exactly once.', 'success');
+          } else {
+            await MPOfflineDB.updateSaleStatus(sale.queueId, 'failed', res.message || 'Server rejected sale');
+          }
+        } catch (err) {
+          await MPOfflineDB.updateSaleStatus(sale.queueId, 'failed', posErrorText(err, 'Sync failed'));
+        }
+      }
+    }
+    window.addEventListener('online', () => setTimeout(syncQueuedDesktopSales, 500));
+    setTimeout(syncQueuedDesktopSales, 800);
 
     // Pharmacy: pre-select the patient from the medical note
     if (medicalNoteCustomerId) {

@@ -3,8 +3,19 @@ $slug = $settings->store_slug ?? '';
 $social = $social_links ?? [];
 $footerStyle = $settings->footer_style ?? 'standard';
 $aboutUs = $settings->footer_about_us ?? '';
+$footerLogo = '';
+$footerLogoPath = trim((string)($settings->footer_logo ?? ''));
+if($footerLogoPath !== ''){
+  if(preg_match('#^https?://#i', $footerLogoPath)){
+    $footerLogo = $footerLogoPath;
+  } elseif(is_file(FCPATH . ltrim($footerLogoPath, '/'))){
+    $footerLogo = base_url(ltrim($footerLogoPath, '/'));
+  }
+}
+$footerLogo = $footerLogo ?: ($logo_url ?? '');
 ?>
 
+<?php if(empty($suppress_storefront_footer)): ?>
 <div class="mp-footer-space"></div>
 
 <!-- Footer -->
@@ -14,7 +25,7 @@ $aboutUs = $settings->footer_about_us ?? '';
   <div class="mp-footer-inner mp-footer-compact">
     <!-- Brand + About + Social (centered) -->
     <div class="mp-footer-compact-top">
-      <?php if(!empty($logo_url)): ?><img src="<?= $logo_url; ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>" style="max-height:44px;max-width:180px;margin:0 auto 12px;display:inline-block;background:#fff;padding:6px 12px;border-radius:8px;"><?php endif; ?>
+      <?php if(!empty($footerLogo)): ?><img src="<?= htmlspecialchars($footerLogo); ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?> footer logo" style="max-height:44px;max-width:180px;margin:0 auto 12px;display:inline-block;background:#fff;padding:6px 12px;border-radius:8px;"><?php endif; ?>
       <div class="mp-footer-brand"><?= htmlspecialchars($store->store_name ?? 'Store'); ?></div>
       <?php if(!empty($aboutUs)): ?>
       <div class="mp-footer-desc"><?= nl2br(htmlspecialchars($aboutUs)); ?></div>
@@ -41,6 +52,7 @@ $aboutUs = $settings->footer_about_us ?? '';
     <!-- Support + Contact rows -->
     <div class="mp-footer-compact-row mp-footer-compact-support">
       <span class="mp-footer-compact-label">Support</span>
+      <?= $footer_site_links ?? ''; ?>
       <?php if(!empty($settings->whatsapp_number)): ?><a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number); ?>" target="_blank">WhatsApp Support</a><?php endif; ?>
     </div>
     <div class="mp-footer-compact-row mp-footer-compact-contact">
@@ -62,7 +74,7 @@ $aboutUs = $settings->footer_about_us ?? '';
   <!-- Standard / About-Focused 4-Column Footer -->
   <div class="mp-footer-inner">
     <div>
-      <?php if(!empty($logo_url)): ?><img src="<?= $logo_url; ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>" style="max-height:44px;max-width:180px;margin-bottom:12px;display:inline-block;background:#fff;padding:6px 12px;border-radius:8px;"><?php endif; ?>
+      <?php if(!empty($footerLogo)): ?><img src="<?= htmlspecialchars($footerLogo); ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?> footer logo" style="max-height:44px;max-width:180px;margin-bottom:12px;display:inline-block;background:#fff;padding:6px 12px;border-radius:8px;"><?php endif; ?>
       <div class="mp-footer-brand"><?= htmlspecialchars($store->store_name ?? 'Store'); ?></div>
       <?php if(!empty($aboutUs)): ?>
       <div class="mp-footer-desc"><?= nl2br(htmlspecialchars($aboutUs)); ?></div>
@@ -91,6 +103,7 @@ $aboutUs = $settings->footer_about_us ?? '';
     </div>
     <div>
       <div class="mp-footer-heading">Support</div>
+      <?= $footer_site_links ?? ''; ?>
       <ul class="mp-footer-links">
         <?php if(!empty($settings->whatsapp_number)): ?>
         <li><a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number); ?>" target="_blank">WhatsApp Support</a></li>
@@ -152,6 +165,8 @@ $aboutUs = $settings->footer_about_us ?? '';
     <?php endif; ?>
   </div>
 </div>
+
+<?php endif; ?>
 
 <!-- Back to Top -->
 <button class="mp-backtop" id="backtop" onclick="window.scrollTo({top:0,behavior:'smooth'});" aria-label="Back to top">

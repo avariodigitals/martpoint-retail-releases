@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — Appearance</title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Appearance</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -55,7 +55,7 @@
       <div class="topbar">
         <a href="<?= $back_url; ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
-          <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div>
+          <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Appearance</h1>
         </div>
       </div>
@@ -128,6 +128,24 @@
 
         <div class="card">
           <div class="card-title">Branding</div>
+          <div class="form-group">
+            <label class="form-label">Footer Logo</label>
+            <?php
+              $mobileFooterLogo = '';
+              if(!empty($settings->footer_logo) && is_file(FCPATH . ltrim($settings->footer_logo, '/'))) $mobileFooterLogo = base_url(ltrim($settings->footer_logo, '/'));
+            ?>
+            <?php if($mobileFooterLogo): ?><div style="margin-bottom:8px;"><img src="<?= htmlspecialchars($mobileFooterLogo); ?>" alt="Footer logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
+            <input type="file" name="footer_logo" class="form-control" accept="image/*">
+            <small style="color:var(--mp-muted);">Used only in the shared online-store footer. Leave empty to keep the current footer logo.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sale &amp; Stock Labels</label>
+            <label class="choice" style="display:flex;align-items:center;gap:10px;border-radius:12px;">
+              <input type="checkbox" name="show_sale_stock_labels" value="1" <?= ((int)($settings->show_sale_stock_labels ?? 1) === 1) ? 'checked' : ''; ?> style="position:static;opacity:1;width:18px;height:18px;">
+              Show sale prices, sale badges and out-of-stock labels
+            </label>
+            <small style="color:var(--mp-muted);">Applies to the online store and POS catalogue.</small>
+          </div>
           <div class="form-group">
             <label class="form-label">Store Headline</label>
             <input type="text" name="store_headline" class="form-control" value="<?= htmlspecialchars($settings->store_headline ?? ''); ?>" placeholder="Welcome to our store">
