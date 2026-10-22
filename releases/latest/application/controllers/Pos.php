@@ -165,6 +165,7 @@ class Pos extends MY_Controller {
 			$discountType = $itemColumn('discount_type', "'Percentage'");
 			$discount = $itemColumn('discount', '0');
 			$notForSale = $itemColumn('not_for_sale', '0');
+			$serviceBit = $itemColumn('service_bit', '0');
 			$childBit = $itemColumn('child_bit', '0');
 			$parentId = $itemColumn('parent_id', 'NULL');
 			$expireDate = $itemColumn('expire_date', 'NULL');
@@ -197,7 +198,8 @@ class Pos extends MY_Controller {
 			LEFT JOIN db_units u ON u.id = a.unit_id
 			WHERE a.store_id = ?
 			  AND a.status = 1
-			  AND a.service_bit != 1
+			  -- Legacy ordinary products may have a NULL service_bit; keep them sellable.
+			  AND ($serviceBit IS NULL OR $serviceBit != 1)
 			  AND ($notForSale IS NULL OR $notForSale = 0)
 			  AND $variantCondition
 			ORDER BY a.item_name

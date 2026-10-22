@@ -450,4 +450,7 @@ return [
 		  // newer item columns are not installed yet. Runtime guards are in the
 		  // PHP payload; this marker delivers them through the normal updater.
 		  '4.0.9.191v' => '4.0.9.191_pos_legacy_compatibility.sql',
+		  // .192 keeps ordinary legacy items with a NULL service_bit visible in
+		  // POS. Runtime-only repair; no product data is modified.
+		  '4.0.9.192v' => '4.0.9.192_pos_sellable_items_null_fix.sql',
 ];

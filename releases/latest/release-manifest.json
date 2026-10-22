@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.191",
+    "version": "4.0.9.192",
     "previous_version": "4.0.9.154",
     "release_date": "2026-10-22",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -5326,8 +5326,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "6b7aca17642d78e2740a05f18d4a18dc43802df6a29cb5907a1e91445c70d395",
-            "size": 28675
+            "hash": "088aebfab2a9e4be81717ab71a394f24704c3b0cc78935a793abd9d58d737e29",
+            "size": 28877
         },
         {
             "path": "application/config/routes.php",
@@ -6841,8 +6841,8 @@
         },
         {
             "path": "application/controllers/Pos.php",
-            "hash": "31e0a6c8d27e608da1d5d8890f9593b11c7d8c457585a410964e8f5662aaff99",
-            "size": 35007
+            "hash": "e668b523bc63a44cf6b349e3f2081e4235d91ab833f914dafe3e0e6d9f12dff1",
+            "size": 35162
         },
         {
             "path": "application/controllers/Services.php",
@@ -11396,7 +11396,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "4aae7489857f0d6c1cb74a59da2107996f04d87ed90ac5a485d29c9b552c2d9a",
+            "hash": "b17996724d11ac64c93d915673fbb7c3bd9db709c9a4f00c565e3299e5cf57a8",
             "size": 119426
         },
         {
@@ -17923,6 +17923,7 @@
         "4.0.9.189_sale_stock_labels.sql",
         "4.0.9.190_category_tree_release_repair.sql",
         "4.0.9.191_pos_legacy_compatibility.sql",
+        "4.0.9.192_pos_sellable_items_null_fix.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
         "4.0.9.24_audit_trail.sql",
@@ -18010,6 +18011,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "67a9a8a19602cdf54fa52ab2dbfefd8fc65cdde74010b1ec6a331fbc41589d4d49cdbbff4eee7386f343d3a4e40c916e62d4d0458ecd65f91542bce4be04290a",
-    "changelog": "Release 4.0.9.191"
+    "signature": "982a325a5e637f5af580808d1277b7b02992a672043519033c89a63984b5fb0db22157f52b6cb26b5f52fe258ce177fa5b6489df0171a46a495f4e7787d45a03",
+    "changelog": "Release 4.0.9.192"
 }
