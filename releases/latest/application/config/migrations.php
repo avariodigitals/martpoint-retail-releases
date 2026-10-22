@@ -441,4 +441,9 @@ return [
 		  // .189 controls sale and stock labels without changing stock or price
 		  // authority. It defaults on for existing and new stores.
 		  '4.0.9.189v' => '4.0.9.189_sale_stock_labels.sql',
+		  // .190 republishes the category-tree runtime files in the release so
+		  // fleets that received an incomplete prior overlay can recover safely.
+		  // The SQL marker is intentionally a no-op; the repair is in the PHP
+		  // payload and must still advance existing stores past .189.
+		  '4.0.9.190v' => '4.0.9.190_category_tree_release_repair.sql',
 ];
