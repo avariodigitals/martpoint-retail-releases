@@ -1,7 +1,7 @@
 {
     "version": "4.0.9.189",
     "previous_version": "4.0.9.154",
-    "release_date": "2026-10-21",
+    "release_date": "2026-10-22",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -17998,6 +17998,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "f3ca964a327987f384a8e720d73a36c8670d6622943e7d6ab44e554611e4b6cadfd49eefa1c0bb22801d624e42b34861f20db1ceb894144c1b80c4dcdfb23a0c",
+    "signature": "e49f11f91a39ab92d894d5b2d6764092033d36f321b953fe865433e8ef790f258380ce24991526518f08916148c05aadc9dbad359602cc4a35cb54f65a71570c",
     "changelog": "Release 4.0.9.189"
 }
