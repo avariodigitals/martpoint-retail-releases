@@ -453,4 +453,7 @@ return [
 		  // .192 keeps ordinary legacy items with a NULL service_bit visible in
 		  // POS. Runtime-only repair; no product data is modified.
 		  '4.0.9.192v' => '4.0.9.192_pos_sellable_items_null_fix.sql',
+		  // .193 retries the POS catalogue with core columns and accepts legacy
+		  // parent_id=0 values, so a partially migrated fleet is not blank.
+		  '4.0.9.193v' => '4.0.9.193_pos_catalogue_fallback.sql',
 ];

@@ -175,7 +175,7 @@ class Pos extends MY_Controller {
 			$weightIncrement = $itemColumn('weight_pricing_increment_kg', '0.05');
 			$weightCharge = $itemColumn('weight_pricing_increment_charge', '0');
 			$variantCondition = isset($itemFields['parent_id'])
-				? "($childBit = 1 OR (($childBit = 0 OR $childBit IS NULL) AND $parentId IS NULL AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id)))"
+				? "($childBit = 1 OR (($childBit = 0 OR $childBit IS NULL) AND ($parentId IS NULL OR $parentId = 0) AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id)))"
 				: "($childBit = 1 OR $childBit IS NULL OR $childBit = 0)";
 			$products_query = $this->db->query("
 				SELECT a.id, a.item_name AS name, COALESCE(NULLIF($mrp,0), a.sales_price) AS price,
@@ -205,6 +205,49 @@ class Pos extends MY_Controller {
 			ORDER BY a.item_name
 		", [$store_id]);
 			$products = $products_query ? $products_query->result_array() : [];
+			// A few older fleets have a partially migrated item schema or an
+			// optional reference table that makes the rich catalogue query fail.
+			// Do not render an empty till in that case: retry with the core item
+			// fields that every supported install has. Optional pricing, category,
+			// tax and variant fields are still supplied with safe defaults.
+			if (!$products_query) {
+				log_message('error', 'POS catalogue query failed; retrying core item query for store ' . (int) $store_id);
+				$coreName = $itemColumn('item_name', "''");
+				$coreSalesPrice = $itemColumn('sales_price', '0');
+				$coreStore = $itemColumn('store_id', (string) (int) $store_id);
+				$coreStatus = $itemColumn('status', '1');
+				$coreParentId = $itemColumn('parent_id', 'NULL');
+				$coreChildBit = $itemColumn('child_bit', '0');
+				$coreServiceBit = $itemColumn('service_bit', '0');
+				$coreNotForSale = $itemColumn('not_for_sale', '0');
+				$coreCategoryId = $itemColumn('category_id', '0');
+				$coreBrandId = $itemColumn('brand_id', '0');
+				$coreSku = $itemColumn('sku', "''");
+				$coreItemCode = $itemColumn('item_code', "''");
+				$coreUnitId = $itemColumn('unit_id', '0');
+				$coreAlertQty = $itemColumn('alert_qty', '0');
+				$coreTaxId = $itemColumn('tax_id', '0');
+				$coreTaxType = $itemColumn('tax_type', "''");
+				$coreImage = $itemColumn('item_image', "''");
+				$coreItemGroup = $itemColumn('item_group', 'NULL');
+				$coreQuery = $this->db->query("SELECT
+					 a.id, $coreName AS name, $coreSalesPrice AS price, $coreSalesPrice AS wholesale,
+					 $coreSalesPrice AS mrp, NULL AS online_price, 'Percentage' AS discount_type, 0 AS discount,
+					 '' AS category, $coreCategoryId AS category_id, $coreBrandId AS brand_id,
+					 $coreSku AS sku, $coreItemCode AS item_code, '' AS unit, $coreAlertQty AS alert_qty,
+					 $coreTaxId AS tax_id, $coreTaxType AS tax_type, 0 AS weight_pricing_enabled,
+					 1 AS weight_pricing_base_kg, 0.05 AS weight_pricing_increment_kg,
+					 0 AS weight_pricing_increment_charge, IF($coreTaxId > 0, 1, 0) AS tax,
+					 $coreImage AS image, $coreItemGroup AS item_group, $coreParentId AS parent_id,
+					 NULL AS expire_date, NULL AS batch_lot, 0 AS tax_value
+					 FROM db_items a
+					 WHERE $coreStore = ? AND $coreStatus = 1
+					 AND ($coreServiceBit IS NULL OR $coreServiceBit != 1)
+					 AND ($coreNotForSale IS NULL OR $coreNotForSale = 0)
+					 AND ($coreItemGroup IS NULL OR $coreItemGroup <> 'Variants' OR $coreChildBit = 1)
+					 ORDER BY $coreName", [$store_id]);
+				$products = $coreQuery ? $coreQuery->result_array() : [];
+			}
 
 		// Restaurant POS must sell from the operator's selected outlet. Keep the
 		// selection tenant-scoped and server-validated; never accept a warehouse
