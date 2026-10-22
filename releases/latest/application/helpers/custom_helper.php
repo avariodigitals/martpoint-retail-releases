@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.193';
+    return '4.0.9.194';
   }
   function required_php_version(){
     return 7.4;

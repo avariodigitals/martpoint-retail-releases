@@ -1,4 +1,9 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<?php
+ defined('BASEPATH') OR exit('No direct script access allowed');
+ $pos_json = $pos_json ?? static function ($value) {
+     return json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
+ };
+?>
 <div class="modal-backdrop" id="paymentPopup">
   <div class="modal" style="max-width: 720px;">
     <h3 id="paymentPopupTitle">Payment</h3>
@@ -75,8 +80,8 @@
   </div>
 </div>
 <script>
-  window.paymentModeOptions = <?= json_encode(get_payment_modes_select_list(get_current_store_id())) ?>;
-  window.accountOptions = <?= json_encode(get_accounts_select_list()) ?>;
-  window.defaultPaymentMode = <?= json_encode(get_default_payment_mode_code()) ?>;
-  window.cashAccountId = <?= json_encode($till_account_id ?? '') ?>;
+  window.paymentModeOptions = <?= $pos_json(get_payment_modes_select_list(get_current_store_id())) ?>;
+  window.accountOptions = <?= $pos_json(get_accounts_select_list()) ?>;
+  window.defaultPaymentMode = <?= $pos_json(get_default_payment_mode_code()) ?>;
+  window.cashAccountId = <?= $pos_json($till_account_id ?? '') ?>;
 </script>

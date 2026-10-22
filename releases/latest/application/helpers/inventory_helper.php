@@ -376,6 +376,14 @@
 	  if(!empty($store_id)){
 	    $CI->db->where("store_id",$store_id);
 	  }
+	  $supplier_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile((int)$store_id) : array();
+	  $supplier_industry = strtolower((string)($supplier_profile['industry_type'] ?? ''));
+	  if(in_array($supplier_industry, array('pharmacy','medical_store','healthcare'), true) && $CI->db->field_exists('created_by','db_suppliers')){
+	    $CI->db->group_start()
+	      ->where('created_by !=','demo')
+	      ->or_where_in('supplier_name', array('Global Pharma Distribution','HealthLine Medical','CarePlus Wholesale'))
+	      ->group_end();
+	  }
 
 	  $q1=$CI->db->select("*")->where("status=1")->from("db_suppliers")->get();
 	  $str='';
@@ -490,7 +498,12 @@
 	    }
 	    else{
 	    	$str.='<option value="">All</option>';
+	    	$store_id = !empty($store_id) ? $store_id : get_current_store_id();
+	    	$excluded_users = get_excluded_user_ids($store_id);
+	    	$excluded_roles = get_excluded_staff_roles($store_id);
 	    	$CI->db->where("store_id",$store_id);
+	    	$CI->db->where_not_in('id', $excluded_users);
+	    	$CI->db->where_not_in('role_id', $excluded_roles);
 	    }
 
 	    
@@ -650,6 +663,8 @@ function get_packages_select_list($select_id=''){
  function get_roles_select_list($select_id='',$store_id=''){
 
  	  $CI =& get_instance();
+	  $store_id = !empty($store_id) ? $store_id : get_current_store_id();
+	  $owner_role_ids = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
 
  	  
  	  $CI->db->where("store_id",$store_id);
@@ -670,6 +685,12 @@ function get_packages_select_list($select_id=''){
 	    {
 	        foreach($q1->result() as $res1)
 	      {
+	        // A tenant may use the owner account, but may not create another
+	        // owner/store-admin seat through the staff form. Central admins can
+	        // still edit legacy owner records when required.
+	        if(!is_admin() && in_array((int)$res1->id, $owner_role_ids, true) && (int)$select_id !== (int)$res1->id){
+	        	continue;
+	        }
 	        // Industry gate: universal roles show everywhere, industry roles
 	        // (e.g. Clinical Director) only for stores of that family. The
 	        // role already assigned to the user is always kept, so editing an

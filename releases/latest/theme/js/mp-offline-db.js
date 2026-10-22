@@ -225,7 +225,8 @@ var MPOfflineDB = (function() {
       return new Promise(function(resolve, reject) {
         var tx = database.transaction('salesQueue', 'readwrite');
         var store = tx.objectStore('salesQueue');
-        saleData.timestamp = Date.now();
+        saleData.timestamp = saleData.timestamp || Date.now();
+        saleData.idempotencyKey = saleData.idempotencyKey || ('offline:' + Date.now() + ':' + Math.random().toString(36).slice(2));
         saleData.status = 'pending';
         var req = store.add(saleData);
         req.onsuccess = function() { resolve(req.result); };
@@ -234,18 +235,47 @@ var MPOfflineDB = (function() {
     });
   }
 
+  function updateSaleStatus(queueId, status, errorMessage) {
+    return openDatabase().then(function(database) {
+      return new Promise(function(resolve, reject) {
+        var tx = database.transaction('salesQueue', 'readwrite');
+        var store = tx.objectStore('salesQueue');
+        var req = store.get(queueId);
+        req.onsuccess = function() {
+          if (!req.result) { resolve(false); return; }
+          req.result.status = status;
+          req.result.lastAttemptAt = Date.now();
+          req.result.lastError = errorMessage || '';
+          var put = store.put(req.result);
+          put.onsuccess = function() { resolve(true); };
+          put.onerror = function() { reject(put.error); };
+        };
+        req.onerror = function() { reject(req.error); };
+        tx.onerror = function() { reject(tx.error); };
+      });
+    });
+  }
+
   function getPendingSales() {
     return openDatabase().then(function(database) {
       return new Promise(function(resolve) {
-        var tx = database.transaction('salesQueue', 'readonly');
+        var tx = database.transaction('salesQueue', 'readwrite');
         var store = tx.objectStore('salesQueue');
-        var index = store.index('status');
         var results = [];
-        var req = index.openCursor('pending');
+        var req = store.openCursor();
         req.onsuccess = function(event) {
           var cur = event.target.result;
           if (!cur) { resolve(results); return; }
-          results.push(cur.value);
+          // A browser restart can interrupt a request after it was marked
+          // syncing. Recover that row so it can be retried with the same
+          // idempotency key instead of becoming invisible forever.
+          if (cur.value.status === 'syncing') {
+            cur.value.status = 'failed';
+            cur.value.lastError = cur.value.lastError || 'Recovered after interrupted sync';
+            cur.value.lastAttemptAt = Date.now();
+            store.put(cur.value);
+          }
+          if (cur.value.status === 'pending' || cur.value.status === 'failed') results.push(cur.value);
           cur.continue();
         };
         req.onerror = function() { resolve(results); };
@@ -270,9 +300,14 @@ var MPOfflineDB = (function() {
       return new Promise(function(resolve) {
         var tx = database.transaction('salesQueue', 'readonly');
         var store = tx.objectStore('salesQueue');
-        var index = store.index('status');
-        var req = index.count('pending');
-        req.onsuccess = function() { resolve(req.result); };
+        var req = store.openCursor();
+        var count = 0;
+        req.onsuccess = function(event) {
+          var cur = event.target.result;
+          if (!cur) { resolve(count); return; }
+          if (cur.value.status === 'pending' || cur.value.status === 'failed') count++;
+          cur.continue();
+        };
         req.onerror = function() { resolve(0); };
       });
     });
@@ -500,6 +535,7 @@ var MPOfflineDB = (function() {
     queueSale: queueSale,
     getPendingSales: getPendingSales,
     removeQueuedSale: removeQueuedSale,
+    updateSaleStatus: updateSaleStatus,
     countPendingSales: countPendingSales,
     saveHoldInvoice: saveHoldInvoice,
     getHoldInvoices: getHoldInvoices,

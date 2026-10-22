@@ -13,6 +13,11 @@
 $mp_pos_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
 $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && (($mp_pos_profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation');
 $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
+// Database text imported from older fleets is not always valid UTF-8.
+// Never allow one name to turn an inline assignment into `const products = ;`.
+$pos_json = static function ($value) {
+    return json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1339,7 +1344,21 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
     }
   </style>
 </head>
-<body class="<?= $mp_is_pharmacy ? 'pharmacy-pos' : ''; ?>">
+<body data-pos-build="4.0.9.194" class="<?= $mp_is_pharmacy ? 'pharmacy-pos' : ''; ?>">
+  <div id="posStartupError" role="alert" hidden style="position:fixed;top:8px;left:8px;right:8px;z-index:10000;padding:14px;background:#fff1f2;color:#9f1239;border:1px solid #fda4af;border-radius:8px;">
+    POS could not finish loading. Reload this page. If this continues, contact your administrator.
+    <button type="button" onclick="window.location.reload()" style="margin-left:12px;">Reload POS</button>
+  </div>
+  <script>
+    window.mpPosBootReady = false;
+    window.addEventListener('error', function (event) {
+      if (!window.mpPosBootReady && event.message) document.getElementById('posStartupError').hidden = false;
+    });
+    // Also covers truncated HTML where PHP never reaches the main script.
+    window.setTimeout(function () {
+      if (!window.mpPosBootReady) document.getElementById('posStartupError').hidden = false;
+    }, 8000);
+  </script>
 
   <header class="app-header">
     <?php if($mp_is_clinic): ?>
@@ -1848,12 +1867,12 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
 
   <script src="<?= rtrim($theme_link, '/') ?>/js/mp-offline-db.js?v=4"></script>
   <script>
-    const products = <?= json_encode($products ?? []) ?>;
-    const baseUrl = '<?= rtrim(base_url(), '/') ?>';
+    const products = <?= $pos_json($products ?? []) ?>;
+    const baseUrl = <?= $pos_json(rtrim(base_url(), '/')) ?>;
     const POS_DECIMALS = <?= (int)decimals() ?>;
-    const WAREHOUSE_ID = '<?= $warehouse_id ?>';
-    const WALKIN_CUSTOMER_ID = '<?= $walkin_customer_id ?>';
-    const csrfToken = '<?= $this->security->get_csrf_hash() ?>';
+    const WAREHOUSE_ID = <?= $pos_json((string)$warehouse_id) ?>;
+    const WALKIN_CUSTOMER_ID = <?= $pos_json((string)$walkin_customer_id) ?>;
+    const csrfToken = <?= $pos_json($this->security->get_csrf_hash()) ?>;
     const stopSellingExpired = <?= (int)($stop_selling_expired ?? 1) ?>;
     const showSaleStockLabels = <?= !empty($show_sale_stock_labels) ? 'true' : 'false' ?>;
     const medicalNoteId = <?= (int)($medical_note_id ?? 0) ?>;
@@ -1912,16 +1931,16 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
       });
     })();
 
-    const topSelling = <?= json_encode($top_selling ?? []) ?>;
+    const topSelling = <?= $pos_json($top_selling ?? []) ?>;
 
     const POINTS_VALUE = 500;
     const POINTS_COST = 200;
     const dailyTarget = <?= (float)($daily_target ?? 50000) ?>;
     let todaySales = <?= (float)($today_sales ?? 0) ?>;
     let selectedCategory = 'All';
-    let priceType = '<?= $default_price_type; ?>';
+    let priceType = <?= $pos_json($default_price_type) ?>;
     let searchQuery = '';
-    let productView = localStorage.getItem('posProductView') || 'grid';
+    let productView = (() => { try { return localStorage.getItem('posProductView') === 'list' ? 'list' : 'grid'; } catch (e) { return 'grid'; } })();
     let discountAmount = 0;
     let shippingFee = 0;
     let shippingFeeId = 0;
@@ -1936,21 +1955,21 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
     let couponPromotionId = 0;
     let couponEligibleItemIds = [];
     let loyaltyPoints = 850;
-    const attendanceExempt = <?= json_encode(!empty($attendance_exempt)) ?>;
-    const clockInRequired = <?= json_encode(!empty($clock_in_required)) ?>;
-    let clockedIn = attendanceExempt ? false : <?= json_encode((bool)(!$needs_clock_in)) ?>;
-    let clockedAt = '<?= $clock_in_time ?>';
-    let clockInTime = '<?= $clock_in_time ?>';
+    const attendanceExempt = <?= $pos_json(!empty($attendance_exempt)) ?>;
+    const clockInRequired = <?= $pos_json(!empty($clock_in_required)) ?>;
+    let clockedIn = attendanceExempt ? false : <?= $pos_json((bool)(!$needs_clock_in)) ?>;
+    let clockedAt = <?= $pos_json($clock_in_time) ?>;
+    let clockInTime = <?= $pos_json($clock_in_time) ?>;
     let clockImage = null;
     let clockPinMode = false;
     let clockStream = null;
     const cart = [];
     let cartSubtotal = 0;
     let cartTax = 0;
-    const customers = <?= json_encode($customers ?? []) ?>;
-    const customerRedeemables = <?= json_encode($customer_redeemables ?? (object)[]) ?>;
-    const customerNameMap = <?= json_encode(array_column($customers ?? [], 'customer_name', 'id')) ?>;
-    const loyaltySettings = <?= json_encode($loyalty_settings ?? (object)['redemption_rate' => 0]) ?>;
+    const customers = <?= $pos_json($customers ?? []) ?>;
+    const customerRedeemables = <?= $pos_json($customer_redeemables ?? (object)[]) ?>;
+    const customerNameMap = <?= $pos_json(array_column($customers ?? [], 'customer_name', 'id')) ?>;
+    const loyaltySettings = <?= $pos_json($loyalty_settings ?? (object)['redemption_rate' => 0]) ?>;
     let redeemedItems = [];
     let currentLoadedHoldId = null;
     let holdLoadedAt = null;
@@ -2185,7 +2204,7 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
         <div class="insight-item">
           <div class="insight-top">
             <span class="rank">#${i + 1}</span>
-            <span class="name">${t.name}</span>
+            <span class="name">${escapeHtml(t.name)}</span>
             <span class="sold">${t.sold} ${isPharmacyPos ? 'dispensed' : 'sold'}</span>
           </div>
           <div class="insight-bar">
@@ -2206,7 +2225,7 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
       const items = topSelling.map((t, i) => `
         <span class="marquee-item trend">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-          ${t.name} — ${t.sold} ${isPharmacyPos ? 'dispensed' : 'sold'} this week
+          ${escapeHtml(t.name)} — ${t.sold} ${isPharmacyPos ? 'dispensed' : 'sold'} this week
         </span>
       `).join('');
       
@@ -2250,6 +2269,11 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
       const filtered = getFilteredProducts();
 
       grid.classList.toggle('list-mode', productView === 'list');
+      if (!filtered.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;color:var(--mp-muted);">' +
+          <?= $pos_json(!empty($catalogue_load_failed) ? 'The product catalogue could not load. Contact your administrator to check the update and database.' : 'No products match. Clear the search or choose another category.') ?> + '</div>';
+        return;
+      }
 
       if (productView === 'list') {
         grid.innerHTML = filtered.map(p => {
@@ -2271,8 +2295,8 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
           <div class="product-row${p.outOfStock ? ' out' : ''}" onclick="${p.outOfStock ? '' : 'addToCart(' + p.id + ')'}">
             ${rowThumb}
             <div class="row-info">
-              <div class="row-name">${p.name}</div>
-              <div class="row-meta">${meta}</div>
+              <div class="row-name">${escapeHtml(p.name)}</div>
+              <div class="row-meta">${escapeHtml(meta)}</div>
             </div>
             ${stockChip}
             <div class="row-price">${saleTag}${formatMoney(displayPrice)}${oldPrice}</div>
@@ -2304,7 +2328,7 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
           ${newTag}
           ${wholesaleTag}
           ${thumb}
-          <div class="product-name">${p.name}</div>
+          <div class="product-name">${escapeHtml(p.name)}</div>
           <div class="product-price">${formatMoney(displayPrice)}${oldPrice}</div>
           <button class="add-btn" ${p.outOfStock ? 'disabled' : ''} onclick="event.stopPropagation(); addToCart(${p.id})">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2315,7 +2339,7 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
 
     function setProductView(mode) {
       productView = mode === 'list' ? 'list' : 'grid';
-      localStorage.setItem('posProductView', productView);
+      try { localStorage.setItem('posProductView', productView); } catch (e) {}
       document.getElementById('gridViewBtn').classList.toggle('active', productView === 'grid');
       document.getElementById('listViewBtn').classList.toggle('active', productView === 'list');
       renderProducts();
@@ -2519,7 +2543,7 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
       document.getElementById('discountInput').value = '';
       document.getElementById('discountInput').disabled = true;
       clearCouponCode();
-      priceType = '<?= $default_price_type; ?>';
+      priceType = <?= $pos_json($default_price_type) ?>;
       const retailBtn = document.getElementById('retailBtn');
       const wholesaleBtn = document.getElementById('wholesaleBtn');
       if (retailBtn) retailBtn.className = priceType === 'retail' ? 'active' : '';
@@ -2842,7 +2866,7 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
           return `
           <div class="cart-item${item.weight_pricing_enabled ? ' weight-cart-item' : ''}">
             <div class="item-info">
-              <div class="item-name">${item.name}</div>
+              <div class="item-name">${escapeHtml(item.name)}</div>
               <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? (isPharmacyPos ? 'Trade' : 'Wholesale') : (isPharmacyPos ? 'Standard' : 'Retail')}${unitLabel}</div>
             </div>
             <div class="qty-control">
@@ -3777,10 +3801,12 @@ $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy'
 
     initTheme();
     init();
+    window.mpPosBootReady = true;
+    document.getElementById('posStartupError').hidden = true;
   </script>
   <?php $this->load->view('pos/components/hold_popup'); ?>
   <?php $this->load->view('pos/components/sales_list_popup'); ?>
-  <?php $this->load->view('pos/components/payment_popup'); ?>
+  <?php $this->load->view('pos/components/payment_popup', ['pos_json' => $pos_json]); ?>
   <script>
   (function() {
     function findHeaderBtn(text) {

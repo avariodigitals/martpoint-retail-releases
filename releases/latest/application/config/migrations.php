@@ -456,4 +456,7 @@ return [
 		  // .193 retries the POS catalogue with core columns and accepts legacy
 		  // parent_id=0 values, so a partially migrated fleet is not blank.
 		  '4.0.9.193v' => '4.0.9.193_pos_catalogue_fallback.sql',
+		  // .194 republishes the POS view with its partials and encodes imported
+		  // text safely so client-side startup cannot be broken by invalid UTF-8.
+		  '4.0.9.194v' => '4.0.9.194_pos_runtime_repair.sql',
 ];

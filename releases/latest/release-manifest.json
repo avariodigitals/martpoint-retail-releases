@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.193",
-    "previous_version": "4.0.9.154",
+    "version": "4.0.9.194",
+    "previous_version": "4.0.9.190",
     "release_date": "2026-10-22",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -148,6 +148,11 @@
             "path": "application/views/components/dialog.php",
             "hash": "0dbe779c896971505ead22dece699e4ab882cc44afb1cad972e9db5c46f971f5",
             "size": 11734
+        },
+        {
+            "path": "application/views/components/person_avatar.php",
+            "hash": "53cd5ba9ea08c4086f9f0d4fbf051ffb6c1a57f9146097be71ac742558c7571a",
+            "size": 2458
         },
         {
             "path": "application/views/report-cash-flow.php",
@@ -611,8 +616,8 @@
         },
         {
             "path": "application/views/pos/components/payment_popup.php",
-            "hash": "9d1879566d4f1ccc20856fa6488321d638bbd0de417564fd0b02df9adde126d6",
-            "size": 3786
+            "hash": "883d0649bdaf1859f081ff500bbd1d9f284b94679586e34c03f0e2ffa545a466",
+            "size": 3983
         },
         {
             "path": "application/views/store/store_code.php",
@@ -3501,8 +3506,8 @@
         },
         {
             "path": "application/views/pos_desktop.php",
-            "hash": "912638e6601ce388a38fc1001f4f79d5cc9e69fba4001e1a39e67c0208befd4b",
-            "size": 195022
+            "hash": "4f9a0a45d325e337927b5e1cc37a6f1eb0fccaa538d07acf675c1c9beecf5c9c",
+            "size": 197010
         },
         {
             "path": "application/views/suppliers/desktop/list.php",
@@ -5326,8 +5331,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "7a4dc104481059071592baf1039c5f5c66c7be0847f522cd05c190e8ce23fa75",
-            "size": 29083
+            "hash": "0e31470ea49fe4ceb536ccdffd2a46383325b5964d5b940381e762ef7cedd8f2",
+            "size": 29292
         },
         {
             "path": "application/config/routes.php",
@@ -6841,8 +6846,8 @@
         },
         {
             "path": "application/controllers/Pos.php",
-            "hash": "07e3323438b1643701d4b70593063fbb127ef42a901c17271ffa3490e0754f09",
-            "size": 37766
+            "hash": "c5d5182745d5ce6cdc98b8bad6e7ea1cce33905a10e87ebf110bdecc44c48212",
+            "size": 35505
         },
         {
             "path": "application/controllers/Services.php",
@@ -11396,7 +11401,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "95ad0b61ab68ca4bc4ec823f53047edc77863b8b7a818471dfaba3a871556a43",
+            "hash": "36269104599d3aa2bccd01971f233793459b2c39eca98b0568b7c62072abdae4",
             "size": 119426
         },
         {
@@ -11476,8 +11481,8 @@
         },
         {
             "path": "application/helpers/inventory_helper.php",
-            "hash": "40ec4c8f0b1e74b3830dbf8254458f3d3d73fb69ef637bb0f3392fb3fd9462cd",
-            "size": 21341
+            "hash": "a834da90898afaa6c40cc987a8fd013ff2957f6f28ede350e13d8dd9ab2f7107",
+            "size": 22763
         },
         {
             "path": "application/helpers/store_settings_helper.php",
@@ -12306,8 +12311,8 @@
         },
         {
             "path": "theme/js/mp-offline-db.js",
-            "hash": "96215644fe171d4dbe947579575630e3faed0484d7e7583fc1902330ebfbb55b",
-            "size": 20163
+            "hash": "37813eb3cac957f6347a412ffcff1c7eccdd1e72f881bff43623245556233681",
+            "size": 21898
         },
         {
             "path": "theme/js/suppliers.js",
@@ -17919,12 +17924,46 @@
         "4.0.9.152_session_treatment_notes.sql",
         "4.0.9.153_treatment_chart_therapist.sql",
         "4.0.9.154_physio_document_secret.sql",
+        "4.0.9.155_garden_foundation.sql",
+        "4.0.9.156_service_schedules.sql",
+        "4.0.9.157_service_project_context.sql",
+        "4.0.9.158_service_fulfilment_sources.sql",
+        "4.0.9.159_garden_project_workbench.sql",
+        "4.0.9.160_garden_production.sql",
+        "4.0.9.161_branch_addresses.sql",
+        "4.0.9.162_online_order_locations.sql",
+        "4.0.9.163_storefront_theme_content.sql",
+        "4.0.9.164_storefront_journal.sql",
+        "4.0.9.165_shared_category_hierarchy.sql",
+        "4.0.9.166_order_status_log.sql",
+        "4.0.9.167_storefront_nav_menu.sql",
+        "4.0.9.168_restaurant_order_engine.sql",
+        "4.0.9.169_production_exact_once.sql",
+        "4.0.9.170_restaurant_m3_controls.sql",
+        "4.0.9.171_messaging_channels.sql",
+        "4.0.9.172_restaurant_food_dispositions.sql",
+        "4.0.9.173_weight_pricing.sql",
+        "4.0.9.174_building_materials_themes.sql",
+        "4.0.9.175_storefront_b2b.sql",
+        "4.0.9.176_sales_payment_idempotency.sql",
+        "4.0.9.177_retire_hardware_theme.sql",
+        "4.0.9.178_pharmacy_online_prescription.sql",
+        "4.0.9.179_uploadable_html_themes.sql",
+        "4.0.9.180_partner_marketplace_flag.sql",
+        "4.0.9.181_building_project_procurement.sql",
+        "4.0.9.182_building_project_delivery.sql",
+        "4.0.9.183_building_project_installation.sql",
+        "4.0.9.184_building_project_finance.sql",
+        "4.0.9.185_building_project_after_sales.sql",
+        "4.0.9.186_pharmacy_fulfilment_locations.sql",
+        "4.0.9.187_pharmacy_online_workflow.sql",
         "4.0.9.188_storefront_footer_logo.sql",
         "4.0.9.189_sale_stock_labels.sql",
         "4.0.9.190_category_tree_release_repair.sql",
         "4.0.9.191_pos_legacy_compatibility.sql",
         "4.0.9.192_pos_sellable_items_null_fix.sql",
         "4.0.9.193_pos_catalogue_fallback.sql",
+        "4.0.9.194_pos_runtime_repair.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
         "4.0.9.24_audit_trail.sql",
@@ -18012,6 +18051,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "6e5357cf0b7fca9c3eab0b6264c98b185f2e5d228ada3441c37056a5a4a5fe24ceb125936871bb7cd7b83a46581fe3b3065eaa5bf2d196f52007ae91ced65f05",
-    "changelog": "Release 4.0.9.193"
+    "signature": "1907fa5f26eb4b09fdee1d2c67709a55afbc0c0ac5b568466a3197ae1850ba7a2bf03acb759e45d5e3137f82a2b547580280bcef9a0c23c19df756fcfea89907",
+    "changelog": "Release 4.0.9.194"
 }
