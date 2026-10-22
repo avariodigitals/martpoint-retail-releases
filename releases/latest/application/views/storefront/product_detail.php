@@ -72,7 +72,7 @@
   </div>
 
   <button class="sf-add" id="add-btn" onclick="addToCart()">Add to Cart</button>
-  <?php if(($settings->allow_whatsapp ?? 1) && $settings->whatsapp_number): ?>
+  <?php if(($settings->show_whatsapp_cta ?? 1) && $settings->whatsapp_number): ?>
   <button class="sf-whatsapp" onclick="sendWhatsApp()">Order via WhatsApp</button>
   <?php endif; ?>
 </div>
@@ -175,5 +175,6 @@
   }
 </script>
 
+<?php $this->load->view('themes/shared/legacy_site_links'); ?>
 </body>
 </html>

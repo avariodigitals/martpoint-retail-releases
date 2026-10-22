@@ -8,7 +8,9 @@ class Store_profile extends MY_Controller {
 		$this->load->model('store_profile_model','store');
 	}
 
-	public function update($id){
+	public function update($id = null){
+		$id = (int)($id ?: get_current_store_id());
+		if ($id <= 0) { show_404(); return; }
 		//if not admin
 		if(!is_admin()){
 			if($id!=get_current_store_id()){

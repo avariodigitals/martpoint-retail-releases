@@ -1,3 +1,8 @@
+<?php
+$mp_cart_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile((int)($settings->store_id ?? 0)) : [];
+$mp_cart_pharmacy = in_array(($mp_cart_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
+$mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlets) : [];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,10 +10,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Cart | <?= htmlspecialchars($store->store_name ?? 'Store'); ?></title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <?php if($mp_cart_pharmacy): ?><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><?php endif; ?>
   <style>
-    :root { --primary:#3B82F6; --primary-dark:#2563EB; --success:#10B981; --warning:#F59E0B; --danger:#EF4444; --dark:#0F172A; --gray:#64748B; --light-gray:#F1F5F9; --border:#E2E8F0; --white:#fff; --radius:12px; --radius-sm:8px; }
+    :root { --primary:<?= $mp_cart_pharmacy ? '#0F766E' : '#3B82F6'; ?>; --primary-dark:<?= $mp_cart_pharmacy ? '#0B5B55' : '#2563EB'; ?>; --success:<?= $mp_cart_pharmacy ? '#0F766E' : '#10B981'; ?>; --warning:#F59E0B; --danger:<?= $mp_cart_pharmacy ? '#C94F4F' : '#EF4444'; ?>; --dark:<?= $mp_cart_pharmacy ? '#16323A' : '#0F172A'; ?>; --gray:<?= $mp_cart_pharmacy ? '#6B7F86' : '#64748B'; ?>; --light-gray:<?= $mp_cart_pharmacy ? '#F2F8F7' : '#F1F5F9'; ?>; --border:<?= $mp_cart_pharmacy ? '#D7E7E5' : '#E2E8F0'; ?>; --white:#fff; --radius:12px; --radius-sm:8px; }
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Inter',sans-serif; background:#F8FAFC; color:var(--dark); -webkit-font-smoothing:antialiased; }
+    body { font-family:<?= $mp_cart_pharmacy ? "'Manrope'" : "'Inter'"; ?>,sans-serif; background:<?= $mp_cart_pharmacy ? '#F2F8F7' : '#F8FAFC'; ?>; color:var(--dark); -webkit-font-smoothing:antialiased; }
     a { text-decoration:none; color:inherit; }
     img { max-width:100%; display:block; }
 
@@ -46,6 +52,22 @@
     .sf-pay-opt input { width:18px; height:18px; accent-color:var(--primary); }
     .sf-pay-label { font-size:14px; font-weight:600; }
     .sf-pay-desc { font-size:12px; color:var(--gray); }
+    .sf-outlet-options { display:flex; flex-direction:column; gap:8px; margin:6px 0 14px; }
+    .sf-outlet-option { display:flex; align-items:flex-start; gap:10px; padding:12px; border:2px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; background:var(--white); }
+    .sf-outlet-option.active { border-color:var(--primary); background:#ECF8F6; }
+    .sf-outlet-option input { margin-top:3px; accent-color:var(--primary); }
+    .sf-outlet-option strong,.sf-outlet-option small { display:block; }
+    .sf-outlet-option strong { font-size:13px; }
+    .sf-outlet-option small { color:var(--gray); font-size:11px; margin-top:2px; }
+    .sf-city-options { display:flex; flex-direction:column; gap:8px; margin:6px 0 14px; }
+    .sf-city-option { width:100%; text-align:left; padding:11px 12px; border:2px solid var(--border); border-radius:var(--radius-sm); background:var(--white); color:var(--dark); cursor:pointer; font:inherit; }
+    .sf-city-option.active { border-color:var(--primary); background:#ECF8F6; }
+    .sf-city-option strong,.sf-city-option small { display:block; }
+    .sf-city-option strong { font-size:13px; }
+    .sf-city-option small { color:var(--gray); font-size:11px; margin-top:2px; }
+    .sf-rx-card { background:#ECF8F6; border:1px solid #B8DDD8; border-radius:var(--radius-sm); padding:12px; margin:8px 0 14px; }
+    .sf-rx-card .sf-label { color:#0B5B55; margin-bottom:6px; }
+    .sf-rx-hint { color:var(--gray); font-size:11px; margin-top:5px; }
 
     .sf-empty { text-align:center; padding:60px 16px; color:var(--gray); }
     .sf-empty-icon { font-size:48px; margin-bottom:12px; }
@@ -86,8 +108,11 @@
   let selectedPayment = 'pay_on_delivery';
   let selectedShippingMethod = '';
   let selectedCityIdx = -1;
+  let selectedWarehouseId = <?= count($mp_cart_outlets) === 1 ? (int)$mp_cart_outlets[0]->id : 0; ?>;
   let hasServiceAppointment = false;
   let hasServiceNote = false;
+  const IS_PHARMACY = <?= $mp_cart_pharmacy ? 'true' : 'false'; ?>;
+  const OUTLETS = <?= json_encode(array_map(function($outlet){ return ['id' => (int)$outlet->id, 'name' => (string)$outlet->warehouse_name, 'address' => (string)($outlet->address ?? ''), 'city' => (string)($outlet->city ?? '')]; }, $mp_cart_outlets), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
   const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
   const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
@@ -131,6 +156,26 @@
     html += '<label class="sf-label">Delivery / Service Address</label>';
     html += '<textarea class="sf-input sf-textarea" id="cust-address" placeholder="Enter your address..."></textarea>';
 
+    if(IS_PHARMACY && OUTLETS.length > 0){
+      html += '<label class="sf-label" style="margin-top:8px;">Preferred pharmacy location</label>';
+      html += '<div class="sf-outlet-options">';
+      OUTLETS.forEach(function(outlet){
+        const active = selectedWarehouseId === outlet.id ? ' active' : '';
+        const checked = selectedWarehouseId === outlet.id ? ' checked' : '';
+        const detail = [outlet.address, outlet.city].filter(Boolean).join(' · ');
+        html += '<label class="sf-outlet-option' + active + '" onclick="selectOutlet(this,' + outlet.id + ')">';
+        html += '<input type="radio" name="warehouse_id" value="' + outlet.id + '"' + checked + '>';
+        html += '<span><strong>' + String(outlet.name).replace(/</g,'&lt;') + '</strong>';
+        if(detail) html += '<small>' + String(detail).replace(/</g,'&lt;') + '</small>';
+        html += '</span></label>';
+      });
+      html += '</div>';
+    }
+
+    if(IS_PHARMACY){
+      html += '<div class="sf-rx-card"><label class="sf-label">Prescription (optional)</label><input type="file" id="prescription-file" accept="image/*,.pdf"><div class="sf-rx-hint">Upload a clear photo or PDF. The pharmacy team will review it before fulfilment.</div></div>';
+    }
+
     // Shipping notice
     if(SHIPPING_NOTICE){
       html += '<div class="sf-shipping-notice" style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:13px;color:#92400E;">';
@@ -140,19 +185,15 @@
     // City-based delivery fee selector (replaces flat methods when enabled)
     if(CITY_SHIPPING.length > 0){
       html += '<label class="sf-label" style="margin-top:8px;">Delivery City *</label>';
-      html += '<select class="sf-input" id="ship-city" onchange="selectCity()">';
-      html += '<option value="">Select your city...</option>';
-      let czGroups = {};
-      CITY_SHIPPING.forEach((z, idx) => { const st = (z.state || '').trim() || 'Other'; (czGroups[st] = czGroups[st] || []).push(idx); });
-      Object.keys(czGroups).sort().forEach(st => {
-        html += '<optgroup label="' + String(st).replace(/</g,'&lt;') + '">';
-        czGroups[st].forEach(idx => {
-          const z = CITY_SHIPPING[idx];
-          html += '<option value="' + idx + '">' + String(z.city + (parseFloat(z.fee) > 0 ? ' — ' + formatMoney(z.fee) : ' — Free')).replace(/</g,'&lt;') + '</option>';
-        });
-        html += '</optgroup>';
+      html += '<div class="sf-city-options">';
+      CITY_SHIPPING.forEach((z, idx) => {
+        const active = selectedCityIdx === idx ? ' active' : '';
+        const fee = parseFloat(z.fee) > 0 ? formatMoney(z.fee) : 'Free';
+        const city = String(z.city || 'Delivery area');
+        const state = String(z.state || '').trim();
+        html += '<button type="button" class="sf-city-option' + active + '" onclick="selectCityOption(this,' + idx + ')"><strong>' + city.replace(/</g,'&lt;') + '</strong><small>' + (state ? state + ' · ' : '') + fee + '</small></button>';
       });
-      html += '</select>';
+      html += '</div>';
     }
     // Shipping method selector
     else if(SHIPPING_METHODS.length > 0){
@@ -261,9 +302,10 @@
     return sm ? (parseFloat(sm.fee) || 0) : 0;
   }
 
-  function selectCity(){
-    const sel = document.getElementById('ship-city');
-    selectedCityIdx = sel && sel.value !== '' ? parseInt(sel.value) : -1;
+  function selectCityOption(el, idx){
+    document.querySelectorAll('.sf-city-option').forEach(function(option){ option.classList.remove('active'); });
+    if(el) el.classList.add('active');
+    selectedCityIdx = parseInt(idx, 10);
     selectedShippingMethod = '';
     if(selectedCityIdx >= 0){
       const z = CITY_SHIPPING[selectedCityIdx];
@@ -303,6 +345,14 @@
     selectedPayment = method;
   }
 
+  function selectOutlet(el, id){
+    document.querySelectorAll('.sf-outlet-option').forEach(function(option){ option.classList.remove('active'); });
+    el.classList.add('active');
+    const input = el.querySelector('input');
+    if(input) input.checked = true;
+    selectedWarehouseId = parseInt(id, 10) || 0;
+  }
+
   function updateQty(idx, delta){
     cart[idx].qty = Math.max(1, cart[idx].qty + delta);
     saveCart();
@@ -325,6 +375,7 @@
     if(!name || !phone){ showToast('Please enter name and phone'); return; }
     if(cart.length === 0){ showToast('Cart is empty'); return; }
     if(CITY_SHIPPING.length > 0 && selectedCityIdx < 0){ showToast('Please select your delivery city'); return; }
+    if(IS_PHARMACY && OUTLETS.length > 1 && !selectedWarehouseId){ showToast('Please select a pharmacy location'); return; }
 
     const btn = document.getElementById('checkout-btn');
     btn.disabled = true;
@@ -373,13 +424,14 @@
   }
 
   function submitOrder(paymentMethod, name, phone, email, address, serviceDate, serviceTime, serviceNote, cartPayload, btn){
-    const data = new URLSearchParams();
+    const data = new FormData();
     data.append('store_id', STORE_ID);
     data.append('customer_name', name);
     data.append('customer_phone', phone);
     data.append('customer_email', email);
     data.append('customer_address', address);
     data.append('payment_method', paymentMethod);
+    if(selectedWarehouseId) data.append('warehouse_id', selectedWarehouseId);
     data.append('shipping_method', selectedShippingMethod || '');
     if(CITY_SHIPPING.length > 0 && selectedCityIdx >= 0){
       const z = CITY_SHIPPING[selectedCityIdx];
@@ -389,12 +441,13 @@
     data.append('service_time', serviceTime);
     data.append('service_note', serviceNote);
     data.append('cart', JSON.stringify(cartPayload));
+    const prescriptionInput = document.getElementById('prescription-file');
+    if(IS_PHARMACY && prescriptionInput && prescriptionInput.files && prescriptionInput.files[0]) data.append('prescription_file', prescriptionInput.files[0]);
     if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
 
     fetch('<?= base_url('storefront/place_order'); ?>', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: data.toString()
+      body: data
     })
     .then(r => {
       if(!r.ok) return r.text().then(text => { throw new Error('Server error ' + r.status + (text?': '+text.substring(0,200):'')); });
@@ -452,5 +505,6 @@
   renderCart();
 </script>
 
+<?php $this->load->view('themes/shared/legacy_site_links'); ?>
 </body>
 </html>

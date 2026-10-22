@@ -86,7 +86,8 @@ table.pq-sum tr.bal td { color: #92400e; font-weight: 600; }
 
   <div class="pq-head">
     <div style="display:flex;gap:14px;align-items:flex-start;">
-      <?php $r1 = $CI->db->where('id', $store_id)->get('db_store')->row(); ?>
+      <?php $r1 = $CI->db->where('id', $store_id)->get('db_store')->row();
+$r1 = mp_document_store($r1, 'db_quotation', $summary['quotation_id']); ?>
       <?php if (!empty($logo_data)): ?><img src="<?= $logo_data ?>" class="pq-logo" alt="store logo"><?php endif; ?>
       <div class="pq-store">
         <h3><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint') ?></h3>

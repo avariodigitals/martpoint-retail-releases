@@ -57,7 +57,7 @@ class Extras_model extends CI_Model {
 	// ---------------- Bundles ----------------
 
 	public function getBundleComponents($bundleItemId, $storeId){
-		return $this->db->select('c.id, c.component_item_id, c.qty, i.item_name, i.sales_price, i.online_price, i.discount, i.discount_type, i.stock, i.item_image, i.service_bit, i.status AS item_status, i.publish_online')
+		return $this->db->select('c.id, c.component_item_id, c.qty, i.item_name, i.sales_price, i.online_price, i.discount, i.discount_type, i.stock, i.item_image, i.service_bit, i.product_type, i.status AS item_status, i.publish_online')
 			->from('db_bundle_components c')
 			->join('db_items i', 'i.id = c.component_item_id', 'left')
 			->where('c.bundle_item_id', (int)$bundleItemId)
@@ -224,6 +224,8 @@ class Extras_model extends CI_Model {
 		$headerInserted = $this->db->insert('db_stockadjustment', [
 			'store_id' => $storeId,
 			'warehouse_id' => $warehouseId,
+			'source_order_id' => (int)$orderId,
+			'source_action' => 'reserve',
 			'reference_no' => 'ONLINE-ORDER-' . (int)$orderId,
 			'adjustment_date' => date('Y-m-d'),
 			'adjustment_note' => 'Bundle reservation for online order #' . (int)$orderId,
@@ -273,6 +275,12 @@ class Extras_model extends CI_Model {
 				return false;
 			}
 			$reserved[] = ['item_id' => $itemId, 'qty' => $need];
+			if((int)$warehouseId > 0 && function_exists('update_warehousewise_items_qty')){
+				if(!update_warehousewise_items_qty($itemId, (int)$warehouseId, (int)$storeId)){
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
 		}
 		if($this->db->trans_status() === FALSE){
 			$this->db->trans_rollback();

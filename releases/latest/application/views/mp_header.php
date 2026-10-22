@@ -24,11 +24,12 @@
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
-<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=15">
+<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=21">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--mp-primary:#0057FF;--mp-primary-dark:#0044CC;--mp-pay:#D97706;--mp-pay-dark:#B45309;--mp-bg:#F5F4F0;--mp-surface:#FFFFFF;--mp-text:#292524;--mp-muted:#78716C;--mp-border:#E7E5E4;--mp-success:#059669;--mp-danger:#DC2626;--mp-warning:#F59E0B;--mp-ink:#44403C;--mp-shadow-sm:0 1px 2px rgba(41,37,36,.05);--mp-shadow:0 10px 25px -5px rgba(41,37,36,.08),0 4px 10px -4px rgba(41,37,36,.04)}
 *{box-sizing:border-box!important}
@@ -550,8 +551,27 @@ body > .mp-support-modal{z-index:10000!important}
 <?php endif; ?>
 <!-- jQuery 2.2.3 (required by Bootstrap, DataTables, toastr, and all AJAX scripts) -->
 <script src="<?php echo $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/application-controls.css?v=1'); ?>">
+<?php
+$mp_head_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+if (($mp_head_profile['industry_type'] ?? '') === 'building_materials'): ?>
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/building_materials_workspace.css?v=' . filemtime(FCPATH . 'theme/dist/css/building_materials_workspace.css')); ?>">
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/building_operations.css?v=' . filemtime(FCPATH . 'theme/dist/css/building_operations.css')); ?>">
+<?php endif; ?>
+<?php
+if (in_array(($mp_head_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true)): ?>
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/pharmacy_workspace.css?v=2'); ?>">
+<?php endif; ?>
 </head>
-<body>
+<?php
+$mp_header_class = '';
+try {
+  $mp_header_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+  if (($mp_header_profile['industry_type'] ?? '') === 'building_materials') $mp_header_class = ' bm-workspace-shell';
+  if (in_array(($mp_header_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true)) $mp_header_class = ' pharmacy-workspace-shell';
+} catch (Throwable $e) { $mp_header_class = ''; }
+?>
+<body class="<?= trim($mp_header_class); ?>">
 <?php $CI =& get_instance(); ?>
 <?php
 // MUST mirror mp_sidebar.php exactly. $is_central here means "slim = hide
@@ -575,6 +595,12 @@ if (function_exists('mp_is_central') && mp_is_central() && isset($CI) && is_obje
   $is_central = ($slim === 1);
 }
 $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
+$is_building_header = (mp_get_store_profile()['industry_type'] ?? '') === 'building_materials';
+$building_clocked_in = false;
+if($is_building_header){
+  $CI->load->model('attendance_model');
+  $building_clocked_in = $CI->attendance_model->needsClockOut((int)$CI->session->userdata('inv_userid'),date('Y-m-d'),get_current_store_id());
+}
 // A print shop has its own workspace, so the header action is named for it
 // ("Quick Job" → /printing/job) and the sidebar is composed differently. Kept
 // in step with the same flag in mp_sidebar.php, including the feature gate, so
@@ -583,13 +609,39 @@ $is_printing = ((mp_get_store_profile()['industry_type'] ?? '') === 'printing')
     && function_exists('mp_feature_enabled') && mp_feature_enabled('production_workflow');
 $is_oil_processing = ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant')
     && function_exists('mp_feature_enabled') && mp_feature_enabled('oil_processing_workflow');
+$gardenHeader=(mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' && !$is_central;
+$gardenHeaderLogo='';
+if ($gardenHeader) {
+  $gardenLogoCandidates=[];
+  if ($CI->db->table_exists('db_store_theme_settings')) {
+    $gardenLogoCandidates[]=(string)$CI->db->where('store_id',get_current_store_id())->get('db_store_theme_settings')->row('store_logo');
+  }
+  $gardenLogoCandidates[]=(string)(get_store_details()->store_logo ?? '');
+  if (function_exists('get_site_logo')) $gardenLogoCandidates[]=(string)get_site_logo();
+  foreach ($gardenLogoCandidates as $candidate) {
+    $candidate=ltrim(trim($candidate),'/');
+    if ($candidate && is_file(FCPATH.$candidate)) { $gardenHeaderLogo=$candidate; break; }
+  }
+}
 ?>
 
 <!-- ===== HEADER ===== -->
+<?php
+// The garden workspace brands the top bar with the shop's own name. A wide
+// store logo hides the h1, so the line beneath it carries the store name too —
+// the generic "Garden Workspace" screen label is replaced by the store name.
+$mpStoreName = $is_central ? 'MartPoint Central' : ($this->session->userdata('store_name') ?: ($SITE_TITLE ?? 'MartPoint'));
+$mpUserName = trim((string)$this->session->userdata('display_name')) ?: trim((string)$this->session->userdata('inv_username')) ?: 'User';
+if($is_building_header) $mpUserName = mp_current_user_full_name();
+$mpUserRole = trim((string)$this->session->userdata('role_name'));
+?>
 <header class="mp-header">
-  <a href="<?= base_url($is_central ? 'fleet' : 'dashboard'); ?>" class="mp-brand">
-    <h1><?= htmlspecialchars($is_central ? 'MartPoint Central' : ($this->session->userdata('store_name') ?: 'MartPoint')); ?></h1>
-    <div class="sub"><?= $page_title ?? ($is_central ? 'Fleet Manager' : 'Dashboard'); ?></div>
+  <a href="<?= base_url($is_central ? 'fleet' : 'dashboard'); ?>" class="mp-brand <?= $gardenHeader ? 'garden-header-brand' : ''; ?>">
+    <?php if ($gardenHeader && $gardenHeaderLogo): ?><img class="garden-header-logo" src="<?= htmlspecialchars(base_url($gardenHeaderLogo)); ?>" alt="<?= htmlspecialchars($mpStoreName); ?>" onload="this.parentNode.classList.toggle('has-wide-logo',this.naturalWidth/this.naturalHeight>=2)" onerror="this.hidden=true;this.parentNode.classList.remove('has-wide-logo')"><?php endif; ?>
+    <?php if ($gardenHeader): ?><div class="garden-header-copy"><?php endif; ?>
+    <h1 class="<?= $gardenHeader ? 'garden-header-name' : ''; ?>"><?= htmlspecialchars($mpStoreName); ?></h1>
+    <div class="sub"><?= htmlspecialchars($gardenHeader ? $mpStoreName : ($page_title ?? ($is_central ? 'Fleet Manager' : 'Dashboard'))); ?></div>
+    <?php if ($gardenHeader): ?></div><?php endif; ?>
   </a>
   <div class="mp-intelligence">
     <div class="mp-intel-label"><i class="fa fa-lightbulb-o"></i> <?= $is_central ? 'Status' : 'Insights'; ?></div>
@@ -628,7 +680,7 @@ $is_oil_processing = ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_p
         elseif($sub_status['days_left'] <= 10){ $badge_class = 'red'; }
         elseif($sub_status['days_left'] <= 30){ $badge_class = 'orange'; }
         $days_label = ($sub_status['days_left'] <= 0) ? 'Expired' : $sub_status['days_left'] . ' Days';
-        $badge_link = special_access() ? base_url('subscription_license') : '#';
+        $badge_link = $gardenHeader ? base_url('garden#license-usage') : (special_access() ? base_url('subscription_license') : '#');
     ?>
     <a href="<?= $badge_link; ?>" class="mp-sub-badge <?= $badge_class; ?>" style="<?= (special_access() ? '' : 'cursor:default;pointer-events:none;'); ?>"><i class="fa fa-calendar-check-o"></i> <?= $days_label; ?></a>
     <?php endif; } ?>
@@ -636,10 +688,12 @@ $is_oil_processing = ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_p
       <span class="mp-status-dot"></span>
       <span class="mp-status-text">Online</span>
     </div>
-    <?php if(!is_store_admin() && !$is_central): ?>
+    <?php if($is_building_header && !$is_central): ?>
+    <button type="button" class="mp-hbtn primary" id="bmAttendanceShortcut" data-bm-clock-trigger aria-haspopup="dialog"><i class="fa fa-clock-o"></i> <span data-bm-clock-label><?= $building_clocked_in ? 'Clock Out' : 'Clock In'; ?></span></button>
+    <?php elseif(!is_store_admin() && !$is_central): ?>
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
     <?php endif; ?>
-    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator && !$is_oil_processing): ?>
+    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator && !$is_oil_processing && !$is_building_header): ?>
     <?php
       // The header action is labelled per business type.
       //
@@ -658,12 +712,12 @@ $is_oil_processing = ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_p
     <div class="mp-user-menu">
       <div class="mp-user-chip" onclick="document.getElementById('mpUserDropdown').classList.toggle('open')">
         <div class="mp-user-avatar"><img src="<?= get_profile_picture(); ?>" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Profile" onerror="this.style.display='none'"></div>
-        <span class="hidden-xs"><?= htmlspecialchars($this->session->userdata('display_name')); ?></span>
+        <span class="hidden-xs"><?= htmlspecialchars($mpUserName); ?></span>
       </div>
       <div class="mp-user-dropdown" id="mpUserDropdown">
         <div style="padding:12px;border-bottom:1px solid var(--mp-border);margin-bottom:6px;">
-          <div style="font-weight:700;font-size:14px;color:var(--mp-text);"><?= htmlspecialchars($this->session->userdata('display_name')); ?></div>
-          <div style="font-size:11px;color:var(--mp-muted);text-transform:uppercase;"><?= htmlspecialchars($this->session->userdata('role_name')); ?></div>
+          <div style="font-weight:700;font-size:14px;color:var(--mp-text);"><?= htmlspecialchars($mpUserName); ?></div>
+          <div style="font-size:11px;color:var(--mp-muted);text-transform:uppercase;"><?= htmlspecialchars($mpUserRole); ?></div>
         </div>
         <a class="mp-dropdown-item" href="<?= base_url('dashboard'); ?>"><i class="fa fa-tachometer"></i> Dashboard</a>
         <a class="mp-dropdown-item" href="<?= base_url('users/edit/'.$this->session->userdata('inv_userid')); ?>"><i class="fa fa-user"></i> My Profile</a>

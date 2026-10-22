@@ -1,5 +1,5 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance();$is_building_commercial=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 <?php
 $oilPlantQuote = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
 $q3=$this->db->query("SELECT b.expire_date, b.sales_status, b.store_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
@@ -62,6 +62,7 @@ $pos=$res3->pos;
 
 $q1=$this->db->query("select * from db_store where id=".$res3->store_id." ");
 $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_quotation', $quotation_id);
 $store_name=$res1->store_name;
 $company_mobile=$res1->mobile;
 $company_phone=$res1->phone;
@@ -109,9 +110,11 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
 }
 </style>
 
+<?php if($is_building_commercial): $this->load->view('building_materials/commercial_style',['building_editor_style'=>false]); ?><div class="bm-commercial bm-commercial-document"><?php endif; ?>
 <div class="mp-page-head">
   <div>
-    <h2><?= $this->lang->line('quotation_invoice'); ?> <span style="color:var(--mp-muted);font-weight:500;">#<?= htmlspecialchars($quotation_code); ?></span></h2>
+    <?php if($is_building_commercial): ?><div class="bm-commercial-eyebrow">CLIENT PROPOSAL · QUOTATION RECORD</div><?php endif; ?>
+    <h2><?= $is_building_commercial?'Quotation':$this->lang->line('quotation_invoice'); ?> <span style="color:var(--mp-muted);font-weight:500;">#<?= htmlspecialchars($quotation_code); ?></span></h2>
     <div class="mp-page-sub"><?= show_date($quotation_date); ?> <?= $created_time; ?> &middot; <?= $this->lang->line('status'); ?>: <?= ucfirst($quotation_status); ?></div>
   </div>
   <div class="mp-quick-actions">
@@ -249,7 +252,6 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
                 $sectionTotal += (float)$res2->total_cost;
             }
             if($oilPlantQuote && $activeSection !== null && $activeSection !== ''): ?><tr><td colspan="6" style="text-align:right;font-weight:700;color:#475569">Section subtotal</td><td class="num" style="font-weight:700"><?= $CI->currency($sectionTotal); ?></td></tr><?php endif; ?>
-            ?>
           </tbody>
           <tfoot>
             <?php if($oilPlantQuote): ?><tr><td colspan="6" style="text-align:right">Quotation total</td><td class="num"><?= $CI->currency($grand_total); ?></td></tr><?php else: ?><tr>
@@ -334,4 +336,5 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
   </div>
 </div>
 
+<?php if($is_building_commercial): ?></div><?php endif; ?>
 <script>$(".quotation_list-active-li").addClass("active");</script>

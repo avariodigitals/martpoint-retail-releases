@@ -28,10 +28,11 @@ if (!function_exists('mp_get_store_setting')) {
      */
     function mp_get_store_setting($store_id, $group, $key, $default = null) {
         $CI =& get_instance();
-        if (!$CI->db->table_exists('db_store_settings')) {
+        $reader = mp_read_db();
+        if (!$reader->table_exists('db_store_settings')) {
             return $default;
         }
-        $row = $CI->db
+        $row = $reader
             ->select('setting_value, value_type')
             ->where('store_id', $store_id)
             ->where('setting_group', $group)
@@ -215,19 +216,20 @@ if (!function_exists('mp_get_store_all_settings')) {
         ];
         $result = [];
         $CI =& get_instance();
+        $reader = mp_read_db();
         foreach ($tables as $table) {
-            if (!$CI->db->table_exists($table)) {
+            if (!$reader->table_exists($table)) {
                 continue;
             }
-            $row = $CI->db->where('store_id', $store_id)->get($table)->row_array();
+            $row = $reader->where('store_id', $store_id)->get($table)->row_array();
             if ($row) {
                 unset($row['id'], $row['created_at'], $row['updated_at']);
                 $result = array_merge($result, $row);
             }
         }
         // Flexible settings
-        if ($CI->db->table_exists('db_store_settings')) {
-            $rows = $CI->db->where('store_id', $store_id)->get('db_store_settings')->result();
+        if ($reader->table_exists('db_store_settings')) {
+            $rows = $reader->where('store_id', $store_id)->get('db_store_settings')->result();
             foreach ($rows as $row) {
                 $result[$row->setting_key] = _mp_cast_setting_value($row->setting_value, $row->value_type);
             }
@@ -243,17 +245,18 @@ if (!function_exists('_mp_get_structured_setting')) {
      */
     function _mp_get_structured_setting($store_id, $table, $key, $default = null) {
         $CI =& get_instance();
+        $reader = mp_read_db();
 
-        if ($CI->db->table_exists($table)) {
-            $row = $CI->db->where('store_id', $store_id)->get($table)->row();
+        if ($reader->table_exists($table)) {
+            $row = $reader->where('store_id', $store_id)->get($table)->row();
             if ($row && property_exists($row, $key) && $row->{$key} !== null) {
                 return $row->{$key};
             }
         }
 
         // Fallback to db_store if the column still exists
-        if ($CI->db->field_exists($key, 'db_store')) {
-            $row = $CI->db->select($key)->where('id', $store_id)->get('db_store')->row();
+        if ($reader->field_exists($key, 'db_store')) {
+            $row = $reader->select($key)->where('id', $store_id)->get('db_store')->row();
             if ($row && property_exists($row, $key) && $row->{$key} !== null) {
                 return $row->{$key};
             }

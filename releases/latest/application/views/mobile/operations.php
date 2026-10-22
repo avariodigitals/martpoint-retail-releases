@@ -66,7 +66,7 @@
           <h1>Operations</h1>
         </div>
       </div>
-      <div class="greeting">Hello, <?= $display_name; ?></div>
+      <div class="greeting">Hello, <?= htmlspecialchars(function_exists('mp_current_user_first_name') ? mp_current_user_first_name('User') : $display_name); ?></div>
 
       <?php if(!empty($operations)): ?>
         <div class="ops-grid">

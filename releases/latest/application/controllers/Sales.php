@@ -21,7 +21,7 @@ class Sales extends MY_Controller {
 	{
 		$this->permission_check('sales_view');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('sales_list');
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Invoice Register' : $this->lang->line('sales_list');
 		$data['content']=$this->load->view('sales-list',$data,TRUE);
 		$this->load->view('mp_layout',$data);
 	}
@@ -30,8 +30,15 @@ class Sales extends MY_Controller {
 	public function quotation($quotation_id){
 		$this->belong_to('db_quotation',$quotation_id);
 		$this->permission_check('sales_add');
-		if($this->db->field_exists('manual_item_name', 'db_quotationitems')
-			&& $this->db->where('quotation_id', (int)$quotation_id)->where('manual_item_name !=', '')->count_all_results('db_quotationitems') > 0){
+		$hasCustomLines = false;
+		foreach(['manual_item_name','part_code','unit_label'] as $customCol){
+			if($this->db->field_exists($customCol, 'db_quotationitems')
+				&& $this->db->where('quotation_id', (int)$quotation_id)->where($customCol.' !=', '')->count_all_results('db_quotationitems') > 0){
+				$hasCustomLines = true;
+				break;
+			}
+		}
+		if($hasCustomLines){
 			$this->session->set_flashdata('error', 'This quotation has custom line details. Create a sales invoice from the sales screen and enter the agreed items there.');
 			redirect('quotation');
 			return;
@@ -39,16 +46,39 @@ class Sales extends MY_Controller {
 		//Load model
 		$this->load->model('customers_model');
 
+		$quote = $this->db->select('id,store_id,lifecycle_status,sales_status,revision_no')
+			->where('id',(int)$quotation_id)
+			->where('store_id',get_current_store_id())
+			->get('db_quotation')->row();
+		if(!$quote){
+			$this->session->set_flashdata('error','Quotation not found for this store.');
+			redirect('quotation'); return;
+		}
+		if((string)($quote->sales_status ?? '') === 'Converted'){
+			$this->session->set_flashdata('error','This quotation has already been converted to an invoice.');
+			redirect('quotation'); return;
+		}
+		$acceptanceRequired = mp_quote_acceptance_required((int)$quote->store_id);
+		$accepted = trim((string)($quote->lifecycle_status ?? '')) === 'accepted';
+		$canOverride = is_admin() || is_store_admin();
+		if($acceptanceRequired && !$accepted && !$canOverride){
+			$this->session->set_flashdata('error','Customer acceptance is required before this quotation can be converted. Ask a store manager to authorise an override if needed.');
+			redirect('quotation'); return;
+		}
+
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('quotation_to_sales_invoice');
 		$data['quotation_id']=$quotation_id;
+		$data['quotation_revision']=(int)($quote->revision_no ?? 0);
+		$data['quotation_acceptance_required']=$acceptanceRequired;
+		$data['quotation_acceptance_override']=$acceptanceRequired && !$accepted && $canOverride;
 
 		$data=array_merge($data);
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=13','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=14','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales',$data,TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -58,12 +88,12 @@ class Sales extends MY_Controller {
 	{	
 		$this->permission_check('sales_add');
 		$data=$this->data;
-		$data['page_title']=$this->lang->line('sales');
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'New Invoice' : $this->lang->line('sales');
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=13','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=14','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales',$data,TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -71,6 +101,9 @@ class Sales extends MY_Controller {
 
 
 	public function sales_save_and_update(){
+        $documentCommand=$this->input->post_get('command',TRUE);
+        if (!in_array($documentCommand,['save','update'],true)) { echo 'Invalid document action.';return; }
+        $this->permission_check_with_msg($documentCommand==='update' ? 'sales_edit' : 'sales_add');
 		$this->form_validation->set_rules('sales_date', 'Sales Date', 'trim|required');
 		$this->form_validation->set_rules('customer_id', 'Customer Name', 'trim|required');
 		
@@ -97,12 +130,12 @@ class Sales extends MY_Controller {
 
 		$data=array_merge($data,array('sales_id'=>$id));
 
-		$data['page_title']=$this->lang->line('sales');
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Edit Invoice' : $this->lang->line('sales');
 		$data['walkin_customer_id'] = get_walk_in_customer_id();
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=13','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=14','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales', $data, TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -302,7 +335,7 @@ class Sales extends MY_Controller {
 		
 		$data=$this->data;
 		$data=array_merge($data,array('sales_id'=>$id));
-		$data['page_title']=$this->lang->line('sales_invoice');
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Invoice' : $this->lang->line('sales_invoice');
 		$data['content']=$this->load->view('sal-invoice',$data,TRUE);
 		$this->load->view('mp_layout',$data);
 	}

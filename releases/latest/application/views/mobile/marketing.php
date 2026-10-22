@@ -52,7 +52,7 @@
           <h1>Marketing</h1>
         </div>
       </div>
-      <div class="greeting">Hello, <?= $display_name; ?></div>
+      <div class="greeting">Hello, <?= htmlspecialchars(function_exists('mp_current_user_first_name') ? mp_current_user_first_name('User') : $display_name); ?></div>
 
       <div class="menu-list">
         <div class="menu-card">

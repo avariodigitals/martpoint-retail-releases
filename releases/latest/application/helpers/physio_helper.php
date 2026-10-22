@@ -92,6 +92,7 @@ if (!function_exists('physio_enabled')) {
     /** Is the physiotherapy_rehabilitation business type active for this store? */
     function physio_enabled($store_id = null) {
         $CI =& get_instance();
+        $reader = mp_read_db();
         $store_id = $store_id ?: get_current_store_id();
         // Canonical resolver: db_store_industry_settings → db_store_business_profile
         // → db_store columns → default profile.
@@ -99,8 +100,8 @@ if (!function_exists('physio_enabled')) {
             $profile = mp_get_store_profile($store_id);
             return ($profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation';
         }
-        if (!$CI->db->table_exists('db_store_business_profile')) return false;
-        $row = $CI->db->select('industry_type')->where('store_id', $store_id)
+        if (!$reader->table_exists('db_store_business_profile')) return false;
+        $row = $reader->select('industry_type')->where('store_id', $store_id)
             ->get('db_store_business_profile')->row();
         return $row && $row->industry_type === 'physiotherapy_rehabilitation';
     }
@@ -505,10 +506,11 @@ if (!function_exists('mp_first_name')) {
         $userId = (int) $userId;
         if ($userId > 0 && !array_key_exists($userId, $cache)) {
             $CI =& get_instance();
+            $reader = mp_read_db();
             $row = null;
-            if ($CI->db->field_exists('first_name', 'db_users')) {
-                $cols = 'first_name' . ($CI->db->field_exists('last_name', 'db_users') ? ', last_name' : '');
-                $row = $CI->db->select($cols)->where('id', $userId)->get('db_users')->row();
+            if ($reader->field_exists('first_name', 'db_users')) {
+                $cols = 'first_name' . ($reader->field_exists('last_name', 'db_users') ? ', last_name' : '');
+                $row = $reader->select($cols)->where('id', $userId)->get('db_users')->row();
             }
             $name = $row ? trim((string) $row->first_name) : '';
             if ($name === '' && $row && isset($row->last_name)) {
@@ -539,7 +541,8 @@ if (!function_exists('mp_name_from_login')) {
         }
         if (!array_key_exists($login, $ids)) {
             $CI =& get_instance();
-            $row = $CI->db->select('id')->where('username', $login)->limit(1)->get('db_users')->row();
+            $reader = mp_read_db();
+            $row = $reader->select('id')->where('username', $login)->limit(1)->get('db_users')->row();
             $ids[$login] = $row ? (int) $row->id : 0;
         }
         return mp_first_name($ids[$login], $fallback);
@@ -750,16 +753,23 @@ if (!function_exists('physio_staff_select')) {
         if ($store_id === null) { $store_id = (int) get_current_store_id(); }
         $store_id = (int) $store_id;
         $order = ($order_by === 'first_name') ? 'u.first_name' : 'u.username';
+        $exclude_roles = array_unique(array_map('intval', get_excluded_staff_roles($store_id)));
+        $exclude_users = array_unique(array_map('intval', get_excluded_user_ids($store_id)));
+        $notInRoles = implode(',', $exclude_roles ?: array(0));
+        $notInUsers = implode(',', $exclude_users ?: array(0));
         if (!function_exists('physio_enabled') || !physio_enabled($store_id)) {
             return $CI->db->query(
-                "SELECT u.* FROM db_users u WHERE u.store_id = ? AND u.status = 1 ORDER BY $order",
+                "SELECT u.* FROM db_users u WHERE u.store_id = ? AND u.status = 1
+                 AND u.role_id NOT IN ($notInRoles) AND u.id NOT IN ($notInUsers)
+                 ORDER BY $order",
                 array($store_id)
             )->result();
         }
         $rows = $CI->db->query(
             "SELECT u.* FROM db_users u
              WHERE u.store_id = ? AND u.status = 1
-               AND u.role_id NOT IN (1, 2)
+               AND u.role_id NOT IN ($notInRoles)
+               AND u.id NOT IN ($notInUsers)
                AND LOWER(u.username) NOT IN ('master', 'storeadm')
              ORDER BY $order",
             array($store_id)
@@ -794,17 +804,18 @@ if (!function_exists('physio_nurse_select')) {
         if ($store_id === null) { $store_id = (int) get_current_store_id(); }
         $store_id = (int) $store_id;
         $order = ($order_by === 'username') ? 'u.username' : 'u.first_name';
-        $exclude = array(1, 2);
-        if (function_exists('store_owner_role_ids')) {
-            $exclude = array_merge($exclude, store_owner_role_ids($store_id));
-        }
+        $exclude = get_excluded_staff_roles($store_id);
+        $exclude_users = get_excluded_user_ids($store_id);
         $exclude = array_unique(array_map('intval', $exclude));
+        $exclude_users = array_unique(array_map('intval', $exclude_users));
         $notIn = implode(',', $exclude);
+        $notUserIn = implode(',', $exclude_users ?: array(0));
         $rows = $CI->db->query(
             "SELECT u.* FROM db_users u
              JOIN db_roles r ON r.id = u.role_id
              WHERE u.store_id = ? AND u.status = 1
                AND u.role_id NOT IN ($notIn)
+               AND u.id NOT IN ($notUserIn)
                AND LOWER(u.username) NOT IN ('master', 'storeadm')
                AND LOWER(r.role_name) LIKE '%nurse%'
              ORDER BY $order",
@@ -816,6 +827,7 @@ if (!function_exists('physio_nurse_select')) {
              JOIN db_permissions p ON p.role_id = u.role_id AND p.permissions = 'vitals_add'
              WHERE u.store_id = ? AND u.status = 1
                AND u.role_id NOT IN ($notIn)
+               AND u.id NOT IN ($notUserIn)
                AND LOWER(u.username) NOT IN ('master', 'storeadm')
              ORDER BY $order",
             array($store_id)
@@ -841,17 +853,18 @@ if (!function_exists('physio_therapist_select')) {
         if ($store_id === null) { $store_id = (int) get_current_store_id(); }
         $store_id = (int) $store_id;
         $order = ($order_by === 'username') ? 'u.username' : 'u.first_name';
-        $exclude = array(1, 2);
-        if (function_exists('store_owner_role_ids')) {
-            $exclude = array_merge($exclude, store_owner_role_ids($store_id));
-        }
+        $exclude = get_excluded_staff_roles($store_id);
+        $exclude_users = get_excluded_user_ids($store_id);
         $exclude = array_unique(array_map('intval', $exclude));
+        $exclude_users = array_unique(array_map('intval', $exclude_users));
         $notIn = implode(',', $exclude);
+        $notUserIn = implode(',', $exclude_users ?: array(0));
         $rows = $CI->db->query(
             "SELECT u.* FROM db_users u
              JOIN db_roles r ON r.id = u.role_id
              WHERE u.store_id = ? AND u.status = 1
                AND u.role_id NOT IN ($notIn)
+               AND u.id NOT IN ($notUserIn)
                AND LOWER(u.username) NOT IN ('master', 'storeadm')
                AND (LOWER(r.role_name) LIKE '%physio%' OR LOWER(r.role_name) LIKE '%therapist%')
              ORDER BY $order",
@@ -863,6 +876,7 @@ if (!function_exists('physio_therapist_select')) {
              JOIN db_permissions p ON p.role_id = u.role_id AND p.permissions = 'encounters_add'
              WHERE u.store_id = ? AND u.status = 1
                AND u.role_id NOT IN ($notIn)
+               AND u.id NOT IN ($notUserIn)
                AND LOWER(u.username) NOT IN ('master', 'storeadm')
              ORDER BY $order",
             array($store_id)

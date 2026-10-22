@@ -17,6 +17,7 @@ class Category extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 	public function newcategory(){
+        $this->permission_check_with_msg('items_category_add');
 		$this->form_validation->set_rules('category', 'Category', 'trim|required');
 		if ($this->form_validation->run() == TRUE) {
 			
@@ -41,6 +42,7 @@ class Category extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 	public function update_category(){
+        $this->permission_check_with_msg('items_category_edit');
 		$this->form_validation->set_rules('category', 'Category', 'trim|required');
 		$this->form_validation->set_rules('q_id', '', 'trim|required');
 
@@ -67,12 +69,13 @@ class Category extends MY_Controller {
 		
 		$data = array();
 		$no = $_POST['start'];
+        $paths=[];foreach($this->category_tree_model->options(get_current_store_id()) as $node)$paths[(int)$node->id]=$node->category_path;
 		foreach ($list as $category) {
 			$no++;
 			$row = array();
 			$row[] = '<input type="checkbox" name="checkbox[]" value='.$category->id.' class="checkbox column_checkbox" >';
 			
-			$row[] = $category->category_name;
+			$row[] = htmlspecialchars($paths[(int)$category->id]??$category->category_name,ENT_QUOTES,'UTF-8');
 			$row[] = $category->description;
 
 			 		if($category->status==1){ 
@@ -141,6 +144,7 @@ class Category extends MY_Controller {
 
 	//ITS FROM POP UP MODAL
 	public function add_category_modal(){
+        $this->permission_check_with_msg('items_category_add');
 		$this->form_validation->set_rules('category', 'Category Name', 'trim|required');
 		if ($this->form_validation->run() == TRUE) {
 			$result=$this->category->verify_and_save();

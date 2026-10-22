@@ -95,6 +95,10 @@ $social = $social_links ?? [];
   $nav_services_url   = base_url('store/' . $slug . '/services');
   $nav_contact_url    = base_url('store/' . $slug . '/contact');
 ?>
+<?php // A configured menu (Online Store → Navigation) is rendered as the menu bar
+      // below the header — on every theme — so the automatic rail stays hidden
+      // rather than doubling the same links. ?>
+<?php if(empty($storefront_nav)&&!is_array($storefront_navigation_rows ?? null)): ?>
 <div class="mp-nav" id="mp-nav">
   <div class="mp-nav-inner">
     <?php if($nav_is_service): ?>
@@ -120,12 +124,22 @@ $social = $social_links ?? [];
     <?php endif; ?>
   </div>
 </div>
+<?php endif; ?>
 
 <!-- Mobile Menu Overlay -->
 <div id="mobile-menu-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:900;" onclick="toggleMobileMenu()"></div>
 <div id="mobile-menu" style="display:none; position:fixed; top:0; left:0; bottom:0; width:280px; background:#fff; z-index:901; padding:24px; box-shadow:4px 0 24px rgba(0,0,0,0.1);">
   <div style="font-weight:800; font-size:18px; margin-bottom:24px; color:var(--mp-primary);"><?= htmlspecialchars($store->store_name ?? 'Menu'); ?></div>
   <div style="display:flex; flex-direction:column; gap:16px;">
+    <?php if(!empty($storefront_nav)&&!is_array($storefront_navigation_rows ?? null)): ?>
+    <?php // The merchant's own menu; submenus sit indented beneath their parent. ?>
+    <?php foreach($storefront_nav as $navItem): ?>
+    <a href="<?= htmlspecialchars($navItem['url']); ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()"><?= htmlspecialchars($navItem['label']); ?></a>
+    <?php foreach($navItem['children'] as $navChild): ?>
+    <a href="<?= htmlspecialchars($navChild['url']); ?>" style="font-size:14px; color:var(--mp-gray); padding-left:14px;" onclick="toggleMobileMenu()"><?= htmlspecialchars($navChild['label']); ?></a>
+    <?php endforeach; ?>
+    <?php endforeach; ?>
+    <?php else: ?>
     <a href="<?= base_url('store/' . $slug); ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Home</a>
     <?php // Same order as the desktop nav, from the same two facts. ?>
     <?php if($nav_is_service): ?>
@@ -138,6 +152,7 @@ $social = $social_links ?? [];
     <a href="<?= $nav_products_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">All Products</a>
     <?php if($nav_sells_services): ?>
     <a href="<?= $nav_services_url; ?>" style="font-size:16px; font-weight:600; color:var(--mp-dark);" onclick="toggleMobileMenu()">Services</a>
+    <?php endif; ?>
     <?php endif; ?>
     <?php endif; ?>
     <hr style="border:none; border-top:1px solid var(--mp-border); margin:8px 0;">

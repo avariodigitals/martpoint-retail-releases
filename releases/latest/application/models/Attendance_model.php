@@ -69,6 +69,29 @@ class Attendance_model extends CI_Model {
 	}
 
 	// ========== SHIFTS ==========
+	private function attendanceExclusions($storeId){
+		if((mp_get_store_profile($storeId)['industry_type'] ?? '') === 'building_materials') return [-1];
+		return get_excluded_staff_roles($storeId);
+	}
+
+	/** Serialize self-service clock changes on the existing member/attendance rows. */
+	public function buildingClock($storeId,$userId,$action){
+		if(!in_array($action,['in','out'],true)) return ['status'=>'error','message'=>'Invalid clock action.'];
+		$this->db->trans_begin();
+		$user = $this->db->query('SELECT id FROM db_users WHERE id = ? AND store_id = ? AND status = 1 FOR UPDATE',[(int)$userId,(int)$storeId])->row();
+		if(!$user){$this->db->trans_rollback();return ['status'=>'error','message'=>'Active staff member not found in this store.'];}
+		$date = date('Y-m-d');
+		if($action === 'in'){
+			$shift = $this->isOnDuty($userId,$storeId);
+			$result = $this->clockIn(['store_id'=>$storeId,'user_id'=>$userId,'shift_id'=>$shift ? $shift->id : null,'attendance_date'=>$date,'clock_in'=>date('H:i:s'),'status'=>'present']);
+		} else {
+			$result = $this->clockOut($userId,$date,['clock_out'=>date('H:i:s')],$storeId);
+		}
+		if($this->db->trans_status() === false){$this->db->trans_rollback();return ['status'=>'error','message'=>'Attendance could not be saved. Please try again.'];}
+		$this->db->trans_commit();
+		$result['clocked_in'] = $this->needsClockOut($userId,$date,$storeId);
+		return $result;
+	}
 
 	public function getShifts($storeId){
 		return $this->db->where('store_id', $storeId)->where('status', 1)->get('db_shifts')->result();
@@ -106,7 +129,7 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getUsersByShift($shiftId, $storeId = null){
-		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
+		$excluded_roles = $this->attendanceExclusions($storeId); // resolve before building the query
 		$this->db->select('u.id, u.username, u.first_name, u.last_name, u.profile_picture');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_users u', 'u.id = us.user_id');
@@ -133,13 +156,16 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getShiftsByUser($userId, $storeId = null){
-		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
+		$excluded_roles = $this->attendanceExclusions($storeId);
+		$building = (mp_get_store_profile($storeId)['industry_type'] ?? '') === 'building_materials';
 		$this->db->select('s.*');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_shifts s', 's.id = us.shift_id');
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.user_id', $userId);
 		if($storeId) $this->db->where('us.store_id', $storeId);
+		if($storeId){$this->db->where('u.store_id',$storeId)->where('s.store_id',$storeId);}
+		if($building) $this->db->where('u.status',1)->where('s.status',1);
 		$this->db->where_not_in('u.role_id', $excluded_roles);
 		return $this->db->get()->result();
 	}
@@ -148,8 +174,8 @@ class Attendance_model extends CI_Model {
 
 	public function clockIn($data){
 		$existing = $this->db->query(
-			"SELECT id FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') LIMIT 1",
-			[$data['user_id'], $data['attendance_date']]
+			"SELECT id FROM db_attendance WHERE store_id = ? AND user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') LIMIT 1",
+			[$data['store_id'], $data['user_id'], $data['attendance_date']]
 		)->row();
 		if($existing){
 			return ['status' => 'error', 'message' => 'Already clocked in today'];
@@ -158,9 +184,10 @@ class Attendance_model extends CI_Model {
 		return ['status' => 'success', 'message' => 'Clocked in', 'id' => $this->db->insert_id()];
 	}
 
-	public function clockOut($userId, $date, $data){
+	public function clockOut($userId, $date, $data, $storeId = null){
+		$scope = $storeId ? ' AND store_id = '.(int)$storeId : '';
 		$record = $this->db->query(
-			"SELECT id FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') ORDER BY id DESC LIMIT 1",
+			"SELECT id FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '')".$scope." ORDER BY id DESC LIMIT 1",
 			[$userId, $date]
 		)->row();
 		if(!$record){
@@ -172,12 +199,13 @@ class Attendance_model extends CI_Model {
 	}
 
 	public function getAttendanceByDate($storeId, $date){
-		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
+		$excluded_roles = $this->attendanceExclusions($storeId);
 		$this->db->select('a.*, u.username, u.first_name, u.last_name, u.profile_picture, s.shift_name, s.start_time, s.end_time, s.location_lat, s.location_lng, s.location_radius_meters');
 		$this->db->from('db_attendance a');
 		$this->db->join('db_users u', 'u.id = a.user_id');
 		$this->db->join('db_shifts s', 's.id = a.shift_id', 'left');
 		$this->db->where('a.store_id', $storeId);
+		$this->db->where('u.store_id', $storeId);
 		$this->db->where('a.attendance_date', $date);
 		$this->db->where_not_in('u.role_id', $excluded_roles);
 		return $this->db->get()->result();
@@ -199,24 +227,32 @@ class Attendance_model extends CI_Model {
 		return $this->getAttendanceByDate($storeId, $date);
 	}
 
-	public function needsClockOut($userId, $date = null){
+	public function needsClockOut($userId, $date = null, $storeId = null){
 		$date = $date ?: date('Y-m-d');
+		$scope = $storeId ? ' AND store_id = '.(int)$storeId : '';
 		$query = $this->db->query(
-			"SELECT COUNT(*) as cnt FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '')",
+			"SELECT COUNT(*) as cnt FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '')".$scope,
 			[$userId, $date]
 		);
 		return (int)$query->row()->cnt > 0;
 	}
 
 	public function getDailyReport($storeId, $date){
-		$excluded_roles = get_excluded_staff_roles($storeId); // resolve first: helper calls reset_query()
+		$building = (mp_get_store_profile($storeId)['industry_type'] ?? '') === 'building_materials';
+		$excluded_roles = $this->attendanceExclusions($storeId);
+		$excluded_users = get_excluded_user_ids($storeId);
+		if($building){
+			$assignedUsers = $this->db->select('id,username,first_name,last_name,profile_picture')->where('store_id',$storeId)->where('status',1)->where_not_in('role_id',$excluded_roles)->where_not_in('id',$excluded_users)->get('db_users')->result();
+		} else {
 		// Get all users assigned to any shift in this store
 		$this->db->select('DISTINCT(u.id), u.username, u.first_name, u.last_name, u.profile_picture');
 		$this->db->from('db_user_shifts us');
 		$this->db->join('db_users u', 'u.id = us.user_id');
 		$this->db->where('us.store_id', $storeId);
 		$this->db->where_not_in('u.role_id', $excluded_roles);
+		$this->db->where_not_in('u.id', $excluded_users);
 		$assignedUsers = $this->db->get()->result();
+		}
 
 		$attendance = $this->getAttendanceByDate($storeId, $date);
 		$attMap = [];
@@ -277,9 +313,10 @@ class Attendance_model extends CI_Model {
 		return null;
 	}
 
-	public function getAttendanceRecord($userId, $date){
+	public function getAttendanceRecord($userId, $date, $storeId = null){
+		$scope = $storeId ? ' AND store_id = '.(int)$storeId : '';
 		return $this->db->query(
-			"SELECT * FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '') ORDER BY id DESC LIMIT 1",
+			"SELECT * FROM db_attendance WHERE user_id = ? AND attendance_date = ? AND clock_in IS NOT NULL AND clock_in != '' AND (clock_out IS NULL OR clock_out = '')".$scope." ORDER BY id DESC LIMIT 1",
 			[$userId, $date]
 		)->row();
 	}

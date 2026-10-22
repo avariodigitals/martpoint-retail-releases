@@ -1,5 +1,12 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
+<style>
+.rotation-instruction{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:230px;max-width:300px}
+.rotation-instruction-title{display:inline-flex;align-items:flex-start;gap:7px;width:fit-content;max-width:100%;padding:8px 10px;border:1px solid #F59E0B;border-radius:8px;background:#FEF3C7;color:#78350F;font-size:13px;font-weight:800;line-height:1.4;white-space:normal}
+.rotation-instruction-title.success{border-color:#34D399;background:#D1FAE5;color:#065F46}
+.rotation-instruction-title i{margin-top:2px;flex:0 0 auto}
+.rotation-instruction-help{display:block;color:var(--mp-ink);font-size:12px;font-weight:600;line-height:1.45}
+</style>
 
 <div class="mp-page-head">
   <div>
@@ -37,6 +44,16 @@
 </div>
 <?php else: ?>
 
+<?php
+$rotation_batch_label = function ($batch) {
+  $lot = trim((string) ($batch->batch_lot ?? ''));
+  if ($lot === '') {
+    $lot = 'Barcode ' . (trim((string) ($batch->barcode ?? '')) ?: '—');
+  }
+  $expiry = is_valid_date($batch->expire_date ?? null) ? show_date($batch->expire_date) : 'No expiry';
+  return $lot . ' · exp ' . $expiry;
+};
+?>
 <div class="mp-table-wrap" style="margin-top:16px;">
   <div class="mp-card-head"><h3><i class="fa fa-refresh"></i> Rotation Tasks</h3></div>
   <div class="mp-card-body" style="padding:0;">
@@ -46,9 +63,9 @@
           <tr>
             <th style="width:80px;">Image</th>
             <th><?= mp_label('item'); ?></th>
-            <th>New Batch Received</th>
-            <th style="min-width:220px;">Older Batches (Front Shelf)</th>
-            <th>Instruction</th>
+            <th>Incoming Batch</th>
+            <th style="min-width:220px;">Shelf Batches (FEFO order)</th>
+            <th>FEFO Placement</th>
           </tr>
         </thead>
         <tbody>
@@ -86,11 +103,36 @@
               <?php endif; ?>
             </td>
             <td style="vertical-align:middle;">
+              <?php
+                $incoming_label = $rotation_batch_label($r['new_batch']);
+                $front_labels = array_map($rotation_batch_label, $r['front_batches'] ?? []);
+                $behind_labels = array_map($rotation_batch_label, $r['behind_batches'] ?? []);
+                $front_text = implode('; ', $front_labels);
+                $behind_text = implode('; ', $behind_labels);
+              ?>
               <?php if(empty($r['old_batches'])): ?>
-                <span class="mp-badge" style="background:var(--mp-success);color:#fff;"><i class="fa fa-check"></i> Put on shelf</span>
+                <div class="rotation-instruction">
+                  <span class="rotation-instruction-title success"><i class="fa fa-check"></i> Put this new batch on the shelf</span>
+                </div>
+              <?php elseif(empty($front_labels)): ?>
+                <div class="rotation-instruction">
+                  <span class="rotation-instruction-title"><i class="fa fa-arrow-up"></i> FRONT: Incoming batch</span>
+                  <span class="rotation-instruction-help"><strong><?= htmlspecialchars($incoming_label); ?></strong></span>
+                  <span class="rotation-instruction-help"><strong>BACK:</strong> <?= htmlspecialchars($behind_text); ?></span>
+                </div>
+              <?php elseif(empty($behind_labels)): ?>
+                <div class="rotation-instruction">
+                  <span class="rotation-instruction-title"><i class="fa fa-arrow-up"></i> FRONT: Shelf batch</span>
+                  <span class="rotation-instruction-help"><strong><?= htmlspecialchars($front_text); ?></strong></span>
+                  <span class="rotation-instruction-help"><strong>BACK:</strong> Incoming batch — <?= htmlspecialchars($incoming_label); ?></span>
+                </div>
               <?php else: ?>
-                <span class="mp-badge" style="background:var(--mp-warning);color:#111827;"><i class="fa fa-arrow-up"></i> Move these older batches to the FRONT</span><br>
-                <span class="mp-form-hint" style="display:block;margin-top:6px;">Place the new batch BEHIND them.</span>
+                <div class="rotation-instruction">
+                  <span class="rotation-instruction-title"><i class="fa fa-arrow-up"></i> FRONT: Earlier-expiring shelf batches</span>
+                  <span class="rotation-instruction-help"><strong><?= htmlspecialchars($front_text); ?></strong></span>
+                  <span class="rotation-instruction-help"><strong>THEN:</strong> Incoming batch — <?= htmlspecialchars($incoming_label); ?></span>
+                  <span class="rotation-instruction-help"><strong>BACK:</strong> <?= htmlspecialchars($behind_text); ?></span>
+                </div>
               <?php endif; ?>
             </td>
           </tr>

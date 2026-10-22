@@ -9,6 +9,7 @@ if ($lmAnnouncement === '') $lmAnnouncement = 'COMPLIMENTARY DELIVERY ON ORDERS 
 $lmMarqueeItems = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($settings->marquee_items ?? ''))), 'strlen'));
 $lmAnnouncementColor = trim((string)($settings->announcement_bar_color ?? ''));
 if (!preg_match('/^#[0-9a-fA-F]{6}$/', $lmAnnouncementColor)) $lmAnnouncementColor = '#244735';
+$lmHasReviews = !empty($testimonials) && !empty($homepage_sections['testimonials']);
 ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +26,7 @@ if (!preg_match('/^#[0-9a-fA-F]{6}$/', $lmAnnouncementColor)) $lmAnnouncementCol
       <?php if (!empty($sells_products)): ?><a href="<?= lm_escape($lmHome . '/products'); ?>">Shop Skincare</a><?php endif; ?>
       <?php if ($lmServices): ?><a href="<?= lm_escape($lmHome . '/services'); ?>">Our Services</a><?php endif; ?>
       <a href="<?= lm_escape($lmHome . '/about'); ?>">Our Story</a>
-      <a href="<?= lm_escape($lmHome . '#reviews'); ?>">Reviews</a>
+      <?php if ($lmHasReviews): ?><a href="<?= lm_escape($lmHome . '#reviews'); ?>">Reviews</a><?php endif; ?>
       <a href="#contact">Contact</a>
     </nav>
     <div class="actions">

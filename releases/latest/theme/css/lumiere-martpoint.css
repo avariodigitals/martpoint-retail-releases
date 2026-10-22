@@ -59,6 +59,8 @@ body.theme-lumiere{--mp-primary:#244735;--mp-primary-dark:#1b3527;--mp-dark:#202
 .theme-lumiere .lm-quantity button{width:40px;border:0;background:transparent;color:#244735;font-size:19px}
 .theme-lumiere .lm-quantity span{min-width:29px;text-align:center;font-size:13px}
 .theme-lumiere .lm-detail-buy .btn{flex:1}
+.theme-lumiere .lm-detail-whatsapp{width:100%;padding:14px 18px;border:0;border-radius:999px;background:#25D366;color:#fff;font-family:inherit;font-size:14px;font-weight:600;line-height:1.2;cursor:pointer;transition:filter .15s ease,transform .15s ease}
+.theme-lumiere .lm-detail-whatsapp:hover{filter:brightness(.94);transform:translateY(-1px)}
 .theme-lumiere .lm-detail-note{font-size:11px;color:#899188;margin-top:15px}
 .theme-lumiere .lm-detail .sf-variant-picker{margin:20px 0}
 .theme-lumiere .lm-detail .sf-variant-picker select{max-width:100%;padding:12px;border:1px solid #d8ded4;background:white}

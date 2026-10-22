@@ -68,11 +68,12 @@ class Accounts extends MY_Controller {
 							   ->get('ac_accounts')
 							   ->result();
 
-		// Find Cash At Hand account (by name match)
-		$cash_account_id = '';
-		foreach($accounts as $acc){
-			if(stripos($acc->account_name, 'cash') !== false || stripos($acc->account_name, 'hand') !== false || stripos($acc->account_name, 'till') !== false){
-				$cash_account_id = $acc->id;
+		// Use the same configured cash account as the ledger model.
+		$cash_account_id = get_cash_account_id();
+		$cash_account_name = 'Cash Account';
+		foreach ($accounts as $account) {
+			if ((int)$account->id === (int)$cash_account_id) {
+				$cash_account_name = $account->account_name;
 				break;
 			}
 		}
@@ -85,6 +86,7 @@ class Accounts extends MY_Controller {
 		$data['ledger'] = $this->dashboard_model->get_cash_ledger($from_date, $to_date);
 		$data['accounts'] = $accounts;
 		$data['cash_account_id'] = $cash_account_id;
+		$data['cash_account_name'] = $cash_account_name;
                 // Render inside the shared shell — this was the only method in
                 // Accounts still emitting the legacy AdminLTE document while
                 // index/book/cash_transactions/add/update were already on

@@ -30,7 +30,7 @@ $non_sortable = json_encode([0,5]);
 </style>
 
 <div class="mp-section">
-  <?php include "comman/code_flashdata.php"; ?>
+  <?php $this->load->view('comman/code_flashdata'); ?>
 </div>
 
 <!-- Page Header -->

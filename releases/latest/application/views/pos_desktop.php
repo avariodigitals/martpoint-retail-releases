@@ -1344,7 +1344,7 @@ $pos_json = static function ($value) {
     }
   </style>
 </head>
-<body data-pos-build="4.0.9.194" class="<?= $mp_is_pharmacy ? 'pharmacy-pos' : ''; ?>">
+<body data-pos-build="4.0.9.195" class="<?= $mp_is_pharmacy ? 'pharmacy-pos' : ''; ?>">
   <div id="posStartupError" role="alert" hidden style="position:fixed;top:8px;left:8px;right:8px;z-index:10000;padding:14px;background:#fff1f2;color:#9f1239;border:1px solid #fda4af;border-radius:8px;">
     POS could not finish loading. Reload this page. If this continues, contact your administrator.
     <button type="button" onclick="window.location.reload()" style="margin-left:12px;">Reload POS</button>

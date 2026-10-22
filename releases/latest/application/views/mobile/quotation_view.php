@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — Quotation View</title>
+  <title><?= $store_name ?? $SITE_TITLE ?? 'MartPoint'; ?> — Quotation View</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -49,6 +49,7 @@
     .topbar .topbar-titles { flex: 1; min-width: 0; }
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
   </style>
+<?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
 <body>
   <div id="app">
@@ -97,6 +98,7 @@
       </div>
 
       <div class="card">
+        <?= mp_document_location_html(mp_document_store(get_store_details(), 'db_quotation', $q->id)); ?>
         <div class="card-title">Items</div>
         <?php if(!empty($items)): ?>
           <?php foreach($items as $it): ?>

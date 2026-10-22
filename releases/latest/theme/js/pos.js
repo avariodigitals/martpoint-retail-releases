@@ -32,7 +32,7 @@ $('#multiple-payments-modal').on('hidden.bs.modal', function(){
 		$("#customer_id").find(':selected').attr('data-tot_advance',to_Fixed(pos_saved_advance)).trigger('change');
 		$("#search_it").val('');
 		if(warehouse_module){
-			$("#warehouse_id").val(pos_saved_warehouse_id).select2();	
+			$("#posOutletSelector").val(pos_saved_warehouse_id).select2();
 		}
 		final_total();
 		get_details(null,true);
@@ -157,7 +157,7 @@ function processSaveSuccess(result, print, command, customer_id){
     toastr['success']("Record Saved Successfully!!");
     success.currentTime = 0;
     success.play();
-    var warehouse_id = $("#warehouse_id").val();
+	var warehouse_id = $("#posOutletSelector").val();
     if(command=='update'){
       window.location = base_url+"sales";
     } else {
@@ -217,6 +217,8 @@ function retryQueuedSales(){
     if (!sales || !sales.length) return;
     toastr.info('Syncing ' + sales.length + ' queued sale(s)...', 'Offline Sync');
     sales.forEach(function(sale){
+      if (sale.status === 'syncing') return;
+      MPOfflineDB.updateSaleStatus(sale.queueId, 'syncing').catch(function(){});
       var fd = objectToFormData(sale.formData);
       $.ajax({
         type: 'POST',
@@ -226,13 +228,19 @@ function retryQueuedSales(){
         contentType: false,
         processData: false,
         success: function(result){
-          MPOfflineDB.removeQueuedSale(sale.queueId).then(function(){
-            toastr.success('Queued sale synced successfully.');
-            updatePendingSalesBadge();
-          }).catch(function(){});
+          var ok = typeof result === 'string' && result.indexOf('success<<<###>>>') === 0;
+          if (ok) {
+            MPOfflineDB.removeQueuedSale(sale.queueId).then(function(){
+              toastr.success('Queued sale synced successfully.');
+              updatePendingSalesBadge();
+            }).catch(function(){});
+          } else {
+            MPOfflineDB.updateSaleStatus(sale.queueId, 'failed', String(result || 'Server rejected sale')).catch(function(){});
+            toastr.error('Queued sale needs attention: ' + (result || 'server rejected it'));
+          }
         },
-        error: function(){
-          // Will retry next time connection is restored
+        error: function(xhr){
+          MPOfflineDB.updateSaleStatus(sale.queueId, 'failed', xhr.responseText || xhr.statusText || 'Network error').catch(function(){});
         }
       });
     });
@@ -389,6 +397,14 @@ function doSave(print=false,pay_all=false){
 	$("#"+this_btn).attr('disabled',true);
 	var data = new FormData($('#pos-form')[0]);
 	if(!xss_validation(data)){ return false; }
+	if(command === 'save'){
+		var idem = $('#pos_idempotency_key').val();
+		if(!idem){
+			idem = 'pos:' + Date.now() + ':' + Math.random().toString(36).slice(2);
+			$('<input>').attr({type:'hidden', id:'pos_idempotency_key', name:'pos_idempotency_key'}).val(idem).appendTo('#pos-form');
+		}
+		data.set('pos_idempotency_key', idem);
+	}
 
 	// Append sales_note from payment modal if it exists
 	var salesNote = $('#sales_note').val();
@@ -434,6 +450,7 @@ function doSave(print=false,pay_all=false){
 							var saleData = {
 								formData: serializeFormData(data),
 								url: saveUrl,
+								idempotencyKey: data.get('pos_idempotency_key') || '',
 								print: print,
 								command: command,
 								customer_id: customer_id,
@@ -721,10 +738,10 @@ function hold_invoice_edit(id){
       /*}*/
       console.log("warehouse = "+result[5]);
       if(warehouse_module){
-        $('#warehouse_id').val(result[5]).select2();
+        $('#posOutletSelector').val(result[5]).select2();
       }
       else{
-        $('#warehouse_id').val(result[5]);
+        $('#posOutletSelector').val(result[5]);
       }
 
       autoLoadFirstCustomer(result[3]);
@@ -859,7 +876,7 @@ function calculate_payments(){
 
 function get_item_details(item_id, barcodeData){
   var base_url=$("#base_url").val();
-  var warehouse_id=$("#warehouse_id").val();
+  var warehouse_id=$("#posOutletSelector").val();
   var price_type=$("#price_type").val() || 'wholesale';
   var customer_id=$("#customer_id").val() || '';
   var postData = {item_id:item_id,warehouse_id:warehouse_id,price_type:price_type,customer_id:customer_id};
@@ -1032,13 +1049,13 @@ $("#item_search").autocomplete({
             data: {
                 name: data.term,
                 store_id:$("#store_id").val(),
-                warehouse_id:$("#warehouse_id").val(),
+                warehouse_id:$("#posOutletSelector").val(),
                 search_for:"sales",
             },
             beforeSend: function() {
-                if($("#warehouse_id").val()==''){
+                if($("#posOutletSelector").val()==''){
                   toastr['warning']("Please Select Branch!");
-                  $("#warehouse_id").select2('open');
+                  $("#posOutletSelector").select2('open');
                   $("#item_search").removeClass('ui-autocomplete-loading');
                   return;
                 }

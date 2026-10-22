@@ -158,8 +158,8 @@
           <?php if($is_plant): ?><div class="form-group"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="not_for_sale" value="1" style="width:auto" <?= !empty($not_for_sale) ? 'checked' : ''; ?>> Used in processing / not sold directly</label><small class="hint">Choose for raw inputs or consumables; leave off for sellable finished products or parts.</small></div><?php endif; ?>
           <div class="form-group">
             <label><?= $is_plant ? 'Item Photo (optional)' : 'Product Image'; ?></label>
-            <input type="file" name="item_image" id="item_image" accept="image/*">
-            <small class="hint">Max 1MB, jpg/png/gif/webp, 1500x1500</small>
+            <input type="file" name="item_image" id="item_image" accept="image/*,.avif">
+            <small class="hint">Max 1MB, jpg/png/gif/webp/avif, 1500x1500</small>
           </div>
         </div>
 

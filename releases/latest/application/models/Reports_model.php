@@ -704,7 +704,7 @@ class Reports_model extends CI_Model {
 			$this->db->where("a.brand_id",$brand_id);
 		}
 		if(!empty($category_id)){
-			$this->db->where("a.category_id",$category_id);
+			mp_category_filter('a.category_id',$category_id);
 		}
 
 		//echo $this->db->get_compiled_select();exit;
@@ -927,7 +927,7 @@ class Reports_model extends CI_Model {
 
 		$str = "" ; 
 		if($category_id!=''){
-			$str = " and e.id=$category_id"; 
+			$str = " and ".mp_category_sql("e.id",$category_id);
 		}
 
 		$this->db->join("db_category as e","e.`id`= d.`category_id` $str","right");
@@ -2911,8 +2911,17 @@ class Reports_model extends CI_Model {
 		$from_date = $this->input->post('from_date', TRUE);
 		$to_date = $this->input->post('to_date', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
-		$store_id = $this->input->post('store_id', TRUE);
+		$store_id = (int)get_current_store_id();
 		$customer_id = $this->input->post('customer_id', TRUE);
+        // Customer is an optional narrowing filter. An empty value means the
+        // report covers every customer and walk-in sale in the current store.
+        if (!empty($customer_id)) {
+          if (!is_scalar($customer_id) || !ctype_digit((string)$customer_id) || (int)$customer_id<1 || !$this->db->where('id',(int)$customer_id)->where('store_id',$store_id)->count_all_results('db_customers')) { echo '<tr><td colspan="10">Invalid customer filter.</td></tr>';return; }
+          $customer_id=(int)$customer_id;
+        } else {
+          $customer_id=0;
+        }
+        $esc=function($value){return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');};
 		$supplier_id = $this->input->post('supplier_id', TRUE);
 		$item_id = $this->input->post('item_id', TRUE);
 		$brand_id = $this->input->post('brand_id', TRUE);
@@ -2935,14 +2944,16 @@ class Reports_model extends CI_Model {
               $tot_total_cost=0;
               $tot_payment=0;
 
-              $str1= " SELECT 
+				$str1= " SELECT
 	              					a.id as id,
 	              					a.`sales_date` AS tr_date,
 	              					'invoice' as tr_type,
 	              					a.sales_code as tr_code,
-	              					a.`created_time` AS created_time
+									a.`created_time` AS created_time,
+									COALESCE(c.customer_name, 'Walk-in Customer') AS customer_name
               					FROM 
-              						db_sales a";
+									db_sales a
+									LEFT JOIN db_customers c ON c.id = a.customer_id AND c.store_id = a.store_id";
   						$where = "1=1 and (a.sales_status IS NULL or a.sales_status != 'Opening')";
   						if(!empty($store_id)){
   							$where .= " and a.store_id =".$store_id;
@@ -2962,9 +2973,11 @@ class Reports_model extends CI_Model {
 									b.`payment_date` AS tr_date,
 									'payments' as tr_type,
 									b.payment_code as tr_code,
-									b.`created_time` AS created_time
+									b.`created_time` AS created_time,
+									COALESCE(c.customer_name, 'Walk-in Customer') AS customer_name
 								FROM 
-									`db_salespayments` b";
+									`db_salespayments` b
+									LEFT JOIN db_customers c ON c.id = b.customer_id AND c.store_id = b.store_id";
   						$where2 = "1=1";
   						if(!empty($store_id)){
   							$where2 .= " and b.store_id =".$store_id;
@@ -3000,7 +3013,7 @@ class Reports_model extends CI_Model {
 	        			$this->db->where("a.sales_id=",$res2->id);	
 	        			$this->db->join("db_items b","b.id=a.item_id","left");
 	        			//echo $this->db->get_compiled_select();
-	        			$item_name = $this->db->get()->row()->item_name;	
+                $line=$this->db->get()->row();$item_name=$line ? $line->item_name : 'Invoice';
 
         			}
         			else{
@@ -3009,7 +3022,7 @@ class Reports_model extends CI_Model {
         			
 
         			if($res2->tr_type=='payments'){
-        				if($details->payment==0){
+                if(!$details || $details->payment==0){
         					continue;
         				}
 
@@ -3024,34 +3037,38 @@ class Reports_model extends CI_Model {
 	                  echo "</td>";
 
 	                  echo "<td colspan='1'>";
+	                    echo $esc($res2->customer_name ?? 'Walk-in Customer');
+	                  echo "</td>";
+
+	                  echo "<td colspan='1'>";
 	                  $str2 = '';
 	                  if($res2->tr_type!='invoice'){
-	                  	$str2 = "<br><b>Bill Ref.No :<b>".get_sales_details($details->sales_id)->reference_no;
+                $str2 = "<br><b>Bill Ref.No :<b>". $esc((get_sales_details($details->sales_id)->reference_no ?? ''));
 	                  }
-	                    echo ($res2->tr_type=='invoice') ? $res2->tr_code : 'Receive'.$str2;
+	                    echo ($res2->tr_type=='invoice') ? $esc($res2->tr_code) : 'Receive'.$str2;
 	                  echo "</td>";
 
 	                  echo "<td colspan='1'>";
 	                  	//echo $res2->tr_code;
 	                  	//Show sales code for the payment
 	                  	if($res2->tr_type=='payments'){
-	                  		echo get_sales_details(get_sales_payment_details($res2->id)->sales_id)->sales_code;
+                echo $esc(get_sales_details($details->sales_id)->sales_code ?? 'Unlinked payment');
 	                  	}
 		                  if(!empty(isset($details->reference_no))){
-		                  	echo $details->reference_no."<br>";          
+                echo $esc($details->reference_no)."<br>";
 		                  }
 	                  echo "</td>";
 
 	                  echo "<td colspan='1'>";
 	                  	//echo $res2->item_name;  
 	                  	if($res2->tr_type=='payments')  {
-	                  	  echo "Payment Type: ".$details->payment_type."<br>";
+                echo "Payment Type: ".$esc($details->payment_type)."<br>";
 		                  if(!empty(trim($details->payment_note))){
-			                  echo "<b>Note:</b><i>".nl2br($details->payment_note)."</i>";
+			                  echo "<b>Note:</b><i>".nl2br($esc($details->payment_note))."</i>";
 		                  }	
 	                  	}
 	                  	else{
-	                  		echo "<b>Item:</b><i>".$item_name."</i><br>";
+                echo "<b>Item:</b><i>".$esc($item_name)."</i><br>";
 	                  	}
 	                  	
 	                  echo "</td>";
@@ -3108,13 +3125,13 @@ class Reports_model extends CI_Model {
         		}
         	}
         	else{
-        		echo "<tr><td colspan='8'>No Records Found</td></tr>";
+	                echo "<tr><td colspan='10'>No Records Found</td></tr>";
         	}
 
         	/*************************************/
         	//Total
               echo "<tr>";
-              	echo "<td class='text-right' colspan='5'>";
+	              echo "<td class='text-right' colspan='6'>";
               		echo "Total";
               	echo "</td>";
               	echo "<td>";
@@ -3198,7 +3215,7 @@ class Reports_model extends CI_Model {
 
 		$str = "" ; 
 		if($category_id!=''){
-			$str = " and e.id=$category_id"; 
+			$str = " and ".mp_category_sql("e.id",$category_id);
 		}
 
 		$this->db->join("db_category as e","e.`id`= d.`category_id` $str","inner");
@@ -3329,7 +3346,7 @@ class Reports_model extends CI_Model {
 
 		$str = "" ; 
 		if($category_id!=''){
-			$str = " and e.id=$category_id"; 
+			$str = " and ".mp_category_sql("e.id",$category_id);
 		}
 
 		$this->db->join("db_category as e","e.`id`= d.`category_id` $str","right");
@@ -3663,7 +3680,7 @@ class Reports_model extends CI_Model {
 		$this->db->where("i.service_bit", 0);
 		$this->db->where("i.stock >", 0);
 		$this->db->where("i.status", 1);
-		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		if(!empty($category_id)){ mp_category_filter('i.category_id',$category_id); }
 		$this->db->order_by("i.item_name", "asc");
 		$q = $this->db->get();
 
@@ -3815,7 +3832,7 @@ class Reports_model extends CI_Model {
 		$this->db->where("s.sales_date <=", $to_db);
 		$this->db->where("i.child_bit", 1);
 		if(!empty($attribute)){ $this->db->where("va.attribute_type", $attribute); }
-		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		if(!empty($category_id)){ mp_category_filter('i.category_id',$category_id); }
 		$this->db->group_by(array("va.attribute_type","va.attribute_value"));
 		$this->db->order_by("va.attribute_type","asc");
 		$this->db->order_by("qty_sold","desc");
@@ -3837,7 +3854,7 @@ class Reports_model extends CI_Model {
 			$this->db->where("s.sales_date <=", $to_db);
 			$this->db->where("i.child_bit", 1);
 			$this->db->where("i.variant_id IS NOT NULL", null, false);
-			if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+			if(!empty($category_id)){ mp_category_filter('i.category_id',$category_id); }
 			$this->db->group_by("v.variant_name");
 			$this->db->order_by("qty_sold","desc");
 			$q = $this->db->get();
@@ -3914,7 +3931,7 @@ class Reports_model extends CI_Model {
 		$this->db->where("i.store_id", $store_id);
 		$this->db->where("i.service_bit", 0);
 		$this->db->where("i.status", 1);
-		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		if(!empty($category_id)){ mp_category_filter('i.category_id',$category_id); }
 		$this->db->having("(COALESCE(sold.qty,0) + i.stock) > 0");
 		$this->db->order_by("qty_sold","desc");
 		$q = $this->db->get();
@@ -3979,7 +3996,7 @@ class Reports_model extends CI_Model {
 		$this->db->where("i.store_id", $store_id);
 		$this->db->where("i.service_bit", 0);
 		$this->db->where("i.status", 1);
-		if(!empty($category_id)){ $this->db->where("i.category_id", $category_id); }
+		if(!empty($category_id)){ mp_category_filter('i.category_id',$category_id); }
 		$this->db->order_by("qty_sold","desc");
 		$q = $this->db->get();
 

@@ -105,7 +105,8 @@
   $this->load->view('themes/shared/_shared_css');
 ?>
 </head>
-<body>
+<body class="<?= is_array($storefront_navigation_rows ?? null)?'sf-dual-menus':''; ?>">
+<?= $category_navigation ?? ''; ?>
 <?= $content; ?>
 <?php
   // The shop's footer — the SAME partial every other storefront uses.

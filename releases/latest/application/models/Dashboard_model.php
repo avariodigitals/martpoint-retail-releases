@@ -1295,13 +1295,14 @@ class Dashboard_model extends CI_Model
 		$summary['purchase_due'] = floatval($purchase_due->purchase_due);
 
 		// Attendance - detailed staff list
-		$excluded_roles = get_excluded_staff_roles($store_id); // resolve first: helper calls reset_query()
+		$excluded_roles = get_excluded_staff_roles($store_id);
 		$this->db->select("u.id, u.username, u.first_name, u.last_name, r.role_name");
 		$this->db->from("db_users u");
 		$this->db->join("db_roles r", "r.id = u.role_id", "left");
 		$this->db->where("u.store_id", $store_id);
 		$this->db->where("u.status", 1);
 		$this->db->where_not_in("u.role_id", $excluded_roles);
+		$this->db->where_not_in("u.id", get_excluded_user_ids($store_id));
 		$users = $this->db->get()->result();
 		$staff_list = array();
 		$present_count = 0;

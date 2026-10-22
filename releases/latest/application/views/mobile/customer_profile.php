@@ -1,3 +1,13 @@
+<?php
+$customerPhoto = '';
+if (!empty($customer->photo)) {
+  $customerPhoto = $customer->photo;
+} elseif (!empty($customer->customer_photo)) {
+  $customerPhoto = $customer->customer_photo;
+} elseif (!empty($customer->profile_picture)) {
+  $customerPhoto = $customer->profile_picture;
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +16,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — Customer Profile</title>
+  <title><?= $store_name ?? $SITE_TITLE ?? 'MartPoint'; ?> — Customer Profile</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -122,9 +132,7 @@
       </div>
 
       <div class="profile-header">
-        <div class="avatar">
-          <?php if(!empty($customer->photo)): ?><img src="<?= htmlspecialchars(base_url($customer->photo)); ?>" alt="Customer photo"><?php else: ?><?= strtoupper(substr($customer->customer_name, 0, 1)); ?><?php endif; ?>
-        </div>
+        <?php $avatar_url = $customerPhoto; $avatar_name = $customer->customer_name; $avatar_size = 56; $avatar_class = 'avatar'; $this->load->view('components/person_avatar'); ?>
         <div class="profile-title">
           <div class="name"><?= $customer->customer_name; ?></div>
           <div class="code"><?= $customer->customer_code; ?></div>

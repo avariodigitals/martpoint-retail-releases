@@ -140,7 +140,7 @@
 
   <?php
     $share_lines = [];
-    $share_lines[] = '*' . ($SITE_TITLE ?? 'MartPoint') . '*';
+    $share_lines[] = '*' . ($store_name ?? $SITE_TITLE ?? 'MartPoint') . '*';
     $share_lines[] = 'Account Book: ' . ($account->account_name ?? '');
     $share_lines[] = 'Code: ' . ($account->account_code ?? '');
     $share_lines[] = 'Period: ' . $from . ' to ' . $to;

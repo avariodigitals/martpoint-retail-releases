@@ -31,10 +31,9 @@ class Admin extends MY_Controller {
 		$data['store_id'] = $store_id;
 
 		/* Store context counts */
-		if(!is_admin()){
-			$this->db->where('store_id', $store_id);
-		}
-		$data['total_users'] = $this->db->count_all_results('db_users');
+		$data['total_users'] = is_admin()
+			? get_user_usage_all_stores()
+			: get_user_usage($store_id);
 
 		if(!is_admin()){
 			$this->db->where('store_id', $store_id);

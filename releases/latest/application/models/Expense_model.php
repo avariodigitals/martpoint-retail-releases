@@ -92,6 +92,8 @@ class Expense_model extends CI_Model {
 
 	//Save Cutomers
 	public function verify_and_save(){
+        $gardenLink=(bool)$this->input->post('garden_project_id');
+        if ($gardenLink) { $this->load->helper('garden');$this->db->trans_begin(); }
 		$category_id = $this->input->post('category_id', TRUE);
 		$expense_for = $this->input->post('expense_for', TRUE);
 		$expense_amt = $this->input->post('expense_amt', TRUE);
@@ -130,7 +132,7 @@ class Expense_model extends CI_Model {
 	    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
 	    			);
 		
-		$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+		$info['store_id']=get_current_store_id();
 
 		$q1 = $this->db->insert('db_expense', $info);
 		$reference_table_id = $this->db->insert_id();
@@ -153,16 +155,23 @@ class Expense_model extends CI_Model {
 														'supplier_id'  			=> null,
 												));
 			if(!$insert_bit){
+                if ($gardenLink) $this->db->trans_rollback();
 				return "failed";
 			}
 		}
 		//end
 
 		if ($q1){
+                if ($gardenLink) {
+                    $gardenLinkError=mp_garden_link_created_document('expense',$reference_table_id);
+                    if ($gardenLinkError!==null || $this->db->trans_status()===false) { $this->db->trans_rollback();return $gardenLinkError ?: 'Could not save linked expense.'; }
+                    $this->db->trans_commit();
+                }
 			    $this->session->set_flashdata('success', 'Success!! Record Added Successfully!');
 		        return "success";
 		}
 		else{
+            if ($gardenLink) $this->db->trans_rollback();
 		        return "failed";
 		}
 		

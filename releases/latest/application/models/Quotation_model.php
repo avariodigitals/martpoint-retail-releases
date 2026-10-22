@@ -3,6 +3,39 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Quotation_model extends CI_Model {
 
+    /** Reuses the public quotation response controller; only hashes are persisted. */
+    public function issue_customer_response_token($id) {
+        $store=(int)get_current_store_id();$this->db->trans_begin();
+        try {
+            $this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',[$store]);
+            $quote=$this->db->query('SELECT * FROM db_quotation WHERE id=? AND store_id=? FOR UPDATE',[(int)$id,$store])->row();
+            if (!$quote || trim((string)$quote->quotation_status)==='Draft' || $quote->lifecycle_status!=='issued' || ($quote->sales_status ?? '')==='Converted') throw new InvalidArgumentException('Only a current final, unanswered quotation can receive a response link.');
+            $expiry=(string)($quote->expire_date ?? '');
+            if ($expiry && $expiry!=='0000-00-00' && $expiry<date('Y-m-d')) throw new InvalidArgumentException('Update the expired quotation before requesting a response.');
+            $token=bin2hex(random_bytes(32));$end=strtotime('+7 days');
+            if ($expiry && $expiry!=='0000-00-00') $end=min($end,strtotime($expiry.' 23:59:59'));
+            if (!$this->db->where('id',(int)$id)->where('store_id',$store)->update('db_quotation',['response_token_hash'=>hash('sha256',$token),'response_token_expires_at'=>date('Y-m-d H:i:s',$end)])) throw new RuntimeException('Could not create response link.');
+            if ($this->db->trans_status()===false) throw new RuntimeException('Could not create response link.');
+            $this->db->trans_commit();return $token;
+        } catch (Throwable $e) { $this->db->trans_rollback();throw $e; }
+    }
+
+
+    /** Record an evidenced customer acceptance using the shared quotation audit. */
+    public function record_customer_acceptance($id,$customerId,$revision,$evidence) {
+        $evidence=trim((string)$evidence);$store=(int)get_current_store_id();
+        if (!$evidence || strlen($evidence)>255) throw new InvalidArgumentException('Describe who approved, when and how (up to 255 characters).');
+        $quote=$this->db->query('SELECT * FROM db_quotation WHERE id=? AND store_id=? AND customer_id=? FOR UPDATE',[(int)$id,$store,(int)$customerId])->row();
+        if (!$quote || (int)$quote->revision_no!==(int)$revision || trim((string)$quote->quotation_status)==='Draft') throw new InvalidArgumentException('Choose the current final quotation revision.');
+        if ($quote->lifecycle_status==='accepted') return true;
+        $expiry=(string)($quote->expire_date ?? '');
+        if (in_array($quote->lifecycle_status,['cancelled','declined','expired'],true) || ($expiry && $expiry!=='0000-00-00' && $expiry<date('Y-m-d'))) throw new InvalidArgumentException('This quotation is no longer available for approval.');
+        if (!$this->db->where('id',(int)$id)->where('store_id',$store)->update('db_quotation',['lifecycle_status'=>'accepted','responded_at'=>date('Y-m-d H:i:s'),'response_reason'=>$evidence,'response_token_hash'=>null])) throw new RuntimeException('Could not record acceptance.');
+        if (!$this->db->insert('db_quotation_lifecycle_log',['store_id'=>$store,'quotation_id'=>(int)$id,'from_status'=>$quote->lifecycle_status,'to_status'=>'accepted','reason'=>$evidence,
+            'actor'=>substr((string)$this->session->userdata('inv_username'),0,60),'channel'=>'ui'])) throw new RuntimeException('Could not record approval history.');
+        return true;
+    }
+
 	//Datatable start
 	var $table = 'db_quotation as a';
 	var $column_order = array( 
@@ -236,8 +269,26 @@ class Quotation_model extends CI_Model {
 		);
 		$this->db->trans_begin();
 		if($quote_id){
+			$before = $this->db->select('lifecycle_status')->where('id',$quote_id)->where('store_id',$store_id)->get('db_quotation')->row();
+			$wasAccepted = $before && trim((string)($before->lifecycle_status ?? '')) === 'accepted';
+			if($wasAccepted && $this->db->field_exists('lifecycle_status','db_quotation')){
+				$header['lifecycle_status'] = 'issued';
+				foreach(['responded_at','response_reason','response_token_hash','response_token_expires_at'] as $col){
+					if($this->db->field_exists($col,'db_quotation')) $header[$col] = null;
+				}
+			}
 			$this->db->where('id', $quote_id)->where('store_id', $store_id)->update('db_quotation', $header);
 			$this->db->where('quotation_id', $quote_id)->where('store_id', $store_id)->delete('db_quotationitems');
+			if($wasAccepted && $this->db->table_exists('db_quotation_lifecycle_log')){
+				if(!$this->db->insert('db_quotation_lifecycle_log',[
+					'store_id'=>(int)$store_id,'quotation_id'=>(int)$quote_id,'from_status'=>'accepted','to_status'=>'issued',
+					'reason'=>'Quotation edited; previous customer acceptance is no longer valid.',
+					'actor'=>(string)($this->session->userdata('inv_username') ?: 'system'),'channel'=>'admin',
+				])){
+					$this->db->trans_rollback();
+					return 'Quotation saved but its acceptance history could not be recorded. Please try again.';
+				}
+			}
 		}else{
 			$header['quotation_code'] = get_init_code('quotation');
 			$header['count_id'] = get_count_id('db_quotation');
@@ -280,7 +331,8 @@ class Quotation_model extends CI_Model {
 		$quotation_note = $this->input->post('quotation_note', FALSE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$quotation_id = $this->input->post('quotation_id', TRUE);
-		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
+		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
 		$store_id = $this->input->post('store_id', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
@@ -360,7 +412,29 @@ class Quotation_model extends CI_Model {
 		    			);
 			$quotation_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 			$quotation_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
+			$before = $this->db->select('lifecycle_status')->where('id',$quotation_id)->where('store_id',$quotation_entry['store_id'])->get('db_quotation')->row();
+			$wasAccepted = $before && trim((string)($before->lifecycle_status ?? '')) === 'accepted';
+			if($wasAccepted && $this->db->field_exists('lifecycle_status','db_quotation')){
+				$quotation_entry['lifecycle_status'] = 'issued';
+				foreach(['responded_at','response_reason','response_token_hash','response_token_expires_at'] as $col){
+					if($this->db->field_exists($col,'db_quotation')) $quotation_entry[$col] = null;
+				}
+			}
 			$q1 = $this->db->where('id',$quotation_id)->update('db_quotation', $quotation_entry);
+			if($wasAccepted && $this->db->table_exists('db_quotation_lifecycle_log')){
+				if(!$this->db->insert('db_quotation_lifecycle_log',[
+					'store_id'=>(int)$quotation_entry['store_id'],
+					'quotation_id'=>(int)$quotation_id,
+					'from_status'=>'accepted',
+					'to_status'=>'issued',
+					'reason'=>'Quotation edited; previous customer acceptance is no longer valid.',
+					'actor'=>(string)($this->session->userdata('inv_username') ?: 'system'),
+					'channel'=>'admin',
+				])){
+					$this->db->trans_rollback();
+					return 'Quotation saved but its acceptance history could not be recorded. Please try again.';
+				}
+			}
 
 			##############################################START
 			//FIND THE PREVIOUSE ITEM LIST ID'S
@@ -473,6 +547,9 @@ class Quotation_model extends CI_Model {
 			return "Database error: " . $msg . " [q1=" . var_export($q1, true) . ", insert_id=" . var_export($quotation_id, true) . ", last_query=" . $this->db->last_query() . "]";
 		}
 
+        $this->load->helper('garden');
+        $gardenLinkError=$command==='save' ? mp_garden_link_created_document('quotation',$quotation_id) : null;
+        if ($gardenLinkError!==null) { $this->db->trans_rollback();return $gardenLinkError; }
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully! '.$sms_info);
 		return "success<<<###>>>$quotation_id";
@@ -537,10 +614,16 @@ class Quotation_model extends CI_Model {
 	
 	public function get_items_info($rowcount,$item_id){
 		$customer_id = $this->input->post('customer_id', TRUE);
-		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
+		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
 
-		$res1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get()->row();
-		$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+		$res1=$this->db->select('*')->from('db_items')->where('id',(int)$item_id)->where('store_id',(int)get_current_store_id())->where('status',1)->get()->row();
+		if(!$res1) return '';
+		// Tax is optional on legacy catalogue records. A missing tax must not
+		// make the quotation row endpoint fail and silently lose the item.
+		$q3=$res1->tax_id ? $this->db->where('id',(int)$res1->tax_id)->get('db_tax')->row() : null;
+		$taxRate=(float)($q3->tax ?? 0);
+		$taxType=in_array((string)($res1->tax_type ?? ''),['Inclusive','Exclusive'],true) ? (string)$res1->tax_type : 'Exclusive';
 
 		//Get Customer Price 
 		$quotation_price = get_price_level_price($customer_id,$res1->sales_price);
@@ -549,7 +632,7 @@ class Quotation_model extends CI_Model {
 		
 		$item_available_qty = total_available_qty_items_of_warehouse($warehouse_id,null,$res1->id);// $res1->stock;
 		
-		$item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($quotation_price,$q3->tax) :calculate_exclusive($quotation_price,$q3->tax);
+		$item_tax_amt = ($taxType=='Inclusive') ? calculate_inclusive($quotation_price,$taxRate) :calculate_exclusive($quotation_price,$taxRate);
 
 		$info = array(
 							'item_id' 					=> $res1->id, 
@@ -559,11 +642,11 @@ class Quotation_model extends CI_Model {
 							'item_available_qty' 		=> $item_available_qty,
 							'item_price' 				=> $res1->price, 
 							'item_quotation_price' 			=> $quotation_price, 
-							'item_tax_name' 			=> $q3->tax_name, 
+							'item_tax_name' 			=> $q3->tax_name ?? 'No Tax',
 							'item_quotation_qty' 			=> 1, 
-							'item_tax_id' 				=> $q3->id, 
-							'item_tax' 					=> $q3->tax, 
-							'item_tax_type' 			=> $res1->tax_type, 
+							'item_tax_id' 				=> (int)($q3->id ?? 0),
+							'item_tax' 					=> $taxRate,
+							'item_tax_type' 			=> $taxType,
 							'item_tax_amt' 				=> $item_tax_amt, 
 							'item_discount' 			=> 0, 
 							'item_discount_type' 		=> 'Percentage', 

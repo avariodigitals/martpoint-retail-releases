@@ -244,10 +244,12 @@ class Email_template_model extends CI_Model {
           <div class="panel">
             <p class="kv"><b>Payment:</b> {payment_method}</p>
             <p class="kv"><b>Shipping:</b> {shipping_method}</p>
+            <p class="kv"><b>Fulfilment location:</b> {fulfilment_branch}</p>
+            <p class="kv"><b>Prescription:</b> {prescription_link}</p>
           </div>
           <div class="cta-wrap"><a class="btn" href="{dashboard_link}">Open order in MartPoint</a></div>
           <p class="help">You are receiving this because a customer placed an order on your MartPoint online store.</p>';
-		$text = "NEW ONLINE ORDER\n\n{customer_name} just placed order #{order_code} on your online store.\n\nCustomer\n{customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\n\nOrder items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment: {payment_method}\nShipping: {shipping_method}\n\nManage this order: {dashboard_link}";
+		$text = "NEW ONLINE ORDER\n\n{customer_name} just placed order #{order_code} on your online store.\n\nCustomer\n{customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\n\nOrder items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment: {payment_method}\nShipping: {shipping_method}\nFulfilment location: {fulfilment_branch}\nPrescription: {prescription_link}\n\nManage this order: {dashboard_link}";
 		return [
 			'template_key'   => 'online_order_owner',
 			'template_name'  => 'Online Order Received (Store Owner)',

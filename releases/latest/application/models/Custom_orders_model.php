@@ -69,13 +69,24 @@ class Custom_orders_model extends CI_Model {
     // ========== CRUD ==========
 
     public function save($data, $id = null) {
+        $store_id = (int)get_current_store_id();
+        $data['store_id'] = $store_id;
+        // Staff accounts live in db_users. The old db_staff reference caused
+        // custom-order saves to query a table absent from the install schema.
+        foreach (['customer_id'=>'db_customers','item_id'=>'db_items','staff_id'=>'db_users'] as $field=>$table) {
+            if (!empty($data[$field]) && !$this->db->where('id',(int)$data[$field])->where('store_id',$store_id)->get($table)->row()) {
+                throw new InvalidArgumentException('The selected order relationship does not belong to this store.');
+            }
+        }
         $this->db->trans_begin();
         try {
+            $this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',[$store_id]);
             $old_status = null;
             if ($id) {
-                $existing = $this->db->where('id', $id)->get('db_custom_orders')->row();
+                $existing = $this->db->where('id', $id)->where('store_id',$store_id)->get('db_custom_orders')->row();
+                if (!$existing) throw new InvalidArgumentException('Order not found.');
                 if ($existing) $old_status = $existing->status;
-                $this->db->where('id', $id);
+                $this->db->where('id', $id)->where('store_id',$store_id);
                 $this->db->update('db_custom_orders', $data);
                 $order_id = $id;
             } else {
@@ -96,15 +107,17 @@ class Custom_orders_model extends CI_Model {
             if ($id && $old_status && isset($data['status']) && $data['status'] != $old_status) {
                 $this->log_history($order_id, $old_status, $data['status'], 'Status updated');
             }
+            if ($this->db->trans_status() === false) throw new RuntimeException('Could not save order.');
             $this->db->trans_commit();
             return $order_id;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->db->trans_rollback();
             throw $e;
         }
     }
 
     public function log_history($order_id, $old_status, $new_status, $note='') {
+        if (!$this->db->where('id',(int)$order_id)->where('store_id',get_current_store_id())->get('db_custom_orders')->row()) throw new InvalidArgumentException('Order not found.');
         $this->db->insert('db_custom_order_history', [
             'custom_order_id' => $order_id,
             'old_status' => $old_status,
@@ -118,13 +131,15 @@ class Custom_orders_model extends CI_Model {
     public function get($id) {
         $this->db->select('a.*, c.customer_name, c.mobile, c.customer_code, b.item_name as template_item_name, b.custom_order_fields_json');
         $this->db->from('db_custom_orders a');
-        $this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
-        $this->db->join('db_items b', 'b.id = a.item_id', 'left');
+        $this->db->join('db_customers c', 'c.id = a.customer_id AND c.store_id=a.store_id', 'left');
+        $this->db->join('db_items b', 'b.id = a.item_id AND b.store_id=a.store_id', 'left');
         $this->db->where('a.id', $id);
+        $this->db->where('a.store_id',get_current_store_id());
         return $this->db->get()->row();
     }
 
     public function get_history($order_id) {
+        if (!$this->get($order_id)) return [];
         $this->db->where('custom_order_id', $order_id);
         $this->db->order_by('created_at', 'DESC');
         return $this->db->get('db_custom_order_history')->result();
@@ -133,8 +148,9 @@ class Custom_orders_model extends CI_Model {
     public function get_by_customer($customer_id, $limit = 50) {
         $this->db->select('a.*, b.item_name as template_item_name');
         $this->db->from('db_custom_orders a');
-        $this->db->join('db_items b', 'b.id = a.item_id', 'left');
+        $this->db->join('db_items b', 'b.id = a.item_id AND b.store_id=a.store_id', 'left');
         $this->db->where('a.customer_id', $customer_id);
+        $this->db->where('a.store_id',get_current_store_id());
         $this->db->order_by('a.created_at', 'DESC');
         $this->db->limit($limit);
         return $this->db->get()->result();
@@ -142,6 +158,7 @@ class Custom_orders_model extends CI_Model {
 
     public function delete($id) {
         $this->db->where('id', $id);
+        $this->db->where('store_id',get_current_store_id());
         return $this->db->delete('db_custom_orders');
     }
 
@@ -151,8 +168,8 @@ class Custom_orders_model extends CI_Model {
         $store_id = get_current_store_id();
         $this->db->select('a.*, c.customer_name, c.mobile, c.customer_code, b.item_name as template_item_name');
         $this->db->from($this->table);
-        $this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
-        $this->db->join('db_items b', 'b.id = a.item_id', 'left');
+        $this->db->join('db_customers c', 'c.id = a.customer_id AND c.store_id=a.store_id', 'left');
+        $this->db->join('db_items b', 'b.id = a.item_id AND b.store_id=a.store_id', 'left');
         $this->db->where('a.store_id', $store_id);
 
         $i = 0;
@@ -202,6 +219,7 @@ class Custom_orders_model extends CI_Model {
     // ========== Stats ==========
     public function count_by_customer($customer_id) {
         $this->db->where('customer_id', $customer_id);
+        $this->db->where('store_id',get_current_store_id());
         return $this->db->count_all_results('db_custom_orders');
     }
 

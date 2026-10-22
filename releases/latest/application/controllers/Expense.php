@@ -20,7 +20,7 @@ class Expense extends MY_Controller {
 	}
 	public function add()
 	{
-		if(is_mobile()){ redirect('mobile/finance/expenses/form'); }
+		if(is_mobile()){ $project=(int)$this->input->get('garden_project_id');redirect('mobile/finance/expenses/form'.($project ? '?garden_project_id='.$project : '')); }
 		$this->permission_check('expense_add');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('expenses');
@@ -30,6 +30,7 @@ class Expense extends MY_Controller {
 	
 	
 	public function newexpense(){
+        $this->permission_check_with_msg('expense_add');
 		$this->form_validation->set_rules('expense_date', 'Expense Date', 'trim|required');
 		$this->form_validation->set_rules('category_id', 'Category Name', 'trim|required');
 		$this->form_validation->set_rules('expense_amt', 'Expense Amount', 'trim|required');

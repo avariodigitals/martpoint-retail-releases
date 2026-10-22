@@ -62,7 +62,7 @@
           <h1>Public Catalogue</h1>
         </div>
       </div>
-      <div class="greeting">Hello, <?= $display_name; ?></div>
+      <div class="greeting">Hello, <?= htmlspecialchars(function_exists('mp_current_user_first_name') ? mp_current_user_first_name('User') : $display_name); ?></div>
 
       <div class="info-banner">
         <i class="fa fa-info-circle"></i> These settings are managed from Business Profile → Templates &amp; Labels.

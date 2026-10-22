@@ -1,3 +1,4 @@
+<?php $bm_mobile_invoice=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; if($bm_mobile_invoice)$page_title=htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint',ENT_QUOTES,'UTF-8').' — Invoice editor'; ?>
 <!DOCTYPE html>
 <html>
 
@@ -283,6 +284,7 @@ padding-right: 2px;
   #sales-form #sales_table tbody td { display: block; width: 100% !important; min-width: 0 !important; border: none; padding: 4px 0; }
   #sales-form #sales_table .form-control { min-height: 38px; }
 </style>
+<?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
 
 
@@ -375,7 +377,8 @@ padding-right: 2px;
   <div class="content-wrapper">
     <div class="mp-mobile-topbar">
       <div>
-        <h1>Quick Sale</h1>
+        <?php if($bm_mobile_invoice): ?><div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint',ENT_QUOTES,'UTF-8'); ?></div><?php endif; ?>
+        <h1><?= $bm_mobile_invoice?(isset($sales_id)?'Edit invoice':'Create invoice'):'Quick Sale'; ?></h1>
         <div class="sub"><?= $init_code . ' ' . $count_id; ?></div>
       </div>
       <div class="avatar"><?= strtoupper(substr($this->session->userdata('display_name') ?: 'U',0,2)); ?></div>
@@ -417,6 +420,7 @@ padding-right: 2px;
                         <!-- form start -->
                          <!-- OK START -->
                         <?= form_open('#', array('class' => 'form-horizontal', 'id' => 'sales-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
+<?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'invoice','garden_document_edit'=>!empty($sales_id)]); ?>
                            <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
                            <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
                            <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
@@ -424,6 +428,15 @@ padding-right: 2px;
 
                           <?php if(isset($quotation_id)) {?>
                            <input type="hidden" id="quotation_id" name="quotation_id" value="<?php echo $quotation_id;; ?>">
+                           <input type="hidden" name="quotation_revision" value="<?= (int)($quotation_revision ?? 0); ?>">
+                           <?php if(!empty($quotation_acceptance_override)): ?>
+                           <div class="alert alert-warning" style="margin:15px 0;">
+                             <label style="font-weight:400;margin:0;display:flex;gap:10px;align-items:flex-start;">
+                               <input type="checkbox" name="quotation_acceptance_override" value="1" style="margin-top:3px;">
+                               <span>I authorise converting this quotation without recorded customer acceptance. A manager override is recorded in the quotation and audit history.</span>
+                             </label>
+                           </div>
+                           <?php endif; ?>
                            <?php } ?>
 
                            <div class="box-body">
@@ -1027,7 +1040,7 @@ padding-right: 2px;
 <!-- Bootstrap WYSIHTML5 -->
 <script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
 
-<script src="<?php echo $theme_link; ?>js/sales.js?v=12"></script>  
+<script src="<?php echo $theme_link; ?>js/sales.js?v=14"></script>
 <script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
       <script>
 
@@ -1511,5 +1524,6 @@ padding-right: 2px;
         });
       </script>
       <?php $this->load->view('mobile/bottom_nav', ['active' => 'sale']); ?>
+      <?php if($bm_mobile_invoice): $this->load->view('mobile/chat'); endif; ?>
 </body>
 </html>

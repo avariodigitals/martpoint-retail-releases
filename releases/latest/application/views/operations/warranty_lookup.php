@@ -11,7 +11,7 @@
 <div class="mp-card-form">
   <div class="mp-card-head"><h3>Warranty Lookup</h3></div>
   <div class="mp-card-body">
-    <form method="get" class="mp-form-grid" style="margin-bottom:20px;grid-template-columns:1fr auto auto;">
+    <form method="get" class="mp-form-grid bm-warranty-search" style="margin-bottom:20px;grid-template-columns:1fr auto auto;">
       <div class="mp-form-group">
         <label>Search</label>
         <input type="text" name="search" class="mp-form-control" placeholder="Serial, IMEI, invoice, customer, or product name" value="<?= htmlspecialchars($search ?? ''); ?>">

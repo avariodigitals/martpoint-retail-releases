@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — Customers</title>
+  <title><?= $store_name ?? $SITE_TITLE ?? 'MartPoint'; ?> — Customers</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -20,7 +20,7 @@
     .topbar .back { color: var(--mp-primary); font-size: 20px; text-decoration: none; }
     .topbar h1 { font-size: 20px; font-weight: 700; margin: 0;}
     .topbar .add-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--mp-primary); color: #fff; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 16px; }
-    .summary-card { background: linear-gradient(135deg, var(--mp-purple) 0%, #5B21B6 100%); border-radius: 16px; padding: 20px; color: #fff; margin-bottom: 16px; }
+    .summary-card { background: linear-gradient(135deg, var(--mp-primary) 0%, var(--mp-primary-dark) 100%); border-radius: 16px; padding: 20px; color: #fff; margin-bottom: 16px; }
     .summary-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 6px; }
     .summary-card .value { font-size: 28px; font-weight: 700; }
     .search-bar { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 14px; padding: 10px 14px; border: 1px solid var(--mp-border); margin-bottom: 12px; }
@@ -31,6 +31,8 @@
     .customer-card { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid var(--mp-border); }
     .customer-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .customer-title { flex: 1; min-width: 0; }
+    .customer-identity { display:flex; align-items:center; gap:10px; min-width:0; }
+    .customer-identity .mp-person-avatar { flex-shrink:0; }
     .customer-title .name { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .customer-title .code { font-size: 12px; color: var(--mp-muted); margin-top: 3px; }
     .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; }
@@ -97,7 +99,10 @@
             <div class="customer-card" data-name="<?= strtolower($c->customer_name); ?>" data-mobile="<?= strtolower($c->mobile ?? ''); ?>" data-code="<?= strtolower($c->customer_code ?? ''); ?>">
               <div class="customer-header">
                 <div class="customer-title">
-                  <div class="name"><?= $c->customer_name; ?></div>
+                  <div class="customer-identity">
+                    <?php $avatar_url = $c->photo ?? ($c->customer_photo ?? ($c->profile_picture ?? '')); $avatar_name = $c->customer_name; $avatar_size = 40; $avatar_class = 'customer-list-avatar'; $this->load->view('components/person_avatar'); ?>
+                    <div class="name"><?= $c->customer_name; ?></div>
+                  </div>
                   <div class="code"><?= $c->customer_code ?: '-'; ?> · <?= $c->mobile ?: 'No phone'; ?></div>
                 </div>
                 <span class="badge <?= $c->status == 1 ? 'active' : 'inactive'; ?>"><?= $c->status == 1 ? 'Active' : 'Inactive'; ?></span>

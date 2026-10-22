@@ -12,6 +12,228 @@ class Dashboard extends MY_Controller {
 		echo json_encode($data);
 	}
 
+	/**
+	 * Building Materials gets an operations workspace instead of the generic
+	 * retail dashboard.  The screen is intentionally read-only: it composes
+	 * live signals from the existing CRM, quotation, purchase, delivery,
+	 * inventory and sales tables and links each signal back to its owner.
+	 */
+	private function buildingMaterialsWorkspace(){
+		if(!$this->permissions('dashboard_view')){
+			$this->load->view('role/dashboard_empty', $this->data);
+			return;
+		}
+
+		$storeId = (int)get_current_store_id();
+		$this->load->model('leads_model', 'building_leads');
+		$leadStats = $this->building_leads->getLeadStats($storeId);
+		$quoteStats = ['issued'=>0, 'accepted'=>0, 'pipeline'=>0.0, 'total'=>0];
+		$recentQuotes = [];
+		$pendingPurchases = 0;
+		$lowStock = 0;
+		$deliveryStats = ['pending'=>0, 'today'=>0];
+		$outstanding = 0.0;
+		$activity = [];
+
+		try {
+			if($this->db->table_exists('db_quotation')){
+				$hasLifecycle = $this->db->field_exists('lifecycle_status', 'db_quotation');
+				$hasQuotationStatus = $this->db->field_exists('quotation_status', 'db_quotation');
+				$hasSalesStatus = $this->db->field_exists('sales_status', 'db_quotation');
+				$hasTotal = $this->db->field_exists('grand_total', 'db_quotation');
+				$quoteStats['total'] = (int)$this->db->where('store_id', $storeId)->count_all_results('db_quotation');
+
+				$issuedQuery = $this->db->where('store_id', $storeId);
+				if($hasQuotationStatus) $issuedQuery->where('quotation_status !=', 'Draft');
+				if($hasLifecycle) {
+					$issuedQuery->where("(lifecycle_status IS NULL OR lifecycle_status = '' OR lifecycle_status NOT IN ('accepted','declined','cancelled','expired'))", null, false);
+				} elseif($hasSalesStatus) {
+					$issuedQuery->where('sales_status !=', 'Converted');
+				}
+				$quoteStats['issued'] = (int)$issuedQuery->count_all_results('db_quotation');
+
+				$acceptedQuery = $this->db->where('store_id', $storeId);
+				if($hasLifecycle) $acceptedQuery->where('lifecycle_status', 'accepted');
+				elseif($hasSalesStatus) $acceptedQuery->where('sales_status', 'Converted');
+				else $acceptedQuery = null;
+				$quoteStats['accepted'] = $acceptedQuery ? (int)$acceptedQuery->count_all_results('db_quotation') : 0;
+
+				if($hasTotal){
+					$pipelineQuery = $this->db->select_sum('grand_total', 'amount')->where('store_id', $storeId);
+					if($hasQuotationStatus) $pipelineQuery->where('quotation_status !=', 'Draft');
+					if($hasLifecycle) {
+						$pipelineQuery->where("(lifecycle_status IS NULL OR lifecycle_status = '' OR lifecycle_status NOT IN ('declined','cancelled','expired'))", null, false);
+					} elseif($hasSalesStatus) {
+						$pipelineQuery->where('sales_status !=', 'Converted');
+					}
+					$pipelineRow = $pipelineQuery->get('db_quotation')->row();
+					$quoteStats['pipeline'] = (float)($pipelineRow->amount ?? 0);
+				}
+
+				$select = 'q.id, q.quotation_code, q.grand_total, q.quotation_date, q.quotation_status, q.customer_id';
+				if($hasLifecycle) $select .= ', q.lifecycle_status';
+				$recentQuotes = $this->db->select($select . ', c.customer_name', false)
+					->from('db_quotation q')->join('db_customers c', 'c.id=q.customer_id AND c.store_id=q.store_id', 'left')
+					->where('q.store_id', $storeId)->order_by('q.id', 'desc')->limit(5)->get()->result();
+			}
+
+			if($this->db->table_exists('db_purchase') && $this->db->field_exists('purchase_status', 'db_purchase')){
+				$pendingPurchases = (int)$this->db->where('store_id', $storeId)
+					->where_in('purchase_status', ['Draft','Ordered','Partially Received'])
+					->count_all_results('db_purchase');
+			}
+
+			if($this->db->table_exists('db_items') && $this->db->field_exists('stock', 'db_items') && $this->db->field_exists('alert_qty', 'db_items')){
+				$lowStock = (int)$this->db->where('store_id', $storeId)->where('status', 1)
+					->where('stock <= alert_qty', null, false)->count_all_results('db_items');
+			}
+
+			if($this->db->table_exists('db_delivery_schedules')){
+				$deliveryStats['pending'] = (int)$this->db->where('store_id', $storeId)
+					->where_in('status', ['planned','ready','out_for_delivery'])->count_all_results('db_delivery_schedules');
+				$deliveryStats['today'] = (int)$this->db->where('store_id', $storeId)
+					->where('schedule_date', date('Y-m-d'))->where_in('status', ['planned','ready','out_for_delivery'])
+					->count_all_results('db_delivery_schedules');
+			}
+
+			if($this->db->table_exists('db_sales') && $this->db->field_exists('grand_total', 'db_sales')){
+				$paidField = $this->db->field_exists('paid_amount', 'db_sales') ? 'paid_amount' : null;
+				$amountSql = $paidField
+					? 'SUM(GREATEST(COALESCE(grand_total,0) - COALESCE(paid_amount,0),0)) AS amount'
+					: 'SUM(COALESCE(grand_total,0)) AS amount';
+				$outstandingQuery = $this->db->select($amountSql, false)->where('store_id', $storeId);
+				if($this->db->field_exists('sales_status', 'db_sales')) $outstandingQuery->where('sales_status !=', 'Cancelled');
+				$row = $outstandingQuery->get('db_sales')->row();
+				$outstanding = (float)($row->amount ?? 0);
+			}
+
+			if($this->db->table_exists('db_leads')){
+				$leadRows = $this->db->select('id, name, interest, status, created_at')
+					->where('store_id', $storeId)->order_by('id', 'desc')->limit(3)->get('db_leads')->result();
+				foreach($leadRows as $lead){
+					$activity[] = ['kind'=>'lead', 'title'=>'New enquiry from ' . ($lead->name ?: 'Client'), 'detail'=>($lead->interest ?: 'Building materials enquiry'), 'date'=>$lead->created_at, 'url'=>base_url('leads')];
+				}
+			}
+			foreach(array_slice($recentQuotes, 0, 2) as $quote){
+				$activity[] = ['kind'=>'quote', 'title'=>'Quotation ' . ($quote->quotation_code ?: '#' . $quote->id), 'detail'=>($quote->customer_name ?: 'Client') . ' · ' . ($quote->lifecycle_status ?? $quote->quotation_status ?? 'Issued'), 'date'=>$quote->quotation_date, 'url'=>base_url('quotation')];
+			}
+			if($this->db->table_exists('db_delivery_schedules')){
+				$deliveryRows = $this->db->select('schedule_code, route_name, status, schedule_date')->where('store_id', $storeId)->order_by('id', 'desc')->limit(2)->get('db_delivery_schedules')->result();
+				foreach($deliveryRows as $delivery){
+					$activity[] = ['kind'=>'delivery', 'title'=>'Delivery ' . ($delivery->schedule_code ?: 'scheduled'), 'detail'=>($delivery->route_name ?: 'Route pending') . ' · ' . ucwords(str_replace('_', ' ', $delivery->status)), 'date'=>$delivery->schedule_date, 'url'=>base_url('operations/delivery_scheduling')];
+				}
+			}
+		} catch(Throwable $e) {
+			log_message('error', 'Building Materials workspace data failed: ' . $e->getMessage());
+		}
+
+		usort($activity, function($a, $b){ return strcmp((string)($b['date'] ?? ''), (string)($a['date'] ?? '')); });
+		$data = array_merge($this->data, [
+			'page_title' => 'Building Materials Workspace',
+			'building_workspace' => [
+				'active_projects' => $this->db->table_exists('db_service_job_context') ? (int)$this->db->where('store_id',$storeId)->where_not_in('stage',['closed','cancelled','completed','paid'])->count_all_results('db_service_job_context') : 0,
+				'survey_count' => $this->db->table_exists('db_service_project_records') ? (int)$this->db->where('store_id',$storeId)->where('record_type','site_survey')->count_all_results('db_service_project_records') : 0,
+				'store_name' => (string)($this->session->userdata('store_name') ?: 'MartPoint'),
+				'lead_stats' => $leadStats,
+				'quote_stats' => $quoteStats,
+				'recent_quotes' => $recentQuotes,
+				'pending_purchases' => $pendingPurchases,
+				'low_stock' => $lowStock,
+				'delivery_stats' => $deliveryStats,
+				'outstanding' => $outstanding,
+				'activity' => array_slice($activity, 0, 6),
+			],
+		]);
+		$data['content'] = $this->load->view('building_materials/dashboard', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	/**
+	 * Pharmacy gets an operations-first workspace instead of the generic
+	 * retail KPI wall. The cards are deliberately composed from existing
+	 * pharmacy tables and link back to the same workflows staff already use.
+	 */
+	private function pharmacyWorkspace(){
+		if(!$this->permissions('dashboard_view')){
+			$this->load->view('role/dashboard_empty', $this->data);
+			return;
+		}
+
+		$storeId = (int)get_current_store_id();
+		$today = date('Y-m-d');
+		$workspace = [
+			'sales_today' => 0.0,
+			'invoices_today' => 0,
+			'prescriptions_today' => 0,
+			'pending_prescriptions' => 0,
+			'refill_due' => 0,
+			'low_stock' => 0,
+			'expiring_soon' => 0,
+			'expired' => 0,
+			'online_orders' => 0,
+			'branch_count' => 0,
+			'recent_notes' => [],
+			'recent_sales' => [],
+		];
+
+		try {
+			if($this->db->table_exists('db_sales')){
+				$sales = $this->db->select('COALESCE(SUM(grand_total),0) AS amount, COUNT(*) AS invoices', false)
+					->where('store_id', $storeId)->where('sales_date', $today)->where('sales_status', 'Final')
+					->get('db_sales')->row();
+				$workspace['sales_today'] = (float)($sales->amount ?? 0);
+				$workspace['invoices_today'] = (int)($sales->invoices ?? 0);
+				$workspace['recent_sales'] = $this->db->select('s.sales_code, s.grand_total, s.created_time, c.customer_name', false)
+					->from('db_sales s')->join('db_customers c', 'c.id=s.customer_id AND c.store_id=s.store_id', 'left')
+					->where('s.store_id', $storeId)->where('s.sales_status', 'Final')
+					->order_by('s.id', 'desc')->limit(5)->get()->result();
+			}
+
+			if($this->db->table_exists('db_medical_notes')){
+				$workspace['prescriptions_today'] = (int)$this->db->where('store_id', $storeId)->where('note_date', $today)->count_all_results('db_medical_notes');
+				$workspace['pending_prescriptions'] = (int)$this->db->where('store_id', $storeId)->where('status', 'active')->where('sales_id IS NULL', null, false)->count_all_results('db_medical_notes');
+				$workspace['refill_due'] = (int)$this->db->where('store_id', $storeId)->where('status', 'active')->where('refills_remaining >', 0)
+					->where('next_refill_date >=', $today)->where('next_refill_date <=', date('Y-m-d', strtotime('+7 days')))
+					->count_all_results('db_medical_notes');
+				$workspace['recent_notes'] = $this->db->select('n.id, n.note_date, n.diagnosis, n.prescribing_doctor, n.status, c.customer_name', false)
+					->from('db_medical_notes n')->join('db_customers c', 'c.id=n.customer_id AND c.store_id=n.store_id', 'left')
+					->where('n.store_id', $storeId)->order_by('n.id', 'desc')->limit(5)->get()->result();
+			}
+
+			if($this->db->table_exists('db_items') && $this->db->field_exists('stock', 'db_items') && $this->db->field_exists('alert_qty', 'db_items')){
+				$workspace['low_stock'] = (int)$this->db->where('store_id', $storeId)->where('status', 1)
+					->where('alert_qty >', 0)->where('stock <= alert_qty', null, false)->count_all_results('db_items');
+			}
+			if(function_exists('mp_feature_enabled') && mp_feature_enabled('expiry_tracking')){
+				$this->load->model('expiry_settings_model');
+				$workspace['expired'] = (int)$this->expiry_settings_model->count_expired();
+				$workspace['expiring_soon'] = (int)$this->expiry_settings_model->count_expiring();
+			}
+			if($this->db->table_exists('db_online_orders')){
+				$orderStatusField = $this->db->field_exists('order_status', 'db_online_orders')
+					? 'order_status'
+					: ($this->db->field_exists('status', 'db_online_orders') ? 'status' : null);
+				if($orderStatusField){
+					$workspace['online_orders'] = (int)$this->db->where('store_id', $storeId)
+						->where_in($orderStatusField, ['pending','paid','processing','confirmed'])
+						->count_all_results('db_online_orders');
+				}
+			}
+			if($this->db->table_exists('db_warehouse')){
+				$workspace['branch_count'] = (int)$this->db->where('store_id', $storeId)->where('status', 1)->count_all_results('db_warehouse');
+			}
+		} catch(Throwable $e) {
+			log_message('error', 'Pharmacy workspace data failed: ' . $e->getMessage());
+		}
+
+		$data = array_merge($this->data, [
+			'page_title' => 'Pharmacy Workspace',
+			'pharmacy_workspace' => $workspace,
+		]);
+		$data['content'] = $this->load->view('pharmacy/dashboard', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
 	public function dismiss_update_warning(){
 		$this->session->set_userdata('db_update_dismissed', 1);
 		echo json_encode(['status' => 'ok']);
@@ -35,6 +257,9 @@ class Dashboard extends MY_Controller {
 		// Creator / Digital Store businesses land on the Creator Workspace (use ?classic=1 for the retail dashboard)
 		if(function_exists('mp_get_store_profile') && $this->input->get('classic') === NULL){
 			$bp = mp_get_store_profile();
+			if (($bp['industry_type'] ?? '') === 'garden_centre_landscaping' && $this->db->table_exists('db_garden_item_attributes')) {
+				redirect(base_url('garden')); return;
+			}
 			if(($bp['industry_type'] ?? '') === 'creator'){
 				redirect(base_url('creator'));
 			}
@@ -59,6 +284,14 @@ class Dashboard extends MY_Controller {
 		// itself instead of dead-ending.
 		if(function_exists('mp_get_store_profile') && $this->input->get('classic') === NULL){
 			$bp_print = mp_get_store_profile();
+			if(($bp_print['industry_type'] ?? '') === 'building_materials'){
+				$this->buildingMaterialsWorkspace();
+				return;
+			}
+			if(in_array(($bp_print['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true)){
+				$this->pharmacyWorkspace();
+				return;
+			}
 			if(($bp_print['industry_type'] ?? '') === 'oil_processing_plant'
 				&& function_exists('mp_feature_enabled')
 				&& mp_feature_enabled('oil_processing_workflow')){
@@ -69,6 +302,14 @@ class Dashboard extends MY_Controller {
 				&& function_exists('mp_feature_enabled')
 				&& mp_feature_enabled('production_workflow')){
 				redirect(base_url('printing'));
+			}
+			// RestaurantOS workspace stores land on Restaurant Overview, not the
+			// retail dashboard — same reasoning as Printing/Creator above. The
+			// restaurant dashboard block still exists on /dashboard for anyone
+			// who wants the retail view; ?classic=1 is the escape hatch.
+			if (function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace()) {
+				redirect(base_url('restaurantos'));
+				return;
 			}
 		}
 		if(!function_exists('physio_enabled')) $this->load->helper('physio');
@@ -415,6 +656,12 @@ class Dashboard extends MY_Controller {
 	 * Daily Business Summary Report
 	 */
 	public function daily_summary(){
+        if ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') {
+            $query=[];foreach(['date','date_from','date_to','screen'] as $key){$value=$this->input->get($key);if(is_string($value))$query[$key]=$value;}
+            if(is_mobile() || $this->input->get('mobile')==='1')$query['screen']='mobile';
+            redirect('garden/daily_summary'.($query?'?'.http_build_query($query):''),'auto',302);return;
+        }
+
 		if(!$this->permissions('dashboard_view')){
 			redirect(base_url('dashboard'),'refresh');
 		}

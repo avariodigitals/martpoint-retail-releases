@@ -1,4 +1,21 @@
 /* MartPoint Assist Styles — isolated from page-level CSS leaks */
+
+/* Follow the active dashboard theme. Every accent/surface reads the app's own
+   CSS variables, so Assist turns green in the Garden workspace, matches each
+   industry theme elsewhere, and falls back to the classic MartPoint blue. */
+.mp-assist-panel,
+.mp-assist-fab,
+.mp-fab-wrapper,
+.mp-support-modal,
+.mp-continue-prompt {
+  --mpa-primary: var(--mp-primary, #0a48b3);
+  --mpa-primary-dark: var(--mp-primary-dark, #06296e);
+  --mpa-header: linear-gradient(135deg, var(--mpa-primary-dark) 0%, var(--mpa-primary) 100%);
+  --mpa-tint: color-mix(in srgb, var(--mpa-primary) 14%, #ffffff);
+  --mpa-bubble: color-mix(in srgb, var(--mpa-primary) 16%, #ffffff);
+  --mpa-ring: color-mix(in srgb, var(--mpa-primary) 45%, transparent);
+}
+
 .mp-assist-overlay {
   display: none !important;
   position: fixed !important;
@@ -66,9 +83,10 @@
 }
 .mp-assist-panel.open { right: 24px !important; }
 
-/* MartPoint Blue Header */
+/* MartPoint themed header */
 .mp-assist-header {
   background: linear-gradient(135deg, #06296e 0%, #0a48b3 100%);
+  background: var(--mpa-header);
   color: #fff;
   padding: 12px 16px;
   display: flex;
@@ -132,6 +150,7 @@
   overflow-y: auto;
   padding: 16px;
   background: #ece5dd;
+  background: var(--mp-bg, #ece5dd);
   display: flex;
   flex-direction: column;
 }
@@ -164,6 +183,7 @@
 .mp-assist-input:focus { box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
 .mp-assist-send {
   background: #0a48b3;
+  background: var(--mpa-primary);
   border: none;
   color: #fff;
   width: 40px; height: 40px;
@@ -174,11 +194,92 @@
   justify-content: center;
   transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 2px 6px rgba(10,72,179,0.4);
+  box-shadow: 0 2px 6px var(--mpa-ring);
 }
 .mp-assist-send:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(10,72,179,0.5);
+  box-shadow: 0 4px 12px var(--mpa-ring);
 }
+
+/* Voice controls — push-to-talk mic + spoken-replies toggle. Both read the
+   active theme's primary colour, like the rest of the panel. */
+.mp-assist-mic,
+.mp-assist-speak {
+  flex: 0 0 auto;
+  border: none;
+  background: #fff;
+  color: var(--mpa-primary);
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 0.2s, background 0.2s, color 0.2s;
+}
+.mp-assist-speak { width: 32px; height: 32px; font-size: 12px; color: #8a8a8a; }
+.mp-assist-mic:hover,
+.mp-assist-speak:hover { transform: scale(1.06); }
+.mp-assist-speak:not(.muted) { color: var(--mpa-primary); }
+.mp-assist-mic.listening {
+  background: var(--mpa-primary);
+  color: #fff;
+  animation: mp-assist-pulse 1.3s infinite;
+}
+@keyframes mp-assist-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--mpa-ring); }
+  70%  { box-shadow: 0 0 0 12px rgba(0,0,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mp-assist-mic.listening { animation: none; }
+}
+/* The mic sits inside the message box, like a native trailing control, so the
+   composer never shows a loose voice button floating beside the input. */
+.mp-assist-field {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+.mp-assist-field .mp-assist-input { flex: 1; width: 100%; padding-right: 48px; }
+/* The panel's own critical rule pins `padding: 10px 16px !important` on every
+   field (see the top of this file), so reserving room for the in-field mic
+   needs an !important longhand of its own. */
+.mp-assist-panel .mp-assist-field .mp-assist-input { padding-right: 48px !important; }
+.mp-assist-panel .mp-assist-field.is-mic-hidden .mp-assist-input { padding-right: 16px !important; }
+.mp-assist-field .mp-assist-mic {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 30px; height: 30px;
+  font-size: 13px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--mpa-primary);
+}
+.mp-assist-field .mp-assist-mic:hover { background: rgba(0,0,0,0.06); transform: none; }
+.mp-assist-field .mp-assist-mic.listening { background: var(--mpa-primary); color: #fff; }
+.mp-assist-field.is-mic-hidden .mp-assist-input { padding-right: 16px; }
+.mp-assist-voice-status {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 14px; right: 14px;
+  display: none;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  font-size: 12px;
+  color: #444;
+  z-index: 101;
+}
+.mp-assist-voice-status.active { display: block; }
+.mp-assist-voice-status.error { color: #b3261e; }
 
 /* Autocomplete Suggestions */
 .mp-assist-suggestions {
@@ -210,10 +311,13 @@
 .mp-suggestion-item:hover,
 .mp-suggestion-item.selected {
   background: #f5f8ff;
+  background: var(--mpa-tint);
 }
 .mp-suggestion-category {
   background: #e8eaf6;
+  background: var(--mpa-tint);
   color: #1a237e;
+  color: var(--mpa-primary-dark);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -247,6 +351,7 @@
 }
 .mp-assist-fab {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--mpa-header);
   color: #fff;
   border: none;
   border-radius: 50px;
@@ -258,11 +363,13 @@
   align-items: center;
   gap: 8px;
   box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+  box-shadow: 0 6px 20px var(--mpa-ring);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .mp-assist-fab:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(102,126,234,0.5);
+  box-shadow: 0 8px 24px var(--mpa-ring);
 }
 .mp-assist-fab i { font-size: 18px; }
 .mp-assist-fab-label { display: inline; }
@@ -308,12 +415,12 @@
 }
 .mp-fab-menu-item.mp-fab-cancel:hover { background: #fecaca; }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
   /* Smart floating chat card — inset, rounded, floats above bottom nav */
   .mp-assist-panel {
     width: auto !important;
     left: 12px !important; right: 12px !important;
-    bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important;
     height: min(60vh, 480px) !important;
     min-height: 300px !important;
     max-height: calc(100vh - 140px) !important;
@@ -325,7 +432,7 @@
   }
   .mp-assist-panel.open {
     right: 12px !important;
-    bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important;
     border-radius: 18px !important;
     transform: translateY(0) !important;
     visibility: visible !important;
@@ -333,7 +440,7 @@
   }
   .mp-assist-fab-label { display: none !important; }
   .mp-assist-fab { padding: 14px !important; border-radius: 50% !important; }
-  .mp-fab-wrapper { right: auto !important; left: 14px !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-start !important; }
+  .mp-fab-wrapper { right: auto !important; left: 14px !important; bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important; align-items: flex-start !important; }
   .mp-fab-menu { align-items: flex-start !important; }
   .mp-fab-menu-item:hover { transform: translateX(4px); }
   .mp-msg { max-width: 92% !important; }
@@ -359,6 +466,7 @@
 .mp-msg-user { margin-left: auto; align-items: flex-end; }
 .mp-msg-user .mp-msg-bubble {
   background: #d6e4ff;
+  background: var(--mpa-bubble);
   color: #262626;
   border-radius: 8px 0 8px 8px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
@@ -399,6 +507,7 @@
 }
 .mp-msg-user .mp-msg-check {
   color: #0a48b3;
+  color: var(--mpa-primary);
 }
 
 .mp-msg-bot .mp-msg-meta { justify-content: flex-start; }
@@ -441,14 +550,18 @@
 }
 .mp-follow-up-btn {
   background: #f0f7ff;
+  background: var(--mpa-tint);
   border: 1px solid #c2e0ff;
+  border-color: color-mix(in srgb, var(--mpa-primary) 30%, #ffffff);
   color: #1976d2;
+  color: var(--mpa-primary);
   font-size: 12px;
   padding: 6px 14px;
   border-radius: 16px;
 }
 .mp-follow-up-btn:hover {
   background: #1976d2;
+  background: var(--mpa-primary);
   color: #fff;
 }
 .mp-msg-bubble .assist-card h4 {
@@ -504,7 +617,33 @@
 }
 .mp-choice-btn:hover {
   border-color: #667eea;
+  border-color: var(--mpa-primary);
   background: #f0f4ff;
+  background: var(--mpa-tint);
+}
+
+/* "Did you mean...?" confirmation buttons */
+.mp-confirm-actions {
+  flex-direction: row;
+  gap: 8px;
+}
+.mp-confirm-actions .mp-confirm-yes {
+  flex: 1;
+  text-align: center;
+  background: var(--mpa-primary);
+  border-color: var(--mpa-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.mp-confirm-actions .mp-confirm-yes:hover {
+  background: var(--mpa-primary-dark);
+  border-color: var(--mpa-primary-dark);
+  color: #fff;
+}
+.mp-confirm-actions .mp-confirm-no {
+  flex: 1;
+  text-align: center;
+  color: #6b7280;
 }
 
 /* Draft actions */
@@ -544,6 +683,7 @@
 }
 .mp-msg-bubble .mp-quick-btn {
   background: linear-gradient(135deg, #06296e 0%, #0a48b3 100%);
+  background: var(--mpa-header);
   border: none;
   border-radius: 16px;
   padding: 8px 14px;
@@ -552,12 +692,15 @@
   transition: all 0.2s;
   color: #fff !important;
   box-shadow: 0 2px 4px rgba(10,72,179,0.25);
+  box-shadow: 0 2px 4px var(--mpa-ring);
 }
 .mp-msg-bubble .mp-quick-btn:hover {
-  background: linear-gradient(135deg, #0a48b3 0%, #1a5fd6 100%);
+  background: #0a48b3;
+  background: var(--mpa-primary);
   color: #fff !important;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(10,72,179,0.35);
+  box-shadow: 0 4px 8px var(--mpa-ring);
 }
 
 /* Waving hand */
@@ -622,6 +765,7 @@
 }
 .mp-support-header {
   background: linear-gradient(135deg, #06296e 0%, #0a48b3 100%);
+  background: var(--mpa-header);
   color: #fff;
   padding: 14px 18px;
   display: flex;
@@ -652,11 +796,12 @@
   transition: border-color 0.2s;
   box-sizing: border-box;
 }
-.mp-form-input:focus, .mp-form-textarea:focus { border-color: #0a48b3; }
+.mp-form-input:focus, .mp-form-textarea:focus { border-color: #0a48b3; border-color: var(--mpa-primary); }
 .mp-form-textarea { resize: vertical; }
 .mp-support-submit {
   width: 100%;
   background: linear-gradient(135deg, #06296e 0%, #0a48b3 100%);
+  background: var(--mpa-header);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -721,6 +866,7 @@
 }
 .mp-continue-yes {
   background: linear-gradient(135deg, #06296e 0%, #0a48b3 100%);
+  background: var(--mpa-header);
   color: #fff;
   border: none;
   border-radius: 8px;

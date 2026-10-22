@@ -96,6 +96,7 @@
     <div class="mp-card-body">
       <?php if(!$closed): ?>
       <form id="partForm" class="mp-form-grid" style="margin-bottom:16px;">
+        <input type="hidden" name="request_key" value="<?= bin2hex(random_bytes(20)); ?>">
         <input type="hidden" name="job_id" value="<?= (int)$job->id; ?>">
         <input type="hidden" name="item_id" id="part_item_id">
         <div class="mp-form-group" style="grid-column:span 2;">

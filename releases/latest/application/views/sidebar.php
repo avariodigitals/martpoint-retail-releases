@@ -14,7 +14,10 @@
 
 <?php 
     $CI =& get_instance();
+    $legacy_building = (mp_get_store_profile()['industry_type'] ?? '') === 'building_materials';
   ?>
+<?php $this->load->view('building_materials/voice_input'); ?>
+<?php $this->load->view('building_materials/clock_popup'); ?>
 <header class="main-header">
 
     <!-- Logo -->
@@ -120,12 +123,14 @@
             </ul>
           </li>
           
-          <?php if(!is_store_admin()) { ?>
+          <?php if($legacy_building) { ?>
+          <li><button type="button" class="btn btn-default" data-bm-clock-trigger aria-haspopup="dialog"><i class="fa fa-clock-o"></i> <span data-bm-clock-label>Clock In / Out</span></button></li>
+          <?php } elseif(!is_store_admin()) { ?>
           <li class="text-center" id="appClockInWrap">
             <a id="appClockInBtn" title="Clock In" href="#" onclick="if(typeof jQuery!=='undefined'&&typeof jQuery.fn!=='undefined'&&typeof jQuery.fn.modal!=='undefined'){jQuery('#appClockInModal').modal('show');}else{alert('Page loading... please wait.');}return false;"><i class="fa fa-clock-o" ></i> <span class="clock-label hidden-xs">Clock In</span></a>
           </li>
           <?php } ?>
-          <?php if(true && $CI->permissions('pos')) { ?>
+          <?php if(!$legacy_building && $CI->permissions('pos')) { ?>
           <li class="text-center" id="">
             <a title="POS [Shift+P]" href="<?php echo $base_url; ?>pos"><i class="fa fa-plus-square " ></i> <span class="hidden-xs">POS</span></a>   
           </li>
@@ -186,7 +191,7 @@
           <li class="dropdown user user-menu">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
               <img src="<?php echo get_profile_picture(); ?>" class="user-image" alt="User Image">
-              <span class="hidden-xs"><?php print ($this->session->userdata('display_name')); ?></span>
+              <span class="hidden-xs"><?= $legacy_building ? htmlspecialchars(mp_current_user_full_name(),ENT_QUOTES,'UTF-8') : $this->session->userdata('display_name'); ?></span>
             </a>
 
             <ul class="dropdown-menu">
@@ -195,7 +200,7 @@
                 <img src="<?php echo get_profile_picture(); ?>" class="img-circle" alt="User Image">
 
                 <p>
-                 <?php print ($this->session->userdata('display_name')); ?>
+                 <?= $legacy_building ? htmlspecialchars(mp_current_user_full_name(),ENT_QUOTES,'UTF-8') : $this->session->userdata('display_name'); ?>
                   <small>Year <?=date("Y");?></small>
                   <small class='text-uppercase text-bold'>Role: <?=$this->session->userdata('role_name');?></small>
                 </p>
@@ -231,7 +236,7 @@
           <img src="<?php echo get_profile_picture(); ?>" class="user-image" alt="User Image">
         </div>
         <div class="pull-left info">
-          <p><?php print ($this->session->userdata('display_name')); ?></p>
+          <p><?= $legacy_building ? htmlspecialchars(mp_current_user_full_name(),ENT_QUOTES,'UTF-8') : $this->session->userdata('display_name'); ?></p>
           <a href="#"><i class="fa fa-circle text-success"></i> Online</a>
         </div>
       </div> -->
@@ -241,7 +246,7 @@
       </div>
 
       <!-- POS CTA: persistent quick-access button -->
-      <?php if($CI->permissions('pos')) { ?>
+      <?php if(!$legacy_building && $CI->permissions('pos')) { ?>
       <div class="mp-pos-cta-wrap">
         <a href="<?php echo $base_url; ?>pos" class="mp-pos-cta" title="Open POS Checkout (Shift+P)">
           <i class="fa fa-plus-square"></i> <span>Start Sale</span>
@@ -266,7 +271,7 @@
           </a>
           <ul class="treeview-menu">
 
-            <?php if($CI->permissions('pos')) { ?>
+            <?php if(!$legacy_building && $CI->permissions('pos')) { ?>
             <li class="pos-active-li"><a href="<?php echo $base_url; ?>pos"><i class="fa fa-plus-square-o  "></i> <span>POS Checkout</span></a></li>
             <?php } ?>
             <?php if($CI->permissions('sales_add')) { ?>
@@ -885,22 +890,6 @@
             <li class="migrate-active-li"><a href="<?php echo $base_url; ?>migrate"><i class="fa fa-random  "></i> <span>Data Migration</span></a></li>
             <?php } ?>
 
-            <!-- License Management -->
-            <?php if($this->session->userdata('role_id') == 1 || is_store_admin()) { ?>
-            <li class="treeview subscription-license-active-li">
-              <a href="#"><i class="fa fa-key"></i> <span>License Management</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-              <ul class="treeview-menu">
-                <li class="subscription-license-active-li"><a href="<?php echo $base_url; ?>subscription_license"><i class="fa fa-cogs"></i> Subscription Control</a></li>
-                <li class="subscription-plans-active-li"><a href="<?php echo $base_url; ?>subscription_plans"><i class="fa fa-list-alt"></i> Plans</a></li>
-                <li class="subscription-usage-active-li"><a href="<?php echo $base_url; ?>subscription_license/usage"><i class="fa fa-chart-pie"></i> Usage</a></li>
-              </ul>
-            </li>
-            <?php } ?>
-
             <!-- SMS API -->
             <?php if($CI->permissions('sms_api_view')) { ?>
             <li class="sms-api-active-li"><a href="<?php echo $base_url; ?>sms/api"><i class="fa fa-cube "></i> <span><?= $this->lang->line('sms_api'); ?></span></a></li>
@@ -1192,6 +1181,12 @@ $(function(){
     }, function(res){
       $self.data('processing', false);
       if(res.needs_clock_out){
+        if(document.getElementById('bm-clock-dialog')){
+          if(typeof toastr !== 'undefined') toastr['info']('Confirm Clock Out with your password, then sign out.');
+          var clockTrigger=document.querySelector('[data-bm-clock-trigger]');
+          if(clockTrigger) clockTrigger.click();
+          return;
+        }
         if(typeof swal === 'undefined'){
           if(!confirm('You have not clocked out today. Clock out now before logging out?')){
             return;

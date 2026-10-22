@@ -17,9 +17,14 @@
   $is_oil_processing = function_exists('mp_get_store_profile')
     && ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant');
   if($is_oil_processing) $can_pos = false;
+  $is_garden = function_exists('mp_get_store_profile')
+    && ((mp_get_store_profile()['industry_type'] ?? '') === 'garden_centre_landscaping');
+  $is_building = function_exists('mp_get_store_profile') && ((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials');
+  if($is_building){$can_pos=false;$can_holds=false;}
   $user_id = get_current_user_id();
   $store_id = get_current_store_id();
   $display_name = $CI->session->userdata('display_name') ?: $CI->session->userdata('username') ?: 'User';
+  if($is_building) $display_name = mp_current_user_full_name();
   $profile_picture = '';
   $user = null;
   if($CI->db->table_exists('db_users') && !empty($user_id)){
@@ -41,8 +46,8 @@
     try {
       $CI->load->model('attendance_model');
       $shift = $CI->attendance_model->isOnDuty($user_id, $store_id);
-      if($shift){
-        $needs_clock_out = $CI->attendance_model->needsClockOut($user_id, date('Y-m-d'));
+      if($shift || $is_building){
+        $needs_clock_out = $CI->attendance_model->needsClockOut($user_id, date('Y-m-d'),$is_building ? $store_id : null);
       }
     } catch (Throwable $e) {
       log_message('error', 'bottom_nav attendance check failed: ' . $e->getMessage());
@@ -72,10 +77,20 @@
     text-decoration: none;
   }
   .mp-mobile-bottom-nav .nav-item .icon { font-size: 22px; }
+  .mp-mobile-bottom-nav:not(.physio-mobile-bottom-nav) { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); }
+  .mp-mobile-bottom-nav:not(.physio-mobile-bottom-nav) .nav-item { min-width:0; min-height:48px; padding:6px 2px; }
+  .mp-mobile-bottom-nav:not(.physio-mobile-bottom-nav) .nav-item.hold { padding:6px 2px; }
   .physio-mobile-bottom-nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(40px,1fr)); gap:1px; padding:6px 2px 0; }
   .physio-mobile-bottom-nav .nav-item { min-width:0; gap:3px; padding:5px 1px; font-size:8px; }
   .physio-mobile-bottom-nav .nav-item .icon { font-size:15px; }
   .mp-mobile-bottom-nav .nav-item.active { color: #0057FF; }
+  /* Garden workspace footer: brand the active tab with the workspace green and
+     hide the retail hold pill (the garden menu has no POS/Hold). */
+  .mp-mobile-bottom-nav.mp-garden-nav .nav-item.active,
+  .mp-mobile-bottom-nav.mp-garden-nav .nav-item.active .icon { color: #235b46; }
+  .mp-mobile-bottom-nav.mp-garden-nav .nav-item { font-weight: 600; }
+  .mp-mobile-bottom-nav.mp-building-nav{font-family:'Manrope',-apple-system,BlinkMacSystemFont,sans-serif}
+  .mp-mobile-bottom-nav.mp-building-nav .nav-item.active{color:#202124}
   .mp-mobile-bottom-nav .nav-item.hold {
     background: #FFF7ED;
     color: #EA580C;
@@ -95,11 +110,22 @@
   }
   .mp-mobile-copyright {
     width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     text-align: center;
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
-    font-size: 11px;
+    font: 11px/1.4 system-ui, sans-serif;
+    overflow-wrap: anywhere;
     color: #94A3B8;
     background: #fff;
+  }
+  .mp-mobile-copyright-text {
+    display: block;
+    width: 100%;
+    max-width: 430px;
+    padding: 0 12px;
+    text-align: center;
   }
   .screen { padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important; }
   .topbar { position: sticky; top: 0; z-index: 400; background: #fff; border-bottom: 1px solid var(--mp-border); padding-top: calc(8px + env(safe-area-inset-top, 0px)) !important; padding-bottom: 8px; }
@@ -148,7 +174,7 @@
   #mpPullRefresh.loading { transform: translateY(0) !important; opacity: 1 !important; }
   #mpPullRefresh.loading i { animation: mpPtrSpin .7s linear infinite; }
   @keyframes mpPtrSpin { to { transform: rotate(360deg); } }
-  @media (min-width: 1024px) {
+  @media (min-width: 1025px), (min-width: 1024px) and (orientation: landscape) {
     .mp-mobile-footer { display: none !important; }
     .screen { padding-bottom: 24px !important; }
   }
@@ -220,11 +246,18 @@
           an ellipsis instead of letting it clip.
      Fixing it here beats editing 39 near-identical copies. */
 </style>
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/application-controls.css?v=1'); ?>">
 <div id="mpPullRefresh" aria-hidden="true"><i class="fa fa-refresh"></i></div>
 <?php $this->load->view('comman/incident_banner', ['context' => 'mobile']); ?>
 <div class="mp-mobile-footer">
-  <nav class="mp-mobile-bottom-nav <?= $is_physio ? 'physio-mobile-bottom-nav' : ''; ?>" aria-label="Mobile workspace navigation">
-  <?php if($is_physio): ?>
+  <nav class="mp-mobile-bottom-nav <?= $is_physio ? 'physio-mobile-bottom-nav' : ''; ?><?= $is_garden ? ' mp-garden-nav' : ''; ?><?= $is_building ? ' mp-building-nav' : ''; ?>" aria-label="Mobile workspace navigation">
+  <?php if($is_building): ?>
+    <a href="<?= base_url('mobile'); ?>" class="nav-item <?= $active === 'home' ? 'active' : ''; ?>"><i class="fa fa-home icon"></i><span>Home</span></a>
+    <?php if($CI->permissions('service_jobs_view')): ?><a href="<?= base_url('building_projects?screen=mobile'); ?>" class="nav-item"><i class="fa fa-tasks icon"></i><span>Projects</span></a><?php endif; ?>
+    <button type="button" data-bm-clock-trigger aria-haspopup="dialog" class="nav-item"><i class="fa fa-clock-o icon"></i><span data-bm-clock-label><?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?></span></button>
+    <?php if($CI->permissions('sales_view')): ?><a href="<?= base_url('mobile/sales_list'); ?>" class="nav-item <?= $active === 'sales' ? 'active' : ''; ?>"><i class="fa fa-file-text-o icon"></i><span>Invoices</span></a><?php endif; ?>
+    <a href="<?= base_url('building_workspace/more?screen=mobile'); ?>" class="nav-item <?= $active === 'more' ? 'active' : ''; ?>"><i class="fa fa-ellipsis-h icon"></i><span>More</span></a>
+  <?php elseif($is_physio): ?>
     <?php if(physio_can_any(array('patients_view','appointments_view','care_queue_view','admissions_view'))): ?><a href="<?= base_url('mobile'); ?>" class="nav-item <?= $active === 'home' ? 'active' : ''; ?>"><i class="fa fa-inbox icon"></i><span>Home</span></a><?php endif; ?>
     <?php if(physio_can('patients_view')): ?><a href="<?= base_url('mobile/patients'); ?>" class="nav-item <?= $active === 'patients' ? 'active' : ''; ?>"><i class="fa fa-address-book-o icon"></i><span>Patients</span></a><?php endif; ?>
     <?php if(physio_can('care_queue_view')): ?><a href="<?= base_url('mobile/care_queue'); ?>" class="nav-item <?= $active === 'care_queue' ? 'active' : ''; ?>"><i class="fa fa-list-ol icon"></i><span>Queue</span></a><?php endif; ?>
@@ -250,6 +283,69 @@
     <?php if(physio_can('admissions_view')): ?><a href="<?= base_url('mobile/admissions'); ?>" class="nav-item <?= $active === 'admissions' ? 'active' : ''; ?>"><i class="fa fa-bed icon"></i><span>Beds</span></a><?php endif; ?>
     <?php if(physio_can_any(array('patient_billing_view','patient_funds_view'))): ?><a href="<?= base_url('mobile/patient_accounts'); ?>" class="nav-item <?= $active === 'accounts' ? 'active' : ''; ?>"><i class="fa fa-file-text-o icon"></i><span>Accounts</span></a><?php endif; ?>
     <?php if($can_more): ?><a href="<?= base_url('mobile/more'); ?>" class="nav-item <?= $active === 'more' ? 'active' : ''; ?>"><i class="fa fa-ellipsis-h icon"></i><span>More</span></a><?php endif; ?>
+  <?php elseif($is_garden): ?>
+  <?php
+    /*
+     * Garden Centre & Landscaping workspace.
+     *
+     * This is not a retail storefront, so the generic Home/POS/Sale/Hold menu is
+     * wrong here: it leads a plant & landscaping business straight to a checkout
+     * till. The footer mirrors the garden workspace instead (overview, stock,
+     * projects, sales) and everything else stays one tap away in the workspace
+     * menu / More screen.
+     */
+    if(!function_exists('mp_garden_navigation_visible')){ $CI->load->helper('garden'); }
+    $garden_profile = function_exists('mp_get_store_profile') ? (mp_get_store_profile() ?: array()) : array();
+    $garden_path    = trim((string)$CI->uri->uri_string(), '/');
+    // Longest match first so e.g. mobile/sales_list wins over mobile/sales.
+    $garden_tabs    = array(
+      'more'     => array('mobile/more'),
+      'stock'    => array('garden/catalogue','garden/nursery','garden/materials','garden/production','garden/plant','mobile/catalogue','mobile/nursery','mobile/materials','mobile/production','mobile/stock','mobile/product','mobile/items','mobile/price_catalogue'),
+      'projects' => array('garden/projects','garden/project','garden/work','garden/maintenance','mobile/projects','mobile/project','mobile/work','mobile/maintenance','mobile/service_jobs'),
+      'sales'    => array('garden/sales_report','garden/daily_summary','mobile/sales','mobile/sale','mobile/pos','mobile/holds','mobile/quotations','mobile/quotation','mobile/leads','mobile/customers','mobile/due'),
+    );
+    $garden_tab = 'home';
+    foreach($garden_tabs as $garden_name => $garden_prefixes){
+      foreach($garden_prefixes as $garden_prefix){
+        if($garden_path === $garden_prefix || strpos($garden_path, $garden_prefix.'/') === 0){ $garden_tab = $garden_name; break 2; }
+      }
+    }
+    $garden_can = array(
+      'home'     => $CI->permissions('dashboard_view'),
+      'stock'    => $CI->permissions('items_view'),
+      'projects' => function_exists('mp_garden_navigation_visible')
+        && mp_garden_navigation_visible(array('service_jobs_view','garden/projects','Landscaping projects','fa-map-o','landscaping','service_jobs'), $garden_profile),
+      'sales'    => $CI->permissions('sales_view'),
+    );
+  ?>
+  <?php if($garden_can['home']): ?>
+  <a href="<?= base_url('garden?screen=mobile'); ?>" class="nav-item <?= $garden_tab === 'home' ? 'active' : ''; ?>">
+    <i class="fa fa-th-large icon"></i>
+    <span>Home</span>
+  </a>
+  <?php endif; ?>
+  <?php if($garden_can['stock']): ?>
+  <a href="<?= base_url('garden/catalogue?screen=mobile'); ?>" class="nav-item <?= $garden_tab === 'stock' ? 'active' : ''; ?>">
+    <i class="fa fa-pagelines icon"></i>
+    <span>Stock</span>
+  </a>
+  <?php endif; ?>
+  <?php if($garden_can['projects']): ?>
+  <a href="<?= base_url('garden/projects?screen=mobile'); ?>" class="nav-item <?= $garden_tab === 'projects' ? 'active' : ''; ?>">
+    <i class="fa fa-map-o icon"></i>
+    <span>Projects</span>
+  </a>
+  <?php endif; ?>
+  <?php if($garden_can['sales']): ?>
+  <a href="<?= base_url('garden/sales_report?screen=mobile'); ?>" class="nav-item <?= $garden_tab === 'sales' ? 'active' : ''; ?>">
+    <i class="fa fa-file-text-o icon"></i>
+    <span>Sales</span>
+  </a>
+  <?php endif; ?>
+  <a href="<?= base_url('mobile/more'); ?>" class="nav-item <?= $garden_tab === 'more' ? 'active' : ''; ?>">
+    <i class="fa fa-ellipsis-h icon"></i>
+    <span>More</span>
+  </a>
   <?php else: ?>
   <?php if($can_home): ?>
   <a href="<?= base_url('mobile'); ?>" class="nav-item <?= ($active == 'home') ? 'active' : ''; ?>">
@@ -295,21 +391,24 @@
   <?php endif; ?>
 </nav>
 <footer class="mp-mobile-copyright">
-  &copy; <?= date('Y'); ?> <?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.
+  <?php $this->load->view('mobile/copyright'); ?>
 </footer>
 </div>
 
+<script>
+(function(){var footer=document.querySelector('.mp-mobile-footer');if(!footer)return;function measure(){var height=footer.getBoundingClientRect().height;if(height>0){document.documentElement.style.setProperty('--mp-mobile-footer-height',height+'px');document.documentElement.style.setProperty('--mp-mobile-assist-bottom',(height+12)+'px');}}measure();window.addEventListener('resize',measure);if(window.ResizeObserver)new ResizeObserver(measure).observe(footer);})();
+</script>
 <?php $this->load->view('idle_lock'); ?>
 
 <template id="mpTopbarExtras">
-  <?php if(!is_store_admin()): ?>
-  <a href="<?= base_url('mobile/clock'); ?>" class="clock-btn <?= $needs_clock_out ? 'out' : ''; ?>">
+  <?php if($is_building || !is_store_admin()): ?>
+  <?php if($is_building): ?><button type="button" data-bm-clock-trigger aria-haspopup="dialog" class="clock-btn <?= $needs_clock_out ? 'out' : ''; ?>"><?php else: ?><a href="<?= base_url('mobile/clock'); ?>" class="clock-btn <?= $needs_clock_out ? 'out' : ''; ?>"><?php endif; ?>
     <i class="fa <?= $needs_clock_out ? 'fa-sign-out' : 'fa-sign-in'; ?>"></i>
     <?php /* Wrapped in a span so it can be hidden on a narrow phone — a bare
              text node cannot be targeted by CSS, which is why the label stayed
              visible and kept crushing the screen title. */ ?>
-    <span class="clock-label"><?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?></span>
-  </a>
+    <span class="clock-label" <?= $is_building ? 'data-bm-clock-label' : ''; ?>><?= $needs_clock_out ? 'Clock Out' : 'Clock In'; ?></span>
+  <?php if($is_building): ?></button><?php else: ?></a><?php endif; ?>
   <?php else: ?>
   <div class="mp-time-pill" aria-label="Current time">
     <i class="fa fa-clock-o"></i>

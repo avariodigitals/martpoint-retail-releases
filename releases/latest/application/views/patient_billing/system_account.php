@@ -8,7 +8,7 @@
   <?php else: $chosen=(int)($bill->physio_system_account_id ?? 0); ?>
     <p>Outpatient · choose an account without a bed attached.</p>
     <input type="hidden" id="physio_account_choice" value="<?= $chosen; ?>">
-    <details><summary style="cursor:pointer;padding:8px">Choose billing account</summary>
+    <details class="mp-field-picker"><summary>Choose billing account</summary>
       <div style="max-height:200px;overflow-y:auto;display:grid;gap:6px;padding:8px">
       <?php foreach($ctx['choices'] as $a): ?>
         <label style="display:flex;gap:8px;align-items:center"><input type="radio" name="physio_account_option" value="<?= (int)$a->id; ?>" <?= $chosen===(int)$a->id ? 'checked' : ''; ?> onchange="document.getElementById('physio_account_choice').value=this.value; document.getElementById('physio_account_label').textContent=this.dataset.label;" data-label="<?= htmlspecialchars($a->account_name,ENT_QUOTES,'UTF-8'); ?>"> <?= htmlspecialchars($a->account_name); ?></label>

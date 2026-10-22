@@ -17,6 +17,7 @@ $adjustment_note  = $res3->adjustment_note;
 $warehouse_id     = $res3->warehouse_id;
 
 $store = $this->db->query("SELECT * FROM db_store WHERE id = ?", array($res3->store_id))->row();
+$store = mp_document_store($store, 'db_stockadjustment', $adjustment_id);
 ?>
 
 <div class="mp-page-head no-print">
@@ -37,7 +38,7 @@ $store = $this->db->query("SELECT * FROM db_store WHERE id = ?", array($res3->st
   <div class="inv-meta-row">
     <div class="inv-meta-group">
       <span class="inv-meta-label">Store</span>
-      <span class="inv-meta-value"><?= htmlspecialchars($store->store_name ?? ''); ?></span>
+      <span class="inv-meta-value"><?= htmlspecialchars($store->store_name ?? ''); ?></span><?= mp_document_location_html($store); ?>
     </div>
     <div class="inv-meta-group">
       <span class="inv-meta-label">Date</span>

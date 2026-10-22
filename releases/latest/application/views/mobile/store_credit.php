@@ -37,7 +37,7 @@
     .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--mp-primary); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
     .btn:active { background: var(--mp-primary-dark); }
     .btn:disabled { opacity: 0.7; }
-    .summary-card { background: linear-gradient(135deg, var(--mp-purple) 0%, #5B21B6 100%); border-radius: 16px; padding: 20px; color: #fff; margin-bottom: 16px; }
+    .summary-card { background: linear-gradient(135deg, var(--mp-primary) 0%, var(--mp-primary-dark) 100%); border-radius: 16px; padding: 20px; color: #fff; margin-bottom: 16px; }
     .summary-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 6px; }
     .summary-card .value { font-size: 28px; font-weight: 700; }
     .credit-list { display: flex; flex-direction: column; gap: 12px; }

@@ -5,6 +5,17 @@
     sessionId: null,
     isOpen: false,
     draftId: null,
+    pendingConfirm: false,
+
+    voice: {
+      supported: false,
+      listening: false,
+      recognition: null,
+      SR: null,
+      speak: true,
+      voices: null,
+      voice: null
+    },
 
     _storageKey: function(key){
       var uid = (typeof mpUserId !== 'undefined' && mpUserId) ? mpUserId : '0';
@@ -16,6 +27,7 @@
       this._bindEvents();
       this._bindAutocomplete();
       this._restoreHistory();
+      this._initVoice();
 
       // Hard reset: never start with the panel open, even if cached markup had the class
       var panel = document.getElementById('mp-assist-panel');
@@ -48,6 +60,8 @@
         panel.classList.remove('open');
         overlay.classList.remove('active');
         if(fab) fab.style.display = 'flex';
+        this._stopVoice();
+        this._cancelSpeech();
       }
       this._closeMenu();
     },
@@ -198,6 +212,7 @@
       input.value = '';
       input.style.height = 'auto';
       this._hideSuggestions();
+      this._voiceStatus('', false);
       this._addUserMessage(message);
       this._showTyping();
       this._sendToServer(message);
@@ -294,6 +309,259 @@
       });
     },
 
+    // =================== VOICE ===================
+    //
+    // Push-to-talk plus spoken replies. Voice only ever *fills the composer* —
+    // it never sends and never confirms on its own, so every message (and every
+    // data change behind it) still needs a deliberate tap from the user.
+
+    _initVoice: function(){
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      this.voice.SR = SR || null;
+      this.voice.supported = !!SR;
+      var saved = null;
+      try{ saved = localStorage.getItem(this._storageKey('speak')); }catch(e){}
+      this.voice.speak = (saved === null) ? true : (saved === '1');
+      this._loadVoices();
+      if(typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis && window.speechSynthesis.addEventListener){
+        window.speechSynthesis.addEventListener('voiceschanged', function(){ MPAssist._loadVoices(); });
+      }
+      this._syncVoiceButtons();
+    },
+
+    // Prefer an African English voice for spoken replies, so Assist sounds
+    // local instead of the browser default (usually US/UK). Falls back to the
+    // browser default when none is installed.
+    _loadVoices: function(){
+      if(typeof window.speechSynthesis === 'undefined' || !window.speechSynthesis || !window.speechSynthesis.getVoices) return;
+      var voices = window.speechSynthesis.getVoices() || [];
+      if(!voices.length) return;
+      this.voice.voices = voices;
+      this.voice.voice = this._pickAfricanVoice(voices);
+      this._syncVoiceButtons();
+    },
+
+    _pickAfricanVoice: function(voices){
+      var matchers = [
+        /en[-_]?(NG|GH|KE|ZA|TZ|UG|CM)/i,
+        /(nigeri|ghana|kenya|south\s*africa|tanzania|uganda|africa)/i
+      ];
+      for(var m = 0; m < matchers.length; m++){
+        for(var i = 0; i < voices.length; i++){
+          var v = voices[i];
+          if(!v) continue;
+          if(matchers[m].test(v.lang || '') || matchers[m].test(v.name || '')) return v;
+        }
+      }
+      return null;
+    },
+
+    toggleMic: function(){
+      if(this.voice.listening){
+        this._stopVoice();
+      } else {
+        this._startVoice();
+      }
+    },
+
+    _startVoice: function(){
+      var v = this.voice;
+      if(v.listening) return;
+      if(!v.supported){
+        this._voiceStatus('Voice input is not available in this browser. You can type instead.', true);
+        return;
+      }
+      if(window.isSecureContext === false){
+        this._voiceStatus('Voice needs a secure (HTTPS) connection. You can type instead.', true);
+        return;
+      }
+      var input = document.getElementById('mp-assist-input');
+      if(!input) return;
+
+      var recognition = new v.SR();
+      v.recognition = recognition;
+      var inputLen = (input.value || '').length;
+      var maxLen = (input.maxLength && input.maxLength > 0) ? input.maxLength : 4000;
+      var base = (input.value || '').replace(/\s+$/, '');
+      if(base) base += ' ';
+      var lang = document.documentElement.lang || 'en-NG';
+      var errored = false;
+
+      recognition.lang = (lang === 'en' ? 'en-NG' : lang);
+      recognition.interimResults = true;
+      recognition.continuous = false;
+
+      recognition.onstart = function(){
+        v.listening = true;
+        MPAssist._syncVoiceButtons();
+        MPAssist._voiceStatus('Listening… tap the mic again to stop.', false);
+      };
+      recognition.onresult = function(event){
+        var text = '';
+        for(var i = 0; i < event.results.length; i++){
+          text += event.results[i][0].transcript;
+        }
+        var next = (base + text).slice(0, maxLen);
+        if(next !== input.value){
+          input.value = next;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+      recognition.onerror = function(event){
+        errored = true;
+        var code = (event && event.error) ? event.error : '';
+        var message = (code === 'not-allowed' || code === 'service-not-allowed')
+          ? 'Microphone access was not granted. You can type instead.'
+          : (code === 'no-speech'
+            ? 'I did not catch that. Tap the mic and try again.'
+            : 'Voice could not finish. You can type instead.');
+        MPAssist._voiceStatus(message, true);
+      };
+      recognition.onend = function(){
+        v.listening = false;
+        v.recognition = null;
+        MPAssist._syncVoiceButtons();
+        var typed = (input.value || '').slice(inputLen).trim();
+        if(typed){
+          // While a "Did you mean...?" confirmation is waiting, a spoken yes/no
+          // answers it straight away — no extra tap needed.
+          var answer = MPAssist.pendingConfirm ? MPAssist._normalizeYesNo(typed) : null;
+          if(answer){
+            input.value = '';
+            MPAssist._voiceStatus(answer === 'yes' ? 'Sending yes…' : 'Sending no…', false);
+            MPAssist._sendChoice(answer, typed);
+            return;
+          }
+          // Talk back: read the request aloud and ask if it is right before it
+          // runs, so the reply is voice input only until the user sends it.
+          MPAssist._voiceStatus('Is this what you mean? Tap send to run it.', false);
+          var readback = typed.length > 140 ? typed.slice(0, 140) + '…' : typed;
+          MPAssist._speak('You said: ' + readback + '. Is this what you mean?');
+        } else if(!errored){
+          MPAssist._voiceStatus('No speech captured. Tap the mic and try again.', true);
+        }
+        if(input.focus) input.focus();
+      };
+
+      try{
+        recognition.start();
+      }catch(error){
+        v.recognition = null;
+        v.listening = false;
+        this._syncVoiceButtons();
+        this._voiceStatus('Unable to start the microphone. You can type instead.', true);
+      }
+    },
+
+    _stopVoice: function(){
+      var v = this.voice;
+      if(v.recognition){
+        var rec = v.recognition;
+        try{ rec.stop(); }
+        catch(e){ try{ rec.abort(); }catch(e2){} }
+        // Some webviews don't fire onend after stop(). If this session is still
+        // active shortly after, abort it so the mic never gets stuck listening.
+        setTimeout(function(){
+          if(v.recognition === rec){
+            try{ rec.abort(); }catch(e){}
+            v.recognition = null;
+            v.listening = false;
+            MPAssist._syncVoiceButtons();
+          }
+        }, 1200);
+      }
+      v.listening = false;
+      this._syncVoiceButtons();
+    },
+
+    toggleSpeak: function(){
+      this.voice.speak = !this.voice.speak;
+      try{ localStorage.setItem(this._storageKey('speak'), this.voice.speak ? '1' : '0'); }catch(e){}
+      if(!this.voice.speak) this._cancelSpeech();
+      this._syncVoiceButtons();
+    },
+
+    _syncVoiceButtons: function(){
+      var v = this.voice;
+      var mic = document.getElementById('mp-assist-mic');
+      if(mic){
+        var field = mic.parentElement;
+        if(!v.supported){
+          if(field && field.classList) field.classList.add('is-mic-hidden');
+          mic.style.display = 'none';
+        } else {
+          if(field && field.classList) field.classList.remove('is-mic-hidden');
+          mic.style.display = '';
+          mic.classList.toggle('listening', !!v.listening);
+          mic.setAttribute('aria-pressed', v.listening ? 'true' : 'false');
+          mic.title = v.listening ? 'Stop listening' : 'Speak your request';
+        }
+      }
+      var spk = document.getElementById('mp-assist-speak');
+      if(spk){
+        spk.classList.toggle('muted', !v.speak);
+        spk.setAttribute('aria-pressed', v.speak ? 'true' : 'false');
+        var voiceName = (v.voice && v.voice.name) ? ' (' + v.voice.name + ')' : '';
+        spk.title = (v.speak ? 'Spoken replies: on' : 'Spoken replies: off') + voiceName;
+        var icon = spk.querySelector ? spk.querySelector('i') : null;
+        if(icon) icon.className = 'fa ' + (v.speak ? 'fa-volume-up' : 'fa-volume-off');
+      }
+    },
+
+    _voiceStatus: function(text, isError){
+      var el = document.getElementById('mp-assist-voice-status');
+      if(!el) return;
+      el.textContent = text || '';
+      el.classList.toggle('active', !!text);
+      el.classList.toggle('error', !!isError);
+    },
+
+    _speak: function(text){
+      if(!this.voice.speak || !text) return;
+      if(typeof window.speechSynthesis === 'undefined' || typeof window.SpeechSynthesisUtterance === 'undefined') return;
+      var plain = String(text)
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/&quot;/gi, '"')
+        .replace(/&[a-z]+;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\s+([?!.,;:])/g, '$1')
+        .trim();
+      if(!plain) return;
+      try{
+        window.speechSynthesis.cancel();
+        var utterance = new window.SpeechSynthesisUtterance(plain.slice(0, 400));
+        var lang = document.documentElement.lang || 'en-NG';
+        utterance.lang = (lang === 'en' ? 'en-NG' : lang);
+        if(this.voice.voice){
+          utterance.voice = this.voice.voice;
+          utterance.lang = this.voice.voice.lang || utterance.lang;
+        }
+        utterance.rate = 1.02;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+      }catch(e){}
+    },
+
+    _cancelSpeech: function(){
+      if(typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis){
+        try{ window.speechSynthesis.cancel(); }catch(e){}
+      }
+    },
+
+    // Map a spoken/typed reply to a yes/no answer for a pending confirmation.
+    _normalizeYesNo: function(text){
+      var m = String(text == null ? '' : text).toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
+      if(!m) return null;
+      var first = m.split(' ')[0];
+      if(['yes','yeah','yep','yup','y','sure','ok','okay','correct','right','affirmative','confirm','proceed'].indexOf(first) !== -1) return 'yes';
+      if(['no','nope','nah','n','cancel','stop','abort','quit','wrong','incorrect','dont'].indexOf(first) !== -1) return 'no';
+      return null;
+    },
+
     // =================== INTERNAL ===================
 
     _sendToServer: function(message){
@@ -319,6 +587,7 @@
     },
 
     _renderResponse: function(res){
+      this.pendingConfirm = (res.type === 'confirm');
       switch(res.type){
         case 'text':
         case 'error':
@@ -346,6 +615,9 @@
           break;
         case 'choice':
           this._addChoiceMessage(res.text, res.options || [], res.context || '');
+          break;
+        case 'confirm':
+          this._addConfirmMessage(res.text, res.options || []);
           break;
         case 'draft':
           this.draftId = res.draft_id || null;
@@ -375,6 +647,16 @@
           break;
         default:
           this._addBotMessage(res.text || 'Done.');
+      }
+
+      // Spoken reply — the other half of "voice instruction". The welcome/help
+      // message is skipped so opening the panel never starts talking on its own.
+      if(res.type !== 'welcome' && res.type !== 'clear'){
+        var spoken = res.text || '';
+        if(res.type === 'draft'){
+          spoken = (spoken ? spoken + ' ' : '') + 'Tap Confirm to save, or Cancel.';
+        }
+        this._speak(spoken);
       }
 
       // Delayed follow-up after cancellation
@@ -430,6 +712,28 @@
       var html = '<div class="mp-msg-bubble"><div>'+this._safeHtml(text)+'</div><div class="mp-choice-list">';
       for(var i = 0; i < options.length; i++){
         html += '<button class="mp-choice-btn" onclick="MPAssist.resolveChoice(\''+this._escapeJs(options[i].value)+'\', \''+this._escapeJs(options[i].value)+'\')">'+this._escapeHtml(options[i].label)+'</button>';
+      }
+      html += '</div></div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
+      div.innerHTML = html;
+      container.appendChild(div);
+      this._scrollToBottom();
+      this._saveHistory();
+    },
+
+    // "Did you mean I should ...?" — spoken aloud, answered by voice ("yes"/"no")
+    // or by tapping a button. Nothing runs until the user confirms.
+    _addConfirmMessage: function(text, options){
+      var container = document.getElementById('mp-assist-messages');
+      var div = document.createElement('div');
+      div.className = 'mp-msg mp-msg-bot';
+      var opts = (options && options.length) ? options : [
+        { label: 'Yes, do it', value: 'yes' },
+        { label: 'No, cancel', value: 'no' }
+      ];
+      var html = '<div class="mp-msg-bubble"><div>'+this._safeHtml(text)+'</div><div class="mp-choice-list mp-confirm-actions">';
+      for(var i = 0; i < opts.length; i++){
+        var cls = String(opts[i].value) === 'no' ? 'mp-choice-btn mp-confirm-no' : 'mp-choice-btn mp-confirm-yes';
+        html += '<button class="'+cls+'" onclick="MPAssist._sendChoice(\''+this._escapeJs(opts[i].value)+'\',\''+this._escapeJs(opts[i].label)+'\')">'+this._escapeHtml(opts[i].label)+'</button>';
       }
       html += '</div></div><div class="mp-msg-meta"><span class="mp-msg-time">'+this._formatTime()+'</span></div>';
       div.innerHTML = html;
@@ -716,7 +1020,8 @@
         input.style.height = 'auto';
         input.style.height = Math.min(input.scrollHeight, 110) + 'px';
         var val = input.value.trim();
-        if(val.length < 2){
+        // Never pop suggestions over the voice status while dictating.
+        if(val.length < 2 || self.voice.listening){
           self._hideSuggestions();
           return;
         }

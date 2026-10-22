@@ -397,17 +397,104 @@ class Intelligence_model extends CI_Model {
      * RETAIL / GENERAL
      * ================================================================== */
 
+    /** Building Materials Action Centre: the same evidence/permission contract,
+     * grouped by the operational decision rather than one dashboard ticker. */
+    public function for_building($store_id, array $allowed) {
+        $groups=[];
+        $add=function($group,$text,$url,$label,$detail='')use(&$groups){
+            if (count($groups[$group] ?? [])>=6) return;
+            $groups[$group][]=['tone'=>'info','icon'=>'fa-arrow-right','text'=>$text,'detail'=>$detail,'action'=>['label'=>$label,'url'=>base_url($url)]];
+        };
+        if (!empty($allowed['service_jobs_view']) && mp_feature_enabled('service_jobs') && $this->db->table_exists('db_service_jobs')) {
+            foreach (['Projects','Site surveys','Services','Maintenance'] as $name) $groups[$name]=[];
+            $jobs=$this->db->select('j.id,j.job_code,j.title,j.job_type,j.status,j.scheduled_date,j.assigned_user_id,u.username AS engineer,x.stage,x.job_id AS project_id')
+                ->from('db_service_jobs j')->join('db_users u','u.id=j.assigned_user_id AND u.store_id=j.store_id','left')
+                ->join('db_service_job_context x','x.job_id=j.id AND x.store_id=j.store_id','left')
+                ->where('j.store_id',(int)$store_id)->where_not_in('j.status',['completed','cancelled'])->order_by('j.scheduled_date','asc')->limit(250)->get()->result();
+            foreach($jobs as $job) {
+                if ($job->job_type==='inspection' && !$job->project_id) continue;
+                if ($job->project_id && in_array($job->stage,['closed','cancelled','paid','completed'],true)) continue;
+                $due=$job->scheduled_date && $job->scheduled_date<=date('Y-m-d');
+                if (!$due && $job->assigned_user_id) continue;
+                $reason=$due?'Scheduled '.show_date($job->scheduled_date):'No responsible engineer assigned';
+                $owner=$job->engineer ?: 'Unassigned';
+                $group=$job->project_id?'Projects':($job->job_type==='maintenance'?'Maintenance':($job->job_type==='inspection'?'Site surveys':'Services'));
+                $route=$job->project_id?'building_projects/'.$job->id:'operations/service_job_view/'.$job->id;
+                $add($group,($job->job_code ?: '#'.$job->id).' · '.$job->title,$route,'Review work',$reason.' · '.$owner);
+            }
+            $this->load->model('building_workspace_model');
+            foreach($this->building_workspace_model->surveys() as $survey){
+                $fields=json_decode($survey->fields_json,true) ?: [];
+                if(($fields['status'] ?? '')!=='scheduled' || ($fields['survey_date'] ?? '9999-12-31')>date('Y-m-d'))continue;
+                $add('Site surveys',$fields['title'] ?? $survey->title,'building_workspace/survey/'.$survey->id,'Open survey','Survey scheduled '.($fields['survey_date'] ?? '').' · '.($survey->engineer ?: 'Unassigned'));
+            }
+            if ($this->db->table_exists('db_service_project_tasks')) {
+                $tasks=$this->db->select('t.id,t.job_id,t.title,t.due_date,u.username AS engineer')->from('db_service_project_tasks t')
+                    ->join('db_service_job_context x','x.job_id=t.job_id AND x.store_id=t.store_id')
+                    ->join('db_users u','u.id=t.assigned_user_id AND u.store_id=t.store_id','left')
+                    ->where('t.store_id',(int)$store_id)->where('t.status !=','completed')->where_not_in('x.stage',['closed','cancelled'])
+                    ->where('t.due_date <',date('Y-m-d'))->order_by('t.due_date')->limit(6)->get()->result();
+                foreach($tasks as $task)$add('Projects',$task->title,'building_projects/'.$task->job_id,'Open project','Task overdue since '.show_date($task->due_date).' · '.($task->engineer ?: 'Unassigned'));
+            }
+        }
+        if (!empty($allowed['equipment_view']) && mp_feature_enabled('equipment_register') && $this->db->table_exists('db_customer_equipment')) {
+            if (!isset($groups['Maintenance'])) $groups['Maintenance']=[];
+            $assets=$this->db->select('id,serial_number,warranty_end,next_calibration_date')->where('store_id',(int)$store_id)
+                ->group_start()->where('warranty_end >=',date('Y-m-d'))->where('warranty_end <=',date('Y-m-d',strtotime('+30 days')))
+                ->or_group_start()->where('next_calibration_date IS NOT NULL',null,false)->where('next_calibration_date <=',date('Y-m-d',strtotime('+30 days')))->group_end()->group_end()
+                ->order_by('id','desc')->limit(6)->get('db_customer_equipment')->result();
+            foreach($assets as $asset)$add('Maintenance','Asset '.$asset->serial_number,'operations/equipment_view/'.$asset->id,'Review asset',
+                $asset->next_calibration_date && $asset->next_calibration_date<=date('Y-m-d',strtotime('+30 days'))?'Calibration due '.show_date($asset->next_calibration_date):'Warranty ends '.show_date($asset->warranty_end));
+        }
+        if (!empty($allowed['items_view'])) {
+            $groups['Products & materials']=[];
+            if ($this->db->field_exists('alert_qty','db_items')) {
+                $items=$this->db->select('id,item_name,stock,alert_qty')->where('store_id',(int)$store_id)->where('status',1)
+                    ->where('stock <= alert_qty',null,false)->order_by('stock')->limit(6)->get('db_items')->result();
+                foreach($items as $item)$add('Products & materials',$item->item_name,'items/update/'.$item->id,'Review material','Available '.store_number_format($item->stock).' · reorder threshold '.store_number_format($item->alert_qty));
+            }
+            if (!empty($allowed['sales_view'])) foreach($this->for_retail($store_id,['stock_cover'=>true]) as $insight) {
+                if(count($groups['Products & materials'])<8)$groups['Products & materials'][]=$insight;
+            }
+        }
+        if (!empty($allowed['quotation_view'])) {
+            $groups['Commercial']=[];
+            $quotes=$this->db->select('id,quotation_code,lifecycle_status')->where('store_id',(int)$store_id)
+                ->where_in('lifecycle_status',['accepted','issued','sent','viewed'])->where("(sales_status IS NULL OR sales_status != 'Converted')",null,false)->order_by('id','desc')->limit(6)->get('db_quotation')->result();
+            foreach($quotes as $q)$add('Commercial',$q->quotation_code,'quotation/invoice/'.$q->id,'Open quotation',$q->lifecycle_status==='accepted'?'Customer accepted · coordinate the next project or invoice action':'Awaiting customer decision');
+        }
+        if (!empty($allowed['purchase_view'])) {
+            $groups['Procurement & deliveries']=[];
+            $rows=$this->db->select('id,purchase_code,purchase_status')->where('store_id',(int)$store_id)->where_in('purchase_status',['Ordered','Partially Received'])->order_by('id','desc')->limit(6)->get('db_purchase')->result();
+            foreach($rows as $row)$add('Procurement & deliveries',$row->purchase_code,'purchase/invoice/'.$row->id,'Review procurement',$row->purchase_status.' · follow up material availability');
+        }
+        if (!empty($allowed['store_view']) && mp_feature_enabled('delivery_scheduling')) {
+            if(!isset($groups['Procurement & deliveries']))$groups['Procurement & deliveries']=[];
+            $rows=$this->db->select('id,schedule_code,schedule_date')->where('store_id',(int)$store_id)->where('schedule_date <=',date('Y-m-d'))->where_in('status',['Planned','Ready','Out for Delivery','planned','ready','out_for_delivery'])->limit(6)->get('db_delivery_schedules')->result();
+            foreach($rows as $row)$add('Procurement & deliveries',$row->schedule_code,'operations/delivery_schedule_view/'.$row->id,'Review delivery','Scheduled '.show_date($row->schedule_date).' · confirm dispatch or delivery');
+        }
+        if (!empty($allowed['sales_view'])) {
+            $groups['Invoices & collections']=[];
+            $rows=$this->db->select('id,sales_code,due_date,grand_total,paid_amount')->where('store_id',(int)$store_id)->where('sales_status','Final')
+                ->where('grand_total > COALESCE(paid_amount,0)',null,false)->where('due_date <',date('Y-m-d'))->order_by('due_date')->limit(6)->get('db_sales')->result();
+            foreach($rows as $row)$add('Invoices & collections',$row->sales_code,'sales/invoice/'.$row->id,'Open invoice','Overdue '.show_date($row->due_date).' · balance '.store_number_format((float)$row->grand_total-(float)$row->paid_amount));
+        }
+        return $groups;
+    }
+
     /** Retail insight set: stock cover, sales trend, customer value, debt. */
-    public function for_retail($store_id = null)
+    public function for_retail($store_id = null, array $signals = null)
     {
         $store_id = $store_id ?: get_current_store_id();
         $out = [];
 
-        $out = array_merge($out, $this->_retail_stock_cover($store_id));
-        $out = array_merge($out, $this->_retail_sales_trend($store_id));
-        $out = array_merge($out, $this->_retail_best_performer($store_id));
-        $out = array_merge($out, $this->_retail_debt($store_id));
-        $out = array_merge($out, $this->_retail_slow_movers($store_id));
+        // Existing callers retain the complete report. Workspaces can request
+        // only signals their current role is authorized to read.
+        foreach (['stock_cover','sales_trend','best_performer','debt','slow_movers'] as $signal) {
+            if ($signals!==null && empty($signals[$signal])) continue;
+            $method='_retail_'.$signal;
+            $out=array_merge($out,$this->$method($store_id));
+        }
 
         return array_slice($out, 0, 8);
     }

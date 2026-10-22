@@ -50,6 +50,7 @@ class Business_profile extends MY_Controller {
         $store_id = get_current_store_id();
 
         $industry_type = $this->input->post('industry_type', TRUE);
+        if (strtoupper(trim((string)$industry_type)) === 'GARDEN_CENTRE_LANDSCAPING') $industry_type = 'garden_centre_landscaping';
         $business_model = $this->input->post('business_model', TRUE);
         $workflow_template_key = $this->input->post('workflow_template_key', TRUE);
         $dashboard_template_key = $this->input->post('dashboard_template_key', TRUE);
@@ -176,7 +177,10 @@ class Business_profile extends MY_Controller {
             'industry_settings_json' => $industry_settings_json,
         ];
 
-        $result = $this->bp_model->update_profile($store_id, $update);
+        try { $result = $this->bp_model->update_profile($store_id, $update); }
+        catch (InvalidArgumentException $e) {
+            echo json_encode(['status'=>'error','message'=>$e->getMessage()]); return;
+        }
 
         // Seed industry-specific master data (units, categories, formula types).
         // Idempotent — safe on every save, only creates what is missing.
@@ -189,6 +193,11 @@ class Business_profile extends MY_Controller {
             if (!empty($clean['equipment_register']) || !empty($clean['service_jobs'])) {
                 $this->default_data->seed_module_permissions($store_id);
             }
+
+            // Demo/local demo stores also need every persisted demo surface to
+            // follow the selected industry. The seeder retires stale demo
+            // master data and related transactions without hard-deleting rows.
+            $this->_sync_demo_data($store_id, $industry_type);
         }
 
         // Sync storefront_theme_key to db_storefront_settings.theme_id so the theme takes effect immediately.
@@ -229,6 +238,29 @@ class Business_profile extends MY_Controller {
             echo json_encode(['status' => 'success', 'preset' => $preset]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Preset not found.']);
+        }
+    }
+
+    private function _sync_demo_data($store_id, $industry_type) {
+        $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+        $local_host = strpos($host, 'martpointretailapp.test') !== false
+            || $host === 'localhost' || strpos($host, '127.0.0.1') !== false
+            || substr($host, -5) === '.test';
+        $demo_host = strpos($host, 'demo.martpoint') !== false;
+        $store = $this->db->select('store_name')->where('id', (int)$store_id)->get('db_store')->row();
+        $zonat_demo_store = $store && preg_match('/^Zonat\b/i', trim((string)$store->store_name));
+        if (!$demo_host && (!$local_host || !$zonat_demo_store) && getenv('MP_DEMO_SEED') !== '1') return;
+
+        try {
+            $this->load->model('Demo_seeder', 'demo_seeder');
+            $result = $this->demo_seeder->seed_full_demo($store_id, $industry_type);
+            if (empty($result['ok'])) {
+                log_message('error', 'Demo industry sync failed for store '.$store_id.': '.json_encode($result));
+            }
+        } catch (Throwable $e) {
+            // Profile changes must still save if optional demo content cannot
+            // be generated; record the failure for local/demo diagnostics.
+            log_message('error', 'Demo industry sync exception for store '.$store_id.': '.$e->getMessage());
         }
     }
 }

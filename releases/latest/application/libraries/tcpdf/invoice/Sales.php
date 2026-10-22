@@ -24,6 +24,7 @@ class Sales extends MyPDF{
 		//$this->store = get_store_details();//Declared in MyPDF Pa
 
 		$this->sales = get_sales_details($this->sales_id);
+        $this->store = mp_document_store($this->store, 'db_sales', $this->sales_id);
 		
 		$this->customer = get_customer_details($this->sales->customer_id);
 

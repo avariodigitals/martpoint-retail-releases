@@ -148,6 +148,14 @@
         <label><input type="checkbox" id="show_whatsapp_cta" name="show_whatsapp_cta" <?= ($settings->show_whatsapp_cta ?? 1) ? 'checked' : ''; ?>> Show WhatsApp CTA Button</label>
       </div>
       <div class="os-form-grid" style="margin-top:12px;">
+        <div class="mp-form-group">
+          <label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;">
+            <input type="checkbox" id="partner_marketplace_enabled" name="partner_marketplace_enabled" value="1" <?= ($settings->partner_marketplace_enabled ?? 0) ? 'checked' : ''; ?>> Enable controlled partner catalogue and fulfilment
+          </label>
+          <div class="mp-form-hint" style="margin-top:6px;">Optional. Lets approved partners contribute location-specific offers and fulfil selected orders under this brand. It is off by default; partner permissions, stock and order routing must still be enforced by the backend.</div>
+        </div>
+      </div>
+      <div class="os-form-grid" style="margin-top:12px;">
         <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="cart_recovery_enabled" name="cart_recovery_enabled" value="1" <?= ($settings->cart_recovery_enabled ?? 1) ? 'checked' : ''; ?>> Track Abandoned Carts</label><div class="mp-form-hint" style="margin-top:6px;">Stores cart snapshots so you can see and follow up on abandoned checkouts.</div></div>
         <div class="mp-form-group"><label for="abandoned_after_hours">Consider abandoned after (hours)</label><input type="number" min="1" max="720" class="mp-form-control" id="abandoned_after_hours" name="abandoned_after_hours" value="<?= (int)($settings->abandoned_after_hours ?? 24); ?>"><div class="mp-form-hint">A cart with customer contact details older than this appears on the Abandoned Carts page.</div></div>
       </div>
@@ -170,6 +178,21 @@
       <div class="os-form-grid">
         <div class="mp-form-group"><label for="instagram_access_token">Access Token</label><input type="text" class="mp-form-control" id="instagram_access_token" name="instagram_access_token" value="<?= htmlspecialchars($settings->instagram_access_token ?? ''); ?>" placeholder="Instagram Basic Display API token"><div class="mp-form-hint"><a href="https://developers.facebook.com/docs/instagram-basic-display-api" target="_blank">Get token from Facebook Developers</a></div></div>
         <div class="mp-form-group"><label for="instagram_username">Username</label><input type="text" class="mp-form-control" id="instagram_username" name="instagram_username" value="<?= htmlspecialchars($settings->instagram_username ?? ''); ?>" placeholder="@handle"></div>
+      </div>
+
+      <div class="os-section-title"><i class="fa fa-whatsapp"></i> WhatsApp Business API (Meta)</div>
+      <div class="os-form-grid">
+        <div class="mp-form-group full"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="whatsapp_api_enabled" name="whatsapp_api_enabled" value="1" <?= (!empty($settings->whatsapp_api_enabled)) ? 'checked' : ''; ?>> Enable WhatsApp Business API (template + session messages)</label><div class="mp-form-hint" style="margin-top:6px;">When on, MartPoint can send WhatsApp messages (order confirmations, shipping updates, support replies) through the WhatsApp Business Platform instead of only click-to-chat links. Requires a verified Meta Business and a dedicated phone number.</div></div>
+        <div class="mp-form-group"><label for="whatsapp_api_token">Access Token</label><input type="text" class="mp-form-control" id="whatsapp_api_token" name="whatsapp_api_token" value="<?= htmlspecialchars($settings->whatsapp_api_token ?? ''); ?>" placeholder="WhatsApp API access token"><div class="mp-form-hint">Long-lived system-user or page token from WhatsApp Manager → your app → WhatsApp.</div></div>
+        <div class="mp-form-group"><label for="whatsapp_phone_number_id">Phone Number ID</label><input type="text" class="mp-form-control" id="whatsapp_phone_number_id" name="whatsapp_phone_number_id" value="<?= htmlspecialchars($settings->whatsapp_phone_number_id ?? ''); ?>" placeholder="e.g. 1029384756"><div class="mp-form-hint">The numeric phone number ID shown in WhatsApp Manager.</div></div>
+        <div class="mp-form-group"><label for="whatsapp_webhook_verify_token">Webhook Verify Token</label><input type="text" class="mp-form-control" id="whatsapp_webhook_verify_token" name="whatsapp_webhook_verify_token" value="<?= htmlspecialchars($settings->whatsapp_webhook_verify_token ?? ''); ?>" placeholder="A secret string you choose"><div class="mp-form-hint">Set the same string in Meta's webhook config. Used to verify webhook callbacks for WhatsApp, Instagram DM and Messenger.</div></div>
+      </div>
+
+      <div class="os-section-title"><i class="fa fa-facebook"></i> Facebook Messenger & Instagram DM</div>
+      <div class="os-form-grid">
+        <div class="mp-form-group"><label for="facebook_page_access_token">Page Access Token</label><input type="text" class="mp-form-control" id="facebook_page_access_token" name="facebook_page_access_token" value="<?= htmlspecialchars($settings->facebook_page_access_token ?? ''); ?>" placeholder="Facebook Page access token"><div class="mp-form-hint">Token for the Facebook Page used with Messenger. Requires pages_manage_metadata, pages_read_engagement, pages_messaging permissions.</div></div>
+        <div class="mp-form-group"><label for="facebook_page_id">Page ID</label><input type="text" class="mp-form-control" id="facebook_page_id" name="facebook_page_id" value="<?= htmlspecialchars($settings->facebook_page_id ?? ''); ?>" placeholder="Facebook Page ID"><div class="mp-form-hint">The numeric ID of the Facebook Page.</div></div>
+        <div class="mp-form-group"><label for="instagram_business_account_id">Instagram Business Account ID</label><input type="text" class="mp-form-control" id="instagram_business_account_id" name="instagram_business_account_id" value="<?= htmlspecialchars($settings->instagram_business_account_id ?? ''); ?>" placeholder="Instagram Business Account ID"><div class="mp-form-hint">The Instagram Business Account linked to your Facebook Page. Used to send Instagram Direct replies.</div></div>
       </div>
 
       <div class="os-section-title"><i class="fa fa-google"></i> Google Reviews Integration</div>

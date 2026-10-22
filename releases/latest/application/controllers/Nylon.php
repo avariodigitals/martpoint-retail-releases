@@ -472,7 +472,7 @@ class Nylon extends MY_Controller {
             'order'      => $order,
             'stages'     => $this->nylon->get_stages($job->id),
             'machines'   => $this->nylon->get_machines(),
-            'operators'  => $this->db->where('store_id',get_current_store_id())->where('status',1)->order_by('first_name','asc')->get('db_users')->result(),
+            'operators'  => $this->db->where('store_id',get_current_store_id())->where('status',1)->where_not_in('role_id',get_excluded_staff_roles(get_current_store_id()))->where_not_in('id',get_excluded_user_ids(get_current_store_id()))->order_by('first_name','asc')->get('db_users')->result(),
             'scrap_items'=> $this->nylon->get_spec_items(null, get_current_store_id()),
             'stage_defs' => Nylon_model::stage_defs(),
             'can_report' => $this->permissions('nylon_report'),

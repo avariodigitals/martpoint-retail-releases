@@ -52,7 +52,7 @@ if(typeof jQuery !== 'undefined'){
 <!-- MartPoint Assist — always loaded on every desktop page (CSS is in mp_header) -->
 <?php if(!defined('MP_ASSIST_LOADED')): ?>
 <?php define('MP_ASSIST_LOADED', true); ?>
-<script src="<?php echo $theme_link; ?>js/assist.js?v=15"></script>
+<script src="<?php echo $theme_link; ?>js/assist.js?v=21"></script>
 <?php $this->load->view('assist/panel'); ?>
 <?php endif; ?>
 
@@ -258,6 +258,12 @@ $(function(){
     }, function(res){
       $self.data('processing', false);
       if(res.needs_clock_out){
+        if(document.getElementById('bm-clock-dialog')){
+          if(typeof toastr !== 'undefined') toastr['info']('Confirm Clock Out with your password, then sign out.');
+          var clockTrigger=document.querySelector('[data-bm-clock-trigger]');
+          if(clockTrigger) clockTrigger.click();
+          return;
+        }
         if(typeof swal === 'undefined'){
           if(!confirm('You have not clocked out today. Clock out now before logging out?')){
             return;
@@ -554,5 +560,8 @@ if (typeof jQuery !== 'undefined') (function($){
 })(jQuery);
 </script>
 
+<?php $this->load->view('garden/voice_input'); ?>
+<?php $this->load->view('building_materials/voice_input'); ?>
+<?php $this->load->view('building_materials/clock_popup'); ?>
 </body>
 </html>

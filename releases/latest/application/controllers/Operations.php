@@ -16,6 +16,10 @@ class Operations extends MY_Controller {
     }
 
     private function _check_feature($flag) {
+        if (in_array($flag,['production_workflow','recipe_tracking'],true) && (mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') {
+            if ($this->input->method()==='post') { show_error('Use the Garden production workspace to retain material and output controls.',403);exit; }
+            redirect($flag==='recipe_tracking' ? 'garden/materials' : 'garden/production','auto',302);exit;
+        }
         if (!mp_feature_enabled($flag)) {
             $this->_render_feature_not_activated($flag);
         }
@@ -1482,6 +1486,10 @@ class Operations extends MY_Controller {
             $row[] = !empty($note->prescription_file)
                 ? '<a href="' . base_url($note->prescription_file) . '" target="_blank" title="View Prescription" class="text-info"><i class="fa fa-file-image-o fa-lg"></i></a>'
                 : '<span class="text-muted">-</span>';
+            $reviewStatus = (string)($note->review_status ?? 'approved');
+            $row[] = $reviewStatus === 'pending'
+                ? '<span class="label label-warning"><i class="fa fa-clock-o"></i> Awaiting review</span>'
+                : ($reviewStatus === 'rejected' ? '<span class="label label-danger">Rejected</span>' : '<span class="label label-success">Approved</span>');
             $row[] = $note->refills_remaining > 0
                 ? '<span class="label label-info">' . $note->refills_remaining . ' refills</span>'
                 : '<span class="text-muted">-</span>';
@@ -1607,7 +1615,12 @@ class Operations extends MY_Controller {
         $this->load->model('kitchen_model', 'kitchen');
         $ok = $this->kitchen->update_status($kitchen_order_id, $status);
 
-        echo json_encode(['success' => $ok, 'status' => $status]);
+        echo json_encode([
+            'success' => $ok,
+            'status'  => $status,
+            // A refused move has to say why, or the cook assumes the board is broken.
+            'message' => $ok ? '' : trim((string) ($this->kitchen->last_move['error'] ?? '')),
+        ]);
     }
 
     /* ===================== LAUNDRY WORKFLOW ===================== */
@@ -2056,6 +2069,7 @@ class Operations extends MY_Controller {
         $data = [];
         if (!empty($id)) {
             $data = $this->delivery_model->get_details($id);
+            if(!$data){show_404();return;}
             $data['schedule_items'] = $this->delivery_model->get_schedule_items($id);
         }
         $data['drivers'] = $this->delivery_model->get_drivers(get_current_store_id());
@@ -2071,11 +2085,13 @@ class Operations extends MY_Controller {
         echo $result;
     }
 
-    public function delivery_schedule_view($id) {
+    public function delivery_schedule_view($id = 0) {
         $this->_check_feature('delivery_scheduling');
         $this->permission_check('store_view');
+        if(!(int)$id){redirect('operations/delivery_scheduling');return;}
         $this->load->model('delivery_model');
-        $data = $this->delivery_model->get_details($id);
+        $data = $this->delivery_model->get_details((int)$id);
+        if(!$data){show_404();return;}
         $data['schedule_items'] = $this->delivery_model->get_schedule_items($id);
         $this->_render('Delivery Route — ' . ($data['route_name'] ?: $data['schedule_code']), 'operations/delivery_schedule_view', $data);
     }
@@ -2369,6 +2385,13 @@ class Operations extends MY_Controller {
 
         $rotations = [];
         $has_barcodes = $this->db->table_exists('db_item_barcodes');
+        $normalise_rotation_date = function ($value) {
+            $value = trim((string) $value);
+            if ($value === '' || !is_valid_date($value)) {
+                return null;
+            }
+            return date('Y-m-d', strtotime($value));
+        };
         foreach ($received as $r) {
             $old_batches = [];
             if ($has_barcodes) {
@@ -2381,11 +2404,31 @@ class Operations extends MY_Controller {
                     ->order_by('id', 'ASC')
                     ->get('db_item_barcodes')->result();
                 foreach ($old as $b) {
-                    if ($b->barcode !== $r->barcode) {
+                    $same_batch = (trim((string) ($b->barcode ?? '')) === trim((string) ($r->barcode ?? '')))
+                        && (trim((string) ($b->batch_lot ?? '')) === trim((string) ($r->batch_lot ?? '')));
+                    if (!$same_batch) {
                         $old_batches[] = $b;
                     }
                 }
             }
+
+            // FEFO is expiry-first. Existing shelf batches with an earlier or
+            // equal expiry stay in front; a later-expiring incoming batch goes
+            // behind them. If the incoming batch expires sooner, it goes in
+            // front of later-expiring shelf stock. Batch/lot identifies the
+            // stock, while expiry determines the physical order.
+            $new_expiry = $normalise_rotation_date($r->expire_date);
+            $front_batches = [];
+            $behind_batches = [];
+            foreach ($old_batches as $batch) {
+                $old_expiry = $normalise_rotation_date($batch->expire_date);
+                if ($new_expiry !== null && $old_expiry !== null && $old_expiry <= $new_expiry) {
+                    $front_batches[] = $batch;
+                } else {
+                    $behind_batches[] = $batch;
+                }
+            }
+
             $rotations[] = [
                 'item_name' => $r->item_name,
                 'item_image' => $r->item_image,
@@ -2394,6 +2437,8 @@ class Operations extends MY_Controller {
                 'purchase_date' => $r->purchase_date,
                 'new_batch' => $r,
                 'old_batches' => $old_batches,
+                'front_batches' => $front_batches,
+                'behind_batches' => $behind_batches,
             ];
         }
 
@@ -2423,7 +2468,8 @@ class Operations extends MY_Controller {
         $data['search'] = $this->input->get('search', TRUE);
         $data['calibration_due'] = (int)$this->input->get('calibration_due', TRUE);
         $data['warranty_days'] = (int)$this->input->get('warranty_days', TRUE);
-        $this->_render('Equipment Register', 'operations/equipment_register', $data);
+        $building=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials';
+        $this->_render($building?'Installed Assets':'Equipment Register', $building?'building_materials/assets':'operations/equipment_register', $data);
     }
 
     public function equipment_view($id = 0) {
@@ -2454,6 +2500,7 @@ class Operations extends MY_Controller {
 
     /* ===================== SERVICE JOBS ===================== */
     public function service_jobs() {
+        if ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') { redirect('garden/work');return; }
         $this->_check_feature('service_jobs');
         $this->permission_check('service_jobs_view');
         $this->load->model('equipment_model', 'equipment');
@@ -2473,6 +2520,8 @@ class Operations extends MY_Controller {
         $store_id = get_current_store_id();
         $data['job'] = $id ? $this->equipment->get_job((int)$id) : null;
         $data['job_types'] = $this->equipment->job_types();
+        $requestedType=$this->input->get('job_type',TRUE);
+        $data['prefill_job_type']=is_string($requestedType)&&in_array($requestedType,$data['job_types'],true)?$requestedType:($data['job_types'][0] ?? 'installation');
         $data['job_statuses'] = $this->equipment->job_statuses();
         $data['engineers'] = $this->equipment->get_engineers();
         $data['customers'] = $this->db->select('id, customer_name')->where('store_id', $store_id)->where('status', 1)->order_by('customer_name')->get('db_customers')->result();

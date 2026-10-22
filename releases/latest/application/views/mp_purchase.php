@@ -383,6 +383,10 @@ else{
             <td><h4 style="margin:0;"><b id="subtotal_amt" name="subtotal_amt">0.00</b></h4></td>
           </tr>
           <tr>
+            <th>VAT</th>
+            <td><h4 style="margin:0;"><b id="tax_amt" name="tax_amt">0.00</b></h4></td>
+          </tr>
+          <tr>
             <th><?= $this->lang->line('other_charges'); ?></th>
             <td><h4 style="margin:0;"><b id="other_charges_amt" name="other_charges_amt">0.00</b></h4></td>
           </tr>
@@ -593,6 +597,16 @@ else{
 
 
          /* ---------- CALCULATE TAX -------------*/
+         function purchase_tax_amount(amount, tax, tax_type){
+           amount = parseFloat(amount) || 0;
+           tax = parseFloat(tax) || 0;
+           if(amount <= 0 || tax <= 0){ return 0; }
+           if(tax_type === 'Inclusive'){
+             return amount - (amount / (1 + (tax / 100)));
+           }
+           return (amount * tax) / 100;
+         }
+
          function calculate_tax(i){ //i=Row
            set_tax_value(i);
 
@@ -660,12 +674,11 @@ else{
              if(document.getElementById("td_data_"+i+"_3")){
                //supplier_id must exist
                if($("#td_data_"+i+"_3").val()!=null && $("#td_data_"+i+"_3").val()!=''){
-                    actual_taxable=actual_taxable+ + +(parseFloat($("#td_data_"+i+"_13").val()) * parseFloat($("#td_data_"+i+"_3").val()));
-                    subtotal=subtotal+ + +parseFloat($("#td_data_"+i+"_9").val());
-                    if($("#td_data_"+i+"_7").val()>=0){
-                      tax_amt=tax_amt+ + +$("#td_data_"+i+"_7").val();
-                    }
-                    total_quantity +=parseFloat($("#td_data_"+i+"_3").val());
+                    var lineTotal = parseFloat($("#td_data_"+i+"_9").val()) || 0;
+                    var lineTax = parseFloat($("#td_data_"+i+"_5").val()) || 0;
+                    subtotal += lineTotal;
+                    tax_amt += lineTax;
+                    total_quantity += parseFloat($("#td_data_"+i+"_3").val()) || 0;
                 }
 
              }//if end
@@ -682,6 +695,7 @@ else{
              //subtotal
              $("#subtotal_amt").html(format_money(subtotal));
              $("#hidden_subtotal_amt").val(to_Fixed(subtotal));
+             $("#tax_amt").html(format_money(tax_amt + other_charges_per_amt));
 
              //other charges total amount
              $("#other_charges_amt").html(format_money(other_charges_total_amt));
@@ -864,7 +878,7 @@ else{
       var discount_amt=(item_discount_type=='Percentage') ? ((purchase_price) * item_discount_input)/100 : (item_discount_input*qty);
       purchase_price-=parseFloat(discount_amt);
 
-      var tax_amount = (tax_type=='Inclusive') ? calculate_inclusive(purchase_price,tax) : calculate_exclusive(purchase_price,tax);
+      var tax_amount = purchase_tax_amount(purchase_price,tax,tax_type);
 
       $("#td_data_"+row_id+"_8").val(to_Fixed(discount_amt));
 

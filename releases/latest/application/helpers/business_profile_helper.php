@@ -116,6 +116,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'warranty_tracking'         => 'Warranty Tracking',
             'auto_parts'                => 'Auto Parts / Spares Catalog',
             'kitchen_workflow'          => 'Kitchen Workflow',
+            'restaurant_workspace'      => 'RestaurantOS Workspace',
             'table_management'          => 'Table Management',
             'laundry_workflow'          => 'Laundry Workflow',
             'meat_butchery_workflow'    => 'Meat / Butchery Workflow',
@@ -260,7 +261,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'restaurant' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Dining Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
             ],
@@ -332,8 +333,8 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'building_materials' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button'],
-                'theme_key'=>'general_retail','dashboard_template'=>'building_materials','workflow_template'=>'wholesale_standard',
+                'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','batch_tracking','delivery_scheduling','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button','leads','customer_contacts','customer_sites','staff_assignment','equipment_register','service_jobs','service_workflow','serial_number_tracking','warranty_tracking'],
+                'theme_key'=>'framework_atelier','dashboard_template'=>'building_materials','workflow_template'=>'wholesale_standard',
                 'labels'=>['item'=>'Material','warehouse'=>'Depot','customer'=>'Client'],
             ],
             'furniture' => [
@@ -386,43 +387,43 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'fast_food' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Fast Food Service','table'=>'Counter','order'=>'Order','pos'=>'Counter'],
             ],
             'cafe' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Cafe Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
             ],
             'pizza_shop' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Pizza','service'=>'Pizza Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
             ],
             'shawarma' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Shawarma','service'=>'Grill Service','table'=>'Counter','order'=>'Order','pos'=>'Counter'],
             ],
             'juice_bar' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','custom_orders','table_management','kitchen_workflow','loyalty','delivery_scheduling','recipe_tracking','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','custom_orders','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','recipe_tracking','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Beverage','service'=>'Juice Service','table'=>'Counter','order'=>'Order','pos'=>'Counter'],
             ],
             'buka' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Buka Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
             ],
             'canteen' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Canteen Service','table'=>'Table','order'=>'Meal','pos'=>'Counter'],
             ],
@@ -535,11 +536,42 @@ if (!function_exists('mp_get_business_presets')) {
                 'labels'=>['item'=>'Agro Input','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
             ],
             'garden_centre_landscaping' => [
+                'canonical_key'=>'GARDEN_CENTRE_LANDSCAPING',
+                // [implementation status, verification evidence, route, entitlement]
+                // Public claims remain disabled until full journey acceptance.
+                'capabilities'=>[
+                    'general_product_sales'=>['IMPLEMENTED BUT UNVERIFIED','shared_engine_audit','items','product_limit'],
+                    'living_plant_inventory'=>['PARTIAL','isolated_stock_reconciliation','garden/nursery','product_limit'],
+                    'nursery_production'=>['PARTIAL','isolated_production_stock_cost_and_http','garden/production','active_subscription'],
+                    'materials_costing'=>['PARTIAL','isolated_production_stock_cost_and_http','garden/materials','active_subscription'],
+                    'product_variants'=>['IMPLEMENTED BUT UNVERIFIED','shared_engine_audit','items','sku_limit'],
+                    'accessories'=>['IMPLEMENTED BUT UNVERIFIED','three_theme_http','garden/catalogue','product_limit'],
+                    'pos'=>['IMPLEMENTED BUT UNVERIFIED','shared_engine_audit','pos','active_subscription'],
+                    'online_store'=>['PARTIAL','three_theme_http','online_store','online_product_limit'],
+                    'mixed_product_service_sales'=>['PARTIAL','shared_engine_audit','pos','service_limit_existing_pos_only'],
+                    'service_bookings'=>['PARTIAL','crm_request_http','garden/maintenance','service_limit_existing_pos_only'],
+                    'landscaping_enquiries'=>['PARTIAL','crm_request_http','leads','active_subscription'],
+                    'landscaping_quotations'=>['PARTIAL','source_link_and_stage_checks','garden/projects','active_subscription'],
+                    'deposits'=>['IMPLEMENTED BUT UNVERIFIED','source_payment_stage_checks','sales','active_subscription'],
+                    'project_costing'=>['PARTIAL','issued_cost_and_expense_checks','garden/projects','active_subscription'],
+                    'recurring_maintenance'=>['PARTIAL','recurrence_replay_checks','garden/maintenance','service_limit_existing_pos_only'],
+                    'shared_inventory'=>['PARTIAL','isolated_stock_reconciliation','inventory','active_subscription'],
+                    'delivery'=>['IMPLEMENTED BUT UNVERIFIED','shared_engine_audit','online_store/orders','online_product_limit'],
+                    'customer_balances'=>['IMPLEMENTED BUT UNVERIFIED','source_payment_stage_checks','customers','active_subscription'],
+                    'business_reporting'=>['PARTIAL','source_cost_checks','reports','active_subscription'],
+                ],
+                'operating_modes'=>[
+                    'retail'=>['label'=>'Retail & Accessories','features'=>['pos_retail_button','pos_wholesale_button']],
+                    'nursery'=>['label'=>'Plant Nursery','features'=>['batch_tracking']],
+                    'landscaping'=>['label'=>'Landscaping Projects','features'=>['custom_orders','service_jobs','leads']],
+                    'maintenance'=>['label'=>'Garden Maintenance & Services','features'=>['service_workflow','service_jobs','staff_assignment']],
+                    'combined'=>['label'=>'Combined Operations','features'=>[]],
+                ],
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','warehouse','online_store','multi_unit_inventory','multi_unit_selling','batch_tracking','appointments','service_workflow','custom_orders','staff_assignment','delivery_scheduling','customer_notes','customer_contacts','customer_sites','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
+                'features'=>['production_workflow','recipe_tracking','accounts','warehouse','online_store','multi_unit_inventory','multi_unit_selling','item_variants','batch_tracking','service_workflow','service_jobs','custom_orders','staff_assignment','delivery_scheduling','customer_notes','customer_contacts','customer_sites','manager_approvals','price_catalogue','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
                 // Use the existing commerce/service screens until the dedicated workspace ships.
-                'theme_key'=>'agro','dashboard_template'=>'general_retail','workflow_template'=>'service_standard',
-                'labels'=>['item'=>'Plant / Garden Product','product'=>'Plant / Garden Product','service'=>'Landscaping Service','service_order'=>'Landscaping Job','appointment'=>'Site Visit','custom_order'=>'Landscaping Order','customer'=>'Client','warehouse'=>'Garden Centre / Nursery','staff'=>'Team Member'],
+                'theme_key'=>'botanical_elegance','dashboard_template'=>'general_retail','workflow_template'=>'service_standard',
+                'labels'=>['recipe'=>'Materials template','production'=>'Nursery production','item'=>'Product','product'=>'Product','service'=>'Service','service_order'=>'Service Job','appointment'=>'Site Visit','custom_order'=>'Landscaping Order','customer'=>'Client','warehouse'=>'Branch','staff'=>'Team Member'],
             ],
             'feed_store' => [
                 'business_model'=>'product_based',
@@ -620,7 +652,7 @@ if (!function_exists('mp_get_business_presets')) {
             'manufacturer'          => 'wholesale',
             'nylon_polythene'       => 'wholesale',
             'multi_branch_retail'   => 'wholesale',
-            'building_materials'    => 'hardware',
+            'building_materials'    => 'framework_atelier',
             'paint_store'           => 'hardware',
             'plumbing_store'        => 'hardware',
             'agro_dealer'           => 'agro',
@@ -686,11 +718,12 @@ if (!function_exists('mp_get_business_presets')) {
 if (!function_exists('mp_feature_flag_raw')) {
     function mp_feature_flag_raw($flag_key) {
         $CI =& get_instance();
+        $reader = mp_read_db();
         $store_id = get_current_store_id();
 
         // 1. Prefer modular industry settings table
-        if ($CI->db->table_exists('db_store_industry_settings')) {
-            $q = $CI->db->select('feature_flags_json')
+        if ($reader->table_exists('db_store_industry_settings')) {
+            $q = $reader->select('feature_flags_json')
                 ->where('store_id',$store_id)->get('db_store_industry_settings');
             if ($q && method_exists($q, 'row')) {
                 $store = $q->row();
@@ -704,10 +737,10 @@ if (!function_exists('mp_feature_flag_raw')) {
         }
 
         // 2. Fallback to db_store columns
-        if (!$CI->db->field_exists('feature_flags_json', 'db_store')) {
+        if (!$reader->field_exists('feature_flags_json', 'db_store')) {
             return null;
         }
-        $q = $CI->db->select('feature_flags_json')
+        $q = $reader->select('feature_flags_json')
             ->where('id',$store_id)->get('db_store');
         if (!$q || !method_exists($q, 'row')) {
             return null;
@@ -788,6 +821,148 @@ if (!function_exists('mp_is_print_shop')) {
     }
 }
 
+if (!function_exists('mp_is_restaurant_workspace')) {
+    /**
+     * Is this store running the RestaurantOS workspace?
+     *
+     * Gated on `restaurant_workspace`, declared by the restaurant/food presets
+     * (restaurant, fast_food, cafe, pizza_shop, shawarma, juice_bar, buka,
+     * canteen). A store whose industry label is wrong can still switch it on
+     * under Feature Flags; retail presets never declare it, so ordinary retail
+     * stays untouched.
+     */
+    function mp_is_restaurant_workspace() {
+        return mp_feature_enabled('restaurant_workspace');
+    }
+}
+
+if (!function_exists('mp_get_restaurant_nav_presets')) {
+    /**
+     * RestaurantOS navigation presets.
+     *
+     * Each preset decides WHICH workspace destinations a restaurant sees —
+     * the screens themselves are shared, the navigation is configurable per
+     * operating model. `tables` = show Tables & Reservations, `outlets` =
+     * always show the Outlets group (a store that actually runs more than
+     * one outlet sees it regardless of preset).
+     */
+    function mp_get_restaurant_nav_presets() {
+        return [
+            'quick_service' => [
+                'label'       => 'Quick Service',
+                'description' => 'Counter-first service: walk-in POS, kitchen queue and pickup/delivery. No table service.',
+                'tables'      => false,
+                'outlets'     => false,
+            ],
+            'casual_dining' => [
+                'label'       => 'Casual Dining',
+                'description' => 'Table service with reservations, alongside takeaway and delivery.',
+                'tables'      => true,
+                'outlets'     => false,
+            ],
+            'delivery_only' => [
+                'label'       => 'Delivery Only',
+                'description' => 'Online and phone orders fulfilled by pickup or delivery; no dine-in tables.',
+                'tables'      => false,
+                'outlets'     => false,
+            ],
+            'multi_location' => [
+                'label'       => 'Multi-Location Chain',
+                'description' => 'Every service screen plus outlet management for a chain of outlets.',
+                'tables'      => true,
+                'outlets'     => true,
+            ],
+        ];
+    }
+}
+
+if (!function_exists('mp_restaurant_nav_preset')) {
+    /**
+     * The store's current RestaurantOS navigation preset key.
+     * Stored under restaurant_workspace.nav_preset in industry_settings_json
+     * (the same namespaced-blob pattern the laundry workflow config uses).
+     */
+    function mp_restaurant_nav_preset() {
+        $default = 'quick_service';
+        $profile = mp_get_store_profile();
+        // mp_get_store_profile() exposes industry_settings_json as 'settings'.
+        $json = (!empty($profile['settings']) && is_array($profile['settings'])) ? $profile['settings'] : [];
+        if (!empty($json['restaurant_workspace']['nav_preset'])) {
+            $default = $json['restaurant_workspace']['nav_preset'];
+        }
+        $presets = mp_get_restaurant_nav_presets();
+        return isset($presets[$default]) ? $default : 'quick_service';
+    }
+}
+
+if (!function_exists('mp_restaurant_nav_items')) {
+    /**
+     * Visible RestaurantOS workspace destinations for this store.
+     *
+     * The sidebar rail and the Overview shortcut grid read this one list so a
+     * destination and its gate can never disagree — every item carries the
+     * permission its own controller checks (POS → pos, Menu → items_add,
+     * Kitchen → store_view, Recipes → recipes_view …), and preset-only
+     * destinations (Tables, Outlets) drop out when the preset excludes them.
+     *
+     * Pseudo-perm 'admin' matches is_admin() || is_store_admin().
+     *
+     * Pass $preset_key to ask what a *different* layout would show — that is
+     * how Restaurant Setup previews a preset before it is saved, so the
+     * preview and the real rail are produced by the same gating code.
+     */
+    function mp_restaurant_nav_items($preset_key = null) {
+        $CI =& get_instance();
+        $presets = mp_get_restaurant_nav_presets();
+        $key = ($preset_key !== null && isset($presets[$preset_key])) ? $preset_key : mp_restaurant_nav_preset();
+        $preset = $presets[$key];
+
+        $items = [];
+        $add = function ($item_key, $label, $url, $perms = [], $flag = null) use (&$items, $CI) {
+            if ($flag !== null && !mp_feature_enabled($flag)) return;
+            if (!empty($perms)) {
+                $ok = false;
+                foreach ((array) $perms as $p) {
+                    if ($p === 'admin') {
+                        if (is_admin() || is_store_admin()) { $ok = true; break; }
+                    } elseif ($CI->permissions($p)) {
+                        $ok = true; break;
+                    }
+                }
+                if (!$ok) return;
+            }
+            $items[$item_key] = [
+                'key'   => $item_key,
+                'label' => $label,
+                'url'   => base_url($url),
+            ];
+        };
+
+        $add('pos',       'Walk-in POS',           'pos',                            ['pos']);
+        $add('orders',    'Orders',                'restaurantos/orders',            ['sales_view', 'online_store_orders', 'admin']);
+        $add('kitchen',   'Kitchen Display',       'operations/kitchen',             ['store_view'], 'kitchen_workflow');
+        $add('fulfilment','Pickup & Delivery',     'operations/delivery_scheduling', ['store_view'], 'delivery_scheduling');
+        if (!empty($preset['tables'])) {
+            $add('tables', 'Tables & Reservations', 'operations/table_management',   ['store_view', 'admin'], 'table_management');
+        }
+        $add('menu',      'Menu & Combos',         'operations/menu_items',          ['items_add'], 'kitchen_workflow');
+        $add('recipes',   'Recipes & Ingredients', 'operations/recipes',             ['recipes_view'], 'recipe_tracking');
+
+        // Outlets: chains always, plus any store that actually runs more than
+        // one outlet — hiding outlet tools from a two-outlet shop because it
+        // never touched the preset would strand it.
+        $outlets_ok = !empty($preset['outlets']);
+        if (!$outlets_ok && function_exists('get_current_store_id')) {
+            $outlets_ok = $CI->db->where('store_id', get_current_store_id())->count_all_results('db_warehouse') > 1;
+        }
+        if ($outlets_ok && function_exists('warehouse_module') && warehouse_module()) {
+            $add('outlets', 'Outlets', 'warehouse', ['warehouse_view', 'warehouse_add']);
+        }
+
+        return $items;
+    }
+}
+
 if (!function_exists('mp_feature_enabled_for_store')) {
     /**
      * Same as mp_feature_enabled() but for an explicit store — needed on public
@@ -795,9 +970,10 @@ if (!function_exists('mp_feature_enabled_for_store')) {
      */
     function mp_feature_enabled_for_store($flag_key, $store_id) {
         $CI =& get_instance();
+        $reader = mp_read_db();
         $raw = null;
-        if ($CI->db->table_exists('db_store_industry_settings')) {
-            $store = $CI->db->select('feature_flags_json')->where('store_id', $store_id)->get('db_store_industry_settings')->row();
+        if ($reader->table_exists('db_store_industry_settings')) {
+            $store = $reader->select('feature_flags_json')->where('store_id', $store_id)->get('db_store_industry_settings')->row();
             if ($store && !empty($store->feature_flags_json)) {
                 $flags = json_decode($store->feature_flags_json, true);
                 if (is_array($flags) && array_key_exists($flag_key, $flags)) {
@@ -805,8 +981,8 @@ if (!function_exists('mp_feature_enabled_for_store')) {
                 }
             }
         }
-        if ($raw === null && $CI->db->field_exists('feature_flags_json', 'db_store')) {
-            $store = $CI->db->select('feature_flags_json')->where('id', $store_id)->get('db_store')->row();
+        if ($raw === null && $reader->field_exists('feature_flags_json', 'db_store')) {
+            $store = $reader->select('feature_flags_json')->where('id', $store_id)->get('db_store')->row();
             if ($store && !empty($store->feature_flags_json)) {
                 $flags = json_decode($store->feature_flags_json, true);
                 if (is_array($flags) && array_key_exists($flag_key, $flags)) {
@@ -824,8 +1000,8 @@ if (!function_exists('mp_feature_enabled_for_store')) {
         }
         if ($flag_key === 'item_variants') {
             $CI2 =& get_instance();
-            if ($CI2->db->table_exists('db_store_industry_settings')) {
-                $store = $CI2->db->select('feature_flags_json')->where('store_id', $store_id)->get('db_store_industry_settings')->row();
+            if ($reader->table_exists('db_store_industry_settings')) {
+                $store = $reader->select('feature_flags_json')->where('store_id', $store_id)->get('db_store_industry_settings')->row();
                 if ($store && !empty($store->feature_flags_json)) {
                     $flags = json_decode($store->feature_flags_json, true);
                     if (is_array($flags) && array_key_exists('bundles', $flags)) {
@@ -833,8 +1009,8 @@ if (!function_exists('mp_feature_enabled_for_store')) {
                     }
                 }
             }
-            if ($CI2->db->field_exists('feature_flags_json', 'db_store')) {
-                $store = $CI2->db->select('feature_flags_json')->where('id', $store_id)->get('db_store')->row();
+            if ($reader->field_exists('feature_flags_json', 'db_store')) {
+                $store = $reader->select('feature_flags_json')->where('id', $store_id)->get('db_store')->row();
                 if ($store && !empty($store->feature_flags_json)) {
                     $flags = json_decode($store->feature_flags_json, true);
                     if (is_array($flags) && array_key_exists('bundles', $flags)) {
@@ -848,52 +1024,36 @@ if (!function_exists('mp_feature_enabled_for_store')) {
     }
 }
 
+if (!function_exists('mp_read_store_profile')) {
+    /** Isolated, schema-aware profile read for older and current fleets. */
+    function mp_read_store_profile($store_id) {
+        $reader = mp_read_db();
+        $columns = ['industry_type','business_model','feature_flags_json','workflow_template_key','dashboard_template_key','storefront_theme_key','label_overrides_json','industry_settings_json'];
+        foreach (['db_store_industry_settings'=>'store_id','db_store_business_profile'=>'store_id','db_store'=>'id'] as $table=>$key) {
+            if (!$reader->table_exists($table)) continue;
+            $fields = $reader->list_fields($table);
+            $available = array_values(array_intersect($columns, $fields));
+            if (!$available || !in_array($key, $fields, true)) continue;
+            $query = $reader->select(implode(',', $available))->where($key, (int)$store_id)->limit(1)->get($table);
+            $row = $query ? $query->row_array() : [];
+            if ($row) return $row;
+        }
+        return [];
+    }
+}
+
 if (!function_exists('mp_get_store_profile')) {
     function mp_get_store_profile($store_id=null) {
-        $CI =& get_instance();
         if (empty($store_id)) $store_id = get_current_store_id();
-        $columns = ['industry_type','business_model','feature_flags_json','workflow_template_key','dashboard_template_key','storefront_theme_key','label_overrides_json','industry_settings_json'];
-
-        $store = null;
-
-        // 1. Prefer new modular industry settings table
-        if ($CI->db->table_exists('db_store_industry_settings')) {
-            $q = $CI->db->select(implode(',', $columns))->where('store_id',$store_id)->get('db_store_industry_settings');
-            if ($q && method_exists($q, 'row')) {
-                $store = $q->row();
-            }
-        }
-
-        // 2. Fallback: older dedicated business-profile table
-        if (!$store && $CI->db->table_exists('db_store_business_profile')) {
-            $q = $CI->db->select(implode(',', $columns))->where('store_id',$store_id)->get('db_store_business_profile');
-            if ($q && method_exists($q, 'row')) {
-                $store = $q->row();
-            }
-        }
-
-        // 3. Fallback: old db_store columns
-        if (!$store) {
-            $available = [];
-            foreach ($columns as $col) {
-                if ($CI->db->field_exists($col, 'db_store')) {
-                    $available[] = $col;
-                }
-            }
-            if (empty($available)) {
-                return mp_get_default_profile();
-            }
-            $q = $CI->db
-                ->select(implode(',', $available))
-                ->where('id',$store_id)->get('db_store');
-            if (!$q || !method_exists($q, 'row')) {
-                return mp_get_default_profile();
-            }
-            $store = $q->row();
-            if (!$store) return mp_get_default_profile();
-        }
+        $row = mp_read_store_profile($store_id);
+        if (!$row) return mp_get_default_profile();
+        $store = (object)$row;
 
         $industry = (!empty($store->industry_type)) ? $store->industry_type : 'general_retail';
+        // Public canonical identifier aliases the established persisted key.
+        if (strtoupper(trim($industry)) === 'GARDEN_CENTRE_LANDSCAPING') {
+            $industry = 'garden_centre_landscaping';
+        }
         $presets = mp_get_business_presets();
         $preset = isset($presets[$industry]) ? $presets[$industry] : $presets['general_retail'];
         $profile = [
@@ -925,6 +1085,18 @@ if (!function_exists('mp_get_store_profile')) {
             $settings = json_decode($store->industry_settings_json,true);
             if (is_array($settings)) $profile['settings']=$settings;
         }
+        if ($industry === 'garden_centre_landscaping') {
+            require_once APPPATH.'helpers/garden_helper.php';
+            try {
+                $profile['operating_modes'] = mp_garden_modes($profile['settings']['garden_operating_modes'] ?? ['combined']);
+            } catch (InvalidArgumentException $e) {
+                // Malformed saved settings fail closed; leave Settings usable
+                // so an owner can repair the modes without a fatal page.
+                $profile['operating_modes'] = [];
+                log_message('error','Invalid garden operating modes for store '.(int)$store_id);
+            }
+            $profile['features'] = mp_garden_mode_features($profile['features'], $profile['operating_modes']);
+        }
         return $profile;
     }
 }
@@ -943,11 +1115,12 @@ if (!function_exists('mp_get_default_profile')) {
 if (!function_exists('mp_label')) {
     function mp_label($key,$fallback=null) {
         $CI =& get_instance();
+        $reader = mp_read_db();
         $store_id = get_current_store_id();
 
         // 1. Prefer modular industry settings table
-        if ($CI->db->table_exists('db_store_industry_settings')) {
-            $q = $CI->db->select('label_overrides_json')->where('store_id',$store_id)->get('db_store_industry_settings');
+        if ($reader->table_exists('db_store_industry_settings')) {
+            $q = $reader->select('label_overrides_json')->where('store_id',$store_id)->get('db_store_industry_settings');
             if ($q && method_exists($q, 'row')) {
                 $store = $q->row();
                 if ($store && !empty($store->label_overrides_json)) {
@@ -958,8 +1131,8 @@ if (!function_exists('mp_label')) {
         }
 
         // 2. Fallback to db_store columns
-        if ($CI->db->field_exists('label_overrides_json', 'db_store')) {
-            $q = $CI->db->select('label_overrides_json')->where('id',$store_id)->get('db_store');
+        if ($reader->field_exists('label_overrides_json', 'db_store')) {
+            $q = $reader->select('label_overrides_json')->where('id',$store_id)->get('db_store');
             if ($q && method_exists($q, 'row')) {
                 $store = $q->row();
                 if ($store && !empty($store->label_overrides_json)) {
@@ -1113,13 +1286,14 @@ if (!function_exists('mp_get_storefront_themes')) {
 if (!function_exists('mp_suggest_storefront_theme')) {
     function mp_suggest_storefront_theme($business_type=null,$store_id=null) {
         $CI =& get_instance();
+        $reader = mp_read_db();
         if (empty($store_id)) $store_id = get_current_store_id();
         if (empty($business_type)) {
             $business_type = 'general_retail';
-            if ($CI->db->table_exists('db_store_business_profile')) {
-                $q = $CI->db->select('industry_type')->where('store_id',$store_id)->get('db_store_business_profile');
+            if ($reader->table_exists('db_store_business_profile')) {
+                $q = $reader->select('industry_type')->where('store_id',$store_id)->get('db_store_business_profile');
             } else {
-                $q = $CI->db->select('industry_type')->where('id',$store_id)->get('db_store');
+                $q = $reader->select('industry_type')->where('id',$store_id)->get('db_store');
             }
             if ($q && method_exists($q, 'row')) {
                 $row = $q->row();
@@ -1150,7 +1324,8 @@ if (!function_exists('mp_get_custom_field_types')) {
 if (!function_exists('mp_get_service_custom_fields')) {
     function mp_get_service_custom_fields($service_id) {
         $CI =& get_instance();
-        $q = $CI->db->select('industry_fields_json')->where('id',$service_id)->get('db_services');
+        $reader = mp_read_db();
+        $q = $reader->select('industry_fields_json')->where('id',$service_id)->get('db_services');
         if (!$q || !method_exists($q, 'row')) {
             return [];
         }
@@ -1249,5 +1424,158 @@ if (!function_exists('mp_role_visible')) {
             return true;
         }
         return in_array($family, mp_store_role_families($store_id), true);
+    }
+}
+
+if (!function_exists('mp_industry_screen_labels')) {
+    /**
+     * Friendly screen names for the routes an industry exposes. MartPoint
+     * Assist uses these to name and open the right workspace screens.
+     */
+    function mp_industry_screen_labels() {
+        return array(
+            'pos'                            => 'POS',
+            'items'                          => 'Products',
+            'inventory'                      => 'Inventory',
+            'sales'                          => 'Sales',
+            'customers'                      => 'Customers',
+            'suppliers'                      => 'Suppliers',
+            'purchases'                      => 'Purchases',
+            'expenses'                       => 'Expenses',
+            'reports'                        => 'Reports',
+            'online_store'                   => 'Online Store',
+            'online_store/orders'            => 'Online Orders',
+            'garden/catalogue'               => 'Catalogue',
+            'garden/nursery'                 => 'Nursery',
+            'garden/production'              => 'Nursery Production',
+            'garden/materials'               => 'Materials',
+            'garden/projects'                => 'Landscaping Projects',
+            'garden/maintenance'             => 'Garden Maintenance',
+            'leads'                          => 'Enquiries & Leads',
+            'appointments'                   => 'Bookings & Appointments',
+            'quotation/add'                  => 'New Quotation',
+            'production'                     => 'Production',
+            'operations/production_schedule' => 'Production Schedule',
+            'operations/kitchen'             => 'Kitchen Display',
+            'oil_processing'                 => 'Plant Workspace',
+            'nylon'                          => 'Production',
+            'printing/production'            => 'Production Floor',
+        );
+    }
+}
+
+if (!function_exists('mp_industry_synonym_map')) {
+    /**
+     * Informal words users type or say, mapped to the canonical concept key.
+     * Seeded generically, then extended for specific industries.
+     */
+    function mp_industry_synonym_map($industry = null) {
+        $common = array(
+            'product' => 'item', 'products' => 'item', 'goods' => 'item', 'merchandise' => 'item',
+            'buyer' => 'customer', 'buyers' => 'customer', 'client' => 'customer', 'clients' => 'customer',
+            'shopper' => 'customer', 'patient' => 'customer', 'patients' => 'customer',
+            'vendor' => 'supplier', 'vendors' => 'supplier',
+            'bill' => 'sale', 'bills' => 'sale', 'invoice' => 'sale', 'invoices' => 'sale', 'receipt' => 'sale',
+            'estimate' => 'quotation', 'estimates' => 'quotation', 'quote' => 'quotation', 'quotes' => 'quotation',
+            'debt' => 'customer_balance', 'debts' => 'customer_balance', 'owing' => 'customer_balance', 'owes' => 'customer_balance',
+            'depot' => 'warehouse', 'shop' => 'warehouse', 'outlet' => 'warehouse',
+            'revenue' => 'sales', 'turnover' => 'sales', 'takings' => 'sales',
+        );
+        $by_industry = array(
+            'garden_centre_landscaping' => array(
+                'plant' => 'item', 'plants' => 'item', 'tree' => 'item', 'trees' => 'item',
+                'shrub' => 'item', 'shrubs' => 'item', 'seedling' => 'item', 'seedlings' => 'item',
+                'flower' => 'item', 'flowers' => 'item', 'pot' => 'item', 'pots' => 'item', 'soil' => 'item',
+                'nursery' => 'production', 'propagation' => 'production', 'potting' => 'production',
+                'project' => 'service_order', 'projects' => 'service_order', 'job' => 'service_order',
+                'jobs' => 'service_order', 'installation' => 'service_order', 'installations' => 'service_order',
+                'landscaping' => 'service_order', 'maintenance' => 'service_order',
+                'visit' => 'appointment', 'visits' => 'appointment', 'site' => 'appointment', 'sites' => 'appointment',
+                'material' => 'recipe', 'materials' => 'recipe', 'template' => 'recipe', 'formula' => 'recipe',
+                'crew' => 'staff', 'team' => 'staff', 'gardener' => 'staff', 'landscaper' => 'staff',
+            ),
+            'oil_processing_plant' => array(
+                'material' => 'recipe', 'materials' => 'recipe', 'formula' => 'recipe',
+                'process' => 'production', 'run' => 'production', 'runs' => 'production', 'batch' => 'production',
+            ),
+        );
+        if ($industry === null) {
+            $profile  = function_exists('mp_get_store_profile') ? mp_get_store_profile() : array();
+            $industry = isset($profile['industry_type']) ? $profile['industry_type'] : '';
+        }
+        return isset($by_industry[$industry]) ? array_merge($common, $by_industry[$industry]) : $common;
+    }
+}
+
+if (!function_exists('mp_industry_vocabulary')) {
+    /**
+     * The vocabulary the active industry actually uses: canonical terms, the
+     * screens/slugs available to it, and the informal words that map onto
+     * those concepts. Consumed by MartPoint Assist so it understands the
+     * store's own language instead of a generic retail vocabulary.
+     *
+     * @param array|null $profile store profile (defaults to the active store)
+     * @return array{industry:string,industry_label:string,terms:array,screens:array,synonyms:array}
+     */
+    function mp_industry_vocabulary($profile = null) {
+        if ($profile === null) {
+            $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : array();
+        }
+        $industry = $profile['industry_type'] ?? 'general_retail';
+        $types    = function_exists('mp_get_business_types') ? mp_get_business_types() : array();
+        $presets  = function_exists('mp_get_business_presets') ? mp_get_business_presets() : array();
+        $preset   = isset($presets[$industry]) ? $presets[$industry] : (isset($presets['general_retail']) ? $presets['general_retail'] : array());
+
+        // Canonical terms: the store's own label for each concept. Labels are
+        // already resolved on the profile (preset + store overrides), so no
+        // per-key database lookups are needed here.
+        $term_keys = array('item','product','customer','supplier','service','service_order','appointment',
+            'order','quote','warehouse','branch','staff','production','recipe','sale','purchase','expense','batch');
+        $defaults = function_exists('mp_get_label_defaults') ? mp_get_label_defaults() : array();
+        $labels   = isset($profile['labels']) && is_array($profile['labels']) ? $profile['labels'] : array();
+        $merged   = array_merge($defaults, $labels);
+        $terms    = array();
+        foreach ($term_keys as $key) {
+            if (!empty($merged[$key])) $terms[$key] = $merged[$key];
+        }
+
+        // Screens the industry exposes — the 4th capability column is the route.
+        $screen_labels = function_exists('mp_industry_screen_labels') ? mp_industry_screen_labels() : array();
+        // Core screens every store has; industry capabilities add/override.
+        $screens = array(
+            'pos'       => isset($screen_labels['pos']) ? $screen_labels['pos'] : 'POS',
+            'items'     => isset($screen_labels['items']) ? $screen_labels['items'] : 'Products',
+            'inventory' => isset($screen_labels['inventory']) ? $screen_labels['inventory'] : 'Inventory',
+            'sales'     => isset($screen_labels['sales']) ? $screen_labels['sales'] : 'Sales',
+            'customers' => isset($screen_labels['customers']) ? $screen_labels['customers'] : 'Customers',
+            'purchases' => isset($screen_labels['purchases']) ? $screen_labels['purchases'] : 'Purchases',
+            'expenses'  => isset($screen_labels['expenses']) ? $screen_labels['expenses'] : 'Expenses',
+            'reports'   => isset($screen_labels['reports']) ? $screen_labels['reports'] : 'Reports',
+        );
+        if (isset($preset['capabilities']) && is_array($preset['capabilities'])) {
+            foreach ($preset['capabilities'] as $capability => $meta) {
+                $route = isset($meta[2]) ? trim((string)$meta[2]) : '';
+                if ($route === '' || isset($screens[$route])) continue;
+                $screens[$route] = isset($screen_labels[$route]) ? $screen_labels[$route] : ucwords(str_replace('_', ' ', (string)$capability));
+            }
+        }
+
+        // Synonyms: informal words -> canonical concept key, seeded from the
+        // store's labels then extended per industry.
+        $synonyms = array();
+        foreach ($terms as $key => $label) {
+            $lower = strtolower($label);
+            if ($lower !== '' && $lower !== strtolower($key)) $synonyms[$lower] = $key;
+        }
+        $extra = function_exists('mp_industry_synonym_map') ? mp_industry_synonym_map($industry) : array();
+        foreach ($extra as $word => $key) { $synonyms[$word] = $key; }
+
+        return array(
+            'industry'       => $industry,
+            'industry_label' => isset($types[$industry]) ? $types[$industry] : 'General Retail',
+            'terms'          => $terms,
+            'screens'        => $screens,
+            'synonyms'       => $synonyms,
+        );
     }
 }

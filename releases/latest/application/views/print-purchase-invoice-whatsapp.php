@@ -67,6 +67,7 @@ $CI =& get_instance();
 
 $q1 = $this->db->query("SELECT * FROM db_store WHERE status=1 AND id=".get_current_store_id());
 $res1 = $q1->row();
+    $res1 = mp_document_store($res1, 'db_purchase', $purchase_id);
 $store_name = $res1->store_name;
 $company_mobile = $res1->mobile;
 $company_phone = $res1->phone;

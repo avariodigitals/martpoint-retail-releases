@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?> — Shipping Fees</title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Shipping Fees</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -20,7 +20,7 @@
 </head>
 <body>
   <main class="screen">
-    <header class="topbar"><a class="back" href="<?= base_url('mobile/more'); ?>" aria-label="Back"><i class="fa fa-chevron-left"></i></a><div class="topbar-titles"><div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint'); ?></div><h1>Shipping Fees</h1></div></header>
+    <header class="topbar"><a class="back" href="<?= base_url('mobile/more'); ?>" aria-label="Back"><i class="fa fa-chevron-left"></i></a><div class="topbar-titles"><div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div><h1>Shipping Fees</h1></div></header>
     <div class="hint"><i class="fa fa-truck"></i>Active locations appear at POS checkout. Their delivery charge is added to the sale total.</div>
     <section class="fee-list">
       <?php foreach($fees as $fee): ?><article class="fee-card" data-id="<?= (int)$fee->id; ?>" data-label="<?= htmlspecialchars($fee->label, ENT_QUOTES, 'UTF-8'); ?>" data-location="<?= htmlspecialchars($fee->location ?? '', ENT_QUOTES, 'UTF-8'); ?>" data-fee="<?= htmlspecialchars($fee->fee, ENT_QUOTES, 'UTF-8'); ?>" data-order="<?= (int)$fee->sort_order; ?>" data-enabled="<?= (int)$fee->is_enabled; ?>"><div class="fee-head"><div class="fee-name"><?= htmlspecialchars($fee->label); ?><div class="fee-location"><?= htmlspecialchars($fee->location ?: 'No area specified'); ?></div></div><div class="fee-amount"><?= mp_format_money($fee->fee); ?></div></div><div class="fee-meta"><span class="status <?= $fee->is_enabled ? 'active' : 'inactive'; ?>"><?= $fee->is_enabled ? 'Active at POS' : 'Inactive'; ?></span><?php if($can_add || $can_delete): ?><div class="actions"><?php if($can_add): ?><button class="icon-button" type="button" onclick="editFee(this.closest('.fee-card'))" aria-label="Edit shipping fee"><i class="fa fa-pencil"></i></button><?php endif; ?><?php if($can_delete): ?><button class="icon-button delete" type="button" onclick="deleteFee(<?= (int)$fee->id; ?>)" aria-label="Delete shipping fee"><i class="fa fa-trash"></i></button><?php endif; ?></div><?php endif; ?></div></article><?php endforeach; ?>

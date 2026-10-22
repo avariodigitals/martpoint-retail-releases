@@ -244,6 +244,19 @@
     </div>
 
     <div class="screen-card no-break">
+      <h3>Set up stepped weight pricing</h3>
+      <p class="small mb-2">Use this when a product is priced per whole kg, with a fixed charge for each additional 0.05 kg line. The scale can remain manual; the attendant enters its reading at the POS.</p>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>In <strong>Butchery &amp; Frozen</strong>, check <strong>Enable stepped weight pricing</strong>.</li>
+        <li>Set the base weight unit to <strong>1 kg</strong>.</li>
+        <li>Enter the fractional line size: <strong>0.05 kg</strong>.</li>
+        <li>Enter the charge per step for this product: <strong>&#x20A6;400</strong>.</li>
+        <li>Set the product's retail price to the base price: <strong>&#x20A6;8,400</strong>. Save the product after checking the other stock and batch fields.</li>
+      </ol>
+      <div class="tip" style="margin-bottom:0;"><strong>Example: Frozen Turkey</strong><br>1.10 kg = (1 &times; &#x20A6;8,400) + (2 lines &times; &#x20A6;400) = <strong>&#x20A6;9,200</strong>.<br>4.20 kg = (4 &times; &#x20A6;8,400) + (4 lines &times; &#x20A6;400) = <strong>&#x20A6;35,200</strong>.<br>MartPoint derives the fractional lines automatically, applies tax to the calculated price, and deducts the exact weight sold from stock.</div>
+    </div>
+
+    <div class="screen-card no-break">
       <h3>What the product form captures</h3>
       <div class="field-list">
         <div class="field"><strong>Product &amp; unit</strong><span>Frozen Turkey, sold in KG</span></div>
@@ -266,13 +279,13 @@
   <section class="page">
     <span class="label">Afternoon</span>
     <h2 class="mb-2">Sell by kilo, pack or carton</h2>
-    <p class="lead mb-3">Tunde is at the counter. A customer wants 2.5&nbsp;kg of turkey and one pack of gizzard. Later, a restaurant buys a full carton of croaker at the wholesale price.</p>
+      <p class="lead mb-3">Tunde is at the counter. The digital scale shows 1&nbsp;kg plus 2 lines of 0.05&nbsp;kg for turkey. He enters the kg and lines separately, and MartPoint calculates the price automatically.</p>
 
     <div class="chat">
       <div class="chat-avatar"><i class="fa fa-user"></i></div>
       <div class="chat-bubble">
         <strong>Tunde, Sales Attendant</strong>
-        <p>&ldquo;The scale says 2.5&nbsp;kg for the turkey &mdash; that is &#x20A6;11,250. Plus one pack of gizzard at &#x20A6;4,000. Total &#x20A6;15,250. The customer is paying &#x20A6;10,000 cash and &#x20A6;5,250 by transfer.&rdquo;</p>
+        <p>&ldquo;I enter 1&nbsp;kg and 2 lines for the turkey. The POS calculates &#x20A6;9,200. Plus one pack of gizzard at &#x20A6;4,000, the total is &#x20A6;13,200.&rdquo;</p>
       </div>
     </div>
 
@@ -280,10 +293,10 @@
       <h3>Screen by screen at the POS</h3>
       <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
         <li>Tunde taps <strong>POS</strong> on the bottom menu.</li>
-        <li>He searches <strong>Turkey</strong>, taps the product and enters the weighed quantity: <strong>2.5 kg</strong>.</li>
+        <li>He searches <strong>Turkey</strong>, taps the product and enters <strong>1 kg</strong> in the kg field and <strong>2</strong> in the lines field. He does not calculate the extra charge manually.</li>
         <li>He adds <strong>Chicken Gizzard</strong> &mdash; 1 pack at &#x20A6;4,000.</li>
-        <li>He taps <strong>Split Pay</strong> and enters <strong>Cash: &#x20A6;10,000</strong> and <strong>Transfer: &#x20A6;5,250</strong>, then types the transfer reference.</li>
-        <li>He taps <strong>Save</strong>. The receipt prints and stock drops by exactly 2.5&nbsp;kg of turkey and 1 pack of gizzard.</li>
+        <li>He taps <strong>Split Pay</strong> and enters the payment amounts, then types the transfer reference if needed.</li>
+        <li>He taps <strong>Save</strong>. The receipt prints and stock drops by exactly 1.10&nbsp;kg of turkey and 1 pack of gizzard.</li>
         <li>For the restaurant, he sells a full <strong>carton</strong> of croaker and taps the <strong>Wholesale</strong> price button &mdash; no need to create a separate product.</li>
       </ol>
     </div>
@@ -292,14 +305,14 @@
       <h3>What happens behind the counter</h3>
       <p class="small mb-2">As soon as the sale is saved:</p>
       <div class="field-list">
-        <div class="field"><strong>Stock</strong><span>Turkey drops by 2.5 kg, gizzard by 1 pack</span></div>
+        <div class="field"><strong>Stock</strong><span>Turkey drops by exactly 1.10 kg (1 kg + 2 lines), gizzard by 1 pack</span></div>
         <div class="field"><strong>Cash</strong><span>&#x20A6;10,000 recorded in the cash drawer</span></div>
-        <div class="field"><strong>Transfer</strong><span>&#x20A6;5,250 marked with the reference ID</span></div>
+        <div class="field"><strong>Transfer</strong><span>&#x20A6;3,200 marked with the reference ID</span></div>
         <div class="field"><strong>Batch</strong><span>The sale is tied to the batch it came from</span></div>
       </div>
     </div>
 
-    <div class="tip"><strong>Retail vs wholesale:</strong> The POS has a retail price button and a wholesale price button. Walk-in customers get the per-kilo price; bulk buyers get the carton price. Both reduce the same stock correctly.</div>
+    <div class="tip"><strong>Retail vs wholesale:</strong> The POS has a retail price button and a wholesale price button. Walk-in customers get the configured stepped-weight price; bulk buyers get the carton price. Both reduce the same stock correctly.</div>
 
     <div class="next"><i class="fa fa-arrow-right"></i> Next: online orders and closing checks.</div>
 

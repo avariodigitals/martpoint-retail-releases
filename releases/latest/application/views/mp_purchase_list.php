@@ -5,50 +5,11 @@ $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
 $is_car = $industry === 'car_dealership';
 $page_title = $is_car ? 'Vehicle Purchase List' : $page_title;
 
-/*Total Invoices*/
-if (!is_admin()) {
-  if ($this->session->userdata('role_id') != '2') {
-    $this->db->where("upper(created_by)", strtoupper($this->session->userdata('inv_username')));
-  }
-}
-$total_invoice = $this->db->select("COUNT(*) as total")
-                           ->from("db_purchase")
-                           ->where("store_id", get_current_store_id())
-                           ->get()->row()->total;
-
-/*Total Value*/
-if (!is_admin()) {
-  if ($this->session->userdata('role_id') != '2') {
-    $this->db->where("upper(created_by)", strtoupper($this->session->userdata('inv_username')));
-  }
-}
-$pur_total = $this->db->select("COALESCE(sum(grand_total),0) AS tot_pur_grand_total")
-                      ->from("db_purchase")
-                      ->where_in("purchase_status", array('Received','Partially Received'))
-                      ->where("store_id", get_current_store_id())
-                      ->get()->row()->tot_pur_grand_total;
-
-/*Paid Amount*/
-if (!is_admin()) {
-  if ($this->session->userdata('role_id') != '2') {
-    $this->db->where("upper(created_by)", strtoupper($this->session->userdata('inv_username')));
-  }
-}
-$tot_paid_amt = $this->db->select("COALESCE(SUM(paid_amount),0) AS paid_amount")
-                         ->from("db_purchase")
-                         ->where("store_id", get_current_store_id())
-                         ->get()->row()->paid_amount;
-
-/*Total Purchase Due*/
-if (!is_admin()) {
-  if ($this->session->userdata('role_id') != '2') {
-    $this->db->where("upper(created_by)", strtoupper($this->session->userdata('inv_username')));
-  }
-}
-$purchase_due_total = $this->db->select("COALESCE(SUM(purchase_due),0) AS purchase_due")
-                                ->from("db_suppliers")
-                                ->where("store_id", get_current_store_id())
-                                ->get()->row()->purchase_due;
+$purchase_summary = $CI->purchase->get_purchase_summary(get_current_store_id());
+$total_invoice = $purchase_summary['total'];
+$pur_total = $purchase_summary['value'];
+$tot_paid_amt = $purchase_summary['paid'];
+$purchase_due_total = $purchase_summary['due'];
 
 ?>
 

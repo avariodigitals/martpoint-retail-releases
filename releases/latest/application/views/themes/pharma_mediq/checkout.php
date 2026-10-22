@@ -1,0 +1,1 @@
+<main class="mdq-page"><div class="mdq-wrap mdq-page-intro"><div class="mdq-kicker">Secure checkout</div><h1>Let’s get your order to you.</h1><p>Your details are used only to fulfil this pharmacy order.</p></div><?php $this->load->view('themes/shared/cart',['cart_review_only'=>false]); ?></main>

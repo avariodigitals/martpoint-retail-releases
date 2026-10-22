@@ -137,10 +137,7 @@ foreach(array('customer_photo','patient_photo','photo','image_path','profile_pic
 </div>
 
 <div class="pp-head">
-  <div class="pp-avatar <?= $patientCardPhoto ? 'has-photo' : ''; ?>">
-    <?php if($patientCardPhoto): ?><img src="<?= htmlspecialchars($patientCardPhoto); ?>" alt="Patient photo">
-    <?php else: ?><?= htmlspecialchars(strtoupper(substr($patient->customer_name, 0, 1))); ?><?php endif; ?>
-  </div>
+  <?php $avatar_url = $patientCardPhoto; $avatar_name = $patient->customer_name; $avatar_size = 64; $avatar_class = 'pp-avatar'; $this->load->view('components/person_avatar'); ?>
   <div class="pp-meta">
     <?php if($patient->mobile): ?><div><i class="fa fa-phone"></i> <?= htmlspecialchars($patient->mobile); ?></div><?php endif; ?>
     <?php if($patient->email): ?><div><i class="fa fa-envelope"></i> <?= htmlspecialchars($patient->email); ?></div><?php endif; ?>

@@ -4,51 +4,26 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Business_profile_model extends CI_Model {
 
     public function get_profile($store_id) {
-        $columns = ['industry_type', 'business_model', 'feature_flags_json', 'workflow_template_key', 'dashboard_template_key', 'storefront_theme_key', 'label_overrides_json', 'industry_settings_json'];
-
-        // 1. Prefer the new modular industry settings table
-        if ($this->db->table_exists('db_store_industry_settings')) {
-            $q = $this->db->select(implode(',', $columns))->where('store_id', $store_id)->get('db_store_industry_settings');
-            if ($q && method_exists($q, 'row_array')) {
-                $row = $q->row_array();
-                if ($row) {
-                    return $row;
-                }
-            }
-        }
-
-        // 2. Fallback: older dedicated business-profile table
-        if ($this->db->table_exists('db_store_business_profile')) {
-            $q = $this->db->select(implode(',', $columns))->where('store_id', $store_id)->get('db_store_business_profile');
-            if ($q && method_exists($q, 'row_array')) {
-                $row = $q->row_array();
-                return $row ?: [];
-            }
-            return [];
-        }
-
-        // 3. Fallback: old db_store columns
-        $available = [];
-        foreach ($columns as $col) {
-            if ($this->db->field_exists($col, 'db_store')) {
-                $available[] = $col;
-            }
-        }
-        if (empty($available)) {
-            return [];
-        }
-        $q = $this->db
-            ->select(implode(',', $available))
-            ->where('id', $store_id)
-            ->get('db_store');
-        if (!$q || !method_exists($q, 'row_array')) {
-            return [];
-        }
-        $row = $q->row_array();
-        return $row ?: [];
+        return mp_read_store_profile($store_id);
     }
 
     public function update_profile($store_id, $data) {
+        if (isset($data['industry_type']) && strtoupper(trim($data['industry_type'])) === 'GARDEN_CENTRE_LANDSCAPING') {
+            $data['industry_type'] = 'garden_centre_landscaping';
+        }
+        // A profile save that omits the industry settings must preserve the
+        // merchant's selected operating modes and any unrelated settings.
+        $existing = $this->get_profile($store_id);
+        if (($data['industry_type'] ?? $existing['industry_type'] ?? '') === 'garden_centre_landscaping') {
+            $this->load->helper('garden');
+            $settings = json_decode($existing['industry_settings_json'] ?? '',true) ?: [];
+            if (array_key_exists('industry_settings_json',$data)) {
+                $posted = json_decode($data['industry_settings_json'] ?? '',true);
+                if (is_array($posted)) $settings = array_replace($settings,$posted);
+            }
+            $settings['garden_operating_modes'] = mp_garden_modes($settings['garden_operating_modes'] ?? ['combined']);
+            $data['industry_settings_json'] = json_encode($settings);
+        }
         $allowed = [
             'industry_type','business_model','feature_flags_json',
             'workflow_template_key','dashboard_template_key','storefront_theme_key',

@@ -1696,7 +1696,7 @@ class Customers_model extends CI_Model {
 		);
 	}
 
-	public function getOrCreateStorefrontCustomer($storeId, $name, $phone, $email = ''){
+	public function getOrCreateStorefrontCustomer($storeId, $name, $phone, $email = '', $allowExistingMatch = true){
 		$phone = trim($phone);
 		$email = trim($email);
 
@@ -1709,6 +1709,7 @@ class Customers_model extends CI_Model {
 		} else {
 			return 0;
 		}
+		if (!$allowExistingMatch) $this->db->where('1=0',null,false);
 		$existing = $this->db->get('db_customers')->row();
 
 		if($existing){

@@ -4,13 +4,13 @@
 ?>
 <?php if(!defined('MP_ASSIST_LOADED')): ?>
 <?php define('MP_ASSIST_LOADED', true); ?>
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=15">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
 <script>
   window.csrfName = '<?= $this->security->get_csrf_token_name(); ?>';
   window.csrfHash = '<?= $this->security->get_csrf_hash(); ?>';
 </script>
 <script src="<?= $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
-<script src="<?= $theme_link; ?>js/assist.js?v=15"></script>
+<script src="<?= $theme_link; ?>js/assist.js?v=21"></script>
 <?php $this->load->view('assist/panel'); ?>
 <?php endif; ?>
 
@@ -18,3 +18,8 @@
   /* Force a consistent white background on every mobile screen */
   html, body, #app { background: #FFFFFF !important; }
 </style>
+
+<?php $this->load->view('garden/voice_input'); ?>
+<?php $this->load->view('building_materials/voice_input'); ?>
+<?php $this->load->view('building_materials/clock_popup'); ?>
+<?php $this->load->view('mobile/garden_skin'); ?>

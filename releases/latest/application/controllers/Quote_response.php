@@ -3,12 +3,16 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /** Public, unguessable quotation response links. No customer account required. */
 class Quote_response extends CI_Controller {
-	private function store_for_quote($store_id) {
-		$s = $this->db->select('store_name,currency_id')->where('id',(int)$store_id)->get('db_store')->row();
+	private function store_for_quote($store_id, $warehouse_id = 0) {
+		$s = $this->db->select('id,store_name,currency_id,address,city,state,country,postcode,mobile,email')->where('id',(int)$store_id)->get('db_store')->row();
 		if ($s && !empty($s->currency_id)) {
 			$c = $this->db->select('currency_code,currency_name')->where('id',(int)$s->currency_id)->get('db_currency')->row();
 			$s->currency = $c->currency_code ?? ($c->currency_name ?? '');
 		} else { if ($s) $s->currency = ''; }
+        if ($s && (int)$warehouse_id > 0) {
+            $branch = $this->db->where('id', (int)$warehouse_id)->where('store_id', (int)$store_id)->get('db_warehouse')->row();
+            $s = mp_branch_store_identity($s, $branch);
+        }
 		return $s;
 	}
 	/**
@@ -37,7 +41,7 @@ class Quote_response extends CI_Controller {
 			}
 			return ['quote'=>null,'state'=>'invalid','reason'=>''];
 		}
-		if (!empty($q->response_token_expires_at) && strtotime($q->response_token_expires_at) < time()) {
+		if ((!empty($q->response_token_expires_at) && strtotime($q->response_token_expires_at) < time()) || (!empty($q->expire_date) && $q->expire_date!=='0000-00-00' && $q->expire_date<date('Y-m-d'))) {
 			return ['quote'=>null,'state'=>'expired','reason'=>'This response link expired on '.date('j M Y',strtotime($q->response_token_expires_at)).'. Please contact the business for a current quotation.','quote_hint'=>$q];
 		}
 		return ['quote'=>$this->hydrate_quote($q),'state'=>'ok','reason'=>''];
@@ -58,8 +62,9 @@ class Quote_response extends CI_Controller {
 
 	private function hydrate_quote($q) {
 		$q->customer = $this->db->select('customer_name')->where('id',(int)$q->customer_id)->where('store_id',(int)$q->store_id)->get('db_customers')->row();
-		$q->store = $this->store_for_quote($q->store_id);
-		$q->items = $this->db->select('i.item_name,qi.description,qi.quotation_qty,qi.price_per_unit,qi.total_cost')
+		$q->store = $this->store_for_quote($q->store_id, $q->warehouse_id ?? 0);
+		$name=$this->db->field_exists('manual_item_name','db_quotationitems') ? "COALESCE(NULLIF(qi.manual_item_name,''),i.item_name) AS item_name" : 'i.item_name';
+        $q->items = $this->db->select($name.',qi.description,qi.quotation_qty,qi.price_per_unit,qi.total_cost',false)
 			->from('db_quotationitems qi')->join('db_items i','i.id=qi.item_id','left')
 			->where('qi.quotation_id',(int)$q->id)->get()->result();
 		return $q;
@@ -85,6 +90,7 @@ class Quote_response extends CI_Controller {
 	}
 
 	public function index($token = '') {
+        $this->output->set_header('Cache-Control: no-store')->set_header('Referrer-Policy: no-referrer');
 		$r = $this->resolve_quote($token);
 		if ($r['state'] === 'invalid') { show_404(); return; }
 		if ($r['state'] !== 'ok') { $this->render_closed($r['state'], $r['reason'], $r['quote_hint'] ?? null); return; }
@@ -92,19 +98,30 @@ class Quote_response extends CI_Controller {
 	}
 
 	public function respond($token = '') {
+        if (strtoupper($this->input->method())!=='POST') { show_404();return; }
+        $this->output->set_header('Cache-Control: no-store')->set_header('Referrer-Policy: no-referrer');
 		$r = $this->resolve_quote($token);
 		if ($r['state'] === 'invalid') { show_404(); return; }
 		if ($r['state'] !== 'ok') { $this->render_closed($r['state'], $r['reason'], $r['quote_hint'] ?? null); return; }
 		$q = $r['quote'];
 		$action = $this->input->post('decision', TRUE);
-		$note = trim((string)$this->input->post('note', TRUE));
-		if (!in_array($action,['accepted','declined'],true)) { show_404(); return; }
+		$rawNote=$this->input->post('note',TRUE);
+        if (!is_scalar($rawNote) && $rawNote!==null) { show_404();return; }
+        $note = trim((string)$rawNote);
+		if (!in_array($action,['accepted','declined','remark'],true)) { show_404(); return; }
 		if (in_array($q->lifecycle_status,['accepted','declined','cancelled','expired'],true)) {
 			$this->load->view('quotation/public_response',['q'=>$q,'token'=>$token,'error'=>null,'notice'=>'A response has already been recorded for this quotation.']); return;
 		}
-		if ($action === 'declined' && $note === '') {
-			$this->load->view('quotation/public_response',['q'=>$q,'token'=>$token,'error'=>'Please add a short note explaining the decline.','notice'=>null]); return;
+		if (in_array($action,['declined','remark'],true) && $note === '') {
+			$this->load->view('quotation/public_response',['q'=>$q,'token'=>$token,'error'=>'Please add your remarks or reason for declining.','notice'=>null]); return;
 		}
+        $this->db->trans_begin();
+        $this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',[(int)$q->store_id]);
+        $this->db->query('SELECT id FROM db_quotation WHERE id=? FOR UPDATE',[(int)$q->id]);
+        $fresh=$this->resolve_quote($token);
+        if ($fresh['state']!=='ok') { $this->db->trans_rollback();$this->render_closed($fresh['state'],$fresh['reason'],$fresh['quote_hint'] ?? null);return; }
+        $q=$fresh['quote'];
+        if ($q->lifecycle_status!=='issued' || trim((string)$q->quotation_status)==='Draft' || ($q->sales_status ?? '')==='Converted') { $this->db->trans_rollback();$this->render_closed('used','This quotation is no longer awaiting a response.',$q);return; }
 		$note = substr($note,0,255);
 		$fp = hash('sha256', $token);
 		$log = function($toStatus) use ($q, $note, $fp) {
@@ -113,8 +130,12 @@ class Quote_response extends CI_Controller {
 			return $row;
 		};
 		$job = $this->db->select('id')->where('quotation_id',(int)$q->id)->where('store_id',(int)$q->store_id)->get('db_print_jobs')->row();
-		$this->db->trans_start();
-		if ($job && $action === 'accepted') {
+
+        if ($action==='remark') {
+            $this->db->where('id',(int)$q->id)->where('store_id',(int)$q->store_id)->update('db_quotation',['response_reason'=>$note]);
+            $entry=$log('issued');unset($entry['response_token_fingerprint']);
+            $this->db->insert('db_quotation_lifecycle_log',$entry+['job_id'=>$job ? (int)$job->id : null]);
+        } elseif ($job && $action === 'accepted') {
 			$this->load->model('printing_model','print');
 			$res = $this->print->accept_quotation_revision((int)$job->id,$note);
 			if (empty($res['success'])) { $this->db->trans_rollback(); $this->load->view('quotation/public_response',['q'=>$q,'token'=>$token,'error'=>$res['message'] ?? 'Could not accept quotation.','notice'=>null]); return; }
@@ -130,10 +151,12 @@ class Quote_response extends CI_Controller {
 			$this->db->where('id',(int)$q->id)->update('db_quotation',['lifecycle_status'=>$action,'responded_at'=>date('Y-m-d H:i:s'),'response_reason'=>$note,'response_token_hash'=>null]);
 			$this->db->insert('db_quotation_lifecycle_log', $log($action) + ['job_id'=>null]);
 		}
-		$this->db->trans_complete();
+        if ($this->db->trans_status()===false) { $this->db->trans_rollback();$this->load->view('quotation/public_response',['q'=>$q,'token'=>$token,'error'=>'Your response could not be saved. Please try again.','notice'=>null]);return; }
+        $this->db->trans_commit();
+        if ($action==='remark') { $this->load->view('quotation/public_response',['q'=>$q,'token'=>$token,'error'=>null,'notice'=>'Your remarks were sent to the business. You can still accept or decline this quotation.']);return; }
 		$q = $this->db->where('id',(int)$q->id)->get('db_quotation')->row();
 		$q->customer = $this->db->select('customer_name')->where('id',(int)$q->customer_id)->where('store_id',(int)$q->store_id)->get('db_customers')->row();
-		$q->store = $this->store_for_quote($q->store_id);
+		$q->store = $this->store_for_quote($q->store_id, $q->warehouse_id ?? 0);
 		$q->items = [];
 		$this->load->view('quotation/public_response',['q'=>$q,'token'=>'','error'=>null,'notice'=>$action==='accepted'?'Thank you. Your acceptance has been recorded.':'Your response has been recorded. The business will follow up with you.']);
 	}

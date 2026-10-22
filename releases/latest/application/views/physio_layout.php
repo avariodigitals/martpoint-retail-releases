@@ -95,7 +95,7 @@ if(empty($storeName) && function_exists('get_store_name')){ $storeName = get_sto
 if(empty($storeName)){ $storeName = $SITE_TITLE ?? 'MartPoint'; }
 $physioLogo = '';
 if($CI->db->table_exists('db_store_theme_settings')){
-	$physioLogo = (string)$CI->db->where('store_id', get_current_store_id())->get('db_store_theme_settings')->row('store_logo');
+	$physioLogo = (string)mp_read_db()->where('store_id', get_current_store_id())->get('db_store_theme_settings')->row('store_logo');
 }
 if(!$physioLogo){ $physioLogo = (string)(get_store_details()->store_logo ?? ''); }
 if(!$physioLogo){ $physioLogo = function_exists('get_site_logo') ? get_site_logo() : ''; }
@@ -121,7 +121,7 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=15">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
@@ -365,6 +365,7 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
 .mp-page-head{align-items:flex-start!important;flex-direction:column!important;gap:10px!important}}
 @media(max-width:400px){.physio-mobile-nav a span{font-size:9px}.mp-main table.dataTable{min-width:460px}}
 </style>
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/application-controls.css?v=1'); ?>">
 </head>
 <body>
 <div class="mp-shell physio-shell">
@@ -477,9 +478,8 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
         array('Branches & locations', 'warehouse', 'fa-map-marker', ($CI->permissions('warehouse_view') || $CI->permissions('warehouse_add')) && warehouse_module()),
         array('Site & branding', 'site', 'fa-picture-o', $CI->permissions('site_settings')),
       ));
-      $gSettings .= $group('Features & subscription', 'fa-toggle-on', array(
+      $gSettings .= $group('Features', 'fa-toggle-on', array(
         array('Enabled capabilities', 'business_profile/capabilities', 'fa-toggle-on', $CI->permissions('business_profile')),
-        array('Subscription & licence', 'subscription_license', 'fa-id-card-o', $CI->permissions('license_management')),
       ));
       $gSettings .= $group('Clinical configuration', 'fa-stethoscope', array(
         array('Assessment templates', 'assessment_templates', 'fa-file-text-o', physio_can('assessment_templates_manage')),

@@ -100,6 +100,9 @@
     $created_time=show_time($res3->created_time);
     $sales_code=$res3->sales_code;
     $sales_note=$res3->sales_note;
+    $display_sales_note = function_exists('mp_invoice_note_without_dosage')
+        ? mp_invoice_note_without_dosage($sales_note)
+        : $sales_note;
     $customer_delete_bit=$res3->delete_bit;
 
     $previous_due=$res3->sales_due-($res3->grand_total-$res3->paid_amount);
@@ -148,6 +151,7 @@
       $q1=$this->db->query("select * from db_store where id=".$res3->store_id." ");
     }
     $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_sales', $sales_id);
     $store_name		=$res1->store_name;
     $company_mobile		=$res1->mobile;
     $company_phone		=$res1->phone;
@@ -379,8 +383,8 @@
     <div class="note"><b><?= $this->lang->line('couponCode'); ?>:</b> <?=getTruncatedCCNumber($coupon_code);?></div>
     <?php }?>
 
-    <?php if(!empty(trim($sales_note))) {?>
-    <div class="note"><b>Note:</b> <?= $sales_note; ?></div>
+    <?php if(!empty(trim($display_sales_note))) {?>
+    <div class="note"><b><?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8'); ?>:</b> <?= nl2br(htmlspecialchars($display_sales_note, ENT_QUOTES, 'UTF-8')); ?></div>
     <?php }?>
 
     <?php if($t_and_c_status_pos){ ?>

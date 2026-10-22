@@ -1,19 +1,43 @@
 <?php $this->load->view('customers/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
 <style>
+.customer-profile-layout{grid-template-columns:minmax(360px,380px) minmax(0,1fr)!important;align-items:start!important}
+.customer-profile-layout>div{min-width:0}
+.customer-profile-summary{table-layout:fixed!important;margin-bottom:12px!important}
+.customer-profile-summary td{padding:10px 0!important;vertical-align:middle!important}
+.customer-profile-summary td:first-child{width:42%;color:var(--mp-muted)!important;font-size:12px!important;font-weight:600!important}
+.customer-profile-summary td:last-child{width:58%;max-width:0;text-align:right!important;font-weight:600!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.customer-profile-summary .mp-pill{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.customer-profile-layout .nav-tabs{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;-webkit-overflow-scrolling:touch}
+.customer-profile-layout .nav-tabs>li{float:none!important;flex:0 0 auto!important}
+.customer-profile-table-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+.customer-profile-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.customer-profile-kpi{padding:14px 16px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-bg)}
+.customer-profile-kpi-label{font-size:11px;color:var(--mp-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.customer-profile-kpi-value{margin-top:4px;font-size:18px;font-weight:800;color:var(--mp-text);font-variant-numeric:tabular-nums}
+.medical-note-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.medical-note-detail-field{min-width:0}
+.medical-note-detail-field.full{grid-column:1/-1}
+.medical-note-detail-label{display:block;margin-bottom:4px;color:var(--mp-muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.medical-note-detail-value{color:var(--mp-ink);font-size:13px;line-height:1.55;white-space:pre-line;overflow-wrap:anywhere}
+.medical-note-medicines{width:100%;margin-top:4px;border-collapse:collapse}
+.medical-note-medicines th{padding:8px 10px;text-align:left;background:var(--mp-bg);color:var(--mp-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.medical-note-medicines td{padding:9px 10px;border-top:1px solid var(--mp-border);font-size:12px;vertical-align:top}
+@media(max-width:700px){.customer-profile-kpis,.medical-note-detail-grid{grid-template-columns:1fr}.medical-note-detail-field.full{grid-column:auto}}
 .id-card-fit {
   position: relative;
   width: 100%;
   max-width: 324px;
+  min-height: 204px;
   margin: 12px auto;
   overflow: hidden;
 }
 .id-card-fit .id-card-preview {
-  position: absolute;
-  top: 0;
-  left: 50%;
+  position: relative;
+  top: auto;
+  left: auto;
   margin: 0;
-  transform-origin: top center;
+  transform: none!important;
 }
 .id-card-preview {
   width: 324px;
@@ -87,21 +111,17 @@
 
 <div class="pay_now_modal"></div>
 
-<div class="mp-row" style="grid-template-columns:320px 1fr!important;align-items:start;">
+<div class="mp-row customer-profile-layout">
   <!-- Left Sidebar -->
   <div>
     <div class="mp-card">
       <div class="mp-card-body">
-        <div style="width:86px;height:86px;border-radius:18px;overflow:hidden;background:#eef8f5;color:var(--mp-primary,#176753);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;margin:0 auto 14px;">
-          <?php if(!empty($customer->photo)): ?>
-            <img src="<?= base_url($customer->photo); ?>" alt="Customer photo" style="width:100%;height:100%;object-fit:cover;display:block;">
-          <?php else: ?>
-            <?= htmlspecialchars(strtoupper(substr((string)($customer->customer_name ?? 'C'), 0, 1))); ?>
-          <?php endif; ?>
+        <div style="display:flex;justify-content:center;margin:0 auto 14px;">
+          <?php $avatar_url = $customer->photo ?? ($customer->customer_photo ?? ($customer->profile_picture ?? '')); $avatar_name = $customer->customer_name ?? 'Customer'; $avatar_size = 86; $avatar_class = 'customer-profile-avatar'; $this->load->view('components/person_avatar'); ?>
         </div>
         <h3 style="margin:0 0 4px;font-size:18px;font-weight:700;"><?= htmlspecialchars($customer->customer_name ?? ''); ?></h3>
         <p style="margin:0 0 12px;color:var(--mp-muted);"><?= htmlspecialchars($customer->customer_code ?? ''); ?></p>
-        <table class="mp-tbl" style="margin-bottom:12px;">
+        <table class="mp-tbl customer-profile-summary">
           <tbody>
             <tr><td style="padding-left:0;">Phone</td><td style="text-align:right;font-weight:600;"><?= htmlspecialchars($customer->mobile ?? ''); ?></td></tr>
             <tr><td style="padding-left:0;">Email</td><td style="text-align:right;font-weight:600;"><?= htmlspecialchars($customer->email ?: '-'); ?></td></tr>
@@ -159,7 +179,7 @@
   </div>
 
   <!-- Right Main -->
-  <div>
+  <div class="customer-profile-main">
     <?php
       // Printing changes tab labels/order; feature checks apply to every industry.
       $cust_ind = function_exists('mp_get_store_profile')
@@ -227,10 +247,8 @@
           <?php if (mp_feature_enabled('treatment_notes')): ?>
           <li><a href="#treatment_notes" data-toggle="tab"><i class="fa fa-file-text-o"></i> Treatment Notes</a></li>
 <?php endif; ?>
-          <?php if (!empty($medical_notes)): ?>
           <?php if (mp_feature_enabled('medical_notes')): ?>
           <li><a href="#medical_notes" data-toggle="tab"><i class="fa fa-file-medical-o"></i> Medical Notes</a></li>
-<?php endif; ?>
           <?php endif; ?>
           <?php if (mp_feature_enabled('custom_orders')): ?>
           <li><a href="#custom_orders" data-toggle="tab"><i class="fa fa-pencil-square-o"></i> Custom Orders</a></li>
@@ -242,32 +260,52 @@
       <div class="tab-content">
         <!-- Purchase History -->
         <div class="tab-pane active" id="purchases" style="padding:20px;">
-          <table class="mp-static-table" id="purchaseTable">
-            <thead>
-              <tr><th>#</th><th>Date</th><th>Invoice</th><th>Amount</th><th>Paid</th><th>Due</th><th>Status</th><th>Action</th></tr>
-            </thead>
-            <tbody>
-              <?php if (!empty($purchases)): $i = 1; foreach ($purchases as $s): ?>
-              <tr>
-                <td><?= $i++; ?></td>
-                <td><?= show_date($s->sales_date); ?></td>
-                <td><a href="<?= base_url('sales/invoice/' . $s->id); ?>" target="_blank"><?= $s->sales_code; ?></a></td>
-                <td class="amt"><?= store_number_format($s->grand_total); ?></td>
-                <td class="amt"><?= store_number_format($s->paid_amount); ?></td>
-                <td class="amt"><?= store_number_format($s->grand_total - $s->paid_amount); ?></td>
-                <td>
-                  <?php if ($s->payment_status == 'Paid'): ?><span class="mp-pill paid">Paid</span>
-                  <?php elseif ($s->payment_status == 'Partial'): ?><span class="mp-pill partial">Partial</span>
-                  <?php else: ?><span class="mp-pill unpaid"><?= $s->payment_status; ?></span>
-                  <?php endif; ?>
-                </td>
-                <td><a href="<?= base_url('sales/invoice/' . $s->id); ?>" class="mp-qa-btn teal" style="padding:6px 12px;" target="_blank"><i class="fa fa-eye"></i></a></td>
-              </tr>
-              <?php endforeach; else: ?>
-              <tr><td colspan="8" class="text-center text-muted">No purchase records found</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
+          <?php
+            $purchase_total = 0.0;
+            $purchase_paid = 0.0;
+            foreach ((array) $purchases as $purchase_row) {
+              $purchase_total += (float) ($purchase_row->grand_total ?? 0);
+              $purchase_paid += (float) ($purchase_row->paid_amount ?? 0);
+            }
+            $purchase_due = max(0, $purchase_total - $purchase_paid);
+          ?>
+          <div class="customer-profile-kpis">
+            <div class="customer-profile-kpi"><div class="customer-profile-kpi-label">Invoices</div><div class="customer-profile-kpi-value"><?= number_format(count((array) $purchases)); ?></div></div>
+            <div class="customer-profile-kpi"><div class="customer-profile-kpi-label">Total purchases</div><div class="customer-profile-kpi-value"><?= store_number_format($purchase_total); ?></div></div>
+            <div class="customer-profile-kpi"><div class="customer-profile-kpi-label">Outstanding</div><div class="customer-profile-kpi-value" style="color:<?= $purchase_due > 0 ? 'var(--mp-danger)' : 'var(--mp-success)'; ?>;"><?= store_number_format($purchase_due); ?></div></div>
+          </div>
+          <div class="customer-profile-table-wrap">
+            <table class="mp-static-table" id="purchaseTable">
+              <thead>
+                <tr><th>#</th><th>Date</th><th>Invoice</th><th>Amount</th><th>Paid</th><th>Due</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                <?php if (!empty($purchases)): $i = 1; foreach ($purchases as $s):
+                  $sale_total = (float) ($s->grand_total ?? 0);
+                  $sale_paid = (float) ($s->paid_amount ?? 0);
+                  $sale_status = trim((string) ($s->payment_status ?? 'Unpaid')) ?: 'Unpaid';
+                ?>
+                <tr>
+                  <td><?= $i++; ?></td>
+                  <td><?= show_date($s->sales_date); ?></td>
+                  <td><a href="<?= base_url('sales/invoice/' . (int) $s->id); ?>" target="_blank" rel="noopener"><?= htmlspecialchars($s->sales_code ?? ('#' . $s->id)); ?></a></td>
+                  <td class="amt"><?= store_number_format($sale_total); ?></td>
+                  <td class="amt"><?= store_number_format($sale_paid); ?></td>
+                  <td class="amt"><?= store_number_format(max(0, $sale_total - $sale_paid)); ?></td>
+                  <td>
+                    <?php if (strcasecmp($sale_status, 'Paid') === 0): ?><span class="mp-pill paid">Paid</span>
+                    <?php elseif (strcasecmp($sale_status, 'Partial') === 0): ?><span class="mp-pill partial">Partial</span>
+                    <?php else: ?><span class="mp-pill unpaid"><?= htmlspecialchars($sale_status); ?></span>
+                    <?php endif; ?>
+                  </td>
+                  <td><a href="<?= base_url('sales/invoice/' . (int) $s->id); ?>" class="mp-qa-btn teal" style="padding:6px 12px;" target="_blank" rel="noopener" title="View invoice"><i class="fa fa-eye"></i> <span class="sr-only">View invoice</span></a></td>
+                </tr>
+                <?php endforeach; else: ?>
+                <tr><td colspan="8"><div class="mp-empty-state" style="padding:32px 20px;"><h4>No purchases recorded yet</h4><p>This customer’s completed invoices will appear here after the first sale.</p><a href="<?= base_url('pos'); ?>" class="mp-qa-btn blue no-print" style="margin-top:14px;"><i class="fa fa-shopping-cart"></i> Open POS</a></div></td></tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <?php if($cust_is_print): ?>
@@ -994,7 +1032,6 @@
 <?php endif; ?>
 
         <!-- Medical Notes -->
-        <?php if (!empty($medical_notes)): ?>
         <?php if (mp_feature_enabled('medical_notes')): ?>
         <div class="tab-pane" id="medical_notes" style="padding:20px;">
           <?php if (!empty($medical_allergies)): ?>
@@ -1036,16 +1073,84 @@
                 </td>
                 <td><?= $mn->refills_remaining > 0 ? '<span class="mp-pill ok">'.$mn->refills_remaining.' left</span>' : '<span class="text-muted">-</span>'; ?></td>
                 <td><?= $mn->next_refill_date ? show_date($mn->next_refill_date) : '<span class="text-muted">-</span>'; ?></td>
-                <td><a href="<?= base_url('operations/medical_note/' . $mn->id); ?>" class="mp-qa-btn blue" style="padding:6px 12px;"><i class="fa fa-pencil"></i></a></td>
+                <td>
+                  <div class="mp-actions">
+                    <a href="#medicalNoteDetail<?= (int) $mn->id; ?>" data-toggle="modal" class="mp-qa-btn teal" style="padding:6px 12px;" title="View medical note"><i class="fa fa-eye"></i><span class="sr-only">View details</span></a>
+                    <?php if ($CI->permissions('medical_notes_add')): ?>
+                    <a href="<?= base_url('operations/medical_note/' . (int) $mn->id); ?>" class="mp-qa-btn blue" style="padding:6px 12px;" title="Edit medical note"><i class="fa fa-pencil"></i><span class="sr-only">Edit</span></a>
+                    <?php endif; ?>
+                  </div>
+                </td>
               </tr>
               <?php endforeach; else: ?>
               <tr><td colspan="9" class="text-center text-muted">No medical notes found</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
+          <?php if (!empty($medical_notes)): foreach ($medical_notes as $mn):
+            $note_status = ucwords(str_replace('_', ' ', trim((string) ($mn->status ?? 'active')) ?: 'active'));
+            $note_diagnosis = trim((string) ($mn->diagnosis ?? '')) ?: 'No diagnosis recorded';
+            $note_allergy = trim((string) ($mn->allergies_flagged ?? ''));
+          ?>
+          <div class="modal fade" id="medicalNoteDetail<?= (int) $mn->id; ?>" tabindex="-1" role="dialog" aria-labelledby="medicalNoteDetailLabel<?= (int) $mn->id; ?>">
+            <div class="modal-dialog modal-lg" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                  <h4 class="modal-title" id="medicalNoteDetailLabel<?= (int) $mn->id; ?>"><i class="fa fa-file-medical-o"></i> Medical Note Details</h4>
+                  <p class="text-muted" style="margin:4px 0 0;font-size:12px;">Recorded <?= !empty($mn->note_date) ? show_date($mn->note_date) : '—'; ?> · <?= htmlspecialchars($note_status); ?></p>
+                </div>
+                <div class="modal-body">
+                  <?php if ($note_allergy): ?>
+                  <div class="mp-card" style="background:rgba(220,38,38,.06)!important;border-color:var(--mp-danger)!important;margin-bottom:16px;">
+                    <div class="mp-card-body" style="padding:12px 14px;color:var(--mp-danger);font-size:13px;"><i class="fa fa-exclamation-triangle"></i> <strong>Allergy flag:</strong> <?= htmlspecialchars($note_allergy); ?></div>
+                  </div>
+                  <?php endif; ?>
+                  <div class="medical-note-detail-grid">
+                    <div class="medical-note-detail-field"><span class="medical-note-detail-label">Prescribing doctor</span><div class="medical-note-detail-value"><?= htmlspecialchars(trim((string) ($mn->prescribing_doctor ?? '')) ?: '—'); ?></div></div>
+                    <div class="medical-note-detail-field"><span class="medical-note-detail-label">Doctor contact</span><div class="medical-note-detail-value"><?= htmlspecialchars(trim((string) ($mn->doctor_contact ?? '')) ?: '—'); ?></div></div>
+                    <div class="medical-note-detail-field full"><span class="medical-note-detail-label">Diagnosis</span><div class="medical-note-detail-value"><strong><?= htmlspecialchars($note_diagnosis); ?></strong></div></div>
+                    <div class="medical-note-detail-field"><span class="medical-note-detail-label">Prescription reference</span><div class="medical-note-detail-value"><?= htmlspecialchars(trim((string) ($mn->prescription_ref ?? '')) ?: '—'); ?></div></div>
+                    <div class="medical-note-detail-field"><span class="medical-note-detail-label">Refills</span><div class="medical-note-detail-value"><?= (int) ($mn->refills_remaining ?? 0); ?> remaining<?= !empty($mn->next_refill_date) ? ' · next '.htmlspecialchars(show_date($mn->next_refill_date)) : ''; ?></div></div>
+                    <div class="medical-note-detail-field full"><span class="medical-note-detail-label">Dosage instructions</span><div class="medical-note-detail-value"><?= nl2br(htmlspecialchars(trim((string) ($mn->dosage_instructions ?? '')) ?: 'No dosage instructions recorded')); ?></div></div>
+                    <div class="medical-note-detail-field full"><span class="medical-note-detail-label">Counselling notes</span><div class="medical-note-detail-value"><?= nl2br(htmlspecialchars(trim((string) ($mn->counselling_notes ?? '')) ?: 'No counselling notes recorded')); ?></div></div>
+                    <div class="medical-note-detail-field"><span class="medical-note-detail-label">Recorded by</span><div class="medical-note-detail-value"><?= htmlspecialchars(trim((string) ($mn->staff_name ?? '')) ?: '—'); ?></div></div>
+                    <div class="medical-note-detail-field"><span class="medical-note-detail-label">Prescription attachment</span><div class="medical-note-detail-value"><?php if (!empty($mn->prescription_file)): ?><a href="<?= base_url($mn->prescription_file); ?>" target="_blank" rel="noopener" class="mp-qa-btn blue" style="padding:6px 10px;"><i class="fa fa-file-image-o"></i> Open attachment</a><?php else: ?>No attachment<?php endif; ?></div></div>
+                  </div>
+                  <div style="margin-top:20px;">
+                    <span class="medical-note-detail-label">Medicines</span>
+                    <?php if (!empty($mn->items)): ?>
+                    <div class="customer-profile-table-wrap">
+                      <table class="medical-note-medicines">
+                        <thead><tr><th>Medicine</th><th>Qty</th><th>Dosage</th><th>Duration</th><th>Instructions</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($mn->items as $mi): ?>
+                          <tr>
+                            <td><strong><?= htmlspecialchars($mi->item_name ?? '—'); ?></strong><?php if (!empty($mi->item_code)): ?><div class="text-muted" style="font-size:11px;"><?= htmlspecialchars($mi->item_code); ?></div><?php endif; ?></td>
+                            <td><?= htmlspecialchars((string) ($mi->qty ?? '—')); ?></td>
+                            <td><?= htmlspecialchars($mi->dosage ?? '—'); ?></td>
+                            <td><?= htmlspecialchars($mi->duration ?? '—'); ?></td>
+                            <td><?= nl2br(htmlspecialchars($mi->instructions ?? '—')); ?></td>
+                          </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                      </table>
+                    </div>
+                    <?php else: ?><div class="medical-note-detail-value">No medicines were recorded on this note.</div><?php endif; ?>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <?php if ($CI->permissions('medical_notes_add')): ?>
+                  <a href="<?= base_url('operations/medical_note/' . (int) $mn->id); ?>" class="mp-qa-btn blue"><i class="fa fa-pencil"></i> Edit note</a>
+                  <?php endif; ?>
+                  <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <?php endforeach; endif; ?>
         </div>
 <?php endif; ?>
-        <?php endif; ?>
 
         <!-- Custom Orders -->
         <?php if (mp_feature_enabled('custom_orders')): ?>
@@ -1166,13 +1271,16 @@ function downloadCard(elementId, filename){
 }
 
 $(function(){
-  $('#purchaseTable').DataTable({
+  var purchaseTable = $('#purchaseTable').DataTable({
     "paging": true,
     "lengthChange": false,
     "searching": true,
     "ordering": true,
     "info": true,
     "autoWidth": false
+  });
+  $(document).on('shown.bs.tab', 'a[href="#purchases"]', function(){
+    purchaseTable.columns.adjust();
   });
 });
 </script>

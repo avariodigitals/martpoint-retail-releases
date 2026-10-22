@@ -459,4 +459,8 @@ return [
 		  // .194 republishes the POS view with its partials and encodes imported
 		  // text safely so client-side startup cannot be broken by invalid UTF-8.
 		  '4.0.9.194v' => '4.0.9.194_pos_runtime_repair.sql',
+		  '4.0.9.195v' => '4.0.9.195_audit_runtime_repair.sql',
+		  // .196 corrects the legacy seeded install hostname at the client on
+		  // its next authenticated heartbeat; no database schema change.
+		  '4.0.9.196v' => '4.0.9.196_legacy_install_domain_cleanup.sql',
 ];

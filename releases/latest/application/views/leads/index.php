@@ -58,7 +58,7 @@
   <div class="box-body">
     <div class="mp-dt-scroll">
       <table id="leads-table" class="table mp-dt-table" width="100%">
-        <thead><tr><th>Lead</th><th>Contact</th><th>Source</th><th>Interest</th><?php if(!empty($physio_active)): ?><th>Owner</th><?php endif; ?><th>Status</th><th>Added</th><th>Action</th></tr></thead>
+        <thead><tr><th>Lead</th><th>Contact</th><th>Source</th><th>Interest</th><th>Owner</th><th>Status</th><th>Added</th><th>Action</th></tr></thead>
         <tbody>
           <?php foreach($leads as $l): ?>
           <tr data-id="<?= (int)$l->id; ?>"
@@ -68,7 +68,7 @@
               data-source="<?= htmlspecialchars($l->source); ?>"
               data-status="<?= htmlspecialchars($l->status); ?>"
               data-interest="<?= htmlspecialchars($l->interest ?? ''); ?>"
-              data-notes="<?= htmlspecialchars($l->notes ?? ''); ?>">
+              data-notes="<?= htmlspecialchars($l->b2b_notes !== null ? $l->b2b_notes : ($l->notes ?? '')); ?>">
             <td class="row-name"><?= htmlspecialchars($l->name); ?></td>
             <td>
               <?php if($l->phone): ?><div><i class="fa fa-phone" style="color:var(--mp-muted);font-size:11px;"></i> <?= htmlspecialchars($l->phone); ?></div><?php endif; ?>
@@ -76,13 +76,31 @@
               <?php if(!$l->phone && !$l->email): ?>—<?php endif; ?>
             </td>
             <td><span class="ld-src"><i class="fa fa-tag"></i> <?= htmlspecialchars(str_replace('_',' ',$l->source)); ?></span></td>
-            <td style="max-width:220px;"><?= htmlspecialchars(mb_substr($l->interest ?? $l->enquiry ?? '', 0, 60)) . (strlen($l->interest ?? $l->enquiry ?? '') > 60 ? '…' : ''); ?></td>
-            <?php if(!empty($physio_active)): ?>
+            <td style="max-width:220px;"><?= htmlspecialchars(mb_substr($l->interest ?? $l->enquiry ?? '', 0, 60)) . (strlen($l->interest ?? $l->enquiry ?? '') > 60 ? '…' : ''); ?><?php if(trim((string)($l->enquiry??''))!==''): ?><details class="lead-customer-message" style="margin-top:8px"><summary style="cursor:pointer;font-size:12px">Read message</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere;max-width:420px;line-height:1.7;margin-top:10px"><?= htmlspecialchars($l->enquiry,ENT_QUOTES,'UTF-8'); ?></p></details><?php endif; ?>
+            <?php if(!empty($l->b2b_meta)):
+              $ldCompany = trim((string)($l->company ?? $l->b2b_meta['company'] ?? ''));
+              $ldType = trim((string)($l->enquiry_type ?? $l->b2b_meta['enquiry_type'] ?? ''));
+              $ldLocation = trim((string)($l->project_location ?? $l->b2b_meta['project_location'] ?? ''));
+            ?>
+            <?php if($ldCompany!==''||$ldType!==''||$ldLocation!==''||!empty($l->b2b_attachments)): ?>
+            <div style="margin-top:8px;font-size:12px;line-height:1.7;color:var(--mp-text);">
+              <?php if($ldCompany!==''): ?><div><strong>Company:</strong> <?= htmlspecialchars($ldCompany); ?></div><?php endif; ?>
+              <?php if($ldType!==''): ?><div><strong>Enquiry:</strong> <?= htmlspecialchars(str_replace('_',' ',$ldType)); ?></div><?php endif; ?>
+              <?php if($ldLocation!==''): ?><div><strong>Project:</strong> <?= htmlspecialchars($ldLocation); ?></div><?php endif; ?>
+              <?php if(!empty($l->b2b_meta['merchant_notes'])): ?><div><strong>Notes:</strong> <?= nl2br(htmlspecialchars($l->b2b_meta['merchant_notes'])); ?></div><?php endif; ?>
+              <?php if(!empty($l->b2b_attachments)): ?><div style="margin-top:4px;"><strong><i class="fa fa-paperclip"></i> Attachments:</strong>
+                <?php foreach($l->b2b_attachments as $attachment): $ldSize=$attachment['size']>=1048576?round($attachment['size']/1048576,1).' MB':max(1,round($attachment['size']/1024)).' KB'; ?>
+                <div><a href="<?= htmlspecialchars($attachment['url'],ENT_QUOTES); ?>"><?= htmlspecialchars($attachment['name']); ?></a> <span style="color:var(--mp-muted);">(<?= htmlspecialchars($attachment['type']); ?>, <?= htmlspecialchars($ldSize); ?>)</span></div>
+                <?php endforeach; ?>
+              </div><?php endif; ?>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
+            <?php if(($l->source ?? '')==='storefront' && (mp_get_store_profile()['industry_type'] ?? '')==='building_materials' && get_instance()->permissions('online_store_view')): ?><div style="margin-top:10px"><a href="<?= base_url('online_store/enquiry/'.(int)$l->id); ?>">Website request & connected work →</a></div><?php endif; ?></td>
             <td style="font-size:12px;">
               <?= !empty($l->assigned_name) ? htmlspecialchars($l->assigned_name) : '<span style="color:var(--mp-muted);">Unassigned</span>'; ?>
               <?php if(!empty($l->next_followup_at)): ?><div style="color:#B45309;"><i class="fa fa-clock-o"></i> <?= date('M j', strtotime($l->next_followup_at)); ?></div><?php endif; ?>
             </td>
-            <?php endif; ?>
             <td>
               <?php if($can_edit && $l->status !== 'converted'): ?>
               <select class="ld-badge <?= $l->status; ?>" style="border:none;cursor:pointer;" onchange="updateLeadStatus(<?= (int)$l->id; ?>, this.value)">
@@ -113,9 +131,7 @@
                     <button class="mp-edit ld-convert" title="Convert to Customer" onclick="convertLead(<?= (int)$l->id; ?>)"><i class="fa fa-user-plus"></i></button>
                   <?php endif; ?>
                   <button class="mp-edit" title="Edit" onclick="editLead(this)"><i class="fa fa-pencil"></i></button>
-                  <?php if(!empty($physio_active)): ?>
-                    <button class="mp-edit" title="Assign / Follow-up" onclick="assignLead(<?= (int)$l->id; ?>, <?= (int)($l->assigned_to ?? 0); ?>, '<?= htmlspecialchars($l->next_followup_at ?? ''); ?>')"><i class="fa fa-user-md"></i></button>
-                  <?php endif; ?>
+                  <button class="mp-edit" title="Assign / Follow-up" onclick="assignLead(<?= (int)$l->id; ?>, <?= (int)($l->assigned_to ?? 0); ?>, '<?= htmlspecialchars($l->next_followup_at ?? ''); ?>')"><i class="fa fa-user"></i></button>
                 <?php endif; ?>
                 <?php
                 /*
@@ -132,14 +148,12 @@
                  * still has no patient to land in.
                  */
                 ?>
-                <?php if($l->status === 'converted' && empty($l->patient_id) && !empty($can_convert_patient)): ?>
+                <?php if(!empty($physio_active) && $l->status === 'converted' && empty($l->patient_id) && !empty($can_convert_patient)): ?>
                   <button class="mp-edit ld-convert" title="Create <?= htmlspecialchars(strtolower(mp_label('customer'))); ?> record (this lead was converted without one)" onclick="convertLeadToPatient(<?= (int)$l->id; ?>)"><i class="fa fa-heartbeat"></i></button>
                 <?php endif; ?>
-                <?php if(!empty($physio_active)): ?>
-                  <button class="mp-edit" title="Activity History" onclick="viewLeadActivity(<?= (int)$l->id; ?>)"><i class="fa fa-history"></i></button>
-                  <?php if(!empty($can_book_appt) && !empty($l->patient_id)): ?>
-                    <a class="mp-edit" title="Book Appointment" href="<?= base_url('appointments'); ?>"><i class="fa fa-calendar"></i></a>
-                  <?php endif; ?>
+                <button class="mp-edit" title="Activity History" onclick="viewLeadActivity(<?= (int)$l->id; ?>)"><i class="fa fa-history"></i></button>
+                <?php if(!empty($physio_active) && !empty($can_book_appt) && !empty($l->patient_id)): ?>
+                  <a class="mp-edit" title="Book Appointment" href="<?= base_url('appointments'); ?>"><i class="fa fa-calendar"></i></a>
                 <?php endif; ?>
                 <?php if($can_edit): ?>
                   <button class="mp-delete" title="Delete" onclick="deleteLead(<?= (int)$l->id; ?>)"><i class="fa fa-trash"></i></button>
@@ -148,7 +162,7 @@
             </td>
           </tr>
           <?php endforeach; ?>
-          <?php if(empty($leads)): ?><tr><td colspan="<?= !empty($physio_active) ? 8 : 7; ?>" class="mp-empty-state">No leads yet. Add one manually or enable the lead form on your storefront contact section.</td></tr><?php endif; ?>
+          <?php if(empty($leads)): ?><tr><td colspan="8" class="mp-empty-state">No leads yet. Add one manually or enable the lead form on your storefront contact section.</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>
@@ -202,7 +216,6 @@
   </div>
 </div>
 
-<?php if(!empty($physio_active)): ?>
 <div class="modal fade" id="assignModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -243,7 +256,6 @@
     </div>
   </div>
 </div>
-<?php endif; ?>
 
 <script>
 toastr.options = { positionClass: 'toast-top-center', closeButton: true, progressBar: true, timeOut: 3000 };
@@ -312,6 +324,7 @@ function convertLeadToPatient(id){
 function doConvertPatient(id){
   $.post('<?= base_url('leads/convert_to_patient/'); ?>'+id, CSRF_BODY, function(res){ if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 900); } else { toastr.error(res.message || 'Conversion failed'); } }, 'json');
 }
+<?php endif; ?>
 function assignLead(id, owner, follow){
   $('#as_lead_id').val(id); $('#as_owner').val(owner || ''); $('#as_follow').val(follow || ''); $('#as_note').val('');
   $('#assignModal').modal('show');
@@ -336,14 +349,13 @@ function viewLeadActivity(id){
     $('#activityModal').modal('show');
   }, 'json');
 }
-<?php endif; ?>
 $(document).ready(function(){
   $('#leads-table').DataTable({
     "aLengthMenu": [[10,25,50,100],[10,25,50,100]],
     dom: '<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr>>>t<"row mp-dt-footer"<"col-sm-5"i><"col-sm-7"p>>',
     "order": [[5,"desc"]],
     "responsive": false,
-    "columnDefs": [{ "targets": [<?= !empty($physio_active) ? 7 : 6; ?>], "orderable": false }]
+    "columnDefs": [{ "targets": [7], "orderable": false }]
   });
 });
 </script>

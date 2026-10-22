@@ -150,6 +150,24 @@ class Assist_brain {
 			foreach($biz['labels'] as $k => $v){ $l[] = "$k=\"$v\""; }
 			$p .= implode(', ', $l).'. ';
 		}
+		if(!empty($biz['terms'])){
+			$p .= 'Canonical terms for this business: ';
+			$t = [];
+			foreach($biz['terms'] as $k => $v){ $t[] = "$k=\"$v\""; }
+			$p .= implode(', ', $t).'. ';
+		}
+		if(!empty($biz['synonyms'])){
+			$p .= 'Words users may say and the concept they mean: ';
+			$s = [];
+			foreach($biz['synonyms'] as $word => $key){ $s[] = "$word=$key"; }
+			$p .= implode(', ', array_slice($s, 0, 60)).'. ';
+		}
+		if(!empty($biz['screens'])){
+			$p .= 'Screens available in this business (route = label): ';
+			$sc = [];
+			foreach($biz['screens'] as $route => $label){ $sc[] = "$route=\"$label\""; }
+			$p .= implode(', ', $sc).'. ';
+		}
 		if(!empty($biz['features'])){
 			$p .= 'Enabled features: '.implode(', ', $biz['features']).'. ';
 		}
@@ -160,6 +178,7 @@ class Assist_brain {
 		$p .= '- {"action":"capability","name":"<cap>","entities":{...}} — run a capability. Entities you can extract: customer, item, qty, name, amount, category, unit, price, date.'."\n";
 		$p .= '- {"action":"answer","text":"..."} — answer a general/how-to question yourself, briefly.'."\n";
 		$p .= '- {"action":"clarify","text":"..."} — the request is ambiguous; ask ONE short question.'."\n";
+		$p .= '- {"action":"open_screen","route":"<route>"} — send the user to one of the business screens listed above (use its exact route).'."\n";
 		$p .= '- {"action":"cancel"} — user wants to stop/abort.'."\n\n";
 
 		$p .= "Available capabilities for THIS business and role:\n";
@@ -248,6 +267,11 @@ class Assist_brain {
 				$text = trim((string)($data['text'] ?? ''));
 				if($text === '') return null;
 				return ['action' => $data['action'], 'text' => $text];
+
+			case 'open_screen':
+				$route = trim((string)($data['route'] ?? ''));
+				if($route === '') return null;
+				return ['action' => 'open_screen', 'route' => $route, 'text' => trim((string)($data['text'] ?? ''))];
 
 			case 'cancel':
 				return ['action' => 'cancel'];

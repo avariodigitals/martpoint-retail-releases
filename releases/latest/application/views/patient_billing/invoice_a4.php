@@ -2,6 +2,7 @@
 if(!function_exists('mp_get_store_receipt_setting')){ $this->load->helper('store_settings'); }
 $storeId = get_current_store_id();
 $_store = $CI->db->where('id', $storeId)->get('db_store')->row();
+$_store = mp_document_store($_store, 'db_sales', $bill->id);
 $_storeName = $_store->store_name ?? ($SITE_TITLE ?? 'MartPoint');
 $_addr = trim(implode(', ', array_filter(array(
 	trim((string)($_store->address ?? '')), trim((string)($_store->city ?? '')), trim((string)($_store->postcode ?? '')),

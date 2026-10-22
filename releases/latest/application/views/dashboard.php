@@ -684,7 +684,8 @@ $this->load->view('admin/desktop/_styles');
             </div>
             <div class="mp-card-body">
               <?php
-              $max_branch_sales = max(array_column($branch_performance, 'sales')) ?: 1;
+              $branch_sales_values = array_map('floatval', array_column($branch_performance, 'sales'));
+              $max_branch_sales = max(1.0, max($branch_sales_values ?: [0]));
               $branch_colors = ['var(--mp-primary)', 'var(--mp-success)', 'var(--mp-pay)', 'var(--mp-warning)'];
               $bi = 0;
               foreach($branch_performance as $branch):

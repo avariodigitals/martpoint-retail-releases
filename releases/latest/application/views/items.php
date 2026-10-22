@@ -3,6 +3,7 @@ $CI =& get_instance();
 // Business model: product_based, service_based, product_and_service
 $store_profile = mp_get_store_profile();
 $is_plant = ($store_profile['industry_type'] ?? '') === 'oil_processing_plant';
+$is_quote_first_catalogue = $is_plant || (($store_profile['industry_type'] ?? '') === 'building_materials');
 $business_model = $store_profile['business_model'] ?? 'product_based';
 $services_enabled = service_module();
 $show_item_toggle = ($business_model === 'product_based' || $business_model === 'product_and_service');
@@ -290,7 +291,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 <?php endif; ?>
 
 <div class="box mp-items-box">
-<?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST', 'data-plant' => $is_plant ? '1' : '0')); ?>
+<?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST', 'data-plant' => $is_plant ? '1' : '0', 'data-allow-zero-prices' => $is_quote_first_catalogue ? '1' : '0')); ?>
 <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
 <input type="hidden" name="store_id" id="store_id" value="<?php echo get_current_store_id(); ?>">
 <?php if(!empty($q_id)): ?>
@@ -1045,6 +1046,15 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
   <div class="mp-card-head"><h3>Butchery &amp; Frozen</h3></div>
   <div class="mp-card-body">
     <input type="hidden" name="butchery_frozen_section" value="1">
+    <div class="mp-form-group" style="margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="weight_pricing_enabled" value="1" <?= !empty($weight_pricing_enabled) ? 'checked' : ''; ?>> Enable stepped weight pricing</label>
+      <p class="mp-form-hint">Enter the actual weight at POS. Frozen food uses kg + lines: whole kg × base price, plus each 0.05 kg line charge.</p>
+    </div>
+      <div class="mp-form-grid">
+      <div class="mp-form-group"><label for="weight_pricing_base_kg">Included weight (kg)</label><input type="number" step="0.001" min="0.001" name="weight_pricing_base_kg" id="weight_pricing_base_kg" class="mp-form-control" value="<?= htmlspecialchars($weight_pricing_base_kg ?? '1'); ?>"></div>
+      <div class="mp-form-group"><label for="weight_pricing_increment_kg">Additional step (kg)</label><input type="number" step="0.001" min="0.001" name="weight_pricing_increment_kg" id="weight_pricing_increment_kg" class="mp-form-control" value="<?= htmlspecialchars($weight_pricing_increment_kg ?? '0.05'); ?>"></div>
+      <div class="mp-form-group"><label for="weight_pricing_increment_charge">Charge per step</label><input type="number" step="0.01" min="0" name="weight_pricing_increment_charge" id="weight_pricing_increment_charge" class="mp-form-control" value="<?= htmlspecialchars($weight_pricing_increment_charge ?? '0'); ?>"></div>
+    </div>
     <div class="mp-form-grid">
       <?php if(mp_feature_enabled('meat_butchery_workflow')): ?>
       <div class="mp-form-group">
@@ -1095,9 +1105,9 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     <div class="mp-upload-box" id="mp_upload_box" onclick="document.getElementById('item_image').click()">
       <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       <strong>Click to upload image</strong>
-      <span>PNG, JPG or WEBP up to 1MB</span>
+      <span>PNG, JPG, WEBP or AVIF up to 1MB</span>
     </div>
-    <input type="file" name="item_image" id="item_image" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" accept="image/png,image/jpeg,image/webp">
+    <input type="file" name="item_image" id="item_image" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" accept="image/png,image/jpeg,image/webp,image/avif,.avif">
     <div id="image_preview_wrap" style="margin-top:12px;display:none;">
       <img id="image_preview" src="" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
       <button type="button" class="btn-xs-danger" onclick="removeImagePreview()" style="margin-left:8px;"><i class="fa fa-trash"></i></button>

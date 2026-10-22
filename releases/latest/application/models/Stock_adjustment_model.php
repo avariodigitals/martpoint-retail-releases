@@ -119,6 +119,13 @@ class Stock_adjustment_model extends CI_Model {
 		$adjustment_note = $this->input->post('adjustment_note', TRUE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$adjustment_id = $this->input->post_get('adjustment_id', TRUE);
+		if ($adjustment_id && $this->db->table_exists('db_garden_production_entries') && $this->db->where('store_id',get_current_store_id())->where('adjustment_id',(int)$adjustment_id)->count_all_results('db_garden_production_entries')) return 'Production stock movements are audited and cannot be overwritten.';
+		if ($adjustment_id && $this->db->table_exists('db_service_material_requests')
+			&& $this->db->where('store_id',get_current_store_id())->where('adjustment_id',(int)$adjustment_id)->count_all_results('db_service_material_requests')) return 'Service material adjustments are audited and cannot be overwritten.';
+		if ($adjustment_id && $this->db->table_exists('db_garden_stock_events')
+			&& $this->db->where('store_id',get_current_store_id())->where('adjustment_id',(int)$adjustment_id)->count_all_results('db_garden_stock_events')) {
+			return 'Garden loss adjustments are audited and cannot be overwritten.';
+		}
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
 		//command arrives as a URL param from the JS layer; without it nothing would save
@@ -288,38 +295,44 @@ class Stock_adjustment_model extends CI_Model {
 
 
 	public function delete_stock_adjustment($ids){
+		$parsed_ids = array_filter(array_map('intval',explode(',',(string)$ids)));
+		if (!$parsed_ids) return 'Invalid stock adjustment reference.';
+		$ids = implode(',',$parsed_ids);
+		if ($this->db->where('store_id',get_current_store_id())->where_in('id',$parsed_ids)->count_all_results('db_stockadjustment')!==count(array_unique($parsed_ids))) return 'Stock adjustment not found for this store.';
+		if ($this->db->table_exists('db_garden_production_entries') && $this->db->where('store_id',get_current_store_id())->where_in('adjustment_id',$parsed_ids)->count_all_results('db_garden_production_entries')) return 'Production stock movements are audited and cannot be deleted.';
+		if ($this->db->table_exists('db_service_material_requests')
+			&& $this->db->where('store_id',get_current_store_id())->where_in('adjustment_id',$parsed_ids)->count_all_results('db_service_material_requests')) return 'Service material adjustments are audited and cannot be deleted.';
+		if ($this->db->table_exists('db_garden_stock_events')
+			&& $this->db->where('store_id',get_current_store_id())->where_in('adjustment_id',$parsed_ids)->count_all_results('db_garden_stock_events')) {
+			return 'Garden loss adjustments are audited and cannot be deleted.';
+		}
       	$this->db->trans_begin();
 
       	##############################################START
 		//FIND THE PREVIOUSE ITEM LIST ID'S
-		$prev_item_ids = $this->db->select("item_id")->from("db_stockadjustmentitems")->where("adjustment_id in ($ids)")->get()->result_array();
+		$prev_item_ids = $this->db->select("item_id")->from("db_stockadjustmentitems")->where("adjustment_id in ($ids)")->where("store_id",get_current_store_id())->get()->result_array();
 		##############################################END
 
 		#----------------------------------
 		$this->db->where("id in ($ids)");
-		//if not admin
-		if(!is_admin()){
-			$this->db->where("store_id",get_current_store_id());
-		}
+		$this->db->where("store_id",get_current_store_id());
 
 		$q3=$this->db->delete("db_stockadjustment");
 		#----------------------------------
 		#----------------------------------
-		$this->db->where("adjustment_id in ($ids)");
-		//if not admin
-		if(!is_admin()){
-			$this->db->where("store_id",get_current_store_id());
-		}
+		$this->db->where("adjustment_id in ($ids)")->where("store_id",get_current_store_id());
 
 		$q7=$this->db->delete("db_stockadjustmentitems");
 		#----------------------------------
 
-		$q6=$this->db->query("select id from db_items");
+		$affected_items=array_values(array_unique(array_column($prev_item_ids,'item_id')));
+		$q6=$this->db->select('id')->where('store_id',get_current_store_id())->where_in('id',$affected_items ?: [0])->get('db_items');
 		if($q6->num_rows()>0){
 			$this->load->model('pos_model');				
 			foreach ($q6->result() as $res6) {
 				$q6=$this->pos_model->update_items_quantity($res6->id);
 				if(!$q6){
+					$this->db->trans_rollback();
 					return "failed";
 				}
 			}
@@ -328,7 +341,8 @@ class Stock_adjustment_model extends CI_Model {
 		##############################################START
 		/*Update items in all warehouses of the item*/
 		$q7=update_warehouse_items($prev_item_ids);
-		if(!$q7){
+		if(!$q7 || $this->db->trans_status()===false){
+			$this->db->trans_rollback();
 			return "failed";
 		}
 		##############################################END

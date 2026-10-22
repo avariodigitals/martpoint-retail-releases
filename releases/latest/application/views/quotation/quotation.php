@@ -1,5 +1,5 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance();$document_industry=(mp_get_store_profile()['industry_type'] ?? '');$is_garden_document=$document_industry==='garden_centre_landscaping';$is_building_document=$document_industry==='building_materials';$is_clean_document=$is_garden_document || $is_building_document; ?>
 <?php $is_oil_plant_quote = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
 <?php
 if(!isset($quotation_id)){
@@ -28,6 +28,16 @@ else{
   $store_id=$q2->row()->store_id;
 
   $items_count = $this->db->query("select count(*) as items_count from db_quotationitems where quotation_id=$quotation_id")->row()->items_count;
+}
+
+// The quotation item search is warehouse-scoped. Keep a usable warehouse on
+// the form even when an older user record has no default branch configured.
+// Without this fallback the hidden field was empty and the catalogue picker
+// silently returned no items in the Building Materials flow.
+if(empty($warehouse_id)) $warehouse_id=(int)get_store_warehouse_id();
+if($is_building_document && !$warehouse_id){
+  $bmWarehouse=$this->db->select('id')->where('store_id',(int)get_current_store_id())->where('status',1)->order_by('id','asc')->limit(1)->get('db_warehouse')->row();
+  $warehouse_id=(int)($bmWarehouse->id ?? 0);
 }
 ?>
 
@@ -58,15 +68,17 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 .ui-autocomplete-loading { background-image: none !important; }
 </style>
 
+<?php if ($is_clean_document): $this->load->view($is_building_document?'building_materials/commercial_style':'garden/document_editor_style'); ?><div class="garden-document-editor<?= $is_building_document?' bm-commercial bm-document-editor':''; ?>" <?= $is_garden_document?'data-garden-document':'data-building-document'; ?>="quotation"><?php endif; ?>
 <div class="mp-page-head">
   <div>
-    <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub"><?= isset($quotation_id) ? 'Update quotation details' : 'Create a new quotation'; ?></div>
+    <?php if ($is_clean_document): ?><div class="garden-editor-eyebrow">CLIENT PROPOSAL</div><?php endif; ?><h2><?= $is_clean_document ? (isset($quotation_id) ? 'Edit quotation' : 'Create quotation') : htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub"><?= $is_building_document ? 'Define the technical scope, materials and installation work for customer approval.' : ($is_garden_document ? 'Set out the scope, services and supplies for your client.' : (isset($quotation_id) ? 'Update quotation details' : 'Create a new quotation')); ?></div>
   </div>
   <a class="mp-qa-btn" href="<?= base_url('quotation'); ?>"><i class="fa fa-arrow-left"></i> Back to Quotations</a>
 </div>
 
 
+<?php if ($is_garden_document && isset($q2) && $q2->row()): $this->load->view('garden/quotation_response_action',['response_quote'=>$q2->row()]); endif; ?>
 <!-- **********************MODALS***************** -->
 <?php $this->load->view('modals/modal_customer');?>
 <?php $this->load->view('modals/modal_item');?>
@@ -76,6 +88,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 <!-- **********************MODALS END***************** -->
 
 <?= form_open('#', array('class' => '', 'id' => 'quotation-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
+<?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'quotation','garden_document_edit'=>!empty($quotation_id)]); ?>
 <input type="hidden" id="base_url" value="<?= htmlspecialchars($base_url); ?>">
 <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
 <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
@@ -83,9 +96,9 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 <input type="hidden" id="hidden_discount_to_all_amt" name="hidden_discount_to_all_amt" value="0.00">
 
 <!-- Quotation Details -->
-<div class="mp-card-form">
+<div class="mp-card-form garden-quote-details">
   <div class="mp-card-head">
-    <h3><i class="fa fa-file-text-o"></i> Quotation Details</h3>
+    <h3><i class="fa fa-file-text-o"></i> <?= $is_clean_document ? '01 · Client & proposal details' : 'Quotation Details'; ?></h3>
   </div>
   <div class="mp-card-body">
     <!-- Store Code -->
@@ -106,7 +119,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
          <span id="warehouse_id_msg" style="display:none" class="text-danger"></span>
        </div>
        <?php }else{
-        echo "<input type='hidden' name='warehouse_id' id='warehouse_id' value='".get_store_warehouse_id()."'>";
+        echo "<input type='hidden' name='warehouse_id' id='warehouse_id' value='".(int)$warehouse_id."'>";
        }
       ?>
       <!-- Branch Code end -->
@@ -157,9 +170,9 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 </div>
 
 <!-- Items -->
-<div class="mp-card-form">
+<div class="mp-card-form garden-quote-lines">
   <div class="mp-card-head">
-    <h3><i class="fa fa-barcode"></i> Items</h3>
+    <h3><i class="fa <?= $is_clean_document ? 'fa-list-alt' : 'fa-barcode'; ?>"></i> <?= $is_clean_document ? '02 · Scope & pricing' : 'Items'; ?></h3>
   </div>
   <div class="mp-card-body" style="padding:0;">
     <?php if($is_oil_plant_quote): ?><div style="padding:14px 20px;background:#f0f8f3;border-bottom:1px solid #d7eadf;">
@@ -170,8 +183,8 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
     <div style="padding:16px 20px; border-bottom:1px solid var(--mp-border);">
       <div class="mp-form-group" style="margin:0;">
         <div class="input-group">
-          <span class="input-group-addon" title="Select Items"><i class="fa fa-barcode"></i></span>
-          <input type="text" class="form-control mp-form-control" placeholder="Item name / Barcode / Itemcode" autofocus id="item_search" style="border-radius:0;">
+          <span class="input-group-addon" title="Select Items"><i class="fa <?= $is_clean_document?'fa-search':'fa-barcode'; ?>"></i></span>
+          <input type="text" class="form-control mp-form-control" placeholder="<?= $is_clean_document ? 'Find a service, material or product…' : 'Item name / Barcode / Itemcode'; ?>" autofocus id="item_search" style="border-radius:0;" aria-label="Find quotation work and supplies">
           <span class="input-group-addon pointer text-green show_item_service" title="Click to Add New Item or Service"><i class="fa fa-plus"></i></span>
         </div>
       </div>
@@ -180,7 +193,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
       <table class="table table-hover table-bordered mp-dt-table" style="width:100%;margin:0;" id="quotation_table">
         <thead class="custom_thead">
           <tr class="bg-primary">
-            <th style="width:15%"><?= $is_oil_plant_quote ? 'Part / description' : $this->lang->line('item_name'); ?></th>
+            <th style="width:15%"><?= $is_clean_document ? 'Service / supply' : ($is_oil_plant_quote ? 'Part / description' : $this->lang->line('item_name')); ?></th>
             <th style="width:10%"><?= $this->lang->line('quantity'); ?></th>
             <th style="width:10%"><?= $is_oil_plant_quote ? 'Unit price' : $this->lang->line('unit_price'); ?></th>
             <th style="width:10%"><?= $this->lang->line('discount'); ?>(<?= $CI->currency() ?>)</th>
@@ -198,9 +211,9 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 </div>
 
 <!-- Summary -->
-<div class="mp-card-form">
+<div class="mp-card-form garden-quote-summary">
   <div class="mp-card-head">
-    <h3><i class="fa fa-calculator"></i> Summary</h3>
+    <h3><i class="fa fa-file-text-o"></i> <?= $is_clean_document ? 'Proposal summary' : 'Summary'; ?></h3>
   </div>
   <div class="mp-card-body">
     <div class="mp-row r-equal" style="align-items:flex-start;">
@@ -232,7 +245,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
         </div>
 
         <div class="mp-form-group full" style="margin-bottom:16px;">
-          <label for="quotation_note"><?= $this->lang->line('note'); ?></label>
+          <label for="quotation_note"><?= $is_clean_document ? 'Scope, exclusions & client notes' : $this->lang->line('note'); ?></label>
           <textarea class="form-control text-left mp-form-control" id='quotation_note' name="quotation_note"><?= htmlspecialchars((string)$quotation_note, ENT_QUOTES, 'UTF-8'); ?></textarea>
           <span id="quotation_note_msg" style="display:none" class="text-danger"></span>
         </div>
@@ -312,19 +325,20 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
       }
       ?>
       <button type="button" id="<?php echo $btn_id;?>" class="mp-btn-primary payments_modal" title="Save Data"><i class="fa fa-save"></i> <?php echo $btn_name;?></button>
-      <a href="<?= base_url();?>dashboard" class="mp-btn-secondary"><i class="fa fa-times"></i> Close</a>
+      <a href="<?= base_url($is_building_document?'quotation':'dashboard'); ?>" class="mp-btn-secondary"><i class="fa fa-times"></i> Close</a>
     </div>
   </div>
 </div>
 
 <?= form_close(); ?>
+<?php if ($is_clean_document): ?></div><?php endif; ?>
 
 <script src="<?= htmlspecialchars($theme_link); ?>js/modals.js"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/modals/modal_item.js"></script>
 <script type="text/javascript">
   var walk_in_customer_name ='<?= get_walk_in_customer_name();?>'
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/quotation/quotation.js"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/quotation/quotation.js?v=<?= (int)@filemtime(FCPATH.'theme/js/quotation/quotation.js'); ?>&r=2"></script>
 <?php if($is_oil_plant_quote): ?><script>
   window.applyPlantQuoteSection = function(row){
     var heading = document.getElementById('plant_quote_section');

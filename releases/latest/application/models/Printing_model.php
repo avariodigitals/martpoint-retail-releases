@@ -2333,7 +2333,7 @@ class Printing_model extends CI_Model {
     public function create_job_from_lead($lead_id, array $opts = []) {
         $lead_id = (int)$lead_id;
         if (!$this->db->table_exists('db_leads')) return ['success' => false, 'message' => 'Leads module not available.'];
-        $lead = $this->db->where('id', $lead_id)->get('db_leads')->row();
+        $lead = $this->db->where('id', $lead_id)->where('store_id', get_current_store_id())->get('db_leads')->row();
         if (!$lead) return ['success' => false, 'message' => 'Enquiry not found.'];
 
         $store_id = (int)$lead->store_id;

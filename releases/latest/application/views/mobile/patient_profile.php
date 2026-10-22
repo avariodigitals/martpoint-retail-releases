@@ -102,10 +102,7 @@ foreach(array('customer_photo','patient_photo','photo','image_path','profile_pic
       </div>
 
       <div class="hero">
-        <div class="avatar <?= $mobileCardPhoto ? 'has-photo' : ''; ?>">
-          <?php if($mobileCardPhoto): ?><img src="<?= htmlspecialchars($mobileCardPhoto); ?>" alt="Patient photo">
-          <?php else: ?><?= htmlspecialchars(strtoupper(substr($patient->customer_name, 0, 1))); ?><?php endif; ?>
-        </div>
+        <?php $avatar_url = $mobileCardPhoto; $avatar_name = $patient->customer_name; $avatar_size = 52; $avatar_class = 'avatar'; $this->load->view('components/person_avatar'); ?>
         <div style="flex:1;min-width:0;">
           <div class="name"><?= htmlspecialchars($patient->customer_name); ?></div>
           <div class="code"><?= htmlspecialchars($patient->patient_code ?: '—'); ?> · <?= htmlspecialchars($patient->customer_code ?: '—'); ?></div>

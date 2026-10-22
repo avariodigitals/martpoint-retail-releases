@@ -39,9 +39,34 @@ class Leads extends MY_Controller {
 		$search = trim($this->input->get('search', TRUE) ?: '');
 		if(!function_exists('physio_enabled')) $this->load->helper('physio');
 		$physio = physio_enabled();
+		$leads = $this->leads->getLeads($storeId, $status, $search);
+		// Storefront enquiries keep their structured metadata (company, project
+		// location, attachments) in the notes column. Decode it for display and
+		// expose only attachment links that resolve inside this store's private
+		// upload directory; the raw JSON is never shown to staff.
+		foreach($leads as $lead){
+			$meta = json_decode((string)($lead->notes ?? ''), true);
+			$lead->b2b_meta = null;
+			$lead->b2b_notes = null;
+			$lead->b2b_attachments = [];
+			if(is_array($meta) && isset($meta['form'])){
+				$lead->b2b_meta = $meta;
+				$lead->b2b_notes = is_string($meta['merchant_notes'] ?? null) ? $meta['merchant_notes'] : '';
+				$prefix = 'uploads/private/store-' . (int)$storeId . '/enquiries/';
+				foreach((array)($meta['attachments'] ?? []) as $i => $file){
+					if(!is_array($file) || empty($file['path']) || strpos((string)$file['path'], $prefix) !== 0) continue;
+					$lead->b2b_attachments[] = [
+						'name' => (string)($file['name'] ?? 'Attachment'),
+						'size' => (int)($file['size'] ?? 0),
+						'type' => strtoupper((string)($file['type'] ?? '')),
+						'url' => base_url('leads/attachment/' . (int)$lead->id . '/' . (int)$i),
+					];
+				}
+			}
+		}
 		$data = array_merge($this->data, [
 			'page_title' => 'Leads',
-			'leads' => $this->leads->getLeads($storeId, $status, $search),
+			'leads' => $leads,
 			'stats' => $this->leads->getLeadStats($storeId),
 			'status_filter' => $status,
 			'search' => $search,
@@ -50,13 +75,34 @@ class Leads extends MY_Controller {
 			'can_convert_patient' => $physio && physio_can('patients_add'),
 			'can_book_appt' => $physio && physio_can('appointments_add'),
 			// Lead owner may be any real staff member — never a system account.
-			'staff' => $physio ? physio_staff_select($storeId, false) : array(),
+			'staff' => $physio
+				? physio_staff_select($storeId, false)
+				: $this->db->select('id,username')->where('store_id',$storeId)->where('status',1)->where_not_in('role_id',get_excluded_staff_roles($storeId))->where_not_in('id',get_excluded_user_ids($storeId))->order_by('username','asc')->get('db_users')->result(),
 		]);
 		$data['content'] = $this->load->view('leads/index', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
 
 	// ============== SAVE (add / edit) ==============
+
+	/** Authenticated download for a storefront enquiry attachment. */
+	public function attachment($id = 0, $index = 0){
+		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
+		$storeId = get_current_store_id();
+		$lead = $this->leads->getLead((int)$id, $storeId);
+		if(!$lead){ show_404(); return; }
+		$meta = json_decode((string)($lead->notes ?? ''), true);
+		$file = is_array($meta) ? ($meta['attachments'][(int)$index] ?? null) : null;
+		if(!is_array($file) || empty($file['path'])){ show_404(); return; }
+		$prefix = 'uploads/private/store-' . (int)$storeId . '/enquiries/';
+		if(strpos((string)$file['path'], $prefix) !== 0){ show_404(); return; }
+		$root = realpath(mp_private_storage_root(false));
+		$path = realpath(mp_private_storage_path((string)$file['path'], true));
+		if($root === false || $path === false || strpos($path, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($path)){ show_404(); return; }
+		$this->load->helper('download');
+		force_download(basename((string)($file['name'] ?? 'attachment')), file_get_contents($path));
+	}
+
 
         /**
          * Integrator — the embed snippet and store key for this store.
@@ -136,6 +182,18 @@ class Leads extends MY_Controller {
 			}
 			$source = trim($this->input->post('source', TRUE) ?: 'manual');
 			$status = trim($this->input->post('status', TRUE) ?: 'new');
+			$notes = trim($this->input->post('notes', TRUE) ?: '');
+			// A storefront enquiry's notes column holds machine metadata. Keep
+			// it intact and store the merchant's edits as merchant_notes, so
+			// saving a lead never destroys the project details or attachments.
+			if($id){
+				$existing = $this->leads->getLead($id, $storeId);
+				$meta = json_decode((string)($existing->notes ?? ''), true);
+				if(is_array($meta) && isset($meta['form'])){
+					$meta['merchant_notes'] = $notes;
+					$notes = json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+				}
+			}
 			$lData = [
 				'store_id' => $storeId,
 				'name' => $name,
@@ -144,7 +202,7 @@ class Leads extends MY_Controller {
 				'source' => in_array($source, Leads_model::SOURCES) ? $source : 'manual',
 				'status' => in_array($status, Leads_model::STATUSES) ? $status : 'new',
 				'interest' => trim($this->input->post('interest', TRUE) ?: ''),
-				'notes' => trim($this->input->post('notes', TRUE) ?: ''),
+				'notes' => $notes,
 				'updated_at' => date('Y-m-d H:i:s'),
 			];
 			if(!$id){
@@ -216,6 +274,9 @@ class Leads extends MY_Controller {
 		$userId = (int)$this->input->post('assigned_to');
 		$follow = trim($this->input->post('next_followup_at', TRUE) ?: '');
 		$follow = preg_match('/^\d{4}-\d{2}-\d{2}/', $follow) ? $follow : null;
+		if($userId > 0 && !$this->db->where('id',$userId)->where('store_id',get_current_store_id())->where('status',1)->get('db_users')->row()){
+			echo json_encode(['status' => 'error', 'message' => 'Choose a team member from this store.']); return;
+		}
 		if($this->leads->assign((int)$id, $userId ?: null, $follow, get_current_store_id())){
 			echo json_encode(['status' => 'success', 'message' => 'Lead assigned']);
 		} else {

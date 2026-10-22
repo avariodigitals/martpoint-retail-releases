@@ -1,3 +1,4 @@
+<?php $this->load->view('comman/usage_checkin'); ?>
 <script>var base_url = '<?php echo base_url(); ?>'; var mpUserId = '<?php echo $this->session->userdata('inv_userid') ?? '0'; ?>';</script>
 <!-- MartPoint Assist Panel — Critical layout styles inline so the panel is always correctly sized regardless of page CSS/cache -->
 <style>
@@ -26,14 +27,30 @@
     display: flex !important; flex-direction: column !important;
     align-items: flex-end !important; gap: 10px !important;
   }
+  .mp-assist-fab {
+    position: relative !important;
+    overflow: visible !important;
+    animation: mp-assist-breathe 3.2s ease-in-out infinite !important;
+  }
+  .mp-assist-fab::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: -5px !important;
+    border: 2px solid rgba(255,255,255,.35) !important;
+    border-radius: inherit !important;
+    pointer-events: none !important;
+    animation: mp-assist-ring 2.8s ease-out infinite !important;
+  }
+  @keyframes mp-assist-breathe { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.025); } }
+  @keyframes mp-assist-ring { 0% { opacity: .55; transform: scale(.96); } 75%,100% { opacity: 0; transform: scale(1.18); } }
 
-  @media (max-width: 768px) {
+  @media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
     /* Smart floating chat card — inset from the screen edges, rounded,
        and kept above the mobile bottom nav instead of a giant sheet. */
     .mp-assist-panel {
       width: auto !important;
       left: 12px !important; right: 12px !important;
-      bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+      bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important;
       height: min(60vh, 480px) !important;
       min-height: 300px !important;
       max-height: calc(100vh - 140px) !important;
@@ -45,13 +62,13 @@
     }
     .mp-assist-panel.open {
       right: 12px !important;
-      bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+      bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important;
       border-radius: 18px !important;
       transform: translateY(0) !important;
       visibility: visible !important;
       transition: transform 0.3s cubic-bezier(.32,.72,.35,1) !important;
     }
-    .mp-fab-wrapper { right: 14px !important; left: auto !important; bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; align-items: flex-end !important; }
+    .mp-fab-wrapper { right: 14px !important; left: auto !important; bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important; align-items: flex-end !important; }
     .mp-fab-menu { align-items: flex-end !important; }
     .mp-assist-fab-label { display: none !important; }
   }
@@ -78,7 +95,16 @@
   </div>
   <div class="mp-assist-input-area">
     <div id="mp-assist-suggestions" class="mp-assist-suggestions"></div>
-    <textarea id="mp-assist-input" class="mp-assist-input" rows="1" placeholder="Ask MartPoint..." onkeydown="MPAssist.handleKey(event)"></textarea>
+    <div id="mp-assist-voice-status" class="mp-assist-voice-status" role="status" aria-live="polite"></div>
+    <div class="mp-assist-field">
+      <textarea id="mp-assist-input" class="mp-assist-input" rows="1" placeholder="Ask MartPoint..." onkeydown="MPAssist.handleKey(event)"></textarea>
+      <button id="mp-assist-mic" class="mp-assist-mic" type="button" onclick="MPAssist.toggleMic()" aria-label="Speak your request" aria-pressed="false" title="Speak your request">
+        <i class="fa fa-microphone"></i>
+      </button>
+    </div>
+    <button id="mp-assist-speak" class="mp-assist-speak" type="button" onclick="MPAssist.toggleSpeak()" aria-label="Spoken replies" aria-pressed="true" title="Spoken replies: on">
+      <i class="fa fa-volume-up"></i>
+    </button>
     <button class="mp-assist-send" onclick="MPAssist.send()">
       <i class="fa fa-paper-plane"></i>
     </button>
@@ -88,8 +114,11 @@
 <!-- Floating Button + Menu -->
 <div class="mp-fab-wrapper">
   <div id="mp-fab-menu" class="mp-fab-menu">
+    <button class="mp-fab-menu-item" onclick="MPSupportChat.open()">
+      <i class="fa fa-comments"></i> <span>Live Chat with Support</span>
+    </button>
     <button class="mp-fab-menu-item" onclick="MPAssist.openChat()">
-      <i class="fa fa-comment"></i> <span>Chat with MartPoint</span>
+      <i class="fa fa-lightbulb-o"></i> <span>Ask MartPoint AI</span>
     </button>
     <button class="mp-fab-menu-item" onclick="MPAssist.openSupportModal()">
       <i class="fa fa-envelope"></i> <span>Support Request</span>
@@ -105,10 +134,11 @@
     </button>
   </div>
   <button id="mp-assist-fab" class="mp-assist-fab" onclick="MPAssist.toggleMenu(event)">
-    <i class="fa fa-comment"></i>
+    <i class="fa fa-lightbulb-o"></i>
     <span class="mp-assist-fab-label">Ask MartPoint</span>
   </button>
 </div>
+<?php $this->load->view('assist/support_chat_widget'); ?>
 
 <!-- Support Request Modal -->
 <div id="mp-support-modal" class="mp-support-modal">

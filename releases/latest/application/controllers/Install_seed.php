@@ -35,6 +35,10 @@ class Install_seed extends CI_Controller {
             $this->seeder->seed_store_defaults($store->id);
             $this->_apply_business_profile($store->id, $industry_type, $business_model);
             $this->_apply_email_defaults($store->id);
+
+            // HIGH-FIDELITY DEMO INTEGRATION
+            // Trigger the rich seeder if the site is a demo instance
+            $this->_apply_demo_data($store->id, $industry_type);
         }
 
         // Create any extra staff accounts captured during installation
@@ -50,6 +54,18 @@ class Install_seed extends CI_Controller {
 
         // Show beautiful welcome celebration page
         $this->load->view('install_welcome');
+    }
+
+    /**
+     * Check if this is a demo instance and apply rich "Zonat" data.
+     */
+    private function _apply_demo_data($store_id, $industry_type) {
+        // We identify a demo instance by the server name or a specific environment flag
+        $server_name = $_SERVER['HTTP_HOST'] ?? '';
+        if (strpos($server_name, 'demo.martpoint') !== false) {
+            $this->load->model('Demo_seeder');
+            $this->Demo_seeder->seed_full_demo($store_id, $industry_type);
+        }
     }
 
     /**
@@ -132,7 +148,7 @@ class Install_seed extends CI_Controller {
      * role ids, then clear the stored payload.
      */
     private function _create_pending_users($stores) {
-        if (empty($stores) || !$this->db->table_exists('db_store_settings')) {
+        if (empty($stores) || ! $this->db->table_exists('db_store_settings')) {
             return;
         }
         $store_id = (int)$stores[0]->id;

@@ -21,6 +21,7 @@ $lmAvailable = $lmType !== 'physical' || $lmStock > 0 || !empty($settings->allow
       <div class="lm-availability"><?= $lmAvailable ? 'Available to order' : 'Currently unavailable'; ?></div>
       <?php $this->load->view('themes/shared/variant_picker', ['sf_picker_mode' => 'select']); ?>
       <div class="lm-detail-buy"><div class="lm-quantity"><button type="button" id="lm-qty-minus" aria-label="Decrease quantity">−</button><span id="lm-qty">1</span><button type="button" id="lm-qty-plus" aria-label="Increase quantity">+</button></div><button type="button" class="btn" id="lm-detail-add" <?= $lmAvailable ? '' : 'disabled'; ?>><?= $lmAvailable ? 'Add to Bag ↗' : 'Out of Stock'; ?></button></div>
+      <?php if ($lmType === 'physical' && !empty($settings->whatsapp_number) && !empty($settings->allow_whatsapp)): ?><button type="button" class="lm-detail-whatsapp" id="lm-detail-whatsapp" <?= $lmAvailable ? '' : 'aria-label="Ask about availability"'; ?>><?= $lmAvailable ? 'Order via WhatsApp' : 'Ask about availability'; ?></button><?php endif; ?>
       <?php if (!$lmAvailable) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
       <p class="lm-detail-note">Secure checkout · Carefully considered care</p>
     </div>
@@ -33,8 +34,17 @@ $lmAvailable = $lmType !== 'physical' || $lmStock > 0 || !empty($settings->allow
   var qty=1, itemType=item.type, needsVariant=<?= (($product->item_group ?? '') === 'Variants') ? 'true' : 'false'; ?>;
   document.getElementById('lm-qty-minus').addEventListener('click',function(){qty=Math.max(1,qty-1);document.getElementById('lm-qty').textContent=qty;});
   document.getElementById('lm-qty-plus').addEventListener('click',function(){qty++;document.getElementById('lm-qty').textContent=qty;});
-  document.addEventListener('sf:variant-picked',function(e){if(!e.detail)return; item=e.detail; var image=document.getElementById('lm-detail-image');if(image&&item.image)image.src='<?= base_url(); ?>'+item.image; document.getElementById('lm-detail-price').textContent=formatMoney(item.price); var button=document.getElementById('lm-detail-add');button.disabled=item.stock<=0&&!<?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;button.textContent=button.disabled?'Out of Stock':'Add to Bag ↗';});
+  document.addEventListener('sf:variant-picked',function(e){if(!e.detail)return; item=e.detail; var image=document.getElementById('lm-detail-image');if(image&&item.image)image.src='<?= base_url(); ?>'+item.image; document.getElementById('lm-detail-price').textContent=formatMoney(item.price); var button=document.getElementById('lm-detail-add');var unavailable=item.stock<=0&&!<?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;button.disabled=unavailable;button.textContent=unavailable?'Out of Stock':'Add to Bag ↗';var wa=document.getElementById('lm-detail-whatsapp');if(wa)wa.textContent=unavailable?'Ask about availability':'Order via WhatsApp';});
   document.getElementById('lm-detail-add').addEventListener('click',function(){if(needsVariant&&!window.sfPickedVariant){showToast('Please choose an option first');return;}var p=window.sfPickedVariant||item;addToCart(p.id,itemType,p.name,p.price,p.image,qty,p.stock);});
+  var wa=document.getElementById('lm-detail-whatsapp');
+  if(wa)wa.addEventListener('click',function(){
+    if(needsVariant&&!window.sfPickedVariant){showToast('Please choose an option first');return;}
+    var p=window.sfPickedVariant||item;
+    var unavailable=p.stock<=0&&!<?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;
+    var msg=unavailable?'Hello, is '+p.name+' back in stock?':'Hello, I would like to order '+qty+' x '+p.name+' — '+formatMoney(p.price*qty);
+    var phone='<?= preg_replace('/[^0-9]/','',$settings->whatsapp_number ?? ''); ?>';
+    if(phone)window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+  });
   if(typeof mpTrackEvent==='function')mpTrackEvent('view_item',item.id,item.price);
 })();
 </script>

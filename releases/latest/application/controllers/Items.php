@@ -2,10 +2,61 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Items extends MY_Controller {
+	private $pharmacy_purchase_category_cache = array();
+
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
 		$this->load->model('items_model','items');
+	}
+
+	private function _pharmacy_purchase_categories($store_id)
+	{
+		$store_id = (int)$store_id;
+		if (array_key_exists($store_id, $this->pharmacy_purchase_category_cache)) {
+			return $this->pharmacy_purchase_category_cache[$store_id];
+		}
+
+		// Read industry settings without mp_get_store_profile(). That helper uses
+		// the shared query builder and this method is called while the item query
+		// is already being assembled.
+		$industry = '';
+		foreach (array('db_store_industry_settings', 'db_store_business_profile') as $table) {
+			if (!$this->db->table_exists($table)) continue;
+			$query = $this->db->query(
+				"SELECT industry_type FROM {$table} WHERE store_id = ? LIMIT 1",
+				array($store_id)
+			);
+			if ($query && $query->num_rows()) {
+				$row = $query->row();
+				$industry = strtolower(trim((string)($row->industry_type ?? '')));
+				if ($industry !== '') break;
+			}
+		}
+		if ($industry === '' && $this->db->table_exists('db_store') && $this->db->field_exists('industry_type', 'db_store')) {
+			$query = $this->db->query(
+				"SELECT industry_type FROM db_store WHERE id = ? LIMIT 1",
+				array($store_id)
+			);
+			if ($query && $query->num_rows()) {
+				$row = $query->row();
+				$industry = strtolower(trim((string)($row->industry_type ?? '')));
+			}
+		}
+
+		if (!in_array($industry, array('pharmacy', 'medical_store', 'healthcare'), true)) {
+			$this->pharmacy_purchase_category_cache[$store_id] = array();
+			return array();
+		}
+
+		$this->pharmacy_purchase_category_cache[$store_id] = array(
+			'Prescription Drugs', 'Over-the-Counter', 'Medical Supplies',
+			'Vitamins & Supplements', 'Dermatology', 'Skincare',
+			'Analgesics & Pain Relief', 'Antibiotics', 'Cold, Flu & Allergy',
+			'Digestive Health', 'First Aid & Wound Care', 'Mother & Baby',
+			'Personal Care & Hygiene', 'Medical Devices',
+		);
+		return $this->pharmacy_purchase_category_cache[$store_id];
 	}
 	
 	public function index()
@@ -41,7 +92,7 @@ class Items extends MY_Controller {
 			}
 			$data['recipes_list'] = $recipes;
 		}
-		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=15'];
+		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=16'];
 		$data['content'] = $this->load->view('items',$data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -226,7 +277,7 @@ class Items extends MY_Controller {
 			}
 		}
 		//$data['variant_tbody']=$this->items_model->get_variants_list_in_row($id);
-		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=15'];
+		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=16'];
 		$data['content'] = $this->load->view('items', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -489,18 +540,28 @@ class Items extends MY_Controller {
 
 	
 	public function get_json_items_details(){
-		$store_id=$this->input->get('store_id');
-		$warehouse_id=$this->input->get('warehouse_id');
+		$store_id=(int)$this->input->get('store_id');
+		if(!$store_id && function_exists('get_current_store_id')) $store_id=(int)get_current_store_id();
+		$warehouse_id=(int)$this->input->get('warehouse_id');
+		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
 		$search_for=$this->input->get('search_for');
 
 		$show_purchase_price = $this->permissions('show_purchase_price');
 		$data = array();
 		$display_json = array();
 		$name = isset($_GET['name']) ? strtolower(trim($_GET['name'])) : '';
+		$pharmacy_categories = ($search_for === 'purchase')
+			? $this->_pharmacy_purchase_categories($store_id)
+			: array();
 
 		if(isset($search_for) && $search_for=='purchase'){
 			$this->db->select("a.service_bit,a.purchase_price,a.id,a.item_name,a.item_code,COALESCE(a.stock,0) as stock,item_group");
 			$this->db->from("db_items as a");
+			if ($pharmacy_categories) {
+				$this->db->join('db_category as pharmacy_category', 'pharmacy_category.id=a.category_id AND pharmacy_category.store_id=a.store_id', 'inner')
+					->where('pharmacy_category.status', 1)
+					->where_in('pharmacy_category.category_name', $pharmacy_categories);
+			}
 		}
 		else if(isset($search_for) && ($search_for=='labels' || $search_for=='sales')){
 			$this->db->select("*");

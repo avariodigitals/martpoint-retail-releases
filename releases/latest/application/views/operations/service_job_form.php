@@ -18,7 +18,7 @@
         <label>Job type <span class="text-danger">*</span></label>
         <select name="job_type" class="mp-form-control">
           <?php foreach($job_types as $t): ?>
-          <option value="<?= $t; ?>" <?= ($j && $j->job_type === $t) ? 'selected' : ''; ?>><?= ucfirst($t); ?></option>
+          <option value="<?= $t; ?>" <?= (($j && $j->job_type === $t)||(!$j && ($prefill_job_type ?? 'installation')===$t)) ? 'selected' : ''; ?>><?= ucfirst($t); ?></option>
           <?php endforeach; ?>
         </select>
       </div>

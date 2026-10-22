@@ -1,5 +1,5 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance();$is_building_commercial=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 <?php
 $q3=$this->db->query("SELECT b.coupon_id,b.coupon_amt, b.due_date,b.quotation_id,b.store_id,b.customer_id,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,a.shippingaddress_id,COALESCE(a.id,b.customer_id) as id,
                            a.opening_balance,a.country_id,a.state_id,a.city,
@@ -77,6 +77,7 @@ $pos=$res3->pos;
 
 $q1=$this->db->query("select * from db_store where id=".$res3->store_id." ");
 $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_sales', $sales_id);
 $store_name=$res1->store_name;
 $company_mobile=$res1->mobile;
 $company_phone=$res1->phone;
@@ -145,9 +146,11 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
 }
 </style>
 
+<?php if($is_building_commercial): $this->load->view('building_materials/commercial_style',['building_editor_style'=>false]); ?><div class="bm-commercial bm-commercial-document"><?php endif; ?>
 <div class="mp-page-head">
   <div>
-    <h2><?= $this->lang->line('sales_invoice'); ?> <span style="color:var(--mp-muted);font-weight:500;">#<?= htmlspecialchars($sales_code); ?></span></h2>
+    <?php if($is_building_commercial): ?><div class="bm-commercial-eyebrow">CLIENT BILLING · INVOICE RECORD</div><?php endif; ?>
+    <h2><?= $is_building_commercial?'Invoice':$this->lang->line('sales_invoice'); ?> <span style="color:var(--mp-muted);font-weight:500;">#<?= htmlspecialchars($sales_code); ?></span></h2>
     <div class="mp-page-sub"><?= show_date($sales_date); ?> <?= $created_time; ?> &middot; <?= $this->lang->line('payment_status'); ?>: <?= ucfirst($payment_status); ?></div>
   </div>
   <div class="mp-quick-actions">
@@ -404,7 +407,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
         </div>
         <?php } ?>
         <div class="totals-row" style="border-bottom:1px solid var(--mp-border);">
-          <span class="label"><?= $this->lang->line('note'); ?></span>
+          <span class="label"><?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8'); ?></span>
           <span class="value" style="text-align:right;"><?= nl2br(htmlspecialchars($sales_note)); ?></span>
         </div>
         <div class="totals-row" style="border-bottom:none;">
@@ -461,7 +464,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
 
   <div class="mp-form-actions" style="justify-content:space-between;margin-top:24px;">
     <div>
-      <a href="<?= base_url('sales'); ?>" class="mp-btn-secondary"><i class="fa fa-arrow-left"></i> Back to Sales</a>
+      <a href="<?= base_url('sales'); ?>" class="mp-btn-secondary"><i class="fa fa-arrow-left"></i> <?= $is_building_commercial?'Invoice register':'Back to Sales'; ?></a>
     </div>
     <div style="display:flex;gap:12px;">
       <?php if($CI->permissions('sales_edit')) { ?>
@@ -477,4 +480,5 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
   </div>
 </div>
 
+<?php if($is_building_commercial): ?></div><?php endif; ?>
 <script>$(".sales-list-active-li").addClass("active");</script>

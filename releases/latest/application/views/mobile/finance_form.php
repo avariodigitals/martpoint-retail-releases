@@ -261,6 +261,7 @@
           </div>
 
         <?php elseif($type == 'expenses'): ?>
+<?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'expense','garden_document_edit'=>!empty($q_id)]); ?>
           <?php
             $q_id = $q_id ?? 0;
             $expense_code = $expense_code ?? get_init_code('expense');

@@ -385,6 +385,28 @@ class Users_model extends CI_Model {
 		}
 
 		$this->db->trans_commit();
+
+		// Keep the active session in step with a self-profile edit. The shared
+		// desktop header, mobile avatar and greetings read these session values;
+		// without refreshing them the database changed but the visible account
+		// identity stayed on the old name until the next login.
+		if((int)$q_id === (int)$this->session->userdata('inv_userid')){
+			$display_name = trim((string)$new_user . ' ' . (string)$last_name);
+			if($display_name === '') $display_name = trim((string)$username);
+			$session_update = array(
+				'inv_username' => $username,
+				'first_name'   => $new_user,
+				'user_lname'  => $last_name,
+				'display_name' => $display_name,
+				'email'       => $email,
+			);
+			if(isset($role_id)){
+				$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();
+				$session_update['role_id'] = $role_id;
+				if($role) $session_update['role_name'] = trim((string)$role->role_name);
+			}
+			$this->session->set_userdata($session_update);
+		}
 		$this->session->set_flashdata('success', 'Success!! User Updated Succssfully!!');
 		return "success";
 	}
@@ -402,6 +424,12 @@ class Users_model extends CI_Model {
 		}
 		if($current_role_id !== null && (int)$role_id === (int)$current_role_id){
 			return null;
+		}
+		if(!is_admin()){
+			$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+			if(in_array((int)$role_id, $owner_roles, true)){
+				return 'The store owner/admin role is reserved for the existing store account.';
+			}
 		}
 		$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();
 		if(!$role){

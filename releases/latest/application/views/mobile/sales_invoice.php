@@ -60,6 +60,7 @@
     .empty { text-align: center; padding: 24px; color: var(--mp-muted); font-size: 13px; }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 140px; } }
   </style>
+<?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
 <body>
   <div id="app">
@@ -105,6 +106,9 @@
           $sales_code = $res3->sales_code;
           $sales_status = $res3->sales_status;
           $sales_note = $res3->sales_note;
+          $display_sales_note = function_exists('mp_invoice_note_without_dosage')
+              ? mp_invoice_note_without_dosage($sales_note)
+              : $sales_note;
           $invoice_terms = $res3->invoice_terms;
           $quotation_id = $res3->quotation_id;
           $pos = $res3->pos;
@@ -135,6 +139,7 @@
 
           $q1 = $this->db->where('id', $res3->store_id)->get('db_store');
           $res1 = $q1->row();
+    $res1 = mp_document_store($res1, 'db_sales', $sales_id);
           $store_name = $res1->store_name ?? '';
           $company_mobile = $res1->mobile ?? '';
           $company_phone = $res1->phone ?? '';
@@ -175,6 +180,7 @@
       </div>
 
       <div class="card">
+        <?= mp_document_location_html($res1); ?>
         <div class="card-title">Customer</div>
         <div class="info-block">
           <div class="name"><?= htmlspecialchars($customer_name); ?></div>
@@ -275,9 +281,9 @@
         <?php endif; ?>
       </div>
 
-      <?php if($sales_note || $invoice_terms): ?>
+      <?php if($display_sales_note || $invoice_terms): ?>
       <div class="card">
-        <?php if($sales_note): ?><div class="info-block"><div class="name">Note</div><div class="detail"><?= nl2br(htmlspecialchars($sales_note)); ?></div></div><?php endif; ?>
+        <?php if($display_sales_note): ?><div class="info-block"><div class="name"><?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8'); ?></div><div class="detail"><?= nl2br(htmlspecialchars($display_sales_note)); ?></div></div><?php endif; ?>
         <?php if($invoice_terms): ?><div class="info-block" style="border-top:1px solid var(--mp-border); padding-top:12px;"><div class="name">Terms</div><div class="detail"><?= nl2br(htmlspecialchars(html_entity_decode(trim((string)$invoice_terms), ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')); ?></div></div><?php endif; ?>
       </div>
       <?php endif; ?>

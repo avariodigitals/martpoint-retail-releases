@@ -48,7 +48,9 @@ class Audit_trail extends MY_Controller {
 		$page    = max(1, (int)$this->input->get('page'));
 
 		$this->_applyAuditFilters($store_id, $filters);
-		$total = (int)$this->db->count_all_results('db_audit_trail');
+		// _applyAuditFilters already supplies FROM. Passing the table again
+		// produces FROM db_audit_trail, db_audit_trail and MySQL error 1066.
+		$total = (int)$this->db->count_all_results();
 
 		$this->_applyAuditFilters($store_id, $filters);
 		$this->db->order_by('id', 'DESC')->limit($perPage, ($page - 1) * $perPage);
@@ -72,6 +74,7 @@ class Audit_trail extends MY_Controller {
 		$data['per_page'] = $perPage;
 		$data['total'] = $total;
 		$data['table_missing'] = false;
+		$data['audit_disabled'] = !mp_audit_recording_enabled();
 		$data['content'] = $this->load->view('audit_trail', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}

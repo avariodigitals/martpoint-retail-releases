@@ -15,7 +15,7 @@ class Tills extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Tills / Cash-in-Hand';
 		$data['tills'] = $this->tills->get_all();
-		$data['users'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		$data['users'] = $this->_staffUsers();
 		$data['accounts'] = get_accounts_select_list();
 		$data['content'] = $this->load->view('finance/desktop/tills/list', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -26,7 +26,7 @@ class Tills extends MY_Controller {
 		$this->permission_check('tills_add');
 		$data = $this->data;
 		$data['page_title'] = 'Add Till';
-		$data['users'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		$data['users'] = $this->_staffUsers();
 		$data['accounts'] = get_accounts_select_list();
 		$data['content'] = $this->load->view('finance/desktop/tills/form', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -39,7 +39,7 @@ class Tills extends MY_Controller {
 		$data['page_title'] = 'Edit Till';
 		$data['till'] = $this->tills->get($id);
 		if(empty($data['till'])){ show_404(); }
-		$data['users'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->get('db_users')->result();
+		$data['users'] = $this->_staffUsers();
 		$data['accounts'] = get_accounts_select_list();
 		$data['content'] = $this->load->view('finance/desktop/tills/form', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -64,5 +64,14 @@ class Tills extends MY_Controller {
 		$this->tills->delete($id);
 		$this->session->set_flashdata('success', 'Till deactivated.');
 		redirect(base_url('tills'));
+	}
+
+	private function _staffUsers(){
+		$store_id = get_current_store_id();
+		return $this->db->where('status', 1)
+			->where('store_id', $store_id)
+			->where_not_in('role_id', get_excluded_staff_roles($store_id))
+			->where_not_in('id', get_excluded_user_ids($store_id))
+			->get('db_users')->result();
 	}
 }

@@ -101,7 +101,11 @@
               data-city="<?= htmlspecialchars($p->city ?? ''); ?>"
               data-photo="<?= htmlspecialchars($p->customer_photo ?? ''); ?>">
             <td><span class="pt-code"><?= htmlspecialchars($p->patient_code ?: '—'); ?></span></td>
-            <td class="row-name"><a href="<?= base_url('patients/profile/'.(int)$p->id); ?>"><?= htmlspecialchars($p->customer_name); ?></a>
+            <td class="row-name">
+              <span style="display:inline-flex;align-items:center;gap:8px;">
+                <?php $avatar_url = $p->customer_photo ?? ($p->patient_photo ?? ($p->profile_picture ?? '')); $avatar_name = $p->customer_name; $avatar_size = 32; $avatar_class = 'patient-list-avatar'; $this->load->view('components/person_avatar'); ?>
+                <a href="<?= base_url('patients/profile/'.(int)$p->id); ?>"><?= htmlspecialchars($p->customer_name); ?></a>
+              </span>
               <?php if($p->duplicate_of_id): ?><div><span class="pt-badge dup">Duplicate of #<?= (int)$p->duplicate_of_id; ?></span></div><?php endif; ?>
             </td>
             <td>

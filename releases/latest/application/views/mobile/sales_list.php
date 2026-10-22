@@ -1,3 +1,4 @@
+<?php $bm_invoice_register=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Sales List</title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= $bm_invoice_register?'Invoice register':'Sales List'; ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -64,6 +65,7 @@
     .mp-option:last-child { border-bottom: none; }
     .mp-option.active { background: #E0E7FF; color: var(--mp-primary); font-weight: 600; }
   </style>
+<?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
 <body>
   <?php $is_cashier = (strpos(strtolower($this->session->userdata('role_name') ?: ''), 'cashier') !== false); ?>
@@ -73,10 +75,10 @@
         <a href="<?= base_url('mobile/more'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
           <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
-          <h1>Sales List</h1>
+          <h1><?= $bm_invoice_register?'Invoice register':'Sales List'; ?></h1>
         </div>
         <?php if(permissions('sales_add')): ?>
-          <a href="<?= base_url('mobile/sale'); ?>" class="add"><i class="fa fa-plus"></i></a>
+          <a href="<?= base_url($bm_invoice_register?'sales/add?mobile=1':'mobile/sale'); ?>" class="add" aria-label="Create invoice"><i class="fa fa-plus"></i></a>
         <?php endif; ?>
       </div>
 

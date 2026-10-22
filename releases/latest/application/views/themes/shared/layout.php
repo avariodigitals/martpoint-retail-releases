@@ -108,16 +108,20 @@
   <meta name="twitter:description" content="<?= htmlspecialchars($seoDesc); ?>">
   <meta name="twitter:image" content="<?= $seoImage; ?>">
 
-  <link href="<?= $this->theme_engine->googleFontLink(); ?>" rel="stylesheet">
+  <link href="<?= ($theme_key ?? '')==='botanical_elegance'?'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap':$this->theme_engine->googleFontLink(); ?>" rel="stylesheet">
 <?php $themeKey = $theme_key ?? 'general_retail'; ?>
 <?php if(file_exists(FCPATH . 'theme/dist/css/' . $themeKey . '.css')): ?>
-  <link rel="stylesheet" href="<?= base_url('theme/dist/css/' . $themeKey . '.css?v=1'); ?>">
+  <link rel="stylesheet" href="<?= base_url('theme/dist/css/' . $themeKey . '.css?v=' . ($themeKey==='botanical_elegance'?'4':'1')); ?>">
 <?php endif; ?>
   <link rel="stylesheet" href="<?= base_url('theme/css/font-awesome-4.7.0/css/font-awesome.min.css?v=4.7.0'); ?>">
   <?php /* Shared mp-* stylesheet — kept in its own partial so the printing
            layout can include exactly the same layer for the Homepage Builder
            sections and the footer, which carry no CSS of their own. */ ?>
   <?php $this->load->view("themes/shared/_shared_css"); ?>
+<?php if(($theme_key ?? '')==='botanical_elegance'): ?>
+  <link rel="stylesheet" href="<?= base_url('theme/dist/css/botanical_commerce.css?v=2'); ?>">
+  <script defer src="<?= base_url('theme/js/botanical_commerce.js?v=2'); ?>"></script>
+<?php endif; ?>
   <?php if(!empty($settings->header_text_color)): ?>
   <style>.mp-logo-name, .mp-logo-tagline { color: <?= htmlspecialchars($settings->header_text_color); ?> !important; }</style>
   <?php endif; ?>
@@ -144,7 +148,7 @@
   </script>
 </head>
 <?php $themeKey = $theme_key ?? 'general_retail'; ?>
-<body class="theme-<?= htmlspecialchars($themeKey); ?>">
+<body class="theme-<?= htmlspecialchars($themeKey); ?><?= is_array($storefront_navigation_rows ?? null)?' sf-dual-menus':''; ?>">
 
 <?php
   $themeHeader = 'themes/' . $themeKey . '/header';
@@ -155,6 +159,7 @@
   }
 ?>
 
+<?= $category_navigation ?? ''; ?>
 <?= $content; ?>
 <?php if(!empty($product_addons) || !empty($service_addons)): ?>
   <?php $this->load->view('themes/shared/product_addons', [
@@ -174,15 +179,20 @@
   ]); ?>
 <?php endif; ?>
 
-<?php if(($theme_key ?? '') === 'lumiere'): ?>
+<?php if(($theme_key ?? '') === 'botanical_elegance'): ?>
+  <?php $this->load->view('themes/botanical_elegance/footer'); ?>
+<?php elseif(($theme_key ?? '') === 'lumiere'): ?>
   <?php $this->load->view('themes/lumiere/footer'); ?>
 <?php elseif(($theme_key ?? '') === 'skinora'): ?>
   <?php $this->load->view('themes/skinora/footer'); ?>
+<?php elseif(($theme_key ?? '') === 'pharma_mediq'): ?>
+  <?php $this->load->view('themes/pharma_mediq/footer'); ?>
 <?php elseif(($theme_key ?? '') === 'bella_reve'): ?>
   <?php $this->load->view('themes/skin_core/footer'); ?>
 <?php else: ?>
   <?php $this->load->view('themes/shared/footer'); ?>
 <?php endif; ?>
+
 
 <?php $this->load->view('themes/shared/scripts'); ?>
 

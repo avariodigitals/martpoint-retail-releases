@@ -24,27 +24,28 @@ class Investigations_model extends CI_Model {
 	}
 
 	public function listRows($storeId = null, $filters = array()){
+		$reader = mp_read_db();
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('i.*, p.patient_code, c.customer_name, u.username AS clinician_name')
+		$reader->select('i.*, p.patient_code, c.customer_name, u.username AS clinician_name')
 			->from('db_investigations i')
 			->join('db_patients p', 'p.id = i.patient_id AND p.store_id = i.store_id', 'left')
 			->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
 			->join('db_users u', 'u.id = i.requested_by', 'left')
 			->where('i.store_id', $storeId);
-		if(!empty($filters['status']))   $this->db->where('i.status', $filters['status']);
-		if(!empty($filters['patient_id'])) $this->db->where('i.patient_id', (int)$filters['patient_id']);
-		if(!empty($filters['encounter_id'])) $this->db->where('i.encounter_id', (int)$filters['encounter_id']);
+		if(!empty($filters['status']))   $reader->where('i.status', $filters['status']);
+		if(!empty($filters['patient_id'])) $reader->where('i.patient_id', (int)$filters['patient_id']);
+		if(!empty($filters['encounter_id'])) $reader->where('i.encounter_id', (int)$filters['encounter_id']);
 		if(isset($filters['branch_ids']) && $filters['branch_ids'] !== null){
 			if(empty($filters['branch_ids'])) return array();
 			// scope via the encounter's branch where the row carries one
-			$this->db->join('db_encounters e', 'e.id = i.encounter_id', 'left');
-			$this->db->group_start()
+			$reader->join('db_encounters e', 'e.id = i.encounter_id', 'left');
+			$reader->group_start()
 				->where_in('e.warehouse_id', $filters['branch_ids'])
 				->or_where('i.encounter_id IS NULL', null, FALSE)
 				->or_where('e.warehouse_id IS NULL', null, FALSE)
 				->group_end();
 		}
-		return $this->db->order_by('i.id', 'desc')->limit(500)->get()->result();
+		return $reader->order_by('i.id', 'desc')->limit(500)->get()->result();
 	}
 
 	/** Create a request. Caller holds investigations_request. */

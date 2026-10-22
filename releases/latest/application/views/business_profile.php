@@ -17,6 +17,13 @@
   .bp-flag-group-title.collapsed .fa { transform:rotate(-90deg); }
   .bp-flag-group-content { margin-bottom:16px; }
   .bp-flag-group-content.collapsed { display:none; }
+  /* Keep the toggle-card layout independent of each shell's Bootstrap overrides. */
+  .bp-flag-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .bp-flag-col { min-width:0; }
+  .bp-flag-grid .bp-flag-item { height:100%; margin-bottom:0; }
+  .bp-flag-grid .bp-flag-item label { min-width:0; overflow-wrap:anywhere; }
+  @media (max-width:1199px) { .bp-flag-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:767px) { .bp-flag-grid { grid-template-columns:minmax(0,1fr); } }
   .bp-flag-item { padding:8px 12px; display:flex; align-items:center; gap:12px; background:var(--mp-surface); border:1px solid var(--mp-border); border-radius:10px; margin-bottom:8px; transition:all .15s ease; }
   .bp-flag-item:hover { border-color:var(--mp-primary); box-shadow:0 0 0 3px rgba(0,87,255,.06); }
   .bp-flag-item input[type="checkbox"] { display:none; }
@@ -229,7 +236,7 @@
                       'appointments','service_workflow','custom_orders','packages','memberships'
                     ],
                     'Workflows & Operations' => [
-                      'automobile_workflow','kitchen_workflow','table_management','laundry_workflow','treatment_notes','medical_notes','staff_assignment','staff_commission','delivery_scheduling','production_workflow','recipe_tracking'
+                      'automobile_workflow','restaurant_workspace','kitchen_workflow','table_management','laundry_workflow','treatment_notes','medical_notes','staff_assignment','staff_commission','delivery_scheduling','production_workflow','recipe_tracking'
                     ],
                     'Nylon & Polythene' => [
                       'nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'
@@ -274,7 +281,7 @@
                   ?>
                   <div class="bp-flag-group-title" data-group="<?= htmlspecialchars($group_name); ?>"><i class="fa fa-folder-o"></i> <?= $group_name; ?></div>
                   <div class="bp-flag-group-content" data-group-content="<?= htmlspecialchars($group_name); ?>">
-                  <div class="row">
+                  <div class="bp-flag-grid">
                     <?php foreach ($visible_keys as $key):
                       $label = $feature_flags[$key];
                       // Defaults when the flag has never been saved: use the current business-type preset
@@ -293,7 +300,7 @@
                       }
                       $checked = $is_checked ? 'checked' : '';
                     ?>
-                      <div class="col-md-4 col-sm-6 col-xs-12 bp-flag-col" data-feature-key="<?= $key; ?>">
+                      <div class="bp-flag-col" data-feature-key="<?= $key; ?>">
                         <div class="bp-flag-item">
                           <?php /*
                             Marker: an unchecked checkbox posts NOTHING, so

@@ -69,6 +69,7 @@ $plant_banner_enabled = mp_plant_banner_enabled('invoice');
 
 $q1 = $this->db->query("SELECT * FROM db_store WHERE status=1 AND id=".get_current_store_id());
 $res1 = $q1->row();
+    $res1 = mp_document_store($res1, 'db_sales', $sales_id);
 $store_name = $res1->store_name;
 $company_mobile = $res1->mobile;
 $company_phone = $res1->phone;
@@ -125,6 +126,9 @@ $created_time = $res3->created_time;
 $reference_no = $res3->reference_no;
 $sales_code = $res3->sales_code;
 $sales_note = $res3->sales_note;
+$display_sales_note = function_exists('mp_invoice_note_without_dosage')
+  ? mp_invoice_note_without_dosage($sales_note)
+  : $sales_note;
 $sales_status = $res3->sales_status;
 $created_by = $res3->created_by;
 
@@ -370,9 +374,9 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
   </td></tr>
 </table>
 
-<?php if(!empty(trim($sales_note)) && trim($sales_note) !== 'Created via MartPoint Assist'): ?>
+<?php if(!empty(trim($display_sales_note)) && trim($display_sales_note) !== 'Created via MartPoint Assist'): ?>
 <table class="note-table" style="margin-top: 10px;">
-  <tr><td><strong><?= $this->lang->line('note'); ?>:</strong> <?= nl2br($sales_note); ?></td></tr>
+  <tr><td><strong><?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?= nl2br(htmlspecialchars($display_sales_note, ENT_QUOTES, 'UTF-8')); ?></td></tr>
 </table>
 <?php endif; ?>
 

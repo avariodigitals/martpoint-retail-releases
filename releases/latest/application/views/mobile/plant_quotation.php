@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint', ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?></title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint', ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?></title>
   <link rel="stylesheet" href="<?= htmlspecialchars($theme_link, ENT_QUOTES, 'UTF-8') ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
   <style>
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f6f3;color:#173128}
@@ -20,7 +20,7 @@
 <div class="plant-mobile">
   <header class="plant-mobile-head">
     <a class="back" href="<?= base_url('mobile/quotations') ?>" aria-label="Back to quotations"><i class="fa fa-chevron-left"></i></a>
-    <div class="titles"><div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? 'MartPoint', ENT_QUOTES, 'UTF-8') ?></div><h1><?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?></h1></div>
+    <div class="titles"><div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint', ENT_QUOTES, 'UTF-8') ?></div><h1><?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?></h1></div>
     <div class="avatar" aria-label="Profile"><?= htmlspecialchars(strtoupper(mb_substr((string)($this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'U'), 0, 1)), ENT_QUOTES, 'UTF-8') ?></div>
   </header>
   <div class="plant-mobile-status"><span><i class="fa fa-clock-o"></i> <span id="plant-quote-clock"></span></span><span id="plant-quote-sync" class="online"><i class="fa fa-circle"></i> Online</span></div>

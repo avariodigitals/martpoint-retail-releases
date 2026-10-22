@@ -6,6 +6,10 @@ class Reports extends MY_Controller {
 		parent::__construct();
 		$this->load_global();
 		$this->load->model('reports_model','reports');
+		// Production report views use the model's status labels/badges directly.
+		// Load it here so the report is usable from an authenticated management
+		// workspace instead of failing during view rendering.
+		$this->load->model('production_batches_model');
 	}
 	
 	
@@ -351,6 +355,7 @@ class Reports extends MY_Controller {
 	
 	//Sales & payments records 
 	public function sales_and_payments(){
+        if ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') { $this->permission_check('sales_report');redirect('garden/sales_report');return; }
 		$this->permission_check('sales_report');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_and_payments_report');
@@ -358,6 +363,7 @@ class Reports extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 	public function sales_and_payments_report(){
+        $this->permission_check('sales_report');
 		echo $this->reports->sales_and_payments_report();
 	}
 

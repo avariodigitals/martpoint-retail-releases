@@ -207,6 +207,68 @@ class Sales_model extends CI_Model {
 		}
 	}
 
+	/**
+	 * Validate a new quotation→invoice conversion. Returns [error, quote, override].
+	 * Called inside the sale transaction, before any row is written.
+	 */
+	private function _validate_quotation_conversion($quotationId, $storeId){
+		$quote = $this->db->query(
+			'SELECT id,store_id,lifecycle_status,sales_status,revision_no,quotation_status FROM db_quotation WHERE id=? AND store_id=? FOR UPDATE',
+			[(int)$quotationId, (int)$storeId]
+		)->row();
+		if(!$quote){
+			return ['error' => 'Quotation not found for this store.', 'quote' => null, 'override' => false];
+		}
+		if((string)($quote->sales_status ?? '') === 'Converted'){
+			return ['error' => 'This quotation has already been converted to an invoice.', 'quote' => $quote, 'override' => false];
+		}
+		$hasCustomLines = false;
+		foreach(['manual_item_name','part_code','unit_label'] as $customCol){
+			if($this->db->field_exists($customCol, 'db_quotationitems')
+				&& $this->db->where('quotation_id',(int)$quotationId)->where('store_id',(int)$storeId)
+					->where($customCol.' !=','')->count_all_results('db_quotationitems') > 0){
+				$hasCustomLines = true;
+				break;
+			}
+		}
+		if($hasCustomLines){
+			return ['error' => 'This quotation has custom line details. Create a sales invoice from the sales screen and enter the agreed items there.', 'quote' => $quote, 'override' => false];
+		}
+		$postedRevision = trim((string)$this->input->post('quotation_revision'));
+		if($postedRevision !== '' && (int)$postedRevision !== (int)$quote->revision_no){
+			return ['error' => 'The quotation was revised after this page was opened. Reload the quotation and try again.', 'quote' => $quote, 'override' => false];
+		}
+
+		$override = false;
+		if(mp_quote_acceptance_required((int)$storeId) && trim((string)($quote->lifecycle_status ?? '')) !== 'accepted'){
+			$requested = (string)$this->input->post('quotation_acceptance_override') === '1';
+			$canOverride = is_admin() || is_store_admin();
+			if(!$requested || !$canOverride){
+				return ['error' => 'Customer acceptance is required before this quotation can be converted. A store manager can authorise an audited override.', 'quote' => $quote, 'override' => false];
+			}
+			$override = true;
+		}
+		return ['error' => '', 'quote' => $quote, 'override' => $override];
+	}
+
+	/** Record a manager's acceptance override in both quotation and audit history. */
+	private function _record_quotation_override($quote, $salesId, $storeId){
+		if(!$quote) return true;
+		$reason = 'Manager override: invoice #' . (int)$salesId . ' converted without customer acceptance (revision ' . (int)$quote->revision_no . ').';
+		if(!$this->db->insert('db_quotation_lifecycle_log', [
+			'store_id' => (int)$storeId,
+			'quotation_id' => (int)$quote->id,
+			'job_id' => null,
+			'from_status' => (string)($quote->lifecycle_status ?? ''),
+			'to_status' => 'converted_override',
+			'reason' => $reason,
+			'actor' => (string)($this->session->userdata('inv_username') ?: 'manager'),
+			'channel' => 'admin_override',
+		])) return false;
+		mp_audit_log('quotation','acceptance_override',(int)$quote->id,$reason);
+		return true;
+	}
+
 	//Save Sales
 	public function verify_save_and_update(){
 		$CUR_DATE = date('Y-m-d');
@@ -244,6 +306,7 @@ class Sales_model extends CI_Model {
 		$coupon_code = $this->input->post('coupon_code', TRUE);
 		$coupon_discount_amt = parse_amount($this->input->post_get('coupon_discount_amt', TRUE));
 		$invoice_terms = mp_post_text('invoice_terms');
+		$restaurant_order_key = substr(trim((string)$this->input->post('restaurant_order_key', TRUE)), 0, 96);
 		// A quotation link is optional. Normalise it to NULL here, ONCE, so every
 		// later use is safe.
 		//
@@ -299,6 +362,21 @@ class Sales_model extends CI_Model {
 		if($command == 'save' && !empty($store_id)){
 			$this->db->query("SELECT 1 FROM db_store WHERE id = ? FOR UPDATE", [(int)$store_id]);
 			$count_id = autosynch_sales_code();
+		}
+
+		$conversionQuote = null;
+		$conversionOverride = false;
+		if($command === 'save' && $quotation_id !== null){
+			$conversionStoreId = (store_module() && is_admin() && (int)$store_id > 0)
+				? (int)$store_id
+				: (int)get_current_store_id();
+			$conversion = $this->_validate_quotation_conversion($quotation_id, $conversionStoreId);
+			if(!empty($conversion['error'])){
+				$this->db->trans_rollback();
+				return $conversion['error'];
+			}
+			$conversionQuote = $conversion['quote'];
+			$conversionOverride = (bool)$conversion['override'];
 		}
 
 		$sales_date=system_fromatted_date($sales_date);
@@ -449,6 +527,10 @@ class Sales_model extends CI_Model {
 		    				'system_name' 				=> $SYSTEM_NAME,
 		    				'status' 					=> 1,
 		    			);
+			if($restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+				$sales_entry['restaurant_order_key'] = $restaurant_order_key;
+				$sales_entry['source_channel'] = 'walk_in';
+			}
 		    if($quotation_id !== null){
 				$sales_entry['quotation_id'] = $quotation_id;
 			}
@@ -487,9 +569,16 @@ class Sales_model extends CI_Model {
 					->get()->row();
 				if($belongs){
 					$q11 = $this->db->set("sales_status",'Converted')->where("id",$quotation_id)->update("db_quotation");
-				    	if(!$q11){
-				    		return false;
-				    	}
+					if(!$q11){
+						$this->db->trans_rollback();
+						return 'Could not mark the quotation as converted.';
+					}
+					if($conversionOverride && $conversionQuote){
+						if(!$this->_record_quotation_override($conversionQuote,$sales_id,$sales_entry['store_id'])){
+							$this->db->trans_rollback();
+							return 'Could not record the quotation acceptance override.';
+						}
+					}
 				}
 			}
 
@@ -975,6 +1064,9 @@ class Sales_model extends CI_Model {
 			}
 		}
 
+        $this->load->helper('garden');
+        $gardenLinkError=$command==='save' ? mp_garden_link_created_document('invoice',$sales_id) : null;
+        if ($gardenLinkError!==null) { $this->db->trans_rollback();return $gardenLinkError; }
 		$this->db->trans_commit();
 
 		// Append sales_note to customer profile notes for tracking (works for all business types)
@@ -1809,6 +1901,7 @@ class Sales_model extends CI_Model {
 		      <div class="col-md-12">
 		        <div>
 		        <input type="hidden" name="payment_row_count" id='payment_row_count' value="1">
+		        <input type="hidden" name="payment_idempotency_key" id="payment_idempotency_key" value="<?= htmlspecialchars(bin2hex(random_bytes(20)),ENT_QUOTES,'UTF-8'); ?>">
 		        <div class="col-md-12  payments_div">
 		          <div class="box box-solid bg-gray">
 		            <div class="box-body">
@@ -1942,9 +2035,27 @@ class Sales_model extends CI_Model {
 		$cheque_number = $this->input->post('cheque_number', TRUE);
 		$cheque_period = $this->input->post('cheque_period', TRUE);
 		$allow_tot_advance = $this->input->post('allow_tot_advance', TRUE);
+		$idempotencyKey = trim((string)$this->input->post('payment_idempotency_key', TRUE));
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
     	if($amount=='' || $amount==0){$amount=null;}
+		if($idempotencyKey !== '' && !preg_match('/^[a-zA-Z0-9_-]{16,80}$/D', $idempotencyKey)){
+			return 'Reload the payment form and try again.';
+		}
 		if($amount>0 && !empty($payment_type)){
+
+			$saleDetails = get_sales_details($sales_id);
+			$saleStoreId = (int)($saleDetails->store_id ?? 0);
+			if(!$saleStoreId){ return 'Invoice not found.'; }
+			if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key','db_salespayments')){
+				$prior = $this->db->where('store_id',$saleStoreId)->where('idempotency_key',$idempotencyKey)
+					->get('db_salespayments')->row();
+				if($prior){
+					if((int)$prior->sales_id === (int)$sales_id && abs((float)$prior->payment - (float)$amount) < 0.005){
+						return 'success';
+					}
+					return 'This payment reference was already used for a different payment.';
+				}
+			}
 
 			$this->db->trans_begin();
 
@@ -1962,7 +2073,7 @@ class Sales_model extends CI_Model {
 
 			$payment_code=get_init_code('sales_payment');
 			$salespayments_entry = array(
-					'store_id' 			=> get_sales_details($sales_id)->store_id,
+					'store_id' 			=> $saleStoreId,
 					'payment_code' 		=> $payment_code,
 		    		'count_id'	  		=> get_count_id('db_salespayments'),
 					'sales_id' 			=> $sales_id, 
@@ -2002,11 +2113,23 @@ class Sales_model extends CI_Model {
 			}
 			//end 
 			$salespayments_entry['advance_adjusted'] = $advance_adjusted;
+			if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key','db_salespayments')){
+				$salespayments_entry['idempotency_key'] = $idempotencyKey;
+			}
 			$this->load->model('Physio_accounts_model','pa');
 			$salespayments_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salespayments_entry['store_id']);
 			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
 		if(!$q3){
 			$err = $this->db->error();
+			if($idempotencyKey !== '' && (int)($err['code'] ?? 0) === 1062){
+				$this->db->trans_rollback();
+				$prior = $this->db->where('store_id',$saleStoreId)->where('idempotency_key',$idempotencyKey)
+					->get('db_salespayments')->row();
+				if($prior && (int)$prior->sales_id === (int)$sales_id && abs((float)$prior->payment - (float)$amount) < 0.005){
+					return 'success';
+				}
+				return 'This payment reference was already used for a different payment.';
+			}
 			$this->db->trans_rollback();
 			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
 		}

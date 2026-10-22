@@ -118,6 +118,10 @@ $dayLabel = function($d) {
 </div>
 <?php else: ?>
 
+<?php if(!empty($audit_disabled)): ?>
+<div class="at-box" role="status">Audit recording is disabled for this installation. Existing events remain visible. Ask your administrator to enable Record audit trail in Fleet settings.</div>
+<?php endif; ?>
+
 <div class="at-box">
   <form method="get" action="<?= base_url('audit_trail'); ?>" class="at-filters">
     <div class="fg">

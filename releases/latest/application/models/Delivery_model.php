@@ -22,6 +22,30 @@ class Delivery_model extends CI_Model {
         }
     }
 
+    /** Branches visible to the current user; null means head-office access. */
+    private function _allowed_branch_ids() {
+        if (is_store_admin() || (int)$this->session->userdata('role_id') === 1) return null;
+        $user_id = (int)$this->session->userdata('inv_userid');
+        $ids = [];
+        if ($user_id && $this->db->table_exists('db_userswarehouses')) {
+            foreach ($this->db->select('warehouse_id')->where('user_id', $user_id)->get('db_userswarehouses')->result() as $row) {
+                $ids[] = (int)$row->warehouse_id;
+            }
+        }
+        $default = (int)$this->session->userdata('default_warehouse_id');
+        if ($default && !in_array($default, $ids, true)) $ids[] = $default;
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    private function _sale_is_allowed($sale_id) {
+        $sale = $this->db->select('id, warehouse_id, online_order_id')->where('id', (int)$sale_id)
+            ->where('store_id', get_current_store_id())->get('db_sales')->row();
+        if (!$sale) return null;
+        $allowed = $this->_allowed_branch_ids();
+        if ($allowed !== null && !in_array((int)$sale->warehouse_id, $allowed, true)) return null;
+        return $sale;
+    }
+
     private function _get_datatables_query() {
         $select_cols = array_filter($this->column_order);
         $this->db->select($select_cols);
@@ -91,10 +115,14 @@ class Delivery_model extends CI_Model {
         $SYSTEM_NAME = 'localhost';
         $store_id = get_current_store_id();
 
+        if(!in_array($status,['planned','ready','out_for_delivery','completed','cancelled'],true))return 'failed';
+        if($command!=='save'&&!$this->get_details((int)$q_id))return 'failed';
+        foreach((array)$this->input->post('sales_id') as $saleId){if($saleId&&!$this->_sale_is_allowed($saleId))return 'failed';}
         $driver_name = '';
         if (!empty($driver_id)) {
-            $drv = $this->db->where('id', $driver_id)->get('db_delivery_drivers')->row();
-            $driver_name = $drv ? $drv->name : '';
+            $drv = $this->db->where('id', $driver_id)->where('store_id',$store_id)->get('db_delivery_drivers')->row();
+            if(!$drv)return 'failed';
+            $driver_name = $drv->name;
         }
 
         $schedule_code = $this->input->post('schedule_code', TRUE);
@@ -127,7 +155,7 @@ class Delivery_model extends CI_Model {
             )));
             $schedule_id = $this->db->insert_id();
         } else {
-            $query1 = $this->db->where('id', $q_id)->update('db_delivery_schedules', $info);
+            $query1 = $this->db->where('id', $q_id)->where('store_id',$store_id)->update('db_delivery_schedules', $info);
             $schedule_id = $q_id;
             // Delete old items
             $this->db->where('schedule_id', $q_id)->delete('db_delivery_schedule_items');
@@ -145,10 +173,10 @@ class Delivery_model extends CI_Model {
         if (!empty($sales_ids)) {
             foreach ($sales_ids as $i => $sales_id) {
                 if (!empty($sales_id)) {
-                    $sale = $this->db->select('s.sales_code, s.customer_id, c.customer_name, c.mobile, s.shippingaddress_id')
+                    $sale = $this->db->select('s.sales_code, s.customer_id, s.warehouse_id, s.online_order_id, c.customer_name, c.mobile, s.shippingaddress_id')
                         ->from('db_sales s')
                         ->join('db_customers c', 'c.id = s.customer_id', 'left')
-                        ->where('s.id', $sales_id)
+                        ->where('s.id', $sales_id)->where('s.store_id',$store_id)
                         ->get()->row();
 
                     $address = '';
@@ -177,8 +205,14 @@ class Delivery_model extends CI_Model {
     }
 
     public function get_details($id) {
-        $res = $this->db->where('id', $id)->get('db_delivery_schedules')->row();
+        $res = $this->db->where('id', (int)$id)->where('store_id',get_current_store_id())->get('db_delivery_schedules')->row();
         if (!$res) return [];
+        $allowed = $this->_allowed_branch_ids();
+        if ($allowed !== null) {
+            foreach ($this->db->select('sales_id')->where('schedule_id', (int)$id)->get('db_delivery_schedule_items')->result() as $it) {
+                if (!$this->_sale_is_allowed($it->sales_id)) return [];
+            }
+        }
         $data = [];
         $data['q_id'] = $res->id;
         $data['schedule_code'] = $res->schedule_code;
@@ -193,6 +227,7 @@ class Delivery_model extends CI_Model {
     }
 
     public function get_schedule_items($schedule_id) {
+        if(!$this->get_details((int)$schedule_id))return [];
         return $this->db->where('schedule_id', $schedule_id)
             ->order_by('delivery_sequence', 'asc')
             ->get('db_delivery_schedule_items')
@@ -200,46 +235,52 @@ class Delivery_model extends CI_Model {
     }
 
     public function delete_schedules($ids) {
+        $ids=array_values(array_unique(array_filter(array_map('intval',is_array($ids)?$ids:explode(',',(string)$ids)))));if(!$ids)return 'failed';
+        $owned=$this->db->where_in('id',$ids)->where('store_id',get_current_store_id())->count_all_results('db_delivery_schedules');if($owned!==count($ids))return 'failed';
+        $this->db->trans_begin();$this->db->where_in('schedule_id',$ids)->delete('db_delivery_schedule_items');$this->db->where_in('id',$ids)->where('store_id',get_current_store_id())->delete('db_delivery_schedules');
+        if(!$this->db->trans_status()){$this->db->trans_rollback();return 'failed';}$this->db->trans_commit();return 'success';
+    }
+    public function update_status($id,$status){
+        if(!$this->get_details((int)$id)||!in_array($status,['planned','ready','out_for_delivery','completed','cancelled'],true))return 'failed';
+        return $this->db->where('id',(int)$id)->where('store_id',get_current_store_id())->update('db_delivery_schedules',['status'=>$status])?'success':'failed';
+    }
+    public function mark_item_delivered($item_id,$notes=''){return $this->mark_item_status($item_id,'delivered',$notes);}
+    public function mark_item_status($item_id,$status,$notes=''){
+        $item=$this->db->where('id',(int)$item_id)->get('db_delivery_schedule_items')->row();
+        if(!$item||!$this->get_details((int)$item->schedule_id)||!in_array($status,['pending','out_for_delivery','delivered','failed','cancelled'],true))return 'failed';
+        $sale = $this->_sale_is_allowed($item->sales_id);
+        if(!$sale) return 'failed';
+        $data=['delivery_status'=>$status,'delivery_notes'=>$notes,'delivered_at'=>$status==='delivered'?date('Y-m-d H:i:s'):null];
         $this->db->trans_begin();
-        $this->db->where("id in ($ids)");
-        $this->db->where("store_id", get_current_store_id());
-        $this->db->delete("db_delivery_schedules");
-        $this->db->where("schedule_id in ($ids)")->delete("db_delivery_schedule_items");
-        $this->db->trans_commit();
-        return "success";
-    }
-
-    public function update_status($id, $status) {
-        $this->db->where('id', $id)->update('db_delivery_schedules', array('status' => $status));
-        return "success";
-    }
-
-    public function mark_item_delivered($item_id, $notes = '') {
-        $this->db->where('id', $item_id)->update('db_delivery_schedule_items', array(
-            'delivery_status' => 'delivered',
-            'delivered_at'    => date('Y-m-d H:i:s'),
-            'delivery_notes'  => $notes,
-        ));
-        return "success";
-    }
-
-    public function mark_item_status($item_id, $status, $notes = '') {
-        $data = array('delivery_status' => $status, 'delivery_notes' => $notes);
-        if ($status == 'delivered') {
-            $data['delivered_at'] = date('Y-m-d H:i:s');
+        $ok = $this->db->where('id',(int)$item_id)->where('schedule_id',(int)$item->schedule_id)->update('db_delivery_schedule_items',$data);
+        if($ok && $sale->online_order_id && $this->db->table_exists('db_online_orders') && $this->db->field_exists('delivery_status','db_online_orders')){
+            $ok = $this->db->where('id',(int)$sale->online_order_id)->where('store_id',get_current_store_id())
+                ->update('db_online_orders', ['delivery_status'=>$status, 'updated_at'=>date('Y-m-d H:i:s')]);
         }
-        $this->db->where('id', $item_id)->update('db_delivery_schedule_items', $data);
-        return "success";
+        if(!$ok || $this->db->trans_status()===false){$this->db->trans_rollback();return 'failed';}
+        $this->db->trans_commit();
+        return 'success';
     }
 
     public function get_pending_sales($store_id) {
-        $this->db->select('s.id, s.sales_code, s.sales_date, c.customer_name, c.mobile, s.grand_total');
+        $this->db->select('s.id, s.sales_code, s.sales_date, s.warehouse_id, c.customer_name, c.mobile, s.grand_total');
         $this->db->from('db_sales s');
         $this->db->join('db_customers c', 'c.id = s.customer_id', 'left');
         $this->db->where('s.store_id', $store_id);
         $this->db->where('s.sales_status', 'Final');
-        // Exclude already assigned
-        $assigned = $this->db->query("SELECT sales_id FROM db_delivery_schedule_items WHERE delivery_status != 'cancelled'")->result();
+        $allowed = $this->_allowed_branch_ids();
+        if ($allowed !== null) {
+            if (empty($allowed)) return [];
+            $this->db->where_in('s.warehouse_id', $allowed);
+        }
+        // Exclude already assigned sales from this store only. The item table
+        // has no store_id, so scope through its parent schedule.
+        $assigned = $this->db->query(
+            "SELECT i.sales_id FROM db_delivery_schedule_items i
+             JOIN db_delivery_schedules s ON s.id = i.schedule_id
+             WHERE i.delivery_status != 'cancelled' AND s.store_id = ?",
+            [(int)$store_id]
+        )->result();
         $assigned_ids = array_column($assigned, 'sales_id');
         if (!empty($assigned_ids)) {
             $this->db->where_not_in('s.id', $assigned_ids);
@@ -332,7 +373,7 @@ class Delivery_model extends CI_Model {
         }
 
         if (!empty($id)) {
-            $this->db->where('id', $id)->update('db_delivery_drivers', $data);
+            $this->db->where('id', $id)->where('store_id',get_current_store_id())->update('db_delivery_drivers', $data);
         } else {
             $data['created_date'] = date('Y-m-d');
             $data['created_by'] = $this->session->userdata('inv_username') ?: 'System';

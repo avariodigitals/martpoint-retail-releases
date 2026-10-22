@@ -106,6 +106,7 @@ $payment_status=$res3->payment_status;
 
 $q1=$this->db->query("select * from db_store where id=".$res3->store_id." ");
 $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_purchase', $purchase_id);
 $store_name=$res1->store_name;
 $company_mobile=$res1->mobile;
 $company_phone=$res1->phone;
@@ -214,9 +215,11 @@ elseif($purchase_status=='Received') $status_class='received';
                             a.discount_input,a.discount_amt, a.unit_total_cost,
                             a.total_cost 
                             FROM 
-                            db_purchaseitems AS a,db_tax AS b,db_items AS c 
+                            db_purchaseitems AS a
+                            INNER JOIN db_items AS c ON c.id=a.item_id
+                            LEFT JOIN db_tax AS b ON b.id=a.tax_id
                             WHERE 
-                            c.id=a.item_id AND b.id=a.tax_id AND a.purchase_id='$purchase_id'");
+                            a.purchase_id='$purchase_id'");
         foreach ($q2->result() as $res2) {
             $str = ($res2->tax_type=='Inclusive')? 'Inc.' : 'Exc.';
             $discount = (empty($res2->discount_input)||$res2->discount_input==0)? '0':store_number_format($res2->discount_input)."%";

@@ -56,7 +56,7 @@
   <!-- Autocomplete -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
   <!-- MartPoint Assist -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=15">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=21">
   <!-- Pace Loader -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
   <?php 
@@ -73,4 +73,5 @@
   </script>
   <!-- jQuery 2.2.3 -->
   <script src="<?php echo $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
-  
+
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/application-controls.css?v=1'); ?>">

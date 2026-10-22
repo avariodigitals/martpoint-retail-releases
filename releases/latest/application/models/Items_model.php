@@ -261,9 +261,16 @@ class Items_model extends CI_Model {
 		$portion_of_item_id = $this->input->post('portion_of_item_id', TRUE) !== '' ? (int)$this->input->post('portion_of_item_id', TRUE) : null;
 		$storage_temp_min = $this->input->post('storage_temp_min', TRUE) !== '' ? (float)$this->input->post('storage_temp_min', TRUE) : null;
 		$storage_temp_max = $this->input->post('storage_temp_max', TRUE) !== '' ? (float)$this->input->post('storage_temp_max', TRUE) : null;
-		$thaw_time_hours = $this->input->post('thaw_time_hours', TRUE) !== '' ? (float)$this->input->post('thaw_time_hours', TRUE) : null;
-		$use_within_hours_after_thaw = $this->input->post('use_within_hours_after_thaw', TRUE) !== '' ? (float)$this->input->post('use_within_hours_after_thaw', TRUE) : null;
-		$frozen_shelf_life_days = $this->input->post('frozen_shelf_life_days', TRUE) !== '' ? (int)$this->input->post('frozen_shelf_life_days', TRUE) : null;
+		$thaw_time_hours = $this->input->post('thaw_time_hours', TRUE) !== '' ? (float)$this->input->post('thaw_time_hours', TRUE) : 0;
+		$use_within_hours_after_thaw = $this->input->post('use_within_hours_after_thaw', TRUE) !== '' ? (float)$this->input->post('use_within_hours_after_thaw', TRUE) : 0;
+		$frozen_shelf_life_days = $this->input->post('frozen_shelf_life_days', TRUE) !== '' ? (int)$this->input->post('frozen_shelf_life_days', TRUE) : 0;
+		$weight_pricing_enabled = $this->input->post('weight_pricing_enabled', TRUE) ? 1 : 0;
+		$weight_pricing_base_kg = (float)($this->input->post('weight_pricing_base_kg', TRUE) ?: 1);
+		$weight_pricing_increment_kg = (float)($this->input->post('weight_pricing_increment_kg', TRUE) ?: 0.05);
+		$weight_pricing_increment_charge = (float)($this->input->post('weight_pricing_increment_charge', TRUE) ?: 0);
+		if($weight_pricing_base_kg <= 0) $weight_pricing_base_kg = 1;
+		if($weight_pricing_increment_kg <= 0) $weight_pricing_increment_kg = 0.05;
+		if($weight_pricing_increment_charge < 0) $weight_pricing_increment_charge = 0;
 		// Only update recipe fields if the Recipe & Costing section was visible (key exists in POST)
 		// This preserves existing links when the feature is disabled for the business
 		$recipe_id = null;
@@ -351,7 +358,7 @@ class Items_model extends CI_Model {
 			$new_name = time();
 			$config['file_name'] = $new_name;
 			$config['upload_path']          = './uploads/items/';
-	        $config['allowed_types']        = 'jpg|png|jpeg|gif|webp';
+	        $config['allowed_types']        = 'jpg|png|jpeg|gif|webp|avif';
 	        $config['max_size']             = 1024;
 	        $config['max_width']            = 1500;
 	        $config['max_height']           = 1500;
@@ -367,6 +374,9 @@ class Items_model extends CI_Model {
 	        else
 	        {		
 	        	$file_name=$this->upload->data('file_name');
+				// PHP 7.4 GD cannot decode AVIF. Keep the original; the shared
+				// thumbnail helper already falls back to it when no thumb exists.
+				if(strtolower(pathinfo($file_name, PATHINFO_EXTENSION)) !== 'avif'){
 	        	/*Create Thumbnail*/
 	        	$config['image_library'] = 'gd2';
 				$config['source_image'] = 'uploads/items/'.$file_name;
@@ -377,6 +387,7 @@ class Items_model extends CI_Model {
 				$this->load->library('image_lib', $config);
 				$this->image_lib->resize();
 				//end
+				}
 
 	        	
 	        }
@@ -471,6 +482,10 @@ class Items_model extends CI_Model {
 								'requires_deposit'			=> $requires_deposit,
 								'workflow_template_key'		=> $workflow_template_key,
 								'attribute_types_json'		=> $attribute_types_json,
+								'weight_pricing_enabled' => $weight_pricing_enabled,
+								'weight_pricing_base_kg' => $weight_pricing_base_kg,
+								'weight_pricing_increment_kg' => $weight_pricing_increment_kg,
+								'weight_pricing_increment_charge' => $weight_pricing_increment_charge,
 			    				'item_code' 				=> $item_code,
 
 			    			);
@@ -816,7 +831,7 @@ class Items_model extends CI_Model {
 								}
 								$v_config['file_name'] = time().'_'.$i;
 								$v_config['upload_path'] = './uploads/items/';
-								$v_config['allowed_types'] = 'jpg|png|jpeg|gif|webp';
+								$v_config['allowed_types'] = 'jpg|png|jpeg|gif|webp|avif';
 								$v_config['max_size'] = 1024;
 								$v_config['max_width'] = 1500;
 								$v_config['max_height'] = 1500;
@@ -997,6 +1012,20 @@ class Items_model extends CI_Model {
 			$data['recipe_id']=$query->recipe_id ?? null;
 			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
 			$data['item_production_mode']=$query->item_production_mode ?? 'batch';
+			// Butchery / frozen fields must be loaded back into the edit form so
+			// saved settings remain visible and checked when the item is reopened.
+			$data['is_carcass']=$query->is_carcass ?? 0;
+			$data['carcass_template_id']=$query->carcass_template_id ?? null;
+			$data['portion_of_item_id']=$query->portion_of_item_id ?? null;
+			$data['storage_temp_min']=$query->storage_temp_min ?? null;
+			$data['storage_temp_max']=$query->storage_temp_max ?? null;
+			$data['thaw_time_hours']=$query->thaw_time_hours ?? 0;
+			$data['use_within_hours_after_thaw']=$query->use_within_hours_after_thaw ?? 0;
+			$data['frozen_shelf_life_days']=$query->frozen_shelf_life_days ?? 0;
+			$data['weight_pricing_enabled']=$query->weight_pricing_enabled ?? 0;
+			$data['weight_pricing_base_kg']=$query->weight_pricing_base_kg ?? 1;
+			$data['weight_pricing_increment_kg']=$query->weight_pricing_increment_kg ?? 0.05;
+			$data['weight_pricing_increment_charge']=$query->weight_pricing_increment_charge ?? 0;
 
 			// Load barcode / batch records
 			$data['item_barcodes'] = $this->db->where('item_id', $id)->where('status', 1)->get('db_item_barcodes')->result();
@@ -1540,7 +1569,7 @@ class Items_model extends CI_Model {
 		$this->db->where("store_id",$store_id);
 
 		if(isset($_REQUEST['category_id']) && !empty($_REQUEST['category_id'])){
-			$this->db->where("category_id",$_REQUEST['category_id']);
+			mp_category_filter('category_id',$_REQUEST['category_id'],$store_id);
 		}
 
 		if(isset($_REQUEST['brand_id']) && !empty($_REQUEST['brand_id'])){

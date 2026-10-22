@@ -45,6 +45,7 @@ $btn_id   = $is_edit ? 'update' : 'save';
       <input type="hidden" name="q_id" id="q_id" value="<?= htmlspecialchars($q_id); ?>"/>
       <?php } ?>
 
+<?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'expense','garden_document_edit'=>$is_edit]); ?>
       <div class="mp-form-grid">
         <div class="mp-form-group">
           <label for="expense_date"><?= $this->lang->line('expense_date'); ?> <span class="text-danger">*</span></label>

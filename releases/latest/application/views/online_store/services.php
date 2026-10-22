@@ -62,6 +62,10 @@
           </div>
           <div class="mp-form-group"><label>Duration</label><input type="text" class="mp-form-control" id="service_duration" placeholder="e.g. 1 hour"></div>
           <div class="mp-form-group"><label>Price</label><input type="number" class="mp-form-control" id="price" step="0.01"></div>
+          <?php if ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping'): ?>
+          <div class="mp-form-group"><label>Price Model</label><select class="mp-form-control" id="price_model"><option value="fixed">Fixed Price</option><option value="starting">Starting Price — Request Required</option><option value="quote">Quote Required</option></select></div>
+          <div class="mp-form-group"><label>Matching POS Service (optional)</label><select class="mp-form-control" id="pos_item_id"><option value="">No Matching POS Service</option><?php foreach (($pos_services ?? []) as $ps): ?><option value="<?= (int)$ps->id; ?>"><?= htmlspecialchars($ps->item_name); ?></option><?php endforeach; ?></select><small>Link the same service offered in-store.</small></div>
+          <?php endif; ?>
           <div class="mp-form-group"><label>Discount Price</label><input type="number" class="mp-form-control" id="discount_price" step="0.01"></div>
           <div class="mp-form-group"><label>Location Type</label>
             <select class="mp-form-control" id="location_type"><option value="in-store">In-store</option><option value="customer-location">Customer Location</option><option value="online">Online/Remote</option></select>
@@ -82,7 +86,7 @@
         <div class="mp-form-group"><label>Treatment Notes Template</label><textarea class="mp-form-control" id="treatment_notes_template" rows="2" placeholder="Default notes for this service"></textarea></div>
         <?php } ?>
         <div class="mp-form-group"><label>Description</label><textarea class="mp-form-control" id="description" rows="3"></textarea></div>
-        <div class="mp-form-group"><label for="service_image">Service Photo <span class="mp-form-hint">(optional, JPG/PNG/WebP, up to 5 MB)</span></label><input type="file" class="mp-form-control" id="service_image" accept="image/jpeg,image/png,image/webp"><div id="service_image_preview" style="display:none;margin-top:8px;"></div><div class="mp-form-hint">Shown on Skinora service cards and the service page.</div></div>
+        <div class="mp-form-group"><label for="service_image">Service Photo <span class="mp-form-hint">(optional, JPG/PNG/WebP/AVIF, up to 5 MB)</span></label><input type="file" class="mp-form-control" id="service_image" accept="image/jpeg,image/png,image/webp,image/avif,.avif"><div id="service_image_preview" style="display:none;margin-top:8px;"></div><div class="mp-form-hint">Shown on Skinora service cards and the service page.</div></div>
         <div class="os-check-row">
           <label><input type="checkbox" id="available_online" checked> Available Online</label>
           <label><input type="checkbox" id="requires_appointment"> Requires Appointment</label>
@@ -103,6 +107,7 @@ var services = <?= json_encode($services); ?>;
 
 function newService(){
   $('#service_id,#service_name,#price,#discount_price,#service_duration,#description,#service_image').val('');
+  $('#price_model').val('fixed');$('#pos_item_id').val('');
   $('#category_id').val('0').trigger('change');
   $('#location_type').val('in-store');
   $('#sort_order,#deposit_percent').val(0);
@@ -121,6 +126,8 @@ function editService(id){
   $('#price').val(s.price);
   $('#discount_price').val(s.discount_price);
   $('#service_duration').val(s.service_duration);
+  var fields={};try{fields=JSON.parse(s.industry_fields_json || '{}');}catch(e){}
+  $('#price_model').val(fields.price_model || 'fixed');$('#pos_item_id').val(fields.pos_item_id || '');
   $('#description').val(s.description);
   $('#location_type').val(s.location_type);
   $('#sort_order').val(s.sort_order);
@@ -168,6 +175,10 @@ $('#btn-save-service').click(function(){
     price: $('#price').val(),
     discount_price: $('#discount_price').val(),
     service_duration: $('#service_duration').val(),
+    <?php if ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping'): ?>
+    price_model: $('#price_model').val(),
+    pos_item_id: $('#pos_item_id').val(),
+    <?php endif; ?>
     description: $('#description').val(),
     location_type: $('#location_type').val(),
     sort_order: $('#sort_order').val(),

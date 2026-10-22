@@ -48,18 +48,19 @@ class Encounters_model extends CI_Model {
 
 	/** Unclosed visits older than the board's window — what the filter hides. */
 	public function countQueueOutside($storeId, $branchIds = null, $days = 1){
+		$reader = mp_read_db();
 		$since = $this->_queueStart($days);
 		if($since === null) return 0;
-		$this->db->where('store_id', (int)$storeId)
+		$reader->where('store_id', (int)$storeId)
 			->where('queue_stage IS NOT NULL', null, FALSE)
 			->where('queue_stage !=', 'closed')
 			->where('checkin_at <', $since);
 		if($branchIds !== null){
 			if(empty($branchIds)) return 0;
-			$this->db->group_start()->where_in('warehouse_id', $branchIds)
+			$reader->group_start()->where_in('warehouse_id', $branchIds)
 				->or_where('warehouse_id IS NULL', null, FALSE)->group_end();
 		}
-		return (int)$this->db->count_all_results('db_encounters');
+		return (int)$reader->count_all_results('db_encounters');
 	}
 
 	/**
@@ -69,15 +70,16 @@ class Encounters_model extends CI_Model {
 	 * does not contain it.
 	 */
 	public function countQueueOpen($storeId, $branchIds = null){
-		$this->db->where('store_id', (int)$storeId)
+		$reader = mp_read_db();
+		$reader->where('store_id', (int)$storeId)
 			->where('queue_stage IS NOT NULL', null, FALSE)
 			->where('queue_stage !=', 'closed');
 		if($branchIds !== null){
 			if(empty($branchIds)) return 0;
-			$this->db->group_start()->where_in('warehouse_id', $branchIds)
+			$reader->group_start()->where_in('warehouse_id', $branchIds)
 				->or_where('warehouse_id IS NULL', null, FALSE)->group_end();
 		}
-		return (int)$this->db->count_all_results('db_encounters');
+		return (int)$reader->count_all_results('db_encounters');
 	}
 
 	/**
@@ -86,18 +88,19 @@ class Encounters_model extends CI_Model {
 	 * count reads as a ghost and the desk starts hunting patient records for it.
 	 */
 	public function countQueueElsewhere($storeId, $branchIds){
+		$reader = mp_read_db();
 		if($branchIds === null) return 0; // cross-branch: nothing is out of scope
-		$this->db->where('store_id', (int)$storeId)
+		$reader->where('store_id', (int)$storeId)
 			->where('queue_stage IS NOT NULL', null, FALSE)
 			->where('queue_stage !=', 'closed');
 		if(empty($branchIds)){
 			// No branch assignment: only branch-marked visits are out of reach.
-			$this->db->where('warehouse_id IS NOT NULL', null, FALSE);
+			$reader->where('warehouse_id IS NOT NULL', null, FALSE);
 		} else {
 			$ids = implode(',', array_map('intval', (array)$branchIds));
-			$this->db->where('(warehouse_id IS NOT NULL AND warehouse_id NOT IN (' . $ids . '))', null, FALSE);
+			$reader->where('(warehouse_id IS NOT NULL AND warehouse_id NOT IN (' . $ids . '))', null, FALSE);
 		}
-		return (int)$this->db->count_all_results('db_encounters');
+		return (int)$reader->count_all_results('db_encounters');
 	}
 
 	/**
@@ -124,13 +127,14 @@ class Encounters_model extends CI_Model {
 	 * that silently drops them is how a counted visit becomes unfindable.
 	 */
 	public function getQueue($storeId, $branchIds = null, $days = 1){
+		$reader = mp_read_db();
 		$since = $this->_queueStart($days);
 		/* The visit-type / tasked-nurse columns arrive with migration 4.0.9.144.
 		   Until that has run the join below is a hard 500 ("Unknown column
 		   e.nurse_user_id"), so the board degrades to no nurse column instead of
 		   dying — a queue screen that refuses to load blocks the whole clinic. */
-		$hasNurseCol = $this->db->field_exists('nurse_user_id', 'db_encounters');
-		$this->db->select('e.*, c.customer_name, c.mobile, p.patient_code, u.username AS clinician_name, u.role_id AS clinician_role_id, a.username AS handler_name'
+		$hasNurseCol = $reader->field_exists('nurse_user_id', 'db_encounters');
+		$reader->select('e.*, c.customer_name, c.mobile, p.patient_code, u.username AS clinician_name, u.role_id AS clinician_role_id, a.username AS handler_name'
 				. ($hasNurseCol ? ", n.username AS nurse_name, n.role_id AS nurse_role_id" : ''))
 			->from('db_encounters e')
 			->join('db_patients p', 'p.id = e.patient_id AND p.store_id = e.store_id', 'left')
@@ -138,17 +142,17 @@ class Encounters_model extends CI_Model {
 			->join('db_users u', 'u.id = e.clinician_user_id', 'left')
 			->join('db_users a', 'a.id = e.assigned_to', 'left');
 		if($hasNurseCol){
-			$this->db->join('db_users n', 'n.id = e.nurse_user_id', 'left');
+			$reader->join('db_users n', 'n.id = e.nurse_user_id', 'left');
 		}
-		$this->db->where('e.store_id', $storeId)
+		$reader->where('e.store_id', $storeId)
 			->where("e.queue_stage IS NOT NULL", null, FALSE)
 			->where('e.queue_stage !=', 'closed');
-		if($since !== null) $this->db->where('e.checkin_at >=', $since);
+		if($since !== null) $reader->where('e.checkin_at >=', $since);
 		if($branchIds !== null){
 			if(empty($branchIds)) return array(); // user has no branch assignment — sees nothing
-			$this->db->group_start()->where_in('e.warehouse_id', $branchIds)->or_where('e.warehouse_id IS NULL', null, FALSE)->group_end();
+			$reader->group_start()->where_in('e.warehouse_id', $branchIds)->or_where('e.warehouse_id IS NULL', null, FALSE)->group_end();
 		}
-		$rows = $this->db->order_by('e.checkin_at', 'asc')->get()->result();
+		$rows = $reader->order_by('e.checkin_at', 'asc')->get()->result();
 
 		/* The nurse's hand-over note travels on the card so the therapist reads
 		   it without opening anything. It is stored as the intake-completed
@@ -157,8 +161,8 @@ class Encounters_model extends CI_Model {
 		$encIds = array();
 		foreach($rows as $r){ $encIds[] = (int)$r->id; }
 		$handover = array();
-		if($encIds && $this->db->table_exists('db_encounter_events')){
-			$evs = $this->db->select('encounter_id, note, created_by, created_by_name')
+		if($encIds && $reader->table_exists('db_encounter_events')){
+			$evs = $reader->select('encounter_id, note, created_by, created_by_name')
 				->where_in('encounter_id', $encIds)->where('event', 'intake_completed')
 				->order_by('id', 'asc')->get('db_encounter_events')->result();
 			foreach($evs as $ev){ $handover[(int)$ev->encounter_id] = $ev; }

@@ -68,18 +68,142 @@ class Assist_model extends CI_Model {
 		return $filtered;
 	}
 
-	public function processMessage($message, $sessionId){
-		$message = strtolower(trim($message));
+	/**
+	 * Greeting handling. A message that is *only* a greeting shows the welcome
+	 * menu, but a leading greeting is stripped so the real request still runs
+	 * ("hi, show low stock" must not dump the menu). Returns the request with
+	 * any leading greeting removed, or '' when nothing meaningful is left.
+	 */
+	private function _greetingRequest($message){
+		$message = trim((string)$message);
+		$greetingWords = 'hi|hey|hello|yo|greetings|morning|evening|good morning|good afternoon|good evening';
+		$rest = preg_replace('/^(?:'.$greetingWords.')\b[\s,!.?:;-]*/i', '', $message);
+		if(!is_string($rest)){
+			return $message;
+		}
+		$rest = trim($rest);
+		// Drop filler that commonly follows a greeting ("hi there", "hello please").
+		$filler = 'there|again|everyone|all|guys|team|please|oh|ok|okay|sir|ma|madam|azera|martpoint';
+		for($i = 0; $i < 4; $i++){
+			$stripped = preg_replace('/^(?:'.$filler.')[\s,!.?:;-]+/i', '', $rest);
+			if(!is_string($stripped) || $stripped === $rest) break;
+			$rest = trim($stripped);
+		}
+		// Nothing but a greeting (and filler) is left → show the welcome menu.
+		if($rest === '' || preg_match('/^(?:'.$filler.')$/i', $rest)){
+			return '';
+		}
+		return $rest;
+	}
+
+	/** Action intents that should be confirmed aloud before they run. */
+	private function _isConfirmableIntent($intent){
+		return in_array($intent, [
+			'CREATE_CUSTOMER','CREATE_RAW_MATERIAL','CREATE_SALE','CREATE_INVOICE',
+			'CREATE_EXPENSE','CREATE_PURCHASE','CREATE_QUOTATION','CREATE_SERVICE_ORDER',
+			'BOOK_APPOINTMENT','RECORD_PAYMENT','RECORD_PRODUCTION','GENERATE_PAYMENT_LINK',
+			'OPEN_SCREEN',
+		], true);
+	}
+
+	/** AI capabilities that should be confirmed aloud before they run. */
+	private function _isConfirmableCapability($name){
+		return in_array($name, [
+			'create_sale','create_customer','create_item','create_purchase','create_account',
+			'create_raw_material','record_expense','record_payment','edit_store','book_appointment',
+			'new_quotation','record_production','open_screen',
+		], true);
+	}
+
+	/**
+	 * True when the message reads as a question/help request rather than a
+	 * command, so "how do I create a sale?" keeps its how-to answer while
+	 * "create a sale" is treated as a task.
+	 */
+	private function _isQuestionLike($message){
+		$m = strtolower(trim((string)$message));
+		if($m === '') return false;
+		if(strpos($m, '?') !== false) return true;
+		$first = preg_split('/\s+/', $m)[0];
+		if(in_array($first, ['how','what','where','when','why','who','which','is','are','can','could','do','does','did','should','would','will','may','guide','help','explain','tell','show','list','find','search'], true)) return true;
+		foreach(['how do','how to','how can','how many','how much','what is','what are','where is','where are','where can','can i','do i','does it','is there','are there','tell me','explain','guide me','help me','steps to','the steps','walk me through','show me how'] as $p){
+			if(strpos($m, $p) !== false) return true;
+		}
+		return false;
+	}
+
+	/** Store the request and ask the user to confirm it (yes/no). */
+	private function _askConfirmation($message, $sessionId){
+		$this->session->set_userdata('assist_pending', ['message' => $message, 'at' => time()]);
+		$task = trim((string)(!empty($this->display_message) ? $this->display_message : $message));
+		$task = htmlspecialchars($task, ENT_QUOTES);
+		return $this->_response('confirm', 'Did you mean I should <strong>'.$task.'</strong>?', [
+			'options' => [
+				['label' => 'Yes, do it', 'value' => 'yes'],
+				['label' => 'No, cancel', 'value' => 'no'],
+			],
+		]);
+	}
+
+	private function _clearPending($sessionId){
+		$this->session->unset_userdata('assist_pending');
+	}
+
+	/** True when the reply is an affirmative (spoken or typed). */
+	private function _isYes($message){
+		$m = trim(preg_replace('/[^a-z ]/', '', strtolower((string)$message)));
+		if($m === '') return false;
+		$full = ['yes','yeah','yep','yup','y','sure','ok','okay','correct','right','affirmative','confirm','confirmed','proceed','go ahead','do it','please do','yes please','yes do it','go on'];
+		if(in_array($m, $full, true)) return true;
+		$first = strtok($m, ' ');
+		return in_array($first, ['yes','yeah','yep','yup','y','sure','ok','okay','correct','affirmative','confirm','proceed'], true);
+	}
+
+	/** True when the reply is a negative (spoken or typed). */
+	private function _isNo($message){
+		$m = trim(preg_replace('/[^a-z ]/', '', strtolower((string)$message)));
+		if($m === '') return false;
+		$full = ['no','nope','nah','n','cancel','stop','abort','quit','wrong','incorrect','dont','do not','never mind','nevermind','no thanks','no thank you'];
+		if(in_array($m, $full, true)) return true;
+		$first = strtok($m, ' ');
+		return in_array($first, ['no','nope','nah','n','cancel','stop','abort','quit','wrong','incorrect'], true);
+	}
+
+	public function processMessage($message, $sessionId, $confirmed = false){
+		$rawMessage = trim((string)$message);
+		$message = strtolower($rawMessage);
 		if(empty($message)){
 			return $this->_welcomeResponse();
 		}
 
-		// Greetings should always trigger the welcome response before any KB lookup
-		$greetings = ['hi','hey','hello','good morning','good afternoon','good evening','greetings','morning','evening'];
-		$msgWords = array_filter(preg_split('/\s+/', $message));
-		if(in_array($message, $greetings) || in_array($msgWords[0] ?? '', ['hi','hey','hello','yo'])){
+		// A "Did you mean...?" confirmation is waiting: yes runs the original
+		// request, no cancels it, anything else is a fresh request.
+		if(!$confirmed){
+			$pending = $this->session->userdata('assist_pending');
+			if(!empty($pending)){
+				$fresh = (time() - (int)($pending['at'] ?? 0)) <= 600;
+				$this->_clearPending($sessionId);
+				if($fresh){
+					if($this->_isYes($message)){
+						return $this->processMessage($pending['message'], $sessionId, true);
+					}
+					if($this->_isNo($message)){
+						return $this->_response('text', 'Okay, cancelled. What would you like to do?', ['quick_tasks' => $this->_getFilteredQuickTasks()]);
+					}
+				}
+			}
+		}
+
+		// Only a bare greeting shows the welcome menu; a leading greeting is
+		// stripped so the request behind it is still performed.
+		$request = $this->_greetingRequest($message);
+		if($request === ''){
 			return $this->_welcomeResponse();
 		}
+		$message = $request;
+		// Keep the request in the user's own casing for the confirmation prompt
+		// and the "Open screen" label (matching still uses the lowercase text).
+		$this->display_message = $this->_greetingRequest($rawMessage) ?: $request;
 
 		// Clear screen command
 		$clearCommands = ['clear','clear screen','cls','/clear','clear chat','clean screen','reset chat'];
@@ -137,17 +261,18 @@ class Assist_model extends CI_Model {
 			return $this->_todayProfit();
 		}
 
-		// 1. Check Knowledge Base first for how-to / help questions
-		$kbMatch = $this->assist_knowledge_model->search($message);
-		if($kbMatch){
-			$followUp = $this->_getKbFollowUp($kbMatch['category'] ?? 'general');
-			return $this->_response('knowledge', $kbMatch['answer'], [
-				'follow_up'   => $followUp['text'],
-				'quick_tasks' => $followUp['tasks'] ?? []
-			]);
+		// Explicit navigation ("open nursery production", "go to the catalogue")
+		// goes straight to the industry screen, ahead of how-to knowledge answers.
+		$screen = $this->_screenIntent($message);
+		if($screen !== null){
+			if(!$confirmed) return $this->_askConfirmation($message, $sessionId);
+			$label = htmlspecialchars($screen['entities']['screen_label'] ?? 'Open screen', ENT_QUOTES);
+			return $this->_openScreen($label, $screen['entities']['screen'], 'Here is the screen you asked for.');
 		}
 
-		// 2. Fall back to intent detection for data actions
+		// 1. Intent detection runs first so a direct command ("create customer
+		// Ada") is recognised as a task, while a question ("how do I create a
+		// sale?") still falls through to the how-to knowledge base below.
 		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
 		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
 
@@ -155,11 +280,30 @@ class Assist_model extends CI_Model {
 		$intent = $detected['intent'] ?? 'UNKNOWN';
 		$entities = $detected['entities'] ?? [];
 
+		// Confirm task-like commands aloud before doing them ("Did you mean I
+		// should...?"). A command that is confirmed then runs the action and
+		// skips the how-to guide; questions and read-only lookups do not.
+		$commandTask = !$this->_isQuestionLike($message) && $this->_isConfirmableIntent($intent);
+		if($commandTask){
+			if(!$confirmed) return $this->_askConfirmation($message, $sessionId);
+		} else {
+			// 2. Knowledge Base for how-to / help questions
+			$kbMatch = $this->assist_knowledge_model->search($message);
+			if($kbMatch){
+				$followUp = $this->_getKbFollowUp($kbMatch['category'] ?? 'general');
+				return $this->_response('knowledge', $kbMatch['answer'], [
+					'follow_up'   => $followUp['text'],
+					'quick_tasks' => $followUp['tasks'] ?? []
+				]);
+			}
+		}
+
 		switch($intent){
 			case 'SEARCH_CUSTOMER':
 				return $this->_searchCustomer($message, $entities['customer'] ?? null);
 			case 'CREATE_CUSTOMER':
 				if(!$this->_hasPermission('customers_add')) return $this->_roleDeniedResponse();
+				if(!empty($entities['name'])) return $this->_beginCustomerCreation($entities, $sessionId);
 				return $this->_startFlow('create_customer', $sessionId);
 			case 'CREATE_RAW_MATERIAL':
 				if(!$this->_featAny(['recipe_tracking','production_workflow'])) return $this->_rawMaterialUnavailable();
@@ -233,15 +377,20 @@ class Assist_model extends CI_Model {
 				$prod = $this->_productionScreen();
 				return $this->_openScreen($prod['title'], $prod['uri'], $prod['blurb']);
 			case 'HELP': return $this->_welcomeResponse();
+			case 'OPEN_SCREEN':
+				$route = $entities['screen'] ?? '';
+				if($route === '') return $this->_fallbackResponse();
+				return $this->_openScreen(htmlspecialchars($entities['screen_label'] ?? 'Open screen', ENT_QUOTES), $route, 'Here is the screen you asked for.');
 			default:
 				// Rule-based engine didn't recognize it — let the AI try
-				$ai = $this->_aiDecide($message, $sessionId);
+				$ai = $this->_aiDecide($message, $sessionId, $confirmed);
 				if($ai !== null) return $ai;
 				return $this->_fallbackResponse();
 		}
 	}
 
 	public function startQuickActionFlow($action, $sessionId){
+		$this->_clearPending($sessionId);
 		$roleLevel = $this->assist_knowledge_model->getUserRoleLevel();
 		$levelVal = $this->assist_knowledge_model->roleHierarchy[$roleLevel] ?? 0;
 
@@ -356,6 +505,29 @@ class Assist_model extends CI_Model {
 		];
 		$this->_setConversation($conversation, $sessionId);
 		$this->_saveLastFlow($conversation, $sessionId);
+		return $this->_processFlowStep('', $conversation, $sessionId);
+	}
+
+	/**
+	 * Start the create-customer flow with whatever the user already told us
+	 * (name, phone), so the flow only asks for what is still missing.
+	 */
+	private function _beginCustomerCreation(array $entities, $sessionId){
+		$name = (string) ($entities['name'] ?? $entities['customer'] ?? '');
+		$conversation = [
+			'flow'       => 'create_customer',
+			'step'       => 'init',
+			'data'       => [],
+			'created_at' => time(),
+		];
+		if(trim($name) !== ''){
+			$conversation['data']['new_customer_name'] = ucwords(trim($name));
+		}
+		if(!empty($entities['phone'])){
+			$phone = preg_replace('/[^\d+]/', '', (string) $entities['phone']);
+			if($phone !== '') $conversation['data']['new_customer_phone'] = $phone;
+		}
+		$this->_setConversation($conversation, $sessionId);
 		return $this->_processFlowStep('', $conversation, $sessionId);
 	}
 
@@ -984,6 +1156,16 @@ class Assist_model extends CI_Model {
 
 		switch($step){
 			case 'init':
+				// Name (and maybe phone) may already be known from the request
+				// ("create customer Ada Obi") — skip the questions we can.
+				if(!empty($data['new_customer_name'])){
+					if(!empty($data['new_customer_phone'])){
+						$this->_advanceStep('collect_credit', [], $sessionId);
+						return $this->_conversational('Got it — <strong>'.htmlspecialchars($data['new_customer_name'], ENT_QUOTES).'</strong>. What is the credit limit? (Type "0" or "skip" for none)', ['step'=>'collect_credit']);
+					}
+					$this->_advanceStep('collect_email', [], $sessionId);
+					return $this->_conversational('Got it — <strong>'.htmlspecialchars($data['new_customer_name'], ENT_QUOTES).'</strong>. What is the email address? (Type "skip" if none)', ['step'=>'collect_email']);
+				}
 				$this->_advanceStep('collect_name', [], $sessionId);
 				return $this->_conversational("Let's create a new ".$this->_term('customer','customer').". What is the ".$this->_term('customer','customer')."'s full name?", ['step'=>'collect_name']);
 
@@ -1934,12 +2116,53 @@ class Assist_model extends CI_Model {
 	}
 
 	private $_bizProfile = null;
+	private $_vocab = null;
 
 	private function _biz(){
 		if($this->_bizProfile === null){
 			$this->_bizProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile(get_current_store_id()) : [];
 		}
 		return $this->_bizProfile;
+	}
+
+	/**
+	 * Terms, screens/slugs and synonyms for the active industry. Cached once
+	 * per request so every message can use the store's own vocabulary cheaply.
+	 */
+	private function _vocab(){
+		if($this->_vocab === null){
+			$this->_vocab = function_exists('mp_industry_vocabulary') ? mp_industry_vocabulary($this->_biz()) : ['terms'=>[],'screens'=>[],'synonyms'=>[]];
+		}
+		return $this->_vocab;
+	}
+
+	/**
+	 * Resolve a navigation request ("open nursery production", "go to the
+	 * catalogue") against the screens this industry actually exposes.
+	 * Returns a normalised intent array, or null when it is not navigation.
+	 */
+	private function _screenIntent($msg){
+		$screens = $this->_vocab()['screens'] ?? [];
+		if(empty($screens)) return null;
+		if(!preg_match('/^(?:please\s+)?(?:can\s+you\s+)?(?:open|go\s+to|goto|navigate\s+to|take\s+me\s+to|launch|bring\s+up)\s+(?:the\s+|my\s+|our\s+|me\s+to\s+)?(.+?)\s*(?:screen|page|section|tab|workspace)?$/i', trim($msg), $m)){
+			return null;
+		}
+		$wanted = strtolower(trim(preg_replace('/\s+/', ' ', $m[1])));
+		$wanted = trim($wanted, " ?.!,:'\"");
+		if($wanted === '') return null;
+		foreach($screens as $route => $label){
+			$last = strtolower(trim(str_replace(['/','_'], ' ', substr((string)$route, (int)strrpos('/'.$route, '/')))));
+			$candidates = [
+				strtolower($label),
+				strtolower((string)$route),
+				strtolower(str_replace(['/','_'], ' ', (string)$route)),
+				$last,
+			];
+			if(in_array($wanted, $candidates, true)){
+				return ['intent' => 'OPEN_SCREEN', 'entities' => ['screen' => $route, 'screen_label' => $label]];
+			}
+		}
+		return null;
 	}
 
 	private function _feat($flag){
@@ -2519,7 +2742,7 @@ class Assist_model extends CI_Model {
 	// deterministic inside this model. Returns null on any failure so the
 	// caller falls back cleanly.
 
-	private function _aiDecide($message, $sessionId){
+	private function _aiDecide($message, $sessionId, $confirmed = false){
 		if(!$this->assist_brain->enabled()) return null;
 
 		$decision = $this->assist_brain->decide($message, $this->_aiContext($message));
@@ -2527,6 +2750,9 @@ class Assist_model extends CI_Model {
 
 		switch($decision['action']){
 			case 'capability':
+				if(!$confirmed && $this->_isConfirmableCapability($decision['name'] ?? '')){
+					return $this->_askConfirmation($message, $sessionId);
+				}
 				return $this->_executeCapability($decision['name'], $decision['entities'] ?? [], $sessionId, $message);
 			case 'answer':
 				return $this->_response('text', $decision['text'], ['quick_tasks' => $this->_getFilteredQuickTasks()]);
@@ -2534,6 +2760,13 @@ class Assist_model extends CI_Model {
 				return $this->_response('text', $decision['text']);
 			case 'cancel':
 				return $this->_response('text', 'Okay — cancelled.', ['quick_tasks' => $this->_getFilteredQuickTasks()]);
+			case 'open_screen':
+				$route = (string)($decision['route'] ?? '');
+				$screens = $this->_vocab()['screens'] ?? [];
+				if($route === '' || !isset($screens[$route])) return null;
+				if(!$confirmed) return $this->_askConfirmation($message, $sessionId);
+				$heading = !empty($decision['text']) ? $decision['text'] : $screens[$route];
+				return $this->_openScreen(htmlspecialchars($heading, ENT_QUOTES), $route, 'Here is the screen you asked for.');
 		}
 		return null;
 	}
@@ -2541,12 +2774,16 @@ class Assist_model extends CI_Model {
 	private function _aiContext($message = ''){
 		$biz = $this->_biz();
 		$types = function_exists('mp_get_business_types') ? mp_get_business_types() : [];
+		$vocab = $this->_vocab();
 		return [
 			'business' => [
 				'industry'       => $biz['industry_type'] ?? 'general_retail',
 				'industry_label' => $types[$biz['industry_type'] ?? ''] ?? 'General Retail',
 				'labels'         => $biz['labels'] ?? [],
 				'features'       => $biz['features'] ?? [],
+				'terms'          => $vocab['terms'] ?? [],
+				'screens'        => $vocab['screens'] ?? [],
+				'synonyms'       => $vocab['synonyms'] ?? [],
 			],
 			'role'         => $this->assist_knowledge_model->getUserRoleLevel(),
 			'capabilities' => $this->_aiCapabilities(),
@@ -2633,7 +2870,7 @@ class Assist_model extends CI_Model {
 
 			case 'create_customer':
 				if(!$this->_hasPermission('customers_add')) return $this->_roleDeniedResponse();
-				return $this->_startFlow('create_customer', $sessionId);
+				return $this->_beginCustomerCreation($entities, $sessionId);
 
 			case 'create_item':
 				if($levelVal < 2) return $this->_roleDeniedResponse();
@@ -2763,6 +3000,20 @@ class Assist_model extends CI_Model {
 			}
 		}
 
+		// New customer with details: "create customer Ada Obi", "add client John 08031234567".
+		// The name (and phone, if given) pre-fills the create flow.
+		if(preg_match('/(?:create|add|register|new)\s+(?:a\s+|an\s+|new\s+)?(?:customers?|clients?)\s+(?:called\s+|named\s+)?(.+)/i', $msg, $m)){
+			$tail = trim($m[1]);
+			$entities = [];
+			if(preg_match('/^(.+?)[\s,]+(\+?\d[\d\s\-]{6,})$/', $tail, $mm)){
+				$entities['name'] = $this->_cleanEntity($mm[1]);
+				$entities['phone'] = preg_replace('/[^\d+]/', '', $mm[2]);
+			} else {
+				$entities['name'] = $this->_cleanEntity($tail);
+			}
+			return ['intent' => 'CREATE_CUSTOMER', 'entities' => $entities];
+		}
+
 		// Stock / product patterns
 		$stockPatterns = [
 			'/(?:stock|quantity|how many|how much)\s+(?:of\s+|left\s+(?:of\s+)?)?(.+)/i',
@@ -2783,6 +3034,11 @@ class Assist_model extends CI_Model {
 		if(preg_match('/(?:raw\s+materials?|ingredients?|consumables?)\s*$/i', $msg)){
 			return ['intent' => 'CREATE_RAW_MATERIAL', 'entities' => $entities];
 		}
+
+		// Navigation: understand this industry's screens/slugs ("open nursery
+		// production", "go to the catalogue") before generic keyword scoring.
+		$screen = $this->_screenIntent($msg);
+		if($screen !== null) return $screen;
 
 		// Keyword fallback for fast matching. Word-boundary match so short
 		// keywords ('hi','owe','bill') don't fire inside words like 'his',

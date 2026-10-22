@@ -65,7 +65,14 @@ class Leads_model extends CI_Model {
 	public function updateStatus($id, $status, $storeId = null){
 		if(!in_array($status, self::STATUSES)) return false;
 		$storeId = $storeId ?: get_current_store_id();
-		return $this->db->where('id', $id)->where('store_id', $storeId)->update('db_leads', ['status' => $status, 'updated_at' => date('Y-m-d H:i:s')]);
+		$lead = $this->getLead($id, $storeId);
+		if(!$lead) return false;
+		$from = (string)($lead->status ?? '');
+		$res = $this->db->where('id', $id)->where('store_id', $storeId)->update('db_leads', ['status' => $status, 'updated_at' => date('Y-m-d H:i:s')]);
+		if($res && $from !== $status){
+			$this->addActivity($id, 'status', 'Status changed', ['from' => $from, 'to' => $status], $storeId);
+		}
+		return $res;
 	}
 
 	public function deleteLead($id, $storeId = null){
@@ -102,12 +109,13 @@ class Leads_model extends CI_Model {
 		$storeId = $storeId ?: get_current_store_id();
 		$lead = $this->getLead($id, $storeId);
 		if(!$lead) return false;
+		if($userId && !$this->db->where('id',(int)$userId)->where('store_id',$storeId)->where('status',1)->get('db_users')->row()) return false;
 		$update = array('updated_at' => date('Y-m-d H:i:s'));
 		if($this->db->field_exists('assigned_to', 'db_leads')) $update['assigned_to'] = $userId ?: null;
 		if($this->db->field_exists('next_followup_at', 'db_leads')) $update['next_followup_at'] = $followupAt ?: null;
 		$res = $this->db->where('id', $id)->where('store_id', $storeId)->update('db_leads', $update);
 		if($res){
-			$who = $userId ? $this->db->select('username')->where('id', $userId)->get('db_users')->row() : null;
+			$who = $userId ? $this->db->select('username')->where('id', $userId)->where('store_id', $storeId)->get('db_users')->row() : null;
 			$this->addActivity($id, 'assignment', null, array('assigned_to' => $userId, 'assigned_name' => $who->username ?? null, 'next_followup_at' => $followupAt), $storeId);
 		}
 		return $res;

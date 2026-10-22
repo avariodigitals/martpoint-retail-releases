@@ -120,6 +120,7 @@
   .mp-payment-option > div { flex:1; min-width:0; }
   .mp-pay-label { font-size:14px; font-weight:600; color:var(--mp-dark); }
   .mp-pay-desc { font-size:12px; color:var(--mp-gray); margin-top:2px; line-height:1.45; }
+  .mp-cart-hint { font-size:12px; color:var(--mp-gray); margin-top:10px; line-height:1.45; }
   .mp-pay-fee { font-size:13.5px; font-weight:700; color:var(--mp-primary); white-space:nowrap; }
 
   /* Primary action — consistent radius, no heavy shadow */
@@ -192,8 +193,35 @@ const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
 const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
 const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
 const TABLE_NUMBER = <?= json_encode($table_number ?? ''); ?>;
+// Outlets the shopper can order from. One outlet means no choice is shown.
+const OUTLETS = <?= json_encode(array_map(function($o){
+  $area = trim((string)($o->city ?? ''));
+  return ['id' => (int)$o->id, 'name' => (string)$o->warehouse_name, 'area' => $area];
+}, (isset($outlets) && is_array($outlets)) ? $outlets : [])); ?>;
+const DEFAULT_OUTLET = <?= (int)($settings->default_branch_id ?? 0); ?>;
+let selectedOutlet = (function(){
+  var saved = parseInt(localStorage.getItem('sf_outlet_' + STORE_ID) || '0', 10);
+  var ids = OUTLETS.map(function(o){ return o.id; });
+  if(ids.indexOf(saved) > -1) return saved;
+  if(ids.indexOf(DEFAULT_OUTLET) > -1) return DEFAULT_OUTLET;
+  return OUTLETS.length > 1 ? 0 : (OUTLETS[0] ? OUTLETS[0].id : 0);
+})();
+// Keep one retry key for the current checkout attempt. It survives a page
+// reload/network retry, then is cleared only after the server acknowledges the
+// order. The server remains authoritative and enforces uniqueness per tenant.
+const checkoutKeyStorage = 'sf_checkout_key_' + STORE_ID;
+let checkoutIdempotencyKey = localStorage.getItem(checkoutKeyStorage) || '';
+function getCheckoutIdempotencyKey(){
+  if(!checkoutIdempotencyKey){
+    const entropy = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now()+'-'+Math.random().toString(36).slice(2));
+    checkoutIdempotencyKey = 'web-'+STORE_ID+'-'+entropy;
+    localStorage.setItem(checkoutKeyStorage, checkoutIdempotencyKey);
+  }
+  return checkoutIdempotencyKey;
+}
 const ALLOW_BACKORDER = <?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;
 const MP_CART_REVIEW_ONLY = <?= !empty($cart_review_only) ? 'true' : 'false'; ?>;
+const MP_PHARMACY_UPLOAD = <?= (($theme_key ?? '') === 'pharma_mediq') ? 'true' : 'false'; ?>;
 
 // A cart needs delivery only if it contains something physically
 // deliverable — merchandise or a service. Digital downloads, courses
@@ -211,6 +239,8 @@ function isCartPhysicalOnly(){
   // 'product' for merchandise. Both mean a physical deliverable here.
   return cartData.every(i => ['physical','product'].indexOf(i.type || 'product') !== -1 || i.product_type === 'physical');
 }
+
+function mpCartImage(value){try{if(!value)return '';const u=new URL(value,<?= json_encode(base_url()); ?>);return ['http:','https:'].includes(u.protocol)?u.href:'';}catch(e){return '';}}
 
 function renderCart(){
   const c = document.getElementById('cart-container');
@@ -252,12 +282,30 @@ function renderCart(){
   html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (TABLE_NUMBER ? 'Your Name for Table ' + TABLE_NUMBER + ' *' : 'Contact Details') + '</div>';
   stepNum++;
   html += '<div class="mp-checkout-fields">';
-  html += '<div><label class="mp-cart-label">Full Name *</label><input type="text" class="mp-cart-input" id="cust-name" placeholder="John Doe" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-name">Please enter your name</div></div>';
-  html += '<div><label class="mp-cart-label">Phone Number *</label><input type="tel" class="mp-cart-input" id="cust-phone" placeholder="08012345678" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-phone">Please enter your phone number</div></div>';
-  html += '<div class="mp-field-full"><label class="mp-cart-label">Email (optional)</label><input type="email" class="mp-cart-input" id="cust-email" placeholder="john@example.com"></div>';
-  html += '<div class="mp-field-full"><label class="mp-cart-label">' + (needsDelivery ? 'Delivery / Service Address' : 'Address (optional)') + '</label><textarea class="mp-cart-input" style="min-height:72px;resize:vertical;" id="cust-address" placeholder="Enter your address..."></textarea></div>';
+  html += '<div><label class="mp-cart-label" for="cust-name">Full Name *</label><input type="text" class="mp-cart-input" id="cust-name" placeholder="John Doe" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-name">Please enter your name</div></div>';
+  html += '<div><label class="mp-cart-label" for="cust-phone">Phone Number *</label><input type="tel" class="mp-cart-input" id="cust-phone" placeholder="08012345678" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-phone">Please enter your phone number</div></div>';
+  html += '<div class="mp-field-full"><label class="mp-cart-label" for="cust-email">Email (optional)</label><input type="email" class="mp-cart-input" id="cust-email" placeholder="john@example.com"></div>';
+  html += '<div class="mp-field-full"><label class="mp-cart-label" for="cust-address">' + (needsDelivery ? 'Delivery / Service Address' : 'Address (optional)') + '</label><textarea class="mp-cart-input" style="min-height:72px;resize:vertical;" id="cust-address" placeholder="Enter your address..."></textarea></div>';
   html += '</div>';
   html += '</div>';
+
+  // Which outlet is this order for? Only asked when the store really has
+  // somewhere else to order from — a single till never sees this card.
+  if(OUTLETS.length > 1){
+    html += '<div class="mp-checkout-card" id="outlet-card">';
+    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Where Are You Ordering From? *</div>';
+    stepNum++;
+    html += '<input type="hidden" id="outlet" value="'+(selectedOutlet||'')+'">';
+    html += '<div class="mp-payment-options">';
+    OUTLETS.forEach(function(o){
+      const on = selectedOutlet === o.id;
+      html += '<div class="mp-payment-option'+(on?' active':'')+'" onclick="selOutlet(this,'+o.id+')"><input type="radio" name="outletchoice" aria-label="Order from '+String(o.name).replace(/"/g,'&quot;')+'" value="'+o.id+'"'+(on?' checked':'')+'><div><div class="mp-pay-label">'+String(o.name).replace(/</g,'&lt;')+'</div>'+(o.area?'<div class="mp-pay-desc">'+String(o.area).replace(/</g,'&lt;')+'</div>':'')+'</div></div>';
+    });
+    html += '</div>';
+    html += '<div class="mp-cart-hint">Your food comes from the location you pick here.</div>';
+    html += '<div class="mp-field-error" id="err-outlet">Please choose a location</div>';
+    html += '</div>';
+  }
 
   // Delivery — only when the cart contains a deliverable item
   cityShipMode = needsDelivery && !TABLE_NUMBER && CITY_SHIPPING.length > 0;
@@ -338,21 +386,28 @@ function renderCart(){
     html += '</div>';
   }
 
+  if(MP_PHARMACY_UPLOAD){
+    html += '<div class="mp-checkout-card mdq-rx-card"><div class="mp-checkout-card-title"><span class="mp-step-num">+</span> Prescription (optional)</div>';
+    html += '<p class="mp-cart-hint" style="margin:0 0 10px;">If your medicine needs a prescription, attach a clear photo or PDF. A pharmacist will review it before fulfilment.</p>';
+    html += '<input type="file" id="prescription_file" name="prescription_file" accept="image/jpeg,image/png,image/webp,application/pdf" class="mp-cart-input" style="padding:9px;">';
+    html += '<div class="mp-cart-hint">Maximum 5 MB. You can continue without a prescription for non-prescription products.</div></div>';
+  }
+
   // Order & Payment
   html += '<div class="mp-checkout-card">';
   html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Order &amp; Payment</div>';
   html += '<div class="mp-payment-options">';
   <?php if($settings->allow_paystack && $paystack_enabled): ?>
-  html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" value="paystack" checked><div><div class="mp-pay-label">Pay Online (Paystack)</div><div class="mp-pay-desc">Pay securely with card, bank or USSD</div></div></div>';
+  html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" aria-label="Pay online with Paystack" value="paystack" checked><div><div class="mp-pay-label">Pay Online (Paystack)</div><div class="mp-pay-desc">Pay securely with card, bank or USSD</div></div></div>';
   <?php endif; ?>
   <?php if($settings->allow_pay_on_delivery): ?>
   if(isCartPhysicalOnly()){
-    html += '<div class="mp-payment-option" onclick="selPay(this,\'pay_on_delivery\')"><input type="radio" name="paymethod" value="pay_on_delivery"><div><div class="mp-pay-label">Pay on Delivery</div><div class="mp-pay-desc">Pay when your order arrives</div></div></div>';
+    html += '<div class="mp-payment-option" onclick="selPay(this,\'pay_on_delivery\')"><input type="radio" name="paymethod" aria-label="Pay on delivery" value="pay_on_delivery"><div><div class="mp-pay-label">Pay on Delivery</div><div class="mp-pay-desc">Pay when your order arrives</div></div></div>';
   }
   <?php endif; ?>
   <?php if($settings->allow_whatsapp && $settings->whatsapp_number): ?>
   html += '<div class="mp-pay-divider">Or send your order to the store</div>';
-  html += '<div class="mp-payment-option<?= (!$settings->allow_paystack||!$paystack_enabled)?' active':''; ?>" onclick="selPay(this,\'whatsapp\')"><input type="radio" name="paymethod" value="whatsapp"<?= (!$settings->allow_paystack||!$paystack_enabled)?' checked':''; ?>><div><div class="mp-pay-label">Order via WhatsApp</div><div class="mp-pay-desc">Submit your order on WhatsApp — the store confirms payment &amp; delivery with you</div></div></div>';
+  html += '<div class="mp-payment-option<?= (!$settings->allow_paystack||!$paystack_enabled)?' active':''; ?>" onclick="selPay(this,\'whatsapp\')"><input type="radio" name="paymethod" aria-label="Order via WhatsApp" value="whatsapp"<?= (!$settings->allow_paystack||!$paystack_enabled)?' checked':''; ?>><div><div class="mp-pay-label">Order via WhatsApp</div><div class="mp-pay-desc">Submit your order on WhatsApp — the store confirms payment &amp; delivery with you</div></div></div>';
   <?php endif; ?>
   html += '</div>';
   html += '</div>'; // end payment card
@@ -368,7 +423,7 @@ function renderCart(){
   if(!MP_CART_REVIEW_ONLY){
   html += '<div class="mp-coupon-box" id="coupon-box">'
        +  '<div style="display:flex;gap:8px;">'
-       +  '<input type="text" class="mp-cart-input" id="coupon-code" placeholder="Coupon code" style="flex:1;text-transform:uppercase;">'
+       +  '<input type="text" class="mp-cart-input" id="coupon-code" aria-label="Coupon code" placeholder="Coupon code" style="flex:1;text-transform:uppercase;">'
        +  '<button type="button" class="mp-cart-checkout" id="coupon-btn" onclick="applyCoupon()" style="margin-top:0;width:auto;padding:10px 16px;font-size:13px;">Apply</button>'
        +  '</div>'
        +  '<div id="coupon-msg" style="font-size:12px;margin-top:6px;display:none;"></div>'
@@ -408,7 +463,8 @@ function renderCart(){
     const isPhys = MP_DELIVERABLE_TYPES.indexOf(item.type || 'product') !== -1 || item.product_type === 'physical';
     const typeLabel = MP_TYPE_LABELS[item.type] || (MP_TYPE_LABELS[item.product_type] || '');
     const lowStock = (item.type !== 'service') && isPhys && !ALLOW_BACKORDER && typeof item.stock === 'number' && item.stock > 0 && item.qty >= item.stock;
-    const imgHtml = item.image ? '<img src="<?= base_url(); ?>'+item.image+'" alt="'+String(item.name).replace(/"/g,'&quot;')+'">' : '';
+    const safeImage=mpCartImage(item.image);
+    const imgHtml = safeImage ? '<img src="'+safeImage.replace(/"/g,'&quot;')+'" alt="'+String(item.name).replace(/[<"]/g,ch=>ch==='<'?'&lt;':'&quot;')+'">' : '';
 
     itemsHtml+='<div class="mp-item">';
     itemsHtml+='<div class="mp-item-img">'+imgHtml+'</div>';
@@ -436,6 +492,7 @@ function renderCart(){
   document.getElementById('cart-items').innerHTML=itemsHtml;
   document.getElementById('summary-items').innerHTML=miniHtml;
   document.getElementById('summary-subtotal').textContent=formatMoney(subtotal);
+  if(!MP_CART_REVIEW_ONLY&&!document.querySelector('input[name="paymethod"]:checked')){const first=document.querySelector('input[name="paymethod"]');if(first){first.checked=true;const option=first.closest('.mp-payment-option');if(option)option.classList.add('active');}}
   selectedPayment=MP_CART_REVIEW_ONLY?'':(document.querySelector('input[name="paymethod"]:checked')?.value||'pay_on_delivery');
   selectedShippingMethod=MP_CART_REVIEW_ONLY?'':(document.querySelector('input[name="shipmethod"]:checked')?.value||((needsDelivery && !cityShipMode && SHIPPING_METHODS.length>0)?SHIPPING_METHODS[0].name:''));
   selectedCityIdx=-1;
@@ -614,6 +671,15 @@ function selPay(el,m){
   updateCheckoutBtn();
 }
 
+function selOutlet(el,id){
+  document.querySelectorAll('input[name="outletchoice"]').forEach(o=>o.closest('.mp-payment-option').classList.remove('active'));
+  el.classList.add('active'); el.querySelector('input').checked=true;
+  selectedOutlet=id;
+  const hidden=document.getElementById('outlet'); if(hidden) hidden.value=id;
+  const err=document.getElementById('err-outlet'); if(err) err.classList.remove('show');
+  localStorage.setItem('sf_outlet_' + STORE_ID, String(id));
+}
+
 function setErr(id){
   const input=document.getElementById(id);
   const err=document.getElementById('err-'+id);
@@ -641,7 +707,7 @@ function upQty(idx,delta){
   it.qty=q; saveCartState();
 }
 function rmItem(idx){ cartData.splice(idx,1); saveCartState(); }
-function saveCartState(){ localStorage.setItem('sf_cart_'+STORE_ID,JSON.stringify(cartData)); renderCart(); updateCartUI(); mpSaveCart(); }
+function saveCartState(){ cart=cartData; localStorage.setItem('sf_cart_'+STORE_ID,JSON.stringify(cartData)); renderCart(); updateCartUI(); mpSaveCart(); }
 
 function placeOrder(){
   const name=document.getElementById('cust-name').value.trim();
@@ -656,6 +722,11 @@ function placeOrder(){
   if(!phone){ setErr('cust-phone'); firstBad=firstBad||'cust-phone'; }
   if(cityShipMode && selectedCityIdx<0){ setErr('ship-city'); firstBad=firstBad||'ship-city'; }
   if(firstBad){ const el=document.getElementById(firstBad); if(el&&el.focus) el.focus(); return; }
+  if(OUTLETS.length>1 && !selectedOutlet){
+    const err=document.getElementById('err-outlet'); if(err) err.classList.add('show');
+    const card=document.getElementById('outlet-card'); if(card&&card.scrollIntoView) card.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
   if(cartData.length===0){ showToast('Cart is empty'); return; }
   const btn=document.getElementById('checkout-btn'); btn.disabled=true; btn.innerHTML='<span class="mp-btn-spinner"></span>'+(selectedPayment==='whatsapp'?'Sending order...':selectedPayment==='paystack'?'Opening payment...':'Placing order...');
   const payload=cartData.map(i=>({id:i.id,type:i.type==='physical'?'product':i.type,name:i.name,price:i.price,qty:i.qty,image:i.image,note:i.service_note||'',addons:(i.addons||[]).map(addon=>({id:addon.id,qty:addon.qty})),requires_appointment:i.requires_appointment||false,requires_note:i.requires_note||false}));
@@ -667,7 +738,7 @@ function placeOrder(){
     msg+='\nSubtotal: '+formatMoney(total);
     if(selectedShippingMethod){ msg+='\nShipping: '+selectedShippingMethod+(shipFee>0?' ('+formatMoney(shipFee)+')':(selectedShipIsQuote()?' (fee quoted by store)':' (Free)')); } else if(cityShipMode&&selectedCityIdx>=0){ msg+='\nDelivery City: '+CITY_SHIPPING[selectedCityIdx].city+(shipFee>0?' ('+formatMoney(shipFee)+')':' (Free)'); }
     msg+='\nTotal: '+formatMoney(total+shipFee); msg+='\n\nName: '+name; msg+='\nPhone: '+phone;
-    if(email) msg+='\nEmail: '+email; if(address) msg+='\nAddress: '+address; if(selectedShippingMethod) msg+='\nShipping Method: '+selectedShippingMethod; if(sDate) msg+='\nService Date: '+sDate; if(sTime) msg+='\nService Time: '+sTime; if(sNote) msg+='\nService Note: '+sNote; if(TABLE_NUMBER){ msg+='\nTable: '+TABLE_NUMBER; } msg+='\n\nThank you.';
+    if(email) msg+='\nEmail: '+email; if(address) msg+='\nAddress: '+address; if(selectedShippingMethod) msg+='\nShipping Method: '+selectedShippingMethod; if(sDate) msg+='\nService Date: '+sDate; if(sTime) msg+='\nService Time: '+sTime; if(sNote) msg+='\nService Note: '+sNote; if(TABLE_NUMBER){ msg+='\nTable: '+TABLE_NUMBER; } if(OUTLETS.length>1){ const oc=OUTLETS.find(o=>o.id===selectedOutlet); if(oc){ msg+='\nOrdering from: '+oc.name; } } msg+='\n\nThank you.';
     const wnum='<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
     if(wnum) window.open('https://wa.me/'+wnum+'?text='+encodeURIComponent(msg),'_blank');
     submitOrder('whatsapp',name,phone,email,address,sDate,sTime,sNote,payload,btn); return;
@@ -677,7 +748,7 @@ function placeOrder(){
 
 function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   window.mpCheckoutInProgress = true;
-  const data=new URLSearchParams();
+  let data=new URLSearchParams();
   data.append('store_id',STORE_ID); data.append('customer_name',name); data.append('customer_phone',phone);
   data.append('customer_email',email); data.append('customer_address',address); data.append('payment_method',pm);
   data.append('shipping_method',selectedShippingMethod||'');
@@ -687,12 +758,23 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   }
   data.append('service_date',sDate); data.append('service_time',sTime); data.append('service_note',sNote);
   data.append('table_number',TABLE_NUMBER);
+  data.append('warehouse_id',selectedOutlet||'');
+  data.append('idempotency_key',getCheckoutIdempotencyKey());
   data.append('coupon_code',appliedCoupon||'');
   data.append('cart',JSON.stringify(payload));
   data.append('cart_token',mpCartToken());
   data.append('consent',(window.mpTrackConsent && window.mpTrackConsent.granted())?'1':'0');
   if(CSRF_NAME && CSRF_HASH) data.append(CSRF_NAME, CSRF_HASH);
-  fetch('<?= base_url('storefront/place_order'); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data.toString()})
+  const rxInput=document.getElementById('prescription_file');
+  if(MP_PHARMACY_UPLOAD && rxInput && rxInput.files && rxInput.files[0]){
+    const multipart=new FormData();
+    data.forEach(function(value,key){ multipart.append(key,value); });
+    multipart.append('prescription_file',rxInput.files[0]);
+    data=multipart;
+  }
+  const requestOptions={method:'POST',body:data};
+  if(!(data instanceof FormData)) requestOptions.headers={'Content-Type':'application/x-www-form-urlencoded'};
+  fetch('<?= base_url('storefront/place_order'); ?>',requestOptions)
   .then(r=>{
     if(!r.ok) return r.text().then(text=>{ throw new Error('Server error ' + r.status + (text?': '+text.substring(0,200):'')); });
     return r.json();
@@ -704,6 +786,7 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
       } else {
         showOrderSuccess(res.order_code, res.redirect_url, pm);
         cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); localStorage.removeItem('sf_cart_token_'+STORE_ID); updateCartUI();
+        localStorage.removeItem(checkoutKeyStorage); checkoutIdempotencyKey='';
       }
     } else { window.mpCheckoutInProgress = false; showToast(res.message||'Failed to place order'); btn.disabled=false; updateCheckoutBtn(); }
   }).catch(err=>{ window.mpCheckoutInProgress = false; showToast(err.message || 'Network error. Please try again.'); btn.disabled=false; updateCheckoutBtn(); });
@@ -722,6 +805,7 @@ function payWithPaystack(key,email,amount,reference,orderId,currency){
         if(v.status){
           showOrderSuccess(v.order_code||response.reference, v.redirect_url||('<?= base_url('store/' . ($settings->store_slug ?? '') . '/order_received/'); ?>'+(v.order_code||response.reference)), 'paystack');
           cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); localStorage.removeItem('sf_cart_token_'+STORE_ID); updateCartUI();
+          localStorage.removeItem(checkoutKeyStorage); checkoutIdempotencyKey='';
         } else {
           window.mpCheckoutInProgress = false;
           showToast(v.message||'Payment could not be verified');

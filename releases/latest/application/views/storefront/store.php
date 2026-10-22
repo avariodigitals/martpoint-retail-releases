@@ -403,5 +403,6 @@
   updateCartUI();
 </script>
 
+<?php $this->load->view('themes/shared/legacy_site_links'); ?>
 </body>
 </html>

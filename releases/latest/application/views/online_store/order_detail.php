@@ -49,6 +49,8 @@
           <tr><th>Order Type</th><td><?= ucfirst($order->order_type); ?></td></tr>
           <tr><th>Payment Method</th><td><?= ucfirst(str_replace('_',' ',$order->payment_method)); ?></td></tr>
           <?php if($order->shipping_method): ?><tr><th>Shipping Method</th><td><?= htmlspecialchars($order->shipping_method); ?></td></tr><?php endif; ?>
+          <?php if(!empty($order->warehouse_id) && !empty($order->fulfilment_branch)): ?><tr><th>Fulfilment Location</th><td><?= htmlspecialchars($order->fulfilment_branch); ?></td></tr><?php endif; ?>
+          <?php if(!empty($order->prescription_file)): ?><tr><th>Prescription</th><td><a href="<?= base_url($order->prescription_file); ?>" target="_blank" rel="noopener"><i class="fa fa-file-pdf-o"></i> View uploaded prescription</a></td></tr><?php endif; ?>
           <?php if($order->paystack_reference): ?><tr><th>Paystack Ref</th><td><code><?= htmlspecialchars($order->paystack_reference); ?></code></td></tr><?php endif; ?>
           <?php if($order->service_date): ?><tr><th>Service Date</th><td><?= show_date($order->service_date); ?> <?= htmlspecialchars($order->service_time); ?></td></tr><?php endif; ?>
           <?php if($order->service_note): ?><tr><th>Service Note</th><td><?= nl2br(htmlspecialchars($order->service_note)); ?></td></tr><?php endif; ?>

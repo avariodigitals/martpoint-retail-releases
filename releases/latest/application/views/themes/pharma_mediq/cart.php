@@ -1,0 +1,1 @@
+<main class="mdq-page"><div class="mdq-wrap mdq-page-intro"><div class="mdq-kicker">Your order</div><h1>Your basket</h1><p>Review your medicines, then choose delivery or pickup.</p></div><?php $this->load->view('themes/shared/cart',['cart_review_only'=>true]); ?></main>

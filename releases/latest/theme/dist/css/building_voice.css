@@ -1,0 +1,11 @@
+.bm-voice-field{position:relative;display:block;width:100%;min-width:0;box-sizing:border-box}
+.bm-voice-field>textarea{box-sizing:border-box;width:100%;padding-right:56px!important;padding-bottom:48px!important}
+.bm-voice-field>.bm-voice-button{position:absolute;right:8px;bottom:8px;display:inline-flex!important;align-items:center;justify-content:center;width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;margin:0!important;border:1px solid #d8d8d8!important;border-radius:9px!important;background:#f4f4f4!important;color:#333!important;font:inherit;cursor:pointer;z-index:1}
+.bm-voice-button svg{width:17px;height:17px;display:block;pointer-events:none}
+.bm-voice-button .bm-voice-stop,.bm-voice-button[aria-pressed=true] .bm-voice-mic{display:none}
+.bm-voice-button[aria-pressed=true] .bm-voice-stop{display:block}
+.bm-voice-field>.bm-voice-button[aria-pressed=true]{background:#252525!important;color:#fff!important;border-color:#252525!important}
+.bm-voice-field>.bm-voice-button:focus-visible{outline:2px solid #333;outline-offset:3px}
+.bm-voice-field>.bm-voice-button:disabled{opacity:.5;cursor:not-allowed}
+.bm-voice-status{display:block;margin:7px 0 0;font-size:11px!important;font-weight:400!important;line-height:1.6!important;letter-spacing:normal!important;color:#737373!important;overflow-wrap:anywhere}
+@media(max-width:768px){.bm-voice-field>.bm-voice-button{width:44px!important;height:44px!important;min-height:44px!important}.bm-voice-field>textarea{padding-bottom:56px!important}}

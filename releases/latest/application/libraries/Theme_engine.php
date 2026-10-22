@@ -13,6 +13,8 @@ class Theme_engine {
     private $industry = null;
     // Resolved once per request by catalogueMode(); null means "not asked yet".
     private $catalogueMode = null;
+    // Resolved once per request by sellingMode(); null means "not asked yet".
+    private $sellingMode = null;
 
     public function __construct(){
         $this->CI =& get_instance();
@@ -36,6 +38,7 @@ class Theme_engine {
         // resolution entirely. Observed: initialising store 2 (printing) after
         // store 1 (nylon) left store 2 showing the nylon theme.
         $this->catalogueMode = null;
+        $this->sellingMode = null;
         $this->theme = null;
         $this->industry = null;
 
@@ -51,7 +54,7 @@ class Theme_engine {
         // Build the allowed theme set for this industry. This is the single source
         // of truth: any stored theme (preview, profile, settings, legacy) that is
         // not in this set is rejected and the engine falls back to an allowed theme.
-        $allowedThemes = $this->CI->storefront_model->getThemesByIndustryForStore($this->industry, true);
+		$allowedThemes = $this->CI->storefront_model->getThemesByIndustryForStore($this->industry, true, (int)$storeId);
         $allowedById = [];
         $allowedByKey = [];
         foreach($allowedThemes as $t){
@@ -77,8 +80,15 @@ class Theme_engine {
         // lets resolution fall through to a correct theme instead of the wrong
         // one.
         $thisIndustry = $this->CI->storefront_model->normalizeThemeIndustry($this->industry);
-        $themeFitsIndustry = function ($t) use ($thisIndustry) {
+        $themeFitsIndustry = function ($t) use ($thisIndustry, $storeId) {
             if (!$t) { return false; }
+            if (($t->theme_source ?? '') === 'html_zip' && (int)($t->owner_store_id ?? 0) !== (int)$storeId) {
+                return false;
+            }
+            if (strtolower(trim((string)$this->industry)) === 'building_materials'
+                && (string)($t->theme_key ?? '') === 'hardware') {
+                return false;
+            }
             $tInd = trim((string) ($t->industry ?? ''));
             if ($tInd === '') { return true; }
             return $this->CI->storefront_model->normalizeThemeIndustry($tInd) === $thisIndustry;
@@ -268,6 +278,81 @@ class Theme_engine {
     }
 
     /**
+     * How this store sells, as chosen in Online Store → Appearance.
+     *
+     *   catalogue — browse and enquire; no public prices unless the merchant
+     *               explicitly enables them, and no cart or checkout.
+     *   ecommerce — normal online ordering.
+     *   hybrid    — order products online while taking project enquiries for
+     *               made-to-order or service items.
+     *
+     * Kept separate from catalogueMode() (what is sold), because a merchant
+     * may sell services and still order physical goods online. The public
+     * site never exposes this switch.
+     */
+    public function sellingMode(): string {
+        if ($this->sellingMode !== null) {
+            return $this->sellingMode;
+        }
+        // Building Materials is a project-led, quote-first storefront.  Keep
+        // legacy Appearance values such as "hybrid" from reintroducing a bag,
+        // checkout or payment controls on the two dedicated industry themes.
+        // The catalogue itself remains available for systems/specifications;
+        // the commercial action is an enquiry or technical quotation.
+        if ($this->isBuildingMaterialsTheme()) {
+            $this->sellingMode = 'catalogue';
+            return $this->sellingMode;
+        }
+        $mode = '';
+        try {
+            if ($this->settings && isset($this->settings->selling_mode)) {
+                $mode = (string) $this->settings->selling_mode;
+            }
+        } catch (Throwable $e) {
+            $mode = '';
+        }
+        if (!in_array($mode, ['catalogue', 'ecommerce', 'hybrid'], true)) {
+            // Older installs (or a store saved before this column existed)
+            // keep the behaviour implied by their catalogue mode.
+            $mode = $this->sellsProducts() ? 'ecommerce' : 'catalogue';
+        }
+        $this->sellingMode = $mode;
+        return $this->sellingMode;
+    }
+
+    public function isBuildingMaterialsTheme(): bool {
+        $key = (string) ($this->theme->theme_key ?? '');
+        return in_array($key, ['framework_atelier', 'vector_systems'], true);
+    }
+
+    /**
+     * May this storefront print a price?
+     *
+     * E-commerce and hybrid stores show prices. A catalogue hides them by
+     * default and only reveals them when `show_prices` is explicitly on —
+     * that is the "do not reveal unintended prices" guarantee. Themes that
+     * are not B2B keep their existing behaviour.
+     */
+    public function showPrices(): bool {
+        if (!$this->isBuildingMaterialsTheme()) {
+            return true;
+        }
+        if ($this->sellingMode() !== 'catalogue') {
+            return true;
+        }
+        try {
+            return (int) ($this->settings->show_prices ?? 0) === 1;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /** Should a catalogue-mode storefront show its enquiry/quote path? */
+    public function enquiryMode(): bool {
+        return $this->isBuildingMaterialsTheme() && $this->sellingMode() !== 'ecommerce';
+    }
+
+    /**
      * Should the storefront show a cart?
      *
      * Three gates, all of which must pass:
@@ -286,6 +371,12 @@ class Theme_engine {
         // says "both". A skincare theme on a test slug retains its product bag.
         $key = $this->theme->theme_key ?? '';
         if (in_array($key, ['print_works', 'print_inkpress', 'print_papercraft', 'print_neonprint'], true)) {
+            return false;
+        }
+        // A catalogue-first building storefront is quote-only: it must never
+        // expose a cart, checkout or payment control, even when the theme was
+        // previously used with online ordering.
+        if ($this->isBuildingMaterialsTheme() && $this->sellingMode() === 'catalogue') {
             return false;
         }
         if (!$this->sellsProducts()) {
@@ -354,7 +445,103 @@ class Theme_engine {
             'sells_products'  => $this->sellsProducts(),
             'cart_enabled'    => $this->cartEnabled(),
             'is_service_store' => $this->isServiceStore(),
+            'selling_mode'    => $this->sellingMode(),
+            'show_prices'     => $this->showPrices(),
         ];
+    }
+
+    /**
+     * The merchant's own menu, when one has been saved (db_storefront_settings
+     * .nav_json, from Online Store → Navigation). Returns a render-ready tree
+     * of ['label','url','children'=>[]], or null when no menu is configured —
+     * the themes then keep the automatic rail.
+     *
+     * $publicCategoryRows are the categories currently public on this store
+     * (the same rows the automatic menu is built from). A saved menu naming a
+     * category that has since been unpublished is dropped, not dead-linked.
+     */
+    public function configuredNav(array $publicCategoryRows, $route = 'products', $override = null){
+        $raw = $override !== null ? json_encode($override) : ($this->settings->nav_json ?? '');
+        if(!is_string($raw) || trim($raw) === '') return null;
+        $items = json_decode($raw, true);
+        if(!is_array($items) || !$items) return null;
+
+        $slug = (string)($this->settings->store_slug ?? '');
+        $pageUrls = [
+            'home'     => base_url('store/' . $slug),
+            'products' => base_url('store/' . $slug . '/products'),
+            'services' => base_url('store/' . $slug . '/services'),
+            'applications' => base_url('store/' . $slug . '/applications'),
+            'projects' => base_url('store/' . $slug . '/projects'),
+            'about'    => base_url('store/' . $slug . '/about'),
+            'contact'  => base_url('store/' . $slug . '/contact'),
+            'journal'  => base_url('store/' . $slug . '/blog'),
+            'insights' => base_url('store/' . $slug . '/blog'),
+            'privacy'  => base_url('store/' . $slug . '/privacy'),
+        ];
+        $publicIds = [];
+        foreach($publicCategoryRows as $row) $publicIds[(int)$row->id] = true;
+
+        $build = function($list, $depth) use (&$build, $pageUrls, $publicIds, $route, $slug){
+            $out = [];
+            foreach($list as $item){
+                if(!is_array($item) || count($out) >= 30) continue;
+                $label = trim((string)($item['l'] ?? ''));
+                $type = (string)($item['t'] ?? '');
+                if($label === '' || mb_strlen($label) > 60) continue;
+                $node = ['label' => $label, 'url' => '', 'children' => []];
+                if($type === 'page'){
+                    $key = (string)($item['k'] ?? '');
+                    if(!isset($pageUrls[$key])) continue;
+                    $node['url'] = $pageUrls[$key];
+                } elseif($type === 'cat'){
+                    $id = (int)($item['i'] ?? 0);
+                    if(!$id || !isset($publicIds[$id])) continue;
+                    $node['url'] = base_url('store/' . $slug . '/' . ($route === 'services' ? 'services' : 'products') . '?category=' . $id);
+                } elseif($type === 'link'){
+                    $url = trim((string)($item['u'] ?? ''));
+                    // This text is merchant input rendered to the public:
+                    // only real destinations, never script.
+                    if($url === '' || preg_match('#^\s*(javascript|data|vbscript):#i', $url)) continue;
+                    $node['url'] = $url;
+                } else {
+                    continue;
+                }
+                if($depth < 1 && !empty($item['c']) && is_array($item['c'])){
+                    $node['children'] = $build($item['c'], $depth + 1);
+                }
+                $out[] = $node;
+            }
+            return $out;
+        };
+
+        $tree = $build($items, 0);
+        return $tree ?: null;
+    }
+
+    /** Opt-in dual menus. Legacy array menus retain their original rendering. */
+    public function navigationRows(array $categories, array $tree, $route='products', array $site=[]) {
+        $config=json_decode($this->settings->nav_json ?? '',true);
+        if(!is_array($config) || ($config['version'] ?? 0)!==2)return null;
+        $flags=$this->catalogueFlags();$slug=$this->settings->store_slug;
+        $categoryNodes=function($nodes)use(&$categoryNodes,$slug,$route){$out=[];foreach($nodes as $node)$out[]=['label'=>$node->category_name,'url'=>base_url('store/'.$slug.'/'.$route.'?category='.(int)$node->id),'children'=>$categoryNodes($node->children ?? [])];return $out;};
+        $pages=[['t'=>'page','k'=>'home','l'=>'Home']];
+        if($flags['sells_products'])$pages[]=['t'=>'page','k'=>'products','l'=>$this->isBuildingMaterialsTheme()?'Systems':'Shop'];
+        if($flags['sells_services'])$pages[]=['t'=>'page','k'=>'services','l'=>'Services'];
+        if($this->isBuildingMaterialsTheme()){
+            $pages[]=['t'=>'page','k'=>'applications','l'=>'Applications'];
+            $pages[]=['t'=>'page','k'=>'projects','l'=>'Projects'];
+            $pages[]=['t'=>'page','k'=>'insights','l'=>'Insights'];
+        }
+        $pages[]=['t'=>'page','k'=>'about','l'=>'About'];$pages[]=['t'=>'page','k'=>'journal','l'=>'Journal'];$pages[]=['t'=>'page','k'=>'contact','l'=>'Contact'];
+        $allowedPages=['home'=>true,'about'=>true,'privacy'=>true,'applications'=>true,'projects'=>true,'products'=>!empty($flags['sells_products']),'services'=>!empty($flags['sells_services']),'contact'=>!isset($site['contact_enabled'])||!empty($site['contact_enabled']),'journal'=>!isset($site['blog_enabled'])||!empty($site['blog_enabled']),'insights'=>!isset($site['blog_enabled'])||!empty($site['blog_enabled'])];
+        $filter=function($items)use(&$filter,$allowedPages){$out=[];foreach($items as $item){if(!is_array($item))continue;if(($item['t'] ?? '')==='page'&&empty($allowedPages[$item['k'] ?? '']))continue;if(!empty($item['c'])&&is_array($item['c']))$item['c']=$filter($item['c']);$out[]=$item;}return $out;};
+        $rows=[];
+        foreach(['primary','secondary'] as $key){$row=$config[$key] ?? []; $rows[$key]=[];if(empty($row['enabled']))continue;
+            $source=$row['source'] ?? 'custom';
+            $rows[$key]=$source==='categories'?$categoryNodes($tree):($this->configuredNav($categories,$route,$filter($source==='pages'?$pages:($row['items'] ?? []))) ?: []);
+        }
+        return $rows;
     }
 
     /**
@@ -417,6 +604,80 @@ class Theme_engine {
         ]);
         $merged = $this->withProductImageFallbacks($merged);
 
+        // Uploaded HTML themes are rendered as inert template text. They do
+        // not enter CodeIgniter's PHP view loader, so a package can style the
+        // storefront without gaining PHP execution privileges. Commerce
+        // bindings still come from the controller data assembled above.
+        $htmlThemeViews = ['store', 'products', 'product_detail', 'cart', 'checkout'];
+        if($this->theme && ($this->theme->theme_source ?? '') === 'html_zip' && in_array($view, $htmlThemeViews, true)){
+            $this->CI->load->library('html_theme_renderer');
+            $merged['html_theme_primary'] = $this->resolveBrandColor('primary');
+            $merged['html_theme_secondary'] = $this->resolveBrandColor('secondary');
+            $html = $this->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => (bool)$this->CI->input->get('mp_theme_preview') || !empty($data['html_theme_preview'])]);
+            if($return) return $html;
+            echo $html;
+            return null;
+        }
+        $isBuilding = $this->isBuildingMaterialsTheme();
+        if ($isBuilding) {
+            $this->CI->load->helper('building_content');
+            $this->CI->load->model('storefront_content_model');
+            $bmValues = mp_building_values($this->settings->theme_content_json ?? '', $themeKey);
+            $slug = (string) ($this->settings->store_slug ?? '');
+            $base = base_url('store/' . $slug);
+            $merged = array_merge($merged, [
+                'bm' => true,
+                'bm_skin' => mp_building_skin($themeKey),
+                'bm_values' => $bmValues,
+                'bm_brand' => trim($bmValues['brand_name']) !== '' ? $bmValues['brand_name'] : ($this->store->store_name ?? 'Store'),
+                'bm_primary' => $this->resolveBrandColor('primary'),
+                'bm_dark' => $this->resolveBrandColor('secondary'),
+                'bm_selling_mode' => $this->sellingMode(),
+                'bm_show_prices' => $this->showPrices(),
+                'bm_cart_enabled' => $this->cartEnabled(),
+                'bm_base' => $base,
+                'bm_products_url' => $base . '/products',
+                'bm_services_url' => $base . '/services',
+                'bm_applications_url' => $base . '/applications',
+                'bm_projects_url' => $base . '/projects',
+                'bm_insights_url' => $base . '/blog',
+                'bm_about_url' => $base . '/about',
+                'bm_contact_url' => $base . '/contact',
+                'bm_cart_url' => $base . '/cart',
+            ]);
+            if ($view === 'store') {
+                $merged['bm_applications'] = $this->CI->storefront_content_model->entries((int) $this->settings->store_id, 'application', 6);
+                $merged['bm_projects'] = $this->CI->storefront_content_model->entries((int) $this->settings->store_id, 'project', 3);
+                $merged['bm_insights'] = $this->CI->storefront_content_model->entries((int) $this->settings->store_id, 'insight', 3);
+            }
+            if ($view === 'product_detail' && !empty($merged['product']->id)) {
+                $merged['bm_specs'] = $this->CI->storefront_content_model->productSpecs((int) $merged['product']->id);
+                $merged['bm_documents'] = $this->CI->storefront_content_model->documents((int) $this->settings->store_id, (int) $merged['product']->id, true);
+                // A catalogue must not publish a price it never intended to
+                // show, including through structured data read by crawlers.
+                if (!$this->showPrices() && isset($merged['seo_jsonld']) && is_array($merged['seo_jsonld'])) {
+                    unset($merged['seo_jsonld']['offers']);
+                }
+            }
+        }
+        if ($themeKey === 'botanical_elegance') {
+            $this->CI->load->helper('botanical_content');
+            if($view==='service_detail') $merged['service_addons']=[];
+            $values = mp_botanical_values($this->settings->theme_content_json ?? '');
+            $merged['beValue'] = function($key) use ($values) { return $values[$key] ?? ''; };
+            $merged['beCopy'] = function($key) use ($values) { return htmlspecialchars($values[$key] ?? '', ENT_QUOTES, 'UTF-8'); };
+        }
+
+        if ($this->industry === 'garden_centre_landscaping') {
+            $this->CI->load->helper(['garden','offering_policy']);
+            $merged['garden_profile'] = mp_get_store_profile((int)$this->settings->store_id);
+            $merged['garden_request_url'] = base_url('store/'.$this->settings->store_slug.'/garden-request');
+            if (isset($merged['product'])) {
+                $this->CI->load->model('garden_model');
+                $merged['garden_plant_attributes'] = $this->CI->garden_model->attributes((int)$merged['product']->id,(int)$this->settings->store_id);
+            }
+        }
+
         // The printing home reads $print_categories to build its category
         // filters and to map products onto print categories. Nothing supplied
         // it, so the catalogue section rendered empty. Only fetched for a print
@@ -443,8 +704,22 @@ class Theme_engine {
         }
 
         if($viewPath){
+            $this->CI->load->model('storefront_content_model');
+            $merged['site_content']=$this->CI->storefront_content_model->settings((int)$this->settings->store_id);
+            $merged['garden_product_experience']=$this->industry==='garden_centre_landscaping' && in_array($themeKey,['botanical_elegance','garden_marketplace','landscape_studio','general_retail'],true);
+            $merged['site_links_embedded']=$themeKey!=='botanical_elegance';
+            if($view==='product_detail' && $merged['garden_product_experience']) {$merged['public_branches']=$this->branches();$merged['product_checkout_supported']=!$isPrintDesign;}
             // Buffer content for layout wrapping
             $merged['content'] = $this->CI->load->view($viewPath, $merged, true);
+            if($view==='product_detail' && $merged['garden_product_experience']) $merged['content'].=$this->CI->load->view('themes/shared/product_experience',$merged,true);
+            $merged['footer_site_links']=$this->CI->load->view('themes/shared/site_links',$merged,true);
+            $merged['category_navigation_route']=!empty($merged['sells_products'])?'products':'services';
+            $categoryRows=!empty($merged['sells_products'])?$this->CI->storefront_model->getCategoriesWithItems((int)$this->settings->store_id):(!empty($merged['sells_services'])?$this->CI->storefront_model->getServiceCategories((int)$this->settings->store_id):[]);
+            $merged['storefront_category_tree']=mp_category_tree_model()->public_tree((int)$this->settings->store_id,$categoryRows);
+            $merged['storefront_nav']=$this->configuredNav($categoryRows,$merged['category_navigation_route']);
+            $merged['storefront_primary_embedded']=$themeKey==='botanical_elegance';
+            $merged['storefront_navigation_rows']=$this->navigationRows($categoryRows,$merged['storefront_category_tree'],$merged['category_navigation_route'],$merged['site_content']);
+            $merged['category_navigation']=$this->CI->load->view('themes/shared/category_navigation',$merged,true);
             // Make all theme data available to nested views (header, footer, scripts)
             $this->CI->load->vars($merged);
 
@@ -460,7 +735,12 @@ class Theme_engine {
             // not be wrapped in retail markup at all.
             //
             // Everything else in the catalogue keeps the retail layout untouched.
-			$layout = $isPrintDesign ? 'themes/printing/layout' : 'themes/shared/layout';
+            $isMediq = $themeKey === 'pharma_mediq';
+            $layout = $isPrintDesign
+                ? 'themes/printing/layout'
+                : ($isBuilding
+                    ? 'themes/building_materials_base/layout'
+                    : ($isMediq ? 'themes/pharma_mediq/layout' : 'themes/shared/layout'));
             return $this->CI->load->view($layout, $merged, $return);
         }
 
@@ -491,11 +771,13 @@ class Theme_engine {
         foreach ($rows as $row) $brands[(int)$row->id] = trim((string)$row->brand_name);
         $color = $this->resolveBrandColor('primary');
         $fallbacks = [];
-        $decorate = function($p) use ($brands, $sid, $color, &$fallbacks) {
+        $merchantName = trim((string)($this->store->store_name ?? $this->settings->store_name ?? 'Store'));
+        if ($merchantName === '') $merchantName = 'Store';
+        $decorate = function($p) use ($brands, $sid, $color, $merchantName, &$fallbacks) {
             $copy = clone $p;
             $brand = $brands[(int)$p->id] ?? '';
             // With no item brand, the merchant's store name is its display brand.
-            $brand = $brand !== '' ? $brand : $this->store->store_name;
+            $brand = $brand !== '' ? $brand : $merchantName;
             $fallback = sf_product_placeholder_path($sid, $brand, $color);
             if ($fallback && !empty($p->item_image)) {
                 $source = (string)$p->item_image;
@@ -507,10 +789,10 @@ class Theme_engine {
         foreach ($lists as $key) {
             if (!isset($data[$key])) continue;
             foreach ($data[$key] as $index => $p) {
-                if (is_object($p) && isset($brands[(int)$p->id])) $data[$key][$index] = $decorate($p);
+                if (is_object($p)) $data[$key][$index] = $decorate($p);
             }
         }
-        if (!empty($data['product']) && isset($brands[(int)$data['product']->id])) {
+        if (!empty($data['product']) && is_object($data['product'])) {
             $data['product'] = $decorate($data['product']);
             $path = $data['product']->item_image;
             $data['seo_image'] = preg_match('~^https?://~i', $path) ? $path : base_url($path);
@@ -663,6 +945,19 @@ class Theme_engine {
      */
     public function homepageSections(){
         $storeId = $this->settings->store_id ?? 0;
+        if($this->isBuildingMaterialsTheme()){
+            $sections = [];
+            foreach($this->CI->storefront_model->getHomepageSections($storeId) as $row){
+                $cfg = json_decode($row->config_json ?? '', true);
+                $building = is_array($cfg) ? ($cfg['industry_content']['building_materials'] ?? []) : [];
+                if(!is_array($building) || empty($building['is_enabled'])) continue;
+                $row->is_enabled = 1;
+                $row->display_order = (int)($building['display_order'] ?? $row->display_order);
+                $sections[$row->section_key] = $row;
+            }
+            uasort($sections, function($a,$b){return $a->display_order <=> $b->display_order;});
+            return $sections;
+        }
         $rows = $this->CI->db
             ->where('store_id', $storeId)
             ->where('is_enabled', 1)

@@ -36,6 +36,8 @@ th, td {
 
       $q1=$this->db->query("select * from db_store where id=".get_current_store_id());
       $res1=$q1->row();
+      $transfer_from_seller = mp_branch_store_identity($res1, $this->db->where('id', (int)$warehouse_from)->where('store_id', get_current_store_id())->get('db_warehouse')->row());
+      $transfer_to_seller = mp_branch_store_identity($res1, $this->db->where('id', (int)$warehouse_to)->where('store_id', get_current_store_id())->get('db_warehouse')->row());
       $store_name=$res1->store_name;
       $company_mobile=$res1->mobile;
       $company_phone=$res1->phone;
@@ -80,9 +82,9 @@ th, td {
     <td colspan="10" style="padding-left: 15px;">
     <strong>
               <?= $this->lang->line('from_warehouse'); ?> : 
-              <?= get_warehouse_name($warehouse_from); ?><br>
+              <?= mp_document_location_html($transfer_from_seller); ?>
               <?= $this->lang->line('to_warehouse'); ?> : 
-              <?= get_warehouse_name($warehouse_to); ?><br>
+              <?= mp_document_location_html($transfer_to_seller); ?>
               </strong>
   </td>
   </tr>

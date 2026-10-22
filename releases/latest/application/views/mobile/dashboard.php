@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=15">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
   <style>
     :root {
       --mp-primary: #0057FF;
@@ -166,7 +166,7 @@
         <div class="topbar-titles">
           <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
           <h1>Dashboard</h1>
-          <div class="greeting"><?= $greeting; ?>, <?= $display_name; ?></div>
+          <div class="greeting"><?= htmlspecialchars($greeting); ?>, <?= htmlspecialchars($greeting_name ?? $display_name); ?></div>
         </div>
         <?php if(!is_store_admin()): ?>
         <a href="<?= base_url('mobile/clock'); ?>" class="clock-btn <?= $needs_clock_out ? 'out' : ''; ?>">

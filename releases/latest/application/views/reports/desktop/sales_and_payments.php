@@ -4,14 +4,14 @@
 <div class="mp-page-head">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">Customer sales and payments statement</div>
+    <div class="mp-page-sub">Sales and payments across the selected business and date range</div>
   </div>
   <div class="mp-report-actions">
     <?php $this->load->view('components/export_btn', ['tableId' => 'report-data']); ?>
   </div>
 </div>
 
-<form target="_blank" class="form-horizontal" id="report-form" onkeypress="return event.keyCode != 13;" action="<?= base_url('reports/sales_and_payments_report'); ?>">
+<form method="post" class="form-horizontal" id="report-form" onkeypress="return event.keyCode != 13;" action="<?= base_url('reports/sales_and_payments_report'); ?>">
   <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
   <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
 
@@ -46,15 +46,6 @@
           <span id="Sales_date_msg" style="display:none" class="text-danger"></span>
         </div>
 
-        <div class="mp-form-group">
-          <label for="customer_id"><?= $this->lang->line('customer_name'); ?></label>
-          <select class="form-control select2" id="customer_id" name="customer_id" style="width:100%;">
-            <option value="">-Select-</option>
-            <?= get_customers_select_list(null, get_current_store_id()); ?>
-          </select>
-          <span id="customer_id_msg" style="display:none" class="text-danger"></span>
-        </div>
-
       </div>
 
       <div class="mp-report-filter-actions" style="margin-top:20px;">
@@ -74,20 +65,9 @@
       <table class="table table-bordered table-hover" id="report-data" style="width:100%;">
         <thead>
           <tr>
-            <td><?= $this->lang->line('name'); ?></td>
-            <td colspan="8" id="customer_name"></td>
-          </tr>
-          <tr>
-            <td><?= $this->lang->line('mobile'); ?></td>
-            <td colspan="8" id="customer_mobile"></td>
-          </tr>
-          <tr>
-            <td><?= $this->lang->line('previous_due'); ?></td>
-            <td colspan="8" id="previous_due"></td>
-          </tr>
-          <tr class="bg-blue">
             <th>#</th>
             <th><?= $this->lang->line('date'); ?></th>
+            <th><?= $this->lang->line('customer_name'); ?></th>
             <th><?= $this->lang->line('invoice_no'); ?></th>
             <th><?= $this->lang->line('referenced_bill_no'); ?></th>
             <th><?= $this->lang->line('description'); ?></th>
@@ -104,36 +84,18 @@
   </div>
 </div>
 
-<script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>
-<script>function getCustomerSelectionId() { return '#customer_id'; }</script>
 <script src="<?php echo $theme_link; ?>js/sheetjs.js" type="text/javascript"></script>
 <script type="text/javascript">
   var base_url = $("#base_url").val();
-  $("#customer_id").on('select2:select', function(e){
-    if(e.params != undefined){
-      var selectedOption = e.params.data;
-      $("#customer_name").html(selectedOption.text);
-      $("#customer_mobile").html(selectedOption.mobile);
-      $("#previous_due").html(selectedOption.previous_due);
-    }
-  });
-
-  $("#store_id").change(function(){
-    autoLoadFirstCustomer();
-  });
-
   $("#view").click(function(){
     var from_date = document.getElementById("from_date").value;
     var to_date = document.getElementById("to_date").value;
-    var customer_id = document.getElementById("customer_id").value;
-    if(customer_id == ""){ toastr["warning"]("Select Customer"); document.getElementById("customer_id").focus(); return; }
-    $(".mp-report-results").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-    $.post($("#base_url").val() + "reports/sales_and_payments_report", { from_date: from_date, to_date: to_date, store_id: $("#store_id").val(), warehouse_id: $("#warehouse_id").val(), customer_id: $("#customer_id").val() }, function(result){
-      setTimeout(function(){
-        $("#tbodyid").empty().append(result);
-        $(".overlay").remove();
-      }, 0);
-    });
+    var button=$(this);button.prop('disabled',true);
+    var results=$(".mp-report-results");results.append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+    $.ajax({url:$("#report-form").attr('action'),method:'POST',data:$("#report-form").serialize(),dataType:'html'})
+      .done(function(result){$("#tbodyid").html(result);})
+      .fail(function(xhr){var message=xhr.status===403?'Your session or permissions changed. Refresh this page and try again.':'The sales report could not be loaded. Please try again.';$("#tbodyid").html('<tr><td colspan="10" role="alert"></td></tr>').find('[role=alert]').text(message);})
+      .always(function(){results.find('.overlay').remove();button.prop('disabled',false);});
   });
 </script>
 <script>$(".report-sales-and-payments-active-li, .reports-menu").addClass("active");</script>

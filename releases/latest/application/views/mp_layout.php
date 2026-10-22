@@ -11,7 +11,7 @@ if(function_exists('physio_enabled') && physio_enabled()){
   return;
 }
 $this->load->view('mp_header');
-$this->load->view('mp_sidebar');
+$this->load->view('mp_sidebar',['garden_tools_only'=>false]);
 /* Load shared JS plugins before page content so content views can rely on
    DataTables, Select2, toastr, xss_validation, etc. in inline scripts.
    mp_footer.php also includes this file, but its load guard prevents duplicates. */
@@ -64,6 +64,22 @@ $(function(){
       $('.operations-' + menuKey + '-active-li').closest('.mp-nav-group').addClass('open');
     }
   }
+  // RestaurantOS workspace highlighting: restaurantos/* and the till.
+  if(path.length >= 1 && path[0] === 'restaurantos'){
+    var rKey = path[1] || 'index';
+    var $r = $('.restaurantos-' + rKey + '-active-li');
+    if($r.length){
+      $('.mp-nav-item.active').removeClass('active');
+      $r.first().addClass('active').closest('.mp-nav-group').addClass('open');
+    }
+  }
+  if(path.length >= 1 && path[0] === 'pos'){
+    var $pos = $('.pos-active-li');
+    if($pos.length){
+      $('.mp-nav-item.active').removeClass('active');
+      $pos.first().addClass('active').closest('.mp-nav-group').addClass('open');
+    }
+  }
   // Creator workspace + courses/memberships highlighting
   var creatorRoutes = ['creator','courses','memberships'];
   if(path.length >= 1 && creatorRoutes.indexOf(path[0]) !== -1){
@@ -76,6 +92,12 @@ $(function(){
       $('.mp-nav-item.active').removeClass('active');
       $el.first().addClass('active').closest('.mp-nav-group').addClass('open');
     }
+  }
+  // Support chat lives inside the collapsed Help group. Open and highlight
+  // it automatically so the menu remains discoverable on the chat screen.
+  if(path.length >= 1 && path[0] === 'support' && path[1] === 'chat'){
+    $('.mp-nav-item.active').removeClass('active');
+    $('.support-chat-active-li').first().addClass('active').closest('.mp-nav-group').addClass('open');
   }
 });
 </script>

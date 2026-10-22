@@ -86,7 +86,7 @@
           <h1>Business Profile</h1>
         </div>
       </div>
-      <div class="greeting">Hello, <?= $display_name; ?></div>
+      <div class="greeting">Hello, <?= htmlspecialchars(function_exists('mp_current_user_first_name') ? mp_current_user_first_name('User') : $display_name); ?></div>
 
       <form id="bpForm" action="<?= base_url('business_profile/save'); ?>" method="post" onsubmit="return saveProfile(event);" autocomplete="off">
         <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">

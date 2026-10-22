@@ -6,7 +6,8 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Sign In</title>
+  <?php $mp_login_business = $mobile_business_name ?? $store_name ?? $SITE_TITLE ?? 'MartPoint'; ?>
+  <title><?= htmlspecialchars($mp_login_business, ENT_QUOTES, 'UTF-8'); ?> — Sign In</title>
   <link rel="icon" type="image/webp" href="<?= base_url('uploads/site/icon.webp'); ?>">
   <link rel="alternate icon" type="image/png" href="<?= base_url('uploads/site/icon-192.png'); ?>">
   <link rel="manifest" href="<?= base_url('manifest.json'); ?>">
@@ -99,6 +100,13 @@
       margin: 0 auto;
       border-radius: 0;
       box-shadow: none;
+    }
+    .brand-hero .business-name {
+      margin-top: 12px;
+      color: var(--mp-text);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .01em;
     }
 
     .login-card {
@@ -458,6 +466,7 @@
     <section class="screen">
       <div class="brand-hero">
         <img src="<?= base_url(get_site_logo()); ?>" onerror="this.onerror=null; this.src='<?= base_url('uploads/site/default.png'); ?>';" alt="MartPoint">
+        <div class="business-name"><?= htmlspecialchars($mp_login_business, ENT_QUOTES, 'UTF-8'); ?></div>
       </div>
 
       <div class="login-card">
@@ -544,8 +553,7 @@
     </section>
 
     <footer class="copyright-footer">
-      &copy; <?= date('Y'); ?> <?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?>. All rights reserved. Business operations powered by MartPoint.<br>
-      Powered by Avario Digitals
+      <?php $this->load->view('mobile/copyright'); ?>
     </footer>
 
   </div>

@@ -123,6 +123,7 @@ $purchase_code = (!empty($purchase_id))?$this->db->query("select purchase_code f
 
 $q1=$this->db->query("select * from db_store where id=".$res3->store_id."");
 $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_purchasereturn', $return_id);
 $store_name=$res1->store_name;
 $company_mobile=$res1->mobile;
 $company_phone=$res1->phone;

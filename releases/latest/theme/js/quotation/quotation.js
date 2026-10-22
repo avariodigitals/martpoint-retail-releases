@@ -143,16 +143,14 @@ $("#item_search").autocomplete({
             data: {
                 name: data.term,
                 store_id:$("#store_id").val(),
-                //warehouse_id:$("#warehouse_id").val(),
+                // The item endpoint scopes stock to the active warehouse. The
+                // quotation page used to omit this value, which left the
+                // Building Materials picker with no catalogue results even
+                // though the warehouse was present as a hidden field.
+                warehouse_id:$("#warehouse_id").val(),
                 search_for:"sales",
             },
             beforeSend: function() {
-                if($("#warehouse_id").val()==''){
-                  toastr['warning']("Please Select Wareshouse!");
-                  $("#warehouse_id").select2('open');
-                  $("#item_search").removeClass('ui-autocomplete-loading');
-                  return;
-                }
                 $("#item_search").addClass('ui-autocomplete-loading');
             },
             success: function(res){
@@ -449,4 +447,4 @@ $('#item_search').keypress(function (e) {
  if(key == 13){
     $("#item_search").autocomplete('search');
   }
-});  
+});

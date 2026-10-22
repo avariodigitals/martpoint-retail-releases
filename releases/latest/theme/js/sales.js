@@ -580,6 +580,7 @@ function save_payment(sales_id){
     var customer_id=$("#customer_id").val();
     var cheque_number=$("#cheque_number").val();
     var cheque_period=$("#cheque_period").val();
+    var payment_idempotency_key=$("#payment_idempotency_key").val();
 
     if(amount == 0){
       toastr["error"]("Please Enter Valid Amount!");
@@ -599,7 +600,7 @@ function save_payment(sales_id){
 
     $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
     $(".payment_save").attr('disabled',true);  //Enable Save or Update button
-    $.post(base_url+'sales/save_payment', {cheque_number:cheque_number,cheque_period:cheque_period,allow_tot_advance:allow_tot_advance,customer_id:customer_id,account_id:account_id,sales_id: sales_id,payment_type:payment_type,amount:amount,payment_date:payment_date,payment_note:payment_note}, function(result) {
+    $.post(base_url+'sales/save_payment', {payment_idempotency_key:payment_idempotency_key,cheque_number:cheque_number,cheque_period:cheque_period,allow_tot_advance:allow_tot_advance,customer_id:customer_id,account_id:account_id,sales_id: sales_id,payment_type:payment_type,amount:amount,payment_date:payment_date,payment_note:payment_note}, function(result) {
       result=result;
   //alert(result);return;
         if(result=="success")

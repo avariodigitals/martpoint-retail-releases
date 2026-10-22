@@ -133,7 +133,7 @@
               <?php if($l->phone && $l->email): ?> · <?php endif; ?>
               <?php if($l->email): ?><i class="fa fa-envelope-o"></i> <?= htmlspecialchars($l->email); ?><?php endif; ?>
             </div>
-            <?php if($l->interest): ?><div class="lead-interest"><?= htmlspecialchars($l->interest); ?></div><?php endif; ?>
+            <?php if($l->interest): ?><div class="lead-interest"><?= htmlspecialchars($l->interest); ?></div><?php endif; ?><?php if(trim((string)($l->enquiry??''))!==''): ?><details class="lead-customer-message" style="margin-top:8px"><summary style="cursor:pointer;font-size:12px">Read message</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere;max-width:420px;line-height:1.7;margin-top:10px"><?= htmlspecialchars($l->enquiry,ENT_QUOTES,'UTF-8'); ?></p></details><?php endif; ?>
             <div class="lead-meta"><i class="fa fa-tag"></i> <?= htmlspecialchars(str_replace('_',' ',$l->source)); ?> · <?= !empty($l->created_at) ? date('M j, Y', strtotime($l->created_at)) : ''; ?><?php if($l->status === 'converted' && $l->converted_customer_id): ?> · <i class="fa fa-check-circle" style="color:var(--mp-success);"></i> Customer #<?= (int)$l->converted_customer_id; ?><?php endif; ?></div>
             <?php if($can_edit): ?>
             <div class="lead-actions">

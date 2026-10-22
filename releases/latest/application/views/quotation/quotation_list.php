@@ -1,5 +1,5 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance();$is_building_commercial=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 <?php
 $store_id = get_current_store_id();
 
@@ -19,10 +19,12 @@ $pending_count = $CI->db->where('store_id', $store_id)->where('sales_status', ''
 .select2-container--default .select2-selection--single .select2-selection__rendered{line-height:36px!important}
 </style>
 
+<?php if($is_building_commercial): $this->load->view('building_materials/commercial_style',['building_editor_style'=>false]); ?><div class="bm-commercial bm-commercial-register"><?php endif; ?>
 <div class="mp-page-head">
   <div>
+    <?php if($is_building_commercial): ?><div class="bm-commercial-eyebrow">COMMERCIAL · CLIENT PROPOSALS</div><?php endif; ?>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">Manage and convert quotations to invoices</div>
+    <div class="mp-page-sub"><?= $is_building_commercial?'Prepare technical proposals, follow customer approval and convert agreed work into invoices.':'Manage and convert quotations to invoices'; ?></div>
   </div>
   <?php if($CI->permissions('quotation_add')) { ?>
   <a class="mp-qa-btn green" href="<?= base_url('quotation/add'); ?>"><i class="fa fa-plus"></i> <?= $this->lang->line('create_quotation'); ?></a>
@@ -124,6 +126,7 @@ $pending_count = $CI->db->where('store_id', $store_id)->where('sales_status', ''
 </div>
 
 <?= form_close(); ?>
+<?php if($is_building_commercial): ?></div><?php endif; ?>
 
 <script src="<?= htmlspecialchars($theme_link); ?>plugins/datepicker/bootstrap-datepicker.js"></script>
 <script type="text/javascript">

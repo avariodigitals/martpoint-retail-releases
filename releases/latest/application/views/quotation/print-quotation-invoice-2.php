@@ -62,6 +62,7 @@ body { margin: 5px; }
 <?php
     $q1=$this->db->query("select * from db_store where status=1 and id=".get_current_store_id());
     $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_quotation', $quotation_id);
     $store_name=$res1->store_name;
     $company_mobile=$res1->mobile;
     $company_phone=$res1->phone;

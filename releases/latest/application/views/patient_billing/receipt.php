@@ -1,5 +1,6 @@
 <?php $CI =& get_instance();
 $_store = $CI->db->where('id', get_current_store_id())->get('db_store')->row();
+$_store = mp_document_store($_store, 'db_sales', $bill->id);
 $_storeName = $_store->store_name ?? ($SITE_TITLE ?? 'MartPoint');
 $_paidBefore = round((float)$bill->paid_amount - (float)$payment->payment, 2);
 ?>
@@ -21,6 +22,7 @@ body{width:76mm;margin:0 auto;font-family:'Courier New',monospace;font-size:12px
 <body onload="window.print()">
 <div class="t-center">
   <div style="font-weight:bold;font-size:15px;"><?= htmlspecialchars($_storeName); ?></div>
+  <?= mp_document_location_html($_store); ?>
   <div>PAYMENT RECEIPT</div>
 </div>
 <div class="t-line"></div>

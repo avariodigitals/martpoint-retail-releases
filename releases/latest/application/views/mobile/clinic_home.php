@@ -24,7 +24,7 @@ $patientTerm = mp_label('customer');
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=15">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
   <style>
     :root{
       --mp-primary:#176753; --mp-primary-dark:#104d40; --mp-bg:#eef3f0; --mp-surface:#fff;
@@ -79,7 +79,7 @@ $patientTerm = mp_label('customer');
   <div class="screen">
     <div class="topbar">
       <div class="topbar-titles">
-        <div class="store-name"><?= htmlspecialchars($SITE_TITLE ?? ($store_name ?? 'MartPoint')); ?></div>
+        <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
         <h1>Clinic</h1>
       </div>
       <a class="avatar" href="<?= base_url('mobile/profile'); ?>" aria-label="My profile">
@@ -88,7 +88,7 @@ $patientTerm = mp_label('customer');
       </a>
     </div>
 
-    <div class="greeting">Hello <?= htmlspecialchars($display_name ?? 'there'); ?> · <?= date('D, d M Y'); ?></div>
+    <div class="greeting">Hello <?= htmlspecialchars(function_exists('mp_current_user_first_name') ? mp_current_user_first_name('there') : ($display_name ?? 'there')); ?> · <?= date('D, d M Y'); ?></div>
 
     <?php if(!empty($acc['queue'])): ?>
     <a class="hero" href="<?= base_url(isset($c['queue_url']) ? $c['queue_url'] : 'mobile/care_queue'); ?>">

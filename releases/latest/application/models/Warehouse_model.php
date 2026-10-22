@@ -11,12 +11,13 @@ class Warehouse_model extends CI_Model {
 		return $this->security->xss_clean(html_escape($input));
 	}
 	public function verify_and_save($data){
+		if (!$this->db->field_exists('address', 'db_warehouse')) return 'Please run the branch address database update before saving.';
 		$warehouse_name = $this->input->post('warehouse_name', TRUE);
 		$branch_type = $this->input->post('branch_type', TRUE) ?: 'branch';
 		$is_distribution_center = $this->input->post('is_distribution_center', TRUE) ? 1 : 0;
 		$mobile = $this->input->post('mobile', TRUE);
 		$email = $this->input->post('email', TRUE);
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		$store_id=get_current_store_id();
 
 		//varify max sales usage of the package subscription
 		validate_package_offers('max_warehouses','db_warehouse');
@@ -41,12 +42,18 @@ class Warehouse_model extends CI_Model {
 			'store_id' => $store_id,
 			'warehouse_type' => 'Custom',
 			'warehouse_name' => $warehouse_name,
+			'address' => trim((string)$this->input->post('address', TRUE)),
+			'city' => trim((string)$this->input->post('city', TRUE)),
+			'state' => trim((string)$this->input->post('state', TRUE)),
+			'country' => trim((string)$this->input->post('country', TRUE)),
+			'postcode' => trim((string)$this->input->post('postcode', TRUE)),
+
 			'branch_type' => $branch_type,
 			'is_distribution_center' => $is_distribution_center,
 			'mobile' => $mobile,
 			'email' => $email,
 			'status' => 1,
-			'created_date' => $this->data['CUR_DATE']
+			'created_date' => $data['CUR_DATE']
 		);
 		
 		if ($this->db->insert('db_warehouse', $info)){
@@ -60,12 +67,13 @@ class Warehouse_model extends CI_Model {
 	public function verify_and_update($data){
 		
 		$q_id = $this->input->post('q_id', TRUE);
+		if (!$this->db->field_exists('address', 'db_warehouse')) return 'Please run the branch address database update before saving.';
 		$warehouse_name = $this->input->post('warehouse_name', TRUE);
 		$branch_type = $this->input->post('branch_type', TRUE) ?: 'branch';
 		$is_distribution_center = $this->input->post('is_distribution_center', TRUE) ? 1 : 0;
 		$mobile = $this->input->post('mobile', TRUE);
 		$email = $this->input->post('email', TRUE);
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		$store_id=get_current_store_id();
 
 		$this->db->where('warehouse_name', $warehouse_name);
 		$this->db->where('id !=', $q_id);
@@ -86,11 +94,25 @@ class Warehouse_model extends CI_Model {
 		
 		$info = array(
 			'warehouse_name' => $warehouse_name,
+			'address' => trim((string)$this->input->post('address', TRUE)),
+			'city' => trim((string)$this->input->post('city', TRUE)),
+			'state' => trim((string)$this->input->post('state', TRUE)),
+			'country' => trim((string)$this->input->post('country', TRUE)),
+			'postcode' => trim((string)$this->input->post('postcode', TRUE)),
+
 			'branch_type' => $branch_type,
 			'is_distribution_center' => $is_distribution_center,
 			'mobile' => $mobile,
 			'email' => $email
 		);
+        // Older forms/integrations may not send the new location fields.
+        foreach (['address','city','state','country','postcode'] as $field) {
+            if ($this->input->post($field) === null) unset($info[$field]);
+        }
+        if ($this->input->post('branch_type') === null) {
+            unset($info['branch_type'], $info['is_distribution_center']);
+        }
+        if (!$this->db->where('id', $q_id)->where('store_id', $store_id)->get('db_warehouse')->row()) return 'Branch not found.';
 		$this->db->where('id', $q_id);
 		$this->db->where('store_id', $store_id);
 		
@@ -147,6 +169,12 @@ class Warehouse_model extends CI_Model {
 			$data['is_distribution_center']=$query->is_distribution_center ?? 0;
 			$data['mobile']=$query->mobile;
 			$data['email']=$query->email;
+			$data['address']=$query->address ?? '';
+			$data['city']=$query->city ?? '';
+			$data['state']=$query->state ?? '';
+			$data['country']=$query->country ?? '';
+			$data['postcode']=$query->postcode ?? '';
+
 			return $data;
 		}
 	}

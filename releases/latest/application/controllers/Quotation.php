@@ -18,6 +18,8 @@ class Quotation extends MY_Controller {
 
 	/** Send a saved customer quotation through the store's configured email provider. */
 	public function send_email($id = 0){
+        if (strtoupper($this->input->method())!=='POST') { show_404();return; }
+        $this->permission_check_with_msg('quotation_view');
 		$this->permission_check_with_msg('send_email');
 		$id = (int)$id;
 		$store_id = get_current_store_id();
@@ -67,6 +69,11 @@ class Quotation extends MY_Controller {
 		$subject = $storeName.' — Quotation '.$quote->quotation_code;
 		$html = '<div style="font-family:Arial,sans-serif;color:#172033;max-width:760px;margin:auto"><h2 style="color:#14532d">'. $esc($storeName) .'</h2><p>Dear '. $esc($quote->customer_name ?: 'Customer') .',</p><p>Please find our quotation <strong>'. $esc($quote->quotation_code) .'</strong> below.</p><p>Quotation date: '. $esc($quote->quotation_date) .(!empty($quote->expire_date) ? ' · Valid until: '.$esc($quote->expire_date) : '').'</p><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f1f5f9"><th style="padding:10px;text-align:left">Description</th><th style="padding:10px;text-align:right">Qty</th><th style="padding:10px;text-align:left">Unit</th><th style="padding:10px;text-align:right">Unit price</th><th style="padding:10px;text-align:right">Amount</th></tr></thead><tbody>'. $rows .'</tbody></table>'.($taxTotal > 0 ? '<p style="text-align:right">Subtotal: '.$esc($money($quote->subtotal)).'<br>Tax: '.$esc($money($taxTotal)).'</p>' : '').'<p style="text-align:right;font-size:18px"><strong>Total: '. $esc($money($quote->grand_total)) .'</strong></p>'.(!empty($quote->quotation_note) ? '<p>'.nl2br($esc($quote->quotation_note)).'</p>' : '').'<p>Please reply to this email if you have questions or would like to proceed.</p><p>'. $esc($storeName) .'</p></div>';
 		$text = 'Dear '.($quote->customer_name ?: 'Customer').",\n\nQuotation ".$quote->quotation_code."\nDate: ".$quote->quotation_date."\n\nItem | Qty | Unit Price | Amount\n".$textRows.($taxTotal > 0 ? "\nSubtotal: ".$money($quote->subtotal)."\nTax: ".$money($taxTotal) : '')."\nTotal: ".$money($quote->grand_total)."\n\n".strip_tags((string)$quote->quotation_note)."\n\nReply to this email with any questions.\n".$storeName;
+        try { $responseUrl=site_url('quote_response/'.$this->quotation->issue_customer_response_token($id)); }
+        catch (Throwable $e) { $this->output->set_content_type('application/json')->set_output(json_encode(['success'=>false,'message'=>$e->getMessage(),'csrf_hash'=>$this->security->get_csrf_hash()]));return; }
+        $responseBlock='<p><a href="'.$esc($responseUrl).'" style="display:inline-block;padding:13px 20px;background:#326650;border-radius:8px;color:white;text-decoration:none">Review quotation & respond</a></p><p>Open the secure link to leave remarks, accept or decline. It expires within seven days or on the quotation expiry date, whichever comes first. A newly emailed link replaces the previous link.</p>';
+        $html=str_replace('<p>Please reply to this email if you have questions or would like to proceed.</p>',$responseBlock,$html);
+        $text.="\n\nReview, leave remarks, accept or decline: ".$responseUrl."\nA new email replaces any previous response link.";
 		$this->load->model('email_service');
 		$result = $this->email_service->sendRaw($quote->customer_email, $subject, $html, $text, [
 			'template_key'=>'customer_quotation','related_module'=>'quotation','related_record_id'=>$id,
@@ -129,6 +136,9 @@ class Quotation extends MY_Controller {
 
 
 	public function quotation_save_and_update(){
+        $documentCommand=$this->input->post_get('command',TRUE);
+        if (!in_array($documentCommand,['save','update'],true)) { echo 'Invalid document action.';return; }
+        $this->permission_check_with_msg($documentCommand==='update' ? 'quotation_edit' : 'quotation_add');
 		$this->form_validation->set_rules('quotation_date', 'Quotation Date', 'trim|required');
 		$this->form_validation->set_rules('customer_id', 'Customer Name', 'trim|required');
 		
@@ -268,12 +278,18 @@ class Quotation extends MY_Controller {
 	}
 	public function update_status(){
 		$this->permission_check('quotation_edit');
-		$id=$this->input->post('id');
-		$status=$this->input->post('status');
+		$this->_quotation_payment_feature_disabled('Quotation status is managed through the quotation lifecycle and customer response link.');
+	}
 
-		
-		$result=$this->quotation->update_status($id,$status);
-		return $result;
+	/** Quote-level receipts are not implemented; invoice payments are the only ledger. */
+	private function _quotation_payment_feature_disabled($message = ''){
+		set_status_header(409);
+		header('Content-Type: application/json');
+		echo json_encode([
+			'status' => 'error',
+			'code' => 'quotation_payments_not_enabled',
+			'message' => $message ?: 'Quotation payments are not enabled. Convert the accepted quotation to an invoice and record payment there.',
+		]);
 	}
 	public function delete_quotation(){
 		$this->permission_check_with_msg('quotation_delete');
@@ -310,7 +326,7 @@ class Quotation extends MY_Controller {
 		}
 		$data=$this->data;
 		$data=array_merge($data,array('quotation_id'=>$id));
-		$data['page_title']=$this->lang->line('quotation_invoice');
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Quotation' : $this->lang->line('quotation_invoice');
 		$data['content']=$this->load->view('quotation/quotation-invoice',$data,TRUE);
 		$this->load->view('mp_layout',$data);
 	}
@@ -385,17 +401,15 @@ class Quotation extends MY_Controller {
 	
 	public function show_pay_now_modal(){
 		$this->permission_check_with_msg('quotation_view');
-		$quotation_id=$this->input->post('quotation_id');
-		echo $this->quotation->show_pay_now_modal($quotation_id);
+		$this->_quotation_payment_feature_disabled();
 	}
 	public function save_payment(){
 		$this->permission_check_with_msg('quotation_add');
-		echo $this->quotation->save_payment();
+		$this->_quotation_payment_feature_disabled();
 	}
 	public function view_payments_modal(){
 		$this->permission_check_with_msg('quotation_view');
-		$quotation_id=$this->input->post('quotation_id');
-		echo $this->quotation->view_payments_modal($quotation_id);
+		$this->_quotation_payment_feature_disabled();
 	}
 	public function get_customers_select_list(){
 		echo get_customers_select_list(null,$_POST['store_id']);

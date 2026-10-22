@@ -76,8 +76,11 @@
 					<?php
 					$i=1;
 
-          if(!is_admin() && !is_store_admin()){
-            $this->db->where(" role_id not in (2)");
+          if(!is_admin()){
+            $legacy_store_id = get_current_store_id();
+            $legacy_owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($legacy_store_id)));
+            $this->db->where_not_in('a.id', get_excluded_user_ids($legacy_store_id));
+            $this->db->where_not_in('a.role_id', $legacy_owner_roles);
           }
           $this->db->select("a.*,b.role_name");
           $this->db->where("b.id=a.role_id");
@@ -92,13 +95,12 @@
 					if($q1->num_rows()>0){
             foreach ($q1->result() as $res1){
               $store_rec = get_store_details($res1->store_id);
-              $str = ($store_rec && $store_rec->user_id==$res1->id) ? "<span class='label label-success' toggle='tooltip' style='cursor:pointer' title=''>Store Admin</span>" : '';
 							?>
 							<tr>
 							<td> <?php echo $i++;?> </td>
               <td> <?php echo $store_rec ? $store_rec->store_name : '-';?> </td>
               <td> <?php echo $res1->username;?> </td>
-              <td> <?php echo $res1->first_name." ".$res1->last_name."<br>".$str;?> </td>
+              <td> <?php echo $res1->first_name." ".$res1->last_name;?> </td>
               <td> <?php echo $res1->mobile;?> </td>
               <td><?php echo $res1->email;?></td>
               <td> <?php echo $res1->role_name;?> </td>

@@ -1,5 +1,5 @@
 <?php $this->load->view('finance/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance();$is_building_commercial=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 
 <?php
 /*Total Points*/
@@ -56,10 +56,12 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
 .select2-container--default .select2-selection--single .select2-selection__rendered{line-height:36px!important}
 </style>
 
+<?php if($is_building_commercial): $this->load->view('building_materials/commercial_style',['building_editor_style'=>false]); ?><div class="bm-commercial bm-commercial-register"><?php endif; ?>
 <div class="mp-page-head">
   <div>
+    <?php if($is_building_commercial): ?><div class="bm-commercial-eyebrow">COMMERCIAL · CLIENT BILLING</div><?php endif; ?>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; All Sales Invoices</div>
+    <div class="mp-page-sub"><?= $is_building_commercial?'Track issued invoices, received payments and outstanding customer balances.':htmlspecialchars($store_name).' &mdash; All Sales Invoices'; ?></div>
   </div>
   <?php if ($CI->permissions('sales_add')) { ?>
   <a class="mp-qa-btn green" href="<?= base_url('sales/add'); ?>"><i class="fa fa-plus"></i> <?= $this->lang->line('create_invoice'); ?></a>
@@ -84,7 +86,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
   </div>
   <div class="mp-kpi-card debt">
     <div class="mp-kpi-icon"><i class="fa fa-clock-o"></i></div>
-    <div class="mp-kpi-label">Total Sales Due</div>
+    <div class="mp-kpi-label"><?= $is_building_commercial?'Outstanding balance':'Total Sales Due'; ?></div>
     <div class="mp-kpi-value"><?= $CI->currency(kmb($sales_due_total)); ?></div>
   </div>
 </div>
@@ -145,9 +147,9 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
         <thead>
           <tr>
             <th class="text-center"><input type="checkbox" class="group_check checkbox"></th>
-            <th><?= $this->lang->line('sales_date'); ?></th>
+            <th><?= $is_building_commercial?'Invoice date':$this->lang->line('sales_date'); ?></th>
             <th><?= $this->lang->line('due_date'); ?></th>
-            <th><?= $this->lang->line('sales_code'); ?></th>
+            <th><?= $is_building_commercial?'Invoice number':$this->lang->line('sales_code'); ?></th>
             <th><?= $this->lang->line('reference_no'); ?></th>
             <th><?= $this->lang->line('customer_name'); ?></th>
             <th><?= $this->lang->line('total'); ?></th>
@@ -172,6 +174,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
 </div>
 
 <?= form_close(); ?>
+<?php if($is_building_commercial): ?></div><?php endif; ?>
 
 <script src="<?= htmlspecialchars($theme_link); ?>plugins/datepicker/bootstrap-datepicker.js"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js"></script>

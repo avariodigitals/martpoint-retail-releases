@@ -3,7 +3,17 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.194';
+    return '4.0.9.196';
+  }
+
+  /** Read settings without consuming a query another screen is building. */
+  function mp_read_db(){
+    $CI =& get_instance();
+    $reader = clone $CI->db;
+    $reader->stop_cache();
+    $reader->flush_cache();
+    $reader->reset_query();
+    return $reader;
   }
   function required_php_version(){
     return 7.4;
@@ -2971,29 +2981,34 @@
    * @param string $ref_id      optional record reference (invoice no, user id, ...)
    * @param string $description human readable detail
    */
+  function mp_audit_recording_enabled(){
+    $CI =& get_instance();
+    if (!$CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) return true;
+    $query = $CI->db->query('SELECT audit_trail_enabled FROM db_sitesettings WHERE id = ? LIMIT 1', array(1));
+    $flag = $query ? $query->row() : null;
+    return !$flag || $flag->audit_trail_enabled === null || (int)$flag->audit_trail_enabled !== 0;
+  }
+
   function mp_audit_log($module, $action, $ref_id = null, $description = null){
+    $CI =& get_instance();
+    if (!isset($CI->db)) return false;
+    $previousDebug = $CI->db->db_debug;
+    $CI->db->db_debug = false;
     try {
-      $CI =& get_instance();
-      if (!isset($CI->db) || !$CI->db->table_exists('db_audit_trail')) {
+      if (!$CI->db->table_exists('db_audit_trail')) {
+        log_message('error', 'Audit recording unavailable: db_audit_trail is missing. Apply the current migrations.');
         return false;
       }
-      // Central can disable auditing per-install (set_settings → audit).
-      static $auditEnabled = null;
-      if ($auditEnabled === null) {
-        $auditEnabled = true;
-        if ($CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) {
-          $flag = $CI->db->select('audit_trail_enabled')->where('id', 1)->get('db_sitesettings')->row();
-          $auditEnabled = !$flag || (int) $flag->audit_trail_enabled !== 0;
-        }
-      }
-      if (!$auditEnabled) {
+      if (!mp_audit_recording_enabled()) return false;
+      $store_id = (int)get_current_store_id();
+      if ($store_id <= 0) {
+        log_message('error', 'Audit recording skipped: no valid store context.');
         return false;
       }
-      $store_id = function_exists('get_current_store_id') ? get_current_store_id() : 1;
       $row = array(
         'store_id'     => $store_id,
-        'user_id'      => $CI->session->userdata('inv_userid'),
-        'username'     => $CI->session->userdata('inv_username'),
+        'user_id'      => $CI->session->userdata('inv_userid') ?: null,
+        'username'     => $CI->session->userdata('inv_username') ?: null,
         'module'       => substr((string)$module, 0, 100),
         'action'       => substr((string)$action, 0, 100),
         'ref_id'       => $ref_id !== null ? substr((string)$ref_id, 0, 100) : null,
@@ -3003,10 +3018,20 @@
         'created_time' => date('h:i:s a'),
         'created_at'   => date('Y-m-d H:i:s'),
       );
-      return (bool) $CI->db->insert('db_audit_trail', $row);
-    } catch (Exception $e) {
+      // INSERT with bindings preserves the caller's unfinished query builder.
+      $columns = '`' . implode('`,`', array_keys($row)) . '`';
+      $sql = 'INSERT INTO db_audit_trail (' . $columns . ') VALUES (' . implode(',', array_fill(0, count($row), '?')) . ')';
+      $saved = (bool)$CI->db->query($sql, array_values($row));
+      if (!$saved) {
+        $error = $CI->db->error();
+        log_message('error', 'Audit recording failed: ' . ($error['message'] ?? 'unknown database error'));
+      }
+      return $saved;
+    } catch (Throwable $e) {
       log_message('error', 'mp_audit_log failed: ' . $e->getMessage());
       return false;
+    } finally {
+      $CI->db->db_debug = $previousDebug;
     }
   }
 

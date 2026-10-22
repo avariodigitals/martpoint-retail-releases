@@ -11,6 +11,18 @@ class Purchase extends MY_Controller {
 		$this->load->model('purchase_model','purchase');
 	}
 
+	private function _purchase_is_visible($purchase_id)
+	{
+		if ($this->purchase->is_visible_for_current_industry((int)$purchase_id)) return true;
+		if ($this->wants_json_response()) {
+			$this->output->set_content_type('application/json')
+				->set_output(json_encode(array('status' => false, 'message' => 'This purchase is not part of the active pharmacy catalogue.')));
+			return false;
+		}
+		show_404();
+		return false;
+	}
+
 	public function index()
 	{
 		$this->permission_check('purchase_view');
@@ -57,6 +69,7 @@ class Purchase extends MY_Controller {
 	}
 	
 	public function update($id){
+		if (!$this->_purchase_is_visible($id)) return;
 		$this->belong_to('db_purchase',$id);
 		$this->permission_check('purchase_edit');
 		$data=$this->data;
@@ -257,6 +270,7 @@ class Purchase extends MY_Controller {
 			$this->session->set_flashdata('exception', 'Purchase ID is required');
 			redirect('purchase');
 		}
+		if (!$this->_purchase_is_visible($id)) return;
 		$this->belong_to('db_purchase',$id);
 		if(!$this->permissions('purchase_add') && !$this->permissions('purchase_edit')){
 			$this->show_access_denied_page();
@@ -271,6 +285,7 @@ class Purchase extends MY_Controller {
 	//Print Purchase invoice 
 	public function print_invoice($purchase_id)
 	{
+		if (!$this->_purchase_is_visible($purchase_id)) return;
 		$this->belong_to('db_purchase',$purchase_id);
 		if(!$this->permissions('purchase_add') && !$this->permissions('purchase_edit')){
 			$this->show_access_denied_page();
@@ -283,6 +298,7 @@ class Purchase extends MY_Controller {
 	}
 	public function pdf($purchase_id)
 	{
+		if (!$this->_purchase_is_visible($purchase_id)) return;
 		$this->belong_to('db_purchase',$purchase_id);
 		if(!$this->permissions('purchase_add') && !$this->permissions('purchase_edit')){
 			$this->show_access_denied_page();
@@ -330,6 +346,7 @@ class Purchase extends MY_Controller {
 		echo $this->purchase->get_items_info($rowcount,$item_id);
 	}
 	public function return_purchase_list($purchase_id){
+		if (!$this->_purchase_is_visible($purchase_id)) return;
 		echo $this->purchase->return_purchase_list($purchase_id);
 	}
 	public function delete_payment(){
@@ -341,28 +358,33 @@ class Purchase extends MY_Controller {
 	public function show_pay_now_modal(){
 		$this->permission_check_with_msg('purchase_view');
 		$purchase_id=$this->input->post('purchase_id');
+		if (!$this->_purchase_is_visible($purchase_id)) return;
 		echo $this->purchase->show_pay_now_modal($purchase_id);
 	}
 
 	public function save_payment(){
 		$this->permission_check_with_msg('purchase_add');
+		if (!$this->_purchase_is_visible($this->input->post('purchase_id'))) return;
 		echo $this->purchase->save_payment();
 	}
 	
 	public function view_payments_modal(){
 		$this->permission_check_with_msg('purchase_view');
 		$purchase_id=$this->input->post('purchase_id');
+		if (!$this->_purchase_is_visible($purchase_id)) return;
 		echo $this->purchase->view_payments_modal($purchase_id);
 	}
 
 	public function show_change_status_modal(){
 		// $this->permission_check_with_msg('purchase_edit');
 		$purchase_id=$this->input->post('purchase_id');
+		if (!$this->_purchase_is_visible($purchase_id)) return;
 		echo $this->purchase->show_change_status_modal($purchase_id);
 	}
 
 	public function change_status(){
 		// $this->permission_check_with_msg('purchase_edit');
+		if (!$this->_purchase_is_visible($this->input->post('purchase_id'))) return;
 		echo $this->purchase->change_status();
 	}
 

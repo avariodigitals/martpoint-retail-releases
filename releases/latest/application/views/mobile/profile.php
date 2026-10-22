@@ -12,7 +12,7 @@
        Retail" on every tenant), not the store. The store's real name is already
        in the session. Prefer it and fall back to $SITE_TITLE. */
     $mp_store_name = $this->session->userdata('store_name');
-    if (empty($mp_store_name)) { $mp_store_name = $SITE_TITLE ?? 'MartPoint'; }
+    if (empty($mp_store_name)) { $mp_store_name = $store_name ?? $SITE_TITLE ?? 'MartPoint'; }
     echo htmlspecialchars($mp_store_name); ?> — My Profile</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -183,7 +183,7 @@
         dataType: 'json',
         success: function(res){
           if(res.status === 'success'){
-            document.getElementById('profileAvatar').innerHTML = '<img src="' + res.url + '" alt="Profile">';
+            document.getElementById('profileAvatar').innerHTML = '<img src="' + res.url + '?v=' + Date.now() + '" alt="Profile">';
             showToast(res.message, 'success');
           } else {
             showToast(res.message, 'error');

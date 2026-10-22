@@ -63,6 +63,7 @@ body { margin: 5px; }
 <?php
     $q1=$this->db->query("select * from db_store where status=1 and id=".get_current_store_id());
     $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_sales', $sales_id);
     $store_name=$res1->store_name;
     $company_mobile=$res1->mobile;
     $company_phone=$res1->phone;
@@ -549,7 +550,7 @@ body { margin: 5px; }
   <tr>
     <td colspan="16">
       <span class='amt-in-word'>
-        <?= $this->lang->line('note') .":<b>". nl2br($sales_note)."</b>";?>
+        <?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8') .":<b>". nl2br(htmlspecialchars($sales_note, ENT_QUOTES, 'UTF-8'))."</b>";?>
     </span>  
     </td>
   </tr>

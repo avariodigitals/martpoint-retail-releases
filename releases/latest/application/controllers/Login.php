@@ -34,6 +34,22 @@ class Login extends MY_Controller {
 		return base_url() . (is_mobile() ? 'mobile' : 'dashboard');
 	}
 
+	/**
+	 * The unauthenticated screen must identify the business, not the
+	 * installation's platform/admin store row.
+	 */
+	private function _mobile_login_business_name($name){
+		$name = trim((string)$name);
+		if ($name !== '' && !preg_match('/^saas(?:\s+admin)?$/i', $name)) return $name;
+		if ($this->db->table_exists('db_store')) {
+			$row = $this->db->select('store_name')->where('id >', 1)
+				->where("UPPER(TRIM(store_name)) NOT IN ('SAAS ADMIN','MY STORE')", null, false)
+				->where('store_name !=', '')->order_by('id', 'asc')->limit(1)->get('db_store')->row();
+			if ($row && trim((string)$row->store_name) !== '') return trim((string)$row->store_name);
+		}
+		return 'MartPoint';
+	}
+
 	public function langauge($id){
 		$this->load->model('language_model');
         $this->language_model->set($id);
@@ -74,6 +90,7 @@ class Login extends MY_Controller {
 		}
 
 		if(is_mobile()){
+			$data['mobile_business_name'] = $this->_mobile_login_business_name($data['store_name'] ?? '');
 			$this->load->view('mobile/login',$data);
 		}
 		else{

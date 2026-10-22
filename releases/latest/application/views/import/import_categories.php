@@ -32,7 +32,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
 </style>
 
 <div class="mp-section">
-  <?php include "comman/code_flashdata.php"; ?>
+  <?php $this->load->view('comman/code_flashdata'); ?>
 </div>
 
 <!-- Page Header -->

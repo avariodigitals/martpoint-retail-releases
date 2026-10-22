@@ -25,7 +25,7 @@ $btn_name = $is_update ? 'Update' : 'Save';
 </style>
 
 <div class="mp-section">
-  <?php include "comman/code_flashdata.php"; ?>
+  <?php $this->load->view('comman/code_flashdata'); ?>
 </div>
 
 <!-- Page Header -->

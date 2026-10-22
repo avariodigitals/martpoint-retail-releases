@@ -41,7 +41,7 @@
   <div class="box-body">
     <div class="mp-dt-scroll">
       <table id="med-notes-table" class="table mp-dt-table" width="100%">
-        <thead><tr><th>#</th><th><?= mp_label('customer'); ?></th><th>Doctor</th><th>Diagnosis</th><th>Rx</th><th>Refills</th><th>Next Refill</th><th>Date</th><th>Allergy</th><th>Action</th></tr></thead>
+        <thead><tr><th>#</th><th><?= mp_label('customer'); ?></th><th>Doctor</th><th>Diagnosis</th><th>Rx</th><th>Review</th><th>Refills</th><th>Next Refill</th><th>Date</th><th>Allergy</th><th>Action</th></tr></thead>
       </table>
     </div>
   </div>
@@ -57,12 +57,12 @@ $(function(){
       "type": "POST",
       "data": { "<?= $this->security->get_csrf_token_name(); ?>": "<?= $this->security->get_csrf_hash(); ?>" }
     },
-    "columnDefs": [{ "orderable": false, "targets": [3,4,8,9] }],
+    "columnDefs": [{ "orderable": false, "targets": [3,4,5,9,10] }],
     "autoWidth": false,
     "drawCallback": function(settings) {
       var allergyCount = 0;
       table.data().each(function(row){
-        if(row[8] && row[8].indexOf('label-danger') !== -1) allergyCount++;
+        if(row[9] && row[9].indexOf('label-danger') !== -1) allergyCount++;
       });
       $('#allergy-count').text(allergyCount);
     }

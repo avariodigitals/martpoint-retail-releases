@@ -16,6 +16,27 @@ if(typeof jQuery !== 'undefined'){
 }
 </script>
 <style>
+/* Purchase screens use a neutral scrollbar; do not inherit AdminLTE's red thumb. */
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+.mp-main::-webkit-scrollbar-thumb,
+.mp-dt-scroll::-webkit-scrollbar-thumb,
+.mp-card-form::-webkit-scrollbar-thumb{
+  background:#CBD5E1!important;
+  box-shadow:none!important;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+.mp-main::-webkit-scrollbar-thumb:hover,
+.mp-dt-scroll::-webkit-scrollbar-thumb:hover,
+.mp-card-form::-webkit-scrollbar-thumb:hover{
+  background:#94A3B8!important;
+}
+html,body,.mp-main,.mp-dt-scroll,.mp-card-form{
+  scrollbar-color:#CBD5E1 transparent;
+  scrollbar-width:thin;
+}
+
 /* ===== MODERN FORMS ===== */
 .mp-card-form{background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;border-radius:16px!important;box-shadow:var(--mp-shadow-sm)!important;overflow:hidden!important;margin-bottom:24px!important}
 .mp-card-form .mp-card-head{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:18px 20px 14px!important;border-bottom:1px solid var(--mp-border)!important}

@@ -33,10 +33,210 @@ class Purchase_model extends CI_Model {
 								'a.store_id'
 								); //set column field database for datatable searchable 
 	var $order = array('a.id' => 'desc'); // default order 
+	private $pharmacy_store_cache = array();
 
 	public function __construct()
 	{
 		parent::__construct();
+	}
+
+	private function _is_pharmacy_store($store_id = null)
+	{
+		$store_id = (int)($store_id ?: get_current_store_id());
+		if (array_key_exists($store_id, $this->pharmacy_store_cache)) {
+			return $this->pharmacy_store_cache[$store_id];
+		}
+
+		// Do not call mp_get_store_profile() here. It uses the shared query builder,
+		// and this method is also called while a purchase query is being built.
+		// A direct query keeps the active purchase builder untouched.
+		$industry = '';
+		$profile_tables = array('db_store_industry_settings', 'db_store_business_profile');
+		foreach ($profile_tables as $table) {
+			if (!$this->db->table_exists($table)) continue;
+			$query = $this->db->query(
+				"SELECT industry_type FROM {$table} WHERE store_id = ? LIMIT 1",
+				array($store_id)
+			);
+			if ($query && $query->num_rows()) {
+				$row = $query->row();
+				$industry = strtolower(trim((string)($row->industry_type ?? '')));
+				if ($industry !== '') break;
+			}
+		}
+
+		if ($industry === '' && $this->db->table_exists('db_store') && $this->db->field_exists('industry_type', 'db_store')) {
+			$query = $this->db->query(
+				"SELECT industry_type FROM db_store WHERE id = ? LIMIT 1",
+				array($store_id)
+			);
+			if ($query && $query->num_rows()) {
+				$row = $query->row();
+				$industry = strtolower(trim((string)($row->industry_type ?? '')));
+			}
+		}
+
+		$this->pharmacy_store_cache[$store_id] = in_array($industry, array('pharmacy', 'medical_store', 'healthcare'), true);
+		return $this->pharmacy_store_cache[$store_id];
+	}
+
+	private function _pharmacy_category_names()
+	{
+		return array(
+			'Prescription Drugs', 'Over-the-Counter', 'Medical Supplies',
+			'Vitamins & Supplements', 'Dermatology', 'Skincare',
+			'Analgesics & Pain Relief', 'Antibiotics', 'Cold, Flu & Allergy',
+			'Digestive Health', 'First Aid & Wound Care', 'Mother & Baby',
+			'Personal Care & Hygiene', 'Medical Devices',
+		);
+	}
+
+	private function _resolve_purchase_tax($tax_id, $store_id = null)
+	{
+		$store_id = (int)($store_id ?: get_current_store_id());
+		$tax_id = (int)$tax_id;
+		if ($tax_id > 0) {
+			$row = $this->db->where('id', $tax_id)
+				->where('store_id', $store_id)
+				->where('status', 1)
+				->get('db_tax')->row();
+			if ($row) return $row;
+		}
+
+		$this->db->where('store_id', $store_id)->where('status', 1);
+		if ($this->db->field_exists('is_default', 'db_tax')) {
+			$this->db->order_by('is_default', 'desc');
+		}
+		return $this->db->order_by('id', 'asc')->get('db_tax')->row();
+	}
+
+	private function _purchase_tax_amount($amount, $tax_rate, $tax_type)
+	{
+		$amount = (float)$amount;
+		$tax_rate = (float)$tax_rate;
+		if ($amount <= 0 || $tax_rate <= 0) return 0;
+		if ($tax_type === 'Inclusive') {
+			return round($amount - ($amount / (1 + ($tax_rate / 100))), 2);
+		}
+		return round(($amount * $tax_rate) / 100, 2);
+	}
+
+	private function _pharmacy_purchase_scope_sql($alias = 'a')
+	{
+		$allowed = array_map(array($this->db, 'escape'), $this->_pharmacy_category_names());
+		$allowed_sql = implode(',', $allowed);
+		return "EXISTS (
+			SELECT 1
+			FROM db_purchaseitems pi_pharmacy
+			INNER JOIN db_items item_pharmacy ON item_pharmacy.id = pi_pharmacy.item_id
+			INNER JOIN db_category category_pharmacy ON category_pharmacy.id = item_pharmacy.category_id
+			WHERE pi_pharmacy.purchase_id = {$alias}.id
+			  AND item_pharmacy.store_id = {$alias}.store_id
+			  AND item_pharmacy.status = 1
+			  AND category_pharmacy.store_id = {$alias}.store_id
+			  AND category_pharmacy.status = 1
+			  AND category_pharmacy.category_name IN ({$allowed_sql})
+		)
+		AND NOT EXISTS (
+			SELECT 1
+			FROM db_purchaseitems pi_non_pharmacy
+			LEFT JOIN db_items item_non_pharmacy ON item_non_pharmacy.id = pi_non_pharmacy.item_id
+			LEFT JOIN db_category category_non_pharmacy ON category_non_pharmacy.id = item_non_pharmacy.category_id
+			WHERE pi_non_pharmacy.purchase_id = {$alias}.id
+			  AND (
+				item_non_pharmacy.id IS NULL
+				OR item_non_pharmacy.store_id <> {$alias}.store_id
+				OR item_non_pharmacy.status <> 1
+				OR category_non_pharmacy.id IS NULL
+				OR category_non_pharmacy.store_id <> {$alias}.store_id
+				OR category_non_pharmacy.status <> 1
+				OR category_non_pharmacy.category_name NOT IN ({$allowed_sql})
+			  )
+		)";
+	}
+
+	private function _apply_purchase_industry_scope($alias = 'a', $store_id = null)
+	{
+		if ($this->_is_pharmacy_store($store_id)) {
+			$this->db->where($this->_pharmacy_purchase_scope_sql($alias), null, false);
+			$this->db->where($alias.'.status', 1);
+		}
+	}
+
+	private function _apply_purchase_user_scope($alias = 'a')
+	{
+		if (!is_admin() && $this->session->userdata('role_id') != '2' && !permissions('show_all_users_purchase_invoices')) {
+			$this->db->where('upper('.$alias.'.created_by)', strtoupper($this->session->userdata('inv_username')), false);
+		}
+	}
+
+	public function is_visible_for_current_industry($purchase_id, $store_id = null)
+	{
+		$store_id = (int)($store_id ?: get_current_store_id());
+		$this->db->from('db_purchase as a')
+			->where('a.id', (int)$purchase_id)
+			->where('a.store_id', $store_id);
+		if ($this->_is_pharmacy_store($store_id)) {
+			$this->db->where($this->_pharmacy_purchase_scope_sql('a'), null, false)
+				->where('a.status', 1);
+		}
+		return $this->db->count_all_results() > 0;
+	}
+
+	public function get_purchase_summary($store_id = null)
+	{
+		$store_id = (int)($store_id ?: get_current_store_id());
+		$summary = array('total' => 0, 'value' => 0, 'paid' => 0, 'due' => 0);
+
+		$this->db->select('COUNT(*) AS total')->from('db_purchase as a')->where('a.store_id', $store_id);
+		$this->_apply_purchase_user_scope('a');
+		$this->_apply_purchase_industry_scope('a', $store_id);
+		$row = $this->db->get()->row();
+		$summary['total'] = (int)($row->total ?? 0);
+
+		$this->db->select('COALESCE(SUM(a.grand_total),0) AS total')->from('db_purchase as a')
+			->where('a.store_id', $store_id)->where_in('a.purchase_status', array('Received', 'Partially Received'));
+		$this->_apply_purchase_user_scope('a');
+		$this->_apply_purchase_industry_scope('a', $store_id);
+		$row = $this->db->get()->row();
+		$summary['value'] = (float)($row->total ?? 0);
+
+		$this->db->select('COALESCE(SUM(a.paid_amount),0) AS total')->from('db_purchase as a')->where('a.store_id', $store_id);
+		$this->_apply_purchase_user_scope('a');
+		$this->_apply_purchase_industry_scope('a', $store_id);
+		$row = $this->db->get()->row();
+		$summary['paid'] = (float)($row->total ?? 0);
+
+		if ($this->db->table_exists('db_suppliers')) {
+			$this->db->select('COALESCE(SUM(s.purchase_due),0) AS total')->from('db_suppliers s')
+				->where('s.store_id', $store_id);
+			if ($this->db->field_exists('status', 'db_suppliers')) $this->db->where('s.status', 1);
+			$row = $this->db->get()->row();
+			$summary['due'] = (float)($row->total ?? 0);
+		}
+
+		return $summary;
+	}
+
+	public function is_item_allowed_for_current_industry($item_id, $store_id = null)
+	{
+		$store_id = (int)($store_id ?: get_current_store_id());
+		$this->db->from('db_items i')->where('i.id', (int)$item_id)->where('i.store_id', $store_id)->where('i.status', 1);
+		if ($this->_is_pharmacy_store($store_id)) {
+			$this->db->join('db_category c', 'c.id = i.category_id AND c.store_id = i.store_id', 'inner')
+				->where('c.status', 1)->where_in('c.category_name', $this->_pharmacy_category_names());
+		}
+		return $this->db->count_all_results() > 0;
+	}
+
+	private function _posted_pharmacy_items_are_valid($rowcount, $store_id)
+	{
+		if (!$this->_is_pharmacy_store($store_id)) return true;
+		for ($i = 1; $i <= (int)$rowcount; $i++) {
+			$item_id = (int)($_REQUEST['tr_item_id_'.$i] ?? 0);
+			if ($item_id && !$this->is_item_allowed_for_current_industry($item_id, $store_id)) return false;
+		}
+		return true;
 	}
 
 	private function _get_datatables_query()
@@ -52,18 +252,12 @@ class Purchase_model extends CI_Model {
 			$this->db->where('a.warehouse_id',$warehouse_id);
 		}
 
-		if(!is_admin()){
-	      	if($this->session->userdata('role_id')!='2'){
-	      		if(!permissions('show_all_users_purchase_invoices')){
-	      			$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
-	      		}
-	      	}
-	      }
-		
 		//if not admin
 	    /*if(!is_admin()){*/
 	      $this->db->where("a.store_id",get_current_store_id());
 	    /*}*/
+		$this->_apply_purchase_industry_scope('a');
+		$this->_apply_purchase_user_scope('a');
 		$i = 0;
 	
 		foreach ($this->column_search as $item) // loop column 
@@ -123,7 +317,9 @@ class Purchase_model extends CI_Model {
 
 	public function count_all()
 	{
-		$this->db->from($this->table);
+		$this->db->from($this->table)->where('a.store_id', get_current_store_id());
+		$this->_apply_purchase_industry_scope('a');
+		$this->_apply_purchase_user_scope('a');
 		return $this->db->count_all_results();
 	}
 	//Datatable end
@@ -164,6 +360,17 @@ class Purchase_model extends CI_Model {
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$payment_note = $this->input->post('payment_note', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
+		$effective_store_id = (store_module() && is_admin()) ? (int)$store_id : (int)get_current_store_id();
+
+		if (!$this->_posted_pharmacy_items_are_valid($rowcount, $effective_store_id)) {
+			return 'Only active pharmacy products from the pharmacy catalogue can be purchased for this store.';
+		}
+		if (warehouse_module() && warehouse_count() > 1) {
+			$warehouse_row = $this->db->where('id', (int)$warehouse_id)->where('store_id', $effective_store_id)->get('db_warehouse')->row();
+			if (!$warehouse_row) return 'Select a valid pharmacy branch for this purchase.';
+		} else {
+			$warehouse_id = get_store_warehouse_id();
+		}
 
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
@@ -311,7 +518,7 @@ class Purchase_model extends CI_Model {
 				}
 
 				// Base quantity for stock: selected unit quantity × conversion factor
-				$purchase_qty_clean = (float)str_replace(',','',$purchase_qty);
+					$purchase_qty_clean = (float)str_replace(',','',$purchase_qty);
 				$received_qty_clean = ($received_qty !== null) ? (float)str_replace(',','',$received_qty) : null;
 				$stock_qty = ($received_qty_clean !== null) ? $received_qty_clean : $purchase_qty_clean;
 				$base_unit_qty = $stock_qty * $conversion_factor;
@@ -319,6 +526,25 @@ class Purchase_model extends CI_Model {
 				$price_per_unit_clean = (float)str_replace(',','',$price_per_unit);
 				$base_price_per_unit = ($conversion_factor > 0) ? ($price_per_unit_clean / $conversion_factor) : $price_per_unit_clean;
 				$unit_total_cost_clean = (float)str_replace(',','',$unit_total_cost);
+
+					// Recalculate VAT from the stored tax definition. The browser values
+					// are display inputs only and previously allowed VAT to be saved as
+					// zero or calculated from the wrong price basis.
+					$tax_row = $this->_resolve_purchase_tax((int)$tax_id, $effective_store_id);
+					if ($tax_row) {
+						$tax_id = (int)$tax_row->id;
+						$tax_rate = (float)$tax_row->tax;
+						$taxable_amount = max(0, ($price_per_unit_clean * $purchase_qty_clean) - (float)str_replace(',', '', $discount_amt));
+						$tax_amt_clean = $this->_purchase_tax_amount($taxable_amount, $tax_rate, $tax_type);
+						$total_cost_clean = ($tax_type === 'Inclusive') ? $taxable_amount : $taxable_amount + $tax_amt_clean;
+						$unit_total_cost_clean = $purchase_qty_clean > 0 ? $total_cost_clean / $purchase_qty_clean : 0;
+						$tax_amt = $tax_amt_clean;
+						$total_cost = $total_cost_clean;
+						$unit_total_cost = $unit_total_cost_clean;
+					} else {
+						$tax_id = null;
+						$tax_amt = 0;
+					}
 
 				// Format dates
 				if(!empty($expire_date)){
@@ -786,11 +1012,18 @@ class Purchase_model extends CI_Model {
 	}
 	public function search_item($q){
 		$json_array=array();
-        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";
+		$store_id = (int)get_current_store_id();
+		$this->db->select('i.id,i.item_name')->from('db_items i')
+			->where('i.store_id', $store_id)->where('i.status', 1)
+			->group_start()->like('i.item_name', $q)->or_like('i.item_code', $q)->group_end();
+		if ($this->_is_pharmacy_store($store_id)) {
+			$this->db->join('db_category c', 'c.id=i.category_id AND c.store_id=i.store_id', 'inner')
+				->where('c.status', 1)->where_in('c.category_name', $this->_pharmacy_category_names());
+		}
+		$query1 = $this->db->get();
 
-        $q1=$this->db->query($query1);
-        if($q1->num_rows()>0){
-            foreach ($q1->result() as $value) {
+	        if($query1 && $query1->num_rows()>0){
+	            foreach ($query1->result() as $value) {
             	$json_array[]=['id'=>$value->id, 'text'=>$value->item_name];
             }
         }
@@ -799,9 +1032,14 @@ class Purchase_model extends CI_Model {
 	
 	public function find_item_details($id){
 		$json_array=array();
-        $query1="select id,item_name,tax_id,sales_price,price,stock,tax_type,profit_margin from db_items where id=$id";
-
-        $q1=$this->db->query($query1);
+		$store_id = (int)get_current_store_id();
+		$this->db->select('i.id,i.item_name,i.tax_id,i.sales_price,i.price,i.stock,i.tax_type,i.profit_margin')
+			->from('db_items i')->where('i.id', (int)$id)->where('i.store_id', $store_id)->where('i.status', 1);
+		if ($this->_is_pharmacy_store($store_id)) {
+			$this->db->join('db_category c', 'c.id=i.category_id AND c.store_id=i.store_id', 'inner')
+				->where('c.status', 1)->where_in('c.category_name', $this->_pharmacy_category_names());
+		}
+		$q1 = $this->db->get();
         if($q1->num_rows()>0){
             foreach ($q1->result() as $value) {
             	$json_array=['id'=>$value->id, 
@@ -827,9 +1065,14 @@ class Purchase_model extends CI_Model {
 
 	
 	public function get_items_info($rowcount,$item_id){
-		$res1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get()->row();
-		$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
-		$item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($res1->sales_price,$q3->tax) :calculate_exclusive($res1->sales_price,$q3->tax);
+		if (!$this->is_item_allowed_for_current_industry($item_id)) return '';
+		$res1=$this->db->select('*')->from('db_items')->where('id', (int)$item_id)->get()->row();
+		if (!$res1) return '';
+		$tax_id = (int)($res1->tax_id ?? 0);
+		$q3 = $this->_resolve_purchase_tax($tax_id, get_current_store_id());
+		$tax_rate = $q3 ? (float)$q3->tax : 0;
+		if ($q3) $tax_id = (int)$q3->id;
+		$item_tax_amt = $this->_purchase_tax_amount($res1->price, $tax_rate, $res1->tax_type);
 
 		$base_unit = $this->db->select('unit_name, shortcode')->where('id',$res1->unit_id)->get('db_units')->row();
 
@@ -843,10 +1086,10 @@ class Purchase_model extends CI_Model {
 							'item_purchase_unit_id' 	=> $res1->unit_id,
 							'item_purchase_unit_name' 	=> $base_unit ? ($base_unit->shortcode ?: $base_unit->unit_name) : '',
 							'item_conversion_factor' 	=> 1, 
-							'item_tax_name' 			=> $q3->tax_name, 
+							'item_tax_name' 			=> $q3 ? $q3->tax_name : '',
 							'item_purchase_qty' 		=> 1, 
-							'item_tax_id' 				=> $res1->tax_id, 
-							'item_tax' 					=> $q3->tax, 
+							'item_tax_id' 				=> $tax_id,
+							'item_tax' 					=> $tax_rate,
 							'item_tax_type' 			=> $res1->tax_type, 
 							'item_tax_amt' 				=> $item_tax_amt, 
 							'item_discount' 			=> 0, 
@@ -862,11 +1105,15 @@ class Purchase_model extends CI_Model {
 
 	/* For Purchase Items List Retrieve*/
 	public function return_purchase_list($purchase_id){
+		if (!$this->is_visible_for_current_industry($purchase_id)) return '';
 		$q1=$this->db->select('*')->from('db_purchaseitems')->where("purchase_id=$purchase_id")->get();
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
 			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
-			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+			$tax_id = (int)($res1->tax_id ?? 0);
+			$q3 = $tax_id
+				? $this->db->select('tax_name, tax')->where('id', $tax_id)->get('db_tax')->row()
+				: null;
 			$base_unit = $res2 ? $this->db->select('unit_name, shortcode')->where('id',$res2->unit_id)->get('db_units')->row() : null;
 			$unit_id = (!empty($res1->unit_id)) ? $res1->unit_id : ($res2 ? $res2->unit_id : null);
 			$unit_name = (!empty($res1->unit_name)) ? $res1->unit_name : ($base_unit ? ($base_unit->shortcode ?: $base_unit->unit_name) : '');
@@ -882,10 +1129,10 @@ class Purchase_model extends CI_Model {
 							'item_purchase_unit_id' 	=> $unit_id,
 							'item_purchase_unit_name' 	=> $unit_name,
 							'item_conversion_factor' 	=> $conversion_factor,
-							'item_tax_name' 			=> $q3->tax_name,
+							'item_tax_name' 			=> $q3 ? $q3->tax_name : '',
 							'item_purchase_qty' 		=> $res1->purchase_qty,
-							'item_tax_id' 				=> $res1->tax_id,
-							'item_tax' 					=> $q3->tax,
+							'item_tax_id' 				=> $tax_id,
+							'item_tax' 					=> $q3 ? (float)$q3->tax : 0,
 							'item_tax_type' 			=> $res1->tax_type,
 							'item_tax_amt' 				=> $res1->tax_amt,
 							'item_discount' 			=> $res1->discount_input,
@@ -942,6 +1189,10 @@ class Purchase_model extends CI_Model {
 		$item_conversion_factor = ($item_conversion_factor > 0) ? $item_conversion_factor : 1;
 
 		$store_id = get_current_store_id();
+		// Pharmacy receiving always needs batch/expiry capture for traceability
+		// and FEFO. Keep the section visible even if an older store has stale
+		// feature-flag JSON that reports the pharmacy capability as inactive.
+		$is_pharmacy_store = $this->_is_pharmacy_store($store_id);
 		$unit_options = '';
 		$multi_unit_selling_enabled = mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units');
 		if($multi_unit_selling_enabled && !empty($item_id)){
@@ -1048,11 +1299,11 @@ class Purchase_model extends CI_Model {
                <input type="hidden" id="td_data_<?=$rowcount;?>_10" name="td_data_<?=$rowcount;?>_10" value="<?=store_number_format($item_unit_cost,0);?>">
                <span style="display:none;" id="td_data_<?=$rowcount;?>_15"><?=$item_tax_name;?></span>
 
-               <?php if(mp_feature_enabled('batch_tracking') || $batch_lot || $barcode || $expire_date || $mfg_date || $received_qty || $serial_number || $imei_number){ ?>
-               <button type="button" class="mp-pi-expand"><i class="fa fa-chevron-down"></i> Additional Details</button>
+			   <?php if($is_pharmacy_store || mp_feature_enabled('batch_tracking') || $batch_lot || $barcode || $expire_date || $mfg_date || $received_qty || $serial_number || $imei_number){ ?>
+			   <button type="button" class="mp-pi-expand<?= $is_pharmacy_store ? ' expanded' : ''; ?>"><i class="fa fa-chevron-down"></i> <?= $is_pharmacy_store ? 'Batch / Expiry Details' : 'Additional Details'; ?></button>
 
                <!-- BATCH / RECEIPT ROW -->
-               <div class="mp-pi-advanced" id="row_<?=$rowcount;?>_batch">
+			   <div class="mp-pi-advanced<?= $is_pharmacy_store ? ' expanded' : ''; ?>" id="row_<?=$rowcount;?>_batch">
                   <div class="mp-pi-advanced-grid">
                      <div class="mp-pi-field">
                         <label>Batch/Lot</label>

@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — New Quotation</title>
+  <title><?= $store_name ?? $SITE_TITLE ?? 'MartPoint'; ?> — New Quotation</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -60,6 +60,7 @@
     .topbar .topbar-titles { flex: 1; min-width: 0; }
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
   </style>
+<?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
 <body>
   <div id="app">
@@ -73,6 +74,7 @@
       </div>
 
       <form id="quote-form" onsubmit="return false;">
+<?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'quotation','garden_document_edit'=>!empty($quotation_id)]); ?>
         <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
         <input type="hidden" name="store_id" value="<?= get_current_store_id(); ?>">
         <input type="hidden" name="command" value="<?= $command; ?>">

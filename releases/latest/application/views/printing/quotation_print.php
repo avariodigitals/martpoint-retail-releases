@@ -28,6 +28,7 @@ $accepted = $s['accepted_revision'] !== null && (int)$s['accepted_revision'] ===
 $currency = $CI->currency();
 $pct = rtrim(rtrim(number_format((float)$dep['deposit_percent'], 2, '.', ''), '0'), '.');
 $store = $CI->db->where('id', $store_id)->get('db_store')->row();
+$store = mp_document_store($store, 'db_quotation', $summary['quotation_id']);
 $tax = $tax_summary;
 ?>
 <!DOCTYPE html>

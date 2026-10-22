@@ -321,8 +321,14 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
                 <div class="mp-col-left">
                   <div class="input-group" data-toggle="tooltip" title="Branch">
                     <span class="input-group-addon"><i class="fa fa-building text-red"></i></span>
-                     <select class="form-control select2" id="warehouse_id" name="warehouse_id"  style="width: 100%;"  >
-                          <?= get_warehouse_select_list($warehouse_id,get_current_store_id()); ?>
+                     <select class="form-control select2" id="posOutletSelector" name="warehouse_id"  style="width: 100%;"  >
+                          <?php if (!empty($warehouse_options)): ?>
+                            <?php foreach ($warehouse_options as $outlet): ?>
+                              <option value="<?= (int)$outlet['id']; ?>" <?= (int)$warehouse_id === (int)$outlet['id'] ? 'selected' : ''; ?>><?= htmlspecialchars($outlet['warehouse_name']); ?></option>
+                            <?php endforeach; ?>
+                          <?php else: ?>
+                            <?= get_warehouse_select_list($warehouse_id,get_current_store_id()); ?>
+                          <?php endif; ?>
                       </select>
                   </div>
                   <div class="input-group" data-toggle="tooltip" title="<?= mp_label('customer'); ?>">
@@ -758,7 +764,7 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
 
 
   /*Branch*/
-    $("#warehouse_id").on("change",function(){
+    $("#posOutletSelector").on("change",function(){
       var warehouse_id=$(this).val();
       $(".items_table > tbody").empty();
       get_details(null,true);
@@ -1630,10 +1636,10 @@ $(document).ready(function(){
       /*}*/
       console.log("warehouse = "+result[5]);
       if(warehouse_module){
-        $('#warehouse_id').val(result[5]).select2();
+        $('#posOutletSelector').val(result[5]).select2();
       }
       else{
-        $('#warehouse_id').val(result[5]);
+        $('#posOutletSelector').val(result[5]);
       }
 
       //$('#customer_id').val(result[3]).select2();
@@ -1910,7 +1916,7 @@ function load_next_details(){
 
 function get_details(last_id='',show_only_searched=false){
 
-  warehouse_id = $("#warehouse_id").val();
+  warehouse_id = $("#posOutletSelector").val();
 
   $.ajax({
       url: '<?php echo $base_url; ?>pos/get_details',
@@ -1920,7 +1926,7 @@ function get_details(last_id='',show_only_searched=false){
         customer_id   : $("#customer_id").val(),
         id            : $("#category_id").val(),
         store_id      : $("#store_id").val(),
-        warehouse_id  : $("#warehouse_id").val(),
+        warehouse_id  : $("#posOutletSelector").val(),
         price_type    : $("#price_type").val() || 'retail',
         item_name     : $("#item_name").val(),
         //search_it  : $("#search_it").val(),
@@ -2455,7 +2461,7 @@ $(document).ready(function(){
       url: window.base_url + 'items/sync_items_for_offline',
       method: 'GET',
       dataType: 'json',
-      data: { store_id: $('#store_id').val(), warehouse_id: $('#warehouse_id').val() }
+      data: { store_id: $('#store_id').val(), warehouse_id: $('#posOutletSelector').val() }
     }).then(function(itemRes){
       return MPOfflineDB.saveItems(itemRes);
     }).then(function(itemCount){

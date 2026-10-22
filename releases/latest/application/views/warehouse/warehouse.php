@@ -53,6 +53,12 @@
                                  echo "<input type='hidden' name='store_id' id='store_id' value='".get_current_store_id()."'>";
                                  /*}*/ ?>
                               <!-- Store Code end -->
+                              <div class="form-group"><label for="address" class="col-sm-2 control-label">Branch address</label><div class="col-sm-10"><input class="form-control" id="address" name="address" maxlength="500" value="<?= htmlspecialchars($address ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                              <div class="form-group"><label for="city" class="col-sm-2 control-label">City</label><div class="col-sm-10"><input class="form-control" id="city" name="city" maxlength="100" value="<?= htmlspecialchars($city ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                              <div class="form-group"><label for="state" class="col-sm-2 control-label">State</label><div class="col-sm-10"><input class="form-control" id="state" name="state" maxlength="100" value="<?= htmlspecialchars($state ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                              <div class="form-group"><label for="country" class="col-sm-2 control-label">Country</label><div class="col-sm-10"><input class="form-control" id="country" name="country" maxlength="100" value="<?= htmlspecialchars($country ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                              <div class="form-group"><label for="postcode" class="col-sm-2 control-label">Postcode</label><div class="col-sm-10"><input class="form-control" id="postcode" name="postcode" maxlength="30" value="<?= htmlspecialchars($postcode ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+
                               <div class="form-group">
                                  <label for="warehouse_name" class="col-sm-2 control-label">Branch Name<label class="text-danger">*</label></label>
                                  <div class="col-sm-4">

@@ -100,9 +100,13 @@
 			$data=$this->data;
 			$data['page_title']=$this->lang->line('users_list');
 
-			// Replicate the original user list query
-			if(!is_admin() && !is_store_admin()){
-				$this->db->where(" role_id not in (2)");
+			// The store owner/admin remains fully usable, but is not an
+			// operational staff row and must not appear in tenant user lists.
+			if(!is_admin()){
+				$store_id = get_current_store_id();
+				$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+				$this->db->where_not_in('a.id', get_excluded_user_ids($store_id));
+				$this->db->where_not_in('a.role_id', $owner_roles);
 			}
 			$this->db->select("a.*,b.role_name");
 			$this->db->where("b.id=a.role_id");
@@ -122,12 +126,11 @@
 				$wnames = $wh_q->num_rows()>0 ? array_map(function($w){ return $w->warehouse_name; }, $wh_q->result()) : [];
 				$warehouses = $wnames ? '<span class="label label-info">' . implode('</span> <span class="label label-info">', $wnames) . '</span>' : '<span class="text-muted">-</span>';
 				$store_name = $store_rec ? $store_rec->store_name : '-';
-				$store_admin_badge = ($store_rec && $store_rec->user_id==$res1->id) ? " <span class='label label-success' title='Store Admin'>Store Admin</span>" : '';
 				$row = new stdClass();
 				$row->id = $res1->id;
 				$row->store_name = $store_name;
 				$row->username = $res1->username;
-				$row->full_name = $res1->first_name.' '.$res1->last_name.$store_admin_badge;
+				$row->full_name = $res1->first_name.' '.$res1->last_name;
 				$row->mobile = $res1->mobile;
 				$row->email = $res1->email;
 				$row->role_name = $res1->role_name;

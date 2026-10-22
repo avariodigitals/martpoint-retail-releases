@@ -9,6 +9,17 @@
 			$this->load_global();
 			$this->load->model('warehouse_model','warehouse');
 		}
+        private function render_branch($data, $form) {
+            $data['branch_form'] = $form;
+            if (!empty($data['store_name'])) $data['SITE_TITLE'] = $data['store_name'];
+            if ($this->input->get('screen') === 'mobile') {
+                $this->load->view('mobile/branches', $data);
+                return;
+            }
+            $data['content'] = $this->load->view($form ? 'admin/desktop/crud_form' : 'admin/desktop/crud_list', $data, true);
+            $data['content'] .= $this->load->view('warehouse/screen_mode', [], true);
+            $this->load->view('mp_layout', $data);
+        }
 		public function index(){
 			$this->permission_check('warehouse_view');
 			$data=$this->data;//My_Controller constructor data accessed here
@@ -24,6 +35,7 @@
 				'add_permission' => 'warehouse_add',
 				'columns' => [
 					['title' => $branch_label.' Name', 'field' => 'warehouse_name', 'type' => 'text'],
+					['title' => 'Address', 'field' => 'address', 'type' => 'text'],
 					['title' => 'Mobile', 'field' => 'mobile', 'type' => 'text'],
 					['title' => 'Email', 'field' => 'email', 'type' => 'text'],
 					['title' => 'Status', 'field' => 'status', 'type' => 'status'],
@@ -38,13 +50,18 @@
 				'edit_permission' => 'warehouse_edit',
 				'bulk_delete' => false,
 			];
-			$data['content'] = $this->load->view('admin/desktop/crud_list', $data, TRUE);
-			$this->load->view('mp_layout', $data);
+			$this->render_branch($data, false);
 		}
 		public function save_or_update(){
 			
 			$data=$this->data;//My_Controller constructor data accessed here
-			$this->form_validation->set_rules('warehouse_name', mp_label('warehouse','Branch').' Name', 'required|trim');
+			$this->permission_check($this->input->post('command') === 'save' ? 'warehouse_add' : 'warehouse_edit');
+			$this->form_validation->set_rules('address', 'Branch address', 'trim|max_length[500]');
+			$this->form_validation->set_rules('city', 'Branch city', 'trim|max_length[100]');
+			$this->form_validation->set_rules('state', 'Branch state', 'trim|max_length[100]');
+			$this->form_validation->set_rules('country', 'Branch country', 'trim|max_length[100]');
+			$this->form_validation->set_rules('postcode', 'Branch postcode', 'trim|max_length[30]');
+			$this->form_validation->set_rules('warehouse_name', mp_label('warehouse','Branch').' Name', 'required|trim|max_length[200]');
 			
 			if ($this->form_validation->run() == TRUE) {
 				if($this->input->post('command')=='save'){
@@ -86,11 +103,16 @@
 					['name' => 'warehouse_name', 'label' => $branch_label.' Name', 'type' => 'text', 'required' => true],
 					['name' => 'mobile', 'label' => 'Mobile', 'type' => 'text'],
 					['name' => 'email', 'label' => 'Email', 'type' => 'email'],
+					['name' => 'address', 'label' => 'Branch address', 'type' => 'textarea'],
+					['name' => 'city', 'label' => 'City', 'type' => 'text'],
+					['name' => 'state', 'label' => 'State', 'type' => 'text'],
+					['name' => 'country', 'label' => 'Country', 'type' => 'text'],
+					['name' => 'postcode', 'label' => 'Postcode', 'type' => 'text'],
+
 					['name' => 'command', 'type' => 'hidden'],
 				],
 			];
-			$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
-			$this->load->view('mp_layout', $data);
+			$this->render_branch($data, true);
 		}
 		public function status_update(){
 			$this->permission_check('warehouse_edit');
@@ -119,11 +141,16 @@
 					['name' => 'warehouse_name', 'label' => $branch_label.' Name', 'type' => 'text', 'required' => true],
 					['name' => 'mobile', 'label' => 'Mobile', 'type' => 'text'],
 					['name' => 'email', 'label' => 'Email', 'type' => 'email'],
+					['name' => 'address', 'label' => 'Branch address', 'type' => 'textarea'],
+					['name' => 'city', 'label' => 'City', 'type' => 'text'],
+					['name' => 'state', 'label' => 'State', 'type' => 'text'],
+					['name' => 'country', 'label' => 'Country', 'type' => 'text'],
+					['name' => 'postcode', 'label' => 'Postcode', 'type' => 'text'],
+
 					['name' => 'command', 'type' => 'hidden'],
 				],
 			];
-			$data['content'] = $this->load->view('admin/desktop/crud_form', $data, TRUE);
-			$this->load->view('mp_layout', $data);
+			$this->render_branch($data, true);
 		}
 		public function delete_warehouse(){
 			$this->permission_check('warehouse_delete');

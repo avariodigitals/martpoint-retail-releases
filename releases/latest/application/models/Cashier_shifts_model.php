@@ -152,9 +152,16 @@ class Cashier_shifts_model extends CI_Model {
 			$this->db->select("payment_type, SUM(payment) as amt, COUNT(*) as txn");
 			$this->db->from("db_salespayments");
 			$this->db->where("store_id", $store_id);
-			$this->db->where("created_by", $username);
-			$this->db->where("payment_date >=", $from_date);
-			$this->db->where("payment_date <=", $to_date);
+			if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+				$this->db->group_start()->where('cashier_shift_id', (int)$shift->id)
+					->or_group_start()->where('cashier_shift_id IS NULL', null, false)
+					->where("created_by", $username)->where("payment_date >=", $from_date)
+					->where("payment_date <=", $to_date)->group_end()->group_end();
+			} else {
+				$this->db->where("created_by", $username);
+				$this->db->where("payment_date >=", $from_date);
+				$this->db->where("payment_date <=", $to_date);
+			}
 			$this->db->group_by("payment_type");
 			foreach($this->db->get()->result() as $r){
 				$add_expected($r->payment_type, $r->amt, $affects_of($r->payment_type), $r->txn);
@@ -166,9 +173,16 @@ class Cashier_shifts_model extends CI_Model {
 			$this->db->select("payment_type, SUM(payment) as amt, COUNT(*) as txn");
 			$this->db->from("db_salespaymentsreturn");
 			$this->db->where("store_id", $store_id);
-			$this->db->where("created_by", $username);
-			$this->db->where("payment_date >=", $from_date);
-			$this->db->where("payment_date <=", $to_date);
+			if($this->db->field_exists('cashier_shift_id', 'db_salespaymentsreturn')){
+				$this->db->group_start()->where('cashier_shift_id', (int)$shift->id)
+					->or_group_start()->where('cashier_shift_id IS NULL', null, false)
+					->where("created_by", $username)->where("payment_date >=", $from_date)
+					->where("payment_date <=", $to_date)->group_end()->group_end();
+			} else {
+				$this->db->where("created_by", $username);
+				$this->db->where("payment_date >=", $from_date);
+				$this->db->where("payment_date <=", $to_date);
+			}
 			$this->db->group_by("payment_type");
 			foreach($this->db->get()->result() as $r){
 				$add_expected($r->payment_type, -$r->amt, $affects_of($r->payment_type), 0);
@@ -302,7 +316,14 @@ class Cashier_shifts_model extends CI_Model {
 						stripos($u->role_name, 'Owner') !== false || stripos($u->role_name, 'Manager') !== false);
 					if(!$role_ok){ continue; }
 					$pin_hash = !empty($u->approval_pin) ? $u->approval_pin : $u->password;
-					if(md5($manager_pin) === $pin_hash){
+					// Approval PINs historically used md5, while normal MartPoint
+					// passwords use password_hash(). Accept both formats so a valid
+					// manager credential is not rejected during shift close.
+					$pin_matches = md5($manager_pin) === $pin_hash;
+					if(!$pin_matches && is_string($pin_hash) && strpos($pin_hash, '$2') === 0){
+						$pin_matches = password_verify($manager_pin, $pin_hash);
+					}
+					if($pin_matches){
 						$manager_user_id = $u->id;
 						$manager_username = $u->username;
 						$approval_status = 'approved';
@@ -340,18 +361,21 @@ class Cashier_shifts_model extends CI_Model {
 
 		// Log to approval logs if sign-off happened
 		if($manager_user_id && $this->db->table_exists('db_approval_logs')){
-			$this->db->insert('db_approval_logs', array(
+			$approval_log = array(
 				'store_id'           => $store_id,
 				'action_type'        => 'shift_close',
 				'approval_type'      => 'shift_close',
-				'reference_id'       => $shift_id,
-				'reference_table'    => 'db_cashier_shifts',
 				'requesting_user_id' => $shift->cashier_user_id,
 				'approving_user_id'  => $manager_user_id,
 				'status'             => 'approved',
-				'notes'              => 'Z-Report close signed off: '.$shift->shift_code,
+				'reason'             => 'Z-Report close signed off: '.$shift->shift_code,
+				'new_value'          => json_encode(array('shift_id'=>(int)$shift_id)),
 				'created_at'         => $now,
-			));
+			);
+			if($this->db->field_exists('approved_at', 'db_approval_logs')) $approval_log['approved_at'] = $now;
+			if($this->db->field_exists('requesting_user_name', 'db_approval_logs')) $approval_log['requesting_user_name'] = $shift->cashier_username;
+			if($this->db->field_exists('approving_user_name', 'db_approval_logs')) $approval_log['approving_user_name'] = $manager_username;
+			$this->db->insert('db_approval_logs', $approval_log);
 		}
 
 		// Post closing cash variance adjustment to the till account so account balance = counted
@@ -447,9 +471,13 @@ class Cashier_shifts_model extends CI_Model {
 	/** List active cashiers (users) for the filter dropdown. */
 	public function get_cashiers(){
 		$store_id = get_current_store_id();
+		$excluded_roles = get_excluded_staff_roles($store_id);
 		$this->db->select("u.id, u.username, u.first_name, u.last_name");
 		$this->db->from("db_users u");
+		$this->db->where("u.store_id", $store_id);
 		$this->db->where("u.status", 1);
+		$this->db->where_not_in('u.role_id', $excluded_roles);
+		$this->db->where_not_in('u.id', get_excluded_user_ids($store_id));
 		$this->db->order_by("u.username", "asc");
 		return $this->db->get()->result();
 	}

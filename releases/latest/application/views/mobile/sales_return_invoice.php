@@ -138,6 +138,7 @@
       </div>
 
       <div class="card">
+        <?= mp_document_location_html(mp_document_store(get_store_details(), 'db_salesreturn', $return_id)); ?>
         <div class="card-title">Customer</div>
         <div class="info-block">
           <div class="name"><?= htmlspecialchars($customer_name); ?></div>

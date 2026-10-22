@@ -8,6 +8,19 @@ class Category_model extends CI_Model {
 	var $column_search = array('category_code','category_name','description','status','store_id'); //set column field database for datatable searchable 
 	var $order = array('id' => 'desc'); // default order 
 
+    public function __construct(){parent::__construct();$this->load->model('category_tree_model');}
+    private function hierarchy_write($method){
+        $this->db->trans_begin();$this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',[get_current_store_id()]);$this->category_tree_model->clear();
+        try{$result=$this->$method();if($result==='success'&&$this->db->trans_status())$this->db->trans_commit();else $this->db->trans_rollback();return $result;}catch(Throwable $e){$this->db->trans_rollback();log_message('error','Category save: '.$e->getMessage());return 'Could not save this category.';}
+    }
+    public function verify_and_save(){return $this->hierarchy_write('_verify_and_save');}
+    public function update_category(){return $this->hierarchy_write('_update_category');}
+    private function parent_input($id=0){
+        $sid=get_current_store_id();$parent=$this->input->post('parent_id');
+        if($id){$row=$this->db->where('id',(int)$id)->where('store_id',$sid)->get('db_category')->row();if(!$row)throw new InvalidArgumentException('Category not found.');if($parent===null)$parent=$row->parent_id??0;}
+        return $this->category_tree_model->validate_parent($sid,$id,$parent??0);
+    }
+
 	private function _get_datatables_query()
 	{
 		
@@ -75,12 +88,13 @@ class Category_model extends CI_Model {
 	}
 
 
-	public function verify_and_save(){
+	private function _verify_and_save(){
 		$category = $this->input->post('category', TRUE);
 		$description = $this->input->post('description', TRUE);
+        try{$parent_id=$this->parent_input(isset($q_id)?(int)$q_id:0);}catch(InvalidArgumentException $e){return $e->getMessage();}
 		
 		//Validate This category already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		$store_id=get_current_store_id();
 		$this->db->where("upper(category_name)", strtoupper($category));
 		$this->db->where('store_id', $store_id);
 		$query = $this->db->get('db_category');
@@ -113,6 +127,7 @@ class Category_model extends CI_Model {
 		    				'category_code' 		=> get_init_code('category'), 
 		    				'category_name' 		=> $category,
 		    				'description' 			=> $description,
+                            'parent_id' => $parent_id,
 		    				'category_image' 		=> $category_image,
 			    				'status' 				=> 1,
 		    			);
@@ -120,6 +135,7 @@ class Category_model extends CI_Model {
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
 
 			$q1 = $this->db->insert('db_category', $info);
+			$this->category_tree_model->clear();
 			if ($q1){
 					$this->session->set_flashdata('success', 'Success!! New Category Added Successfully!');
 			        return "success";
@@ -133,7 +149,7 @@ class Category_model extends CI_Model {
 	//Get category_details
 	public function get_details($id,$data){
 		//Validate This category already exist or not
-		$query=$this->db->query("select * from db_category where upper(id)=upper('$id')");
+		$query=$this->db->where('id',(int)$id)->where('store_id',get_current_store_id())->get('db_category');
 		if($query->num_rows()==0){
 			show_404();exit;
 		}
@@ -143,17 +159,20 @@ class Category_model extends CI_Model {
 			$data['category_name']=$query->category_name;
 			$data['description']=$query->description;
 			$data['category_image']=$query->category_image;
+            $data['parent_id']=$query->parent_id??0;
 			$data['store_id']=$query->store_id;
 			return $data;
 		}
 	}
-	public function update_category(){
+	private function _update_category(){
 		$q_id = $this->input->post('q_id', TRUE);
+        $existing=$this->db->where('id',(int)$q_id)->where('store_id',get_current_store_id())->get('db_category')->row();
 		$category = $this->input->post('category', TRUE);
 		$description = $this->input->post('description', TRUE);
+        try{$parent_id=$this->parent_input(isset($q_id)?(int)$q_id:0);}catch(InvalidArgumentException $e){return $e->getMessage();}
 
 		//Validate This category already exist or not
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		$store_id=get_current_store_id();
 		$this->db->where("upper(category_name)", strtoupper($category));
 		$this->db->where("id !=", $q_id);
 		$this->db->where('store_id', $store_id);
@@ -163,7 +182,7 @@ class Category_model extends CI_Model {
 			
 		}
 		else{
-			$category_image='';
+			$category_image=$existing->category_image??'';
 			if(!empty($_FILES['category_image']['name'])){
 				$uploadDir = FCPATH . 'uploads/categories/';
 				if(!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
@@ -185,10 +204,12 @@ class Category_model extends CI_Model {
 			$info = array(
 		    				'category_name' 		=> $category,
 		    				'description' 			=> $description,
+                            'parent_id' => $parent_id,
 		    				'category_image' 		=> $category_image,
 		    			);
 			$info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
-			$q1 = $this->db->where('id',$q_id)->update('db_category', $info);
+			$q1 = $this->db->where('id',$q_id)->where('store_id',get_current_store_id())->update('db_category', $info);
+			$this->category_tree_model->clear();
 			if ($q1){
 					$this->session->set_flashdata('success', 'Success!! Category Updated Successfully!');
 			        return "success";
@@ -207,33 +228,10 @@ class Category_model extends CI_Model {
         }
 	}
 	public function delete_categories_from_table($ids){
-		$tot=$this->db->query('SELECT COUNT(*) AS tot,b.category_name FROM db_items a,`db_category` b WHERE b.id=a.`category_id` AND a.category_id IN ('.$ids.') GROUP BY a.category_id');
-		
-		if($tot->num_rows() > 0){
-			foreach($tot->result() as $res){
-				$category_name[] =$res->category_name;
-			}
-			$list=implode (",",$category_name);
-			echo "Sorry! Can't Delete,<br>Category Name {".$list."} already use in Items!";
-			exit();
-		}
-		else{
-			
-			$this->db->where("id in ($ids)");
-			//if not admin
-			if(!is_admin()){
-				$this->db->where("store_id",get_current_store_id());
-			}
-
-			$query1=$this->db->delete("db_category");
-	        if ($query1){
-	            echo "success";
-	        }
-	        else{
-	            echo "failed";
-	        }	
-		}
-	}
-
-
+        $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',(string)$ids)))));if(!$ids){echo 'No categories selected';return;}$sid=get_current_store_id();
+        if($this->db->where_in('id',$ids)->where('store_id',$sid)->count_all_results('db_category')!==count($ids)){echo 'Category not found';return;}
+        if($this->db->where('store_id',$sid)->where_in('parent_id',$ids)->count_all_results('db_category')){echo 'Move or remove subcategories before deleting their parent.';return;}
+        foreach(['db_items','db_services'] as $table)if($this->db->where('store_id',$sid)->where_in('category_id',$ids)->count_all_results($table)){echo 'This category is used by products or services.';return;}
+        $ok=$this->db->where('store_id',$sid)->where_in('id',$ids)->delete('db_category');$this->category_tree_model->clear();echo $ok?'success':'failed';
+    }
 }

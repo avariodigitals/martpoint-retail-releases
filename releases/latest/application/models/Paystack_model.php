@@ -206,25 +206,41 @@ class Paystack_model extends CI_Model {
 		$sales_id = $paystack_payment->sales_id;
 		if(empty($sales_id)) { return false; }
 
-		// Update the salespayment confirmation status
-		$this->db->where('sales_id', $sales_id)
-				  ->where('payment_type', 'Paystack')
-				  ->where('confirmation_status', 0)
-				  ->update('db_salespayments', array(
-					  'confirmation_status' => 1,
-					  'payment_reference' => $reference,
-					  'confirmed_by' => 'Paystack Webhook',
-					  'confirmed_date' => date('Y-m-d H:i:s')
-				  ));
+		$this->db->trans_begin();
+		try {
+			// Update the salespayment confirmation status
+			$this->db->where('sales_id', $sales_id)
+					  ->where('payment_type', 'Paystack')
+					  ->where('confirmation_status', 0)
+					  ->update('db_salespayments', array(
+						  'confirmation_status' => 1,
+						  'payment_reference' => $reference,
+						  'confirmed_by' => 'Paystack Webhook',
+						  'confirmed_date' => date('Y-m-d H:i:s')
+					  ));
 
-		// Update sales payment status
-		$this->load->model('sales_model');
-		$sales = $this->db->where('id', $sales_id)->get('db_sales')->row();
-		if($sales) {
-			$this->sales_model->update_sales_payment_status($sales_id, $sales->customer_id);
+			// Update sales payment status
+			$this->load->model('sales_model');
+			$sales = $this->db->where('id', $sales_id)->get('db_sales')->row();
+			if(!$sales){
+				$this->db->trans_rollback();
+				return false;
+			}
+			if(!$this->sales_model->update_sales_payment_status($sales_id, $sales->customer_id)){
+				$this->db->trans_rollback();
+				return false;
+			}
+			if($this->db->trans_status() === false){
+				$this->db->trans_rollback();
+				return false;
+			}
+			$this->db->trans_commit();
+			return true;
+		} catch(Throwable $e) {
+			$this->db->trans_rollback();
+			log_message('error', 'Paystack confirmation failed for ' . $reference . ': ' . $e->getMessage());
+			return false;
 		}
-
-		return true;
 	}
 
 	public function get_payment_by_reference($reference)

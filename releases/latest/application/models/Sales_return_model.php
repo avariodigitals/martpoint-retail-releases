@@ -468,6 +468,11 @@ class Sales_return_model extends CI_Model {
 				$salespayments_entry['payment_mode_id'] = $pm_row ? $pm_row->id : null;
 			}
 			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			if($this->db->field_exists('cashier_shift_id', 'db_salespaymentsreturn')){
+				$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+				$open_shift = $this->m3_cashier_shifts->get_open_shift((store_module() && is_admin()) ? $store_id : get_current_store_id(), get_current_user_id());
+				if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+			}
 			$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
 			//echo $account_id;exit;
 			//Set the payment to specified account
@@ -1309,6 +1314,11 @@ class Sales_return_model extends CI_Model {
 				$salespayments_entry['payment_mode_id'] = $pm_row ? $pm_row->id : null;
 			}
 			$salespayments_entry['store_id']=$payment_store_id;
+			if($this->db->field_exists('cashier_shift_id', 'db_salespaymentsreturn')){
+				$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+				$open_shift = $this->m3_cashier_shifts->get_open_shift($payment_store_id, get_current_user_id());
+				if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+			}
 			$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
 			
 			//Set the payment to specified account

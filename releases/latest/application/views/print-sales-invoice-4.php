@@ -61,7 +61,7 @@ body { margin: 5px; }
 <?php
    
     //Current Store Records
-    $store_rec = get_store_details();
+    $store_rec = mp_document_store(get_store_details(), 'db_sales', $sales_id);
     $store_logo=(!empty($store_rec->store_logo)) ? $store_rec->store_logo : store_demo_logo();
 
     //Sales Records
@@ -407,7 +407,7 @@ body { margin: 5px; }
   <tr>
     <td colspan="16">
       <span class='amt-in-word'>
-        <?= $this->lang->line('note') .":<b>". nl2br($sales_rec->sales_note)."</b>";?>
+        <?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8') .":<b>". nl2br(htmlspecialchars($sales_rec->sales_note, ENT_QUOTES, 'UTF-8'))."</b>";?>
     </span>  
     </td>
   </tr>

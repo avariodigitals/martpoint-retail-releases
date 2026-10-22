@@ -665,6 +665,32 @@ subscription to receive updates.';
     }
 
     /**
+     * Replace only the obsolete bundled hostname with this install's real
+     * host. The field is retained for old integrations; never overwrite a
+     * merchant-configured value.
+     */
+    protected function repairLegacyInstallDomain(): void {
+        try {
+            if (!$this->CI->db->table_exists('db_sitesettings')
+                || !$this->CI->db->field_exists('domain', 'db_sitesettings')) {
+                return;
+            }
+            $row = $this->CI->db->select('domain')->where('id', 1)->get('db_sitesettings')->row();
+            if (!$row || strcasecmp(trim((string) $row->domain), 'pointofsale.ozonepos.com') !== 0) {
+                return;
+            }
+            $host = strtolower(trim((string) parse_url(base_url(), PHP_URL_HOST)));
+            if ($host === '' || !preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $host)) {
+                return;
+            }
+            $this->CI->db->where('id', 1)->where('domain', 'pointofsale.ozonepos.com')
+                ->update('db_sitesettings', ['domain' => $host]);
+        } catch (Throwable $e) {
+            log_message('debug', 'Updater could not refresh legacy install domain: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Report this install to the central fleet registry. Fire-and-forget —
      * failures are logged but never affect the caller.
      */
@@ -692,6 +718,7 @@ subscription to receive updates.';
                 || (function_exists('mp_is_vendor_box') && mp_is_vendor_box())) {
                 return;
             }
+            $this->repairLegacyInstallDomain();
             $fleetUrl = $this->getSitesetting('fleet_url');
             if (empty($fleetUrl)) {
                 return;
@@ -771,6 +798,8 @@ subscription to receive updates.';
                     // would keep its old key for ever and then reject every
                     // licence proof, which is HMACed with the current one.
                     $this->adoptFleetSettings($rj);
+                    // Health and automatic private-token enrolment never count as user activity.
+                    try{$this->CI->load->library('Usage_reporter');$this->CI->usage_reporter->reportSystem(base_url());}catch(Throwable $ignored){}
                 } elseif (is_array($rj) && ($rj['status'] ?? '') === 'error'
                     && stripos((string) ($rj['message'] ?? ''), 'fleet key') !== false) {
                     // Rejected outright: re-enrol with our own per-install key.

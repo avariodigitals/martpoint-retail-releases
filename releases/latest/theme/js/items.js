@@ -1,6 +1,7 @@
 $(document).on("click", "#save, #update", function (e) {
 	var base_url=$("#base_url").val();
 	var isPlantItem = $("#items-form").attr('data-plant') === '1';
+	var allowZeroPrices = $("#items-form").attr('data-allow-zero-prices') === '1';
     //Initially flag set true
     var flag=true;
 
@@ -99,11 +100,14 @@ $(document).on("click", "#save, #update", function (e) {
 				bc_mrp_val = parseFloat($bc_mrp.val()) || 0;
 			}
 			// Plant catalogue entries can be priced later on a quotation.
-			if((isPlantItem && (bc_pprice_val < 0 || bc_sprice_val < 0 || bc_mrp_val < 0)) || (!isPlantItem && (bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0))){
+			var pricesInvalid = allowZeroPrices
+				? (bc_pprice_val < 0 || bc_sprice_val < 0 || bc_mrp_val < 0)
+				: (bc_pprice_val <= 0 || bc_sprice_val <= 0 || bc_mrp_val <= 0);
+			if(pricesInvalid){
 				$('#barcode_table_msg').fadeIn(200).show();
-				$('#barcode_table_msg_text').html(isPlantItem ? 'Unit prices cannot be negative.' : ($('#not_for_sale').is(':checked') ? 'Purchase Price (unit cost) is required for the first unit row.' : 'Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.'));
-				if(isPlantItem ? bc_pprice_val < 0 : bc_pprice_val <= 0) $bc_pprice.focus();
-				else if(isPlantItem ? bc_sprice_val < 0 : bc_sprice_val <= 0) $bc_sprice.focus();
+				$('#barcode_table_msg_text').html((isPlantItem || allowZeroPrices) ? 'Unit prices cannot be negative.' : ($('#not_for_sale').is(':checked') ? 'Purchase Price (unit cost) is required for the first unit row.' : 'Purchase Price, Wholesale Price, and Retail Price are required for the first unit row.'));
+				if((isPlantItem || allowZeroPrices) ? bc_pprice_val < 0 : bc_pprice_val <= 0) $bc_pprice.focus();
+				else if((isPlantItem || allowZeroPrices) ? bc_sprice_val < 0 : bc_sprice_val <= 0) $bc_sprice.focus();
 				else $bc_mrp.focus();
 				flag = false;
 			} else {

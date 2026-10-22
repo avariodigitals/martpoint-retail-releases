@@ -38,6 +38,7 @@ th, td {
 
     $q1=$this->db->query("select * from db_store where status=1 and id=".get_current_store_id());
     $res1=$q1->row();
+    $res1 = mp_document_store($res1, 'db_sales', $sales_id);
     $store_name=$res1->store_name;
     $company_mobile=$res1->mobile;
     $company_phone=$res1->phone;
@@ -51,7 +52,7 @@ th, td {
     $store_logo=$res1->store_logo;
     $store_website=$res1->store_website;
 
-    $q4=$this->db->query("select sales_invoice_footer_text from db_store where id=1");
+    $q4=$this->db->query("select sales_invoice_footer_text from db_store where id=".get_current_store_id());
     $res4=$q4->row();
     $sales_invoice_footer_text=$res4->sales_invoice_footer_text;
     

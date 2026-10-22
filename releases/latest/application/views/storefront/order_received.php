@@ -401,5 +401,6 @@
   setTimeout(go, 2500); // fire even if a pixel CDN is slow/blocked
 })();
 </script>
+<?php $this->load->view('themes/shared/legacy_site_links'); ?>
 </body>
 </html>

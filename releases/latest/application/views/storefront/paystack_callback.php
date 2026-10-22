@@ -31,5 +31,6 @@
     <?php endif; ?>
     <a href="<?= base_url(); ?>" class="btn btn-primary">Back to Store</a>
   </div>
+<?php $this->load->view('themes/shared/legacy_site_links'); ?>
 </body>
 </html>

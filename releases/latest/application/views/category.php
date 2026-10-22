@@ -75,6 +75,7 @@ textarea.mp-form-control { min-height: 90px; resize: vertical; }
       <input type="hidden" name="q_id" id="q_id" value="<?php echo $q_id; ?>"/>
       <?php endif; ?>
 
+      <?php $this->load->view('category/parent_picker'); ?>
       <div class="mp-form-grid">
         <div class="mp-form-group">
           <label for="category"><?= $this->lang->line('category_name'); ?> <span class="text-danger">*</span></label>

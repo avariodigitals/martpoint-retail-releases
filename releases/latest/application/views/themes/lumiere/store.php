@@ -93,7 +93,6 @@ $lmPromoIndex = 0;
     if (!is_array($lmPromoCfg)) $lmPromoCfg = [];
     $lmPromoCustom = !empty($lmPromoCfg['title']) || !empty($lmPromoCfg['subtitle']) || !empty($lmPromoCfg['image_url']);
     if (!$lmPromo && !$lmPromoCustom) {
-        if (!isset($lmSections['store_info'])) lm_editorial_section($lmSection, $lmHome);
         break;
     }
     $lmPromoImage = $lmPromo ? lm_banner_image($lmPromo->desktop_image ?? '') : '';

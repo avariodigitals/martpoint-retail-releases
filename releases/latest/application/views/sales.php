@@ -1,5 +1,5 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance();$industry=(mp_get_store_profile()['industry_type'] ?? '');$is_garden_document=$industry==='garden_centre_landscaping';$is_building_document=$industry==='building_materials';$is_clean_document=$is_garden_document || $is_building_document; ?>
 <?php
     if(isset($sales_id)){
 
@@ -120,7 +120,9 @@
 .btn-secondary { background: var(--mp-surface); color: var(--mp-ink); border-color: var(--mp-border); }
 .btn-ghost { background: transparent; color: var(--mp-muted); border-color: var(--mp-border); }
 
-.content { padding: 0; overflow-x: hidden; }
+/* The shared flash-message partial has a full-width floated column.
+   Clear it before establishing the invoice form's formatting context. */
+#sales-editor-content { clear: both; width: 100%; padding: 0; overflow-x: hidden; }
 .invoice-grid {
   display: grid;
   grid-template-columns: 1fr minmax(300px, 360px);
@@ -291,13 +293,14 @@
 
 </style>
 
+<?php if ($is_clean_document): $this->load->view($is_building_document?'building_materials/commercial_style':'garden/document_editor_style'); ?><div class="garden-document-editor<?= $is_building_document?' bm-commercial bm-document-editor':''; ?>" <?= $is_garden_document?'data-garden-document':'data-building-document'; ?>="invoice"><?php endif; ?>
 <div class="mp-section">
   <div class="mp-page-head">
     <div>
-      <h2><?= $page_title; ?></h2>
-      <div class="mp-page-sub"><?= htmlspecialchars($this->session->userdata('store_name') ?: 'MartPoint'); ?> &mdash; <?= isset($sales_id) ? 'Edit Sales Invoice' : 'New Sales Invoice'; ?></div>
+      <?php if ($is_garden_document || $is_building_document): ?><div class="garden-editor-eyebrow">CLIENT BILLING</div><?php endif; ?><h2><?= ($is_garden_document || $is_building_document) ? (isset($sales_id) ? 'Edit invoice' : 'Create invoice') : htmlspecialchars($page_title); ?></h2>
+      <div class="mp-page-sub"><?= ($is_garden_document || $is_building_document) ? 'Bill for agreed work, services and supplied products.' : htmlspecialchars($this->session->userdata('store_name') ?: 'MartPoint').' — '.(isset($sales_id) ? 'Edit Sales Invoice' : 'New Sales Invoice'); ?></div>
     </div>
-    <a href="<?= $base_url; ?>sales" class="mp-qa-btn blue"><i class="fa fa-list"></i> Sales List</a>
+    <a href="<?= $base_url; ?>sales" class="mp-qa-btn blue"><i class="fa fa-list"></i> <?= ($is_garden_document || $is_building_document) ? 'Invoice register' : 'Sales List'; ?></a>
   </div>
 </div>
 <?php include "comman/code_flashdata.php"; ?>
@@ -305,10 +308,11 @@
 <?php include "modals/modal_item.php"; ?>
 <?php include "modals/modal_item_or_service.php"; ?>
 <?php include "modals/modal_sales_item.php"; ?>
-<section class="content">
+<section class="content" id="sales-editor-content">
 <?= form_open('#', array('class' => 'mp-sales-form', 'id' => 'sales-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
 
-                           <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
+                           <?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'invoice','garden_document_edit'=>!empty($sales_id)]); ?>
+<input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
                            <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
                            <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
                            <input type="hidden" value='Final' id="sales_status" name="sales_status">
@@ -323,6 +327,15 @@
 
                           <?php if(isset($quotation_id)) {?>
                            <input type="hidden" id="quotation_id" name="quotation_id" value="<?php echo $quotation_id;; ?>">
+                           <input type="hidden" name="quotation_revision" value="<?= (int)($quotation_revision ?? 0); ?>">
+                           <?php if(!empty($quotation_acceptance_override)): ?>
+                           <div class="alert alert-warning" style="margin:15px 0;">
+                             <label style="font-weight:400;margin:0;display:flex;gap:10px;align-items:flex-start;">
+                               <input type="checkbox" name="quotation_acceptance_override" value="1" style="margin-top:3px;">
+                               <span>I authorise converting this quotation without recorded customer acceptance. A manager override is recorded in the quotation and audit history.</span>
+                             </label>
+                           </div>
+                           <?php endif; ?>
                            <?php } ?>
 
                            
@@ -333,7 +346,7 @@
 
           <!-- Invoice details -->
           <div class="card">
-            <div class="card-title">Invoice Details</div>
+            <div class="card-title"><?= $is_clean_document ? '01 · Client & invoice details' : 'Invoice Details'; ?></div>
             <div class="form-row">
               <div class="form-group wide">
                 <label for="customer_id">Customer</label>
@@ -367,7 +380,7 @@
                 <span id="count_id_msg" style="display:none" class="text-danger"></span>
               </div>
               <div class="form-group">
-                <label for="sales_date">Sales Date</label>
+                <label for="sales_date"><?= ($is_garden_document || $is_building_document) ? 'Invoice date' : 'Sales Date'; ?></label>
                 <div class="input-group">
                   <span class="addon"><i class="fa fa-calendar"></i></span>
                   <input type="text" class="form-control datepicker" id="sales_date" name="sales_date" readonly value="<?= $sales_date; ?>">
@@ -389,7 +402,7 @@
           </div>
 
           <!-- Item search -->
-          <div class="card search-card">
+          <div class="card search-card"><?php if ($is_clean_document): ?><div class="card-title">02 · Work & supplies</div><p class="garden-document-help" style="margin:0 0 16px"><?= $is_building_document?'Add agreed materials, equipment, installation labour and services from your shared catalogue.':'Add services, labour, plants, materials or décor from your shared catalogue.'; ?></p><?php endif; ?>
             <div class="search-row">
               <?php
                 // The Wholesale / Retail price switch is deliberately NOT shown.
@@ -408,7 +421,7 @@
               <input type="hidden" id="price_type" name="price_type" value="<?= (isset($price_type) && $price_type === 'wholesale') ? 'wholesale' : 'retail'; ?>">
               <div class="search-input">
                 <span class="search-icon"><i class="fa fa-search"></i></span>
-                <input type="text" id="item_search" placeholder="Scan barcode, type item name or code..." autocomplete="off">
+                <input type="text" id="item_search" placeholder="<?= $is_clean_document ? 'Find a service, material or product…' : 'Scan barcode, type item name or code...'; ?>" autocomplete="off" aria-label="Find invoice work and supplies">
               </div>
               <button type="button" class="btn-add show_item_service" title="Add Item/Service"><i class="fa fa-plus"></i></button>
             </div>
@@ -419,7 +432,7 @@
             <table class="items-table" id="sales_table">
               <thead>
                 <tr>
-                  <th>Item Name</th>
+                  <th><?= $is_clean_document ? 'Service / supply' : 'Item Name'; ?></th>
                   <th class="num" style="width:90px;">Qty</th>
                   <th class="num" style="width:100px;">Unit Price</th>
                   <th class="num" style="width:90px;">Discount</th>
@@ -432,7 +445,7 @@
                 <tr class="empty-row" id="items_empty_state">
                   <td colspan="7">
                     <span class="empty-icon"><i class="fa fa-shopping-basket"></i></span>
-                    No items added yet. Search or scan a barcode above to start the sale.
+                    <?= $is_clean_document ? 'Your invoice starts here. Add the work and supplies you are billing for.' : 'No items added yet. Search or scan a barcode above to start the sale.'; ?>
                   </td>
                 </tr>
               </tbody>
@@ -458,6 +471,7 @@
           </div>
 
           
+          <?php if ($is_clean_document): ?><details class="garden-editor-more"><summary><?= $is_building_document?'Commercial discounts & adjustments':'Discounts & promotional codes'; ?></summary><?php endif; ?>
           <!-- Discount and Coupon -->
           <div class="card">
             <div class="card-title">Discount & Coupon</div>
@@ -484,12 +498,14 @@
           </div>
 
           <!-- Notes -->
+          <?php if ($is_clean_document): ?></details><?php endif; ?>
           <div class="card">
             <div class="card-title">Invoice Note</div>
             <textarea id="sales_note" name="sales_note" rows="3" placeholder="Internal note for this invoice..."><?= $sales_note; ?></textarea>
           </div>
 
           <!-- Customer Buying Trends -->
+          <?php if ($is_clean_document): ?><details class="garden-editor-more"><summary>Client billing history</summary><?php endif; ?>
           <div class="card trends-card" id="customer-trends-card">
             <div class="card-title">Customer Buying Trends</div>
             <div class="trends-grid">
@@ -528,6 +544,7 @@
             </div>
           </div>
 
+          <?php if ($is_clean_document): ?></details><?php endif; ?>
         </div>
 
         <!-- RIGHT COLUMN -->
@@ -609,7 +626,7 @@ if(isset($sales_id)){
 
           <!-- Payment -->
           <div class="card">
-            <div class="card-title">Payment</div>
+            <div class="card-title"><?= $is_clean_document ? 'Record payment (optional)' : 'Payment'; ?></div><?php if ($is_clean_document): ?><p class="garden-document-help">Enter only money already received. Leave the amount at zero to issue an unpaid invoice.</p><?php endif; ?>
             <div class="payment-fields" style="grid-template-columns: 1fr;">
               <div class="form-group" style="margin:0;">
                 <label for="amount">Amount</label>
@@ -689,7 +706,7 @@ if(isset($sales_id)){
 
           <!-- Actions -->
           <div class="actions">
-            <a href="<?= base_url() ?>dashboard" class="btn btn-ghost close_btn" style="flex:1;text-decoration:none;">Close</a>
+            <a href="<?= base_url($is_clean_document ? 'sales' : 'dashboard'); ?>" class="btn btn-ghost close_btn" style="flex:1;text-decoration:none;">Close</a>
             <button type="button" id="<?= $btn_id; ?>" name="<?= $btn_name; ?>" class="btn btn-primary" style="flex:2;"><?= $btn_name; ?></button>
           </div>
 
@@ -698,6 +715,7 @@ if(isset($sales_id)){
     
 <?= form_close(); ?>
 </section>
+<?php if ($is_clean_document): ?></div><?php endif; ?>
 
 <?php include "comman/code_js_sound.php"; ?>
 
@@ -749,7 +767,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
     return (walkin_customer_id && cid == walkin_customer_id);
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=2"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=14"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
 <script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
       <script>
@@ -1066,7 +1084,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
            
          $("#row_"+id).remove();
          if($("#sales_table tbody tr:not(.empty-row)").length === 0){
-           $("#sales_table tbody").append('<tr class="empty-row" id="items_empty_state"><td colspan="7"><span class="empty-icon"><i class="fa fa-shopping-basket"></i></span>No items added yet. Search or scan a barcode above to start the sale.</td></tr>');
+           $("#sales_table tbody").append('<tr class="empty-row" id="items_empty_state"><td colspan="7"><span class="empty-icon"><i class="fa fa-shopping-basket"></i></span><?= $is_clean_document ? 'Your invoice starts here. Add the work and supplies you are billing for.' : 'No items added yet. Search or scan a barcode above to start the sale.'; ?></td></tr>');
          }
          final_total();
          failed.currentTime = 0;

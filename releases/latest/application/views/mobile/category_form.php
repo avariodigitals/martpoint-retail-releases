@@ -6,7 +6,7 @@
   <meta http-equiv='Pragma' content='no-cache'>
   <meta http-equiv='Expires' content='0'>
   <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'>
-  <title><?= $SITE_TITLE ?? 'MartPoint'; ?> — Add Category</title>
+  <title><?= $store_name ?? $SITE_TITLE ?? 'MartPoint'; ?> — <?= htmlspecialchars($page_title??'Add Category'); ?></title>
   <link rel='preconnect' href='https://fonts.googleapis.com'>
   <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' rel='stylesheet'>
   <link rel='stylesheet' href='<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css'>
@@ -46,16 +46,16 @@
         <a href='<?= base_url('mobile/more'); ?>' class='back'><i class='fa fa-chevron-left'></i></a>
         <div class='topbar-titles'>
           <div class='store-name'><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
-          <h1>Add Category</h1>
+          <h1><?= htmlspecialchars($page_title??'Add Category'); ?></h1>
         </div>
       </div>
 
       <form id='category-form' action='<?= base_url('mobile/save_category'); ?>' method='post' enctype='multipart/form-data'>
-        <input type='hidden' name='<?= $this->security->get_csrf_token_name(); ?>' value='<?= $this->security->get_csrf_hash(); ?>'>
+        <input type="hidden" name="q_id" value="<?= (int)($q_id??0); ?>"><input type='hidden' name='<?= $this->security->get_csrf_token_name(); ?>' value='<?= $this->security->get_csrf_hash(); ?>'>
 
         <div class='card'>
           <div class='form-group'>
-            <label>Category Name <span class='req'>*</span></label>
+            <?php $this->load->view('category/parent_picker'); ?><label>Category Name <span class='req'>*</span></label>
             <input type='text' name='category' id='category' value='<?= htmlspecialchars($category_name); ?>' placeholder='e.g. Beverages, Electronics' required>
           </div>
           <div class='form-group'>

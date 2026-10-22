@@ -10,13 +10,15 @@
  * Optional: $intel_title    heading text (defaults to "Intelligence Report")
  *           $intel_subtitle short line under the heading
  *
- * The card is skipped entirely when there is nothing to say. An empty
+ * Optional: $intel_empty_message shows a persistent empty state when supplied.
+ * The card is otherwise skipped entirely when there is nothing to say. An empty
  * "Intelligence" panel trains the owner to ignore it, which defeats the point
  * of the whole feature — so silence is preferred to a placeholder.
  */
-if (empty($intel) || !is_array($intel)) {
+if ((empty($intel) || !is_array($intel)) && empty($intel_empty_message)) {
     return;
 }
+$intel=is_array($intel ?? null) ? $intel : [];
 
 $intel_title    = $intel_title    ?? 'Intelligence Report';
 $intel_subtitle = $intel_subtitle ?? 'Drawn from your own records — what needs attention, and what is trending.';
@@ -36,12 +38,13 @@ $intel_tone = function ($tone) {
   <div class="mp-card">
     <div class="mp-card-head">
       <h3><i class="fa fa-lightbulb-o" style="color:#B45309;"></i> <?= htmlspecialchars($intel_title); ?></h3>
-      <span class="mp-card-link" style="cursor:default;"><?= count($intel); ?> insight<?= count($intel) === 1 ? '' : 's'; ?></span>
+      <span class="mp-card-link" style="cursor:default;"><?= $intel ? count($intel).' insight'.(count($intel)===1 ? '' : 's') : 'No insights yet'; ?></span>
     </div>
     <div class="mp-card-body" style="padding:4px 0 0;">
       <?php if (!empty($intel_subtitle)): ?>
       <div style="padding:0 20px 10px;font-size:12.5px;color:#64748B;line-height:1.5;"><?= htmlspecialchars($intel_subtitle); ?></div>
       <?php endif; ?>
+      <?php if (!$intel && !empty($intel_empty_message)): ?><p style="padding:12px 20px 20px;margin:0;font-size:13px;color:#64748B;"><?= htmlspecialchars($intel_empty_message); ?></p><?php endif; ?>
       <?php foreach ($intel as $item):
         [$fg, $bg] = $intel_tone($item['tone'] ?? 'info');
         $action = $item['action'] ?? null;
