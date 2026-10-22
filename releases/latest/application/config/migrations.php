@@ -446,4 +446,8 @@ return [
 		  // The SQL marker is intentionally a no-op; the repair is in the PHP
 		  // payload and must still advance existing stores past .189.
 		  '4.0.9.190v' => '4.0.9.190_category_tree_release_repair.sql',
+		  // .191 hardens POS startup for legacy fleets whose optional tables or
+		  // newer item columns are not installed yet. Runtime guards are in the
+		  // PHP payload; this marker delivers them through the normal updater.
+		  '4.0.9.191v' => '4.0.9.191_pos_legacy_compatibility.sql',
 ];

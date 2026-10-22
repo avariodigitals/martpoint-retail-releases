@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.190';
+    return '4.0.9.191';
   }
   function required_php_version(){
     return 7.4;
@@ -784,20 +784,32 @@
     // called while another Query Builder statement is being assembled; using
     // the shared builder would leak its SELECT/FROM/WHERE state into these
     // owner lookups and can turn a normal page into a 500.
-    $store = $CI->db->query(
-      'SELECT user_id FROM db_store WHERE id = ? LIMIT 1',
-      array($store_id)
-    )->row();
+    // Some older fleets do not have the owner link yet. More importantly,
+    // never call row() on a failed query here: this helper is used while the
+    // POS shell is being rendered, so a compatibility lookup must not turn a
+    // missing legacy column into a site-wide 500.
+    $store = null;
+    if($CI->db->table_exists('db_store') && $CI->db->field_exists('user_id', 'db_store')){
+      $storeQuery = $CI->db->query(
+        'SELECT user_id FROM db_store WHERE id = ? LIMIT 1',
+        array($store_id)
+      );
+      $store = $storeQuery ? $storeQuery->row() : null;
+    }
     if($store && !empty($store->user_id)){
       $ids[] = (int) $store->user_id;
     }
 
     $role_ids = store_owner_role_ids($store_id);
     if(!empty($role_ids)){
-      $owners = $CI->db->query(
-        'SELECT id FROM db_users WHERE store_id = ? AND role_id IN ('.implode(',', array_map('intval', $role_ids)).')',
-        array($store_id)
-      )->result();
+      $owners = array();
+      if($CI->db->table_exists('db_users') && $CI->db->field_exists('role_id', 'db_users')){
+        $ownerQuery = $CI->db->query(
+          'SELECT id FROM db_users WHERE store_id = ? AND role_id IN ('.implode(',', array_map('intval', $role_ids)).')',
+          array($store_id)
+        );
+        $owners = $ownerQuery ? $ownerQuery->result() : array();
+      }
       foreach($owners as $owner){
         $ids[] = (int) $owner->id;
       }

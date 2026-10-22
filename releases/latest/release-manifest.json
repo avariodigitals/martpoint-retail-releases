@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.190",
+    "version": "4.0.9.191",
     "previous_version": "4.0.9.154",
     "release_date": "2026-10-22",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -5326,8 +5326,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "22aa1b3ee7f60f65da6fd743fd4a9d18c95957fd0e48e816f2ec6f72f98bd342",
-            "size": 28389
+            "hash": "6b7aca17642d78e2740a05f18d4a18dc43802df6a29cb5907a1e91445c70d395",
+            "size": 28675
         },
         {
             "path": "application/config/routes.php",
@@ -6241,8 +6241,8 @@
         },
         {
             "path": "application/models/Expiry_settings_model.php",
-            "hash": "9c0bd97b13be64cfe2c75d71caf46e42de736ea7cecdd62c0c5d9e635b9580c9",
-            "size": 4175
+            "hash": "1e237b18b72f1da6f9a076c75f3a3bc61207c42764b9ce06a5c8fff7e8c45744",
+            "size": 4495
         },
         {
             "path": "application/language/Kannada/Kannada_lang.php",
@@ -6841,8 +6841,8 @@
         },
         {
             "path": "application/controllers/Pos.php",
-            "hash": "e8507299641f97476524df5f90a69105e8565be3d09c79ba68556452c53a3ebd",
-            "size": 33411
+            "hash": "31e0a6c8d27e608da1d5d8890f9593b11c7d8c457585a410964e8f5662aaff99",
+            "size": 35007
         },
         {
             "path": "application/controllers/Services.php",
@@ -11396,8 +11396,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "7f5f3002de9a953ad2bd1d461ef258817ecc8880fd126f6ea9ace7b9beba61b1",
-            "size": 118773
+            "hash": "4aae7489857f0d6c1cb74a59da2107996f04d87ed90ac5a485d29c9b552c2d9a",
+            "size": 119426
         },
         {
             "path": "application/helpers/document_signature_helper.php",
@@ -17922,6 +17922,7 @@
         "4.0.9.188_storefront_footer_logo.sql",
         "4.0.9.189_sale_stock_labels.sql",
         "4.0.9.190_category_tree_release_repair.sql",
+        "4.0.9.191_pos_legacy_compatibility.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
         "4.0.9.24_audit_trail.sql",
@@ -18009,6 +18010,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "1b9fec5b1a76d8dd4b76e31fa26e074a2174e7ed706579f8521d43a9db52477c5e7bacb32f1a8124a31e164051add4ae465ecde17008b01df1be1cd6ef888a05",
-    "changelog": "Release 4.0.9.190"
+    "signature": "67a9a8a19602cdf54fa52ab2dbfefd8fc65cdde74010b1ec6a331fbc41589d4d49cdbbff4eee7386f343d3a4e40c916e62d4d0458ecd65f91542bce4be04290a",
+    "changelog": "Release 4.0.9.191"
 }

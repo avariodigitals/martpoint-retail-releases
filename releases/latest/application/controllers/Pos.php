@@ -126,8 +126,14 @@ class Pos extends MY_Controller {
 		$excluded_roles = get_excluded_staff_roles(get_current_store_id());
 		$excluded_users = get_excluded_user_ids(get_current_store_id());
 		$data['staff_list'] = $this->db->where('status', 1)->where('store_id', get_current_store_id())->where_not_in('role_id', $excluded_roles)->where_not_in('id', $excluded_users)->get('db_users')->result();
-		// Service-to-staff mapping for POS staff assignment dropdown filtering
-		$service_staff = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_service_staff')->result();
+			// Service-to-staff mapping for POS staff assignment dropdown filtering.
+			// This table is an optional extension and is absent on some older
+			// fleets; POS must still open when that extension is not installed.
+			$service_staff = [];
+			if($this->db->table_exists('db_service_staff')){
+				$serviceStaffQuery = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_service_staff');
+				$service_staff = $serviceStaffQuery ? $serviceStaffQuery->result() : [];
+			}
 		$service_staff_map = [];
 		foreach ($service_staff as $ss) {
 			$service_staff_map[$ss->service_id][] = $ss->staff_id;
@@ -147,20 +153,43 @@ class Pos extends MY_Controller {
 		$expiry_settings = $this->expiry_settings_model->get_settings($store_id);
 		$data['stop_selling_expired'] = (int) ($expiry_settings->stop_selling_expired ?? 1);
 		$today = date('Y-m-d');
-		$products_query = $this->db->query("
-			SELECT a.id, a.item_name AS name, COALESCE(NULLIF(a.mrp,0), a.sales_price) AS price,
-			       a.sales_price AS wholesale, a.mrp, a.online_price, a.discount_type, a.discount,
+			// Optional item columns were introduced over several releases. Build
+			// the select from the columns that actually exist so an older fleet
+			// can still open the till while it is waiting for its next migration.
+			$itemFields = array_flip((array) $this->db->list_fields('db_items'));
+			$itemColumn = function($name, $fallback) use ($itemFields){
+				return isset($itemFields[$name]) ? 'a.'. $name : $fallback;
+			};
+			$mrp = $itemColumn('mrp', '0');
+			$onlinePrice = $itemColumn('online_price', 'NULL');
+			$discountType = $itemColumn('discount_type', "'Percentage'");
+			$discount = $itemColumn('discount', '0');
+			$notForSale = $itemColumn('not_for_sale', '0');
+			$childBit = $itemColumn('child_bit', '0');
+			$parentId = $itemColumn('parent_id', 'NULL');
+			$expireDate = $itemColumn('expire_date', 'NULL');
+			$batchLot = $itemColumn('batch_lot', 'NULL');
+			$weightEnabled = $itemColumn('weight_pricing_enabled', '0');
+			$weightBase = $itemColumn('weight_pricing_base_kg', '1');
+			$weightIncrement = $itemColumn('weight_pricing_increment_kg', '0.05');
+			$weightCharge = $itemColumn('weight_pricing_increment_charge', '0');
+			$variantCondition = isset($itemFields['parent_id'])
+				? "($childBit = 1 OR (($childBit = 0 OR $childBit IS NULL) AND $parentId IS NULL AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id)))"
+				: "($childBit = 1 OR $childBit IS NULL OR $childBit = 0)";
+			$products_query = $this->db->query("
+				SELECT a.id, a.item_name AS name, COALESCE(NULLIF($mrp,0), a.sales_price) AS price,
+			       a.sales_price AS wholesale, $mrp AS mrp, $onlinePrice AS online_price, $discountType AS discount_type, $discount AS discount,
 			       c.category_name AS category,
 			       a.category_id, a.brand_id, a.sku, a.item_code, u.unit_name AS unit,
 			       COALESCE(a.alert_qty, 0) AS alert_qty,
-			       a.tax_id, a.tax_type, a.weight_pricing_enabled, a.weight_pricing_base_kg,
-			       a.weight_pricing_increment_kg, a.weight_pricing_increment_charge,
+			       a.tax_id, a.tax_type, $weightEnabled AS weight_pricing_enabled, $weightBase AS weight_pricing_base_kg,
+			       $weightIncrement AS weight_pricing_increment_kg, $weightCharge AS weight_pricing_increment_charge,
 			       IF(a.tax_id > 0, 1, 0) AS tax,
 			       a.item_image AS image,
 			       a.item_group,
-			       a.parent_id,
-			       a.expire_date,
-			       a.batch_lot,
+			       $parentId AS parent_id,
+			       $expireDate AS expire_date,
+			       $batchLot AS batch_lot,
 			       b.tax AS tax_value
 			FROM db_items a
 			LEFT JOIN db_tax b ON b.id = a.tax_id
@@ -169,18 +198,11 @@ class Pos extends MY_Controller {
 			WHERE a.store_id = ?
 			  AND a.status = 1
 			  AND a.service_bit != 1
-			  AND (a.not_for_sale IS NULL OR a.not_for_sale = 0)
-			  AND (
-			    -- Variant children (sellable, have own price/stock)
-			    a.child_bit = 1
-			    OR
-			    -- Single items with no children (not a variant parent container)
-			    ((a.child_bit = 0 OR a.child_bit IS NULL) AND a.parent_id IS NULL
-			     AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id))
-			  )
+			  AND ($notForSale IS NULL OR $notForSale = 0)
+			  AND $variantCondition
 			ORDER BY a.item_name
 		", [$store_id]);
-		$products = $products_query->result_array();
+			$products = $products_query ? $products_query->result_array() : [];
 
 		// Restaurant POS must sell from the operator's selected outlet. Keep the
 		// selection tenant-scoped and server-validated; never accept a warehouse
@@ -264,7 +286,7 @@ class Pos extends MY_Controller {
 			$p['weight_pricing_increment_charge'] = (float)($p['weight_pricing_increment_charge'] ?? 0);
 			$p['parent_id'] = isset($p['parent_id']) ? (int) $p['parent_id'] : null;
 			// Add stock information
-			$p['stock'] = (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']);
+				$p['stock'] = $warehouse_id > 0 ? (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']) : 0;
 			$p['outOfStock'] = $p['stock'] <= 0;
 			$p['alert_qty'] = (int) ($p['alert_qty'] ?? 0);
 			// Prefer barcode/batch expiry over item-level expiry

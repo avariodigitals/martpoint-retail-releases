@@ -5,7 +5,14 @@ class Expiry_settings_model extends CI_Model {
 
 	public function get_settings($store_id = null) {
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
-		$row = $this->db->where('store_id', $store_id)->get('db_expiry_settings')->row();
+		// Expiry settings are an optional extension on older fleets. POS only
+		// needs safe defaults when the table has not been installed yet; it must
+		// not fail the whole till while waiting for the migration.
+		$row = null;
+		if($this->db->table_exists('db_expiry_settings')){
+			$query = $this->db->where('store_id', $store_id)->get('db_expiry_settings');
+			$row = $query ? $query->row() : null;
+		}
 		if(!$row) {
 			// Return defaults
 			$row = new stdClass();
