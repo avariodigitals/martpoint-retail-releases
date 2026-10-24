@@ -186,6 +186,74 @@ class Items_model extends CI_Model {
 		return array_intersect_key($data, $this->_db_items_columns);
 	}
 
+	/** Save extra storefront gallery photos without changing db_items.item_image. */
+	private function save_product_gallery($item_id, $store_id, &$new_files, &$deleted_files)
+	{
+		if (!$this->db->table_exists('db_item_images') || !$item_id) return true;
+		$item = $this->db->where('id', (int)$item_id)->where('store_id', (int)$store_id)->get('db_items')->row();
+		if (!$item) return 'Product was not found in this store.';
+
+		$delete_ids = $this->input->post('gallery_delete_ids');
+		if (!is_array($delete_ids)) $delete_ids = [];
+		foreach (array_unique(array_map('intval', $delete_ids)) as $image_id) {
+			if ($image_id < 1) continue;
+			$existing = $this->db->where('id', $image_id)->where('store_id', (int)$store_id)
+				->where('item_id', (int)$item_id)->get('db_item_images')->row();
+			if ($existing) {
+				$deleted_files[] = $existing->image_path;
+				$this->db->where('id', $image_id)->where('store_id', (int)$store_id)
+					->where('item_id', (int)$item_id)->delete('db_item_images');
+			}
+		}
+
+		if (empty($_FILES['item_gallery']) || empty($_FILES['item_gallery']['name'])) return true;
+		$files = $_FILES['item_gallery'];
+		$names = is_array($files['name']) ? array_values(array_filter($files['name'], 'strlen')) : [$files['name']];
+		if (!$names) return true;
+		$current_count = (int)$this->db->where('store_id', (int)$store_id)->where('item_id', (int)$item_id)->count_all_results('db_item_images');
+		if ($current_count + count($names) > 8) return 'A product can have at most 8 gallery photos. Remove a photo or choose fewer files.';
+
+		$directory = FCPATH . 'uploads/items/gallery/' . (int)$store_id . '/';
+		if (!is_dir($directory) && !@mkdir($directory, 0755, true)) return 'Could not prepare the product gallery folder.';
+		$allowed = ['jpg', 'jpeg', 'png', 'webp', 'avif'];
+		$position = $current_count;
+		for ($i = 0; $i < count($files['name']); $i++) {
+			if (empty($files['name'][$i])) continue;
+			$_FILES['__item_gallery_one'] = [
+				'name' => $files['name'][$i], 'type' => $files['type'][$i] ?? '',
+				'tmp_name' => $files['tmp_name'][$i] ?? '', 'error' => $files['error'][$i] ?? UPLOAD_ERR_NO_FILE,
+				'size' => $files['size'][$i] ?? 0,
+			];
+			$extension = strtolower(pathinfo($_FILES['__item_gallery_one']['name'], PATHINFO_EXTENSION));
+			if (!in_array($extension, $allowed, true)) {
+				unset($_FILES['__item_gallery_one']);
+				return 'Gallery photos must be JPG, PNG, WEBP or AVIF.';
+			}
+			$config = [
+				'upload_path' => $directory, 'allowed_types' => 'jpg|jpeg|png|webp|avif',
+				'max_size' => 3072, 'max_width' => 5000, 'max_height' => 5000,
+				'encrypt_name' => true, 'file_ext_tolower' => true, 'remove_spaces' => true,
+			];
+			$this->load->library('upload');
+			$this->upload->initialize($config, true);
+			if (!$this->upload->do_upload('__item_gallery_one')) {
+				$error = strip_tags($this->upload->display_errors('', ''));
+				unset($_FILES['__item_gallery_one']);
+				return 'Gallery photo upload failed: ' . $error;
+			}
+			$upload = $this->upload->data();
+			$relative_path = 'uploads/items/gallery/' . (int)$store_id . '/' . basename($upload['file_name']);
+			$new_files[] = $relative_path;
+			$ok = $this->db->insert('db_item_images', [
+				'store_id' => (int)$store_id, 'item_id' => (int)$item_id,
+				'image_path' => $relative_path, 'sort_order' => $position++, 'created_at' => date('Y-m-d H:i:s'),
+			]);
+			unset($_FILES['__item_gallery_one']);
+			if (!$ok) return 'Could not save the gallery photo record.';
+		}
+		return true;
+	}
+
 	//Save Record
 	public function save_record($modal_post=array()){
 		$item_code = $this->input->post('item_code', TRUE);
@@ -919,8 +987,22 @@ class Items_model extends CI_Model {
 			}//existing_row_count END
 		}//Variant END
 
+		$gallery_new_files = [];
+		$gallery_deleted_files = [];
+		if ($query1 && $barcode_save_ok) {
+			$gallery_result = $this->save_product_gallery($item_id ?? $q_id, $store_id, $gallery_new_files, $gallery_deleted_files);
+			if ($gallery_result !== true) {
+				$this->db->trans_rollback();
+				foreach ($gallery_new_files as $path) { if (is_file(FCPATH . $path)) @unlink(FCPATH . $path); }
+				return $gallery_result;
+			}
+		}
 		if ($query1 && $barcode_save_ok){
 				$this->db->trans_commit();
+				foreach ($gallery_deleted_files as $path) {
+					$full_path = FCPATH . ltrim(str_replace('..', '', (string)$path), '/\\');
+					if (strpos($full_path, FCPATH . 'uploads/items/gallery/') === 0 && is_file($full_path)) @unlink($full_path);
+				}
 				if ($command=='save') {
 					@$this->session->set_flashdata('success', 'Success!! New Item Added Successfully!');
 				}
@@ -932,6 +1014,7 @@ class Items_model extends CI_Model {
 		}
 		else{
 				$this->db->trans_rollback();
+				foreach ($gallery_new_files as $path) { if (is_file(FCPATH . $path)) @unlink(FCPATH . $path); }
 				//unlink('uploads/items/'.$file_name);
 				$error = $this->db->error();
 				$msg = isset($barcode_error_msg) ? $barcode_error_msg : "failed";

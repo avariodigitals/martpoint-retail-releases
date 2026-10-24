@@ -463,4 +463,8 @@ return [
 		  // .196 corrects the legacy seeded install hostname at the client on
 		  // its next authenticated heartbeat; no database schema change.
 		  '4.0.9.196v' => '4.0.9.196_legacy_install_domain_cleanup.sql',
+		  // .197 shares products and renders shared footer branding across themes.
+		  '4.0.9.197v' => '4.0.9.197_storefront_product_share.sql',
+		  // .198 adds store-scoped optional product gallery photos.
+		  '4.0.9.198v' => '4.0.9.198_storefront_product_gallery.sql',
 ];

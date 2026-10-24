@@ -602,6 +602,9 @@ class Theme_engine {
             'theme_key' => $themeKey,
             'logo_url' => $this->logoUrl()
         ]);
+        if ($view === 'product_detail' && !empty($merged['product']->id) && $this->CI->db->table_exists('db_item_images')) {
+            $merged['product_gallery_images'] = $this->CI->db->where('store_id', (int)$this->settings->store_id)->where('item_id', (int)$merged['product']->id)->order_by('sort_order', 'ASC')->order_by('id', 'ASC')->get('db_item_images')->result();
+        } else { $merged['product_gallery_images'] = []; }
         $merged = $this->withProductImageFallbacks($merged);
 
         // Uploaded HTML themes are rendered as inert template text. They do
@@ -614,6 +617,30 @@ class Theme_engine {
             $merged['html_theme_primary'] = $this->resolveBrandColor('primary');
             $merged['html_theme_secondary'] = $this->resolveBrandColor('secondary');
             $html = $this->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => (bool)$this->CI->input->get('mp_theme_preview') || !empty($data['html_theme_preview'])]);
+            require_once APPPATH . 'helpers/storefront_footer_helper.php';
+            if (in_array($view, $htmlThemeViews, true)) {
+                $footerBits = '';
+                $footerLogo = mp_storefront_footer_logo_url($this->settings, $this->logoUrl());
+                if ($footerLogo !== '') $footerBits .= '<img src="' . htmlspecialchars($footerLogo, ENT_QUOTES, 'UTF-8') . '" alt="Store footer logo" style="display:block;width:auto;height:auto;max-width:180px;max-height:54px;object-fit:contain;margin:12px auto;background:#fff;padding:6px 10px;border-radius:6px">';
+                if (mp_storefront_show_powered_by($this->settings) && stripos($html, 'Powered by MartPoint') === false) $footerBits .= '<span class="mp-html-powered-by" style="display:block;margin-top:8px;text-align:center;font-size:12px;opacity:.75">Powered by MartPoint</span>';
+                if ($footerBits !== '') {
+                    if (preg_match('~<footer\\b[^>]*>~i', $html)) $html = preg_replace('~(<footer\\b[^>]*>)~i', '$1' . $footerBits, $html, 1);
+                    elseif (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', '<footer class="mp-html-store-credits">' . $footerBits . '</footer></body>', $html, 1);
+                    else $html .= '<footer class="mp-html-store-credits">' . $footerBits . '</footer>';
+                }
+            }
+            if ($view === 'product_detail' && !empty($merged['product']->id)) {
+                $gallery = $this->CI->load->view('themes/shared/product_gallery', $merged, true);
+                if ($gallery !== '') {
+                    if (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $gallery . "\n</body>", $html, 1); else $html .= $gallery;
+                }
+                $share = $this->CI->load->view('themes/shared/product_share', $merged, true);
+                if ($share !== '') {
+                    if (preg_match('~<footer\\b~i', $html)) $html = preg_replace('~<footer\\b~i', $share . "\\n<footer", $html, 1);
+                    elseif (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $share . "\\n</body>", $html, 1);
+                    else $html .= $share;
+                }
+            }
             if($return) return $html;
             echo $html;
             return null;
@@ -711,6 +738,10 @@ class Theme_engine {
             if($view==='product_detail' && $merged['garden_product_experience']) {$merged['public_branches']=$this->branches();$merged['product_checkout_supported']=!$isPrintDesign;}
             // Buffer content for layout wrapping
             $merged['content'] = $this->CI->load->view($viewPath, $merged, true);
+            if ($view === 'product_detail' && !empty($merged['product']->id)) {
+                $merged['content'] .= $this->CI->load->view('themes/shared/product_gallery', $merged, true);
+                $merged['content'] .= $this->CI->load->view('themes/shared/product_share', $merged, true);
+            }
             if($view==='product_detail' && $merged['garden_product_experience']) $merged['content'].=$this->CI->load->view('themes/shared/product_experience',$merged,true);
             $merged['footer_site_links']=$this->CI->load->view('themes/shared/site_links',$merged,true);
             $merged['category_navigation_route']=!empty($merged['sells_products'])?'products':'services';

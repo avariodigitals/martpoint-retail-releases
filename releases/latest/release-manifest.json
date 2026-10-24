@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.196",
-    "previous_version": "4.0.9.154",
-    "release_date": "2026-10-22",
+    "version": "4.0.9.198",
+    "previous_version": "4.0.9.194",
+    "release_date": "2026-10-24",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -831,8 +831,8 @@
         },
         {
             "path": "application/views/themes/building_materials_base/footer.php",
-            "hash": "0d20e1690853896254c06ac77c27ad429f0b256da67205b4ecd81efd2ac5b6a5",
-            "size": 3519
+            "hash": "e0af27563a41f3a52620a26f18ba97992f870a7d5c1f172a8ff0b8092f166bda",
+            "size": 4168
         },
         {
             "path": "application/views/themes/building_materials_base/_home_components.php",
@@ -1206,8 +1206,8 @@
         },
         {
             "path": "application/views/themes/botanical_elegance/footer.php",
-            "hash": "5acb52878ca3fd2c007e7185cb3660d759b32b9598987151fec4cec8510ad379",
-            "size": 4340
+            "hash": "39b412a461f1256826774a619a918c5f985326127986baaa97f95d7ec624c6cb",
+            "size": 4935
         },
         {
             "path": "application/views/themes/botanical_elegance/account.php",
@@ -1461,8 +1461,8 @@
         },
         {
             "path": "application/views/themes/skinora/footer.php",
-            "hash": "42e835ac1087d82a4f8d39c4bd7a5489df1074f6142f52f2a99eb6b62cbbc1d9",
-            "size": 7158
+            "hash": "3995cd9d1833f9c1840cc8be42890e87ded0b561042f62bbeaf1fa81378e7c54",
+            "size": 7422
         },
         {
             "path": "application/views/themes/beauty_luxe/home.php",
@@ -1486,8 +1486,8 @@
         },
         {
             "path": "application/views/themes/creator_focus/_footer.php",
-            "hash": "02fe69a84bb22b3900f5793d1efef78f00c4fef2e9a4ddb938c6c455f6779a2e",
-            "size": 4531
+            "hash": "6ce6e7f204b22e1a0fa52707885bcd99110bbe41d902f4a0688c8ddf5b1e3945",
+            "size": 5111
         },
         {
             "path": "application/views/themes/creator_focus/store.php",
@@ -1541,8 +1541,8 @@
         },
         {
             "path": "application/views/themes/skin_core/footer.php",
-            "hash": "c5e29c07790e2e715ad9acadfd30201fe989816abbfeb3ba76b2972616710586",
-            "size": 2638
+            "hash": "6577b2fb8d9903ee0aa284b16a1d3a25e5d7cdc6f1c03ad19325625417e26f2c",
+            "size": 3280
         },
         {
             "path": "application/views/themes/skin_core/reference_store.php",
@@ -1810,6 +1810,11 @@
             "size": 3806
         },
         {
+            "path": "application/views/themes/shared/product_share.php",
+            "hash": "dc18bfd8bb71dc70687e72ea83dfe37e7c6d70b4dc6b059d2e2f7eccb02d291e",
+            "size": 4638
+        },
+        {
             "path": "application/views/themes/shared/sections/testimonials.php",
             "hash": "d8e87fabb899007ecc0af8d78c9e6a2e0986007e356f992c6ea182c87e93d071",
             "size": 1692
@@ -1935,6 +1940,11 @@
             "size": 12988
         },
         {
+            "path": "application/views/themes/shared/product_gallery.php",
+            "hash": "ed37c7add1144b88cb126f2ab1c742389026f3004c703ae6bfc5f56b5c77f9a6",
+            "size": 3956
+        },
+        {
             "path": "application/views/themes/shared/product_detail.php",
             "hash": "6fb8ba30c163c9dac5a298d11c3ec7d46962f212782312b2622990398de82765",
             "size": 11161
@@ -1956,8 +1966,8 @@
         },
         {
             "path": "application/views/themes/shared/footer.php",
-            "hash": "5c0b2e2ece961c574b263a10e3bc6e0394b588a7a40d8ed29718a1672e8c0c49",
-            "size": 17129
+            "hash": "f0c6714a7444c2d8ab61f3ffc28f743d9a65898f2f1b7f37208794021e3803f6",
+            "size": 17021
         },
         {
             "path": "application/views/themes/shared/appointment.php",
@@ -2201,8 +2211,8 @@
         },
         {
             "path": "application/views/themes/lumiere/footer.php",
-            "hash": "21054c5bfee39515f6f1a5aeee11122daae923693442967986d2d526791df2c5",
-            "size": 2935
+            "hash": "1f71657b66a525f05eed0e6a7c11c819c911b3f134203af684bf0d872cfc0ccb",
+            "size": 3521
         },
         {
             "path": "application/views/themes/food_express/home.php",
@@ -2251,8 +2261,8 @@
         },
         {
             "path": "application/views/themes/pharma_mediq/footer.php",
-            "hash": "8307c235c10ee291a276012e439abacdae7679bbff2b85ae2fcc34fe759ed777",
-            "size": 1636
+            "hash": "cb1820687e0de05d718d876994cd680a4a54fd0df7680d33337f02008350d24a",
+            "size": 2274
         },
         {
             "path": "application/views/themes/pharma_care/store.php",
@@ -5246,8 +5256,8 @@
         },
         {
             "path": "application/views/items.php",
-            "hash": "ff52561195d037c76268ae32686718078e1fc0725c85175f7141f08ca9cbe8d6",
-            "size": 92701
+            "hash": "ea7555b90520e532d216be6e597ba3651e24d2737b8db0b2c2de83fb37504b9c",
+            "size": 94165
         },
         {
             "path": "application/views/imports/batch.php",
@@ -6216,8 +6226,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "905706dc2f8d2de2c7d1b4ed0fae2e66570a20b843c3c4cf21455bb91df69905",
-            "size": 29558
+            "hash": "1e2536917a00a3fbd646c6f6720c7ec9c0cfce67388047644ac4b7f95cec1136",
+            "size": 29825
         },
         {
             "path": "application/config/routes.php",
@@ -6781,8 +6791,8 @@
         },
         {
             "path": "application/models/Items_model.php",
-            "hash": "da2292baf98d1191195cb3419c5db5557f430342eb1fb244c69199f3abf7ce7e",
-            "size": 78955
+            "hash": "89f66586f37ef461c99aa9c9673dbb22a01eef9f40c1ee372cfc8f3c5987ce82",
+            "size": 83215
         },
         {
             "path": "application/models/Printing_model.php",
@@ -7351,8 +7361,8 @@
         },
         {
             "path": "application/controllers/Items.php",
-            "hash": "c65dd40ef49a8e42c4586b020270db3f21f7d0eb9b1bb81137e3e5123f7213b6",
-            "size": 53300
+            "hash": "3061259d9b2ad0325c7691e9261d4fa71a59d46ac41ead0b0dd9aa1a671d9436",
+            "size": 53799
         },
         {
             "path": "application/controllers/Physio_settings.php",
@@ -8601,8 +8611,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "57bddc1a86f4e7013c56e5f2971cf472d7723cc63aa6463c9cc1c7259f7dcf64",
-            "size": 57393
+            "hash": "14491abbb4b0f729199aaa8e1f111e0e433c6f1bcf2a56ef187bf57448330bca",
+            "size": 60366
         },
         {
             "path": "application/libraries/Meta_messaging.php",
@@ -12371,7 +12381,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "e4238303c9225bc797974b501fb24231ef6370922439483bc921015a2c324d1a",
+            "hash": "be98d06a450fed392a7258772c1d4444bf1fde7dda1613a168ff2887c19e757b",
             "size": 120490
         },
         {
@@ -12398,6 +12408,11 @@
             "path": "application/helpers/currency_helper.php",
             "hash": "d3d7fd209ca14661fbe69e28e78ede72ebc9e9c5ed8c52b433304b3fdb686e8a",
             "size": 1738
+        },
+        {
+            "path": "application/helpers/storefront_footer_helper.php",
+            "hash": "3b99e218ca857557db2f9fb27bea4ddfbf37b3906c017c30e7b4054dd27f02d3",
+            "size": 2187
         },
         {
             "path": "application/helpers/loyalty_helper.php",
@@ -12601,8 +12616,8 @@
         },
         {
             "path": "theme/css/lumiere-martpoint.css",
-            "hash": "7a25e069ad4a46377419c5b4c9cae0f4c254ffbd82b7739714ce3bcf380a8806",
-            "size": 12941
+            "hash": "1fc8dc5a140f80f3647576477d69e699b16a00935ff5f8e7895ac2092f9bebd9",
+            "size": 13618
         },
         {
             "path": "theme/css/restaurantos.css",
@@ -19111,6 +19126,8 @@
         "4.0.9.194_pos_runtime_repair.sql",
         "4.0.9.195_audit_runtime_repair.sql",
         "4.0.9.196_legacy_install_domain_cleanup.sql",
+        "4.0.9.197_storefront_product_share.sql",
+        "4.0.9.198_storefront_product_gallery.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
         "4.0.9.24_audit_trail.sql",
@@ -19198,6 +19215,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "53cb7f243747d88cec8a1a1d1ac45d6bc40b779edd6ca159676e8a3496aa157d7c92d324f68f65480950d66b2fa33b31951b3598bbee96ec89b649f0dee35809",
-    "changelog": "Release 4.0.9.196"
+    "signature": "daa5766209cc8d4913cc5929cfe9fb2802f02f67f12326da7f2ce33286207c093387b04a2ef14f51497ee3143a4fd8a4b63f51bcd9c53ce02b9275e65a7f160a",
+    "changelog": "Release 4.0.9.198"
 }

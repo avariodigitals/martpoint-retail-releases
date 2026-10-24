@@ -1,4 +1,7 @@
 <?php
+  require_once APPPATH . 'helpers/storefront_footer_helper.php';
+  $bmFooterLogo = mp_storefront_footer_logo_url($settings ?? null, $logo_url ?? '');
+$showMpPoweredBy = mp_storefront_show_powered_by($settings ?? null);
   $bmFootBrand = trim((string)($bm_brand ?? ($store->store_name ?? '')));
   $bmFootMark = $bm_skin === 'vector' ? '/' : '.';
   $bmFootPhone = trim((string)($settings->store_phone ?? ''));
@@ -42,6 +45,7 @@
     </div>
   </div>
   <div class="footer-bottom">
+    <?php if($bmFooterLogo): ?><img src="<?= htmlspecialchars($bmFooterLogo, ENT_QUOTES, 'UTF-8'); ?>" alt="<?= htmlspecialchars($bmFootBrand, ENT_QUOTES, 'UTF-8'); ?> footer logo" style="display:block;width:auto;height:auto;max-width:180px;max-height:54px;object-fit:contain;margin:0 0 14px;background:#fff;padding:6px 10px;border-radius:6px"><?php endif; ?>
     <strong><?= htmlspecialchars(mb_strtoupper($bmFootBrand), ENT_QUOTES, 'UTF-8'); ?><span class="mark"><?= $bmFootMark; ?></span></strong>
     <nav class="footer-links" aria-label="Footer navigation">
       <a href="<?= $bm_products_url; ?>">Systems</a>
@@ -53,6 +57,6 @@
       <?php if(!empty($site_content['contact_enabled'])): ?><a href="<?= $bm_contact_url; ?>">Enquire</a><?php endif; ?>
       <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/privacy'); ?>">Privacy</a>
     </nav>
-    <span>&copy; <?= $bmFootYear; ?> <?= htmlspecialchars($bmFootBrand, ENT_QUOTES, 'UTF-8'); ?>. All rights reserved.</span>
+    <span>&copy; <?= $bmFootYear; ?> <?= htmlspecialchars($bmFootBrand, ENT_QUOTES, 'UTF-8'); ?>. All rights reserved.<?php if ($showMpPoweredBy): ?> · Powered by MartPoint<?php endif; ?></span>
   </div>
 </footer>

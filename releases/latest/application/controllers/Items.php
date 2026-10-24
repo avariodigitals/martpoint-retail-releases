@@ -142,7 +142,7 @@ class Items extends MY_Controller {
 					return;
 				}
 			}
-			if(!empty($_FILES['item_image']['name']) || ($item_type_post === 'digital' && !empty($_FILES['digital_file']['name']))){
+			if(!empty($_FILES['item_image']['name']) || !empty($_FILES['item_gallery']['name'][0]) || ($item_type_post === 'digital' && !empty($_FILES['digital_file']['name']))){
 				$media_check = check_media_storage_limit();
 				if($media_check !== true){
 					echo $media_check;
@@ -255,6 +255,10 @@ class Items extends MY_Controller {
 		$this->load->model('items_model');
 		$result=$this->items_model->get_details($id,$data);
 		$data=array_merge($data,$result);
+		$data['gallery_images'] = [];
+		if ($this->db->table_exists('db_item_images')) {
+			$data['gallery_images'] = $this->db->where('store_id', get_current_store_id())->where('item_id', (int)$id)->order_by('sort_order', 'ASC')->order_by('id', 'ASC')->get('db_item_images')->result();
+		}
 		$data['page_title']=mp_label('item');
 		$data['recipes_list'] = [];
 		if (recipe_module() && $this->db->table_exists('db_recipes')) {
@@ -308,6 +312,10 @@ class Items extends MY_Controller {
 
 
 		if ($this->form_validation->run() == TRUE) {
+			if (!empty($_FILES['item_gallery']['name'][0])) {
+				$media_check = check_media_storage_limit();
+				if ($media_check !== true) { echo $media_check; return; }
+			}
 			// SKU fair-usage check on update: only count NEW variant children
 			// (rows without an existing tr_item_id). The parent already exists.
 			if(!in_array($item_type_post, ['service','digital','course','membership'])){

@@ -1119,6 +1119,25 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     <?php endif; ?>
     <p class="mp-form-hint" style="color:var(--mp-danger);margin-top:8px;">Max Width/Height: 1500px * 1500px &amp; Size: 1MB</p>
     <span id="item_image_msg" style="display:none;" class="text-danger"></span>
+    <?php if(!$is_service): ?>
+    <hr style="margin:18px 0;border-color:var(--mp-border);">
+    <div class="mp-form-group full">
+      <label for="item_gallery">Product gallery (optional)</label>
+      <input type="file" name="item_gallery[]" id="item_gallery" class="mp-form-control" accept="image/jpeg,image/png,image/webp,image/avif" multiple>
+      <p class="mp-form-hint">Add up to 8 extra product photos. JPG, PNG, WEBP or AVIF; max 3MB each. The main product image remains unchanged.</p>
+    </div>
+    <?php if(!empty($gallery_images)): ?>
+    <div class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">
+      <?php foreach($gallery_images as $gallery_image): ?>
+      <label style="display:block;border:1px solid var(--mp-border);border-radius:8px;padding:8px;font-size:12px;">
+        <img src="<?= base_url(htmlspecialchars($gallery_image->image_path, ENT_QUOTES, 'UTF-8')); ?>" alt="Product gallery image" style="width:100%;height:90px;object-fit:cover;border-radius:5px;">
+        <span style="display:block;margin-top:6px;"><input type="checkbox" name="gallery_delete_ids[]" value="<?= (int)$gallery_image->id; ?>"> Remove photo</span>
+      </label>
+      <?php endforeach; ?>
+    </div>
+    <p class="mp-form-hint">Select photos to remove, then save the product.</p>
+    <?php endif; ?>
+    <?php endif; // Gallery upload is for physical/digital products; service media uses its existing image field. ?>
   </div>
   <div class="mp-form-actions">
     <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Cancel</a>
