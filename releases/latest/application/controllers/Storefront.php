@@ -1908,6 +1908,11 @@ class Storefront extends CI_Controller {
 		if($paymentMethod == 'paystack' && $settings->allow_paystack){
 			$ps = $this->paystack->get_settings($storeId);
 			if($ps && $ps->public_key){
+				$split = $this->paystack->get_split_config($grandTotal, $storeId);
+				if(!$split['status']){
+					echo json_encode(['status'=>false, 'message'=>$split['message']]);
+					return;
+				}
 				echo json_encode([
 					'status' => true,
 					'payment_required' => true,
@@ -1917,6 +1922,7 @@ class Storefront extends CI_Controller {
 					'public_key' => $ps->public_key,
 					'email' => $customerEmail ?: 'customer@' . ($settings->store_slug ?: 'store') . '.com',
 					'reference' => $order->order_code,
+					'paystack_split' => $split['config'],
 					'currency' => $this->_storeCurrencyCode($storeId) ?: 'NGN',
 					'csrf_hash' => $this->security->get_csrf_hash(),
 				]);

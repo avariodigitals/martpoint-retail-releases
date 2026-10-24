@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.198';
+    return '4.0.9.199';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -718,7 +718,7 @@
   }
 
   /**
-   * Role NAMES that carry store-owner authority.
+   * Role NAMES that identify a merchant owner.
    *
    * Roles are store-scoped — db_roles.store_id says which store a role belongs
    * to (role 2 'Store Admin' belongs to store 1). store_admin_id() is a
@@ -733,7 +733,30 @@
    * store, the same way get_excluded_staff_roles() resolves 'Partner'.
    */
   function store_owner_role_names(){
-    return array('BUSINESS OWNER', 'STORE OWNER', 'STORE ADMIN', 'OWNER');
+    // Keep Store Admin separate: it is an install/admin role, not the
+    // merchant's Business Owner role.
+    return array('BUSINESS OWNER', 'STORE OWNER', 'OWNER');
+  }
+
+  /** IDs of Store Admin roles. Kept separate from merchant-owner role IDs. */
+  function store_admin_role_ids($store_id = null){
+    $ids = array((int)store_admin_id());
+    $CI =& get_instance();
+    if($store_id === null || $store_id === ''){
+      $store_id = $CI->session->userdata('store_id');
+    }
+    $store_id = (int)$store_id;
+    if($store_id <= 0 || !$CI->db->table_exists('db_roles')){
+      return $ids;
+    }
+    $query = $CI->db->query(
+      "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = 'STORE ADMIN'",
+      array($store_id)
+    );
+    if($query){
+      foreach($query->result() as $row){ $ids[] = (int)$row->id; }
+    }
+    return array_values(array_unique($ids));
   }
 
   /**
@@ -855,8 +878,11 @@
       return false;
     }
 
-    // Legacy path — unchanged.
-    if($role_id === (int) store_admin_id()){
+    // The historic predicate is also used as a full-control permission
+    // shortcut in many screens. Recognize the distinct Store Admin identity,
+    // then retain the Business Owner privilege compatibility below. Role
+    // labels and user assignments must use the actual db_roles.role_name.
+    if(in_array($role_id, store_admin_role_ids((int)$CI->session->userdata('store_id')), true)){
       return true;
     }
 
@@ -868,6 +894,14 @@
     }
 
     return in_array($role_id, $owner_roles[$store_id], true);
+  }
+
+  /** True only for the store-scoped merchant Business Owner role. */
+  function is_business_owner(){
+    $CI =& get_instance();
+    $role_id = (int)$CI->session->userdata('role_id');
+    $store_id = (int)$CI->session->userdata('store_id');
+    return $role_id > 0 && in_array($role_id, store_owner_role_ids($store_id), true);
   }
   function is_admin(){
     if(strtoupper(get_role_name())==strtoupper('admin')){
@@ -1793,7 +1827,7 @@
   function get_excluded_staff_roles($store_id=''){
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
-    $excluded = [1, (int)store_admin_id()];
+    $excluded = array_merge(array(1), store_admin_role_ids($store_id));
     $excluded = array_merge($excluded, store_owner_role_ids($store_id));
     // Keep this lookup isolated as callers often invoke it inside a Query
     // Builder chain. Resetting the shared builder here drops the caller's

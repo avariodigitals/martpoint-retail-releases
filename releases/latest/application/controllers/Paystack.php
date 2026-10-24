@@ -19,6 +19,10 @@ class Paystack extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']='Paystack Settings';
 		$data['settings']=$this->paystack->get_settings();
+		$data['payout_account']=$this->paystack->get_payout_account();
+		$data['central_managed'] = function_exists('mp_is_central') && !mp_is_central()
+			&& $this->db->table_exists('db_payment_gateway_accounts')
+			&& $this->db->where('provider', 'paystack')->count_all_results('db_payment_gateway_accounts') > 0;
 		$data['content'] = $this->load->view('paystack_settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -26,11 +30,20 @@ class Paystack extends MY_Controller {
 	// Save settings
 	public function save_settings(){
 		$this->permission_check('paystack_settings');
+		if(function_exists('mp_is_central') && !mp_is_central()
+			&& $this->db->table_exists('db_payment_gateway_accounts')
+			&& $this->db->where('provider', 'paystack')->count_all_results('db_payment_gateway_accounts') > 0){
+			echo 'central_managed';
+			return;
+		}
 		$secret_key = $this->input->post('secret_key', TRUE);
 		$public_key = $this->input->post('public_key', TRUE);
 		$enabled = $this->input->post('enabled', TRUE);
 		$test_mode = $this->input->post('test_mode', TRUE);
 		$webhook_secret = $this->input->post('webhook_secret', TRUE);
+		$platform_fee_type = $this->input->post('platform_fee_type', TRUE);
+		$platform_fee_value = max(0, (float)$this->input->post('platform_fee_value'));
+		$fee_bearer = $this->input->post('fee_bearer', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
@@ -41,6 +54,9 @@ class Paystack extends MY_Controller {
 			'enabled' => $enabled ?? 0,
 			'test_mode' => $test_mode ?? 1,
 			'webhook_secret' => $webhook_secret ?? '',
+			'platform_fee_type' => in_array($platform_fee_type, array('none','percentage','flat'), true) ? $platform_fee_type : 'none',
+			'platform_fee_value' => $platform_fee_value,
+			'fee_bearer' => $fee_bearer === 'merchant' ? 'merchant' : 'platform',
 			'callback_url' => base_url('paystack/callback'),
 			'created_date' => $CUR_DATE,
 			'created_time' => $CUR_TIME,
@@ -107,8 +123,11 @@ class Paystack extends MY_Controller {
 		}
 
 		// Verify the transaction
-		$verify = $this->paystack->verify_transaction($ref);
-		if($verify['status'] && $verify['payment_status'] == 'success'){
+		$payment = $this->paystack->get_payment_by_reference($ref);
+		$store_id = $payment ? $payment->store_id : null;
+		$verify = $this->paystack->verify_transaction($ref, $store_id);
+		if($verify['status'] && $verify['payment_status'] == 'success'
+			&& $this->paystack->payment_matches($ref, $verify['amount'], $verify['currency'])){
 			// Update paystack record
 			$this->paystack->update_payment_status($ref, 'success', $verify);
 			// Confirm the sales payment
@@ -166,8 +185,9 @@ class Paystack extends MY_Controller {
 		}
 
 		// Verify webhook signature (optional but recommended)
-		if(!empty($settings->webhook_secret)){
-			$valid = $this->paystack->verify_webhook_signature($input, $settings->webhook_secret);
+		if($settings->test_mode == 0){
+			$valid = !empty($settings->webhook_secret)
+				&& $this->paystack->verify_webhook_signature($input, $settings->webhook_secret);
 			if(!$valid){
 				http_response_code(401);
 				echo 'Invalid signature';
@@ -230,8 +250,11 @@ class Paystack extends MY_Controller {
 					'paid_at' => $paid_at
 				));
 
-				// Confirm the sales payment if linked
-				$this->paystack->confirm_sales_payment($reference);
+				// Confirm only an exact local amount/currency match. A webhook is
+				// not allowed to turn an under/over-payment into a paid sale.
+				if($known && $this->paystack->payment_matches($reference, $amount, $data['currency'] ?? 'NGN')){
+					$this->paystack->confirm_sales_payment($reference);
+				}
 
 				// Reconciliation: a verified charge matching no local payment
 				// link or order is an unmatched exception; a settled amount
@@ -306,5 +329,24 @@ class Paystack extends MY_Controller {
 			'public_key' => $settings ? $settings->public_key : '',
 			'test_mode' => $settings ? $settings->test_mode : 1
 		));
+	}
+
+	public function banks(){
+		$this->permission_check_with_msg('paystack_settings');
+		echo json_encode($this->paystack->get_banks());
+	}
+
+	public function save_payout_account(){
+		$this->permission_check_with_msg('paystack_settings');
+		$store_id = (int)get_current_store_id();
+		$result = $this->paystack->save_payout_account($store_id, array(
+			'account_number' => $this->input->post('payout_account_number', TRUE),
+			'bank_code' => $this->input->post('payout_bank_code', TRUE),
+			'bank_name' => $this->input->post('payout_bank_name', TRUE),
+			'email' => $this->input->post('payout_email', TRUE),
+			'phone' => $this->input->post('payout_phone', TRUE),
+			'enabled' => (int)$this->input->post('payout_enabled', TRUE),
+		));
+		echo json_encode($result);
 	}
 }

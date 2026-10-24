@@ -664,7 +664,7 @@ function get_packages_select_list($select_id=''){
 
  	  $CI =& get_instance();
 	  $store_id = !empty($store_id) ? $store_id : get_current_store_id();
-	  $owner_role_ids = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+	  $owner_role_ids = array_unique(array_merge(store_admin_role_ids($store_id), store_owner_role_ids($store_id)));
 
  	  
  	  $CI->db->where("store_id",$store_id);

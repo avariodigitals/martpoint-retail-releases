@@ -463,8 +463,11 @@ return [
 		  // .196 corrects the legacy seeded install hostname at the client on
 		  // its next authenticated heartbeat; no database schema change.
 		  '4.0.9.196v' => '4.0.9.196_legacy_install_domain_cleanup.sql',
-		  // .197 shares products and renders shared footer branding across themes.
-		  '4.0.9.197v' => '4.0.9.197_storefront_product_share.sql',
-		  // .198 adds store-scoped optional product gallery photos.
-		  '4.0.9.198v' => '4.0.9.198_storefront_product_gallery.sql',
+		  // .197 central provider credentials with store-owned payout subaccounts.
+		  '4.0.9.197v' => '4.0.9.197_central_payment_subaccounts.sql',
+		  // .198 dormant AI Growth client foundation. It is tenant-scoped and
+		  // fail-closed; no existing store is enabled by this migration.
+		  '4.0.9.198v' => '4.0.9.198_ai_growth_foundation.sql',
+		  // .199 adds optional, store-scoped extra photos to storefront products.
+		  '4.0.9.199v' => '4.0.9.199_storefront_product_gallery.sql',
 ];

@@ -33,6 +33,7 @@ class Install_seed extends CI_Controller {
 
         foreach ($stores as $store) {
             $this->seeder->seed_store_defaults($store->id);
+            $this->_assign_business_owner_role((int)$store->id);
             $this->_apply_business_profile($store->id, $industry_type, $business_model);
             $this->_apply_email_defaults($store->id);
 
@@ -54,6 +55,46 @@ class Install_seed extends CI_Controller {
 
         // Show beautiful welcome celebration page
         $this->load->view('install_welcome');
+    }
+
+    /**
+     * Older installers assigned every merchant owner the global role id 2
+     * (Store Admin). The store's linked owner account must instead use its own
+     * store-scoped Business Owner role; never change other users or stores.
+     */
+    private function _assign_business_owner_role($store_id) {
+        if ($store_id <= 1 || !$this->db->field_exists('user_id', 'db_store')) {
+            return;
+        }
+        $store = $this->db->select('user_id')->where('id', $store_id)->limit(1)->get('db_store')->row();
+        $owner_id = $store ? (int)$store->user_id : 0;
+        if ($owner_id <= 0) {
+            return;
+        }
+
+        $role = $this->db->select('id, role_name')->where('store_id', $store_id)
+            ->where('UPPER(role_name)', 'BUSINESS OWNER')->where('status', 1)
+            ->limit(1)->get('db_roles')->row();
+        if (!$role) {
+            log_message('error', 'Install seed could not find the Business Owner role for store '.$store_id);
+            return;
+        }
+
+        $user = $this->db->select('id, role_id')->where('id', $owner_id)
+            ->where('store_id', $store_id)->limit(1)->get('db_users')->row();
+        if (!$user || (int)$user->role_id === (int)$role->id) {
+            return;
+        }
+        $current_role = $this->db->select('role_name')->where('id', (int)$user->role_id)->limit(1)->get('db_roles')->row();
+        if ((int)$user->role_id !== 2 && strtoupper(trim((string)($current_role->role_name ?? ''))) !== 'STORE ADMIN') {
+            return; // Preserve any deliberate owner-specific role assignment.
+        }
+
+        $update = array('role_id' => (int)$role->id);
+        if ($this->db->field_exists('role_name', 'db_users')) {
+            $update['role_name'] = $role->role_name;
+        }
+        $this->db->where('id', $owner_id)->where('store_id', $store_id)->update('db_users', $update);
     }
 
     /**
@@ -193,14 +234,24 @@ class Install_seed extends CI_Controller {
                 continue;
             }
 
-            // Resolve role name → role_id (roles were just seeded for this store)
-            $role_id = 2; // Store Admin fallback
-            $role = $this->db->where('store_id', $store_id)
-                ->where('UPPER(role_name)', strtoupper($role_name))
-                ->get('db_roles')->row();
-            if ($role) {
-                $role_id = (int)$role->id;
+            // Resolve role name → role_id. Pending users are staff accounts;
+            // never silently promote an invalid/missing role to Store Admin.
+            $role = null;
+            if ($role_name !== '') {
+                $role = $this->db->where('store_id', $store_id)
+                    ->where('UPPER(role_name)', strtoupper($role_name))
+                    ->get('db_roles')->row();
             }
+            if (!$role || in_array(strtoupper(trim($role->role_name)), array('ADMIN', 'STORE ADMIN', 'BUSINESS OWNER', 'STORE OWNER', 'OWNER'), true)) {
+                $role = $this->db->where('store_id', $store_id)
+                    ->where('UPPER(role_name)', 'MANAGER')->where('status', 1)
+                    ->limit(1)->get('db_roles')->row();
+            }
+            if (!$role) {
+                log_message('error', 'Install seed skipped pending staff account '.$username.'; no safe staff role was available for store '.$store_id);
+                continue;
+            }
+            $role_id = (int)$role->id;
 
             $parts = preg_split('/\s+/', $full_name, 2);
             // Installer already bcrypt-hashes supplied passwords; fall back to
@@ -223,7 +274,7 @@ class Install_seed extends CI_Controller {
                 'email'                => $email,
                 'mobile'               => trim((string)($u['mobile'] ?? '')),
                 'role_id'              => $role_id,
-                'role_name'            => $role ? $role->role_name : 'Store Admin',
+                'role_name'            => $role->role_name,
                 'default_warehouse_id' => $hq_id,
                 'status'               => 1,
                 'created_date'         => date('Y-m-d'),
@@ -232,7 +283,7 @@ class Install_seed extends CI_Controller {
             ]);
 
             // Warehouse assignment (matches Users_model behaviour for non-admin staff)
-            if ($hq_id && $role_id != 1 && $role_id != 2) {
+            if ($hq_id) {
                 $max_wh = $this->db->select('COALESCE(MAX(id),0)+1 as nid')
                     ->get('db_userswarehouses')->row()->nid;
                 $this->db->insert('db_userswarehouses', [

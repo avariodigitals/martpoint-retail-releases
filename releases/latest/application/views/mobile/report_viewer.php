@@ -338,6 +338,30 @@
 
     function tableToCSV(){
       var rows = [];
+      if(reportType === 'stock'){
+        rows.push(['Report', reportTitle]);
+        rows.push(['From', form.querySelector('[name=from_date]').value, 'To', form.querySelector('[name=to_date]').value]);
+        var tables = result.querySelectorAll('.report-table');
+        if(tables[0]){
+          rows.push(['']);
+          rows.push(['Item-wise stock']);
+          rows.push(getDefaultHeaders('stock'));
+          tables[0].querySelectorAll('tbody tr').forEach(function(tr){
+            var cells = Array.from(tr.querySelectorAll('td,th')).map(function(cell){ return cell.innerText.replace(/\s+/g, ' ').trim(); });
+            if(cells.length) rows.push(cells);
+          });
+        }
+        if(tables[1]){
+          rows.push(['']);
+          rows.push(['Brand-wise stock']);
+          rows.push(getDefaultHeaders('stock_brand'));
+          tables[1].querySelectorAll('tbody tr').forEach(function(tr){
+            var cells = Array.from(tr.querySelectorAll('td,th')).map(function(cell){ return cell.innerText.replace(/\s+/g, ' ').trim(); });
+            if(cells.length) rows.push(cells);
+          });
+        }
+        return rows;
+      }
       if(reportType === 'profit_loss' && reportData){
         rows.push(['Report', reportTitle]);
         rows.push(['From', form.querySelector('[name=from_date]').value, 'To', form.querySelector('[name=to_date]').value]);
@@ -386,7 +410,12 @@
 
     function downloadCSV(){
       var rows = tableToCSV();
-      var csv = rows.map(function(r){ return r.map(function(c){ return '"' + (c || '') + '"'; }).join(','); }).join('\n');
+      var csv = rows.map(function(r){ return r.map(function(c){
+        var value = String(c == null ? '' : c).replace(/"/g, '""');
+        // Prevent spreadsheet formula execution for user-entered labels.
+        if(/^[\s]*[=+@]/.test(value)) value = "'" + value;
+        return '"' + value + '"';
+      }).join(','); }).join('\n');
       var blob = new Blob([csv], {type: 'text/csv'});
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

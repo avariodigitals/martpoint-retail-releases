@@ -782,7 +782,7 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
     if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
     if(res.status){
       if(res.payment_required&&res.public_key){
-        payWithPaystack(res.public_key,res.email,res.amount_kobo,res.reference,res.order_id,res.currency||'NGN');
+        payWithPaystack(res.public_key,res.email,res.amount_kobo,res.reference,res.order_id,res.currency||'NGN',res.paystack_split||{});
       } else {
         showOrderSuccess(res.order_code, res.redirect_url, pm);
         cartData=[]; cart=[]; localStorage.removeItem('sf_cart_'+STORE_ID); localStorage.removeItem('sf_cart_token_'+STORE_ID); updateCartUI();
@@ -792,8 +792,8 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   }).catch(err=>{ window.mpCheckoutInProgress = false; showToast(err.message || 'Network error. Please try again.'); btn.disabled=false; updateCheckoutBtn(); });
 }
 
-function payWithPaystack(key,email,amount,reference,orderId,currency){
-  const handler=PaystackPop.setup({
+function payWithPaystack(key,email,amount,reference,orderId,currency,split){
+  const config={
     key:key, email:email, amount:amount, currency:currency||'NGN', ref:reference,
     callback:function(response){
       // The popup callback is client-side only — ask the server to verify
@@ -819,7 +819,11 @@ function payWithPaystack(key,email,amount,reference,orderId,currency){
       });
     },
     onClose:function(){ window.mpCheckoutInProgress = false; showToast('Payment cancelled'); const btn=document.getElementById('checkout-btn'); if(btn){ btn.disabled=false; updateCheckoutBtn(); } }
-  });
+  };
+  if(split&&split.subaccount) config.subaccount=split.subaccount;
+  if(split&&split.transaction_charge) config.transaction_charge=split.transaction_charge;
+  if(split&&split.bearer) config.bearer=split.bearer;
+  const handler=PaystackPop.setup(config);
   handler.openIframe();
 }
 

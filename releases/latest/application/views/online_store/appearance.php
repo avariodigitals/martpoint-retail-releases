@@ -213,7 +213,7 @@ $themeS = htmlspecialchars($current_theme->default_secondary_color ?? '#10B981')
           ?>
           <?php if($osFooterLogo): ?><div style="margin-bottom:8px;"><img src="<?= $osFooterLogo; ?>" alt="Footer logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
           <input type="file" class="mp-form-control" id="footer_logo" name="footer_logo" accept="image/*">
-          <div class="mp-form-hint">Used only in the shared online-store footer. Leave empty to use the store logo there.</div>
+          <div class="mp-form-hint">Shown in the online-store footer across supported themes. Leave empty to use the store logo there.</div>
         </div>
         <div class="mp-form-group">
           <label for="show_sale_stock_labels">Sale &amp; Stock Labels</label>

@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.198",
+    "version": "4.0.9.199",
     "previous_version": "4.0.9.194",
     "release_date": "2026-10-24",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -411,8 +411,8 @@
         },
         {
             "path": "application/views/storefront/cart.php",
-            "hash": "c59c09e8835c101488fb74f36325b4fa20ab82703a290fda0aa0aa711cc83f2b",
-            "size": 28043
+            "hash": "cebb5bc00fa9ba7dadf36e71390dcb7ac31a3adc247a921bd2f28425bffffd43",
+            "size": 28325
         },
         {
             "path": "application/views/storefront/account_orders.php",
@@ -1766,8 +1766,8 @@
         },
         {
             "path": "application/views/themes/shared/cart.php",
-            "hash": "c48e0a5f43f6675598f587b7f73db46d98807a84280b64fa46cab1aee794de21",
-            "size": 63092
+            "hash": "4cf1934923fcd0835cfde7377999a9a427fd00659b3f67072c7db71c7bc09564",
+            "size": 63354
         },
         {
             "path": "application/views/themes/shared/blog.php",
@@ -2201,7 +2201,7 @@
         },
         {
             "path": "application/views/themes/lumiere/header.php",
-            "hash": "74510561fd950e3cb52415836700c289f7af7d8305d908235da6aee052a23bd0",
+            "hash": "474d5ea8c0da88ae2c3900f35ba3c554affd88a28c6e9d69409b792587b44d9d",
             "size": 6008
         },
         {
@@ -2681,8 +2681,8 @@
         },
         {
             "path": "application/views/mobile/online_store/appearance.php",
-            "hash": "7d1c06ff5ca281662aa2600158b628491aeb49c82abd91de1e282d97182f249e",
-            "size": 19562
+            "hash": "a9f4329d2c5d40c4d4dada9cc9d3f16eedf0ccc7fe6e50898f55b9711d6a2b2d",
+            "size": 19584
         },
         {
             "path": "application/views/mobile/online_store/products.php",
@@ -2936,8 +2936,8 @@
         },
         {
             "path": "application/views/mobile/report_viewer.php",
-            "hash": "840351302e2b4d1bb1f964f75eb90c06e04735bf992b3a793296f97f21be8eb5",
-            "size": 26934
+            "hash": "1432a9c861167caee67e8aee595db4f061f0373b572ac7a2c1a7b274e80ec95a",
+            "size": 28293
         },
         {
             "path": "application/views/mobile/op_membership_assign.php",
@@ -3306,8 +3306,8 @@
         },
         {
             "path": "application/views/users-view.php",
-            "hash": "d072f1ddd14f392ad3b29ce10cb8e82769e4736cfe1b3227a788ef40c709fe15",
-            "size": 10817
+            "hash": "891e428b9053e3a8179894a5f931d41aafb2489782236d0f7ba06deee9b5360b",
+            "size": 10827
         },
         {
             "path": "application/views/oil_processing/document_style.php",
@@ -3331,8 +3331,8 @@
         },
         {
             "path": "application/views/monnify_settings.php",
-            "hash": "4a7856b2accb15b7f9d66306299da232eba0c90daf79c68cbf66c199a11e261d",
-            "size": 5632
+            "hash": "453602089d26d9ffe439fed18031378079daf21625eedebb6fda7c55fce58213",
+            "size": 10742
         },
         {
             "path": "application/views/report-return-item.php",
@@ -3541,8 +3541,8 @@
         },
         {
             "path": "application/views/online_store/appearance.php",
-            "hash": "096a7289006126660c946092bdd21555606b7dce35395a181dae02fbcc9f13df",
-            "size": 30159
+            "hash": "3ad5593a8b205dec84dbf062752c8ccd8d1feabaefade9aac8fa88c2301dee2a",
+            "size": 30172
         },
         {
             "path": "application/views/online_store/messaging_inbox.php",
@@ -3931,8 +3931,8 @@
         },
         {
             "path": "application/views/reports/desktop/stock.php",
-            "hash": "bc15144decdbf99646ebf95fed70a5668ef2bb94ab1984a7c1c8a1df9fe8c4f7",
-            "size": 9913
+            "hash": "292b0e5b6ee2163d1e87d8aae5621a6b11395b1c1a91e5f0bb8507d10a3add5a",
+            "size": 10687
         },
         {
             "path": "application/views/reports/desktop/purchase.php",
@@ -4721,8 +4721,8 @@
         },
         {
             "path": "application/views/paystack_settings.php",
-            "hash": "9426599097810e254c9caf1179cfcb486252aa51d3510e88d530abfbbc5c2b72",
-            "size": 3624
+            "hash": "31007979e921e202627956af398cad3a77d49b3411f0a2a54f6f528c6cb7bee3",
+            "size": 8776
         },
         {
             "path": "application/views/print-sales-invoice-2.php",
@@ -4736,8 +4736,8 @@
         },
         {
             "path": "application/views/inventory/desktop/dashboard.php",
-            "hash": "a32fe23447356f2dddb7b42a80a45714f90245aaee996e33e252544902e3552c",
-            "size": 6182
+            "hash": "518ae6de6249cd0a5cea616f95b545922fd7ce956550c80d77e3bc5d99fc0ea5",
+            "size": 6170
         },
         {
             "path": "application/views/inventory/desktop/stock_transfer_list.php",
@@ -6226,8 +6226,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "1e2536917a00a3fbd646c6f6720c7ec9c0cfce67388047644ac4b7f95cec1136",
-            "size": 29825
+            "hash": "f109976c9e4d08b4e0073b4f9da14d0daa2bc198f8680b66013e34981c86519e",
+            "size": 30041
         },
         {
             "path": "application/config/routes.php",
@@ -6243,6 +6243,11 @@
             "path": "application/config/updater.php",
             "hash": "6c84b37718e57497833bffce0ab4d95ea3c8325400b48d0232dd699de88463f7",
             "size": 1408
+        },
+        {
+            "path": "application/config/ai_growth.php",
+            "hash": "6678bf9040cee26bd492d7fa6e864c08f4cfeebcca677edb8d17444b43b307f7",
+            "size": 624
         },
         {
             "path": "application/config/paypallib_config.php",
@@ -6436,8 +6441,8 @@
         },
         {
             "path": "application/models/Users_model.php",
-            "hash": "312a8c46093d9c9b119a2abddb4e0efa4d53e1032f1ae09e85c805f822b6ae49",
-            "size": 20291
+            "hash": "05edc5fcb691c5fc6f38bfc164a26274a64daf562bd1d2bfa240d9f4350d5b6b",
+            "size": 20294
         },
         {
             "path": "application/models/Gateways_model.php",
@@ -6458,6 +6463,11 @@
             "path": "application/models/Subscription_plans_model.php",
             "hash": "7346affd2b9ad76440b8df04e00c6d95eb6b5af5199fa6e05f1a487c088ad972",
             "size": 1274
+        },
+        {
+            "path": "application/models/Ai_growth_model.php",
+            "hash": "969412658fc1d67a70f8cf430e20138e547a949bf1b8b77c2f31c085058ea334",
+            "size": 12263
         },
         {
             "path": "application/models/Language_model.php",
@@ -6826,8 +6836,8 @@
         },
         {
             "path": "application/models/Monnify_model.php",
-            "hash": "a2c4422229ad218de98c8f0cbb660ab0d2bf9b159cff831bae3d3c30a84af38d",
-            "size": 19821
+            "hash": "0d50a3cd73fe85d41b0bc3f2b8c1ce386e9be462864e33be0dc6b2afee457788",
+            "size": 26473
         },
         {
             "path": "application/models/Country_model.php",
@@ -6866,8 +6876,8 @@
         },
         {
             "path": "application/models/Paystack_model.php",
-            "hash": "e806f8db669e4aa6569c55bb78cbde8e8f69a6326bc28397b1abca001c2b305a",
-            "size": 8868
+            "hash": "40989184482dbd9bc348b61d56dac62fe6ad6512c1f27f5e7749cc613bc0a844",
+            "size": 16144
         },
         {
             "path": "application/models/Subscription_license_model.php",
@@ -6936,8 +6946,8 @@
         },
         {
             "path": "application/models/Store_model.php",
-            "hash": "6bf1e69b34881ec3a9b0663b44b72972bf5e11d903ca24f2e46b09c84e6285e3",
-            "size": 31857
+            "hash": "e8ffbf73e84aea471b88617e7a4a3e3f9329d00dbe1538bd607e774a2f5b76dc",
+            "size": 32790
         },
         {
             "path": "application/models/Package_model.php",
@@ -6986,8 +6996,8 @@
         },
         {
             "path": "application/models/Login_model.php",
-            "hash": "a1b41ed68398077fdf53ba6764689558a5603ee8eebdd7046f9f5aaffdb786ce",
-            "size": 9044
+            "hash": "fe170beb15de527859560230bf456e9942ccbc03f1ad9da409f3ef15ade24690",
+            "size": 11452
         },
         {
             "path": "application/models/Expense_category_model.php",
@@ -7176,8 +7186,8 @@
         },
         {
             "path": "application/models/Reports_model.php",
-            "hash": "564b4073eb3a0ddf484b38009e033d5cddea44a4ae8648378324bb80a448b521",
-            "size": 156068
+            "hash": "71d2c6e7ec4b10dd9c9feaf681dd7ebb94efd94405cb3ae9cb07684d267d696e",
+            "size": 161430
         },
         {
             "path": "application/models/Intelligence_model.php",
@@ -7286,8 +7296,8 @@
         },
         {
             "path": "application/controllers/Reports.php",
-            "hash": "89f79377f7846e430b77c8f9218a7c339ea7a15a0bc50832b271086ad7497371",
-            "size": 18052
+            "hash": "6188450ffa8c63b26f9473ff8565c7e8301b25912554ba7957a0f31da7e612c2",
+            "size": 18694
         },
         {
             "path": "application/controllers/System_updates.php",
@@ -7336,8 +7346,8 @@
         },
         {
             "path": "application/controllers/Monnify.php",
-            "hash": "703e35f54d21cc5fd93a1f3e6ad6ece0d42c7805cd733da701bff986afa0d289",
-            "size": 14802
+            "hash": "8283ab59758f64978672146d246a7930aaf59f5c23b454481b97a4596404589d",
+            "size": 16913
         },
         {
             "path": "application/controllers/City.php",
@@ -7361,8 +7371,8 @@
         },
         {
             "path": "application/controllers/Items.php",
-            "hash": "3061259d9b2ad0325c7691e9261d4fa71a59d46ac41ead0b0dd9aa1a671d9436",
-            "size": 53799
+            "hash": "e1f728da0daa2ed2128c6ac03bef8388a4e73fa1b12182d967db484019a6b433",
+            "size": 53809
         },
         {
             "path": "application/controllers/Physio_settings.php",
@@ -7431,8 +7441,8 @@
         },
         {
             "path": "application/controllers/Install_seed.php",
-            "hash": "17769b65fc39b2590f74136791c529425fe6e1dc0425e6d69922caef38351263",
-            "size": 10641
+            "hash": "9433e4ba8ea6a257234c5fe9f28c89de2c3326bac19fcd3e6846b10d0e5a3a87",
+            "size": 13184
         },
         {
             "path": "application/controllers/Customer_coupon.php",
@@ -7796,8 +7806,8 @@
         },
         {
             "path": "application/controllers/Pos.php",
-            "hash": "c5d5182745d5ce6cdc98b8bad6e7ea1cce33905a10e87ebf110bdecc44c48212",
-            "size": 35505
+            "hash": "4a1da432ca7e11024f5e33d30acdaa53ab7b4715b6f1e3a9469831956353d8a6",
+            "size": 36629
         },
         {
             "path": "application/controllers/Services.php",
@@ -7846,8 +7856,8 @@
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "c3af50cbe7c962c4fcb468632942a213450785d0533c558da6008c0ad9550c69",
-            "size": 155715
+            "hash": "3056cfe7d0067cf217b630cc961358cc31e548b718a4e4eebcf5fe972af4e583",
+            "size": 155947
         },
         {
             "path": "application/controllers/Sh4_import.php",
@@ -7861,8 +7871,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "8bc7aa07094a66bc0981f57baa922fb129873b39a1709d3e6445643a89907bdb",
-            "size": 409224
+            "hash": "3a367daaf614e020ade43d97b25745891a86434765834a62ebaf876228da113f",
+            "size": 409227
         },
         {
             "path": "application/controllers/Migrate.php",
@@ -7886,8 +7896,8 @@
         },
         {
             "path": "application/controllers/Users.php",
-            "hash": "05902fad16d3e85f497908801b5ccc5a6abf3b19b417f3895571d83019967072",
-            "size": 12545
+            "hash": "774403f54513087be183bd9d87221d10ab7d04677a713c97a2691e1939b3eac2",
+            "size": 12548
         },
         {
             "path": "application/controllers/Subscription_license.php",
@@ -7946,8 +7956,8 @@
         },
         {
             "path": "application/controllers/Paystack.php",
-            "hash": "b02f328e88d51618919f44d299f998629c98cc82671043025ebb1c733d97bc4b",
-            "size": 11317
+            "hash": "105f2b9c225b0472ac1380b00ba683f9eea57b3d0b4ddb733d110f3632f7c28f",
+            "size": 13554
         },
         {
             "path": "application/controllers/Debt_reminders.php",
@@ -8611,8 +8621,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "14491abbb4b0f729199aaa8e1f111e0e433c6f1bcf2a56ef187bf57448330bca",
-            "size": 60366
+            "hash": "87b80a1a0db45180a0bbad6abde7986ac49eb4ecfa1485a8dc7cc91fa3fce91a",
+            "size": 61165
         },
         {
             "path": "application/libraries/Meta_messaging.php",
@@ -9701,8 +9711,8 @@
         },
         {
             "path": "application/libraries/Html_theme_renderer.php",
-            "hash": "cdad8a1eec22cbfe9e6a73d5044a562e55b09e84a60b65d58b036bd9e141c05d",
-            "size": 17563
+            "hash": "85d0be004c2ebf118228d958d44b600d06463f8209542f20e36144fbc74e5bc6",
+            "size": 17666
         },
         {
             "path": "application/libraries/Usage_reporter.php",
@@ -12381,8 +12391,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "be98d06a450fed392a7258772c1d4444bf1fde7dda1613a168ff2887c19e757b",
-            "size": 120490
+            "hash": "d6df1ee5bcfcfcaba476a342159db1d7b2379bb7adce91c89caabc44c21da6a7",
+            "size": 121972
         },
         {
             "path": "application/helpers/document_signature_helper.php",
@@ -12486,8 +12496,8 @@
         },
         {
             "path": "application/helpers/inventory_helper.php",
-            "hash": "a834da90898afaa6c40cc987a8fd013ff2957f6f28ede350e13d8dd9ab2f7107",
-            "size": 22763
+            "hash": "4683c888f9c210872b90d126bc2801cdc110cf866ea005b70568dc86b712fb32",
+            "size": 22766
         },
         {
             "path": "application/helpers/store_settings_helper.php",
@@ -19006,8 +19016,8 @@
         },
         {
             "path": "setup/install/db_schema_repair.sql",
-            "hash": "c7bf6f94c4854d74ed9013891e78c27ba7738e12bd56745a24965859a99a4859",
-            "size": 235191
+            "hash": "6d9036863ef5b822008c6b272c73de61b4cc257a59a544c02259d8bb310e0349",
+            "size": 239373
         }
     ],
     "migrations": [
@@ -19126,8 +19136,11 @@
         "4.0.9.194_pos_runtime_repair.sql",
         "4.0.9.195_audit_runtime_repair.sql",
         "4.0.9.196_legacy_install_domain_cleanup.sql",
+        "4.0.9.197_central_payment_subaccounts.sql",
         "4.0.9.197_storefront_product_share.sql",
+        "4.0.9.198_ai_growth_foundation.sql",
         "4.0.9.198_storefront_product_gallery.sql",
+        "4.0.9.199_storefront_product_gallery.sql",
         "4.0.9.20_marquee_setting.sql",
         "4.0.9.22_manual_shipping.sql",
         "4.0.9.24_audit_trail.sql",
@@ -19215,6 +19228,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "daa5766209cc8d4913cc5929cfe9fb2802f02f67f12326da7f2ce33286207c093387b04a2ef14f51497ee3143a4fd8a4b63f51bcd9c53ce02b9275e65a7f160a",
-    "changelog": "Release 4.0.9.198"
+    "signature": "16f227cc72735c891a24b60fdcb4ffc4954cb1fa4bf539dda76ad702b2619970948755d5398a10c758682e462b51d6bfc9aede8f4f55cff897e354a815d8b20f",
+    "changelog": "Release 4.0.9.199"
 }

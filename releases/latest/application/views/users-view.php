@@ -78,7 +78,7 @@
 
           if(!is_admin()){
             $legacy_store_id = get_current_store_id();
-            $legacy_owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($legacy_store_id)));
+            $legacy_owner_roles = array_unique(array_merge(store_admin_role_ids($legacy_store_id), store_owner_role_ids($legacy_store_id)));
             $this->db->where_not_in('a.id', get_excluded_user_ids($legacy_store_id));
             $this->db->where_not_in('a.role_id', $legacy_owner_roles);
           }

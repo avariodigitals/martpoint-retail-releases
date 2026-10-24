@@ -457,7 +457,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
       if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
       if(res.status){
         if(res.payment_required && res.public_key){
-          payWithPaystack(res.public_key, res.email, res.amount_kobo, res.reference, res.order_id);
+		  payWithPaystack(res.public_key, res.email, res.amount_kobo, res.reference, res.order_id, res.paystack_split || {});
         } else {
           cart = [];
           localStorage.removeItem('sf_cart_' + STORE_ID);
@@ -481,8 +481,8 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     });
   }
 
-  function payWithPaystack(key, email, amount, reference, orderId){
-    const handler = PaystackPop.setup({
+  function payWithPaystack(key, email, amount, reference, orderId, split){
+    const config = {
       key: key,
       email: email,
       amount: amount,
@@ -498,7 +498,11 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
         const btn = document.getElementById('checkout-btn');
         if(btn){ btn.disabled = false; btn.textContent = 'Place Order'; }
       }
-    });
+    };
+    if(split && split.subaccount) config.subaccount = split.subaccount;
+    if(split && split.transaction_charge) config.transaction_charge = split.transaction_charge;
+    if(split && split.bearer) config.bearer = split.bearer;
+    const handler = PaystackPop.setup(config);
     handler.openIframe();
   }
 

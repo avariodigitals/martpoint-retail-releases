@@ -257,7 +257,9 @@ class Items extends MY_Controller {
 		$data=array_merge($data,$result);
 		$data['gallery_images'] = [];
 		if ($this->db->table_exists('db_item_images')) {
-			$data['gallery_images'] = $this->db->where('store_id', get_current_store_id())->where('item_id', (int)$id)->order_by('sort_order', 'ASC')->order_by('id', 'ASC')->get('db_item_images')->result();
+			$data['gallery_images'] = $this->db->where('store_id', get_current_store_id())
+				->where('item_id', (int)$id)->order_by('sort_order', 'ASC')->order_by('id', 'ASC')
+				->get('db_item_images')->result();
 		}
 		$data['page_title']=mp_label('item');
 		$data['recipes_list'] = [];

@@ -6803,7 +6803,7 @@ class Mobile extends MY_Controller {
 		$this->db->join('db_roles b', 'b.id = a.role_id', 'left');
 		if(!is_admin()){
 			$this->db->where('a.store_id', $store_id);
-			$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+			$owner_roles = array_unique(array_merge(store_admin_role_ids($store_id), store_owner_role_ids($store_id)));
 			$this->db->where_not_in('a.id', get_excluded_user_ids($store_id));
 			$this->db->where_not_in('a.role_id', $owner_roles);
 		}

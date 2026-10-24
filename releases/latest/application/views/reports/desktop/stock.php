@@ -87,6 +87,10 @@
   </ul>
   <div class="tab-content">
     <div class="tab-pane active" id="tab_1" style="padding:20px;">
+      <div class="clearfix" style="margin-bottom:12px;">
+        <strong style="display:inline-block;padding-top:8px;">Item-wise stock</strong>
+        <?php $this->load->view('components/export_btn', ['tableId' => 'report-data']); ?>
+      </div>
       <div class="mp-dt-scroll">
         <table class="table table-bordered table-hover" id="report-data" style="width:100%;">
           <thead>
@@ -114,6 +118,10 @@
       </div>
     </div>
     <div class="tab-pane" id="tab_2" style="padding:20px;">
+      <div class="clearfix" style="margin-bottom:12px;">
+        <strong style="display:inline-block;padding-top:8px;">Brand-wise stock</strong>
+        <?php $this->load->view('components/export_btn', ['tableId' => 'brand_wise_stock']); ?>
+      </div>
       <div class="mp-dt-scroll">
         <table class="table table-bordered table-hover" id="brand_wise_stock" style="width:100%;">
           <thead>
@@ -139,19 +147,23 @@
   var base_url = $("#base_url").val();
 
   function load_reports(){
-    var store_id = $("#store_id").val();
-    var brand_id = $("#brand_id").val();
-    var category_id = $("#category_id").val();
-    var warehouse_id = $("#warehouse_id").val();
-    var from_date = $("#from_date").val();
-    var to_date = $("#to_date").val();
     $(".mp-report-results").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-    $.post(base_url + "reports/get_stock_report", { warehouse_id: warehouse_id, store_id: store_id, brand_id: brand_id, category_id: category_id, from_date: from_date, to_date: to_date }, function(result){
-      result = $.parseJSON(result);
+    $.ajax({
+      url: base_url + "reports/get_stock_report",
+      method: "POST",
+      dataType: "json",
+      // Serialize the form so CodeIgniter's CSRF token is sent with this AJAX
+      // request as well as the selected report filters.
+      data: $("#report-form").serialize()
+    }).done(function(result){
       $.each(result, function(key, val){
         if(key == 'item_wise_report'){ $("#tbodyid").empty().append(val); }
         if(key == 'brand_wise_stock'){ $("#brand_wise_stock tbody").empty().append(val); }
       });
+    }).fail(function(xhr){
+      var message = xhr.status === 403 ? 'Your session may have expired. Refresh this page and try again.' : 'Stock report could not be loaded. Please try again.';
+      $("#tbodyid,#brand_wise_stock tbody").empty().append('<tr><td colspan="13" class="text-center text-danger">' + message + '</td></tr>');
+    }).always(function(){
       $(".overlay").remove();
     });
   }
@@ -194,5 +206,8 @@
       $("#category_id").html('').append(result).select2();
     });
   }
+
+  // Populate the default date range on entry instead of showing blank tables.
+  load_reports();
 </script>
 <script>$(".report-stock-active-li").addClass("active");</script>

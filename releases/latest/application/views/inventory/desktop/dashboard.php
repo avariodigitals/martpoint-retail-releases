@@ -34,7 +34,7 @@
   <?php endif; ?>
 
   <?php if($CI->permissions('stock_report')): ?>
-  <a href="<?= base_url('reports/show_stock_report'); ?>" class="mp-qa-btn purple">
+  <a href="<?= base_url('reports/stock'); ?>" class="mp-qa-btn purple">
     <i class="fa fa-bar-chart"></i> Stock Report
   </a>
   <?php endif; ?>

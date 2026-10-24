@@ -236,6 +236,31 @@ class Pos extends MY_Controller {
 		$data['warehouse_id'] = $warehouse_id;
 		$data['warehouse_options'] = $outlet_rows;
 
+		// Load stock for the desktop catalogue in one grouped query. Calling
+		// total_available_qty_items_of_warehouse() inside the product loop makes
+		// one database request per item; large imports can exhaust shared-host
+		// PHP workers and make the desktop POS return a server-level 503.
+		$stock_map = [];
+		if ($warehouse_id > 0 && !empty($products) && $this->db->table_exists('db_warehouseitems')) {
+			$product_ids = array_values(array_unique(array_map('intval', array_column($products, 'id'))));
+			foreach (array_chunk($product_ids, 500) as $product_id_chunk) {
+				if (empty($product_id_chunk)) continue;
+				$id_placeholders = implode(',', array_fill(0, count($product_id_chunk), '?'));
+				$stock_rows = $this->db->query(
+					"SELECT item_id, COALESCE(SUM(available_qty), 0) AS available_qty
+					 FROM db_warehouseitems
+					 WHERE store_id = ? AND warehouse_id = ? AND item_id IN ($id_placeholders)
+					 GROUP BY item_id",
+					array_merge([$store_id, $warehouse_id], $product_id_chunk)
+				);
+				if ($stock_rows) {
+					foreach ($stock_rows->result() as $stock_row) {
+						$stock_map[(int) $stock_row->item_id] = (float) $stock_row->available_qty;
+					}
+				}
+			}
+		}
+
 		// Resolve soonest-expiring batch per product for expiry warnings
 		$batch_map = [];
 		if ($this->db->table_exists('db_item_barcodes') && !empty($products)) {
@@ -294,7 +319,7 @@ class Pos extends MY_Controller {
 			$p['weight_pricing_increment_charge'] = (float)($p['weight_pricing_increment_charge'] ?? 0);
 			$p['parent_id'] = isset($p['parent_id']) ? (int) $p['parent_id'] : null;
 			// Add stock information
-				$p['stock'] = $warehouse_id > 0 ? (int) total_available_qty_items_of_warehouse($warehouse_id, null, $p['id']) : 0;
+				$p['stock'] = (int) ($stock_map[$p['id']] ?? 0);
 			$p['outOfStock'] = $p['stock'] <= 0;
 			$p['alert_qty'] = (int) ($p['alert_qty'] ?? 0);
 			// Prefer barcode/batch expiry over item-level expiry

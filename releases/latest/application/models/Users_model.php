@@ -426,7 +426,7 @@ class Users_model extends CI_Model {
 			return null;
 		}
 		if(!is_admin()){
-			$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+			$owner_roles = array_unique(array_merge(store_admin_role_ids($store_id), store_owner_role_ids($store_id)));
 			if(in_array((int)$role_id, $owner_roles, true)){
 				return 'The store owner/admin role is reserved for the existing store account.';
 			}
