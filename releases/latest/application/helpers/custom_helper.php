@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.199';
+    return '4.0.9.200';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -718,19 +718,14 @@
   }
 
   /**
-   * Role NAMES that identify a merchant owner.
+   * Tenant role names that carry the Business Owner permission profile.
    *
    * Roles are store-scoped — db_roles.store_id says which store a role belongs
    * to (role 2 'Store Admin' belongs to store 1). store_admin_id() is a
    * hard-coded legacy id, so on a store that was never given role 2 — e.g. a
-   * clinic provisioned with its own role set (Physiotherapist, Nurse,
-   * Receptionist ... Business Owner) — NO user could ever satisfy
-   * is_store_admin(), leaving owner-level screens (Site & branding,
-   * Subscription & licence, Email settings, Approvals & authority) unreachable
-   * for every account in that store.
-   *
-   * Owner authority is therefore resolved by role name within the session's own
-   * store, the same way get_excluded_staff_roles() resolves 'Partner'.
+   * clinic provisioned with its own role set — Business Owner is still a
+   * tenant role, not a Store Admin alias. Its rights come from the permissions
+   * assigned to that role, and it remains a normal billable tenant user.
    */
   function store_owner_role_names(){
     // Keep Store Admin separate: it is an install/admin role, not the
@@ -798,9 +793,8 @@
   /**
    * User IDs that belong to the store-owner account(s).
    *
-   * db_store.user_id is the authoritative owner link. The role lookup is a
-   * compatibility fallback for stores that have an owner role but whose
-   * legacy store row was provisioned without that link.
+   * This is an account-identity lookup only. Do not infer owner identity from
+   * the Business Owner role: that is an assignable, billable permission role.
    */
   function store_owner_user_ids($store_id = null){
     $CI =& get_instance();
@@ -817,10 +811,9 @@
     // called while another Query Builder statement is being assembled; using
     // the shared builder would leak its SELECT/FROM/WHERE state into these
     // owner lookups and can turn a normal page into a 500.
-    // Some older fleets do not have the owner link yet. More importantly,
-    // never call row() on a failed query here: this helper is used while the
-    // POS shell is being rendered, so a compatibility lookup must not turn a
-    // missing legacy column into a site-wide 500.
+    // Never call row() on a failed query here: this helper is used while the
+    // POS shell is being rendered, so a missing legacy column must not turn a
+    // normal page into a site-wide 500.
     $store = null;
     if($CI->db->table_exists('db_store') && $CI->db->field_exists('user_id', 'db_store')){
       $storeQuery = $CI->db->query(
@@ -833,28 +826,13 @@
       $ids[] = (int) $store->user_id;
     }
 
-    $role_ids = store_owner_role_ids($store_id);
-    if(!empty($role_ids)){
-      $owners = array();
-      if($CI->db->table_exists('db_users') && $CI->db->field_exists('role_id', 'db_users')){
-        $ownerQuery = $CI->db->query(
-          'SELECT id FROM db_users WHERE store_id = ? AND role_id IN ('.implode(',', array_map('intval', $role_ids)).')',
-          array($store_id)
-        );
-        $owners = $ownerQuery ? $ownerQuery->result() : array();
-      }
-      foreach($owners as $owner){
-        $ids[] = (int) $owner->id;
-      }
-    }
-
     return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
   }
 
   /**
-   * User IDs excluded from tenant-facing staff lists and billable seats.
-   * The owner remains a normal authenticated account with full authority; it
-   * is simply not an operational staff member for display or licensing.
+   * User IDs omitted from operational staff pickers (cashier, attendance,
+   * salesperson). This is identity-based and is deliberately NOT used by
+   * license seat counting: Business Owner is a normal, billable role.
    */
   function get_excluded_user_ids($store_id = ''){
     $store_id = (!empty($store_id)) ? (int)$store_id : (int)get_current_store_id();
@@ -863,13 +841,7 @@
     return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
   }
 
-  /**
-   * True when the signed-in user holds store-owner authority.
-   *
-   * Additive: the legacy hard-coded role id still wins, plus the owner role of
-   * the user's OWN store (by name). No caller loses access; a store whose owner
-   * role is missing simply never matched before and does now.
-   */
+  /** True only for the install-level/tenant Store Admin system role. */
   function is_store_admin(){
     $CI =& get_instance();
 
@@ -878,22 +850,8 @@
       return false;
     }
 
-    // The historic predicate is also used as a full-control permission
-    // shortcut in many screens. Recognize the distinct Store Admin identity,
-    // then retain the Business Owner privilege compatibility below. Role
-    // labels and user assignments must use the actual db_roles.role_name.
-    if(in_array($role_id, store_admin_role_ids((int)$CI->session->userdata('store_id')), true)){
-      return true;
-    }
-
-    // Owner role(s) of the session's own store, resolved once per store.
-    static $owner_roles = array();
     $store_id = (int) $CI->session->userdata('store_id');
-    if(!array_key_exists($store_id, $owner_roles)){
-      $owner_roles[$store_id] = store_owner_role_ids($store_id);
-    }
-
-    return in_array($role_id, $owner_roles[$store_id], true);
+    return in_array($role_id, store_admin_role_ids($store_id), true);
   }
 
   /** True only for the store-scoped merchant Business Owner role. */
@@ -1786,22 +1744,17 @@
   function get_user_usage($store_id=''){
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
-    // Exclude administrative/setup roles from the billable seat count:
-    //   - Admin (role_id=1, SaaS admin)
-    //   - Store Admin / Business Owner (role_id=2, store_admin_id())
-    //   - Partner (role_name = 'Partner', implementation/setup role)
-    // These roles manage the store but are not operational users (cashiers,
-    // managers, accountants) that consume a paid subscription seat.
+    // Only platform/admin and implementation accounts are non-billable.
+    // Business Owner is a tenant role with explicit permissions, not Store
+    // Admin; it consumes a normal licensed user seat, including the account
+    // linked from db_store.user_id.
     $excluded_role_ids = get_excluded_staff_roles($store_id);
-    $excluded_user_ids = get_excluded_user_ids($store_id);
     $role_sql = implode(',', array_map('intval', $excluded_role_ids ?: array(0)));
-    $user_sql = implode(',', array_map('intval', $excluded_user_ids ?: array(0)));
     // Keep licence usage independent of any active Query Builder statement.
     $query = $CI->db->query(
       "SELECT COUNT(*) AS total FROM db_users
        WHERE store_id = ? AND status = 1
-         AND role_id NOT IN ($role_sql)
-         AND id NOT IN ($user_sql)",
+         AND role_id NOT IN ($role_sql)",
       array($store_id)
     );
     return $query ? (int)$query->row()->total : 0;
@@ -1819,16 +1772,14 @@
   }
 
   /**
-   * Return role IDs that should not be counted as operational staff:
-   *   - Admin (role_id=1)
-   *   - Store Admin (store_admin_id())
-   *   - Partner role(s) for this store
+   * Role IDs excluded from staff pickers and license seats:
+   * platform Admin, system Store Admin and Partner implementation accounts.
+   * Business Owner is deliberately absent: it is a billable tenant role.
    */
   function get_excluded_staff_roles($store_id=''){
     $CI =& get_instance();
     $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
     $excluded = array_merge(array(1), store_admin_role_ids($store_id));
-    $excluded = array_merge($excluded, store_owner_role_ids($store_id));
     // Keep this lookup isolated as callers often invoke it inside a Query
     // Builder chain. Resetting the shared builder here drops the caller's
     // store/status filters; leaving it shared contaminates the lookup.

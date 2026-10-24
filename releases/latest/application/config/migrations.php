@@ -470,4 +470,7 @@ return [
 		  '4.0.9.198v' => '4.0.9.198_ai_growth_foundation.sql',
 		  // .199 adds optional, store-scoped extra photos to storefront products.
 		  '4.0.9.199v' => '4.0.9.199_storefront_product_gallery.sql',
+		  // .200 separates the Business Owner permission role from Store Admin
+		  // and counts Business Owner accounts as normal licensed tenant users.
+		  '4.0.9.200v' => '4.0.9.200_business_owner_role_and_license_seats.sql',
 ];

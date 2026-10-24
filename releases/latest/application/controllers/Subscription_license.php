@@ -8,7 +8,7 @@ class Subscription_license extends MY_Controller {
 		$this->load_global();
 	}
 
-	/* ================= SUPER ADMIN ONLY ================= */
+	/* ================= LICENSE-MANAGEMENT PERMISSION ================= */
 
 	public function index(){
 		$this->permission_check('license_management');
