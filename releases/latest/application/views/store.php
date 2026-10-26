@@ -31,6 +31,7 @@ if(!isset($q_id)){
 }
 // Session Lock (idle timeout + snooze) defaults — stored in db_store_settings
 $idle_enabled        = isset($idle_enabled) ? (int)$idle_enabled : 0;
+$weight_scale_mode  = isset($weight_scale_mode) && in_array($weight_scale_mode, array('digital', 'analog', 'hybrid'), true) ? $weight_scale_mode : 'analog';
 $idle_timeout_minutes= isset($idle_timeout_minutes) && (int)$idle_timeout_minutes > 0 ? (int)$idle_timeout_minutes : 15;
 $idle_warning_seconds= isset($idle_warning_seconds) && (int)$idle_warning_seconds > 0 ? (int)$idle_warning_seconds : 60;
 $snooze_enabled      = isset($snooze_enabled) ? (int)$snooze_enabled : 0;
@@ -591,6 +592,19 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
 
                                              <div class="col-md-12">
                                              <div class="form-group">
+                                                   <label for="weight_scale_mode" class="col-sm-3 control-label">Frozen-food POS weighing</label>
+                                                   <div class="col-sm-4">
+                                                      <select class="form-control select2" id="weight_scale_mode" name="weight_scale_mode" style="width:100%;">
+                                                         <option value="digital" <?= $weight_scale_mode === 'digital' ? 'selected' : ''; ?>>Digital scale — enter measured kg</option>
+                                                         <option value="analog" <?= $weight_scale_mode === 'analog' ? 'selected' : ''; ?>>Analogue scale — use KG + Lines</option>
+                                                         <option value="hybrid" <?= $weight_scale_mode === 'hybrid' ? 'selected' : ''; ?>>Hybrid — measured kg + optional Lines</option>
+                                                      </select>
+                                                      <small class="text-muted">Controls weight-enabled products in POS. Existing stores keep the current KG + Lines workflow until changed.</small>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-12">
+                                                <div class="form-group">
                                                    <label for="sales_invoice_formats" class="col-sm-3 control-label"><?= $this->lang->line('sales_invoice_formats'); ?><label class="text-danger">*</label> </label>
                                                    <div class="col-sm-4">
                                                       <select class="form-control select2" id="sales_invoice_format_id" name="sales_invoice_format_id"  style="width: 100%;">

@@ -664,9 +664,7 @@ function get_packages_select_list($select_id=''){
 
  	  $CI =& get_instance();
 	  $store_id = !empty($store_id) ? $store_id : get_current_store_id();
-	  // Store Admin is a system role and is never assignable as ordinary staff.
-	  // Business Owner is a normal tenant role and remains selectable.
-	  $reserved_role_ids = store_admin_role_ids($store_id);
+	  $owner_role_ids = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
 
  	  
  	  $CI->db->where("store_id",$store_id);
@@ -687,9 +685,10 @@ function get_packages_select_list($select_id=''){
 	    {
 	        foreach($q1->result() as $res1)
 	      {
-	        // Never let a tenant assign the install-level Store Admin role.
-	        // Business Owner is a distinct permission role and can be assigned.
-	        if(!is_admin() && in_array((int)$res1->id, $reserved_role_ids, true) && (int)$select_id !== (int)$res1->id){
+	        // A tenant may use the owner account, but may not create another
+	        // owner/store-admin seat through the staff form. Central admins can
+	        // still edit legacy owner records when required.
+	        if(!is_admin() && in_array((int)$res1->id, $owner_role_ids, true) && (int)$select_id !== (int)$res1->id){
 	        	continue;
 	        }
 	        // Industry gate: universal roles show everywhere, industry roles

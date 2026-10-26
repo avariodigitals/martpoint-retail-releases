@@ -109,36 +109,19 @@ class Reports extends MY_Controller {
 	}
 	/*Stock Report*/
 	public function show_stock_report(){
-		$this->permission_check('stock_report');
-		if(strtoupper($this->input->method()) !== 'POST'){
-			// This is an AJAX fragment endpoint; direct navigation should open the
-			// complete, styled report instead of a table fragment.
-			redirect('reports/stock');
-			return;
-		}
-		echo $this->reports->show_stock_report();
+		return $this->reports->show_stock_report();
 	}
 	public function brand_wise_stock(){
-		$this->permission_check('stock_report');
-		if(strtoupper($this->input->method()) !== 'POST'){
-			redirect('reports/stock');
-			return;
-		}
-		echo $this->reports->brand_wise_stock();
+		return $this->reports->brand_wise_stock();
 	}
 	public function get_stock_report(){
-		$this->permission_check('stock_report');
-		if(strtoupper($this->input->method()) !== 'POST'){
-			show_error('Method not allowed', 405);
-			return;
-		}
 		$data = array(
-			'item_wise_report' => $this->reports->show_stock_report(),
-			'brand_wise_stock' => $this->reports->brand_wise_stock(),
+			'item_wise_report' => $this->show_stock_report(),
+			'brand_wise_stock' => $this->brand_wise_stock(),
 			//'category_wise_stock' => $this->category_wise_stock(),
 		);
 		//print_r($data);exit;
-		$this->output->set_content_type('application/json')->set_output(json_encode($data));
+		echo json_encode($data); 
 	}
 
 	//Item Sales Report 

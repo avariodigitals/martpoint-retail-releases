@@ -37,7 +37,7 @@ class Quotation extends MY_Controller {
 			return;
 		}
 		$sectionField = $this->db->field_exists('section_name', 'db_quotationitems') ? 'qi.section_name' : "'' AS section_name";
-		$items = $this->db->select('COALESCE(NULLIF(qi.manual_item_name,\'\'), i.item_name) AS item_name, COALESCE(NULLIF(qi.part_code,\'\'), i.item_code) AS item_code, COALESCE(NULLIF(qi.unit_label,\'\'), u.unit_name) AS unit_name, qi.description, '.$sectionField.', qi.quotation_qty, qi.price_per_unit, qi.tax_amt, qi.unit_total_cost, qi.total_cost', false)
+		$items = $this->db->select('COALESCE(NULLIF(qi.manual_item_name,\'\'), i.item_name) AS item_name, COALESCE(NULLIF(qi.part_code,\'\'), i.item_code) AS item_code, COALESCE(NULLIF(qi.unit_label,\'\'), u.unit_name) AS unit_name, COALESCE(NULLIF(TRIM(qi.description),\'\'),NULLIF(TRIM(i.description),\'\'),\'\') AS description, '.$sectionField.', qi.quotation_qty, qi.price_per_unit, qi.tax_amt, qi.unit_total_cost, qi.total_cost', false)
 			->from('db_quotationitems qi')->join('db_items i','i.id=qi.item_id','left')->join('db_units u','u.id=i.unit_id','left')
 			->where('qi.quotation_id',$id)->where('qi.store_id',$store_id)->get()->result();
 		$esc = function($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };

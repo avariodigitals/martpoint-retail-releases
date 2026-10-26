@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.201';
+    return '4.0.9.202';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -1576,8 +1576,17 @@
     $increment = (float)($item->weight_pricing_increment_kg ?? 0);
     $charge = (float)($item->weight_pricing_increment_charge ?? 0);
     if($qty <= 0 || $included <= 0 || $increment <= 0 || $charge < 0) return $unit_price;
-    // Frozen-food pricing: when the POS supplies lines explicitly, use the
-    // separate whole-kg and line values. Legacy callers derive lines from qty.
+    $scale_mode = function_exists('mp_get_store_pos_setting')
+      ? strtolower((string)mp_get_store_pos_setting(get_current_store_id(), 'weight_scale_mode', 'analog'))
+      : 'analog';
+    if(!in_array($scale_mode, array('digital', 'analog', 'hybrid'), true)) $scale_mode = 'hybrid';
+    if($scale_mode === 'digital') {
+      // Digital scales provide an exact measured quantity: price proportionally
+      // against the configured base-kg price without analogue line charges.
+      return ($unit_price / $included);
+    }
+    // Analogue mode charges kg blocks plus line increments. Hybrid mode treats
+    // the exact measured kg as the proportional base and adds optional lines.
     if($line_count !== null && is_numeric($line_count)) {
       $steps = max(0, (int)$line_count);
       $whole_units = max(0, $qty - ($steps * $increment)) / $included;

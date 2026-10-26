@@ -55,6 +55,12 @@ class Store_profile_model extends CI_Model {
 		$t_and_c_status_pos = $this->input->post('t_and_c_status_pos', TRUE);
 		$number_to_words = $this->input->post('number_to_words', TRUE);
 		$default_account_id = $this->input->post('default_account_id', TRUE);
+		$weight_scale_mode = strtolower(trim((string)$this->input->post('weight_scale_mode', TRUE)));
+		if(!in_array($weight_scale_mode, array('digital', 'analog', 'hybrid'), true)){
+			$weight_scale_mode = function_exists('mp_get_store_pos_setting')
+				? mp_get_store_pos_setting($q_id, 'weight_scale_mode', 'analog')
+				: 'analog';
+		}
 		$mrp_column = $this->input->post('mrp_column', TRUE);
 		$show_signature = $this->input->post('show_signature', TRUE);
 		$previous_balance_bit = $this->input->post('previous_balance_bit', TRUE);
@@ -236,6 +242,7 @@ class Store_profile_model extends CI_Model {
 		// Modular POS settings
 		$pos_data = array(
 			'sales_discount'			=> $sales_discount,
+			'weight_scale_mode'			=> $weight_scale_mode,
 			'mrp_column'				=> $mrp_column,
 			'show_signature'			=> $show_signature,
 			'previous_balance_bit'		=> $previous_balance_bit,

@@ -19,10 +19,6 @@ class Monnify extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']='Monnify Settings';
 		$data['settings']=$this->monnify->get_settings();
-		$data['payout_account']=$this->monnify->get_payout_account();
-		$data['central_managed'] = function_exists('mp_is_central') && !mp_is_central()
-			&& $this->db->table_exists('db_payment_gateway_accounts')
-			&& $this->db->where('provider', 'monnify')->count_all_results('db_payment_gateway_accounts') > 0;
 		$data['content'] = $this->load->view('monnify_settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -30,12 +26,6 @@ class Monnify extends MY_Controller {
 	// Save settings
 	public function save_settings(){
 		$this->permission_check('monnify_settings');
-		if(function_exists('mp_is_central') && !mp_is_central()
-			&& $this->db->table_exists('db_payment_gateway_accounts')
-			&& $this->db->where('provider', 'monnify')->count_all_results('db_payment_gateway_accounts') > 0){
-			echo 'central_managed';
-			return;
-		}
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
@@ -48,9 +38,6 @@ class Monnify extends MY_Controller {
 			'enabled' => $this->input->post('enabled', TRUE) ?? 0,
 			'disbursements_enabled' => $this->input->post('disbursements_enabled', TRUE) ?? 0,
 			'test_mode' => $this->input->post('test_mode', TRUE) ?? 1,
-			'platform_fee_type' => in_array($this->input->post('platform_fee_type', TRUE), array('none','percentage','flat'), true) ? $this->input->post('platform_fee_type', TRUE) : 'none',
-			'platform_fee_value' => max(0, (float)$this->input->post('platform_fee_value')),
-			'fee_bearer' => $this->input->post('fee_bearer', TRUE) === 'merchant' ? 'merchant' : 'platform',
 			'callback_url' => base_url('monnify/callback'),
 			// Invalidate any cached token — keys may have changed
 			'access_token' => null,
@@ -167,8 +154,7 @@ class Monnify extends MY_Controller {
 		$verify = $this->monnify->verify_transaction($payment_reference, $payment->store_id);
 		if($verify['status']){
 			$this->monnify->update_payment_status($payment_reference, $verify['payment_status'], $verify);
-			if($verify['payment_status'] === 'PAID'
-				&& $this->monnify->payment_matches($payment_reference, $verify['amount'], $verify['currency'])){
+			if(in_array($verify['payment_status'], array('PAID','OVERPAID'))){
 				$this->monnify->confirm_sales_payment($payment_reference);
 			}
 		}
@@ -193,8 +179,7 @@ class Monnify extends MY_Controller {
 
 		$store_id = $payment ? $payment->store_id : null;
 		$verify = $this->monnify->verify_transaction($ref, $store_id);
-		if($verify['status'] && $verify['payment_status'] === 'PAID'
-			&& $this->monnify->payment_matches($ref, $verify['amount'], $verify['currency'])){
+		if($verify['status'] && in_array($verify['payment_status'], array('PAID','OVERPAID'))){
 			$this->monnify->update_payment_status($ref, $verify['payment_status'], $verify);
 			$this->monnify->confirm_sales_payment($ref);
 
@@ -268,11 +253,7 @@ class Monnify extends MY_Controller {
 						'amount' => $event_data['amountPaid'] ?? null,
 						'transaction_reference' => $event_data['transactionReference'] ?? null
 					));
-					$paid_amt = isset($event_data['amountPaid']) ? (float)$event_data['amountPaid'] : null;
-					$ev_currency = $event_data['currencyCode'] ?? ($event_data['currency'] ?? 'NGN');
-					if($known && $paid_amt !== null && $this->monnify->payment_matches($ref, $paid_amt, $ev_currency)){
-						$this->monnify->confirm_sales_payment($ref);
-					}
+					$this->monnify->confirm_sales_payment($ref);
 
 					// Reconciliation: no local payment link → unmatched;
 					// settled amount disagrees with initiated amount → discrepancy.
@@ -334,9 +315,7 @@ class Monnify extends MY_Controller {
 
 	// List NIP banks (AJAX)
 	public function banks(){
-		// Merchant payout setup uses this read-only bank list; it must not
-		// require permission to initiate arbitrary transfers.
-		$this->permission_check_with_msg('monnify_settings');
+		$this->permission_check_with_msg('monnify_transfers');
 		echo json_encode($this->monnify->get_banks());
 	}
 
@@ -426,19 +405,5 @@ class Monnify extends MY_Controller {
 			'contract_code' => $settings ? $settings->contract_code : '',
 			'test_mode' => $settings ? $settings->test_mode : 1
 		));
-	}
-
-	public function save_payout_account(){
-		$this->permission_check_with_msg('monnify_settings');
-		$store_id = (int)get_current_store_id();
-		$result = $this->monnify->save_payout_account($store_id, array(
-			'account_number' => $this->input->post('payout_account_number', TRUE),
-			'bank_code' => $this->input->post('payout_bank_code', TRUE),
-			'bank_name' => $this->input->post('payout_bank_name', TRUE),
-			'email' => $this->input->post('payout_email', TRUE),
-			'phone' => $this->input->post('payout_phone', TRUE),
-			'enabled' => (int)$this->input->post('payout_enabled', TRUE),
-		));
-		echo json_encode($result);
 	}
 }

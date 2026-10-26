@@ -15,7 +15,7 @@ $lmHasReviews = !empty($testimonials) && !empty($homepage_sections['testimonials
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= base_url('theme/css/lumiere-reference.css?v=2'); ?>">
-<link rel="stylesheet" href="<?= base_url('theme/css/lumiere-martpoint.css?v=8'); ?>">
+<link rel="stylesheet" href="<?= base_url('theme/css/lumiere-martpoint.css?v=7'); ?>">
 <?php if ($lmMarqueeItems): ?><div class="topbar lm-marquee" style="--lm-announcement-color:<?= lm_escape($lmAnnouncementColor); ?>" aria-label="Store announcements"><div class="lm-marquee-track"><?php for ($lmRepeat = 0; $lmRepeat < 2; $lmRepeat++): ?><div class="lm-marquee-group"<?= $lmRepeat ? ' aria-hidden="true"' : ''; ?>><?php foreach ($lmMarqueeItems as $lmMarqueeItem): ?><span><?= lm_escape($lmMarqueeItem); ?></span><i aria-hidden="true">✳</i><?php endforeach; ?></div><?php endfor; ?></div></div><?php else: ?><div class="topbar" style="background:<?= lm_escape($lmAnnouncementColor); ?>"><?= lm_escape($lmAnnouncement); ?></div><?php endif; ?>
 <header class="header">
   <div class="wrap head-inner">

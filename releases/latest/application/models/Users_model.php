@@ -426,9 +426,9 @@ class Users_model extends CI_Model {
 			return null;
 		}
 		if(!is_admin()){
-			$system_roles = store_admin_role_ids($store_id);
-			if(in_array((int)$role_id, $system_roles, true)){
-				return 'Store Admin is a system role and cannot be assigned as a tenant user role.';
+			$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
+			if(in_array((int)$role_id, $owner_roles, true)){
+				return 'The store owner/admin role is reserved for the existing store account.';
 			}
 		}
 		$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();

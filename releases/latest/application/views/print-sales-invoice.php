@@ -225,7 +225,7 @@ th, td {
               $tot_discount_amt=0;
               $tot_unit_total_cost=0;
               $tot_total_cost=0;
-              $q2=$this->db->query("SELECT c.item_name, a.sales_qty,
+              $q2=$this->db->query("SELECT c.item_name, COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, a.sales_qty,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost, a.unit_name as sold_unit_name, d.shortcode as sold_unit_shortcode
@@ -243,7 +243,9 @@ th, td {
                   $unit_label = $sold_label ? ' ['.htmlspecialchars($sold_label).']' : '';
                   echo "<tr>";  
                   echo "<td>".++$i."</td>";
-                  echo "<td colspan='2'>".$res2->item_name.$unit_label."</td>";
+                  echo "<td colspan='2'>".$res2->item_name.$unit_label;
+                  if(!empty($res2->description)) echo "<br><small style='color:#64748b'>".nl2br(htmlspecialchars($res2->description, ENT_QUOTES, 'UTF-8'))."</small>";
+                  echo "</td>";
                   echo "<td colspan='2'>".store_number_format($res2->price_per_unit)."</td>";
                   echo "<td>".$res2->sales_qty."</td>";
                   /*echo "<td>".$res2->tax."%<br>".$res2->tax_name."</td>";

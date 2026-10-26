@@ -1,8 +1,5 @@
 <?php
 /* Creator theme shared footer — include at the bottom of any creator view. */
-require_once APPPATH . 'helpers/storefront_footer_helper.php';
-$showMpPoweredBy = mp_storefront_show_powered_by($settings ?? null);
-$mpFooterLogo = mp_storefront_footer_logo_url($settings ?? null, $logo ?? ($logo_url ?? ''));
 $slug = $settings->store_slug ?? '';
 $year = date('Y');
 ?>
@@ -37,7 +34,7 @@ $year = date('Y');
   <div class="crf-footer-inner">
     <div>
       <div class="crf-footer-brand">
-        <?php if($mpFooterLogo): ?><img src="<?= htmlspecialchars($mpFooterLogo, ENT_QUOTES, 'UTF-8'); ?>" alt="<?= htmlspecialchars($store->store_name ?? 'Creator Store', ENT_QUOTES, 'UTF-8'); ?> footer logo" style="width:auto;height:auto;max-width:180px;max-height:54px;object-fit:contain;border-radius:4px;background:#fff;padding:6px 10px"><?php endif; ?>
+        <?php if($logo): ?><img src="<?= $logo; ?>" alt=""><?php endif; ?>
         <?= htmlspecialchars($store->store_name ?? 'Creator Store'); ?>
       </div>
       <p class="crf-footer-desc">Premium courses, digital products and memberships built for modern creators, educators and entrepreneurs.</p>
@@ -73,5 +70,5 @@ $year = date('Y');
       </div>
     </div>
   </div>
-  <div class="crf-bottom">&copy; <?= $year; ?> <?= htmlspecialchars($store->store_name ?? 'Creator Store'); ?>. All rights reserved.<?php if ($showMpPoweredBy): ?> · Powered by MartPoint<?php endif; ?></div>
+  <div class="crf-bottom">&copy; <?= $year; ?> <?= htmlspecialchars($store->store_name ?? 'Creator Store'); ?>. All rights reserved.</div>
 </footer>

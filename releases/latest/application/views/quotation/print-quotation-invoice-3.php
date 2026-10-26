@@ -228,7 +228,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     $tot_total_cost = 0;
 
     $sectionField = $this->db->field_exists('section_name', 'db_quotationitems') ? 'a.section_name' : "'' AS section_name";
-    $this->db->select("a.description, ".$sectionField.", COALESCE(NULLIF(a.manual_item_name,''),c.item_name) AS item_name, COALESCE(NULLIF(a.part_code,''),c.item_code) AS item_code, a.quotation_qty,
+    $this->db->select("COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, ".$sectionField.", COALESCE(NULLIF(a.manual_item_name,''),c.item_name) AS item_name, COALESCE(NULLIF(a.part_code,''),c.item_code) AS item_code, a.quotation_qty,
                        a.price_per_unit, b.tax, b.tax_name, a.tax_amt,
                        a.discount_input, a.discount_amt, a.unit_total_cost,
                        a.total_cost, COALESCE(NULLIF(a.unit_label,''),d.unit_name) AS unit_name, c.hsn", false);

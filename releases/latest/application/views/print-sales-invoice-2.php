@@ -226,7 +226,7 @@ th, td {
               $tot_discount_amt=0;
               $tot_unit_total_cost=0;
               $tot_total_cost=0;
-              $q2=$this->db->query("SELECT c.item_name, a.sales_qty, a.description,
+              $q2=$this->db->query("SELECT c.item_name, a.sales_qty, COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost ,c.hsn
@@ -244,7 +244,7 @@ th, td {
                  
                   echo "<td style='border-right: 1px solid;border-top: 1px solid;' colspan='5'>";
                     echo $res2->item_name;
-                    echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
+                    echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8'))."]</i>" : '';
                   echo "</td>";
                   
 

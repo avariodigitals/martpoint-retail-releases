@@ -38,6 +38,7 @@
       </div>
       <div class="mp-card-body">
         <div class="mp-card-name"><?= htmlspecialchars($p->item_name); ?></div>
+        <?php $cardDescription = trim(strip_tags((string)($p->short_description ?? ($p->description ?? '')))); if($cardDescription !== ''): ?><p class="mp-card-description" style="margin:0 0 8px;color:var(--mp-gray);font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;"><?= htmlspecialchars($cardDescription, ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
         <div style="display:flex;align-items:center;">
           <span class="mp-card-price"><?= sf_currency($price, $store_currency ?? null); ?></span>
           <?php if($hasDiscount): ?><span class="mp-card-old"><?= sf_currency($oldPrice, $store_currency ?? null); ?></span><?php endif; ?>

@@ -136,7 +136,7 @@
             ?>
             <?php if($mobileFooterLogo): ?><div style="margin-bottom:8px;"><img src="<?= htmlspecialchars($mobileFooterLogo); ?>" alt="Footer logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
             <input type="file" name="footer_logo" class="form-control" accept="image/*">
-            <small style="color:var(--mp-muted);">Shown in the online-store footer across supported themes. Leave empty to use the store logo as the footer logo.</small>
+            <small style="color:var(--mp-muted);">Used only in the shared online-store footer. Leave empty to keep the current footer logo.</small>
           </div>
           <div class="form-group">
             <label class="form-label">Sale &amp; Stock Labels</label>

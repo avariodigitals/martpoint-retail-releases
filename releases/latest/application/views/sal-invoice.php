@@ -260,7 +260,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
             $tot_price_per_unit=0;
             $sum_of_tot_price=0;
 
-            $this->db->select(" a.description,c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name, a.sales_qty,a.tax_type,
+            $this->db->select(" COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost , d.unit_name as base_unit_name,c.sku,c.hsn,

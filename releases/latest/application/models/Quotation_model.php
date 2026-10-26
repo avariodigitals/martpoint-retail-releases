@@ -636,7 +636,7 @@ class Quotation_model extends CI_Model {
 
 		$info = array(
 							'item_id' 					=> $res1->id, 
-							'description' 				=> '', 
+							'description' 				=> (string)($res1->description ?? ''),
 							'item_name' 				=> $res1->item_name,
 							'item_code' 				=> $res1->item_code,
 							'item_available_qty' 		=> $item_available_qty,
@@ -665,7 +665,7 @@ class Quotation_model extends CI_Model {
 			
 			$info = array(
 							'item_id' 					=> $res1->item_id, 
-							'description' 				=> $res1->description, 
+							'description' 				=> trim((string)($res1->description ?? '')) !== '' ? $res1->description : (string)($res2->description ?? ''),
 							'section_name' 			=> isset($res1->section_name) ? $res1->section_name : '',
 							'item_name' 				=> $res2->item_name,
 							'item_code' 				=> $res2->item_code,
@@ -715,6 +715,7 @@ class Quotation_model extends CI_Model {
                   <?php if(function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant' && $item_code !== ''): ?><small style="color:#64748b;font-weight:700"><?=htmlspecialchars($item_code, ENT_QUOTES, 'UTF-8');?> · </small><?php endif; ?><a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_quotation_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
                   		<i onclick="show_quotation_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
                   	</label>
+                  <?php if(trim((string)$description) !== ''): ?><small class="quotation-item-description" style="display:block;margin:4px 6px;color:#64748b;white-space:normal;line-height:1.35;"><?= nl2br(htmlspecialchars((string)$description, ENT_QUOTES, 'UTF-8')); ?></small><?php endif; ?>
                   <?php if (function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'): ?><small style="display:block;margin:5px 0 2px;color:#64748b;font-size:10px">Group heading (optional)</small><input type="text" class="form-control mp-form-control" style="font-size:11px" name="section_name_<?=$rowcount;?>" id="section_name_<?=$rowcount;?>" value="<?=htmlspecialchars($section_name, ENT_QUOTES, 'UTF-8');?>" placeholder="For example: EK-200K · First pressing"><?php endif; ?>
                </td>
 
@@ -771,7 +772,7 @@ class Quotation_model extends CI_Model {
                <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
                <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">
                <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
-               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=$description;?>">
+               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=htmlspecialchars((string)$description, ENT_QUOTES, 'UTF-8');?>">
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
 
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">

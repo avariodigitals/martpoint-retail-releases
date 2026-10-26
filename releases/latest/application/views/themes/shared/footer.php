@@ -1,11 +1,18 @@
 <?php
-require_once APPPATH . 'helpers/storefront_footer_helper.php';
 $slug = $settings->store_slug ?? '';
 $social = $social_links ?? [];
 $footerStyle = $settings->footer_style ?? 'standard';
 $aboutUs = $settings->footer_about_us ?? '';
-$footerLogo = mp_storefront_footer_logo_url($settings ?? null, $logo_url ?? '');
-$showMpPoweredBy = mp_storefront_show_powered_by($settings ?? null);
+$footerLogo = '';
+$footerLogoPath = trim((string)($settings->footer_logo ?? ''));
+if($footerLogoPath !== ''){
+  if(preg_match('#^https?://#i', $footerLogoPath)){
+    $footerLogo = $footerLogoPath;
+  } elseif(is_file(FCPATH . ltrim($footerLogoPath, '/'))){
+    $footerLogo = base_url(ltrim($footerLogoPath, '/'));
+  }
+}
+$footerLogo = $footerLogo ?: ($logo_url ?? '');
 ?>
 
 <?php if(empty($suppress_storefront_footer)): ?>
@@ -126,7 +133,7 @@ $showMpPoweredBy = mp_storefront_show_powered_by($settings ?? null);
   <?php endif; ?>
 
   <div class="mp-footer-bottom">
-    &copy; <?= date('Y'); ?> <?= htmlspecialchars($store->store_name ?? 'Store'); ?>. All rights reserved.<?php if ($showMpPoweredBy): ?> Business operations powered by MartPoint.<?php endif; ?>
+    &copy; <?= date('Y'); ?> <?= htmlspecialchars($store->store_name ?? 'Store'); ?>. All rights reserved. Business operations powered by MartPoint.
     <?php if((int)($settings->require_tracking_consent ?? 1) === 1): ?>
     &nbsp;&middot;&nbsp;<a href="#" onclick="if(window.mpTrackConsent){mpTrackConsent.showBar();}return false;" style="color:inherit;text-decoration:underline;">Tracking preferences</a>
     <?php endif; ?>

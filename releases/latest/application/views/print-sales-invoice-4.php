@@ -280,7 +280,7 @@ body { margin: 5px; }
               $tot_total_cost=0;
               $tot_before_tax=0;
 
-              $this->db->select(" a.description,c.item_name, a.sales_qty,a.tax_type,
+              $this->db->select(" COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, c.item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost , d.unit_name,c.sku,c.hsn
@@ -301,7 +301,7 @@ body { margin: 5px; }
                   echo "<td colspan='1' class='text-center'>".++$i."</td>";
                   echo "<td colspan='7'>";
                   echo $res2->item_name;
-                  echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
+                  echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8'))."]</i>" : '';
                   echo "</td>";
 
                   

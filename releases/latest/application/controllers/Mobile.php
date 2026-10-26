@@ -617,6 +617,8 @@ class Mobile extends MY_Controller {
 		}
 		$data = $this->data;
 		$data['page_title'] = 'POS';
+		$data['weight_scale_mode'] = function_exists('mp_get_store_pos_setting') ? mp_get_store_pos_setting(get_current_store_id(), 'weight_scale_mode', 'analog') : 'analog';
+		if(!in_array($data['weight_scale_mode'], array('digital', 'analog', 'hybrid'), true)) $data['weight_scale_mode'] = 'analog';
 		$data['active'] = 'pos';
 		$data['init_code'] = get_only_init_code('sales');
 		$data['count_id'] = get_last_count_id('db_sales');

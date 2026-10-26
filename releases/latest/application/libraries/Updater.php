@@ -1358,11 +1358,24 @@ subscription to receive updates.';
                     ], $fields, 'Assist AI');
 
                 case 'paystack':
+                    if ($this->CI->db->table_exists('db_payment_gateway_accounts')) {
+                        return $this->writeSettingFields('db_payment_gateway_accounts', ['provider' => 'paystack'], [
+                            'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
+                            'platform_fee_type', 'platform_fee_value', 'fee_bearer', 'callback_url',
+                        ], $fields, 'Paystack central account', true);
+                    }
                     return $this->writeSettingFields('db_paystack_settings', ['store_id' => $storeId], [
                         'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
                     ], $fields, 'Paystack', true);
 
                 case 'monnify':
+                    if ($this->CI->db->table_exists('db_payment_gateway_accounts')) {
+                        return $this->writeSettingFields('db_payment_gateway_accounts', ['provider' => 'monnify'], [
+                            'enabled', 'api_key', 'secret_key', 'contract_code', 'wallet_account_number',
+                            'disbursements_enabled', 'access_token', 'token_expires_at', 'test_mode', 'platform_fee_type',
+                            'platform_fee_value', 'fee_bearer', 'callback_url',
+                        ], $fields, 'Monnify central account', true);
+                    }
                     return $this->writeSettingFields('db_monnify_settings', ['store_id' => $storeId], [
                         'enabled', 'api_key', 'secret_key', 'contract_code',
                         'wallet_account_number', 'disbursements_enabled', 'test_mode',

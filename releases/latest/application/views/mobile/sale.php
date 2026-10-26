@@ -88,6 +88,10 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     .cart-item .qty { display: flex; align-items: center; gap: 12px; background: var(--mp-bg); border-radius: 10px; padding: 4px; }
     .cart-item .qty button { width: 32px; height: 32px; border: none; border-radius: 8px; background: var(--mp-surface); font-size: 18px; font-weight: 600; color: var(--mp-primary); }
     .cart-item .qty span { min-width: 24px; text-align: center; font-weight: 600; }
+    .cart-item .weight-qty { flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 62%; background: transparent; padding: 0; }
+    .cart-item .weight-qty label { display: grid; gap: 3px; font-size: 10px; color: var(--mp-muted); font-weight: 700; }
+    .cart-item .weight-qty input { width: 82px; min-height: 36px; padding: 6px; border: 1px solid var(--mp-border); border-radius: 8px; background: var(--mp-surface); color: var(--mp-ink); font-size: 14px; }
+    .cart-item .weight-qty small { width: 100%; text-align: right; color: var(--mp-muted); }
     .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-top: 1px solid var(--mp-border); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + var(--safe-bottom)); z-index: 100; }
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 10px; border: none; background: transparent; color: var(--mp-muted); font-size: 11px; font-weight: 500; text-decoration: none; }
     .nav-item .icon { font-size: 22px; }
@@ -573,6 +577,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     var currency = '<?= $this->session->userdata("currency"); ?>';
     var isPharmacyMobile = <?= $mp_is_pharmacy ? 'true' : 'false'; ?>;
     var showSaleStockLabels = <?= !empty($show_sale_stock_labels) ? 'true' : 'false'; ?>;
+    var weightScaleMode = <?= json_encode($weight_scale_mode ?? 'analog'); ?>;
 
     function mobilePharmacyNote(){
       if(!isPharmacyMobile) return '';
@@ -775,7 +780,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     function getCartTotal(){
       var subtotal = 0;
       cart.forEach(function(item){
-        var line = item.qty * item.price;
+        var line = item.qty * mobileWeightUnitPrice(item);
         if(item.tax_type === 'Exclusive'){
           line += (line * item.tax_value / 100);
         }
@@ -784,6 +789,37 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       var discount = parseFloat($('#discount').val()) || 0;
       var redeem = parseFloat($('#redeem_discount').val()) || 0;
       return Math.max(0, subtotal - discount - redeem + shippingFee);
+    }
+
+    function mobileWeightUnitPrice(item){
+      if(!item || !item.weight_pricing_enabled) return parseFloat(item.price) || 0;
+      var base = parseFloat(item.weight_pricing_base_kg) || 1;
+      var step = parseFloat(item.weight_pricing_increment_kg) || 0.05;
+      var charge = parseFloat(item.weight_pricing_increment_charge) || 0;
+      var lines = (weightScaleMode === 'digital') ? 0 : (parseInt(item.weight_lines, 10) || 0);
+      var digitalKg = (weightScaleMode === 'analog')
+        ? Math.max(0, (parseFloat(item.weight_base_qty) || 0) * base)
+        : Math.max(0, parseFloat(item.weight_digital_kg) || 0);
+      var total = ((digitalKg / base) * (parseFloat(item.price) || 0)) + (lines * charge);
+      return item.qty > 0 ? total / item.qty : 0;
+    }
+
+    function setMobileWeight(index, part, value){
+      var item = cart[index]; if(!item) return;
+      var previous = { qty:item.qty, weight_base_qty:item.weight_base_qty, weight_digital_kg:item.weight_digital_kg, weight_lines:item.weight_lines };
+      if(part === 'kg') item.weight_base_qty = Math.max(0, parseFloat(value) || 0);
+      if(part === 'digital') item.weight_digital_kg = Math.max(0, parseFloat(value) || 0);
+      if(part === 'lines') item.weight_lines = Math.max(0, parseInt(value, 10) || 0);
+      var base = parseFloat(item.weight_pricing_base_kg) || 1;
+      var step = parseFloat(item.weight_pricing_increment_kg) || 0.05;
+      item.qty = weightScaleMode === 'analog'
+        ? ((parseFloat(item.weight_base_qty) || 0) * base) + ((parseInt(item.weight_lines, 10) || 0) * step)
+        : (parseFloat(item.weight_digital_kg) || 0) + ((weightScaleMode === 'hybrid' ? (parseInt(item.weight_lines, 10) || 0) : 0) * step);
+      if(item.stock > 0 && item.qty * (item.conversion_factor || 1) > item.stock){
+        item.qty = previous.qty; item.weight_base_qty = previous.weight_base_qty; item.weight_digital_kg = previous.weight_digital_kg; item.weight_lines = previous.weight_lines;
+        showToast('Not enough stock for ' + item.name, 'warning'); renderCart(); return;
+      }
+      renderCart();
     }
 
     function updatePaymentChange(){
@@ -857,13 +893,18 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
           html += '<div class="cart-item" data-index="'+index+'">' +
             '<div>' +
               '<div class="name">'+(item.name || 'Unnamed item')+'</div>' +
-              '<div class="meta">'+formatMoney(item.price)+' · '+item.tax_type+unitLabel+'</div>' +
+              '<div class="meta">'+formatMoney(mobileWeightUnitPrice(item))+' · '+item.tax_type+unitLabel+'</div>' +
             '</div>' +
-            '<div class="qty">' +
+            (item.weight_pricing_enabled ? '<div class="qty weight-qty">' +
+              (weightScaleMode === 'analog'
+                ? '<label>KG <input type="number" min="0" step="1" value="'+(item.weight_base_qty || 0)+'" data-weight-part="kg"></label>'
+                : '<label>Measured kg <input type="number" min="0.001" step="0.001" value="'+(item.weight_digital_kg || 0)+'" data-weight-part="digital"></label>') +
+              (weightScaleMode !== 'digital' ? '<label>Lines <input type="number" min="0" step="1" value="'+(item.weight_lines || 0)+'" data-weight-part="lines"></label>' : '') +
+              '<small>'+Number(item.qty || 0).toFixed(3)+' kg</small></div>' : '<div class="qty">' +
               '<button class="qty-minus">-</button>' +
               '<span>'+item.qty+'</span>' +
               '<button class="qty-plus">+</button>' +
-            '</div>' +
+            '</div>') +
           '</div>';
         });
         $('#cart').html(html);
@@ -924,7 +965,14 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
         return;
       }
       if(found){
-        found.qty += 1;
+        if(found.weight_pricing_enabled){
+          if(weightScaleMode === 'analog') found.weight_base_qty = (parseFloat(found.weight_base_qty) || 0) + 1;
+          else found.weight_digital_kg = (parseFloat(found.weight_digital_kg) || 0) + 1;
+          var step = parseFloat(found.weight_pricing_increment_kg) || 0.05;
+          found.qty = weightScaleMode === 'analog'
+            ? ((parseFloat(found.weight_base_qty) || 0) * (parseFloat(found.weight_pricing_base_kg) || 1)) + ((parseInt(found.weight_lines, 10) || 0) * step)
+            : (parseFloat(found.weight_digital_kg) || 0) + ((weightScaleMode === 'hybrid' ? (parseInt(found.weight_lines, 10) || 0) : 0) * step);
+        } else found.qty += 1;
       } else {
         cart.push({
           id: item.id,
@@ -939,8 +987,16 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
           unit_name: unitName,
           conversion_factor: conversionFactor,
           stock: parseFloat(item.stock) || 0,
-          qty: 1
+          qty: 1,
+          weight_pricing_enabled: !!parseInt(item.weight_pricing_enabled, 10),
+          weight_pricing_base_kg: parseFloat(item.weight_pricing_base_kg) || 1,
+          weight_pricing_increment_kg: parseFloat(item.weight_pricing_increment_kg) || 0.05,
+          weight_pricing_increment_charge: parseFloat(item.weight_pricing_increment_charge) || 0,
+          weight_base_qty: weightScaleMode === 'analog' && !!parseInt(item.weight_pricing_enabled, 10) ? 1 : 0,
+          weight_digital_kg: weightScaleMode !== 'analog' && !!parseInt(item.weight_pricing_enabled, 10) ? 1 : 0,
+          weight_lines: 0
         });
+        if(item.weight_pricing_enabled) cart[cart.length - 1].qty = weightScaleMode === 'analog' ? (parseFloat(item.weight_pricing_base_kg) || 1) : 1;
       }
       $('#item_results').hide();
       $('#item_search').val('');
@@ -1174,6 +1230,11 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       renderCart();
     });
 
+    $(document).on('change', '[data-weight-part]', function(){
+      var idx = $(this).closest('.cart-item').data('index');
+      setMobileWeight(idx, $(this).attr('data-weight-part'), this.value);
+    });
+
     $(document).on('click', '.qty-minus', function(){
       var idx = $(this).closest('.cart-item').data('index');
       cart[idx].qty -= 1;
@@ -1337,7 +1398,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
         redeem_gift_card_amount: $('#gift_card_redeem_amount').val() || 0,
         coupon_code: $('#coupon_code').val() || '',
         allow_tot_advance: $('#allow_tot_advance').is(':checked') ? 'checked' : '',
-        cart: cart,
+        cart: cart.map(function(item){ var copy = Object.assign({}, item); copy.base_price = parseFloat(item.price) || 0; copy.price = mobileWeightUnitPrice(item); return copy; }),
         shipping: shippingFeeId ? { id: shippingFeeId } : null
         ,restaurant_order_key: window.__mpRestaurantOrderKey || (window.__mpRestaurantOrderKey = 'pos-' + Date.now() + '-' + Math.random().toString(36).slice(2))
       };

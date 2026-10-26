@@ -664,84 +664,6 @@ class Reports_model extends CI_Model {
 		
 	    exit;
 	}
-	/**
-	 * Rebuild historical warehouse quantities in one grouped query instead of
-	 * issuing seven transaction queries for every single item in the report.
-	 * Keys are store_id:item_id so multi-store administrators remain isolated.
-	 */
-	private function stock_quantities_as_of_date($store_ids, $warehouse_id, $as_of_date){
-		$store_ids = array_values(array_unique(array_filter(array_map('intval', $store_ids))));
-		$warehouse_id = (int)$warehouse_id;
-		if(empty($store_ids) || $warehouse_id < 1 || empty($as_of_date)){
-			return array();
-		}
-		$stores_sql = implode(',', $store_ids);
-		$date_sql = $this->db->escape($as_of_date);
-		$warehouse_sql = (string)$warehouse_id;
-
-		$sql = "SELECT store_id, item_id, COALESCE(SUM(qty_delta), 0) AS available_qty FROM (
-			SELECT b.store_id, a.item_id,
-				SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)) AS qty_delta
-			FROM db_purchaseitems a JOIN db_purchase b ON b.id = a.purchase_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql
-				AND b.purchase_status IN ('Received','Partially Received') AND b.purchase_date <= $date_sql
-			GROUP BY b.store_id, a.item_id
-			UNION ALL
-			SELECT b.store_id, a.item_id,
-				-SUM(COALESCE(a.base_unit_qty, a.return_qty)) AS qty_delta
-			FROM db_purchaseitemsreturn a JOIN db_purchasereturn b ON b.id = a.return_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql AND b.return_date <= $date_sql
-			GROUP BY b.store_id, a.item_id
-			UNION ALL
-			SELECT b.store_id, a.item_id,
-				-SUM(COALESCE(a.base_unit_qty, a.sales_qty)) AS qty_delta
-			FROM db_salesitems a JOIN db_sales b ON b.id = a.sales_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql
-				AND b.sales_status = 'Final' AND b.sales_date <= $date_sql
-			GROUP BY b.store_id, a.item_id
-			UNION ALL
-			SELECT b.store_id, a.item_id,
-				SUM(COALESCE(a.base_unit_qty, a.return_qty)) AS qty_delta
-			FROM db_salesitemsreturn a JOIN db_salesreturn b ON b.id = a.return_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql AND b.return_date <= $date_sql
-			GROUP BY b.store_id, a.item_id
-			UNION ALL
-			SELECT a.store_id, a.item_id, SUM(a.adjustment_qty) AS qty_delta
-			FROM db_stockadjustmentitems a JOIN db_stockadjustment b ON b.id = a.adjustment_id
-			WHERE a.store_id IN ($stores_sql) AND a.warehouse_id = $warehouse_sql AND b.adjustment_date <= $date_sql
-			GROUP BY a.store_id, a.item_id
-			UNION ALL
-			SELECT a.store_id, a.item_id, SUM(a.transfer_qty) AS qty_delta
-			FROM db_stocktransferitems a JOIN db_stocktransfer b ON b.id = a.stocktransfer_id
-			WHERE a.store_id IN ($stores_sql) AND a.warehouse_to = $warehouse_sql AND b.transfer_date <= $date_sql
-			GROUP BY a.store_id, a.item_id
-			UNION ALL
-			SELECT a.store_id, a.item_id, -SUM(a.transfer_qty) AS qty_delta
-			FROM db_stocktransferitems a JOIN db_stocktransfer b ON b.id = a.stocktransfer_id
-			WHERE a.store_id IN ($stores_sql) AND a.warehouse_from = $warehouse_sql AND b.transfer_date <= $date_sql
-			GROUP BY a.store_id, a.item_id
-		) movements GROUP BY store_id, item_id";
-
-		$query = $this->db->query($sql);
-		$quantities = array();
-		if($query){
-			foreach($query->result() as $row){
-				$quantities[(int)$row->store_id.':'.(int)$row->item_id] = (float)$row->available_qty;
-			}
-		}
-		return $quantities;
-	}
-
-	/**
-	 * Inventory names may have been saved by older importers as HTML entities
-	 * (for example, `Laptops &amp; Computers`). Decode once, then escape for the
-	 * report cell so the browser displays a real ampersand without exposing HTML.
-	 */
-	private function stock_report_text($value){
-		$value = html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-		return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-	}
-
 	public function show_stock_report(){
 		$from_date = $this->input->post('from_date', TRUE);
 		$to_date = $this->input->post('to_date', TRUE);
@@ -791,33 +713,19 @@ class Reports_model extends CI_Model {
 
 
 		if($q1->num_rows()>0){
-			$items = $q1->result();
-			$store_ids = array();
-			foreach($items as $item){ $store_ids[] = (int)$item->store_id; }
-			$store_ids = array_values(array_unique(array_filter($store_ids)));
-			$stock_by_item = array();
-			if(!empty($as_of_date)){
-				// Preserve the legacy default-warehouse behavior for an all-warehouse
-				// historical request while calculating all items in a single query.
-				$history_warehouse_id = !empty($warehouse_id) ? (int)$warehouse_id : (int)get_store_warehouse_id();
-				$stock_by_item = $this->stock_quantities_as_of_date($store_ids, $history_warehouse_id, $as_of_date);
-			}else{
-				$this->db->select('store_id, item_id, COALESCE(SUM(available_qty),0) AS available_qty', false)
-					->from('db_warehouseitems')->where_in('store_id', $store_ids);
-				if(!empty($warehouse_id)) $this->db->where('warehouse_id', (int)$warehouse_id);
-				foreach($this->db->group_by(array('store_id','item_id'))->get()->result() as $stock_row){
-					$stock_by_item[(int)$stock_row->store_id.':'.(int)$stock_row->item_id] = (float)$stock_row->available_qty;
-				}
-			}
 			$i=0;
 			$tot_stock = 0;
 			$tot_value = 0;
 			$tot_stock_value_by_purchase_price = 0;
-			foreach ($items as $res1) {
+			foreach ($q1->result() as $res1) {
 
 				if($res1->item_group=='Variants'){continue;}
-					$stock_key = (int)$res1->store_id.':'.(int)$res1->item_id;
-					$available_qty_wh = isset($stock_by_item[$stock_key]) ? $stock_by_item[$stock_key] : 0;
+
+					if(!empty($as_of_date)){
+						$available_qty_wh = get_total_qty_of_warehouse_item_as_of_date($res1->item_id,$warehouse_id,$res1->store_id,$as_of_date);
+					}else{
+						$available_qty_wh = total_available_qty_items_of_warehouse($warehouse_id,$res1->store_id,$res1->item_id);
+					}
 
 					$value = $available_qty_wh * $res1->sales_price;
 
@@ -830,12 +738,12 @@ class Reports_model extends CI_Model {
 						if(store_module() && is_admin()){
 							$str .= "<td>".get_store_name($res1->store_id)."</td>";	
 						}
-						$str .= "<td>".$this->stock_report_text($res1->item_code)."</td>";
-						$str .= "<td>".$this->stock_report_text($res1->item_name)."</td>";
-						$str .= "<td>".$this->stock_report_text($res1->brand_name)."</td>";
-						$str .= "<td>".$this->stock_report_text($res1->category_name)."</td>";
+						$str .= "<td>".$res1->item_code."</td>";
+						$str .= "<td>".$res1->item_name."</td>";
+						$str .= "<td>".$res1->brand_name."</td>";
+						$str .= "<td>".$res1->category_name."</td>";
 						$str .= "<td class='text-right'>".store_number_format($res1->purchase_price)."</td>";
-						$str .= "<td>".$this->stock_report_text($res1->tax_name)."[".$tax_type."]</td>";
+						$str .= "<td>".$res1->tax_name."[".$tax_type."]</td>";
 						$str .= "<td class='text-right'>".store_number_format($res1->price)."</td>";
 						$str .= "<td class='text-right'>".store_number_format($res1->sales_price)."</td>";
 						$str .= "<td>".format_qty($available_qty_wh)."</td>";
@@ -910,32 +818,35 @@ class Reports_model extends CI_Model {
 		$q1=$this->db->get();
 		$str1='';
 		if($q1->num_rows()>0){
-			$brands = $q1->result();
-			$store_ids = array();
-			foreach($brands as $brand){ $store_ids[] = (int)$brand->store_id; }
-			$store_ids = array_values(array_unique(array_filter($store_ids)));
-			$stock_by_brand = array();
-			if(!empty($store_ids)){
-				$this->db->select('i.brand_id, wi.store_id, COALESCE(SUM(wi.available_qty),0) AS available_qty', false)
-					->from('db_warehouseitems wi')
-					->join('db_items i', 'i.id = wi.item_id', 'inner')
-					->where_in('wi.store_id', $store_ids)
-					->where('i.brand_id IS NOT NULL', null, false);
-				if(!empty($warehouse_id)) $this->db->where('wi.warehouse_id', (int)$warehouse_id);
-				foreach($this->db->group_by(array('wi.store_id','i.brand_id'))->get()->result() as $stock_row){
-					$stock_by_brand[(int)$stock_row->store_id.':'.(int)$stock_row->brand_id] = (float)$stock_row->available_qty;
-				}
-			}
 			$i=0;
 			$tot_stock=0;
-			foreach ($brands as $res1) {
-					$available_qty = isset($stock_by_brand[(int)$res1->store_id.':'.(int)$res1->id]) ? $stock_by_brand[(int)$res1->store_id.':'.(int)$res1->id] : 0;
+			foreach ($q1->result() as $res1) {
+					$available_qty=0;
+					$brand_id=$res1->id;
+					$store_id=$res1->store_id;
+
+					$str='';
+					if(!empty($store_id)){
+					     $str .=" and store_id= $store_id ";
+					}
+					if(!empty($warehouse_id)){
+				         $str .=" and warehouse_id= $warehouse_id ";
+				    }
+					$q3 = "select COALESCE(sum(available_qty),0) as available_qty from 
+							db_warehouseitems where 
+							item_id in (select id from db_items where brand_id=$brand_id)
+							$str
+							";
+
+					$q3=$this->db->query($q3);
+
+					$available_qty = $q3->row()->available_qty;
 					$str1 .= "<tr>";
 					$str1 .= "<td>".++$i."</td>";
 					if(store_module() && is_admin()){
 						$str1 .= "<td>".get_store_name($res1->store_id)."</td>";	
 					}
-					$str1 .= "<td>".$this->stock_report_text($res1->brand_name)."</td>";
+					$str1 .= "<td>".$res1->brand_name."</td>";
 					$str1 .= "<td>".format_qty($available_qty)."</td>";
 					$str1 .= "</tr>";
 					$tot_stock+=$available_qty;

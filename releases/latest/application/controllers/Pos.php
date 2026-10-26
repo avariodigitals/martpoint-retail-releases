@@ -64,6 +64,10 @@ class Pos extends MY_Controller {
 		}
 
 		$data=$this->data;
+		$data['weight_scale_mode'] = function_exists('mp_get_store_pos_setting')
+			? mp_get_store_pos_setting(get_current_store_id(), 'weight_scale_mode', 'analog')
+			: 'analog';
+		if(!in_array($data['weight_scale_mode'], array('digital', 'analog', 'hybrid'), true)) $data['weight_scale_mode'] = 'analog';
 
 		// Check if cashier is clocked in (Store Admin is exempt from attendance)
 		$data['needs_clock_in'] = false;

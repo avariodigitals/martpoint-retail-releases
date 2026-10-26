@@ -476,4 +476,8 @@ return [
 		  // .201 adds optional counter/kitchen/bar routing to retail items. The
 		  // default is counter, so existing stores keep their current workflow.
 		  '4.0.9.201v' => '4.0.9.201_restaurant_fulfilment_routes.sql',
+		  // .202 adds store-configurable digital/analogue weighing and makes
+		  // catalogue descriptions visible in commercial and storefront flows.
+		  // Settings use the existing store POS settings table; no schema change.
+		  '4.0.9.202v' => '4.0.9.202_weight_scale_and_product_descriptions.sql',
 ];

@@ -369,7 +369,7 @@ body { margin: 5px; }
                                   d.id = c.unit_id and
                                   c.id=a.item_id AND b.id=a.tax_id AND a.quotation_id='$quotation_id'");*/
 
-              $this->db->select(" a.description,c.item_name, a.quotation_qty,
+              $this->db->select(" COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, c.item_name, a.quotation_qty,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost , d.unit_name,c.hsn
@@ -392,7 +392,7 @@ body { margin: 5px; }
                   echo "<td colspan='2' class='text-center'>".$i++."</td>";
                   echo "<td colspan='6'>";
                   echo $res2->item_name;
-                  echo (!empty($res2->description)) ? "<br><i>[".nl2br($res2->description)."]</i>" : '';
+                  echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8'))."]</i>" : '';
                   echo "</td>";
 
                   echo "<td colspan='2' class='text-right'>".store_number_format($res2->price_per_unit)."</td>";

@@ -1458,7 +1458,7 @@ class Sales_model extends CI_Model {
 
 		// Barcode-specific lookup
 		if(!empty($barcode)){
-			$this->db->select('b.*, a.item_name, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
+			$this->db->select('b.*, a.item_name, a.description AS item_description, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
 			$this->db->from('db_item_barcodes b');
 			$this->db->join('db_items a', 'a.id = b.item_id', 'left');
 			$this->db->join('db_tax t', 't.id = a.tax_id', 'left');
@@ -1489,7 +1489,7 @@ class Sales_model extends CI_Model {
 				$item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price,$bc_data->tax) :calculate_exclusive($sales_price,$bc_data->tax);
 				$info = array(
 					'item_id' => $item_id,
-					'description' => '',
+					'description' => (string)($bc_data->item_description ?? ''),
 					'item_name' => $bc_data->item_name,
 					'item_available_qty' => $bc_data->qty,
 					'item_price' => $bc_data->purchase_price,
@@ -1556,7 +1556,7 @@ class Sales_model extends CI_Model {
 
 		$info = array(
 							'item_id' 					=> $res1->id,
-							'description' 				=> '',
+							'description' 				=> (string)($res1->description ?? ''),
 							'item_name' 				=> $res1->item_name,
 							'item_available_qty' 		=> $item_available_qty,
 							'item_price' 				=> $res1->price,

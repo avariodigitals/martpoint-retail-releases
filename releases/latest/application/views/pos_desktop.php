@@ -2078,6 +2078,7 @@ $pos_json = static function ($value) {
     const products = <?= $pos_json($products ?? []) ?>;
     const baseUrl = <?= $pos_json(rtrim(base_url(), '/')) ?>;
     const POS_DECIMALS = <?= (int)decimals() ?>;
+    const WEIGHT_SCALE_MODE = <?= $pos_json($weight_scale_mode ?? 'analog') ?>;
     const WAREHOUSE_ID = <?= $pos_json((string)$warehouse_id) ?>;
     const WALKIN_CUSTOMER_ID = <?= $pos_json((string)$walkin_customer_id) ?>;
     const csrfToken = <?= $pos_json($this->security->get_csrf_hash()) ?>;
@@ -2227,6 +2228,12 @@ $pos_json = static function ($value) {
       const charge = parseFloat(item && item.weight_pricing_increment_charge) || 0;
       const q = parseFloat(qty) || 0;
       if (!enabled || q <= 0 || base <= 0 || step <= 0 || charge < 0) return { total: (parseFloat(item.unitPrice) || 0) * q, unit: parseFloat(item.unitPrice) || 0 };
+      if (WEIGHT_SCALE_MODE === 'digital' || WEIGHT_SCALE_MODE === 'hybrid') {
+        const measuredKg = Math.max(0, parseFloat(item.weight_digital_kg) || 0);
+        const lines = WEIGHT_SCALE_MODE === 'hybrid' ? Math.max(0, parseInt(item.weight_lines, 10) || 0) : 0;
+        const total = ((measuredKg / base) * (parseFloat(item.unitPrice) || 0)) + (lines * charge);
+        return { total: total, unit: total / q };
+      }
       let total;
       const wholeUnits = Math.floor((q / base) + 0.00000001);
       const remainder = Math.max(0, q - (wholeUnits * base));
@@ -2644,10 +2651,15 @@ $pos_json = static function ($value) {
       const item = existing;
       if (item) {
         if (item.weight_pricing_enabled) {
-          item.weight_base_qty = (parseFloat(item.weight_base_qty) || 0) + 1;
-          const baseKg = parseFloat(item.weight_pricing_base_kg) || 1;
-          const lineStep = parseFloat(item.weight_pricing_increment_kg) || 0.05;
-          item.qty = (item.weight_base_qty * baseKg) + ((parseInt(item.weight_lines, 10) || 0) * lineStep);
+          if (WEIGHT_SCALE_MODE === 'analog') {
+            item.weight_base_qty = (parseFloat(item.weight_base_qty) || 0) + 1;
+            const baseKg = parseFloat(item.weight_pricing_base_kg) || 1;
+            const lineStep = parseFloat(item.weight_pricing_increment_kg) || 0.05;
+            item.qty = (item.weight_base_qty * baseKg) + ((parseInt(item.weight_lines, 10) || 0) * lineStep);
+          } else {
+            item.weight_digital_kg = (parseFloat(item.weight_digital_kg) || 0) + 1;
+            item.qty = item.weight_digital_kg + ((WEIGHT_SCALE_MODE === 'hybrid' ? (parseInt(item.weight_lines, 10) || 0) : 0) * (parseFloat(item.weight_pricing_increment_kg) || 0.05));
+          }
         } else {
           item.qty++;
         }
@@ -2660,7 +2672,8 @@ $pos_json = static function ($value) {
           conversion_factor: conversionFactor,
           unitPrice: unitPrice,
           qty: 1,
-          weight_base_qty: product.weight_pricing_enabled ? 1 : undefined,
+          weight_base_qty: product.weight_pricing_enabled && WEIGHT_SCALE_MODE === 'analog' ? 1 : undefined,
+          weight_digital_kg: product.weight_pricing_enabled && WEIGHT_SCALE_MODE !== 'analog' ? 1 : undefined,
           weight_lines: product.weight_pricing_enabled ? 0 : undefined,
           tax_value: product.tax_value,
           tax_id: product.tax_id,
@@ -2737,19 +2750,29 @@ $pos_json = static function ($value) {
         updateCart(); return;
       }
       item.qty = qty;
+      if (WEIGHT_SCALE_MODE !== 'analog') item.weight_digital_kg = qty - ((WEIGHT_SCALE_MODE === 'hybrid' ? (parseInt(item.weight_lines, 10) || 0) : 0) * (parseFloat(item.weight_pricing_increment_kg) || 0.05));
       updateCart();
     }
 
     function setWeightParts(index, part, value) {
       const item = cart[index];
       if (!item) return;
+      const previous = { qty: item.qty, weight_base_qty: item.weight_base_qty, weight_digital_kg: item.weight_digital_kg, weight_lines: item.weight_lines };
       if (part === 'kg') item.weight_base_qty = Math.max(0, parseFloat(value) || 0);
       if (part === 'lines') item.weight_lines = Math.max(0, parseInt(value, 10) || 0);
       const baseKg = parseFloat(item.weight_pricing_base_kg) || 1;
       const step = parseFloat(item.weight_pricing_increment_kg) || 0.05;
-      item.qty = (item.weight_base_qty * baseKg) + (item.weight_lines * step);
+      if (WEIGHT_SCALE_MODE === 'analog') item.qty = (item.weight_base_qty * baseKg) + (item.weight_lines * step);
+      else {
+        if (part === 'digital_kg') item.weight_digital_kg = Math.max(0, parseFloat(value) || 0);
+        item.qty = (parseFloat(item.weight_digital_kg) || 0) + ((WEIGHT_SCALE_MODE === 'hybrid' ? item.weight_lines : 0) * step);
+      }
       const product = products.find(p => p.id === item.id);
       if (product && product.stock < item.qty * (parseFloat(item.conversion_factor || 1))) {
+        item.qty = previous.qty;
+        item.weight_base_qty = previous.weight_base_qty;
+        item.weight_digital_kg = previous.weight_digital_kg;
+        item.weight_lines = previous.weight_lines;
         showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
         updateCart(); return;
       }
@@ -3136,7 +3159,7 @@ $pos_json = static function ($value) {
               <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? (isPharmacyPos ? 'Trade' : 'Wholesale') : (isPharmacyPos ? 'Standard' : 'Retail')}${unitLabel}</div>
             </div>
             <div class="qty-control">
-              ${item.weight_pricing_enabled ? '<span class="weight-entry"><span class="weight-part"><span class="weight-label">KG</span><input type="number" min="0" step="1" value="' + (item.weight_base_qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'kg\', this.value)"></span><span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span><span class="weight-total">= ' + Number(item.qty || 0).toFixed(2) + ' kg</span></span>' : '<button onclick="changeQty(' + index + ', -1)">-</button><span>' + item.qty + '</span><button onclick="changeQty(' + index + ', 1)">+</button>'}
+              ${item.weight_pricing_enabled ? (WEIGHT_SCALE_MODE === 'analog' ? '<span class="weight-entry"><span class="weight-part"><span class="weight-label">KG</span><input type="number" min="0" step="1" value="' + (item.weight_base_qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'kg\', this.value)"></span><span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span><span class="weight-total">= ' + Number(item.qty || 0).toFixed(2) + ' kg</span></span>' : '<span class="weight-entry"><span class="weight-part"><span class="weight-label">Measured kg</span><input type="number" min="0.001" step="0.001" value="' + (item.weight_digital_kg ?? item.qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'digital_kg\', this.value)"></span>' + (WEIGHT_SCALE_MODE === 'hybrid' ? '<span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span>' : '') + '<span class="weight-total">= ' + Number(item.qty || 0).toFixed(3) + ' kg</span></span>') : '<button onclick="changeQty(' + index + ', -1)">-</button><span>' + item.qty + '</span><button onclick="changeQty(' + index + ', 1)">+</button>'}
             </div>
             <div class="item-total">${formatMoney(displayTotal)}</div>
             <button class="remove-btn" onclick="removeItem(${index})">

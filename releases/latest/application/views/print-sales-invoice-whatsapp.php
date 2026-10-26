@@ -268,7 +268,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     $tot_discount_amt = 0;
     $tot_total_cost = 0;
 
-    $this->db->select("a.description, c.item_name, a.sales_qty, a.tax_type,
+    $this->db->select("COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, c.item_name, a.sales_qty, a.tax_type,
                        a.price_per_unit, b.tax, b.tax_name, a.tax_amt,
                        a.discount_input, a.discount_amt, a.unit_total_cost,
                        a.total_cost, d.unit_name, c.sku, c.hsn");
@@ -286,7 +286,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
       <td class="sl"><?= $i++; ?></td>
       <td>
         <?= $res2->item_name; ?>
-        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;">[<?= nl2br($res2->description); ?>]</small><?php endif; ?>
+        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;">[<?= nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8')); ?>]</small><?php endif; ?>
       </td>
       <td class="qty"><?= format_qty($res2->sales_qty); ?></td>
       <td class="num"><?= $CI->currency($res2->unit_total_cost); ?></td>

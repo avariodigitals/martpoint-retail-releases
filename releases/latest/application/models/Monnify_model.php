@@ -10,24 +10,12 @@ class Monnify_model extends CI_Model {
 
 	public function get_settings($store_id = null)
 	{
-		// Central credentials are shared by every merchant store.  The legacy
-		// per-store row remains a safe fallback until central settings exist.
-		if($this->db->table_exists('db_payment_gateway_accounts')){
-			$central = $this->db->where('provider', 'monnify')->get('db_payment_gateway_accounts')->row();
-			if($central){ return $central; }
-		}
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
 		return $this->db->where('store_id', $store_id)->get($this->table)->row();
 	}
 
 	public function save_settings($data)
 	{
-		if($this->db->table_exists('db_payment_gateway_accounts')){
-			$data['provider'] = 'monnify';
-			$existing = $this->db->where('provider', 'monnify')->get('db_payment_gateway_accounts')->row();
-			if($existing){ return $this->db->where('provider', 'monnify')->update('db_payment_gateway_accounts', $data); }
-			return $this->db->insert('db_payment_gateway_accounts', $data);
-		}
 		$store_id = get_current_store_id();
 		$exists = $this->db->where('store_id', $store_id)->get($this->table)->num_rows();
 		if($exists > 0) {
@@ -118,16 +106,10 @@ class Monnify_model extends CI_Model {
 		if($http_code == 200 && !empty($result['requestSuccessful']) && !empty($result['responseBody']['accessToken'])) {
 			$token = $result['responseBody']['accessToken'];
 			$expires_in = intval($result['responseBody']['expiresIn'] ?? 3600);
-			$token_update = array(
+			$this->db->where('store_id', $store_id)->update($this->table, array(
 				'access_token' => $token,
 				'token_expires_at' => date('Y-m-d H:i:s', time() + $expires_in)
-			);
-			if($this->db->table_exists('db_payment_gateway_accounts')
-				&& $this->db->where('provider', 'monnify')->count_all_results('db_payment_gateway_accounts') > 0){
-				$this->db->where('provider', 'monnify')->update('db_payment_gateway_accounts', $token_update);
-			} else {
-				$this->db->where('store_id', $store_id)->update($this->table, $token_update);
-			}
+			));
 			return $token;
 		}
 		return false;
@@ -215,9 +197,6 @@ class Monnify_model extends CI_Model {
 			'paymentMethods' => array('CARD', 'ACCOUNT_TRANSFER', 'USSD'),
 			'metaData' => $meta
 		);
-		$split = $this->get_split_config($amount, $store_id);
-		if(!$split['status']){ return $split; }
-		if(!empty($split['config'])){ $post_data['incomeSplitConfig'] = $split['config']; }
 		if(!empty($customer['phone'])) {
 			$post_data['customerPhoneNumber'] = $customer['phone'];
 		}
@@ -232,7 +211,6 @@ class Monnify_model extends CI_Model {
 			'customer_email' => $post_data['customerEmail'],
 			'customer_phone' => $customer['phone'] ?? null,
 			'amount' => $amount,
-			'platform_fee' => $split['platform_fee'],
 			'payment_reference' => $reference,
 			'transaction_reference' => $body['transactionReference'] ?? null,
 			'checkout_url' => $body['checkoutUrl'] ?? null,
@@ -244,95 +222,8 @@ class Monnify_model extends CI_Model {
 			'status' => true,
 			'payment_reference' => $reference,
 			'transaction_reference' => $body['transactionReference'] ?? '',
-			'checkout_url' => $body['checkoutUrl'] ?? '',
-			'platform_fee' => $split['platform_fee']
+			'checkout_url' => $body['checkoutUrl'] ?? ''
 		);
-	}
-
-	/** Build Monnify's incomeSplitConfig from the central fee policy. */
-	public function get_split_config($amount, $store_id = null)
-	{
-		$account = $this->get_payout_account($store_id);
-		$settings = $this->get_settings($store_id);
-		$fee_type = strtolower((string)($settings->platform_fee_type ?? 'none'));
-		$fee_value = max(0, (float)($settings->platform_fee_value ?? 0));
-		$platform_fee = $fee_type === 'percentage' ? round($amount * $fee_value / 100, 2) : ($fee_type === 'flat' ? $fee_value : 0);
-		if($platform_fee > $amount){
-			return array('status'=>false, 'message'=>'The configured platform fee cannot exceed the payment amount');
-		}
-		$config = array();
-		if($account && !empty($account->provider_subaccount_code) && (int)$account->enabled === 1){
-			$entry = array(
-				'subAccountCode' => $account->provider_subaccount_code,
-				'feePercentage' => (($settings->fee_bearer ?? 'platform') === 'merchant') ? 100 : 0,
-				'feeBearer' => (($settings->fee_bearer ?? 'platform') === 'merchant')
-			);
-			if($fee_type === 'flat' && $platform_fee > 0){
-				$entry['splitAmount'] = round($amount - $platform_fee, 2);
-			} else {
-				$entry['splitPercentage'] = round(100 - ($fee_type === 'percentage' ? $fee_value : 0), 4);
-			}
-			$config[] = $entry;
-		}
-		return array('status'=>true, 'config'=>$config, 'platform_fee'=>$platform_fee, 'payout_account'=>$account);
-	}
-
-	public function get_payout_account($store_id = null)
-	{
-		if(empty($store_id)) { $store_id = get_current_store_id(); }
-		if(!$this->db->table_exists('db_payment_subaccounts')){ return null; }
-		return $this->db->where('provider', 'monnify')->where('store_id', (int)$store_id)
-			->get('db_payment_subaccounts')->row();
-	}
-
-	/** Validate and register one merchant bank account as a Monnify subaccount. */
-	public function save_payout_account($store_id, $data)
-	{
-		$store_id = (int)$store_id;
-		$account_number = preg_replace('/\D+/', '', (string)($data['account_number'] ?? ''));
-		$bank_code = trim((string)($data['bank_code'] ?? ''));
-		$email = trim((string)($data['email'] ?? ''));
-		if(strlen($account_number) !== 10 || $bank_code === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)){
-			return array('status'=>false, 'message'=>'A valid bank, 10-digit account number and payout email are required');
-		}
-		$resolved = $this->validate_account($account_number, $bank_code, $store_id);
-		if(!$resolved['status']){ return array('status'=>false, 'message'=>$resolved['message'] ?? 'Could not verify bank account'); }
-		$account_body = $resolved['account'] ?? array();
-		$account_name = trim((string)($account_body['accountName'] ?? ($account_body['account_name'] ?? '')));
-		$store = $this->db->select('store_name')->where('id', $store_id)->get('db_store')->row();
-		$business_name = trim((string)($data['business_name'] ?? ($store->store_name ?? 'MartPoint Merchant')));
-		$existing = $this->get_payout_account($store_id);
-		$settings = $this->get_settings($store_id);
-		$fee_type = strtolower((string)($settings->platform_fee_type ?? 'none'));
-		$fee = (float)($settings->platform_fee_value ?? 0);
-		$default_share = ($fee_type === 'percentage') ? max(0, 100 - $fee) : 100;
-		$payload = array(
-			'currencyCode'=>'NGN', 'bankCode'=>$bank_code, 'accountNumber'=>$account_number,
-			'email'=>$email, 'defaultSplitPercentage'=>round($default_share, 4)
-		);
-		if($existing && !empty($existing->provider_subaccount_code)){
-			$payload['subAccountCode'] = $existing->provider_subaccount_code;
-			$api = $this->api_request('PUT', '/api/v1/sub-accounts', $payload, $store_id);
-		} else {
-			$api = $this->api_request('POST', '/api/v1/sub-accounts', array($payload), $store_id);
-		}
-		if(!$api['status']){ return array('status'=>false, 'message'=>$api['message'] ?? 'Could not register payout account'); }
-		$provider = $api['body'];
-		if(isset($provider[0])){ $provider = $provider[0]; }
-		$sub_code = $provider['subAccountCode'] ?? ($existing->provider_subaccount_code ?? null);
-		$row = array(
-			'provider'=>'monnify', 'store_id'=>$store_id, 'business_name'=>$business_name,
-			'contact_email'=>$email, 'contact_phone'=>trim((string)($data['phone'] ?? '')),
-			'bank_code'=>$bank_code, 'bank_name'=>trim((string)($data['bank_name'] ?? ($account_body['bankName'] ?? ''))),
-			'account_number'=>$account_number, 'account_name'=>$provider['accountName'] ?? $account_name,
-			'provider_subaccount_code'=>$sub_code, 'provider_account_id'=>null,
-			'status'=>'ACTIVE', 'provider_verified'=>1, 'enabled'=>!empty($data['enabled']) ? 1 : 0,
-			'last_error'=>null, 'provider_payload'=>json_encode($provider)
-		);
-		if($existing){ $ok = $this->db->where('id', $existing->id)->update('db_payment_subaccounts', $row); }
-		else { $ok = $this->db->insert('db_payment_subaccounts', $row); }
-		return $ok ? array('status'=>true, 'message'=>'Payout account saved', 'account'=>$this->get_payout_account($store_id))
-			: array('status'=>false, 'message'=>'Payout account was verified but could not be saved locally');
 	}
 
 	/**
@@ -408,13 +299,6 @@ class Monnify_model extends CI_Model {
 
 		$this->db->where('payment_reference', $payment_reference);
 		return $this->db->update('db_monnify_payments', $update);
-	}
-
-	public function payment_matches($payment_reference, $amount, $currency = 'NGN')
-	{
-		$payment = $this->get_payment_by_reference($payment_reference);
-		if(!$payment || abs((float)$payment->amount - (float)$amount) > 0.01){ return false; }
-		return empty($currency) || empty($payment->currency) || strtoupper($payment->currency) === strtoupper($currency);
 	}
 
 	/**
