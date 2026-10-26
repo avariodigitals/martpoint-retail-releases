@@ -81,6 +81,72 @@ class Operations extends MY_Controller {
         $this->load->view('mp_layout', $d);
     }
 
+    /**
+     * Resolve the outlet context used by the restaurant KDS.  A blank outlet
+     * means all outlets for consolidated users, or all assigned outlets for
+     * staff.  A requested outlet is always checked against both this store and
+     * the signed-in user's warehouse assignments.
+     */
+    private function _kitchen_branch_context() {
+        $store_id = get_current_store_id();
+        $allowed = function_exists('mp_allowed_warehouse_ids')
+            ? mp_allowed_warehouse_ids($store_id)
+            : null;
+        $branch = (string) $this->input->post_get('branch_id', TRUE);
+
+        if ($this->input->get('branch_id') === NULL && $this->input->post('branch_id') === NULL) {
+            $branch = (string) ($this->session->userdata('selected_branch_id') ?: '');
+        }
+
+        if ($branch !== '') {
+            $valid = $this->db->where('id', (int) $branch)
+                ->where('store_id', $store_id)
+                ->where('status', 1)
+                ->count_all_results('db_warehouse') > 0;
+            if (!$valid || ($allowed !== null && !in_array((int) $branch, $allowed, true))) {
+                return ['ok' => false];
+            }
+        }
+
+        if ($this->input->get('branch_id') !== NULL || $this->input->post('branch_id') !== NULL) {
+            $this->session->set_userdata('selected_branch_id', $branch);
+        }
+
+        if ($branch === '' && $allowed !== null && count($allowed) === 1) {
+            $branch = (string) $allowed[0];
+            $this->session->set_userdata('selected_branch_id', $branch);
+        }
+
+        $this->db->where('store_id', $store_id)->where('status', 1);
+        if ($allowed !== null) {
+            if (empty($allowed)) {
+                $rows = [];
+            } else {
+                $rows = $this->db->where_in('id', $allowed)
+                    ->order_by('warehouse_name', 'asc')->get('db_warehouse')->result();
+            }
+        } else {
+            $rows = $this->db->order_by('warehouse_name', 'asc')->get('db_warehouse')->result();
+        }
+
+        $options = [];
+        $names = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+            $names[$id] = (string) $row->warehouse_name;
+            $options[] = ['id' => $id, 'name' => (string) $row->warehouse_name];
+        }
+
+        return [
+            'ok' => true,
+            'branch' => $branch,
+            'allowed' => $allowed,
+            'options' => count($options) > 1 ? $options : [],
+            'names' => $names,
+            'can_view_all' => $allowed === null,
+        ];
+    }
+
     /* ===================== CUSTOM ORDERS ===================== */
     public function custom_orders() {
         $this->_check_feature('custom_orders');
@@ -1581,22 +1647,58 @@ class Operations extends MY_Controller {
 
         $this->load->model('kitchen_model', 'kitchen');
         $store_id = get_current_store_id();
+        $branch_context = $this->_kitchen_branch_context();
+        $is_ajax = (bool) $this->input->get('ajax');
+        if (empty($branch_context['ok'])) {
+            if ($is_ajax) {
+                set_status_header(403);
+                header('Content-Type: application/json');
+                echo json_encode(['status' => false, 'message' => 'You are not assigned to this outlet.']);
+            } else {
+                $this->show_access_denied_page();
+            }
+            return;
+        }
 
         // Auto-sync any new POS sales into kitchen queue
         $this->kitchen->sync_new_orders($store_id);
 
         // AJAX polling: return just JSON counts
-        if ($this->input->get('ajax')) {
+        if ($is_ajax) {
             header('Content-Type: application/json');
             echo json_encode([
-                'status_counts' => $this->kitchen->count_by_status($store_id)
+                'status_counts' => $this->kitchen->count_by_status(
+                    $store_id,
+                    $branch_context['branch'],
+                    $branch_context['allowed']
+                )
             ]);
             return;
         }
 
-        $data['orders'] = $this->kitchen->get_orders($store_id, ['new','preparing','ready']);
-        $data['status_counts'] = $this->kitchen->count_by_status($store_id);
-        $data['served'] = $this->kitchen->get_served_orders($store_id, 10);
+        $data['orders'] = $this->kitchen->get_orders(
+            $store_id,
+            ['new','preparing','ready'],
+            50,
+            'DESC',
+            $branch_context['branch'],
+            $branch_context['allowed']
+        );
+        $data['status_counts'] = $this->kitchen->count_by_status(
+            $store_id,
+            $branch_context['branch'],
+            $branch_context['allowed']
+        );
+        $data['served'] = $this->kitchen->get_served_orders(
+            $store_id,
+            10,
+            $branch_context['branch'],
+            $branch_context['allowed']
+        );
+        $data['branch'] = $branch_context['branch'];
+        $data['branch_opts'] = $branch_context['options'];
+        $data['branch_names'] = $branch_context['names'];
+        $data['branch_can_view_all'] = $branch_context['can_view_all'];
         $this->_render('Kitchen Display', 'operations/kitchen', $data);
     }
 
@@ -1613,6 +1715,21 @@ class Operations extends MY_Controller {
         }
 
         $this->load->model('kitchen_model', 'kitchen');
+        $branch_context = $this->_kitchen_branch_context();
+        if (empty($branch_context['ok'])) {
+            set_status_header(403);
+            echo json_encode(['success' => false, 'message' => 'You are not assigned to this outlet.']);
+            return;
+        }
+        $ticket_branch = $this->kitchen->get_order_branch_id((int) $kitchen_order_id);
+        if ($ticket_branch === null
+            || ($branch_context['branch'] !== '' && (int) $ticket_branch !== (int) $branch_context['branch'])
+            || ($branch_context['allowed'] !== null
+                && !in_array((int) $ticket_branch, $branch_context['allowed'], true))) {
+            set_status_header(403);
+            echo json_encode(['success' => false, 'message' => 'This ticket belongs to another outlet.']);
+            return;
+        }
         $ok = $this->kitchen->update_status($kitchen_order_id, $status);
 
         echo json_encode([

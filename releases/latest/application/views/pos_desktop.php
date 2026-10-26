@@ -13,6 +13,24 @@
 $mp_pos_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
 $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && (($mp_pos_profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation');
 $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
+$mp_is_restaurant = function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace();
+$mp_pos_palette = $mp_is_restaurant ? [
+    'primary' => '#5E4D66', 'primary_dark' => '#4E3F55', 'bg' => '#F7F6F2',
+    'text' => '#3A3733', 'muted' => '#77736D', 'border' => '#E9E4DD',
+    'success' => '#2F9A67', 'danger' => '#D6534F', 'warning' => '#D68A32', 'ink' => '#262522',
+] : ($mp_is_clinic ? [
+    'primary' => '#176753', 'primary_dark' => '#104d40', 'bg' => '#eef3f0',
+    'text' => '#1e2d28', 'muted' => '#687a72', 'border' => '#d8e2dc',
+    'success' => '#176753', 'danger' => '#c95f49', 'warning' => '#a96e24', 'ink' => '#1e2d28',
+] : ($mp_is_pharmacy ? [
+    'primary' => '#0F766E', 'primary_dark' => '#0B5B55', 'bg' => '#F2F8F7',
+    'text' => '#16323A', 'muted' => '#6B7F86', 'border' => '#D7E7E5',
+    'success' => '#0F766E', 'danger' => '#C94F4F', 'warning' => '#B7791F', 'ink' => '#16323A',
+] : [
+    'primary' => '#0057FF', 'primary_dark' => '#0044CC', 'bg' => '#F5F4F0',
+    'text' => '#292524', 'muted' => '#78716C', 'border' => '#E7E5E4',
+    'success' => '#059669', 'danger' => '#DC2626', 'warning' => '#F59E0B', 'ink' => '#44403C',
+]));
 // Database text imported from older fleets is not always valid UTF-8.
 // Never allow one name to turn an inline assignment into `const products = ;`.
 $pos_json = static function ($value) {
@@ -24,7 +42,7 @@ $pos_json = static function ($value) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — <?= $mp_is_pharmacy ? 'Dispensing & Checkout' : 'Point of Sale' ?></title>
+  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — <?= $mp_is_pharmacy ? 'Dispensing & Checkout' : ($mp_is_restaurant ? 'Restaurant Order Desk' : 'Point of Sale') ?></title>
   <link rel="icon" href="<?= $favicon_url ?>">
   <link rel="apple-touch-icon" href="<?= $favicon_url ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,19 +52,19 @@ $pos_json = static function ($value) {
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
   <style>
     :root {
-      --mp-primary: <?= $mp_is_clinic ? '#176753' : ($mp_is_pharmacy ? '#0F766E' : '#0057FF') ?>;
-      --mp-primary-dark: <?= $mp_is_clinic ? '#104d40' : ($mp_is_pharmacy ? '#0B5B55' : '#0044CC') ?>;
+      --mp-primary: <?= $mp_pos_palette['primary'] ?>;
+      --mp-primary-dark: <?= $mp_pos_palette['primary_dark'] ?>;
       --mp-pay: #D97706;
       --mp-pay-dark: #B45309;
-      --mp-bg: <?= $mp_is_clinic ? '#eef3f0' : ($mp_is_pharmacy ? '#F2F8F7' : '#F5F4F0') ?>;
+      --mp-bg: <?= $mp_pos_palette['bg'] ?>;
       --mp-surface: #FFFFFF;
-      --mp-text: <?= $mp_is_clinic ? '#1e2d28' : ($mp_is_pharmacy ? '#16323A' : '#292524') ?>;
-      --mp-muted: <?= $mp_is_clinic ? '#687a72' : ($mp_is_pharmacy ? '#6B7F86' : '#78716C') ?>;
-      --mp-border: <?= $mp_is_clinic ? '#d8e2dc' : ($mp_is_pharmacy ? '#D7E7E5' : '#E7E5E4') ?>;
-      --mp-success: <?= $mp_is_clinic ? '#176753' : ($mp_is_pharmacy ? '#0F766E' : '#059669') ?>;
-      --mp-danger: <?= $mp_is_clinic ? '#c95f49' : ($mp_is_pharmacy ? '#C94F4F' : '#DC2626') ?>;
-      --mp-warning: <?= $mp_is_clinic ? '#a96e24' : ($mp_is_pharmacy ? '#B7791F' : '#F59E0B') ?>;
-      --mp-ink: <?= $mp_is_clinic ? '#1e2d28' : ($mp_is_pharmacy ? '#16323A' : '#44403C') ?>;
+      --mp-text: <?= $mp_pos_palette['text'] ?>;
+      --mp-muted: <?= $mp_pos_palette['muted'] ?>;
+      --mp-border: <?= $mp_pos_palette['border'] ?>;
+      --mp-success: <?= $mp_pos_palette['success'] ?>;
+      --mp-danger: <?= $mp_pos_palette['danger'] ?>;
+      --mp-warning: <?= $mp_pos_palette['warning'] ?>;
+      --mp-ink: <?= $mp_pos_palette['ink'] ?>;
       --shadow-sm: 0 1px 2px rgba(41, 37, 36, 0.05);
       --shadow: 0 10px 25px -5px rgba(41, 37, 36, 0.08), 0 4px 10px -4px rgba(41, 37, 36, 0.04);
     }
@@ -1342,9 +1360,155 @@ $pos_json = static function ($value) {
       .cart-actions { margin: 4px 0; }
       .copyright { padding: 8px 16px; font-size: 11px; }
     }
+
+    /* Restaurant POS is a service counter, not a generic retail checkout.
+       Keep the existing transaction markup and behaviour, but give the food
+       workflow its own warm surface, aubergine structure, restrained terracotta
+       action language and image-led
+       product cards. */
+    <?php if($mp_is_restaurant): ?>
+    body.restaurant-pos {
+      --mp-primary: #E85D2F;
+      --mp-primary-dark: #C94721;
+      --mp-bg: #F7F6F2;
+      --mp-surface: #FFFFFF;
+      --mp-text: #3A3733;
+      --mp-muted: #77736D;
+      --mp-border: #E9E4DD;
+      --mp-success: #2F9A67;
+      --mp-danger: #D6534F;
+      --mp-warning: #D68A32;
+      --mp-ink: #262522;
+      background: #F7F6F2;
+    }
+    body.restaurant-pos .app-header { padding: 12px 22px; background: #fff; border-bottom-color: #E9E4DD; box-shadow: 0 1px 0 rgba(84,48,31,.06); }
+    body.restaurant-pos .brand h1 { color: #262522; font-weight: 800; letter-spacing: -.03em; }
+    body.restaurant-pos .brand .sub { color: #E85D2F; font-weight: 700; }
+    body.restaurant-pos .intelligence { background: #FFFBF8; border-color: #E9E4DD; }
+    body.restaurant-pos .workspace { grid-template-columns: 218px minmax(0,1fr) 416px; gap: 16px; padding: 18px; background: #F7F6F2; min-height:0; }
+    body.restaurant-pos .sidebar { min-height:0; overflow-y:auto; padding-right:2px; scrollbar-width:thin; }
+    body.restaurant-pos .panel, body.restaurant-pos .catalog, body.restaurant-pos .cart { border-color: #E9E4DD; border-radius: 18px; box-shadow: 0 8px 24px rgba(84,48,31,.06); }
+    body.restaurant-pos .panel-title { color: #262522; letter-spacing: -.01em; }
+    body.restaurant-pos .category-list li.active { background: #E85D2F; box-shadow: 0 6px 14px rgba(232,93,47,.18); }
+    body.restaurant-pos .category-list li:hover { background: #FFF0E9; color: #C94721; }
+    body.restaurant-pos .catalog-header { padding: 15px 16px; border-bottom-color: #E9E4DD; background: #fff; }
+    body.restaurant-pos .search-bar { background: #FFFBF8; border-color: #E9E4DD; border-radius: 12px; }
+    body.restaurant-pos .search-bar:focus-within { border-color: #E85D2F; box-shadow: 0 0 0 3px rgba(232,93,47,.12); }
+    body.restaurant-pos .view-toggle { background: #F7F6F2; border-color: #E9E4DD; }
+    body.restaurant-pos .view-toggle button.active { color: #E85D2F; }
+    body.restaurant-pos .restaurant-category-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; padding:17px 18px 0; }
+    body.restaurant-pos .restaurant-category-title { font-size:18px; line-height:1.2; font-weight:800; letter-spacing:-.02em; color:#262522; }
+    body.restaurant-pos .restaurant-category-sub { margin-top:4px; font-size:11.5px; color:#77736D; }
+    body.restaurant-pos .restaurant-category-hint { font-size:11px; color:#A09A93; white-space:nowrap; }
+    body.restaurant-pos .restaurant-category-list { display:flex; gap:10px; max-height:none; overflow-x:auto; overflow-y:hidden; padding:14px 18px 16px; border-bottom:1px solid #E9E4DD; scrollbar-width:thin; }
+    body.restaurant-pos .restaurant-category-list li { position:relative; flex:0 0 140px; min-height:126px; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:10px; padding:10px; border:1px solid #EEE8E1; border-radius:14px; background:#fff; color:#514B45; text-align:center; box-shadow:0 2px 7px rgba(84,48,31,.04); }
+    body.restaurant-pos .restaurant-category-list li:hover { background:#FFF8F4; border-color:#F1B39B; color:#C94721; }
+    body.restaurant-pos .restaurant-category-list li.active { background:#FFF0E9; border-color:#E85D2F; color:#C94721; box-shadow:0 5px 13px rgba(232,93,47,.12); }
+    body.restaurant-pos .restaurant-category-list .category-visual { width:100%; height:76px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:11px; background:#FFF0E9; }
+    body.restaurant-pos .restaurant-category-list .category-image { width:100%; height:100%; display:block; object-fit:cover; }
+    body.restaurant-pos .restaurant-category-list .category-image-fallback { width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; background:#FCE5DC; color:#E85D2F; font-size:20px; }
+    body.restaurant-pos .restaurant-category-list .category-name { width:100%; min-width:0; max-width:none; padding:0 2px; font-size:13px; font-weight:800; line-height:1.25; white-space:normal; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    body.restaurant-pos .restaurant-table-picker { margin-top:10px; padding:11px 12px; border:1px solid #E9E4DD; border-radius:12px; background:#FFFBF8; }
+    body.restaurant-pos .restaurant-table-label { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:7px; color:#514B45; font-size:12px; font-weight:800; }
+    body.restaurant-pos .restaurant-table-label i { margin-right:5px; color:#E85D2F; }
+    body.restaurant-pos .restaurant-table-label small { color:#A09A93; font-size:10.5px; font-weight:600; }
+    body.restaurant-pos #tableSelect { display:block; width:100%; padding:9px 10px; border:1px solid #E9E4DD; border-radius:9px; background:#fff; color:#262522; font-size:12.5px; font-weight:600; }
+    body.restaurant-pos #shippingSelect:disabled { opacity:.72; cursor:not-allowed; background:#F7F3EF!important; color:#77736D!important; }
+    body.restaurant-pos #shippingPicker.shipping-locked { padding:9px 10px; border:1px solid #E9E4DD; border-radius:10px; background:#FFFBF8; }
+    body.restaurant-pos .products { padding: 16px; gap: 14px; }
+    body.restaurant-pos .product-card { align-items: stretch; padding: 11px; border-radius: 16px; border-color: #EEE8E1; text-align: left; }
+    body.restaurant-pos .product-card:hover { border-color: #E85D2F; box-shadow: 0 10px 22px rgba(232,93,47,.12); transform: translateY(-2px); }
+    body.restaurant-pos .product-thumb { width: 100%; height: 126px; margin-bottom: 10px; border-radius: 13px; background: #FFF0E9; color: #E85D2F; }
+    body.restaurant-pos .product-thumb img { border-radius: 13px !important; }
+    body.restaurant-pos .restaurant-product-fallback { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:linear-gradient(145deg,#FFF5EE 0%,#FCE5DC 100%); color:#E85D2F; }
+    body.restaurant-pos .restaurant-image-fallback { position:absolute; inset:0; width:auto; height:auto; margin:0; border-radius:13px; }
+    body.restaurant-pos .restaurant-product-fallback-icon { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(255,255,255,.74); color:#E85D2F; font-size:21px; box-shadow:0 5px 12px rgba(84,48,31,.06); }
+    body.restaurant-pos .restaurant-product-fallback-label { max-width:88%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#C94721; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    body.restaurant-pos .product-row .restaurant-product-fallback { width:40px; height:40px; gap:0; border-radius:10px; }
+    body.restaurant-pos .product-row .restaurant-product-fallback-icon { width:auto; height:auto; background:none; box-shadow:none; font-size:16px; }
+    body.restaurant-pos .product-row .restaurant-product-fallback-label { display:none; }
+    body.restaurant-pos .restaurant-cashier-panel { padding:14px; border:1px solid #E9E4DD; border-radius:18px; background:#fff; box-shadow:0 8px 24px rgba(84,48,31,.06); }
+    body.restaurant-pos .restaurant-cashier-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:11px; }
+    body.restaurant-pos .restaurant-cashier-kicker { color:#E85D2F; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    body.restaurant-pos .restaurant-cashier-title { margin-top:3px; color:#262522; font-size:14px; font-weight:800; }
+    body.restaurant-pos .restaurant-cashier-live { display:inline-flex; align-items:center; gap:5px; padding:4px 7px; border-radius:999px; background:#EFF8F2; color:#2F9A67; font-size:10px; font-weight:800; }
+    body.restaurant-pos .restaurant-cashier-live i { width:6px; height:6px; border-radius:50%; background:#2F9A67; }
+    body.restaurant-pos .restaurant-cashier-action { width:100%; display:flex; align-items:center; gap:9px; min-height:45px; padding:8px 9px; border:1px solid #EEE8E1; border-radius:11px; background:#FFFBF8; color:#514B45; text-align:left; text-decoration:none; cursor:pointer; transition:background .15s ease,border-color .15s ease,transform .15s ease; }
+    body.restaurant-pos .restaurant-cashier-action + .restaurant-cashier-action { margin-top:7px; }
+    body.restaurant-pos .restaurant-cashier-action:hover { border-color:#F1B39B; background:#FFF0E9; color:#C94721; transform:translateY(-1px); }
+    body.restaurant-pos .restaurant-cashier-action.primary { border-color:#F1B39B; background:#FFF0E9; color:#C94721; }
+    body.restaurant-pos .restaurant-cashier-action > span:first-child { width:27px; height:27px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 27px; border-radius:8px; background:#FCE5DC; color:#E85D2F; }
+    body.restaurant-pos .restaurant-cashier-action b, body.restaurant-pos .restaurant-cashier-action small { display:block; }
+    body.restaurant-pos .restaurant-cashier-action b { font-size:11.5px; font-weight:800; line-height:1.2; }
+    body.restaurant-pos .restaurant-cashier-action small { margin-top:2px; color:#A09A93; font-size:10px; line-height:1.2; }
+    body.restaurant-pos .restaurant-cashier-action em { margin-left:auto; min-width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; background:#E85D2F; color:#fff; font-size:10px; font-style:normal; font-weight:800; }
+    body.restaurant-pos .product-name { color: #262522; font-weight: 800; text-align: left; }
+    body.restaurant-pos .product-price { margin: 7px 0 10px; color: #E85D2F; font-weight: 800; }
+    body.restaurant-pos .product-card .add-btn { width: 100%; height: 31px; border-radius: 8px; background: #FCE5DC; color: #C94721; }
+    body.restaurant-pos .product-card .add-btn:hover { background: #E85D2F; color: #fff; }
+    body.restaurant-pos .product-card .add-btn svg { display: none; }
+    body.restaurant-pos .product-card .add-btn::after { content: 'Add to dish'; font-size: 11px; font-weight: 800; }
+    body.restaurant-pos .cart { border-top: 3px solid #E85D2F; }
+    body.restaurant-pos .cart-header { padding: 16px; border-bottom-color: #E9E4DD; }
+    body.restaurant-pos .cart-header h2 { color: #262522; font-size: 17px; font-weight: 800; }
+    body.restaurant-pos .option-chips button.active, body.restaurant-pos .method-chip.active { background: #E85D2F; border-color: #E85D2F; }
+    body.restaurant-pos .cart-summary { background: #FFFBF8; border-top-color: #E9E4DD; }
+    body.restaurant-pos .pay-btn { background: #E85D2F; border-radius: 11px; box-shadow: 0 7px 15px rgba(232,93,47,.18); }
+    body.restaurant-pos .pay-btn:hover { background: #C94721; }
+    body.restaurant-pos .header-btn.primary { background: #E85D2F; border-color: #E85D2F; }
+    body.restaurant-pos .header-btn.primary:hover { background: #C94721; }
+    body.restaurant-pos .copyright { background: #fff; border-top-color: #E9E4DD; }
+
+    /* Calm restaurant palette: aubergine carries navigation and selection;
+       terracotta is reserved for money/action emphasis. */
+    body.restaurant-pos {
+      --mp-primary: #5E4D66;
+      --mp-primary-dark: #4E3F55;
+      --mp-primary-08: rgba(94,77,102,.08);
+      --mp-primary-10: rgba(94,77,102,.1);
+      --mp-primary-15: rgba(94,77,102,.15);
+      --mp-primary-20: rgba(94,77,102,.2);
+      --mp-pay: #C66B4D;
+      --mp-pay-dark: #A94F3A;
+      --restaurant-action: #5E4D66;
+      --restaurant-action-dark: #4E3F55;
+      --restaurant-action-soft: #F0EAF2;
+      --restaurant-accent: #C66B4D;
+      --restaurant-accent-soft: #F8ECE7;
+    }
+    body.restaurant-pos .brand .sub { color: var(--restaurant-accent); }
+    body.restaurant-pos .category-list li.active { background: var(--restaurant-action); box-shadow: 0 6px 14px rgba(94,77,102,.18); }
+    body.restaurant-pos .category-list li:hover { background: var(--restaurant-action-soft); color: var(--restaurant-action-dark); }
+    body.restaurant-pos .search-bar:focus-within { border-color: var(--restaurant-action); box-shadow: 0 0 0 3px rgba(94,77,102,.12); }
+    body.restaurant-pos .view-toggle button.active { color: var(--restaurant-action); }
+    body.restaurant-pos .restaurant-category-list li:hover { background: #F8F5F9; border-color: #CBBED0; color: var(--restaurant-action-dark); }
+    body.restaurant-pos .restaurant-category-list li.active { background: var(--restaurant-action-soft); border-color: var(--restaurant-action); color: var(--restaurant-action-dark); box-shadow: 0 5px 13px rgba(94,77,102,.12); }
+    body.restaurant-pos .restaurant-category-list .category-visual { background: #F6F1F7; }
+    body.restaurant-pos .restaurant-category-list .category-image-fallback { background: #EAE2ED; color: var(--restaurant-action); }
+    body.restaurant-pos .restaurant-table-label i { color: var(--restaurant-action); }
+    body.restaurant-pos .product-card:hover { border-color: #CBBED0; box-shadow: 0 10px 22px rgba(94,77,102,.12); }
+    body.restaurant-pos .product-thumb { background: #F6F1F7; color: var(--restaurant-action); }
+    body.restaurant-pos .restaurant-product-fallback { background: linear-gradient(145deg,#FBF8F8 0%,#F0EAF2 100%); color: var(--restaurant-action); }
+    body.restaurant-pos .restaurant-product-fallback-icon { color: var(--restaurant-action); }
+    body.restaurant-pos .restaurant-product-fallback-label { color: var(--restaurant-action-dark); }
+    body.restaurant-pos .restaurant-cashier-kicker { color: var(--restaurant-accent); }
+    body.restaurant-pos .restaurant-cashier-action:hover { border-color: #E5C3B7; background: var(--restaurant-accent-soft); color: #A94F3A; }
+    body.restaurant-pos .restaurant-cashier-action.primary { border-color: #E5C3B7; background: var(--restaurant-accent-soft); color: #A94F3A; }
+    body.restaurant-pos .restaurant-cashier-action > span:first-child { background: var(--restaurant-accent-soft); color: var(--restaurant-accent); }
+    body.restaurant-pos .restaurant-cashier-action em { background: var(--restaurant-action); }
+    body.restaurant-pos .product-price { color: var(--restaurant-action); }
+    body.restaurant-pos .product-card .add-btn { background: var(--restaurant-action-soft); color: var(--restaurant-action-dark); }
+    body.restaurant-pos .product-card .add-btn:hover { background: var(--restaurant-action); color: #fff; }
+    body.restaurant-pos .cart { border-top-color: var(--restaurant-action); }
+    body.restaurant-pos .option-chips button.active, body.restaurant-pos .method-chip.active { background: var(--restaurant-action); border-color: var(--restaurant-action); }
+    body.restaurant-pos .pay-btn { background: var(--restaurant-accent); box-shadow: 0 7px 15px rgba(198,107,77,.18); }
+    body.restaurant-pos .pay-btn:hover { background: #A94F3A; }
+    body.restaurant-pos .header-btn.primary { background: var(--restaurant-action); border-color: var(--restaurant-action); }
+    body.restaurant-pos .header-btn.primary:hover { background: var(--restaurant-action-dark); }
+    <?php endif; ?>
   </style>
 </head>
-<body data-pos-build="4.0.9.195" class="<?= $mp_is_pharmacy ? 'pharmacy-pos' : ''; ?>">
+<body data-pos-build="4.0.9.195" class="<?= $mp_is_pharmacy ? 'pharmacy-pos ' : ''; ?><?= $mp_is_restaurant ? 'restaurant-pos' : ''; ?>">
   <div id="posStartupError" role="alert" hidden style="position:fixed;top:8px;left:8px;right:8px;z-index:10000;padding:14px;background:#fff1f2;color:#9f1239;border:1px solid #fda4af;border-radius:8px;">
     POS could not finish loading. Reload this page. If this continues, contact your administrator.
     <button type="button" onclick="window.location.reload()" style="margin-left:12px;">Reload POS</button>
@@ -1366,7 +1530,7 @@ $pos_json = static function ($value) {
     <?php endif; ?>
     <a href="<?= base_url() ?>" class="brand" style="text-decoration: none; color: inherit; cursor: pointer;">
       <h1><?= htmlspecialchars(get_store_name() ?: 'Metro Mart') ?></h1>
-      <div class="sub"><?= $mp_is_pharmacy ? 'Pharmacy dispensing desk' : 'Point of Sale'; ?></div>
+      <div class="sub"><?= $mp_is_pharmacy ? 'Pharmacy dispensing desk' : ($mp_is_restaurant ? 'Restaurant order desk' : 'Point of Sale'); ?></div>
     </a>
     <?php if(!empty($warehouse_options) && count($warehouse_options) > 1): ?>
     <label for="posOutletSelector" style="display:flex;align-items:center;gap:7px;margin:0 12px;font-size:12px;color:#475569;white-space:nowrap;">
@@ -1453,10 +1617,12 @@ $pos_json = static function ($value) {
 
   <main class="workspace">
     <aside class="sidebar">
+      <?php if(!$mp_is_restaurant): ?>
       <div class="panel">
         <div class="panel-title"><?= $mp_is_pharmacy ? 'Therapy areas' : 'Categories'; ?></div>
         <ul class="category-list" id="categoryList"></ul>
       </div>
+      <?php endif; ?>
       <div class="panel">
         <div class="panel-title" style="padding-bottom:12px"><?= $mp_is_pharmacy ? 'Frequently dispensed' : 'Top Sellers This Week'; ?></div>
         <div class="insight-list" id="insightList"></div>
@@ -1483,6 +1649,34 @@ $pos_json = static function ($value) {
         <div id="posClock" style="font-size:22px;font-weight:700;color:var(--mp-ink);font-variant-numeric:tabular-nums">--:--:--</div>
         <div style="font-size:11px;color:var(--mp-muted)"><?= $mp_is_pharmacy ? 'Local time · dispensing desk' : 'Local Time'; ?></div>
       </div>
+      <?php if($mp_is_restaurant): ?>
+      <div class="restaurant-cashier-panel" aria-label="Cashier desk shortcuts">
+        <div class="restaurant-cashier-head">
+          <div>
+            <div class="restaurant-cashier-kicker">Cashier desk</div>
+            <div class="restaurant-cashier-title">Keep service moving</div>
+          </div>
+          <span class="restaurant-cashier-live"><i aria-hidden="true"></i> Live</span>
+        </div>
+        <button type="button" class="restaurant-cashier-action primary" onclick="confirmResetCart()">
+          <span><i class="fa fa-plus" aria-hidden="true"></i></span>
+          <span><b>Start a new order</b><small>Clear the current ticket</small></span>
+        </button>
+        <button type="button" class="restaurant-cashier-action" onclick="openHoldPopup()">
+          <span><i class="fa fa-hand-paper-o" aria-hidden="true"></i></span>
+          <span><b>Held tickets</b><small>Resume parked orders</small></span>
+          <em><?= (int)($tot_count ?? 0); ?></em>
+        </button>
+        <button type="button" class="restaurant-cashier-action" onclick="openSalesListPopup()">
+          <span><i class="fa fa-list-ul" aria-hidden="true"></i></span>
+          <span><b>Sales history</b><small>Find a receipt or reprint</small></span>
+        </button>
+        <a class="restaurant-cashier-action" href="<?= base_url('operations/kitchen'); ?>">
+          <span><i class="fa fa-cutlery" aria-hidden="true"></i></span>
+          <span><b>Kitchen display</b><small>Check what is on the pass</small></span>
+        </a>
+      </div>
+      <?php endif; ?>
     </aside>
 
     <section class="catalog">
@@ -1501,6 +1695,16 @@ $pos_json = static function ($value) {
           </button>
         </div>
       </div>
+      <?php if($mp_is_restaurant): ?>
+      <div class="restaurant-category-head">
+        <div>
+          <div class="restaurant-category-title">Categories</div>
+          <div class="restaurant-category-sub">Choose a section to build the order</div>
+        </div>
+        <span class="restaurant-category-hint">Swipe to see more</span>
+      </div>
+      <ul class="category-list restaurant-category-list" id="categoryList" aria-label="Menu categories"></ul>
+      <?php endif; ?>
       <div class="products" id="productGrid"></div>
     </section>
 
@@ -1549,13 +1753,16 @@ $pos_json = static function ($value) {
               <option value="" selected>Walk-in Customer</option>
             <?php endif; ?>
           </select>
-          <?php if(!empty($is_restaurant) && !empty($tables)): ?>
-          <select id="tableSelect" style="display:block; width:100%; margin-top:8px; padding:8px 10px; border:1px solid var(--mp-border); border-radius:10px; background:var(--mp-surface); color:var(--mp-ink); font-size:13px; font-weight:500;">
-            <option value="0">No Table</option>
+          <?php if($mp_is_restaurant && !empty($tables)): ?>
+          <div class="restaurant-table-picker">
+            <div class="restaurant-table-label"><span><i class="fa fa-cutlery" aria-hidden="true"></i> Table</span><small>Optional for dine-in</small></div>
+            <select id="tableSelect" aria-label="Optional restaurant table" onchange="onTableChange()">
+            <option value="0">No table / takeaway</option>
             <?php foreach($tables as $t): ?>
             <option value="<?= (int)$t->id; ?>"><?= htmlspecialchars($t->table_name); ?><?= !empty($t->zone) ? ' (' . htmlspecialchars($t->zone) . ')' : ''; ?> — <?= (int)$t->capacity; ?> seats</option>
             <?php endforeach; ?>
-          </select>
+            </select>
+          </div>
           <?php endif; ?>
         </div>
       </div>
@@ -1576,13 +1783,14 @@ $pos_json = static function ($value) {
         <div class="summary-row" id="shippingRow" style="display:none"><span id="shippingLabel">Shipping</span><span id="shipping">₦0.00</span></div>
         <div class="summary-row total"><span>Total</span><span id="grandTotal">₦0.00</span></div>
         <?php if(!empty($shipping_fees)): ?>
-        <div class="discount-control" style="margin-top:8px;">
+        <div class="discount-control" id="shippingPicker" style="margin-top:8px;">
           <select id="shippingSelect" onchange="onShippingChange()" style="flex:1; padding:10px 14px; border:1px solid var(--mp-border); border-radius:12px; font-size:14px; font-weight:500; background:var(--mp-surface); color:var(--mp-ink);">
             <option value="" data-fee="0" data-label="">No shipping</option>
             <?php foreach($shipping_fees as $sf): ?>
             <option value="<?= (int)$sf->id; ?>" data-fee="<?= htmlspecialchars($sf->fee); ?>" data-label="<?= htmlspecialchars($sf->label); ?>"><?= htmlspecialchars($sf->label); ?><?= !empty($sf->location) ? ' (' . htmlspecialchars($sf->location) . ')' : ''; ?> — <?= htmlspecialchars(store_number_format($sf->fee)); ?></option>
             <?php endforeach; ?>
           </select>
+          <small id="shippingLockNote" style="display:none; flex:1 0 100%; color:var(--mp-muted); font-size:11px;">Table selected — shipping is disabled.</small>
         </div>
         <?php endif; ?>
         <div class="discount-control">
@@ -1878,6 +2086,7 @@ $pos_json = static function ($value) {
     const medicalNoteId = <?= (int)($medical_note_id ?? 0) ?>;
     const medicalNoteCustomerId = <?= ($medical_note_customer_id ?? 'null') ?>;
     const isPharmacyPos = <?= $mp_is_pharmacy ? 'true' : 'false' ?>;
+    const isRestaurantPos = <?= $mp_is_restaurant ? 'true' : 'false' ?>;
 
     function pharmacyFieldValue(id) {
       const el = document.getElementById(id);
@@ -2171,18 +2380,66 @@ $pos_json = static function ($value) {
 
     function getCategories() {
       const map = {};
-      products.forEach(p => { const c = p.category || 'Uncategorized'; map[c] = (map[c] || 0) + 1; });
-      return [{ name: 'All', count: products.length }, ...Object.entries(map).map(([name, count]) => ({ name, count }))];
+      products.forEach(p => {
+        const name = p.category || 'Uncategorized';
+        if (!map[name]) map[name] = { name: name, image: p.category_image || '' };
+        if (!isRestaurantPos) map[name].count = (map[name].count || 0) + 1;
+        if (!map[name].image && p.category_image) map[name].image = p.category_image;
+      });
+      const all = { name: 'All', image: '' };
+      if (!isRestaurantPos) all.count = products.length;
+      return [all, ...Object.values(map)];
+    }
+
+    function categoryIcon(name) {
+      const key = String(name || '').toLowerCase();
+      if (key === 'all') return 'fa-th-large';
+      if (/dessert|cake|sweet|pastr/.test(key)) return 'fa-birthday-cake';
+      if (/coffee|tea|drink|beverage/.test(key)) return 'fa-coffee';
+      if (/juice|smooth|fruit/.test(key)) return 'fa-glass';
+      if (/snack|starter|side|appet/.test(key)) return 'fa-cutlery';
+      if (/rice|pasta|noodle|grain/.test(key)) return 'fa-spoon';
+      if (/burger|sandwich|wrap/.test(key)) return 'fa-bars';
+      if (/pizza/.test(key)) return 'fa-circle-o';
+      return 'fa-cutlery';
+    }
+
+    function restaurantProductFallbackContents(p) {
+      const category = escapeHtml(p && p.category ? p.category : 'Menu item');
+      const icon = categoryIcon(p && p.category ? p.category : '');
+      return `<span class="restaurant-product-fallback-icon"><i class="fa ${icon}" aria-hidden="true"></i></span><span class="restaurant-product-fallback-label">${category}</span>`;
+    }
+
+    function restaurantProductFallback(p, compact) {
+      if (compact) {
+        return `<div class="restaurant-product-fallback row-thumb">${restaurantProductFallbackContents(p)}</div>`;
+      }
+      return `<div class="product-thumb restaurant-product-fallback">${restaurantProductFallbackContents(p)}</div>`;
+    }
+
+    function categoryImageUrl(path) {
+      const value = String(path || '').trim();
+      if (!value) return '';
+      if (/^(https?:|data:|\/)/i.test(value)) return value;
+      return baseUrl + '/' + value.replace(/^\/+/, '');
     }
 
     function renderCategories() {
       const list = document.getElementById('categoryList');
-      list.innerHTML = getCategories().map((c, i) => `
+      list.innerHTML = getCategories().map((c, i) => {
+        const image = categoryImageUrl(c.image);
+        const visual = image
+          ? `<img class="category-image" src="${escapeHtml(image)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"><span class="category-image-fallback" style="display:none"><i class="fa ${categoryIcon(c.name)}" aria-hidden="true"></i></span>`
+          : `<span class="category-image-fallback"><i class="fa ${categoryIcon(c.name)}" aria-hidden="true"></i></span>`;
+        const restaurantVisual = isRestaurantPos ? `<span class="category-visual">${visual}</span>` : '';
+        const retailCount = isRestaurantPos ? '' : `<span class="count">${c.count}</span>`;
+        return `
         <li class="${c.name === selectedCategory ? 'active' : ''}" data-cat-index="${i}">
-          <span>${escapeHtml(c.name)}</span>
-          <span class="count">${c.count}</span>
+          ${restaurantVisual}
+          <span class="category-name">${escapeHtml(c.name)}</span>
+          ${retailCount}
         </li>
-      `).join('');
+      `;}).join('');
       const cats = getCategories();
       list.querySelectorAll('li').forEach(li => {
         li.addEventListener('click', () => setCategory(cats[parseInt(li.dataset.catIndex, 10)].name));
@@ -2287,7 +2544,9 @@ $pos_json = static function ($value) {
             ? `<div class="row-thumb"><img src="${baseUrl}/${p.image}" alt="" onerror="this.remove();"></div>`
             : (isPharmacyPos
               ? '<div class="row-thumb pharmacy-medicine-thumb"><i class="fa fa-medkit" aria-hidden="true"></i></div>'
-              : `<div class="row-thumb"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`);
+              : (isRestaurantPos
+                ? restaurantProductFallback(p, true)
+                : `<div class="row-thumb"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`));
           const meta = [p.category, p.unit, p.sku].filter(Boolean).join(' · ');
           const saleTag = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-sale-badge">Sale</span>' : '';
           const oldPrice = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-old-price">' + formatMoney(Number(p.original_price) || 0) + '</span>' : '';
@@ -2316,10 +2575,14 @@ $pos_json = static function ($value) {
         const wholesaleTag = priceType === 'wholesale' ? '<div class="price-tag">' + (isPharmacyPos ? 'Trade' : 'WS') + '</div>' : '';
         const outOfStockOverlay = showSaleStockLabels && p.outOfStock ? '<div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);border-radius:14px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-weight:700;font-size:12px;">OUT OF STOCK</span></div>' : '';
         const thumb = p.image
-          ? `<div class="product-thumb" style="padding:0;position:relative;"><img src="${baseUrl}/${p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" onerror="this.remove();">${outOfStockOverlay}</div>`
+          ? (isRestaurantPos
+            ? `<div class="product-thumb" style="padding:0;position:relative;"><img src="${baseUrl}/${p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span class="restaurant-product-fallback restaurant-image-fallback" style="display:none;">${restaurantProductFallbackContents(p)}</span>${outOfStockOverlay}</div>`
+            : `<div class="product-thumb" style="padding:0;position:relative;"><img src="${baseUrl}/${p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" onerror="this.remove();">${outOfStockOverlay}</div>`)
           : (isPharmacyPos
             ? '<div class="product-thumb pharmacy-medicine-thumb"><i class="fa fa-medkit" aria-hidden="true"></i></div>'
-            : `<div class="product-thumb"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`);
+            : (isRestaurantPos
+              ? restaurantProductFallback(p, false)
+              : `<div class="product-thumb"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`));
         const cardClass = p.outOfStock ? 'product-card' : 'product-card';
         const cardStyle = p.outOfStock ? 'opacity: 0.6; cursor: not-allowed;' : '';
         return `
@@ -2540,6 +2803,9 @@ $pos_json = static function ($value) {
       shippingFeeLabel = '';
       const shipSel = document.getElementById('shippingSelect');
       if (shipSel) shipSel.value = '';
+      const tableSelect = document.getElementById('tableSelect');
+      if (tableSelect) tableSelect.value = '0';
+      syncTableShippingState();
       document.getElementById('discountInput').value = '';
       document.getElementById('discountInput').disabled = true;
       clearCouponCode();
@@ -2976,9 +3242,48 @@ $pos_json = static function ($value) {
       document.getElementById('clockNotice').style.display = cart.length > 0 && clockInRequired && !clockedIn ? 'flex' : 'none';
     }
 
+    function syncTableShippingState() {
+      const tableSelect = document.getElementById('tableSelect');
+      const shippingSelect = document.getElementById('shippingSelect');
+      const picker = document.getElementById('shippingPicker');
+      const lockNote = document.getElementById('shippingLockNote');
+      const dineIn = !!tableSelect && (parseInt(tableSelect.value, 10) || 0) > 0;
+
+      if (dineIn) {
+        shippingFee = 0;
+        shippingFeeId = 0;
+        shippingFeeLabel = '';
+        if (shippingSelect) {
+          shippingSelect.value = '';
+          shippingSelect.disabled = true;
+          shippingSelect.title = 'Shipping is unavailable for a dine-in table.';
+        }
+        if (picker) picker.classList.add('shipping-locked');
+        if (lockNote) lockNote.style.display = 'block';
+      } else {
+        if (shippingSelect) {
+          shippingSelect.disabled = false;
+          shippingSelect.title = '';
+        }
+        if (picker) picker.classList.remove('shipping-locked');
+        if (lockNote) lockNote.style.display = 'none';
+      }
+    }
+
+    function onTableChange() {
+      syncTableShippingState();
+      updateCart();
+    }
+
     // Manual shipping picker — fee is verified server-side on save
     function onShippingChange() {
       const sel = document.getElementById('shippingSelect');
+      const tableSelect = document.getElementById('tableSelect');
+      if (tableSelect && (parseInt(tableSelect.value, 10) || 0) > 0) {
+        syncTableShippingState();
+        updateCart();
+        return;
+      }
       const opt = sel.options[sel.selectedIndex];
       shippingFeeId = parseInt(sel.value) || 0;
       shippingFee = parseFloat(opt ? opt.dataset.fee : 0) || 0;
@@ -3476,6 +3781,7 @@ $pos_json = static function ($value) {
       const payload = {
         warehouse_id: warehouseId,
         customer_id: parseInt(document.getElementById('customerSelect').value) || 0,
+        table_id: document.getElementById('tableSelect') ? (parseInt(document.getElementById('tableSelect').value) || 0) : 0,
         cart: cart.map(item => ({
           id: item.id,
           qty: item.qty,
@@ -3553,10 +3859,13 @@ $pos_json = static function ($value) {
                 priceType = hold.price_type;
                 setPriceType(priceType);
               }
+              const tableSelect = document.getElementById('tableSelect');
+              if (tableSelect) tableSelect.value = String(parseInt(hold.table_id, 10) || 0);
+              syncTableShippingState();
               discountAmount = parseFloat(hold.discount) || 0;
               document.getElementById('discountInput').value = discountAmount;
               // Restore held shipping selection
-              if (hold.shipping && hold.shipping.id) {
+              if (hold.shipping && hold.shipping.id && (!tableSelect || (parseInt(tableSelect.value, 10) || 0) === 0)) {
                 const shipSel = document.getElementById('shippingSelect');
                 if (shipSel && shipSel.querySelector('option[value="' + hold.shipping.id + '"]')) {
                   shipSel.value = hold.shipping.id;
@@ -4113,6 +4422,7 @@ $pos_json = static function ($value) {
         command: 'save',
         action: action,
         customer_id: parseInt(document.getElementById('customerSelect').value) || 0,
+        table_id: document.getElementById('tableSelect') ? (parseInt(document.getElementById('tableSelect').value) || 0) : 0,
         warehouse_id: WAREHOUSE_ID ? parseInt(WAREHOUSE_ID) : 0,
         cart: cartItems,
         discount: discountAmount || 0,

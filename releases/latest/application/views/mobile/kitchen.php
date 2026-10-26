@@ -21,6 +21,9 @@
     .topbar .topbar-titles { flex: 1; min-width: 0; }
     .topbar .store-name { font-size: 11px; color: var(--mp-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
     .topbar h1 { font-size: 20px; font-weight: 700; margin: 0; }
+    .outlet-tabs { display:flex; gap:6px; overflow-x:auto; padding:2px 0 12px; margin-bottom:4px; -webkit-overflow-scrolling:touch; }
+    .outlet-tab { flex:0 0 auto; padding:8px 11px; border:1px solid var(--mp-border); border-radius:999px; background:var(--mp-surface); color:var(--mp-muted); text-decoration:none; font-size:12px; font-weight:700; white-space:nowrap; }
+    .outlet-tab.active { background:var(--mp-primary); border-color:var(--mp-primary); color:#fff; }
     .status-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
     .tab-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 4px; border-radius: 12px; border: 1px solid var(--mp-border); background: var(--mp-surface); color: var(--mp-ink); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
     .tab-btn .count { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
@@ -55,6 +58,7 @@
 <body>
   <div id='app'>
     <section class='screen'>
+      <?php $mobileKitchenBranch = (string)($branch ?? ''); $mobileKitchenNames = (array)($branch_names ?? []); $mobileKitchenOpts = (array)($branch_opts ?? []); $mobileKitchenAll = !empty($branch_can_view_all) ? 'All branches' : 'All assigned branches'; ?>
       <div class='topbar'>
         <a href='<?= base_url('mobile/operations'); ?>' class='back'><i class='fa fa-chevron-left'></i></a>
         <div class='topbar-titles'>
@@ -62,6 +66,15 @@
           <h1><?= $page_title; ?></h1>
         </div>
       </div>
+
+      <?php if(!empty($mobileKitchenOpts)): ?>
+      <nav class='outlet-tabs' aria-label='Kitchen outlet'>
+        <a class='outlet-tab <?= $mobileKitchenBranch === '' ? 'active' : ''; ?>' href='<?= base_url('mobile/kitchen'); ?>'><?= htmlspecialchars($mobileKitchenAll); ?></a>
+        <?php foreach($mobileKitchenOpts as $outlet): ?>
+          <a class='outlet-tab <?= (string)$mobileKitchenBranch === (string)$outlet['id'] ? 'active' : ''; ?>' href='<?= base_url('mobile/kitchen?branch_id=' . (int)$outlet['id']); ?>'><?= htmlspecialchars($outlet['name']); ?></a>
+        <?php endforeach; ?>
+      </nav>
+      <?php endif; ?>
 
       <div class='status-tabs'>
         <a href='?status=new' class='tab-btn new <?= ($active_status === 'new') ? 'active' : ''; ?>'>
@@ -84,7 +97,7 @@
           <div class='order-header'>
             <div>
               <div class='order-code'>#<?= htmlspecialchars($o->sales_code); ?></div>
-              <div class='order-meta'><i class='fa fa-user'></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?><?php if(!empty($o->table_name)): ?> · <i class='fa fa-table'></i> <?= htmlspecialchars($o->table_name); ?><?php endif; ?></div>
+              <div class='order-meta'><i class='fa fa-user'></i> <?= htmlspecialchars($o->customer_name ?: 'Walk-in'); ?><?php if(!empty($o->table_name)): ?> · <i class='fa fa-table'></i> <?= htmlspecialchars($o->table_name); ?><?php endif; ?> · <i class='fa fa-building-o'></i> <?= htmlspecialchars($mobileKitchenNames[(int)($o->warehouse_id ?? 0)] ?? 'Unassigned outlet'); ?></div>
             </div>
           </div>
           <div class='order-timer' data-elapsed='<?= (int)$o->elapsed_seconds; ?>'>00:00</div>
@@ -119,6 +132,7 @@
         <div class='served-chip'>
           <i class='fa fa-check-circle' style='color:var(--mp-success)'></i>
           #<?= htmlspecialchars($sv->sales_code); ?>
+          <span style='color:var(--mp-muted)'>· <?= htmlspecialchars($mobileKitchenNames[(int)($sv->warehouse_id ?? 0)] ?? 'Unassigned outlet'); ?></span>
           <span style='color:var(--mp-muted)'>· <?= date('H:i', strtotime($sv->updated_at)); ?></span>
         </div>
         <?php endforeach; ?>
@@ -134,6 +148,7 @@
 
   <script>
     var base_url = '<?= base_url(); ?>';
+    var kitchenBranch = <?= json_encode($mobileKitchenBranch); ?>;
     var csrf_token = '<?= $this->security->get_csrf_token_name(); ?>';
     var csrf_hash = '<?= $this->security->get_csrf_hash(); ?>';
 
@@ -161,6 +176,7 @@
         var fd = new FormData();
         fd.append('kitchen_order_id', kid);
         fd.append('status', next);
+        fd.append('branch_id', kitchenBranch);
         fd.append(csrf_token, csrf_hash);
 
         mpFetchJson(base_url + 'mobile/kitchen_update_status', {
@@ -185,7 +201,7 @@
     });
 
     setInterval(function(){
-      mpFetchJson(base_url + 'mobile/kitchen?ajax=1')
+      mpFetchJson(base_url + 'mobile/kitchen?ajax=1' + (kitchenBranch ? '&branch_id=' + encodeURIComponent(kitchenBranch) : ''))
         .then(function(data){
           if(data && data.status_counts){
             document.getElementById('count_new').textContent = data.status_counts.new || 0;

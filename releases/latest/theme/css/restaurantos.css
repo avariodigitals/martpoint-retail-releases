@@ -1,20 +1,19 @@
 /* ==========================================================================
    RestaurantOS workspace styling.
-   Built entirely on the MartPoint shell tokens declared in mp_header.php
-   (--mp-primary, --mp-bg, --mp-surface, --mp-border, --mp-text, --mp-muted,
-   --mp-success, --mp-danger, --mp-warning), so the workspace inherits any
-   future brand change instead of pinning its own colours.
+   This stylesheet belongs to the restaurant product surface. Its tokens are
+   intentionally separate from the retail shell; the restaurant layout owns
+   the palette and geometry while the controllers continue to share data.
    ========================================================================== */
 
 :root{
   --ro-radius:14px;
   --ro-radius-sm:10px;
   --ro-gap:16px;
-  --ro-line:var(--mp-border,#E7E5E4);
-  --ro-surface:var(--mp-surface,#fff);
-  --ro-ink:var(--mp-text,#292524);
-  --ro-muted:var(--mp-muted,#78716C);
-  --ro-brand:var(--mp-primary,#0057FF);
+  --ro-line:var(--restaurant-line,#E9E4DD);
+  --ro-surface:var(--restaurant-surface,#fff);
+  --ro-ink:var(--restaurant-ink,#262522);
+  --ro-muted:var(--restaurant-muted,#77736D);
+  --ro-brand:var(--restaurant-primary,#5E4D66);
   --ro-tint:color-mix(in srgb, var(--ro-brand) 8%, var(--ro-surface));
   --ro-shadow:0 1px 2px rgba(41,37,36,.05),0 8px 24px -12px rgba(41,37,36,.10);
 }
@@ -31,6 +30,10 @@
 .ro-head h2{margin:0;font-size:22px;font-weight:800;letter-spacing:-.2px;color:var(--ro-ink);}
 .ro-head .ro-head-sub{margin-top:4px;font-size:13px;color:var(--ro-muted);}
 .ro-head .ro-head-sub b{color:var(--ro-brand);font-weight:700;}
+.ro-head .ro-head-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.5;}
+.ro-context-item{display:inline-flex;align-items:center;min-height:24px;padding:3px 9px;border:1px solid var(--ro-line);
+  border-radius:999px;background:var(--ro-surface);font-size:11.5px;color:var(--ro-muted);}
+.ro-context-item:first-child{color:var(--ro-ink);font-weight:700;}
 .ro-head-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 
 /* ---------- segmented controls (range + outlet) ---------- */
@@ -39,7 +42,7 @@
 .ro-seg a{padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;color:#57534E;
   text-decoration:none;white-space:nowrap;transition:background .14s,color .14s;}
 .ro-seg a:hover{background:color-mix(in srgb,var(--ro-brand) 8%,transparent);color:var(--ro-brand);}
-.ro-seg a.active{background:var(--ro-brand);color:#fff;box-shadow:0 2px 6px rgba(0,87,255,.25);}
+.ro-seg a.active{background:var(--ro-brand);color:#fff;box-shadow:0 2px 6px rgba(94,77,102,.18);}
 .ro-seg-label{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
   color:var(--ro-muted);margin-right:8px;padding-left:4px;}
 
@@ -78,6 +81,38 @@
 .ro-banner.ok{background:color-mix(in srgb,var(--mp-success,#059669) 7%,#fff);border-color:color-mix(in srgb,var(--mp-success,#059669) 26%,#D1FAE5);}
 .ro-banner.ok .bi{background:#fff;color:var(--mp-success,#059669);border:1px solid color-mix(in srgb,var(--mp-success,#059669) 26%,#D1FAE5);}
 .ro-banner.ok .bl{color:var(--mp-success,#059669);}
+
+/* ---------- live queue indicators --------------------------------------- */
+.ro-live-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.ro-live-card{display:block;min-width:0;padding:16px 18px;background:var(--ro-surface);border:1px solid var(--ro-line);
+  border-radius:var(--ro-radius);box-shadow:var(--ro-shadow);text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s,transform .15s;}
+.ro-live-card:hover{border-color:var(--ro-brand);box-shadow:0 10px 24px -16px rgba(94,77,102,.28);transform:translateY(-1px);text-decoration:none;color:inherit;}
+.ro-live-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.ro-live-title{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:var(--ro-ink);}
+.ro-live-icon{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:#F0EAF2;color:var(--ro-brand);}
+.ro-live-icon.kitchen{background:#FBF0DC;color:#B45309;}
+.ro-live-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:750;color:var(--ro-muted);white-space:nowrap;}
+.ro-live-status i{width:7px;height:7px;border-radius:50%;background:#A8A29E;box-shadow:0 0 0 3px #F1EFEB;}
+.ro-live-card.attention .ro-live-status{color:#B45309;}
+.ro-live-card.attention .ro-live-status i{background:#D68A32;box-shadow:0 0 0 3px #FBF0DC;}
+.ro-live-card.moving .ro-live-status{color:var(--ro-brand);}
+.ro-live-card.moving .ro-live-status i{background:var(--ro-brand);box-shadow:0 0 0 3px #F0EAF2;}
+.ro-live-card.clear .ro-live-status{color:#2F9A67;}
+.ro-live-card.clear .ro-live-status i{background:#2F9A67;box-shadow:0 0 0 3px #E7F5EC;}
+.ro-live-value{display:flex;align-items:baseline;gap:10px;margin:16px 0 12px;}
+.ro-live-value strong{font-size:32px;line-height:1;font-weight:850;letter-spacing:-1px;color:var(--ro-ink);font-variant-numeric:tabular-nums;}
+.ro-live-value span{font-size:12px;line-height:1.35;color:var(--ro-muted);}
+.ro-live-bars{display:flex;align-items:flex-end;gap:4px;height:20px;margin-bottom:11px;}
+.ro-live-bars i{display:block;width:12px;border-radius:4px;background:#E8E4DE;height:7px;}
+.ro-live-bars i:nth-child(2){height:11px}.ro-live-bars i:nth-child(3){height:15px}.ro-live-bars i:nth-child(4){height:19px}
+.ro-live-bars.active i{background:linear-gradient(180deg,#9D8BA5,#5E4D66);}
+.ro-live-breakdown{display:flex;align-items:center;gap:14px;min-height:20px;margin:0 0 11px;font-size:11.5px;color:var(--ro-muted);}
+.ro-live-breakdown span{display:inline-flex;align-items:center;gap:6px;}
+.ro-live-breakdown i{width:7px;height:7px;border-radius:50%;background:#B45309;}
+.ro-live-breakdown i.ready{background:#2F9A67;}
+.ro-live-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--ro-line);
+  font-size:11.5px;color:var(--ro-muted);}
+.ro-live-foot b{color:var(--ro-brand);font-weight:750;white-space:nowrap;}
 
 /* ---------- KPI cards ---------- */
 /* Fixed lanes: eight cards land as an even 4 + 4 rather than a ragged 5 + 3. */
@@ -171,6 +206,26 @@
 .ro-bar.green span{background:var(--mp-success,#059669);}
 .ro-bar.amber span{background:var(--mp-warning,#F59E0B);}
 
+/* ---------- service-period comparison ---------- */
+.ro-service-breakdown{padding:4px 8px 6px;}
+.ro-service-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:3px 2px 12px;
+  color:var(--ro-muted);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.45px;}
+.ro-service-summary b{color:var(--ro-ink);font-size:12px;letter-spacing:0;text-transform:none;white-space:nowrap;}
+.ro-service-period-key{margin:-4px 2px 14px;color:var(--ro-muted);font-size:11px;line-height:1.45;letter-spacing:.01em;}
+.ro-service-list{display:flex;flex-direction:column;gap:13px;}
+.ro-service-row{min-width:0;}
+.ro-service-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;}
+.ro-service-name{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;color:var(--ro-ink);font-size:13px;font-weight:800;text-overflow:ellipsis;white-space:nowrap;}
+.ro-service-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--ro-brand);}
+.ro-service-row-head strong{flex:0 0 auto;color:var(--ro-brand);font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ro-service-track{height:9px;margin-top:7px;overflow:hidden;border-radius:999px;background:#F5F5F4;}
+.ro-service-track span{display:block;height:100%;min-width:4px;border-radius:inherit;background:linear-gradient(90deg,var(--ro-brand),color-mix(in srgb,var(--ro-brand) 62%,#F59E0B));}
+.ro-service-row-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:5px;color:var(--ro-muted);font-size:11px;line-height:1.2;}
+@media (max-width:620px){
+  .ro-service-breakdown{padding-right:2px;padding-left:2px;}
+  .ro-service-row-head strong{font-size:12px;}
+}
+
 /* ---------- compact order list ---------- */
 .ro-orders{display:flex;flex-direction:column;}
 .ro-order{display:flex;align-items:center;gap:11px;padding:10px;border-radius:9px;text-decoration:none;
@@ -245,7 +300,7 @@
 .ro-save{margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 .ro-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border:none;border-radius:999px;
   background:var(--ro-brand);color:#fff;font-size:13.5px;font-weight:800;cursor:pointer;
-  box-shadow:0 2px 8px rgba(0,87,255,.22);transition:filter .14s;}
+  box-shadow:0 2px 8px rgba(94,77,102,.18);transition:filter .14s;}
 .ro-btn:hover{filter:brightness(1.07);}
 
 /* ---------- responsive ---------- */
@@ -257,6 +312,7 @@
   .ro-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media (max-width:820px){
+  .ro-live-strip{grid-template-columns:minmax(0,1fr);}
   .ro-kpis{grid-template-columns:minmax(0,1fr);}
   .ro-presets{grid-template-columns:minmax(0,1fr);}
   .ro-kpi-val{font-size:23px;}

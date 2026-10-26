@@ -268,9 +268,11 @@ class Storefront_model extends CI_Model {
 	 * customer-facing branches count. The store's own System warehouse is a
 	 * stock back office, so including it here would have popped an outlet
 	 * picker onto every retail and clinic storefront that has never advertised
-	 * a second location.
+	 * a second location. Pass `restaurant` as the context for Food Express so a
+	 * food storefront cannot expose pharmacy fulfilment fixtures that happen to
+	 * share a demo tenant's warehouse table.
 	 */
-	public function getOrderableOutlets($storeId = null){
+	public function getOrderableOutlets($storeId = null, $context = ''){
 		$storeId = $storeId ?: get_current_store_id();
 		if(!$this->db->table_exists('db_warehouse')) return [];
 		// address/city arrive with migration 4.0.9.161 — omit them on older schemas.
@@ -290,7 +292,27 @@ class Storefront_model extends CI_Model {
 			$this->db->where('public_enabled', 1);
 		}
 		$rows = $this->db->get('db_warehouse')->result();
-		return $rows ? $rows : [];
+		if(!$rows) return [];
+
+		// Pharmacy demo locations are deliberately marked as partner/pickup
+		// hubs, but the primary fixture is a normal `branch`. The public food
+		// catalogue must still be safe when an old mixed-demo tenant contains
+		// those rows. Keep this boundary here so branches, product pickers and
+		// checkout all receive the same restaurant-only collection.
+		if(strtolower(trim((string)$context)) === 'restaurant'){
+			$rows = array_values(array_filter($rows, function($row){
+				$type = strtolower(trim((string)($row->branch_type ?? '')));
+				if(in_array($type, ['partner', 'pickup_hub'], true)) return false;
+				$signals = implode(' ', [
+					(string)($row->warehouse_name ?? ''),
+					(string)($row->address ?? ''),
+					(string)($row->delivery_coverage ?? ''),
+					(string)($row->email ?? ''),
+				]);
+				return !preg_match('/pharmacy|medical|prescription|fulfilment|fulfillment|collection hub/i', $signals);
+			}));
+		}
+		return $rows;
 	}
 
 	public function getSettings($storeId = null){
@@ -518,6 +540,7 @@ class Storefront_model extends CI_Model {
 
 	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
 		$storeId = $storeId ?: get_current_store_id();
+		$this->db->select('a.expire_date');
 		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
@@ -539,8 +562,40 @@ class Storefront_model extends CI_Model {
 			$this->db->group_end();
 		}
 		$this->db->order_by('a.id', 'desc');
-		$this->db->limit($limit, $offset);
+		if($limit !== null) $this->db->limit($limit, $offset);
 		return $this->_decorateVariantParents($this->db->get()->result());
+	}
+
+	/** Restaurant-only complements, separately resolved against each published kitchen. */
+	public function getRestaurantPairings($storeId, $product, $outlets = [], $allowBackorder = false){
+		$this->load->helper('food_pairing');
+		$candidates = $this->getOnlineProducts($storeId, null, '', null);
+		$candidates = array_values(array_filter($candidates, function($item) use ($storeId){
+			$expiry = substr((string)($item->expire_date ?? ''), 0, 10);
+			return (int)$item->store_id === (int)$storeId
+				&& ($item->product_type ?? 'physical') === 'physical'
+				&& ($item->item_group ?? 'Single') !== 'Variants'
+				&& (!$expiry || $expiry === '0000-00-00' || $expiry >= date('Y-m-d'));
+		}));
+		$ledgers = [];
+		$sources = array_unique(array_map(function($outlet){ return (int)(!empty($outlet->stock_source_id) ? $outlet->stock_source_id : $outlet->id); }, $outlets));
+		if($sources && $this->db->table_exists('db_warehouseitems')){
+			$rows = $this->db->select('warehouse_id, item_id, available_qty')->where('store_id', (int)$storeId)
+				->where_in('warehouse_id', $sources)->get('db_warehouseitems')->result();
+			foreach($rows as $row) $ledgers[(int)$row->warehouse_id][(int)$row->item_id] = (float)$row->available_qty;
+		}
+		$result = [];
+		$contexts = $outlets ?: [(object)['id' => 0, 'stock_source_id' => 0]];
+		foreach($contexts as $outlet){
+			$source = (int)(!empty($outlet->stock_source_id) ? $outlet->stock_source_id : $outlet->id);
+			$eligible = array_filter($candidates, function($item) use ($source, $ledgers, $allowBackorder){
+				if($allowBackorder) return true;
+				$qty = isset($ledgers[$source]) ? ($ledgers[$source][(int)$item->id] ?? 0) : ($item->stock ?? 0);
+				return (float)$qty >= 1 && (float)($item->stock ?? 0) >= 1;
+			});
+			$result[(int)$outlet->id] = mp_food_rank_pairings($product, $eligible, 4);
+		}
+		return $result;
 	}
 
 	public function getFeaturedProducts($storeId = null, $limit = 8, $includeVariantFlags = false){

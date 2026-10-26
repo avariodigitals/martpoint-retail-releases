@@ -483,6 +483,8 @@ class Pos_model extends CI_Model {
 		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
 		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
 		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
+		// A selected restaurant table is dine-in; shipping cannot coexist with it.
+		if ($table_id > 0) { $shipping_fee_id = 0; $shipping_label = ''; $shipping_fee = 0; }
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
@@ -508,6 +510,12 @@ class Pos_model extends CI_Model {
 		//end 
 
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null && !in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) {
+			$this->db->trans_rollback();
+			echo "You are not assigned to this branch."; exit;
+		}
 		// A queued/offline request may be retried after the browser lost the
 		// response. Return the original receipt instead of creating another sale.
 		if($command === 'save' && $pos_idempotency_key !== ''
@@ -1576,14 +1584,23 @@ class Pos_model extends CI_Model {
 		$sales_note = mp_post_text('sales_note');
 		$discount_type = $this->input->post('discount_type', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$table_id = (int) $this->input->post('table_id', TRUE);
 		// Manual Shipping — columns guarded for un-migrated installs
 		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
 		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
 		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
 		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
+		// A selected restaurant table is dine-in; shipping cannot coexist with it.
+		if ($table_id > 0) { $shipping_fee_id = 0; $shipping_label = ''; $shipping_fee = 0; }
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
 		$store_id= get_current_store_id();
+		if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null && !in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) {
+			$this->db->trans_rollback();
+			return "You are not assigned to this branch.";
+		}
 		$rowcount 			=$hidden_rowcount;
 		$sales_date 		=date("Y-m-d",strtotime($CUR_DATE));
 		//$points 			= (empty($points_use)) ? 'NULL' : $points_use;

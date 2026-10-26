@@ -73,6 +73,7 @@ class Storefront extends CI_Controller {
 			'partner_marketplace_enabled' => !empty($settings->partner_marketplace_enabled),
 			'store' => $store,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
+			'outlets' => $this->_publicOrderableOutlets($storeId),
 			'featured_categories' => $this->storefront_model->getCategoriesWithItems($storeId),
 			'all_products' => $allProducts,
 			'featured_products' => $this->storefront_model->getFeaturedProducts($storeId, $settings->featured_products_limit, $isLumiere),
@@ -505,7 +506,17 @@ class Storefront extends CI_Controller {
 			}
 		}
 
-		$relatedProducts = $this->storefront_model->getOnlineProducts($storeId, $product->category_id, '', 4);
+		$productOutlets = $this->_publicOrderableOutlets($storeId);
+		$isFoodTheme = ($this->theme_engine->currentTheme()->theme_key ?? '') === 'food_express';
+		$foodPairings = $isFoodTheme ? $this->storefront_model->getRestaurantPairings($storeId, $product, $productOutlets, !empty($settings->allow_backorder)) : [];
+		$relatedProducts = $isFoodTheme ? [] : $this->storefront_model->getOnlineProducts($storeId, $product->category_id, '', 4);
+		foreach($foodPairings as &$kitchenPairings){
+			foreach($kitchenPairings as &$pairing){
+				$pairing->effective_price = $this->storefront_model->getProductEffectivePrice($pairing);
+			}
+			unset($pairing);
+		}
+		unset($kitchenPairings);
 		foreach($relatedProducts as &$rp){
 			$rp->effective_price = $this->storefront_model->getProductEffectivePrice($rp);
 				$rp->original_price = $this->storefront_model->getProductOriginalPrice($rp);
@@ -520,7 +531,9 @@ class Storefront extends CI_Controller {
 			'product_addons' => $productAddons,
 			'product_variants' => $product_variants,
 			'related_products' => $relatedProducts,
+			'food_pairings' => $foodPairings,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
+			'outlets' => $productOutlets,
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
@@ -779,7 +792,7 @@ class Storefront extends CI_Controller {
 			redirect(base_url('store/' . rawurlencode($settings->store_slug) . $target));
 			return;
 		}
-		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora', 'botanical_elegance'], true);
+		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora', 'botanical_elegance', 'food_express'], true);
 		$mediqCheckout = $page === 'checkout' && ($this->theme_engine->currentTheme()->theme_key ?? '') === 'pharma_mediq';
 		$htmlThemeCheckout = $page === 'checkout' && (($this->theme_engine->currentTheme()->theme_source ?? '') === 'html_zip');
 
@@ -793,7 +806,7 @@ class Storefront extends CI_Controller {
 			'social_links' => $this->theme_engine->socialLinks(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
 			'table_number' => $this->table_number,
-			'outlets' => $this->storefront_model->getOrderableOutlets($storeId),
+			'outlets' => $this->_publicOrderableOutlets($storeId),
 			'cart_page' => $page,
 			'seo_title' => ($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? 'Secure Checkout' : 'Shopping Cart',
 			'seo_description' => (($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? 'Complete your order securely at ' : 'Your cart at ') . ($store->store_name ?? 'our store'),
@@ -831,12 +844,25 @@ class Storefront extends CI_Controller {
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
-			'seo_title' => 'Our Branches',
-			'seo_description' => 'Find a branch near you at ' . ($store->store_name ?? 'our store'),
+			'seo_title' => 'Choose your kitchen | ' . ($store->store_name ?? 'our restaurant'),
+			'seo_description' => 'Choose a restaurant location for the right menu, pickup options and delivery coverage.',
 			'seo_canonical' => base_url('store/' . $settings->store_slug . '/branches'),
 			'seo_type' => 'website',
 		];
 		$this->theme_engine->view('branches', $data);
+	}
+
+	/**
+	 * Resolve locations that the current public storefront is allowed to
+	 * expose. Food Express gets the restaurant boundary; pharmacy and other
+	 * industries retain their own fulfilment rules.
+	 */
+	private function _publicOrderableOutlets($storeId){
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
+		$industry = strtolower(trim((string)($profile['industry_type'] ?? '')));
+		$foodIndustries = ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'];
+		$context = in_array($industry, $foodIndustries, true) ? 'restaurant' : '';
+		return $this->storefront_model->getOrderableOutlets($storeId, $context);
 	}
 
 	private function _trackStatusMap($industryType = '', $shippingMethod = ''){
@@ -1344,16 +1370,19 @@ class Storefront extends CI_Controller {
 			$prescriptionFile = 'uploads/prescriptions/' . $uploadData['file_name'];
 		}
 
-		// Which outlet is this order for? A customer may pick one where the
-		// store publishes several; anything unrecognised falls back to the
-		// merchant's default branch rather than failing the checkout, so
-		// storefront themes that have not been given a picker keep working
-		// untouched. The accepted set is the published branches, so a crafted
-		// post cannot route stock or work into a back-office warehouse.
+		// Which outlet is this order for? The accepted set is the published
+		// branches, so a crafted post cannot route stock or work into a
+		// back-office warehouse. Restaurant orders with several public outlets
+		// must name the outlet explicitly; silently choosing today's default
+		// would make HQ reporting and kitchen routing unreliable.
 		$orderWarehouseId = (int)$this->input->post('warehouse_id');
 		$sourceWarehouseId = 0;
 		$selectedOutlet = null;
-		$orderableOutlets = $this->storefront_model->getOrderableOutlets($storeId);
+		$orderableOutlets = $this->_publicOrderableOutlets($storeId);
+		$restaurantProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
+		$restaurantIndustries = ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'];
+		$requiresExplicitRestaurantOutlet = in_array(strtolower(trim((string)($restaurantProfile['industry_type'] ?? ''))), $restaurantIndustries, true)
+			&& count($orderableOutlets) > 1;
 		if($orderWarehouseId > 0){
 			$allowed = array_map('intval', array_column($orderableOutlets, 'id'));
 			if(!in_array($orderWarehouseId, $allowed, true)){
@@ -1368,7 +1397,7 @@ class Storefront extends CI_Controller {
 				}
 			}
 		}
-		if($orderWarehouseId <= 0 && !empty($settings->default_branch_id)){
+		if(!$requiresExplicitRestaurantOutlet && $orderWarehouseId <= 0 && !empty($settings->default_branch_id)){
 			$defaultBranch = (int)$settings->default_branch_id;
 			// The default is the merchant's own setting, so it may legitimately be
 			// their single System warehouse — only its ownership is verified.
@@ -1376,6 +1405,10 @@ class Storefront extends CI_Controller {
 				$orderWarehouseId = $defaultBranch;
 				$sourceWarehouseId = $defaultBranch;
 			}
+		}
+		if($requiresExplicitRestaurantOutlet && $orderWarehouseId <= 0){
+			echo json_encode(['status' => false, 'message' => 'Please choose the outlet that will prepare this order.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
 		}
 
 		if(!$customerName || !$customerPhone){
@@ -1504,6 +1537,16 @@ class Storefront extends CI_Controller {
 					? $this->extras_model->bundleUnitPrice($product, $storeId)
 					: $this->storefront_model->getProductEffectivePrice($product);
 				$lineIndex = count($itemsToInsert);
+				$mealNote = '';
+				if (($this->theme_engine->currentTheme()->theme_key ?? '') === 'food_express') {
+					$this->load->helper('food_content');
+					$heat = isset($item['spice_level']) && is_string($item['spice_level']) ? $item['spice_level'] : '';
+					if (in_array($heat, ['mild','medium','hot','extra'], true) && mp_food_spice_allowed($product->item_name, $product->category_name ?? '', $product->description ?? '')) {
+						$mealNote = 'Spice: ' . ($heat === 'extra' ? 'Extra hot' : ucfirst($heat));
+					}
+					$instructions = isset($item['note']) && is_string($item['note']) ? mb_substr(trim(strip_tags($item['note'])), 0, 500, 'UTF-8') : '';
+					$mealNote = implode(' · ', array_filter([$mealNote, $instructions]));
+				}
 				$itemsToInsert[] = [
 					'item_type' => $isBundle ? 'bundle' : (in_array($product_type, ['digital','course','membership']) ? $product_type : 'product'),
 					'item_id' => $id,
@@ -1512,7 +1555,7 @@ class Storefront extends CI_Controller {
 					'qty' => $qty,
 					'unit_price' => $price,
 					'total_price' => $price * $qty,
-					'service_note' => ''
+					'service_note' => $mealNote
 				];
 				if($isBundle){
 					$bundleServiceComponentsByLine[$lineIndex] = array_values(array_filter($bundleComponents,function($component){ return (int)($component->service_bit ?? 0)===1 && ($component->product_type ?? '')==='service'; }));
@@ -2790,6 +2833,18 @@ class Storefront extends CI_Controller {
 		$customer = $this->db->where('id', $session->customer_id)->get('db_customers')->row();
 		$orders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 5);
 
+		if (($this->theme_engine->currentTheme()->theme_key ?? '') === 'food_express') {
+			$this->theme_engine->view('account', [
+				'settings' => $settings, 'store' => $store, 'customer' => $customer,
+				'orders' => $orders, 'seo_title' => 'Your profile',
+				'store_currency' => $this->theme_engine->getStoreCurrency(),
+				'outlets' => $this->_publicOrderableOutlets($storeId),
+				'social_links' => $this->theme_engine->socialLinks(),
+				'favicon_url' => $this->theme_engine->faviconUrl()
+			]);
+			return;
+		}
+
 		// Build customer's active digital downloads
 		$downloads = [];
 		$customerOrders = $this->storefront_model->getOrdersByCustomer($session->customer_id, $storeId, 100);
@@ -2899,7 +2954,7 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+		if(in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['botanical_elegance', 'food_express'], true)){
 			$data['seo_title'] = 'Your orders';
 			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
 			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);

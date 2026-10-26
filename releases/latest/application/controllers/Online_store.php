@@ -1686,6 +1686,10 @@ class Online_store extends MY_Controller {
 			$this->load->helper('building_content');
 			return ['key'=>$key,'building'=>true,'name'=>(string)($theme->theme_name ?? 'Building materials'),'fields'=>mp_building_fields($key)];
 		}
+		if($key === 'food_express'){
+			$this->load->helper('food_content');
+			return ['key'=>'food_express','building'=>false,'name'=>(string)($theme->theme_name ?? 'Food Express'),'fields'=>mp_food_fields()];
+		}
 		$this->load->helper('botanical_content');
 		return ['key'=>'botanical_elegance','building'=>false,'name'=>(string)($theme->theme_name ?? 'Botanical Elegance'),'fields'=>mp_botanical_fields()];
 	}
@@ -1697,11 +1701,15 @@ class Online_store extends MY_Controller {
 		$catalog=$this->_theme_content_catalog($storeId);
 		$settings=$this->storefront_model->getSettings($storeId);
 		$json=$settings->theme_content_json ?? '';
+		$isFood = $catalog['key'] === 'food_express';
+		$values = $catalog['building']
+			? mp_building_values($json, $catalog['key'])
+			: ($isFood ? mp_food_values($json) : mp_botanical_values($json));
 		$data=array_merge($this->data,[
 			'page_title'=>'Storefront Content',
 			'settings'=>$settings,
 			'content_fields'=>$catalog['fields'],
-			'content_values'=>$catalog['building']?mp_building_values($json,$catalog['key']):mp_botanical_values($json),
+			'content_values'=>$values,
 			'content_theme_key'=>$catalog['key'],
 			'content_theme_name'=>$catalog['name'],
 			'content_is_building'=>$catalog['building'],

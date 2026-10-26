@@ -140,7 +140,8 @@
     if(wnum) window.open('https://wa.me/' + wnum + '?text=' + encodeURIComponent(msg), '_blank');
   }
 
-  function addToCart(id, type, name, price, image, qty, stock){
+  function addToCart(id, type, name, price, image, qty, stock, options){
+    qty = Math.max(1, parseInt(qty, 10) || 1);
     // Variant parents are catalogue shells — never orderable directly.
     if(window.SF_PARENT_IDS && window.SF_PARENT_IDS[id] && !(window.sfPickedVariant && window.sfPickedVariant.id === id)){
       showToast('Please choose an option first');
@@ -154,9 +155,14 @@
       showToast('Out of stock'); return false;
     }
     const addonPanel = document.querySelector('.mp-product-addons[data-parent-type="'+cartType+'"][data-parent-id="'+id+'"]');
-    const addons = addonPanel ? Array.from(addonPanel.querySelectorAll('.mp-addon-choice:checked')).map(input=>({id:parseInt(input.value,10),qty:Math.min(parseInt(input.dataset.max,10)||1,Math.max(1,parseInt(input.closest('.mp-product-addon').querySelector('.mp-addon-qty').value,10)||1)),name:input.dataset.name||'',price:parseFloat(input.dataset.price)||0})) : [];
+    const addons = options && Array.isArray(options.addons) ? options.addons : (addonPanel ? Array.from(addonPanel.querySelectorAll('.mp-addon-choice:checked')).map(input=>({id:parseInt(input.value,10),qty:Math.min(parseInt(input.dataset.max,10)||1,Math.max(1,parseInt(input.closest('.mp-product-addon').querySelector('.mp-addon-qty').value,10)||1)),name:input.dataset.name||'',price:parseFloat(input.dataset.price)||0})) : []);
+    const spice = options && ['mild','medium','hot','extra'].includes(options.spice_level) ? options.spice_level : '';
+    const note = options ? String(options.note || '').slice(0,500) : '';
     const addonKey = addons.map(addon=>addon.id+'x'+addon.qty).join(',');
-    const key = cartType + '_' + id + (addonKey ? '_' + addonKey : '');
+    const key = cartType + '_' + id + (addonKey ? '_' + addonKey : '') + (spice || note ? '_' + JSON.stringify([spice,note]) : '');
+    if(isPhysical && stock !== undefined && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?> && cart.filter(i=>i.id===id && i.type===cartType).reduce((sum,i)=>sum+Number(i.qty),qty)>stock){
+      showToast('Not enough stock'); return false;
+    }
     const existing = cart.find(i => i.key === key);
     if(existing){
       if(isPhysical && stock !== undefined && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){
@@ -164,7 +170,7 @@
       }
       existing.qty += qty;
     } else {
-      cart.push({key, id, type:cartType, name, price, image, qty: qty, stock: stock ?? 999, addons:addons});
+      cart.push({key, id, type:cartType, name, price, image, qty: qty, stock: stock ?? 999, addons:addons, spice_level:spice, note:note});
     }
     saveCart();
     const unitPrice = price + addons.reduce((sum,addon)=>sum+(addon.price*addon.qty),0);
@@ -225,9 +231,13 @@
     if(pre) sfPickVariant(pre);
   })();
 
-  function doSearch(){
-    const q = document.getElementById('search-input')?.value.trim();
+  function doSearch(value){
+    const q = (value !== undefined ? value : (document.getElementById('search-input')?.value || document.getElementById('search-input-mobile')?.value || '')).trim();
     if(q) window.location.href = '<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>?search=' + encodeURIComponent(q);
+  }
+
+  function doHeroSearch(){
+    doSearch(document.getElementById('hero-search-input')?.value || '');
   }
 
   function sendWhatsAppOrder(){

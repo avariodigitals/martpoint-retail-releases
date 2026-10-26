@@ -473,4 +473,7 @@ return [
 		  // .200 separates the Business Owner permission role from Store Admin
 		  // and counts Business Owner accounts as normal licensed tenant users.
 		  '4.0.9.200v' => '4.0.9.200_business_owner_role_and_license_seats.sql',
+		  // .201 adds optional counter/kitchen/bar routing to retail items. The
+		  // default is counter, so existing stores keep their current workflow.
+		  '4.0.9.201v' => '4.0.9.201_restaurant_fulfilment_routes.sql',
 ];

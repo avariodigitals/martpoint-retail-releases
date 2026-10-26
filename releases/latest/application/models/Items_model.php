@@ -354,6 +354,11 @@ class Items_model extends CI_Model {
 			$posted = $this->input->post('item_production_mode', TRUE);
 			$item_production_mode = in_array($posted, ['batch','sale_deplete','component'], true) ? $posted : 'batch';
 		}
+		$fulfilment_route = 'counter';
+		if ($this->input->post('fulfilment_route') !== false) {
+			$posted_route = $this->input->post('fulfilment_route', TRUE);
+			$fulfilment_route = in_array($posted_route, ['counter','kitchen','bar'], true) ? $posted_route : 'counter';
+		}
 
 		// If recipe is linked, auto-calculate purchase/sales price from recipe cost + margin
 		if ($recipe_id && $this->db->table_exists('db_recipes')) {
@@ -554,9 +559,11 @@ class Items_model extends CI_Model {
 								'weight_pricing_base_kg' => $weight_pricing_base_kg,
 								'weight_pricing_increment_kg' => $weight_pricing_increment_kg,
 								'weight_pricing_increment_charge' => $weight_pricing_increment_charge,
-			    				'item_code' 				=> $item_code,
+								'item_code' 				=> $item_code,
+								'fulfilment_route' 	=> $fulfilment_route,
 
 			    			);
+			if ($this->input->post('fulfilment_route') === false) unset($info['fulfilment_route']);
 			// Items flagged "not for sale" must never stay published online
 			if($not_for_sale){
 				$info['publish_online'] = 0;
@@ -739,9 +746,11 @@ class Items_model extends CI_Model {
 									'requires_deposit'			=> $requires_deposit,
 									'workflow_template_key'		=> $workflow_template_key,
 									'attribute_types_json'		=> $attribute_types_json,
-	    							'item_code' 				=> $item_code,
-	    							'child_bit' 				=> 0,
+										'item_code' 				=> $item_code,
+										'fulfilment_route' 	=> $fulfilment_route,
+										'child_bit' 								=> 0,
 	    						);
+			if ($this->input->post('fulfilment_route') === false) unset($parent_info['fulfilment_route']);
 			// Items flagged "not for sale" must never stay published online
 			if($not_for_sale){
 				$parent_info['publish_online'] = 0;
@@ -879,7 +888,8 @@ class Items_model extends CI_Model {
 			    				'item_group'				=> 'Single',
 			    				'store_id'					=> $store_id,
 		    				'parent_id'					=> $item_id,
-			    				'child_bit'					=> 1,
+								'child_bit'					=> 1,
+								'fulfilment_route' 	=> $fulfilment_route,
 		    				'status'						=> 1,
 			    				'variant_id'				=> $variant_id,
 			    				'discount_type'				=> $discount_type,
@@ -887,7 +897,8 @@ class Items_model extends CI_Model {
 								'not_for_sale'				=> $not_for_sale,
 								'consumable_unit'			=> $consumable_unit,
 			    			
-			    			);
+							);
+							if ($this->input->post('fulfilment_route') === false) unset($info['fulfilment_route']);
 							// Items flagged "not for sale" must never stay published online
 							if($not_for_sale){
 								$info['publish_online'] = 0;
@@ -1094,6 +1105,7 @@ class Items_model extends CI_Model {
 			$data['capacity_ml']=$query->capacity_ml ?? '';
 			$data['recipe_id']=$query->recipe_id ?? null;
 			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
+			$data['fulfilment_route']=$query->fulfilment_route ?? 'counter';
 			$data['item_production_mode']=$query->item_production_mode ?? 'batch';
 			// Butchery / frozen fields must be loaded back into the edit form so
 			// saved settings remain visible and checked when the item is reopened.

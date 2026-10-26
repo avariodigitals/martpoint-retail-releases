@@ -81,29 +81,39 @@ class Restaurantos extends MY_Controller {
      * restricted to the warehouses explicitly assigned in db_userswarehouses.
      */
     private function _allowed_branch_ids() {
-        if (is_store_admin() || (int) $this->session->userdata('role_id') === 1) return null;
-        $user_id = (int) $this->session->userdata('inv_userid');
-        if ($user_id <= 0) return [];
-        $ids = [];
-        if ($this->db->table_exists('db_userswarehouses')) {
-            foreach ($this->db->select('warehouse_id')->where('user_id', $user_id)->get('db_userswarehouses')->result() as $row) {
-                $ids[] = (int) $row->warehouse_id;
+        return function_exists('mp_allowed_warehouse_ids')
+            ? mp_allowed_warehouse_ids(get_current_store_id())
+            : null;
+    }
+
+    /** Apply the same branch scope to every query in this workspace. */
+    private function _apply_branch_scope($branch, $column, $has_column = true) {
+        if ($branch !== '') {
+            if (!$has_column) {
+                $this->db->where('1 = 0', null, false);
+                return;
             }
+            $this->db->where($column, (int) $branch);
+            return;
         }
-        $default = (int) $this->session->userdata('default_warehouse_id');
-        if ($default > 0 && !in_array($default, $ids, true)) $ids[] = $default;
-        return array_values(array_unique(array_filter($ids)));
+        $allowed = $this->_allowed_branch_ids();
+        if ($allowed === null) return;
+        if (!$has_column || empty($allowed)) {
+            $this->db->where('1 = 0', null, false);
+            return;
+        }
+        $this->db->where_in($column, $allowed);
     }
 
     /** Outlet rows for the switcher — only when the store really has several. */
     private function _branch_options() {
         $options = [];
         if (!warehouse_module() || !$this->db->table_exists('db_warehouse')) return $options;
-        $rows = $this->db->where('store_id', get_current_store_id())
+        $rows = $this->db->where('store_id', get_current_store_id())->where('status', 1)
             ->order_by('warehouse_name', 'asc')->limit(24)->get('db_warehouse')->result();
         $allowed = $this->_allowed_branch_ids();
         if ($allowed !== null) {
-            $rows = $this->db->where('store_id', get_current_store_id())->where_in('id', $allowed)
+            $rows = $this->db->where('store_id', get_current_store_id())->where('status', 1)->where_in('id', $allowed)
                 ->order_by('warehouse_name', 'asc')->limit(24)->get('db_warehouse')->result();
         }
         if (count($rows) < 2) return $options;
@@ -130,7 +140,7 @@ class Restaurantos extends MY_Controller {
     /**
      * One scoped view of the canonical sales ledger for the overview.
      *
-     * Legacy sales without source_channel are POS sales. They are deliberately
+     * Legacy sales without source_channel are walk-in sales. They are deliberately
      * classified here rather than excluded, so the channel totals always
      * reconcile to the financial ledger total.
      */
@@ -148,6 +158,7 @@ class Restaurantos extends MY_Controller {
         );
         $this->db->where('store_id', $store_id);
         $this->db->where('sales_status', 'Final');
+        if ($this->db->field_exists('status', 'db_sales')) $this->db->where('status', 1);
         $this->db->where('sales_date >=', $from);
         $this->db->where('sales_date <=', $to);
         if ($branch !== '') {
@@ -162,14 +173,14 @@ class Restaurantos extends MY_Controller {
         $rows = $this->db->group_by('source_channel')->get('db_sales')->result();
         $summary = $empty;
         $channels = [
-            'POS' => ['cnt' => 0, 'total' => 0.0, 'paid' => 0.0, 'outstanding' => 0.0],
+            'Walk In' => ['cnt' => 0, 'total' => 0.0, 'paid' => 0.0, 'outstanding' => 0.0],
             'Online' => ['cnt' => 0, 'total' => 0.0, 'paid' => 0.0, 'outstanding' => 0.0],
             'QR' => ['cnt' => 0, 'total' => 0.0, 'paid' => 0.0, 'outstanding' => 0.0],
             'Other' => ['cnt' => 0, 'total' => 0.0, 'paid' => 0.0, 'outstanding' => 0.0],
         ];
         foreach ($rows as $row) {
             $source = strtolower(trim((string) $row->source_channel));
-            $channel = $source === 'web' ? 'Online' : ($source === 'qr' ? 'QR' : ($source === 'walk_in' || $source === '' ? 'POS' : 'Other'));
+            $channel = $source === 'web' ? 'Online' : ($source === 'qr' ? 'QR' : ($source === 'walk_in' || $source === '' ? 'Walk In' : 'Other'));
             $cnt = (int) $row->cnt;
             $total = (float) $row->total;
             $paid = (float) $row->paid;
@@ -219,9 +230,10 @@ class Restaurantos extends MY_Controller {
         );
         $this->db->where('store_id', $store_id);
         $this->db->where('sales_status', 'Final');
+        if ($this->db->field_exists('status', 'db_sales')) $this->db->where('status', 1);
         $this->db->where('sales_date >=', $from);
         $this->db->where('sales_date <=', $to);
-        if ($branch) $this->db->where('warehouse_id', $branch);
+        $this->_apply_branch_scope($branch, 'warehouse_id');
         $row = $this->db->get('db_sales')->row();
         if ($row) {
             $counter = [
@@ -232,7 +244,7 @@ class Restaurantos extends MY_Controller {
             ];
         }
 
-        $online = ['cnt' => 0, 'sum' => 0.0, 'open' => 0];
+        $online = ['cnt' => 0, 'sum' => 0.0, 'open' => 0, 'ready' => 0];
         if ($this->db->table_exists('db_online_orders')) {
             // An online order now names its outlet (migration 4.0.9.162), so the
             // outlet switcher has to move these figures the same way it moves the
@@ -242,9 +254,10 @@ class Restaurantos extends MY_Controller {
             $online_outlet_col = $this->db->field_exists('warehouse_id', 'db_online_orders');
             $this->db->select('COUNT(*) AS cnt, COALESCE(SUM(grand_total),0) AS total', FALSE);
             $this->db->where('store_id', $store_id);
+            if ($this->db->field_exists('status', 'db_online_orders')) $this->db->where('status', 1);
             $this->db->where('created_at >=', $from . ' 00:00:00');
             $this->db->where('created_at <=', $to . ' 23:59:59');
-            if ($branch !== '' && $online_outlet_col) $this->db->where('warehouse_id', (int) $branch);
+            $this->_apply_branch_scope($branch, 'warehouse_id', $online_outlet_col);
             $orow = $this->db->get('db_online_orders')->row();
             if ($orow) {
                 $online['cnt'] = (int) $orow->cnt;
@@ -253,9 +266,16 @@ class Restaurantos extends MY_Controller {
 
             // The open backlog is "still owed", not "still in this period".
             $this->db->where('store_id', $store_id);
+            if ($this->db->field_exists('status', 'db_online_orders')) $this->db->where('status', 1);
             $this->db->where_in('order_status', ['pending', 'processing']);
-            if ($branch !== '' && $online_outlet_col) $this->db->where('warehouse_id', (int) $branch);
+            $this->_apply_branch_scope($branch, 'warehouse_id', $online_outlet_col);
             $online['open'] = $this->db->count_all_results('db_online_orders');
+
+            $this->db->where('store_id', $store_id);
+            if ($this->db->field_exists('status', 'db_online_orders')) $this->db->where('status', 1);
+            $this->db->where('order_status', 'ready');
+            $this->_apply_branch_scope($branch, 'warehouse_id', $online_outlet_col);
+            $online['ready'] = $this->db->count_all_results('db_online_orders');
         }
 
         $avg_ticket = $sales['count'] > 0 ? round($sales['total'] / $sales['count'], 2) : 0.0;
@@ -277,12 +297,29 @@ class Restaurantos extends MY_Controller {
                 $this->load->model('kitchen_model', 'kitchen');
                 $this->kitchen->sync_new_orders($store_id);
                 $since = date('Y-m-d H:i:s', time() - self::LIVE_WINDOW_HOURS * 3600);
-                $q = $this->db->query(
-                    "SELECT kds_status, COUNT(*) AS cnt,
-                            SUM(created_at >= ?) AS live
-                     FROM db_kitchen_orders WHERE store_id = ? GROUP BY kds_status",
-                    [$since, $store_id]
-                );
+                $kds_has_warehouse = $this->db->field_exists('warehouse_id', 'db_kitchen_orders');
+                $kds_sql = "SELECT kds_status, COUNT(*) AS cnt,
+                                    SUM(created_at >= ?) AS live
+                             FROM db_kitchen_orders WHERE store_id = ?";
+                $kds_params = [$since, $store_id];
+                $allowed = $this->_allowed_branch_ids();
+                if ($branch !== '') {
+                    if ($kds_has_warehouse) {
+                        $kds_sql .= " AND warehouse_id = ?";
+                        $kds_params[] = (int) $branch;
+                    } else {
+                        $kds_sql .= " AND 1 = 0";
+                    }
+                } elseif ($allowed !== null) {
+                    if (empty($allowed) || !$kds_has_warehouse) {
+                        $kds_sql .= " AND 1 = 0";
+                    } else {
+                        $kds_sql .= " AND warehouse_id IN (" . implode(',', array_fill(0, count($allowed), '?')) . ")";
+                        $kds_params = array_merge($kds_params, array_map('intval', $allowed));
+                    }
+                }
+                $kds_sql .= " GROUP BY kds_status";
+                $q = $this->db->query($kds_sql, $kds_params);
                 foreach (($q ? $q->result() : []) as $r) {
                     $kds[$r->kds_status] = (int) $r->cnt;
                     $kds_live[$r->kds_status] = (int) $r->live;
@@ -290,11 +327,12 @@ class Restaurantos extends MY_Controller {
                 $this->db->where('store_id', $store_id);
                 $this->db->where_in('kds_status', ['new', 'preparing', 'ready']);
                 $this->db->where('created_at <', $since);
+                $this->_apply_branch_scope($branch, 'warehouse_id', $kds_has_warehouse);
                 $kds_stale = $this->db->count_all_results('db_kitchen_orders');
             } catch (Throwable $e) {
                 log_message('error', 'RestaurantOS overview: kitchen counts failed — ' . $e->getMessage());
             }
-            $tickets = $this->_kds_tickets($store_id);
+            $tickets = $this->_kds_tickets($store_id, $branch);
             $cooking = $tickets['cooking'];
             $ready   = $tickets['ready'];
         }
@@ -337,6 +375,7 @@ class Restaurantos extends MY_Controller {
             'range_label'  => $info['label'],
             'branch'       => $branch,
             'branch_opts'  => $this->_branch_options(),
+            'branch_can_view_all' => $this->_allowed_branch_ids() === null,
             'perf'         => $perf,
             'sales'        => $sales,
             'counter'      => $counter,
@@ -376,12 +415,13 @@ class Restaurantos extends MY_Controller {
      * actually works from: what is ageing, and what is waiting to be handed
      * over. Minutes are measured from the ticket's own created_at.
      */
-    private function _kds_tickets($store_id) {
+    private function _kds_tickets($store_id, $branch = '') {
         $empty = ['cooking' => [], 'ready' => []];
         if (!$this->db->table_exists('db_kitchen_orders')) return $empty;
 
         $has_online = $this->db->field_exists('online_order_id', 'db_kitchen_orders');
         $has_ktable = $this->db->field_exists('table_id', 'db_kitchen_orders');
+        $has_kwarehouse = $this->db->field_exists('warehouse_id', 'db_kitchen_orders');
         $has_tables = $this->db->table_exists('db_tables');
 
         $tbl_expr = $has_online ? 'o.table_number' : 'NULL';
@@ -393,6 +433,8 @@ class Restaurantos extends MY_Controller {
                 LEFT JOIN db_tables t ON t.id = ' . $tbl_key;
         }
 
+        $warehouse_expr = $has_kwarehouse ? 'k.warehouse_id' : 's.warehouse_id';
+        if (!$has_kwarehouse && $has_online) $warehouse_expr = 'COALESCE(s.warehouse_id, o.warehouse_id)';
         $sql = 'SELECT k.id, k.kds_status, k.created_at,
                        COALESCE(s.sales_code' . ($has_online ? ', o.order_code' : '') . ', \'\') AS ref,
                        COALESCE(c.customer_name' . ($has_online ? ', o.customer_name' : '') . ', \'\') AS customer,
@@ -404,13 +446,27 @@ class Restaurantos extends MY_Controller {
                 LEFT JOIN db_online_orders o ON o.id = k.online_order_id' : '')
                 . $tbl_join . '
                 WHERE k.store_id = ? AND k.kds_status IN (\'new\',\'preparing\',\'ready\')
-                  AND k.created_at >= ?
+                  AND k.created_at >= ?';
+        $params = [$store_id, date('Y-m-d H:i:s', time() - self::LIVE_WINDOW_HOURS * 3600)];
+        if ($branch !== '') {
+            $sql .= ' AND ' . $warehouse_expr . ' = ?';
+            $params[] = (int) $branch;
+        } else {
+            $allowed = $this->_allowed_branch_ids();
+            if ($allowed !== null) {
+                if (empty($allowed)) {
+                    $sql .= ' AND 1 = 0';
+                } else {
+                    $sql .= ' AND ' . $warehouse_expr . ' IN (' . implode(',', array_fill(0, count($allowed), '?')) . ')';
+                    $params = array_merge($params, array_map('intval', $allowed));
+                }
+            }
+        }
+        $sql .= '
                 ORDER BY FIELD(k.kds_status, \'ready\', \'preparing\', \'new\'), k.created_at ASC
                 LIMIT 40';
-
-        $since = date('Y-m-d H:i:s', time() - self::LIVE_WINDOW_HOURS * 3600);
         try {
-            $q = $this->db->query($sql, [$store_id, $since]);
+            $q = $this->db->query($sql, $params);
         } catch (Throwable $e) {
             log_message('error', 'RestaurantOS overview: ticket board query failed — ' . $e->getMessage());
             return $empty;
@@ -424,7 +480,7 @@ class Restaurantos extends MY_Controller {
                 'id'      => (int) $t->id,
                 'ref'     => $t->ref !== '' ? $t->ref : ('#' . $t->id),
                 'who'     => trim((string) ($t->tbl ?: '')) !== '' ? $t->tbl
-                            : (trim((string) ($t->customer ?: '')) !== '' ? $t->customer : 'Counter'),
+                            : (trim((string) ($t->customer ?: '')) !== '' ? $t->customer : 'Walk In'),
                 'status'  => $t->kds_status,
                 'minutes' => $minutes,
                 'age'     => $this->_age_text($minutes),
@@ -440,7 +496,8 @@ class Restaurantos extends MY_Controller {
 
     /**
      * Takings bucketed by service period, straight from the ledger's own
-     * created_time. No bookings implied — it is simply when the money rang up.
+     * created_time. These are time-of-day reporting groups, not order channels
+     * or bookings — they simply describe when the money rang up.
      */
     private function _day_parts($store_id, $from, $to, $branch) {
         $buckets = [
@@ -453,9 +510,23 @@ class Restaurantos extends MY_Controller {
                        COALESCE(SUM(grand_total),0) AS takings, COUNT(*) AS cnt
                 FROM db_sales
                 WHERE store_id = ? AND sales_status = 'Final'
+                  AND status = 1
                   AND sales_date >= ? AND sales_date <= ?";
         $params = [$store_id, $from, $to];
-        if (!empty($branch)) { $sql .= " AND warehouse_id = ?"; $params[] = $branch; }
+        if (!empty($branch)) {
+            $sql .= " AND warehouse_id = ?";
+            $params[] = (int) $branch;
+        } else {
+            $allowed = $this->_allowed_branch_ids();
+            if ($allowed !== null) {
+                if (empty($allowed)) {
+                    $sql .= " AND 1 = 0";
+                } else {
+                    $sql .= " AND warehouse_id IN (" . implode(',', array_fill(0, count($allowed), '?')) . ")";
+                    $params = array_merge($params, array_map('intval', $allowed));
+                }
+            }
+        }
         $sql .= " GROUP BY hr";
         try {
             $q = $this->db->query($sql, $params);
@@ -515,7 +586,7 @@ class Restaurantos extends MY_Controller {
         $q = $this->db->query(
             "SELECT warehouse_id, COALESCE(SUM(grand_total),0) AS takings, COUNT(*) AS cnt
              FROM db_sales
-             WHERE store_id = ? AND sales_date >= ? AND sales_date <= ? AND sales_status = 'Final'
+             WHERE store_id = ? AND sales_date >= ? AND sales_date <= ? AND sales_status = 'Final' AND status = 1
              GROUP BY warehouse_id",
             [$store_id, $from, $to]
         );
@@ -565,6 +636,11 @@ class Restaurantos extends MY_Controller {
                 'text' => $online['open'] . ' ' . ($online['open'] === 1 ? 'order has' : 'orders have') . ' not been completed yet.',
                 'link' => 'online_store/orders', 'link_label' => 'Review them'];
         }
+        if (!empty($online['ready'])) {
+            $notes[] = ['level' => 'ok', 'icon' => 'fa-check-circle', 'label' => 'Ready for handover',
+                'text' => $online['ready'] . ' online ' . ($online['ready'] === 1 ? 'order is' : 'orders are') . ' ready now — including shelf-only orders that skipped the kitchen.',
+                'link' => 'online_store/orders', 'link_label' => 'Open order desk'];
+        }
         if ($counter['open_cnt'] > 0) {
             $notes[] = ['level' => 'warn', 'icon' => 'fa-money', 'label' => 'Balances still open',
                 'text' => $counter['open_cnt'] . ' ' . ($counter['open_cnt'] === 1 ? 'invoice is' : 'invoices are') . ' not fully settled in this period.',
@@ -583,7 +659,7 @@ class Restaurantos extends MY_Controller {
         if (!$notes && $counter['cnt'] === 0 && $online['cnt'] === 0) {
             $notes[] = ['level' => 'ok', 'icon' => 'fa-coffee', 'label' => 'Nothing to chase',
                 'text' => 'No orders have come through' . ($range_key === 'Today' ? ' today' : ' in this period') . ' yet, and every queue is clear.',
-                'link' => 'pos', 'link_label' => 'Open the till'];
+                'link' => 'pos', 'link_label' => 'Open Walk In'];
         }
         if (!$notes && $perf['change'] <= -10) {
             // Point at the sales report only when the staff member can open it;
@@ -650,11 +726,12 @@ class Restaurantos extends MY_Controller {
         }
 
         $summary = ['cnt' => count($filtered), 'total' => 0.0, 'settled' => 0.0, 'open' => 0.0,
-                    'counter' => 0, 'online' => 0];
+                    'counter' => 0, 'online' => 0, 'unassigned' => 0];
         foreach ($filtered as $r) {
             $summary['total'] += $r['total'];
             if ($r['settled']) $summary['settled'] += $r['total']; else $summary['open'] += $r['total'];
             $summary[$r['channel']]++;
+            if ((int) ($r['outlet'] ?? 0) <= 0) $summary['unassigned']++;
         }
 
         $this->_render('Orders', 'restaurantos/orders', [
@@ -662,6 +739,7 @@ class Restaurantos extends MY_Controller {
             'shown'      => count($filtered),
             'branch'     => $branch,
             'branch_opts'=> $this->_branch_options(),
+            'branch_can_view_all' => $this->_allowed_branch_ids() === null,
             'range_key'  => $range_key,
             'ranges'     => self::RANGES,
             'range_label'=> $info['label'],
@@ -691,9 +769,10 @@ class Restaurantos extends MY_Controller {
         $this->db->join('db_customers c', 'c.id = s.customer_id', 'left');
         $this->db->where('s.store_id', $store_id);
         $this->db->where('s.sales_status', 'Final');
+        if ($this->db->field_exists('status', 'db_sales')) $this->db->where('s.status', 1);
         $this->db->where('s.sales_date >=', $from_date);
         if ($to_date !== null) $this->db->where('s.sales_date <=', $to_date);
-        if ($branch !== '') $this->db->where('s.warehouse_id', (int) $branch);
+        $this->_apply_branch_scope($branch, 's.warehouse_id');
         $this->db->order_by('s.sales_date', 'desc')->order_by('s.id', 'desc')->limit((int) $limit_each);
         foreach ($this->db->get()->result() as $s) {
             $settled = ($s->payment_status === 'Paid');
@@ -702,13 +781,16 @@ class Restaurantos extends MY_Controller {
                 'channel'   => 'counter',
                 'time'      => $s->sales_date . ' ' . trim((string) ($s->created_time ?? '')),
                 'ref'       => $s->sales_code,
-                'source'    => 'Counter',
+                'source'    => 'Walk In',
                 'fulfilment'=> !empty($s->table_id) ? 'Dine-in' : 'Takeaway',
                 'customer'  => $s->customer_name ?: 'Walk-in',
                 'total'     => (float) $s->grand_total,
                 'pay'       => $s->payment_status ?: '',
                 'settled'   => $settled,
-                'prep'      => '',
+                // A walk-in sale with no KDS ticket is a shelf/pass item: it
+                // does not enter the kitchen. Any real kitchen ticket below
+                // replaces this with Queued/Cooking/Ready/Handed over.
+                'prep'      => 'ready_now',
                 'outlet'    => (int) $s->warehouse_id,
                 'link'      => 'sales/invoice/' . (int) $s->id,
             ];
@@ -723,12 +805,13 @@ class Restaurantos extends MY_Controller {
                 . ($has_outlet ? ', warehouse_id' : ''));
             $this->db->from('db_online_orders');
             $this->db->where('store_id', $store_id);
+            if ($this->db->field_exists('status', 'db_online_orders')) $this->db->where('status', 1);
             $this->db->where('created_at >=', $from_date . ' 00:00:00');
             if ($to_date !== null) $this->db->where('created_at <=', $to_date . ' 23:59:59');
             // Since migration 4.0.9.162 an online order names the outlet it was
             // placed against, so the outlet switcher can finally mean the same
             // thing for both channels.
-            if ($has_outlet && $branch !== '') $this->db->where('warehouse_id', (int) $branch);
+            $this->_apply_branch_scope($branch, 'warehouse_id', $has_outlet);
             $this->db->order_by('created_at', 'desc')->limit((int) $limit_each);
             foreach ($this->db->get()->result() as $o) {
                 if (!empty($o->table_number)) {
@@ -750,7 +833,14 @@ class Restaurantos extends MY_Controller {
                     'total'     => (float) $o->grand_total,
                     'pay'       => $o->payment_status ?: '',
                     'settled'   => ($o->payment_status === 'paid'),
-                    'prep'      => $o->order_status ?: '',
+                    // The order book uses the customer-facing status values;
+                    // the desk uses the same short operational vocabulary as
+                    // the KDS so a shelf-only order still reads as Ready.
+                    'prep'      => [
+                        'pending' => 'new', 'paid' => 'new',
+                        'processing' => 'preparing', 'ready' => 'ready',
+                        'completed' => 'served',
+                    ][$o->order_status] ?? '',
                     'outlet'    => (int) ($o->warehouse_id ?? 0),
                     'link'      => 'online_store/order_detail/' . (int) $o->id,
                 ];
@@ -765,16 +855,23 @@ class Restaurantos extends MY_Controller {
             }
             if ($has_refs) {
                 $q = $this->db->query(
-                    "SELECT s.sales_code, k.kds_status
+                    "SELECT s.sales_code, k.online_order_id, k.kds_status
                      FROM db_kitchen_orders k
-                     JOIN db_sales s ON s.id = k.sales_id
-                     WHERE k.store_id = ? AND s.sales_status = 'Final'",
+                     LEFT JOIN db_sales s ON s.id = k.sales_id
+                     WHERE k.store_id = ?
+                       AND (s.sales_status = 'Final' OR k.online_order_id > 0)",
                     [$store_id]
                 );
                 $prep = [];
-                foreach (($q ? $q->result() : []) as $k) $prep[$k->sales_code] = $k->kds_status;
+                foreach (($q ? $q->result() : []) as $k) {
+                    if (!empty($k->sales_code)) $prep['sales:' . $k->sales_code] = $k->kds_status;
+                    if (!empty($k->online_order_id)) $prep['online:' . (int) $k->online_order_id] = $k->kds_status;
+                }
                 foreach ($rows as $i => $r) {
-                    if ($r['channel'] === 'counter' && isset($prep[$r['ref']])) $rows[$i]['prep'] = $prep[$r['ref']];
+                    $key = $r['channel'] === 'counter'
+                        ? 'sales:' . $r['ref']
+                        : 'online:' . (int) ($r['oid'] ?? 0);
+                    if (isset($prep[$key])) $rows[$i]['prep'] = $prep[$key];
                 }
             }
         }

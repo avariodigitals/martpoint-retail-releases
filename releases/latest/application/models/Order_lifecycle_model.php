@@ -73,6 +73,17 @@ class Order_lifecycle_model extends CI_Model {
         $table = $table_id && $this->db->table_exists('db_tables')
             ? $this->db->where('id', $table_id)->where('store_id', $store_id)->get('db_tables')->row() : null;
         $paid = strtolower((string) ($sale->payment_status ?? '')) === 'paid';
+        $requires_kitchen = true;
+        if ($this->db->field_exists('fulfilment_route', 'db_items')) {
+            $requires_kitchen = $this->db->query(
+                "SELECT 1 FROM db_salesitems si
+                 JOIN db_items i ON i.id = si.item_id
+                 WHERE si.sales_id = ?
+                   AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                 LIMIT 1",
+                [$sales_id]
+            )->num_rows() > 0;
+        }
         $order = [
             'store_id' => $store_id,
             'warehouse_id' => (int) ($sale->warehouse_id ?? 0),
@@ -80,7 +91,11 @@ class Order_lifecycle_model extends CI_Model {
             'customer_id' => (int) ($sale->customer_id ?? 0),
             'customer_name' => $customer ? $customer->customer_name : 'Walk-in',
             'order_type' => 'product',
-            'order_status' => mp_feature_enabled('kitchen_workflow') ? 'processing' : 'completed',
+            // A shelf-only order is ready as soon as the sale is accepted;
+            // made-to-order work remains processing until KDS moves it.
+            'order_status' => mp_feature_enabled('kitchen_workflow')
+                ? ($requires_kitchen ? 'processing' : 'ready')
+                : 'completed',
             'payment_status' => $paid ? 'paid' : 'unpaid',
             'payment_method' => 'pay_on_delivery',
             'subtotal' => (float) $sale->subtotal,

@@ -65,6 +65,16 @@
           </div>
         </div>
 
+        <div class="mp-form-group" style="margin-top:16px">
+          <label>Preparation route</label>
+          <select name="fulfilment_route" class="mp-form-control">
+            <option value="kitchen" selected>Kitchen — make to order</option>
+            <option value="counter">Ready now — no kitchen</option>
+            <option value="bar">Bar — prepare to order</option>
+          </select>
+          <p class="mp-form-hint">Ready now items skip the kitchen ticket (for example prepared Asun, bottled drinks or shelf items). Kitchen items create a cooking ticket. Bar items create a drink-preparation ticket.</p>
+        </div>
+
         <div class="mp-form-grid" style="margin-top:16px">
           <div class="mp-form-group">
             <label>Unit</label>

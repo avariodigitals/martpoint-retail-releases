@@ -773,7 +773,12 @@ class Sales_model extends CI_Model {
 						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
 					}
 				} else if($current_stock_of_item<$base_unit_qty && $service_bit==0){
-					return $item_name." has only ".$current_stock_of_item." in Stock!!";exit;
+					// This runs inside the invoice transaction. Roll back the header,
+					// any earlier line rows and any related writes before returning;
+					// otherwise a rejected zero/short-stock invoice can leave the
+					// transaction open until request teardown (and hold DB locks).
+					$this->db->trans_rollback();
+					return $item_name . " has only " . $current_stock_of_item . " in Stock!!";
 				}
 				
 				$salesitems_entry = array(

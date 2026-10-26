@@ -235,6 +235,15 @@ class Items extends MY_Controller {
 								'warehouse_id' => $this->input->post('m_warehouse_id'),
 								'command' => 'save',
 							);
+			// save_record() consumes the standard item field names from the
+			// CodeIgniter input object. The modal form posts m_* names, so passing
+			// only $modal_post left the model reading blank item_name/category/
+			// prices and the insert failed (or produced incomplete data) on this
+			// endpoint. Copy the validated mapping into POST before invoking the
+			// shared save path; regular item creation remains unchanged.
+			foreach ($modal_post as $field => $value) {
+				$_POST[$field] = $value;
+			}
 			$result=$this->items->save_record($modal_post);
 			echo $result;
 		} else {

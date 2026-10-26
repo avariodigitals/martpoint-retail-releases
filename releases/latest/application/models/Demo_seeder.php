@@ -108,10 +108,10 @@ class Demo_seeder extends CI_Model {
             'units' => array('Portion' => 'PORT', 'Plate' => 'PLT', 'Piece' => 'PCS', 'Litre' => 'L'),
             'categories' => array('Main Course', 'Appetizers', 'Drinks', 'Desserts', 'Brunch'),
             'products' => array(
-                array('Grilled Salmon Steak', 'Main Course', 15000, 8000, 999), array('Garlic Butter Shrimp', 'Appetizers', 7000, 3500, 999),
-                array('Fresh Orange Juice', 'Drinks', 3000, 1000, 999), array('Chocolate Lava Cake', 'Desserts', 5000, 2000, 999),
-                array('Avocado Toast', 'Brunch', 6500, 3000, 999), array('Truffle Pasta', 'Main Course', 18000, 9000, 999),
-                array('Spring Rolls', 'Appetizers', 4000, 1500, 999), array('Iced Caramel Macchiato', 'Drinks', 4500, 1200, 999),
+                array('Grilled Salmon Steak', 'Main Course', 15000, 8000, 999, 'kitchen'), array('Garlic Butter Shrimp', 'Appetizers', 7000, 3500, 999, 'kitchen'),
+                array('Fresh Orange Juice', 'Drinks', 3000, 1000, 999, 'bar'), array('Chocolate Lava Cake', 'Desserts', 5000, 2000, 999, 'kitchen'),
+                array('Avocado Toast', 'Brunch', 6500, 3000, 999, 'kitchen'), array('Truffle Pasta', 'Main Course', 18000, 9000, 999, 'kitchen'),
+                array('Spring Rolls', 'Appetizers', 4000, 1500, 999, 'kitchen'), array('Iced Caramel Macchiato', 'Drinks', 4500, 1200, 999, 'bar'),
             ),
             'services' => array('Private Dining Setup', 'Catering Delivery', 'Event Menu Planning'),
             'suppliers' => array('FreshFarm Produce', 'DairyDirect', 'Oceanic Seafoods'),
@@ -188,9 +188,13 @@ class Demo_seeder extends CI_Model {
 
             $units = $this->_seed_units($store_id, $data['units']);
             $categories = $this->_seed_categories($store_id, $data['categories']);
+            if ($key === 'restaurant') {
+                $this->_retire_restaurant_non_catalogue_content($store_id);
+                $this->_seed_restaurant_locations($store_id, $result);
+            }
             if ($key === 'pharmacy') $this->_retire_pharmacy_non_catalogue_content($store_id);
             $suppliers = $this->_seed_suppliers($store_id, $data['suppliers'], $result);
-            $items = $this->_seed_products($store_id, $data['products'], $units, $categories, $result);
+            $items = $this->_seed_products($store_id, $data['products'], $units, $categories, $result, $key);
             if ($key === 'pharmacy') $this->_seed_pharmacy_locations($store_id, $items, $result);
             $this->_seed_services($store_id, $data['services'], $categories, $result);
             if ($key === 'pharmacy') $this->_retire_pharmacy_non_catalogue_orders($store_id, $this->_pharmacy_category_ids($store_id));
@@ -246,7 +250,17 @@ class Demo_seeder extends CI_Model {
 
     private function _canonical_industry($industry) {
         $industry = strtolower(trim((string)$industry));
-        $map = array('building' => 'building_materials', 'building_materials' => 'building_materials', 'frozen_foods_retailer' => 'frozen', 'frozen_foods' => 'frozen', 'frozen' => 'frozen', 'garden' => 'garden_centre', 'garden_centre_landscaping' => 'garden_centre', 'garden_centre' => 'garden_centre', 'physio' => 'physiotherapy', 'physiotherapy_rehabilitation' => 'physiotherapy', 'pharmacy' => 'pharmacy', 'fashion' => 'fashion', 'restaurant' => 'restaurant', 'skincare' => 'skincare');
+        $map = array(
+            'building' => 'building_materials', 'building_materials' => 'building_materials',
+            'frozen_foods_retailer' => 'frozen', 'frozen_foods' => 'frozen', 'frozen' => 'frozen',
+            'garden' => 'garden_centre', 'garden_centre_landscaping' => 'garden_centre', 'garden_centre' => 'garden_centre',
+            'physio' => 'physiotherapy', 'physiotherapy_rehabilitation' => 'physiotherapy',
+            'pharmacy' => 'pharmacy', 'fashion' => 'fashion', 'skincare' => 'skincare',
+            // Food presets share the RestaurantOS catalogue and fulfilment flow.
+            'restaurant' => 'restaurant', 'fast_food' => 'restaurant', 'cafe' => 'restaurant',
+            'pizza_shop' => 'restaurant', 'shawarma' => 'restaurant', 'juice_bar' => 'restaurant',
+            'buka' => 'restaurant', 'canteen' => 'restaurant', 'food_delivery' => 'restaurant',
+        );
         return isset($map[$industry]) ? $map[$industry] : 'general_retail';
     }
 
@@ -315,6 +329,123 @@ class Demo_seeder extends CI_Model {
                         ->update('db_items', $this->_filter('db_items', array('status' => 0, 'publish_online' => 0, 'online_excluded' => 1)));
                 }
             }
+        }
+    }
+
+    /**
+     * Keep the RestaurantOS demo catalogue and supporting master data food-only.
+     *
+     * This runs only through the guarded demo seeder, never during an ordinary
+     * merchant profile save. Rows are archived instead of deleted so old demo
+     * transactions retain their foreign-key history while active screens show
+     * only the restaurant dataset.
+     */
+    private function _retire_restaurant_non_catalogue_content($store_id) {
+        $allowedCategories = array(
+            'Main Course', 'Mains', 'Appetizers', 'Starters & Small Chops',
+            'Sides & Extras', 'Drinks', 'Desserts', 'Brunch', 'Combos & Platters',
+        );
+        $allowedUnits = array('Portion', 'Plate', 'Cup', 'Bottle', 'Piece', 'Kilogram', 'Litre');
+        $allowedServices = array('Private Dining Setup', 'Catering Delivery', 'Event Menu Planning');
+        $allowedSuppliers = array('FreshFarm Produce', 'DairyDirect', 'Oceanic Seafoods');
+
+        $categoryIds = array();
+        if ($this->db->table_exists('db_category')) {
+            $categoryRows = $this->db->select('id')->where('store_id', $store_id)
+                ->where_in('category_name', $allowedCategories)->get('db_category')->result();
+            $categoryIds = array_map(function ($row) { return (int) $row->id; }, $categoryRows);
+
+            $categoryUpdate = $this->db->where('store_id', $store_id);
+            if ($allowedCategories) $categoryUpdate->where_not_in('category_name', $allowedCategories);
+            $categoryUpdate->update('db_category', $this->_filter('db_category', array('status' => 0)));
+        }
+
+        if ($this->db->table_exists('db_items')) {
+            $itemUpdate = $this->db->where('store_id', $store_id)->group_start();
+            if ($categoryIds) {
+                $itemUpdate->where_not_in('category_id', $categoryIds)
+                    ->or_where('category_id', 0)
+                    ->or_where('category_id IS NULL', null, false);
+            } else {
+                $itemUpdate->where('id >', 0);
+            }
+            $itemUpdate->group_end()->update('db_items', $this->_filter('db_items', array(
+                'status' => 0, 'publish_online' => 0, 'online_excluded' => 1,
+            )));
+        }
+
+        if ($this->db->table_exists('db_units')) {
+            $this->db->where('store_id', $store_id)->where_not_in('unit_name', $allowedUnits)
+                ->update('db_units', $this->_filter('db_units', array('status' => 0)));
+        }
+
+        if ($this->db->table_exists('db_recipe_categories') && $this->db->field_exists('name', 'db_recipe_categories')) {
+            $this->db->where('store_id', $store_id)->where_not_in('name', array('Mains', 'Starters', 'Drinks', 'Desserts', 'Combos'))
+                ->update('db_recipe_categories', $this->_filter('db_recipe_categories', array('status' => 0)));
+        }
+
+        if ($this->db->table_exists('db_services')) {
+            $this->db->where('store_id', $store_id)->where_not_in('service_name', $allowedServices)
+                ->update('db_services', $this->_filter('db_services', array('status' => 0, 'available_online' => 0)));
+        }
+
+        if ($this->db->table_exists('db_suppliers')) {
+            $this->db->where('store_id', $store_id)->where_not_in('supplier_name', $allowedSuppliers)
+                ->update('db_suppliers', $this->_filter('db_suppliers', array('status' => 0)));
+        }
+
+        // A previous pharmacy demo could leave its fulfilment locations active
+        // because warehouses are operational master data, not catalogue rows.
+        // Archive only unmistakable pharmacy/demo locations; never touch a
+        // merchant's legitimate restaurant branches.
+        if ($this->db->table_exists('db_warehouse')) {
+            $rows = $this->db->where('store_id', $store_id)->get('db_warehouse')->result();
+            foreach ($rows as $row) {
+                $signals = implode(' ', array(
+                    (string)($row->warehouse_name ?? ''),
+                    (string)($row->address ?? ''),
+                    (string)($row->delivery_coverage ?? ''),
+                    (string)($row->email ?? ''),
+                ));
+                $type = strtolower(trim((string)($row->branch_type ?? '')));
+                if (in_array($type, array('partner', 'pickup_hub'), true)
+                    || preg_match('/pharmacy|medical|prescription|fulfilment|fulfillment|collection hub/i', $signals)) {
+                    $this->db->where('id', (int)$row->id)->where('store_id', $store_id)
+                        ->update('db_warehouse', $this->_filter('db_warehouse', array('status' => 0, 'public_enabled' => 0)));
+                }
+            }
+        }
+    }
+
+    /** Seed clearly restaurant-owned locations for the switchable demo tenant. */
+    private function _seed_restaurant_locations($store_id, &$result) {
+        if (!$this->db->table_exists('db_warehouse')) return;
+        $rowsQuery = $this->db->where('store_id', $store_id)->where('status', 1);
+        if ($this->db->field_exists('warehouse_type', 'db_warehouse')) $rowsQuery->where('warehouse_type', 'Custom');
+        if ($this->db->field_exists('public_enabled', 'db_warehouse')) $rowsQuery->where('public_enabled', 1);
+        $rows = $rowsQuery->get('db_warehouse')->result();
+        foreach ($rows as $row) {
+            $type = strtolower(trim((string)($row->branch_type ?? '')));
+            $signals = implode(' ', array((string)($row->warehouse_name ?? ''), (string)($row->email ?? '')));
+            if (!in_array($type, array('partner', 'pickup_hub'), true)
+                && !preg_match('/pharmacy|medical|prescription|fulfilment|fulfillment|collection hub/i', $signals)) return;
+        }
+
+        $locations = array(
+            array('name' => 'Ikeja GRA Kitchen', 'address' => '14 Isaac John Street, Ikeja GRA', 'city' => 'Ikeja', 'state' => 'Lagos'),
+            array('name' => 'Lekki Phase 1 Kitchen', 'address' => '12 Fola Osibo Street, Lekki Phase 1', 'city' => 'Lekki', 'state' => 'Lagos'),
+            array('name' => 'Wuse 2 Kitchen', 'address' => '8 Aminu Kano Crescent, Wuse 2', 'city' => 'Abuja', 'state' => 'FCT'),
+        );
+        foreach ($locations as $location) {
+            $id = $this->_save('db_warehouse', array('store_id' => $store_id, 'warehouse_name' => $location['name']), array(
+                'store_id' => $store_id, 'warehouse_type' => 'Custom', 'warehouse_name' => $location['name'],
+                'address' => $location['address'], 'city' => $location['city'], 'state' => $location['state'], 'country' => 'Nigeria',
+                'branch_type' => 'branch', 'is_distribution_center' => 0, 'mobile' => '08000002026',
+                'email' => 'demo.restaurant.'.$store_id.'@example.com', 'status' => 1, 'business_hours' => 'Mon-Sun · 10:00am-10:00pm',
+                'delivery_coverage' => 'Delivery coverage confirmed at checkout', 'delivery_fee' => 0,
+                'pickup_enabled' => 1, 'public_enabled' => 1, 'stock_source_id' => null,
+            ));
+            if ($id) $result['locations']++;
         }
     }
 
@@ -415,8 +546,23 @@ class Demo_seeder extends CI_Model {
                 if ($this->db->field_exists('store_id', $parentTable)) {
                     $parentQuery->where('store_id', $store_id);
                 }
-                $parentQuery->update($parentTable, $this->_filter($parentTable, array('status' => 0)));
+                $parentData = array('status' => 0);
+                if ($parentTable === 'db_sales' && $this->db->field_exists('sales_status', $parentTable)) {
+                    $parentData['sales_status'] = 'Cancelled';
+                } elseif ($parentTable === 'db_purchase' && $this->db->field_exists('purchase_status', $parentTable)) {
+                    $parentData['purchase_status'] = 'Cancelled';
+                } elseif ($parentTable === 'db_online_orders' && $this->db->field_exists('order_status', $parentTable)) {
+                    $parentData['order_status'] = 'cancelled';
+                } elseif ($parentTable === 'db_quotation' && $this->db->field_exists('quotation_status', $parentTable)) {
+                    $parentData['quotation_status'] = 'Cancelled';
+                }
+                $parentQuery->update($parentTable, $this->_filter($parentTable, $parentData));
             }
+        }
+
+        if ($this->db->table_exists('db_warehouseitems') && $this->db->field_exists('available_qty', 'db_warehouseitems')) {
+            $this->db->where('store_id', $store_id)->where_in('item_id', $itemIds)
+                ->update('db_warehouseitems', array('available_qty' => 0));
         }
     }
 
@@ -517,10 +663,16 @@ class Demo_seeder extends CI_Model {
         return $ids;
     }
 
-    private function _seed_products($store_id, $products, $units, $categories, &$result) {
+    private function _seed_products($store_id, $products, $units, $categories, &$result, $industry = '') {
         $ids = array(); $count = $this->_next_count('db_items', $store_id); $default_unit = reset($units);
+        $restaurantMenu = $industry === 'restaurant' ? require APPPATH . 'config/restaurant_demo_menu.php' : array();
         foreach ($products as $product) {
             list($name, $category, $sales, $cost, $stock) = $product;
+            $oldName = $name;
+            $menuEntry = $restaurantMenu[$oldName] ?? null;
+            if ($menuEntry) $name = $menuEntry['name'];
+            $fulfilmentRoute = isset($product[5]) && in_array($product[5], array('counter', 'kitchen', 'bar'), true)
+                ? $product[5] : 'counter';
             $unit_id = isset($units['Piece']) ? $units['Piece'] : $default_unit;
             $packLabel = null;
             if (in_array($category, array('Prescription Drugs', 'Over-the-Counter', 'Medical Supplies', 'Vitamins & Supplements', 'Dermatology', 'Skincare'), true)) {
@@ -532,7 +684,18 @@ class Demo_seeder extends CI_Model {
                 elseif (isset($units['Bottle'])) { $packLabel = 'Bottle'; $unit_id = $units['Bottle']; }
             }
             $data = array('store_id' => $store_id, 'count_id' => $count, 'item_code' => 'IT/'.str_pad($store_id, 2, '0', STR_PAD_LEFT).'/'.str_pad($count, 4, '0', STR_PAD_LEFT), 'item_name' => $name, 'category_id' => isset($categories[$category]) ? $categories[$category] : 0, 'unit_id' => $unit_id, 'consumable_unit' => $packLabel, 'sku' => 'ZONAT-'.$store_id.'-'.$count, 'alert_qty' => 5, 'purchase_price' => $cost, 'price' => $cost, 'sales_price' => $sales, 'stock' => $stock, 'description' => 'Demo '.$category.' product from Zonat.', 'created_date' => date('Y-m-d'), 'created_time' => date('h:i:s a'), 'created_by' => 'demo', 'status' => 1, 'publish_online' => 1, 'is_featured' => ($count % 3 === 0) ? 1 : 0, 'is_new_arrival' => 1, 'item_group' => 'Single', 'service_bit' => 0, 'product_type' => 'physical', 'discount_type' => 'Percentage', 'discount' => 0);
-            $id = $this->_save('db_items', array('store_id' => $store_id, 'item_name' => $name), $data);
+            if ($this->db->field_exists('fulfilment_route', 'db_items')) $data['fulfilment_route'] = $fulfilmentRoute;
+            $where = array('store_id' => $store_id, 'item_name' => $name);
+            if ($menuEntry) {
+                $data['description'] = $menuEntry['description'];
+                $existing = $this->_row('db_items', $where);
+                if (!$existing) $existing = $this->_row('db_items', array('store_id' => $store_id, 'item_name' => $oldName, 'created_by' => 'demo'));
+                if ($existing) $where = array('store_id' => $store_id, 'id' => (int)$existing->id);
+                // Assets are scoped to the fictional store. Preserve uploaded photography.
+                $image = 'uploads/storefront/' . (int)$store_id . '/menu-demo/' . $menuEntry['slug'] . '.webp';
+                if (is_file(FCPATH . $image) && empty($existing->item_image)) $data['item_image'] = $image;
+            }
+            $id = $this->_save('db_items', $where, $data);
             if ($id) { $ids[] = (object)array('id' => $id, 'name' => $name, 'cost' => $cost, 'sales' => $sales, 'stock' => $stock); $result['products']++; $count++; }
         }
         $warehouse = $this->_row('db_warehouse', array('store_id' => $store_id));

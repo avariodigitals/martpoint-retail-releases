@@ -49,7 +49,7 @@ $preset_icons = [
               <span class="flag <?= !empty($p['outlets']) ? 'on' : ''; ?>">
                 <?= !empty($p['outlets']) ? '✓' : '—'; ?> Outlets
               </span>
-              <span class="flag on">✓ POS · Kitchen · Menu · Reports</span>
+              <span class="flag on">✓ Walk In · Kitchen · Menu · Reports</span>
             </span>
           </span>
         </label>

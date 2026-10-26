@@ -10,6 +10,10 @@ if(function_exists('physio_enabled') && physio_enabled()){
   $this->load->view('physio_layout', get_defined_vars());
   return;
 }
+if(function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace()){
+  $this->load->view('restaurant_layout', get_defined_vars());
+  return;
+}
 $this->load->view('mp_header');
 $this->load->view('mp_sidebar',['garden_tools_only'=>false]);
 /* Load shared JS plugins before page content so content views can rely on

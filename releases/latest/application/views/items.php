@@ -54,6 +54,7 @@ if(!isset($item_name)){
   $commission_value = 0;
   $deposit_required = 0;
   $deposit_percent = 0;
+  $fulfilment_route = 'counter';
   // If business is service-only, default to Service
   if($business_model === 'service_based' && $show_service_toggle){
     $service_bit = 1;
@@ -83,6 +84,7 @@ else{
   if(!isset($commission_value)) $commission_value=0;
   if(!isset($deposit_required)) $deposit_required=0;
   if(!isset($deposit_percent)) $deposit_percent=0;
+  if(!isset($fulfilment_route)) $fulfilment_route='counter';
 }
 // Only default opening_stock to 0 when not provided by the controller.
 // The model's get_details() does not pass opening_stock (stock adjustments
@@ -373,6 +375,17 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <input class="mp-form-control" id="sku" name="sku" placeholder="Stock keeping unit" type="text" value="<?php print htmlspecialchars($sku); ?>">
         <span id="sku_msg" style="display:none" class="text-danger"></span>
       </div>
+      <?php if(mp_feature_enabled('kitchen_workflow')): ?>
+      <div class="mp-form-group mp-item-only">
+        <label for="fulfilment_route">Preparation route</label>
+        <select class="mp-form-control" id="fulfilment_route" name="fulfilment_route">
+          <option value="counter" <?= ($fulfilment_route === 'counter') ? 'selected' : ''; ?>>Ready now — no kitchen</option>
+          <option value="kitchen" <?= ($fulfilment_route === 'kitchen') ? 'selected' : ''; ?>>Kitchen — make to order</option>
+          <option value="bar" <?= ($fulfilment_route === 'bar') ? 'selected' : ''; ?>>Bar — prepare to order</option>
+        </select>
+        <p class="mp-form-hint">Ready now items skip the kitchen ticket (for example prepared Asun, bottled drinks or shelf items). Kitchen items create a cooking ticket (for example pizza or shawarma). Bar items create a drink-preparation ticket.</p>
+      </div>
+      <?php endif; ?>
       <div class="mp-form-group mp-item-only">
         <label for="hsn"><?= $is_plant ? 'Tax classification code (optional)' : $this->lang->line('hsn'); ?></label>
         <input class="mp-form-control" id="hsn" name="hsn" type="text" value="<?php print htmlspecialchars($hsn); ?>">

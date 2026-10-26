@@ -24,6 +24,35 @@ class Mobile extends MY_Controller {
 		$this->load->model('sales_model','sales');
 	}
 
+	private function _mobile_kitchen_branch_context(){
+		$store_id = get_current_store_id();
+		$allowed = function_exists('mp_allowed_warehouse_ids') ? mp_allowed_warehouse_ids($store_id) : null;
+		$branch = (string)$this->input->post_get('branch_id', TRUE);
+		if($this->input->get('branch_id') === NULL && $this->input->post('branch_id') === NULL){
+			$branch = (string)($this->session->userdata('selected_branch_id') ?: '');
+		}
+		if($branch !== ''){
+			$valid = $this->db->where('id', (int)$branch)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse') > 0;
+			if(!$valid || ($allowed !== null && !in_array((int)$branch, $allowed, true))) return ['ok'=>false];
+		}
+		if($this->input->get('branch_id') !== NULL || $this->input->post('branch_id') !== NULL){
+			$this->session->set_userdata('selected_branch_id', $branch);
+		}
+		if($branch === '' && $allowed !== null && count($allowed) === 1){
+			$branch = (string)$allowed[0];
+			$this->session->set_userdata('selected_branch_id', $branch);
+		}
+		$this->db->where('store_id', $store_id)->where('status', 1);
+		if($allowed !== null){
+			$rows = empty($allowed) ? [] : $this->db->where_in('id', $allowed)->order_by('warehouse_name','asc')->get('db_warehouse')->result();
+		}else{
+			$rows = $this->db->order_by('warehouse_name','asc')->get('db_warehouse')->result();
+		}
+		$options = []; $names = [];
+		foreach($rows as $row){ $names[(int)$row->id] = (string)$row->warehouse_name; $options[] = ['id'=>(int)$row->id,'name'=>(string)$row->warehouse_name]; }
+		return ['ok'=>true,'branch'=>$branch,'allowed'=>$allowed,'options'=>count($options)>1?$options:[],'names'=>$names];
+	}
+
 	public function test_variants()
 	{
 		// Bypass auth for CLI testing only
@@ -2889,9 +2918,19 @@ class Mobile extends MY_Controller {
 		}
 
 		$store_id = get_current_store_id();
-		$warehouse_id = (warehouse_module() && warehouse_count()>1 && !empty($input['warehouse_id']))
-			? (int)$input['warehouse_id'] : get_pos_default_warehouse_id($store_id);
+		$requested_warehouse_id = !empty($input['warehouse_id']) ? (int)$input['warehouse_id'] : 0;
+		$warehouse_id = $requested_warehouse_id > 0 ? $requested_warehouse_id : get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null) {
+			if ($requested_warehouse_id > 0 && !in_array($requested_warehouse_id, $allowed_warehouse_ids, true)) {
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'You are not assigned to that branch.']);
+				exit;
+			}
+			if (!in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) $warehouse_id = (int)($allowed_warehouse_ids[0] ?? 0);
+		}
 		$customer_id = $input['customer_id'] ?? 0;
+		$table_id = (int) ($input['table_id'] ?? 0);
 		$cart = $input['cart'] ?? [];
 		$discount = parse_amount($input['discount'] ?? 0);
 		$sales_note = $input['sales_note'] ?? '';
@@ -2985,7 +3024,7 @@ class Mobile extends MY_Controller {
 		$shipping_fee = 0;
 		$shipping_label = '';
 		$shipping_fee_id = 0;
-		if(!empty($input['shipping']) && is_array($input['shipping'])
+		if($table_id <= 0 && !empty($input['shipping']) && is_array($input['shipping'])
 			&& $this->db->table_exists('db_shipping_fees') && $this->db->field_exists('shipping_fee', 'db_hold')){
 			$ship_id = (int) ($input['shipping']['id'] ?? 0);
 			if($ship_id){
@@ -3029,6 +3068,9 @@ class Mobile extends MY_Controller {
 			$hold_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 			$hold_entry['shipping_label']  = $shipping_label ?: null;
 			$hold_entry['shipping_fee']    = $shipping_fee ?: null;
+		}
+		if($table_id > 0 && $this->db->field_exists('table_id', 'db_hold')){
+			$hold_entry['table_id'] = $table_id;
 		}
 
 		if(!$this->db->insert('db_hold', $hold_entry)){
@@ -3093,6 +3135,7 @@ class Mobile extends MY_Controller {
 			'id' => $hold->id,
 			'customer_id' => $hold->customer_id,
 			'customer_name' => $hold->customer_name,
+			'table_id' => (int) ($hold->table_id ?? 0),
 			'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
 			'discount' => $hold->discount_to_all_input ?? 0,
 			'sales_note' => $hold->sales_note ?? '',
@@ -3161,8 +3204,17 @@ class Mobile extends MY_Controller {
 					'redirect'=>base_url('mobile')]); exit;
 			}
 		}
-		$warehouse_id = (warehouse_module() && warehouse_count()>1 && !empty($input['warehouse_id']))
-			? (int)$input['warehouse_id'] : get_pos_default_warehouse_id($store_id);
+		$requested_warehouse_id = !empty($input['warehouse_id']) ? (int)$input['warehouse_id'] : 0;
+		$warehouse_id = $requested_warehouse_id > 0 ? $requested_warehouse_id : get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null) {
+			if ($requested_warehouse_id > 0 && !in_array($requested_warehouse_id, $allowed_warehouse_ids, true)) {
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'You are not assigned to that branch.']);
+				exit;
+			}
+			if (!in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) $warehouse_id = (int)($allowed_warehouse_ids[0] ?? 0);
+		}
 		$init_code = get_only_init_code('sales');
 		$count_id = get_last_count_id('db_sales');
 		$sales_code = $init_code . $count_id;
@@ -3196,7 +3248,8 @@ class Mobile extends MY_Controller {
 		$_POST['reference_no'] = '';
 		$_POST['sales_status'] = $is_hold ? 'Pending' : 'Final';
 		$_POST['customer_id'] = $customer_id;
-		$_POST['table_id'] = (int) ($input['table_id'] ?? 0);
+		$table_id = (int) ($input['table_id'] ?? 0);
+		$_POST['table_id'] = $table_id;
 		$_POST['other_charges_input'] = '0';
 		$_POST['other_charges_tax_id'] = '';
 		$_POST['other_charges_amt'] = '0';
@@ -3274,7 +3327,7 @@ class Mobile extends MY_Controller {
 		$shipping_fee = 0;
 		$shipping_label = '';
 		$shipping_fee_id = 0;
-		if(!empty($input['shipping']) && is_array($input['shipping'])
+		if($table_id <= 0 && !empty($input['shipping']) && is_array($input['shipping'])
 			&& $this->db->table_exists('db_shipping_fees') && $this->db->field_exists('shipping_fee', 'db_sales')){
 			$ship_id = (int) ($input['shipping']['id'] ?? 0);
 			if($ship_id){
@@ -5001,13 +5054,25 @@ class Mobile extends MY_Controller {
 		$data = $this->data;
 		$data['page_title'] = 'Kitchen';
 		$store_id = get_current_store_id();
+		$branch_context = $this->_mobile_kitchen_branch_context();
+		$is_ajax = (bool)$this->input->get('ajax');
+		if(empty($branch_context['ok'])){
+			if($is_ajax){
+				set_status_header(403);
+				header('Content-Type: application/json');
+				echo json_encode(['status'=>false,'message'=>'You are not assigned to this outlet.']);
+			}else{
+				$this->show_access_denied_page();
+			}
+			return;
+		}
 
 		$this->load->model('kitchen_model', 'kitchen');
 		$this->kitchen->sync_new_orders($store_id);
 
-		if($this->input->get('ajax')){
+		if($is_ajax){
 			header('Content-Type: application/json');
-			echo json_encode(['status_counts' => $this->kitchen->count_by_status($store_id)]);
+			echo json_encode(['status_counts' => $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed'])]);
 			return;
 		}
 
@@ -5017,9 +5082,13 @@ class Mobile extends MY_Controller {
 		}
 
 		$data['active_status'] = $active_status;
-		$data['status_counts'] = $this->kitchen->count_by_status($store_id);
-		$data['orders'] = $this->kitchen->get_orders($store_id, $active_status, 50);
-		$data['served'] = $this->kitchen->get_served_orders($store_id, 10);
+		$data['status_counts'] = $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed']);
+		$data['orders'] = $this->kitchen->get_orders($store_id, $active_status, 50, 'DESC', $branch_context['branch'], $branch_context['allowed']);
+		$data['served'] = $this->kitchen->get_served_orders($store_id, 10, $branch_context['branch'], $branch_context['allowed']);
+		$data['branch'] = $branch_context['branch'];
+		$data['branch_opts'] = $branch_context['options'];
+		$data['branch_names'] = $branch_context['names'];
+		$data['branch_can_view_all'] = $branch_context['allowed'] === null;
 
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
@@ -5041,6 +5110,22 @@ class Mobile extends MY_Controller {
 			return;
 		}
 		$this->load->model('kitchen_model', 'kitchen');
+		$branch_context = $this->_mobile_kitchen_branch_context();
+		if(empty($branch_context['ok'])){
+			set_status_header(403);
+			header('Content-Type: application/json');
+			echo json_encode(['success'=>false,'message'=>'You are not assigned to this outlet.']);
+			return;
+		}
+		$ticket_branch = $this->kitchen->get_order_branch_id((int)$kitchen_order_id);
+		if($ticket_branch === null
+			|| ($branch_context['branch'] !== '' && (int)$ticket_branch !== (int)$branch_context['branch'])
+			|| ($branch_context['allowed'] !== null && !in_array((int)$ticket_branch, $branch_context['allowed'], true))){
+			set_status_header(403);
+			header('Content-Type: application/json');
+			echo json_encode(['success'=>false,'message'=>'This ticket belongs to another outlet.']);
+			return;
+		}
 		$ok = $this->kitchen->update_status($kitchen_order_id, $status);
 		header('Content-Type: application/json');
 		echo json_encode([

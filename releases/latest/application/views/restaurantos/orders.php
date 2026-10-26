@@ -1,5 +1,5 @@
 <?php
-// One list, two ledgers: counter invoices (db_sales) and online/QR orders
+// One list, two ledgers: walk-in invoices (db_sales) and online/QR orders
 // (db_online_orders) arrive here already merged and time-sorted by the
 // controller. Read-only — status changes happen on the Kitchen Display and
 // the Online Store order desk; each row links to the screen that owns it.
@@ -34,7 +34,7 @@ $pay_chip = function ($r) {
 // Kitchen / order progress chip, only when there is a real state to show.
 $prep_chip = function ($r) {
     $map = ['new' => ['Queued', 'neutral'], 'preparing' => ['Cooking', 'warn'],
-            'ready' => ['Ready', 'up'], 'served' => ['Handed over', 'up'],
+            'ready' => ['Ready', 'up'], 'ready_now' => ['Ready now', 'up'], 'served' => ['Handed over', 'up'],
             'pending' => ['New', 'neutral'], 'processing' => ['Being made', 'warn'],
             'completed' => ['Done', 'up'], 'cancelled' => ['Cancelled', 'down']];
     $key = strtolower(trim((string) $r['prep']));
@@ -52,6 +52,7 @@ $active_tabs = [
     'fulfil' => $fulfil,
     'pay'    => $pay,
 ];
+$branch_all_label = !empty($branch_can_view_all) ? 'All branches' : 'All assigned branches';
 
 // Outlet names only exist where the store actually runs more than one till;
 // a single-outlet store has nothing to distinguish, so the column is dropped.
@@ -69,7 +70,7 @@ foreach ((array) $branch_opts as $o) {
     <div>
       <h2>Orders</h2>
       <div class="ro-head-sub">
-        Counter, online and table-QR orders in one timeline ·
+        Walk-in, online and table-QR orders in one timeline ·
         <b><?= htmlspecialchars($range_label); ?></b>
       </div>
     </div>
@@ -77,7 +78,7 @@ foreach ((array) $branch_opts as $o) {
       <?php if (!empty($branch_opts)): ?>
         <div class="ro-seg">
           <span class="ro-seg-label">Outlet</span>
-          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $q_url(['branch_id' => '']); ?>">All</a>
+          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $q_url(['branch_id' => '']); ?>"><?= htmlspecialchars($branch_all_label); ?></a>
           <?php foreach ($branch_opts as $o): ?>
             <a class="<?= (string) $branch === (string) $o['id'] ? 'active' : ''; ?>"
                href="<?= $q_url(['branch_id' => $o['id']]); ?>"><?= htmlspecialchars($o['name']); ?></a>
@@ -103,7 +104,7 @@ foreach ((array) $branch_opts as $o) {
       <div class="v"><?= number_format($summary['cnt']); ?></div>
     </div>
     <div class="ro-sum">
-      <div class="l">Counter</div>
+      <div class="l">Walk In</div>
       <div class="v"><?= number_format($summary['counter']); ?></div>
     </div>
     <div class="ro-sum">
@@ -126,7 +127,7 @@ foreach ((array) $branch_opts as $o) {
       <div class="ro-filters" style="margin-bottom:10px;">
         <span class="ro-flabel">Channel</span>
         <a class="ro-fchip <?= $source === '' ? 'active' : ''; ?>" href="<?= $q_url(['source' => '']); ?>">All channels</a>
-        <a class="ro-fchip <?= $source === 'counter' ? 'active' : ''; ?>" href="<?= $q_url(['source' => 'counter']); ?>">Counter</a>
+        <a class="ro-fchip <?= $source === 'counter' ? 'active' : ''; ?>" href="<?= $q_url(['source' => 'counter']); ?>">Walk In</a>
         <a class="ro-fchip <?= $source === 'online' ? 'active' : ''; ?>" href="<?= $q_url(['source' => 'online']); ?>">Online &amp; QR</a>
 
         <span class="ro-flabel" style="margin-left:10px;">Payment</span>
@@ -168,8 +169,14 @@ foreach ((array) $branch_opts as $o) {
   <?php if ($branch !== '' && !empty($branch_opts)): ?>
     <div class="ro-banner info">
       <span class="bi"><i class="fa fa-info-circle"></i></span>
-      <span class="bb">An outlet is focused — counter <b>and</b> online orders both follow it.
+      <span class="bb">An outlet is focused — walk-in <b>and</b> online orders both follow it.
         Online orders placed before locations started being recorded carry no outlet, so they only appear under <b>All</b>.</span>
+    </div>
+  <?php endif; ?>
+  <?php if ($branch === '' && !empty($branch_can_view_all) && !empty($summary['unassigned'])): ?>
+    <div class="ro-banner warn">
+      <span class="bi"><i class="fa fa-map-marker"></i></span>
+      <span class="bb"><b><?= number_format((int) $summary['unassigned']); ?> order<?= (int) $summary['unassigned'] === 1 ? '' : 's'; ?></b> in this view have no recorded outlet. They are legacy/unassigned records and should be reviewed before outlet-level reporting.</span>
     </div>
   <?php endif; ?>
 
@@ -181,7 +188,7 @@ foreach ((array) $branch_opts as $o) {
           <?= number_format($shown); ?> order<?= $shown === 1 ? '' : 's' ?>
           <?= $filters_on ? 'after filters' : 'in this period' ?></div>
       </div>
-      <a class="ro-panel-link" href="<?= base_url('pos'); ?>">New counter order &rarr;</a>
+      <a class="ro-panel-link" href="<?= base_url('pos'); ?>">New Walk In order &rarr;</a>
     </div>
     <div class="ro-panel-body tight">
       <?php if (empty($rows)): ?>
@@ -189,7 +196,7 @@ foreach ((array) $branch_opts as $o) {
           <i class="fa fa-inbox"></i>
           <div class="t"><?= $filters_on ? 'Nothing matches those filters' : 'No orders in this period yet' ?></div>
           <div class="s">
-            <?= $filters_on ? 'Try widening the period or clearing the filters above.' : 'Once the till or the online store takes an order, it lands here.' ?>
+            <?= $filters_on ? 'Try widening the period or clearing the filters above.' : 'Once the Walk In desk or online store takes an order, it lands here.' ?>
           </div>
           <?php if (!$filters_on): ?>
             <div style="margin-top:14px;">
@@ -210,7 +217,7 @@ foreach ((array) $branch_opts as $o) {
               <th>Service</th>
               <th>Customer</th>
               <th>Payment</th>
-              <th>Kitchen</th>
+              <th>Preparation</th>
               <th class="num">Total</th>
               <th></th>
             </tr>

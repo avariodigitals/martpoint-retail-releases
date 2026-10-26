@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Sign In | <?= htmlspecialchars($store->store_name ?? 'Store'); ?></title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <?php $primary = $settings->primary_color ?? '#7C3AED'; $primaryDark = $settings->primary_dark_color ?? '#6D28D9'; ?>
+  <?php
+    $primary = $settings->primary_color ?? '#7C3AED';
+    $primaryDark = $settings->primary_dark_color ?? '#6D28D9';
+    $verifyProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile((int)($settings->store_id ?? 0)) : [];
+    $verifyIndustry = strtolower(trim((string)($verifyProfile['industry_type'] ?? '')));
+    $verifyFood = in_array($verifyIndustry, ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'], true);
+  ?>
   <style>
     :root { --primary:<?= $primary;?>; --primary-dark:<?= $primaryDark;?>; --success:#059669; --danger:#EF4444; --dark:#0F172A; --gray:#64748B; --light-gray:#F1F5F9; --border:#E2E8F0; --white:#fff; --radius:20px; --radius-sm:12px; }
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -50,6 +56,44 @@
     .crv-footer { text-align:center; font-size:13px; color:var(--gray); margin-top:24px; }
     .crv-footer a { color:var(--primary); font-weight:700; }
 
+    /* Restaurant customer entry: a compact, calm app surface rather than the generic portal. */
+    .crv-food { --primary:#0C6B4F; --primary-dark:#07553F; --dark:#101714; --gray:#6F7973; --light-gray:#F1F4EE; --border:#DDE5DC; background:#F8F7F0; }
+    .crv-food .crv-wrapper { display:block; min-height:100dvh; }
+    .crv-food .crv-hero { display:none; }
+    .crv-food .crv-panel { min-height:100dvh; padding:clamp(24px,7vh,76px) 18px 38px; align-items:center; }
+    .crv-food .crv-card { max-width:470px; padding:0 0 30px; border:1px solid rgba(16,23,20,.05); border-radius:30px; background:#FFFEFA; box-shadow:0 22px 58px rgba(16,23,20,.10); overflow:hidden; }
+    .crv-food .crv-card::before { display:block; height:8px; background:#F4C84B; content:''; }
+    .crv-food .crv-brand { padding:28px 34px 0; color:#0C6B4F; font-size:13px; font-weight:800; letter-spacing:.12em; text-align:center; text-transform:uppercase; }
+    .crv-food .crv-card-top { margin:0; padding:18px 34px 24px; }
+    .crv-food .crv-card-top .crv-avatar { width:68px; height:68px; border-radius:22px; margin:0 auto 22px; background:#0C6B4F; color:#F4C84B; font-size:26px; }
+    .crv-food .crv-card-top h2 { color:#101714; font-size:clamp(28px,5vw,36px); line-height:1.03; letter-spacing:-.045em; }
+    .crv-food .crv-card-top p { max-width:340px; margin:0 auto; color:#6F7973; font-size:15px; line-height:1.55; }
+    .crv-food .crv-card > .crv-tabs,
+    .crv-food .crv-card > #phone-step,
+    .crv-food .crv-card > #otp-step,
+    .crv-food .crv-card > .crv-footer { margin-right:34px; margin-left:34px; }
+    .crv-food .crv-tabs { gap:4px; margin-bottom:22px; background:#F1F4EE; border-radius:14px; }
+    .crv-food .crv-tab { padding:12px 10px; border-radius:11px; color:#6F7973; }
+    .crv-food .crv-tab.active { color:#0C6B4F; box-shadow:0 2px 8px rgba(16,23,20,.07); }
+    .crv-food .crv-label { color:#101714; font-size:13px; letter-spacing:.01em; }
+    .crv-food .crv-input { min-height:52px; border-color:#DDE5DC; border-radius:14px; background:#fff; font-size:16px; }
+    .crv-food .crv-input:focus { border-color:#0C6B4F; box-shadow:0 0 0 4px rgba(12,107,79,.12); }
+    .crv-food .crv-btn { min-height:54px; border-radius:15px; background:#0C6B4F; font-size:16px; }
+    .crv-food .crv-btn:hover { background:#07553F; }
+    .crv-food .crv-btn-secondary { margin-top:12px; background:#FFFEFA; color:#0C6B4F; border-color:#C9D8CC; }
+    .crv-food .crv-otp .crv-input { text-align:center; font-size:24px; font-weight:800; letter-spacing:.18em; }
+    .crv-food .crv-footer { margin-top:22px; }
+    .crv-food .crv-footer a { color:#0C6B4F; }
+    @media(max-width:600px){
+      .crv-food .crv-panel { padding:0 12px 24px; align-items:stretch; }
+      .crv-food .crv-card { min-height:calc(100dvh - 24px); margin:12px 0 0; border-radius:28px; }
+      .crv-food .crv-card-top { padding-right:22px; padding-left:22px; }
+      .crv-food .crv-card > .crv-tabs,
+      .crv-food .crv-card > #phone-step,
+      .crv-food .crv-card > #otp-step,
+      .crv-food .crv-card > .crv-footer { margin-right:22px; margin-left:22px; }
+    }
+
     @media(max-width:900px){
       .crv-wrapper { grid-template-columns:1fr; }
       .crv-hero { display:none; }
@@ -58,7 +102,7 @@
     }
   </style>
 </head>
-<body>
+<body class="<?= $verifyFood ? 'crv-food' : ''; ?>">
 
 <div class="crv-wrapper">
   <div class="crv-hero">
@@ -86,10 +130,11 @@
 
   <div class="crv-panel">
     <div class="crv-card">
+      <?php if($verifyFood): ?><div class="crv-brand"><?= htmlspecialchars($store->store_name ?? 'Restaurant'); ?></div><?php endif; ?>
       <div class="crv-card-top">
         <div class="crv-avatar">&#128274;</div>
         <h2>Sign In to Your Account</h2>
-        <p id="step-subtitle">Choose how you'd like to receive your one-time code and view your order history.</p>
+        <p id="step-subtitle"><?= $verifyFood ? 'Enter your phone or email to receive a one-time code.' : "Choose how you'd like to receive your one-time code and view your order history."; ?></p>
       </div>
 
       <div class="crv-tabs" id="method-tabs">
@@ -114,15 +159,15 @@
         <input type="hidden" id="csrf-hash" value="<?= $csrf_hash ?? ''; ?>">
 
         <div class="crv-error" id="contact-error"></div>
-        <button class="crv-btn" id="send-otp-btn" onclick="sendOtp()">Send Code</button>
+        <button class="crv-btn" id="send-otp-btn" onclick="sendOtp()">Send code</button>
       </div>
 
       <div id="otp-step" class="crv-otp">
         <label class="crv-label">6-Digit Code</label>
         <input type="text" class="crv-input" id="otp" maxlength="6" placeholder="000000" inputmode="numeric">
         <div class="crv-error" id="otp-error"></div>
-        <button class="crv-btn" id="verify-otp-btn" onclick="verifyOtp()">Verify &amp; Continue</button>
-        <button class="crv-btn crv-btn-secondary" id="resend-btn" onclick="sendOtp()">Resend Code</button>
+        <button class="crv-btn" id="verify-otp-btn" onclick="verifyOtp()">Verify &amp; continue</button>
+        <button class="crv-btn crv-btn-secondary" id="resend-btn" onclick="sendOtp()">Resend code</button>
       </div>
 
       <div class="crv-footer">
@@ -205,10 +250,10 @@
           document.getElementById('otp-step').style.display = 'block';
         } else {
           showError('contact-error', res.message || 'Could not send code');
-          enableBtn('send-otp-btn', 'Send Code');
+          enableBtn('send-otp-btn', 'Send code');
         }
       })
-      .catch(() => { showError('contact-error', 'Network error. Try again.'); enableBtn('send-otp-btn', 'Send Code'); });
+      .catch(() => { showError('contact-error', 'Network error. Try again.'); enableBtn('send-otp-btn', 'Send code'); });
   }
 
   function verifyOtp(){
@@ -225,10 +270,10 @@
           window.location.href = '<?= base_url('store/'); ?>' + STORE_SLUG + '/account';
         } else {
           showError('otp-error', res.message || 'Invalid code');
-          enableBtn('verify-otp-btn', 'Verify & Continue');
+          enableBtn('verify-otp-btn', 'Verify & continue');
         }
       })
-      .catch(() => { showError('otp-error', 'Network error. Try again.'); enableBtn('verify-otp-btn', 'Verify & Continue'); });
+      .catch(() => { showError('otp-error', 'Network error. Try again.'); enableBtn('verify-otp-btn', 'Verify & continue'); });
   }
 </script>
 

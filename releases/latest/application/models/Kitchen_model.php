@@ -12,16 +12,59 @@ class Kitchen_model extends CI_Model {
     }
 
     /**
+     * A kitchen ticket is operational work, not proof that a sale exists.
+     * Only items explicitly routed to Kitchen or Bar belong on the board;
+     * Bar currently uses the same board until a dedicated bar lane exists.
+     * Before the routing migration exists, retain the legacy behaviour so an
+     * older installation does not silently stop showing kitchen work.
+     */
+    private function route_column_available() {
+        return $this->db->field_exists('fulfilment_route', 'db_items');
+    }
+
+    public function sale_requires_kitchen($sales_id) {
+        if (!$this->route_column_available()) return true;
+        return $this->db->query(
+            "SELECT 1 FROM db_salesitems si
+             JOIN db_items i ON i.id = si.item_id
+             WHERE si.sales_id = ?
+               AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+             LIMIT 1",
+            [(int) $sales_id]
+        )->num_rows() > 0;
+    }
+
+    public function online_order_requires_kitchen($online_order_id) {
+        if (!$this->route_column_available()) return true;
+        return $this->db->query(
+            "SELECT 1 FROM db_online_order_items oi
+             JOIN db_items i ON i.id = oi.item_id
+             WHERE oi.order_id = ?
+               AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+             LIMIT 1",
+            [(int) $online_order_id]
+        )->num_rows() > 0;
+    }
+
+    /**
      * Auto-create kitchen_order entries for today's Final sales that don't have one yet
      */
     public function sync_new_orders($store_id) {
         if (!$this->db->table_exists('db_kitchen_orders')) {
             return 0;
         }
-        // Sync ALL recent Final sales that don't have a kitchen_order yet
+        // Sync recent Final sales that contain at least one made-to-order line.
         // (not just today — so existing sales appear immediately after enabling KDS)
         $has_table_col = $this->db->field_exists('table_id', 'db_kitchen_orders') && $this->db->field_exists('table_id', 'db_sales');
         $has_warehouse_col = $this->db->field_exists('warehouse_id', 'db_kitchen_orders');
+        $kitchen_sale_filter = $this->route_column_available()
+            ? " AND EXISTS (
+                    SELECT 1 FROM db_salesitems si
+                    JOIN db_items i ON i.id = si.item_id
+                    WHERE si.sales_id = s.id
+                      AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                )"
+            : '';
         if ($has_table_col && $has_warehouse_col) {
             $sql = "INSERT INTO db_kitchen_orders (sales_id, store_id, warehouse_id, table_id, kds_status, created_at)
                     SELECT s.id, s.store_id, s.warehouse_id, s.table_id, 'new', NOW()
@@ -30,19 +73,19 @@ class Kitchen_model extends CI_Model {
                     WHERE s.store_id = ?
                       AND s.sales_status = 'Final'
                       AND ko.id IS NULL
-                      AND s.status = 1";
+                      AND s.status = 1" . $kitchen_sale_filter;
         } elseif ($has_table_col) {
             $sql = "INSERT INTO db_kitchen_orders (sales_id, store_id, table_id, kds_status, created_at)
                     SELECT s.id, s.store_id, s.table_id, 'new', NOW()
                     FROM db_sales s
                     LEFT JOIN db_kitchen_orders ko ON ko.sales_id = s.id
-                    WHERE s.store_id = ? AND s.sales_status = 'Final' AND ko.id IS NULL AND s.status = 1";
+                    WHERE s.store_id = ? AND s.sales_status = 'Final' AND ko.id IS NULL AND s.status = 1" . $kitchen_sale_filter;
         } elseif ($has_warehouse_col) {
             $sql = "INSERT INTO db_kitchen_orders (sales_id, store_id, warehouse_id, kds_status, created_at)
                     SELECT s.id, s.store_id, s.warehouse_id, 'new', NOW()
                     FROM db_sales s
                     LEFT JOIN db_kitchen_orders ko ON ko.sales_id = s.id
-                    WHERE s.store_id = ? AND s.sales_status = 'Final' AND ko.id IS NULL AND s.status = 1";
+                    WHERE s.store_id = ? AND s.sales_status = 'Final' AND ko.id IS NULL AND s.status = 1" . $kitchen_sale_filter;
         } else {
             $sql = "INSERT INTO db_kitchen_orders (sales_id, store_id, kds_status, created_at)
                     SELECT s.id, s.store_id, 'new', NOW()
@@ -51,7 +94,7 @@ class Kitchen_model extends CI_Model {
                     WHERE s.store_id = ?
                       AND s.sales_status = 'Final'
                       AND ko.id IS NULL
-                      AND s.status = 1";
+                      AND s.status = 1" . $kitchen_sale_filter;
         }
         $this->db->query($sql, [$store_id]);
 
@@ -74,7 +117,32 @@ class Kitchen_model extends CI_Model {
                       WHERE linked.store_id = o.store_id
                         AND linked.sales_id = o.sales_id
                         AND o.sales_id > 0
-                  )", [$store_id]);
+                  )" . ($this->route_column_available() ? "
+                  AND EXISTS (
+                      SELECT 1 FROM db_online_order_items oi
+                      JOIN db_items i ON i.id = oi.item_id
+                      WHERE oi.order_id = o.id
+                        AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                  )" : ''), [$store_id]);
+
+            // Shelf-only online orders are already ready for handover once
+            // accepted/paid; they do not need a phantom kitchen ticket.
+            if ($this->route_column_available()) {
+                $this->db->query(
+                    "UPDATE db_online_orders o
+                     SET order_status = 'ready', updated_at = NOW()
+                     WHERE o.store_id = ?
+                       AND o.order_type IN ('product','mixed')
+                       AND o.order_status IN ('paid','processing')
+                       AND NOT EXISTS (
+                           SELECT 1 FROM db_online_order_items oi
+                           JOIN db_items i ON i.id = oi.item_id
+                           WHERE oi.order_id = o.id
+                             AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                       )",
+                    [$store_id]
+                );
+            }
         }
 
         return $this->db->affected_rows();
@@ -83,7 +151,7 @@ class Kitchen_model extends CI_Model {
     /**
      * Get kitchen orders with their items, optionally filtered by status
      */
-    public function get_orders($store_id, $status = null, $limit = 50) {
+    public function get_orders($store_id, $status = null, $limit = 50, $direction = 'DESC', $branch_id = '', $allowed_branch_ids = null) {
         if (!$this->db->table_exists('db_kitchen_orders')) {
             return [];
         }
@@ -104,6 +172,41 @@ class Kitchen_model extends CI_Model {
         $this->db->from('db_kitchen_orders');
         $this->db->where('store_id', $store_id);
 
+        $has_warehouse_col = $this->db->field_exists('warehouse_id', 'db_kitchen_orders');
+        if ($has_warehouse_col) {
+            if ($branch_id !== '') {
+                $this->db->where('warehouse_id', (int) $branch_id);
+            } elseif ($allowed_branch_ids !== null) {
+                if (empty($allowed_branch_ids)) {
+                    $this->db->where('1 = 0', null, false);
+                } else {
+                    $this->db->where_in('warehouse_id', array_map('intval', $allowed_branch_ids));
+                }
+            }
+        } elseif ($branch_id !== '' || $allowed_branch_ids !== null) {
+            // An installation without the location migration cannot safely
+            // claim that a ticket belongs to a particular outlet.
+            $this->db->where('1 = 0', null, false);
+        }
+
+        if ($this->route_column_available()) {
+            $route_sql = "((sales_id > 0 AND EXISTS (
+                SELECT 1 FROM db_salesitems si
+                JOIN db_items i ON i.id = si.item_id
+                WHERE si.sales_id = db_kitchen_orders.sales_id
+                  AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+            ))";
+            if ($this->db->field_exists('online_order_id', 'db_kitchen_orders')) {
+                $route_sql .= " OR (online_order_id > 0 AND EXISTS (
+                    SELECT 1 FROM db_online_order_items oi
+                    JOIN db_items i ON i.id = oi.item_id
+                    WHERE oi.order_id = db_kitchen_orders.online_order_id
+                      AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                ))";
+            }
+            $this->db->where($route_sql . ')', null, false);
+        }
+
         if (!empty($status)) {
             if (is_array($status)) {
                 $this->db->where_in('kds_status', $status);
@@ -112,7 +215,10 @@ class Kitchen_model extends CI_Model {
             }
         }
 
-        $this->db->order_by('created_at', 'ASC');
+        // Newest first. The board is a live service view: loading the oldest 50
+        // rows meant a store with a backlog opened the KDS to tickets from
+        // months ago and never saw the order that just landed.
+        $this->db->order_by('created_at', $direction === 'ASC' ? 'ASC' : 'DESC');
         $this->db->limit($limit);
         $ko_rows = $this->db->get()->result();
 
@@ -166,6 +272,12 @@ class Kitchen_model extends CI_Model {
                 }
                 $order->items = $this->get_order_items($order->sales_id);
             }
+            // Older versions created tickets for every sale. Once routing is
+            // enabled, an empty filtered ticket is a historical phantom, not
+            // kitchen work, so keep it off the board without deleting history.
+            if ($this->route_column_available() && empty($order->items)) {
+                continue;
+            }
             $orders[] = $order;
         }
 
@@ -179,12 +291,19 @@ class Kitchen_model extends CI_Model {
         if ($online_order_id > 0) {
             $this->db->select('oi.item_id, oi.qty as sales_qty, "" as item_note, oi.item_name, "" as item_code');
             $this->db->from('db_online_order_items oi');
+            if ($this->route_column_available()) {
+                $this->db->join('db_items i', 'i.id = oi.item_id', 'left');
+                $this->db->where_in('i.fulfilment_route', ['kitchen','bar']);
+            }
             $this->db->where('oi.order_id', $online_order_id);
             return $this->db->get()->result();
         }
         $this->db->select('si.item_id, si.sales_qty, si.description as item_note, i.item_name, i.item_code');
         $this->db->from('db_salesitems si');
         $this->db->join('db_items i', 'i.id = si.item_id', 'left');
+        if ($this->route_column_available()) {
+            $this->db->where_in('i.fulfilment_route', ['kitchen','bar']);
+        }
         $this->db->where('si.sales_id', $sales_id);
         return $this->db->get()->result();
     }
@@ -201,6 +320,18 @@ class Kitchen_model extends CI_Model {
      */
     public $last_move = null;
 
+    public function get_order_branch_id($kitchen_order_id) {
+        if (!$this->db->table_exists('db_kitchen_orders')
+            || !$this->db->field_exists('warehouse_id', 'db_kitchen_orders')) {
+            return null;
+        }
+        $row = $this->db->select('warehouse_id')
+            ->where('id', (int) $kitchen_order_id)
+            ->where('store_id', get_current_store_id())
+            ->get('db_kitchen_orders')->row();
+        return $row ? (int) $row->warehouse_id : null;
+    }
+
     public function update_status($kitchen_order_id, $new_status) {
         $this->load->model('order_lifecycle_model');
         $this->last_move = $this->order_lifecycle_model->move_ticket(
@@ -212,19 +343,57 @@ class Kitchen_model extends CI_Model {
     /**
      * Count orders by status for badge/display
      */
-    public function count_by_status($store_id) {
+    public function count_by_status($store_id, $branch_id = '', $allowed_branch_ids = null) {
         // 'cancelled' is part of the shape even though no board column shows
         // it, so a dead ticket is counted somewhere rather than vanishing.
         $shape = ['new' => 0, 'preparing' => 0, 'ready' => 0, 'served' => 0, 'cancelled' => 0];
         if (!$this->db->table_exists('db_kitchen_orders')) {
             return $shape;
         }
+        $route_filter = '';
+        if ($this->route_column_available()) {
+            $route_filter = " AND (
+                (ko.sales_id > 0 AND EXISTS (
+                    SELECT 1 FROM db_salesitems si
+                    JOIN db_items i ON i.id = si.item_id
+                    WHERE si.sales_id = ko.sales_id
+                      AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                ))";
+            if ($this->db->field_exists('online_order_id', 'db_kitchen_orders')) {
+                $route_filter .= " OR (ko.online_order_id > 0 AND EXISTS (
+                    SELECT 1 FROM db_online_order_items oi
+                    JOIN db_items i ON i.id = oi.item_id
+                    WHERE oi.order_id = ko.online_order_id
+                      AND COALESCE(i.fulfilment_route, 'counter') IN ('kitchen','bar')
+                ))";
+            }
+            $route_filter .= ' )';
+        }
+        $warehouse_filter = '';
+        $params = [$store_id];
+        if ($this->db->field_exists('warehouse_id', 'db_kitchen_orders')) {
+            if ($branch_id !== '') {
+                $warehouse_filter = ' AND ko.warehouse_id = ?';
+                $params[] = (int) $branch_id;
+            } elseif ($allowed_branch_ids !== null) {
+                if (empty($allowed_branch_ids)) {
+                    $warehouse_filter = ' AND 1 = 0';
+                } else {
+                    $ids = array_map('intval', $allowed_branch_ids);
+                    $warehouse_filter = ' AND ko.warehouse_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+                    foreach ($ids as $id) $params[] = $id;
+                }
+            }
+        } elseif ($branch_id !== '' || $allowed_branch_ids !== null) {
+            $warehouse_filter = ' AND 1 = 0';
+        }
+
         $query = $this->db->query(
-            "SELECT kds_status, COUNT(*) as cnt 
-             FROM db_kitchen_orders 
-             WHERE store_id = ? 
-             GROUP BY kds_status",
-            [$store_id]
+            "SELECT ko.kds_status, COUNT(*) as cnt
+             FROM db_kitchen_orders ko
+             WHERE ko.store_id = ?" . $warehouse_filter . $route_filter . "
+             GROUP BY ko.kds_status",
+            $params
         );
         $result = $query ? $query->result() : [];
 
@@ -238,10 +407,10 @@ class Kitchen_model extends CI_Model {
     /**
      * Get recent served orders (for reference/completion view)
      */
-    public function get_served_orders($store_id, $limit = 20) {
+    public function get_served_orders($store_id, $limit = 20, $branch_id = '', $allowed_branch_ids = null) {
         if (!$this->db->table_exists('db_kitchen_orders')) {
             return [];
         }
-        return $this->get_orders($store_id, 'served', $limit);
+        return $this->get_orders($store_id, 'served', $limit, 'DESC', $branch_id, $allowed_branch_ids);
     }
 }

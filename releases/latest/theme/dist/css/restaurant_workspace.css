@@ -1,0 +1,615 @@
+/* ==========================================================================
+   MartPoint — RestaurantOS workspace skin
+   --------------------------------------------------------------------------
+   Loaded only when the RestaurantOS workspace is active (see mp_header.php).
+   Two jobs:
+
+   1. Re-point the shared --mp-* design tokens at a restaurant palette. Every
+      existing screen in the workspace (Sales, Catalog, Finance, Reports …)
+      instantly inherits the warm ivory + aubergine/terracotta identity without any
+      markup changes, so no logic or component breaks.
+
+   2. Provide the restaurant component set (rs-*) used by the flagship
+      screens: Kitchen Display, Menu board, floor/table view.
+
+   Palette follows the restaurant direction: warm ivory canvas, charcoal
+   typography, aubergine primary, restrained terracotta accents, and green
+   reserved for success states.
+   ========================================================================== */
+
+:root {
+  --rs-canvas:      #FAF8F3;
+  --rs-canvas-2:    #F4F0E7;
+  --rs-surface:     #FFFFFF;
+  --rs-surface-2:   #F7F4ED;
+  --rs-ink:         #262522;
+  --rs-text:        #3A3733;
+  --rs-muted:       #77736D;
+  --rs-faint:       #A09A93;
+  --rs-line:        #E9E4DD;
+  --rs-line-strong: #D8D0C6;
+
+  --rs-primary:     #5E4D66;
+  --rs-primary-600: #4E3F55;
+  --rs-primary-700: #403344;
+  --rs-primary-050: #F0EAF2;
+
+  --rs-accent:      #C66B4D;
+  --rs-accent-050:  #F8ECE7;
+
+  --rs-green:       #2F9A67;
+  --rs-green-050:   #E7F5EC;
+  --rs-amber:       #B45309;
+  --rs-amber-050:   #FBF0DC;
+  --rs-red:         #C0392B;
+  --rs-red-050:     #FBEAE7;
+  --rs-blue:        #5B6FC6;
+  --rs-blue-050:    #EEF0FF;
+
+  --rs-tint-peach:  #F8ECE7;
+  --rs-tint-sage:   #E8F2EC;
+  --rs-tint-cream:  #FBF3DF;
+  --rs-tint-rose:   #FBEAEC;
+  --rs-tint-sand:   #F4EFE4;
+
+  --rs-r-xl: 22px;
+  --rs-r-lg: 16px;
+  --rs-r-md: 12px;
+  --rs-r-sm: 9px;
+
+  --rs-shadow-sm: 0 1px 2px rgba(38, 37, 34, .05);
+  --rs-shadow:    0 1px 2px rgba(38, 37, 34, .04), 0 12px 30px -14px rgba(84, 48, 31, .16);
+  --rs-shadow-lg: 0 2px 4px rgba(38, 37, 34, .04), 0 26px 60px -24px rgba(84, 48, 31, .24);
+
+  /* Type scale — a touch tighter than the retail shell so dense boards read
+     as one block rather than a wall of competing sizes. */
+  --rs-fs-eyebrow: 11px;
+  --rs-fs-sm: 12.5px;
+  --rs-fs-base: 14px;
+  --rs-fs-lg: 16px;
+  --rs-fs-xl: 21px;
+  --rs-fs-num: 28px;
+  --rs-fs-display: 32px;
+}
+
+/* --------------------------------------------------------------------------
+   1. Token remap — makes the whole workspace inherit the identity.
+   Uses !important to override the inline style block in mp_header.php.
+   -------------------------------------------------------------------------- */
+body.mp-restaurant {
+  --mp-primary:      #5E4D66 !important;
+  --mp-primary-dark: #4E3F55 !important;
+  --mp-bg:           #FAF8F3 !important;
+  --mp-surface:      #FFFFFF !important;
+  --mp-text:         #3A3733 !important;
+  --mp-ink:          #262522 !important;
+  --mp-muted:        #77736D !important;
+  --mp-border:       #E9E4DD !important;
+  --mp-success:      #2F9A67 !important;
+  --mp-warning:      #B45309 !important;
+  --mp-danger:       #C0392B !important;
+  --mp-pay:          #C66B4D !important;
+  --mp-pay-dark:     #A94F3A !important;
+  --mp-shadow-sm:    0 1px 2px rgba(38, 37, 34, .05) !important;
+  --mp-shadow:       0 1px 2px rgba(38, 37, 34, .04), 0 12px 30px -14px rgba(84, 48, 31, .16) !important;
+
+  background: var(--rs-canvas) !important;
+  color: var(--rs-text) !important;
+}
+
+/* Header picks up the canvas so the cream runs edge to edge. */
+body.mp-restaurant .mp-header { background: var(--rs-canvas) !important; border-bottom-color: var(--rs-line) !important; }
+body.mp-restaurant .mp-brand h1 { color: var(--rs-primary) !important; letter-spacing: -.015em !important; }
+body.mp-restaurant .mp-nav { background: var(--rs-surface) !important; border-right-color: var(--rs-line) !important; }
+body.mp-restaurant footer.copyright { background: var(--rs-canvas) !important; border-top-color: var(--rs-line) !important; }
+
+/* Rounder, calmer controls everywhere. */
+body.mp-restaurant .mp-hbtn,
+body.mp-restaurant .mp-status-pill,
+body.mp-restaurant .mp-user-chip { border-color: var(--rs-line) !important; }
+body.mp-restaurant .mp-nav-item { border-radius: 9px !important; }
+body.mp-restaurant .mp-nav-item.active { background: var(--rs-primary) !important; }
+body.mp-restaurant .mp-nav-label { color: var(--rs-faint) !important; }
+
+/* Page headings inside the workspace. */
+body.mp-restaurant .mp-page-head h2 { letter-spacing: -.02em !important; font-weight: 800 !important; color: var(--rs-ink) !important; }
+body.mp-restaurant .mp-page-sub { color: var(--rs-muted) !important; }
+
+/* Legacy cards keep working but match the new radius/shadow language. */
+body.mp-restaurant .mp-card-form { border-radius: var(--rs-r-lg) !important; border-color: var(--rs-line) !important; box-shadow: var(--rs-shadow-sm) !important; }
+body.mp-restaurant .mp-card-form .mp-card-head { border-bottom-color: var(--rs-line) !important; }
+
+/* Shared rail treatment: calm like Building Materials/Garden, while keeping
+   the complete restaurant and business-management navigation intact. */
+body.mp-restaurant .mp-nav {
+  width: 258px !important;
+  min-width: 258px !important;
+  padding: 10px 8px 16px !important;
+}
+body.mp-restaurant .mp-nav-section { padding: 6px 4px 2px !important; }
+body.mp-restaurant .mp-nav-label {
+  padding: 14px 12px 7px !important;
+  font-size: 10px !important;
+  letter-spacing: .12em !important;
+  font-weight: 650 !important;
+  color: var(--rs-faint) !important;
+}
+body.mp-restaurant .mp-nav-item,
+body.mp-restaurant .mp-nav-group-toggle {
+  min-height: 42px !important;
+  padding: 10px 12px !important;
+  border-radius: 11px !important;
+  color: #514B45 !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+}
+body.mp-restaurant .mp-nav-item:hover,
+body.mp-restaurant .mp-nav-group-toggle:hover {
+  background: #FBF8F2 !important;
+  color: var(--rs-ink) !important;
+}
+body.mp-restaurant .mp-nav-item.active {
+  background: var(--rs-ink) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-weight: 650 !important;
+}
+body.mp-restaurant .mp-nav-item.active .mp-nav-icon { color: #fff !important; }
+body.mp-restaurant .mp-nav-icon,
+body.mp-restaurant .mp-nav-group-toggle .mp-nav-icon,
+body.mp-restaurant .mp-nav-group-toggle .mp-nav-chevron {
+  color: var(--rs-muted) !important;
+}
+body.mp-restaurant .mp-nav-group-toggle {
+  border: 1px solid transparent !important;
+  font-weight: 650 !important;
+}
+body.mp-restaurant .mp-nav-group.open .mp-nav-group-toggle {
+  background: var(--rs-surface-2) !important;
+  border-color: var(--rs-line) !important;
+}
+body.mp-restaurant .mp-nav-group.open .mp-nav-group-toggle .mp-nav-icon {
+  color: var(--rs-primary) !important;
+}
+body.mp-restaurant .mp-nav-submenu {
+  margin: 3px 0 5px 10px !important;
+  padding-left: 8px !important;
+  border-left: 1px solid var(--rs-line) !important;
+}
+body.mp-restaurant .mp-nav-submenu .mp-nav-item {
+  min-height: 37px !important;
+  padding: 8px 10px !important;
+  font-size: 12.5px !important;
+}
+body.mp-restaurant .mp-nav-store-card {
+  margin: 12px 4px !important;
+  background: var(--rs-surface-2) !important;
+  border-color: var(--rs-line) !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Restaurant components
+   -------------------------------------------------------------------------- */
+
+/* ---- Page frame ---------------------------------------------------------- */
+.rs-page { display: flex; flex-direction: column; gap: 18px; padding-bottom: 28px; }
+
+.rs-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.rs-head-left { min-width: 0; }
+.rs-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--rs-fs-eyebrow); font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--rs-accent); margin-bottom: 6px;
+}
+.rs-head h1 {
+  margin: 0; font-size: var(--rs-fs-display); font-weight: 800; letter-spacing: -.025em;
+  color: var(--rs-ink); line-height: 1.15;
+}
+.rs-head .rs-sub { margin: 5px 0 0; font-size: var(--rs-fs-base); color: var(--rs-muted); }
+.rs-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---- Buttons ------------------------------------------------------------- */
+.rs-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 16px; border-radius: 11px; border: 1px solid var(--rs-line-strong);
+  background: var(--rs-surface); color: var(--rs-text);
+  font-size: var(--rs-fs-base); font-weight: 650; cursor: pointer;
+  text-decoration: none; white-space: nowrap; line-height: 1.2;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.rs-btn:hover { background: var(--rs-surface-2); color: var(--rs-text); text-decoration: none; }
+.rs-btn:active { transform: translateY(1px); }
+.rs-btn:focus-visible { outline: 2px solid var(--rs-primary); outline-offset: 2px; }
+.rs-btn-primary { background: var(--rs-primary); border-color: var(--rs-primary); color: #fff; box-shadow: var(--rs-shadow-sm); }
+.rs-btn-primary:hover { background: var(--rs-primary-600); border-color: var(--rs-primary-600); color: #fff; }
+.rs-btn-accent { background: var(--rs-accent); border-color: var(--rs-accent); color: #fff; }
+.rs-btn-accent:hover { background: #A93A0C; border-color: #A93A0C; color: #fff; }
+.rs-btn-ghost { background: transparent; border-color: transparent; color: var(--rs-muted); }
+.rs-btn-ghost:hover { background: var(--rs-surface-2); color: var(--rs-ink); }
+.rs-btn-sm { padding: 7px 12px; font-size: var(--rs-fs-sm); border-radius: 9px; }
+.rs-btn-block { width: 100%; }
+.rs-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+/* ---- Cards --------------------------------------------------------------- */
+.rs-card {
+  background: var(--rs-surface); border: 1px solid var(--rs-line);
+  border-radius: var(--rs-r-xl); box-shadow: var(--rs-shadow-sm); overflow: hidden;
+}
+.rs-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 16px 20px; border-bottom: 1px solid var(--rs-line); flex-wrap: wrap;
+}
+.rs-card-title { display: flex; align-items: center; gap: 9px; font-size: var(--rs-fs-lg); font-weight: 750; color: var(--rs-ink); letter-spacing: -.01em; margin: 0; }
+.rs-card-title svg { color: var(--rs-muted); flex-shrink: 0; }
+.rs-card-sub { font-size: var(--rs-fs-sm); color: var(--rs-muted); margin: 2px 0 0; }
+.rs-card-body { padding: 20px; }
+.rs-card-foot { padding: 14px 20px; border-top: 1px solid var(--rs-line); background: var(--rs-surface-2); }
+
+/* ---- Stat / KPI --------------------------------------------------------- */
+.rs-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 14px; }
+.rs-kpi {
+  background: var(--rs-surface); border: 1px solid var(--rs-line); border-radius: var(--rs-r-lg);
+  padding: 16px 18px; box-shadow: var(--rs-shadow-sm);
+  display: flex; align-items: flex-start; gap: 14px; position: relative;
+  transition: box-shadow .18s ease, transform .18s ease;
+}
+.rs-kpi:hover { box-shadow: var(--rs-shadow); transform: translateY(-1px); }
+.rs-kpi-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--rs-primary-050); color: var(--rs-primary);
+}
+.rs-kpi.peach .rs-kpi-icon { background: var(--rs-tint-peach); color: var(--rs-accent); }
+.rs-kpi.cream .rs-kpi-icon { background: var(--rs-tint-cream); color: var(--rs-amber); }
+.rs-kpi.rose  .rs-kpi-icon { background: var(--rs-tint-rose);  color: var(--rs-red); }
+.rs-kpi.blue  .rs-kpi-icon { background: var(--rs-blue-050);  color: var(--rs-blue); }
+.rs-kpi-body { min-width: 0; flex: 1; }
+.rs-kpi-label { font-size: var(--rs-fs-sm); font-weight: 600; color: var(--rs-muted); margin-bottom: 3px; }
+.rs-kpi-value { font-size: var(--rs-fs-num); font-weight: 800; color: var(--rs-ink); letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.rs-kpi-delta { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 11.5px; font-weight: 650; }
+.rs-kpi-delta.up { color: var(--rs-green); }
+.rs-kpi-delta.down { color: var(--rs-red); }
+.rs-kpi-delta.flat { color: var(--rs-muted); }
+
+/* ---- Pills / chips / badges --------------------------------------------- */
+.rs-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .01em; white-space: nowrap;
+  background: var(--rs-surface-2); color: var(--rs-muted);
+}
+.rs-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.rs-pill.green  { background: var(--rs-green-050); color: var(--rs-green); }
+.rs-pill.amber  { background: var(--rs-amber-050); color: var(--rs-amber); }
+.rs-pill.red    { background: var(--rs-red-050);   color: var(--rs-red); }
+.rs-pill.blue   { background: var(--rs-blue-050);  color: var(--rs-blue); }
+.rs-pill.sage   { background: var(--rs-tint-sage); color: var(--rs-primary); }
+.rs-pill.peach  { background: var(--rs-tint-peach); color: var(--rs-accent); }
+.rs-pill.outline { background: transparent; border: 1px solid var(--rs-line-strong); color: var(--rs-muted); }
+
+.rs-chip-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; padding: 0 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: rgba(38, 37, 34, .07); color: var(--rs-ink);
+}
+
+/* ---- Segmented control -------------------------------------------------- */
+.rs-seg {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: 11px;
+  background: var(--rs-surface-2); border: 1px solid var(--rs-line);
+}
+.rs-seg > button, .rs-seg > a {
+  appearance: none; border: none; background: transparent; cursor: pointer;
+  padding: 7px 14px; border-radius: 8px; font-size: var(--rs-fs-sm); font-weight: 650;
+  color: var(--rs-muted); text-decoration: none; transition: all .15s ease; white-space: nowrap;
+}
+.rs-seg > button:hover, .rs-seg > a:hover { color: var(--rs-ink); }
+.rs-seg > .on { background: var(--rs-surface); color: var(--rs-ink); box-shadow: var(--rs-shadow-sm); }
+
+/* ---- Avatar ------------------------------------------------------------- */
+.rs-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--rs-primary-050); color: var(--rs-primary);
+  font-size: 12.5px; font-weight: 800; letter-spacing: .02em; overflow: hidden;
+}
+.rs-avatar.lg { width: 44px; height: 44px; font-size: 15px; }
+.rs-avatar.peach { background: var(--rs-tint-peach); color: var(--rs-accent); }
+
+/* ---- Empty state -------------------------------------------------------- */
+.rs-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 44px 24px; text-align: center; color: var(--rs-faint);
+}
+.rs-empty .rs-empty-icon {
+  width: 46px; height: 46px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--rs-surface-2); color: var(--rs-faint);
+}
+.rs-empty .rs-empty-title { font-size: var(--rs-fs-base); font-weight: 700; color: var(--rs-muted); }
+.rs-empty .rs-empty-text { font-size: var(--rs-fs-sm); max-width: 260px; line-height: 1.5; }
+
+/* ---- Data list (replaces dense tables where a list reads better) -------- */
+.rs-list { display: flex; flex-direction: column; }
+.rs-list-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 20px; border-bottom: 1px solid var(--rs-line);
+  transition: background .12s ease;
+}
+.rs-list-row:last-child { border-bottom: none; }
+.rs-list-row:hover { background: var(--rs-surface-2); }
+.rs-list-main { flex: 1; min-width: 0; }
+.rs-list-title { font-size: var(--rs-fs-base); font-weight: 650; color: var(--rs-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-list-meta { font-size: 11.5px; color: var(--rs-muted); margin-top: 2px; }
+.rs-list-end { font-size: var(--rs-fs-base); font-weight: 750; color: var(--rs-ink); font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   3. Kitchen Display (KDS)
+   -------------------------------------------------------------------------- */
+.kds-board {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1200px) { .kds-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.kds-lane {
+  background: var(--rs-surface-2); border: 1px solid var(--rs-line);
+  border-radius: var(--rs-r-xl); display: flex; flex-direction: column;
+  min-height: 420px; overflow: hidden;
+}
+.kds-lane-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 15px 18px; border-bottom: 1px solid var(--rs-line);
+  position: sticky; top: 0; z-index: 2;
+  background: inherit; backdrop-filter: saturate(1.2);
+}
+.kds-lane-head .lane-title {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--rs-ink);
+}
+.kds-lane-head .lane-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.kds-lane.new       .lane-dot { background: var(--rs-accent); box-shadow: 0 0 0 4px var(--rs-accent-050); }
+.kds-lane.preparing .lane-dot { background: var(--rs-amber);  box-shadow: 0 0 0 4px var(--rs-amber-050); }
+.kds-lane.ready     .lane-dot { background: var(--rs-green);  box-shadow: 0 0 0 4px var(--rs-green-050); }
+
+.kds-lane-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+
+/* Ticket */
+.kds-ticket {
+  background: var(--rs-surface); border: 1px solid var(--rs-line);
+  border-radius: var(--rs-r-lg); box-shadow: var(--rs-shadow-sm);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+}
+.kds-ticket:hover { box-shadow: var(--rs-shadow); transform: translateY(-1px); }
+
+.kds-ticket.is-late   { border-color: #EFC8BE; box-shadow: 0 0 0 1px #F3D6CE, var(--rs-shadow-sm); }
+.kds-ticket.is-late .kds-ticket-top { background: #FDF1EE; }
+
+.kds-ticket-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 14px 16px 12px; border-bottom: 1px dashed var(--rs-line);
+}
+.kds-ticket-ref { font-size: 15px; font-weight: 800; color: var(--rs-ink); letter-spacing: -.01em; line-height: 1.2; }
+.kds-ticket-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.kds-ticket-meta .rs-pill { padding: 3px 8px; font-size: 11px; }
+
+/* Timer: calm by default, only loud when the ticket is actually late. */
+.kds-timer {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 10px;
+  font-size: 17px; font-weight: 800; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+  background: var(--rs-surface-2); color: var(--rs-text);
+  border: 1px solid var(--rs-line); flex-shrink: 0;
+}
+.kds-timer svg { opacity: .55; }
+.kds-timer.t-warm { background: var(--rs-amber-050); color: var(--rs-amber); border-color: #F0DCBC; }
+.kds-timer.t-late { background: var(--rs-red-050);   color: var(--rs-red);   border-color: #F2CDC5; }
+
+.kds-ticket-items { padding: 10px 16px; display: flex; flex-direction: column; }
+.kds-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--rs-line);
+  font-size: var(--rs-fs-base); color: var(--rs-text); line-height: 1.35;
+}
+.kds-item:last-child { border-bottom: none; }
+.kds-item-qty {
+  flex-shrink: 0; min-width: 26px; height: 24px; padding: 0 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 7px; background: var(--rs-primary-050); color: var(--rs-primary);
+  font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.kds-item-name { flex: 1; min-width: 0; }
+.kds-item-note { display: block; font-size: 11.5px; color: var(--rs-muted); font-style: italic; margin-top: 2px; }
+
+.kds-ticket-actions { padding: 12px 16px 14px; display: flex; gap: 8px; }
+.kds-ticket-actions .rs-btn { flex: 1; }
+
+/* Lane-specific action colours: progressing is never a destructive red. */
+.kds-lane.new       .kds-ticket-actions .rs-btn { background: var(--rs-primary); border-color: var(--rs-primary); color: #fff; }
+.kds-lane.new       .kds-ticket-actions .rs-btn:hover { background: var(--rs-primary-600); border-color: var(--rs-primary-600); }
+.kds-lane.preparing .kds-ticket-actions .rs-btn { background: var(--rs-amber); border-color: var(--rs-amber); color: #fff; }
+.kds-lane.preparing .kds-ticket-actions .rs-btn:hover { background: #9A4708; border-color: #9A4708; }
+.kds-lane.ready     .kds-ticket-actions .rs-btn { background: var(--rs-green); border-color: var(--rs-green); color: #fff; }
+.kds-lane.ready     .kds-ticket-actions .rs-btn:hover { background: #0B7551; border-color: #0B7551; }
+
+/* Served strip */
+.kds-served-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.kds-served-card {
+  background: var(--rs-surface-2); border: 1px solid var(--rs-line);
+  border-radius: var(--rs-r-md); padding: 11px 13px;
+}
+.kds-served-card .code { font-size: 12.5px; font-weight: 800; color: var(--rs-ink); }
+.kds-served-card .cust { font-size: 11.5px; color: var(--rs-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kds-served-card .time { font-size: 11px; color: var(--rs-faint); margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+/* Fullscreen KDS: hide shell chrome, keep the board full-bleed. */
+body.kds-fullscreen .mp-header,
+body.kds-fullscreen .mp-nav { display: none !important; }
+body.kds-fullscreen .mp-main { padding: 18px 22px !important; overflow-y: auto !important; }
+body.kds-fullscreen .rs-head { margin-bottom: 4px; }
+body.kds-fullscreen .kds-lane { min-height: calc(100vh - 210px); }
+
+/* --------------------------------------------------------------------------
+   4. Menu board
+   -------------------------------------------------------------------------- */
+.rs-menu-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.rs-menu-cats { display: flex; gap: 8px; flex-wrap: wrap; }
+.rs-cat {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rs-line); background: var(--rs-surface);
+  font-size: var(--rs-fs-sm); font-weight: 650; color: var(--rs-muted);
+  text-decoration: none; transition: all .15s ease; white-space: nowrap;
+}
+.rs-cat:hover { border-color: var(--rs-line-strong); color: var(--rs-ink); }
+.rs-cat.on { background: var(--rs-primary); border-color: var(--rs-primary); color: #fff; }
+.rs-cat .n { font-size: 11px; font-weight: 800; opacity: .8; }
+
+.rs-menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+
+.rs-dish {
+  background: var(--rs-surface); border: 1px solid var(--rs-line);
+  border-radius: var(--rs-r-lg); overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: var(--rs-shadow-sm); transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+}
+.rs-dish:hover { box-shadow: var(--rs-shadow); transform: translateY(-2px); border-color: var(--rs-line-strong); }
+.rs-dish-media {
+  position: relative; aspect-ratio: 4 / 3; background: var(--rs-surface-2);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.rs-dish-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rs-dish-flag {
+  position: absolute; top: 10px; left: 10px; z-index: 1;
+  padding: 4px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800;
+  letter-spacing: .04em; text-transform: uppercase;
+  background: rgba(255, 255, 255, .94); color: var(--rs-accent);
+  box-shadow: var(--rs-shadow-sm);
+}
+.rs-dish-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.rs-dish-name { font-size: var(--rs-fs-base); font-weight: 700; color: var(--rs-ink); line-height: 1.3; letter-spacing: -.01em; }
+.rs-dish-cat { font-size: 11.5px; color: var(--rs-muted); }
+.rs-dish-foot { margin-top: auto; padding-top: 11px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rs-dish-price { font-size: var(--rs-fs-lg); font-weight: 800; color: var(--rs-ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+/* Brand-only fallback artwork (AGENTS.md retail rule: never a product name,
+   never an icon, never an unrelated stock photo — just the brand). */
+.rs-dish-fallback {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 18px;
+  font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  line-height: 1.3; opacity: .92;
+}
+
+/* --------------------------------------------------------------------------
+   7. Retail colour override — kills every hardcoded blue in mp_header.php's
+   inline style block so the restaurant workspace never shows retail colours.
+   -------------------------------------------------------------------------- */
+body.mp-restaurant .mp-qa-btn.blue{background:rgba(94,77,102,.1)!important;color:var(--mp-primary)!important}
+body.mp-restaurant .mp-qa-btn.blue:hover{background:var(--mp-primary)!important;color:#fff!important}
+body.mp-restaurant .mp-kpi-card.sales .mp-kpi-icon{background:rgba(94,77,102,.1)!important;color:var(--mp-primary)!important}
+body.mp-restaurant .mp-kpi-card.target .mp-kpi-icon{background:rgba(94,77,102,.1)!important;color:var(--mp-primary)!important}
+body.mp-restaurant .mp-activity-dot.sale{background:rgba(94,77,102,.1)!important;color:var(--mp-primary)!important}
+body.mp-restaurant .mp-insight-item::before{background:var(--mp-primary)!important}
+body.mp-restaurant .mp-main .btn.btn-info{background:rgba(94,77,102,.1)!important;color:var(--mp-primary)!important}
+body.mp-restaurant .mp-main .btn.btn-info:hover{background:rgba(94,77,102,.15)!important}
+body.mp-restaurant .mp-range-tabs .tab.active{background:var(--mp-primary)!important}
+body.mp-restaurant .dataTables_filter input:focus{border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px rgba(94,77,102,.1)!important}
+body.mp-restaurant .mp-main .alert-info{color:var(--mp-primary)!important;border-color:rgba(94,77,102,.2)!important}
+body.mp-restaurant .mp-card-head .mp-card-link{color:var(--mp-primary)!important}
+body.mp-restaurant .mp-sub-badge.green{color:var(--mp-primary)!important}
+body.mp-restaurant .mp-lang-item.active{color:var(--mp-primary)!important}
+body.mp-restaurant .mp-user-avatar{color:var(--mp-primary)!important}
+body.mp-restaurant .mp-hbtn.primary{background:var(--mp-primary)!important;border-color:var(--mp-primary)!important}
+body.mp-restaurant .mp-hbtn.primary:hover{background:var(--mp-primary-dark)!important}
+body.mp-restaurant .mp-nav-item.active{background:var(--mp-primary)!important}
+body.mp-restaurant .mp-status-pill .mp-status-dot{background:var(--mp-success)!important}
+body.mp-restaurant .mp-sub-badge.green{background:rgba(47,154,103,.1)!important;color:var(--mp-success)!important}
+body.mp-restaurant .mp-qa-btn.blue:hover{background:var(--mp-primary)!important}
+body.mp-restaurant .mp-main .btn.btn-primary{background:var(--mp-primary)!important;border-color:var(--mp-primary)!important}
+body.mp-restaurant .mp-main .btn.btn-primary:hover{background:var(--mp-primary-dark)!important}
+body.mp-restaurant .mp-main .btn.btn-info{background:rgba(94,77,102,.1)!important;color:var(--mp-primary)!important}
+body.mp-restaurant .mp-main .btn.btn-info:hover{background:rgba(94,77,102,.15)!important}
+  .rs-head h1 { font-size: 26px; }
+  .kds-lane { min-height: 0; }
+}
+@media (max-width: 768px) {
+  .rs-page { gap: 14px; }
+  .rs-head { flex-direction: column; align-items: stretch; }
+  .rs-kpis { grid-template-columns: 1fr; }
+  .kds-board { grid-template-columns: 1fr; }
+  .rs-menu-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .rs-card-body { padding: 16px; }
+}
+
+/* --------------------------------------------------------------------------
+   6. Icon font safety net
+   --------------------------------------------------------------------------
+   The shell's `.mp-shell a { font-family: Inter !important }` rule wins over
+   Font Awesome's shorthand on anchors, which turned every <i class="fa"> inside
+   a button or link into a tofu box. Re-assert the icon face with a higher
+   specificity so legacy markers keep rendering while screens migrate to SVG. */
+body.mp-restaurant .mp-shell i.fa,
+body.mp-restaurant i.fa,
+body.mp-restaurant .fa {
+  font-family: "FontAwesome" !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-rendering: auto !important;
+  -webkit-font-smoothing: antialiased !important;
+  display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   7. Legacy shell neutralisers
+   --------------------------------------------------------------------------
+   mp_header.php still contains a few fixed retail-blue declarations for
+   shared legacy controls. Keep those declarations untouched for retail, but
+   repaint them inside RestaurantOS so older screens inherit the same warm
+   palette as the new workspace components.
+   -------------------------------------------------------------------------- */
+body.mp-restaurant .mp-user-avatar {
+  background: var(--rs-primary-050) !important;
+  color: var(--rs-primary) !important;
+}
+body.mp-restaurant .mp-qa-btn.blue,
+body.mp-restaurant .mp-kpi-card.sales .mp-kpi-icon,
+body.mp-restaurant .mp-kpi-card.target .mp-kpi-icon,
+body.mp-restaurant .mp-activity-dot.sale {
+  background: var(--mp-primary-10) !important;
+  color: var(--rs-primary) !important;
+}
+body.mp-restaurant .mp-qa-btn.blue:hover {
+  background: var(--rs-primary) !important;
+  color: #fff !important;
+}
+body.mp-restaurant .dataTables_filter input:focus,
+body.mp-restaurant .mp-main .form-control:focus {
+  border-color: var(--rs-primary) !important;
+  box-shadow: 0 0 0 3px var(--mp-primary-10) !important;
+}
+body.mp-restaurant .mp-main .btn.btn-info,
+body.mp-restaurant .modal-content .btn.btn-info,
+body.mp-restaurant .modal .btn.btn-info,
+body.mp-restaurant .mp-main .label-info,
+body.mp-restaurant .modal-content .label-info,
+body.mp-restaurant .modal .label-info {
+  background: var(--mp-primary-10) !important;
+  color: var(--rs-primary) !important;
+}
+body.mp-restaurant .mp-main .btn.btn-info:hover,
+body.mp-restaurant .modal-content .btn.btn-info:hover,
+body.mp-restaurant .modal .btn.btn-info:hover {
+  background: var(--mp-primary-15) !important;
+}
+body.mp-restaurant .mp-main .alert-info,
+body.mp-restaurant .modal-content .alert-info,
+body.mp-restaurant .modal .alert-info {
+  background: var(--mp-primary-08) !important;
+  color: var(--rs-primary) !important;
+  border-color: var(--mp-primary-20) !important;
+}

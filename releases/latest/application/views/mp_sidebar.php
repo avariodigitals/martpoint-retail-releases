@@ -463,6 +463,15 @@ $mp_icons = [
         <?php if($CI->permissions('sales_return_view')): ?><a href="<?= base_url('sales_return'); ?>" class="mp-nav-item sales-returns-active-li sales-return-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Returns</a><?php endif; ?>
         <?php if($is_oil_processing && $CI->permissions('quotation_add')): ?><a href="<?= base_url('quotation/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Customer Quotation</a><?php endif; ?>
         <?php if($is_oil_processing && $CI->permissions('quotation_view')): ?><a href="<?= base_url('quotation'); ?>" class="mp-nav-item quotation-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Quotations</a><?php endif; ?>
+        <?php // Standard product/service industries (including Electronics) use
+              // the regular quotation workflow from Sales. Specialist rails
+              // keep their own placement above (oil, printing, building).
+              if(!$is_oil_processing && !$is_printing && !$is_building_workspace && $CI->permissions('quotation_add')): ?>
+          <a href="<?= base_url('quotation/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New Quotation</a>
+        <?php endif; ?>
+        <?php if(!$is_oil_processing && !$is_printing && !$is_building_workspace && $CI->permissions('quotation_view')): ?>
+          <a href="<?= base_url('quotation'); ?>" class="mp-nav-item quotation-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Quotation History</a>
+        <?php endif; ?>
         <?php if($is_oil_processing && $CI->permissions('tax_view')): ?><a href="<?= base_url('tax'); ?>" class="mp-nav-item tax-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Tax Rates</a><?php endif; ?>
         <?php // "New Quotation" and "Quotation History" were removed from here.
               // Both pointed at routes the Quotations group already owns

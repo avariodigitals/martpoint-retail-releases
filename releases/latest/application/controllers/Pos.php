@@ -157,6 +157,7 @@ class Pos extends MY_Controller {
 			// the select from the columns that actually exist so an older fleet
 			// can still open the till while it is waiting for its next migration.
 			$itemFields = array_flip((array) $this->db->list_fields('db_items'));
+			$categoryFields = array_flip((array) $this->db->list_fields('db_category'));
 			$itemColumn = function($name, $fallback) use ($itemFields){
 				return isset($itemFields[$name]) ? 'a.'. $name : $fallback;
 			};
@@ -174,13 +175,14 @@ class Pos extends MY_Controller {
 			$weightBase = $itemColumn('weight_pricing_base_kg', '1');
 			$weightIncrement = $itemColumn('weight_pricing_increment_kg', '0.05');
 			$weightCharge = $itemColumn('weight_pricing_increment_charge', '0');
+			$categoryImage = isset($categoryFields['category_image']) ? 'c.category_image' : "''";
 			$variantCondition = isset($itemFields['parent_id'])
 				? "($childBit = 1 OR (($childBit = 0 OR $childBit IS NULL) AND ($parentId IS NULL OR $parentId = 0) AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id)))"
 				: "($childBit = 1 OR $childBit IS NULL OR $childBit = 0)";
 			$products_query = $this->db->query("
 				SELECT a.id, a.item_name AS name, COALESCE(NULLIF($mrp,0), a.sales_price) AS price,
 			       a.sales_price AS wholesale, $mrp AS mrp, $onlinePrice AS online_price, $discountType AS discount_type, $discount AS discount,
-			       c.category_name AS category,
+			       c.category_name AS category, $categoryImage AS category_image,
 			       a.category_id, a.brand_id, a.sku, a.item_code, u.unit_name AS unit,
 			       COALESCE(a.alert_qty, 0) AS alert_qty,
 			       a.tax_id, a.tax_type, $weightEnabled AS weight_pricing_enabled, $weightBase AS weight_pricing_base_kg,
@@ -212,18 +214,30 @@ class Pos extends MY_Controller {
 				log_message('error', 'POS catalogue failed for store ' . (int)$store_id . ': ' . ($dbError['message'] ?? 'unknown database error'));
 			}
 
-		// Restaurant POS must sell from the operator's selected outlet. Keep the
+		// Walk In must sell from an outlet the operator is allowed to use. Keep the
 		// selection tenant-scoped and server-validated; never accept a warehouse
-		// belonging to another store or an inactive outlet.
+		// belonging to another store, an inactive outlet, or another branch.
 		$outlet_rows = $this->db->select('id, warehouse_name, warehouse_type')
 			->where('store_id', $store_id)->where('status', 1)
 			->order_by('warehouse_type', 'asc')->order_by('warehouse_name', 'asc')
 			->get('db_warehouse')->result_array();
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null) {
+			$outlet_rows = array_values(array_filter($outlet_rows, function($outlet) use ($allowed_warehouse_ids) {
+				return in_array((int)$outlet['id'], $allowed_warehouse_ids, true);
+			}));
+		}
 		$requested_warehouse_id = (int) $this->input->get('warehouse_id', TRUE);
 		// CI3 installations with query-string routing disabled can still expose
 		// the raw query value; accept it only as a numeric, tenant-validated id.
 		if (!$requested_warehouse_id && isset($_GET['warehouse_id'])) {
 			$requested_warehouse_id = (int) $_GET['warehouse_id'];
+		}
+		// Carry the outlet focus from RestaurantOS into the Walk In desk when
+		// the POS URL does not explicitly choose one. This keeps HQ staff from
+		// silently switching back to the store default after reviewing a branch.
+		if (!$requested_warehouse_id && $this->input->get('warehouse_id') === NULL) {
+			$requested_warehouse_id = (int) ($this->session->userdata('selected_branch_id') ?: 0);
 		}
 		$warehouse_id = 0;
 		foreach ($outlet_rows as $outlet) {
@@ -233,6 +247,9 @@ class Pos extends MY_Controller {
 			}
 		}
 		if (!$warehouse_id) $warehouse_id = (int) get_pos_default_warehouse_id($store_id);
+		if ($allowed_warehouse_ids !== null && !in_array($warehouse_id, $allowed_warehouse_ids, true)) {
+			$warehouse_id = (int)($allowed_warehouse_ids[0] ?? 0);
+		}
 		$data['warehouse_id'] = $warehouse_id;
 		$data['warehouse_options'] = $outlet_rows;
 

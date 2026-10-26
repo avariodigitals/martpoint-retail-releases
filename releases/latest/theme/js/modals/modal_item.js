@@ -38,7 +38,9 @@ $(".add_item").click(function(e){
     var this_id=this.id;
 			if(confirm("Are you Sure ?")){
 				e.preventDefault();
-				data = new FormData($('#item-form')[0]);//form name
+				var $form = $('#item-form');
+				var itemName = ($('#m_item_name').val() || '').trim();
+				var data = new FormData($form[0]);//form name
 				/*Check XSS Code*/
 				if(!xss_validation(data)){ return false; }
 				
@@ -52,16 +54,19 @@ $(".add_item").click(function(e){
 				contentType: false,
 				processData: false,
 				success: function(result){
-      				//alert(result);//return;
-      				//var data = jQuery.parseJSON(result);
+					result = $.trim(result);
 					if(result=="success")
 					{   
-						$('#item-modal').modal('toggle');
-					   	var newOption = '<option value='+data.id+' selected>'+data.item_name+'</option>';
-					    $('#item_id').append(newOption).trigger('change');
-					    //$("#amount").val(data.advance);
-					     $('#item-form')[0].reset();
-					     toastr["success"]("New item Added!!");
+						$('#item-modal').modal('hide');
+						$form[0].reset();
+						// Item creation saves it to the catalogue; it does not add
+						// stock or silently create a document line. The old code tried
+						// to read id/name from FormData (always undefined) and append to
+						// a non-existent #item_id select, so users got no usable result.
+						if ($('#item_search').length) {
+							$('#item_search').val(itemName).focus();
+						}
+						toastr["success"]("Product saved to the catalogue. Search for it to add it to this document.");
 					    success.currentTime = 0;
 						success.play();
 					}

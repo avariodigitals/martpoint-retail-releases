@@ -44,8 +44,8 @@
   </div>
 </div>
 
-<?php $osThemeKey=(string)($current_theme->theme_key ?? '');$osBuildingTheme=in_array($osThemeKey,['framework_atelier','vector_systems'],true); ?>
-<?php if($osThemeKey==='botanical_elegance'): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Rename the garden shop, edit page headings, navigation, buttons and sign-in artwork in the grouped content editor.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit storefront content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Edit homepage text & images</a></div></div><?php elseif($osBuildingTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Edit this theme's brand line, hero, page headings, imagery and calls to action. Product specifications and project stories have their own screens.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit theme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/product_b2b'); ?>">Specifications &amp; documents</a> <a class="mp-qa-btn" href="<?= base_url('online_store/journal'); ?>">Applications &amp; projects</a></div></div><?php endif; ?>
+<?php $osThemeKey=(string)($current_theme->theme_key ?? '');$osBuildingTheme=in_array($osThemeKey,['framework_atelier','vector_systems'],true);$osFoodTheme=$osThemeKey==='food_express'; ?>
+<?php if($osThemeKey==='botanical_elegance'): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Rename the garden shop, edit page headings, navigation, buttons and sign-in artwork in the grouped content editor.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit storefront content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Edit homepage text & images</a></div></div><?php elseif($osBuildingTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Edit this theme's brand line, hero, page headings, imagery and calls to action. Product specifications and project stories have their own screens.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit theme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/product_b2b'); ?>">Specifications & documents</a> <a class="mp-qa-btn" href="<?= base_url('online_store/journal'); ?>">Applications & projects</a></div></div><?php elseif($osFoodTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Edit brand line, hero, craving search text, trust badges, category labels and footer copy. Product and category data come from the backend.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit theme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Edit homepage sections</a></div></div><?php endif; ?>
 <p><a href="<?= base_url('online_store/content_settings'); ?>"><?= $osBuildingTheme?'Manage enquiry page & privacy policies':'Manage contact page, journal & product conversion features'; ?> ↗</a></p>
 <form id="appearance-form" onsubmit="return false;">
   <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
@@ -216,7 +216,7 @@ $themeS = htmlspecialchars($current_theme->default_secondary_color ?? '#10B981')
           <div class="mp-form-hint">Shown in the online-store footer across supported themes. Leave empty to use the store logo there.</div>
         </div>
         <div class="mp-form-group">
-          <label for="show_sale_stock_labels">Sale &amp; Stock Labels</label>
+          <label for="show_sale_stock_labels">Sale & Stock Labels</label>
           <label style="display:flex;align-items:center;gap:10px;font-weight:500;margin-top:8px;">
             <input type="checkbox" id="show_sale_stock_labels" name="show_sale_stock_labels" value="1" <?= ((int)($settings->show_sale_stock_labels ?? 1) === 1) ? 'checked' : ''; ?> style="width:18px;height:18px;">
             Show sale prices, sale badges and out-of-stock labels
@@ -264,7 +264,7 @@ $themeS = htmlspecialchars($current_theme->default_secondary_color ?? '#10B981')
             <option value="0" <?= ($settings->robots_index ?? '1') == '0' ? 'selected' : ''; ?>>No — noindex, nofollow</option>
           </select>
         </div>
-        <div class="mp-form-group full"><label for="custom_head_scripts">Custom Head Scripts</label><textarea class="mp-form-control" id="custom_head_scripts" name="custom_head_scripts" rows="4" placeholder="Paste Google Search Console verification tag, Tag Manager, or any custom script here."><?= htmlspecialchars($settings->custom_head_scripts ?? ''); ?></textarea><div class="mp-form-hint">These scripts are output exactly as entered inside the &lt;head&gt; tag. Use with care.</div></div>
+        <div class="mp-form-group full"><label for="custom_head_scripts">Custom Head Scripts</label><textarea class="mp-form-control" id="custom_head_scripts" name="custom_head_scripts" rows="4" placeholder="Paste Google Search Console verification tag, Tag Manager, or any custom script here."><?= htmlspecialchars($settings->custom_head_scripts ?? ''); ?></textarea><div class="mp-form-hint">These scripts are output exactly as entered inside the <head> tag. Use with care.</div></div>
       </div>
     </div>
   </div>
@@ -312,7 +312,7 @@ function saveAppearance(){
   // Tell the controller these swatches were reverted rather than chosen, so it
   // can store NULL and let the theme's palette govern again. Without this the
   // colour input's current value would be saved as a deliberate override.
-  document.querySelectorAll('#primary_color, #secondary_color').forEach(function(input){
+  document.queryAll('#primary_color, #secondary_color').forEach(function(input){
     if(input.dataset.reverted === '1') fd.append(input.id + '_reverted', '1');
   });
   fetch('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd})

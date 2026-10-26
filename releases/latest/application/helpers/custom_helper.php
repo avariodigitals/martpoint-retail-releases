@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.200';
+    return '4.0.9.201';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -581,6 +581,42 @@
     }
 
     return (int)get_store_warehouse_id();
+  }
+
+  /**
+   * Warehouses the current operator may use for a sale.
+   *
+   * NULL means consolidated access for a store administrator. Everyone else
+   * is limited to their explicit assignments plus their session default. The
+   * caller still has to validate that the requested id belongs to the current
+   * store; this helper only answers the user-scope part.
+   */
+  function mp_allowed_warehouse_ids($store_id = ''){
+    $CI =& get_instance();
+    $store_id = !empty($store_id) ? (int)$store_id : (int)get_current_store_id();
+    if(is_store_admin() || (int)$CI->session->userdata('role_id') === 1) return null;
+
+    $ids = [];
+    $user_id = (int)($CI->session->userdata('inv_userid') ?: get_current_user_id());
+    if($user_id > 0 && $CI->db->table_exists('db_userswarehouses')){
+      foreach($CI->db->select('uw.warehouse_id')
+        ->from('db_userswarehouses uw')
+        ->join('db_warehouse w', 'w.id = uw.warehouse_id AND w.store_id = '.(int)$store_id.' AND w.status = 1', 'inner')
+        ->where('uw.user_id', $user_id)->get()->result() as $row){
+        $ids[] = (int)$row->warehouse_id;
+      }
+    }
+    $default = (int)$CI->session->userdata('default_warehouse_id');
+    if($default > 0 && !in_array($default, $ids, true)
+      && $CI->db->table_exists('db_warehouse')
+      && $CI->db->where('id', $default)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse')){
+      $ids[] = $default;
+    }
+    if(empty($ids)){
+      $fallback = (int)get_pos_default_warehouse_id($store_id);
+      if($fallback > 0) $ids[] = $fallback;
+    }
+    return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
   }
   /*end*/
   function get_only_init_code($value,$store_id=''){

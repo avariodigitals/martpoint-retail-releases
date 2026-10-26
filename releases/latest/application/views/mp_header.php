@@ -29,9 +29,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--mp-primary:#0057FF;--mp-primary-dark:#0044CC;--mp-pay:#D97706;--mp-pay-dark:#B45309;--mp-bg:#F5F4F0;--mp-surface:#FFFFFF;--mp-text:#292524;--mp-muted:#78716C;--mp-border:#E7E5E4;--mp-success:#059669;--mp-danger:#DC2626;--mp-warning:#F59E0B;--mp-ink:#44403C;--mp-shadow-sm:0 1px 2px rgba(41,37,36,.05);--mp-shadow:0 10px 25px -5px rgba(41,37,36,.08),0 4px 10px -4px rgba(41,37,36,.04)}
+:root{--mp-primary:#0057FF;--mp-primary-dark:#0044CC;--mp-primary-08:rgba(0,87,255,.08);--mp-primary-10:rgba(0,87,255,.1);--mp-primary-15:rgba(0,87,255,.15);--mp-primary-20:rgba(0,87,255,.2);--mp-pay:#D97706;--mp-pay-dark:#B45309;--mp-bg:#F5F4F0;--mp-surface:#FFFFFF;--mp-text:#292524;--mp-muted:#78716C;--mp-border:#E7E5E4;--mp-success:#059669;--mp-danger:#DC2626;--mp-warning:#F59E0B;--mp-ink:#44403C;--mp-shadow-sm:0 1px 2px rgba(41,37,36,.05);--mp-shadow:0 10px 25px -5px rgba(41,37,36,.08),0 4px 10px -4px rgba(41,37,36,.04)}
 *{box-sizing:border-box!important}
 html,body{margin:0!important;padding:0!important;height:100%!important}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif!important;background:var(--mp-bg)!important;color:var(--mp-text)!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;font-size:14px!important;line-height:1.5!important}
@@ -137,7 +136,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans
 .mp-qa-btn{display:inline-flex!important;align-items:center!important;gap:8px!important;padding:11px 18px!important;border-radius:12px!important;font-size:14px!important;font-weight:600!important;cursor:pointer!important;text-decoration:none!important;transition:all .15s ease!important;border:1px solid transparent!important}
 .mp-qa-btn:hover{text-decoration:none!important}
 .mp-qa-btn.green{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}.mp-qa-btn.green:hover{background:var(--mp-success)!important;color:#fff!important}
-.mp-qa-btn.blue{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}.mp-qa-btn.blue:hover{background:var(--mp-primary)!important;color:#fff!important}
+.mp-qa-btn.blue{background:var(--mp-primary-10)!important;color:var(--mp-primary)!important}.mp-qa-btn.blue:hover{background:var(--mp-primary)!important;color:#fff!important}
 .mp-qa-btn.orange{background:rgba(217,119,6,.1)!important;color:var(--mp-pay)!important}.mp-qa-btn.orange:hover{background:var(--mp-pay)!important;color:#fff!important}
 .mp-qa-btn.purple{background:rgba(124,58,237,.1)!important;color:#7C3AED!important}.mp-qa-btn.purple:hover{background:#7C3AED!important;color:#fff!important}
 .mp-qa-btn.red{background:rgba(220,38,38,.1)!important;color:var(--mp-danger)!important}.mp-qa-btn.red:hover{background:var(--mp-danger)!important;color:#fff!important}
@@ -151,13 +150,13 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans
 .mp-kpi-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;margin-bottom:24px!important}
 .mp-kpi-card{background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;border-radius:16px!important;padding:20px!important;box-shadow:var(--mp-shadow-sm)!important;position:relative!important;overflow:hidden!important}
 .mp-kpi-card .mp-kpi-icon{width:40px!important;height:40px!important;border-radius:10px!important;display:flex!important;align-items:center!important;justify-content:center!important;margin-bottom:14px!important;font-size:18px!important}
-.mp-kpi-card.sales .mp-kpi-icon{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}
+.mp-kpi-card.sales .mp-kpi-icon{background:var(--mp-primary-10)!important;color:var(--mp-primary)!important}
 .mp-kpi-card.profit .mp-kpi-icon{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}
 .mp-kpi-card.expense .mp-kpi-icon{background:rgba(217,119,6,.1)!important;color:var(--mp-pay)!important}
 .mp-kpi-card.debt .mp-kpi-icon{background:rgba(220,38,38,.1)!important;color:var(--mp-danger)!important}
 .mp-kpi-card.stock .mp-kpi-icon{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important}
 .mp-kpi-card.cash .mp-kpi-icon{background:rgba(13,148,136,.1)!important;color:#0D9488!important}
-.mp-kpi-card.target .mp-kpi-icon{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}
+.mp-kpi-card.target .mp-kpi-icon{background:var(--mp-primary-10)!important;color:var(--mp-primary)!important}
 .mp-kpi-card.summary .mp-kpi-icon{background:rgba(120,113,108,.1)!important;color:var(--mp-muted)!important}
 .mp-kpi-card .mp-kpi-label{font-size:13px!important;color:var(--mp-muted)!important;font-weight:500!important}
 .mp-kpi-card .mp-kpi-value{font-size:26px!important;font-weight:700!important;color:var(--mp-text)!important;margin-top:4px!important;font-variant-numeric:tabular-nums!important}
@@ -213,7 +212,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans
 .mp-activity-item{display:flex!important;gap:12px!important;padding:12px 0!important;border-bottom:1px solid var(--mp-border)!important}
 .mp-activity-item:last-child{border-bottom:none!important}
 .mp-activity-dot{width:32px!important;height:32px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;font-size:14px!important}
-.mp-activity-dot.sale{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}
+.mp-activity-dot.sale{background:var(--mp-primary-10)!important;color:var(--mp-primary)!important}
 .mp-activity-dot.expense{background:rgba(217,119,6,.1)!important;color:var(--mp-pay)!important}
 .mp-activity-dot.stock{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important}
 .mp-activity-dot.customer{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}
@@ -299,7 +298,7 @@ table.dataTable{margin-top:0!important;margin-bottom:0!important}
 .dataTables_filter label{display:flex!important;align-items:center!important;gap:0!important;margin:0!important;position:relative!important;font-size:0!important}
 .dataTables_filter label::after{content:''!important;position:absolute!important;left:12px!important;top:50%!important;transform:translateY(-50%)!important;width:16px!important;height:16px!important;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2378716C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat center!important;pointer-events:none!important}
 .dataTables_filter input{border:1px solid var(--mp-border)!important;border-radius:10px!important;padding:8px 14px 8px 36px!important;height:38px!important;font-size:13px!important;font-weight:500!important;background:var(--mp-surface)!important;color:var(--mp-text)!important;min-width:240px!important;transition:all .15s ease!important}
-.dataTables_filter input:focus{outline:none!important;border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px rgba(0,87,255,.1)!important}
+.dataTables_filter input:focus{outline:none!important;border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px var(--mp-primary-10)!important}
 
 /* Modern button base — neutralises old AdminLTE .btn classes across all pages */
 .mp-main .btn,
@@ -326,8 +325,8 @@ table.dataTable{margin-top:0!important;margin-bottom:0!important}
 .mp-main .btn.btn-primary:hover,.modal-content .btn.btn-primary:hover,.modal .btn.btn-primary:hover{background:var(--mp-primary-dark)!important}
 .mp-main .btn.btn-success,.modal-content .btn.btn-success,.modal .btn.btn-success{background:var(--mp-success)!important;color:#fff!important;border-color:var(--mp-success)!important}
 .mp-main .btn.btn-success:hover,.modal-content .btn.btn-success:hover,.modal .btn.btn-success:hover{background:rgba(5,150,105,.9)!important}
-.mp-main .btn.btn-info,.modal-content .btn.btn-info,.modal .btn.btn-info{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important;border-color:transparent!important}
-.mp-main .btn.btn-info:hover,.modal-content .btn.btn-info:hover,.modal .btn.btn-info:hover{background:rgba(0,87,255,.15)!important}
+.mp-main .btn.btn-info,.modal-content .btn.btn-info,.modal .btn.btn-info{background:var(--mp-primary-10)!important;color:var(--mp-primary)!important;border-color:transparent!important}
+.mp-main .btn.btn-info:hover,.modal-content .btn.btn-info:hover,.modal .btn.btn-info:hover{background:var(--mp-primary-15)!important}
 .mp-main .btn.btn-warning,.modal-content .btn.btn-warning,.modal .btn.btn-warning{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important;border-color:transparent!important}
 .mp-main .btn.btn-warning:hover,.modal-content .btn.btn-warning:hover,.modal .btn.btn-warning:hover{background:rgba(245,158,11,.15)!important}
 .mp-main .btn.btn-danger,.modal-content .btn.btn-danger,.modal .btn.btn-danger{background:var(--mp-danger)!important;color:#fff!important;border-color:var(--mp-danger)!important}
@@ -374,7 +373,7 @@ table.dataTable{margin-top:0!important;margin-bottom:0!important}
 .mp-main .label-success,.modal-content .label-success,.modal .label-success{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}
 .mp-main .label-danger,.modal-content .label-danger,.modal .label-danger{background:rgba(220,38,38,.1)!important;color:var(--mp-danger)!important}
 .mp-main .label-warning,.modal-content .label-warning,.modal .label-warning{background:rgba(245,158,11,.1)!important;color:var(--mp-warning)!important}
-.mp-main .label-info,.modal-content .label-info,.modal .label-info{background:rgba(0,87,255,.1)!important;color:var(--mp-primary)!important}
+.mp-main .label-info,.modal-content .label-info,.modal .label-info{background:var(--mp-primary-10)!important;color:var(--mp-primary)!important}
 .mp-main .label-default,.modal-content .label-default,.modal .label-default{background:var(--mp-bg)!important;color:var(--mp-muted)!important}
 .mp-main .label::before,.modal-content .label::before,.modal .label::before{content:''!important;width:6px!important;height:6px!important;border-radius:50%!important;background:currentColor!important}
 .mp-main .label-success::before,.modal-content .label-success::before,.modal .label-success::before{background:var(--mp-success)!important}
@@ -487,7 +486,7 @@ body > .mp-support-modal{z-index:10000!important}
 .mp-main .form-group{margin-bottom:14px!important}
 .mp-main .form-control{border:1px solid var(--mp-border)!important;border-radius:10px!important;box-shadow:none!important;font-size:14px!important;color:var(--mp-text)!important;background:var(--mp-surface)!important;height:auto!important;padding:9px 12px!important}
 .mp-main .form-control.input-sm{padding:7px 10px!important;font-size:13px!important;border-radius:8px!important}
-.mp-main .form-control:focus{border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px rgba(0,87,255,.1)!important}
+.mp-main .form-control:focus{border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px var(--mp-primary-10)!important}
 .mp-main label{font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;margin-bottom:5px!important}
 .mp-main h3,.mp-main h4{color:var(--mp-text)!important}
 @media(max-width:991px){
@@ -541,7 +540,7 @@ body > .mp-support-modal{z-index:10000!important}
     font-size:14px!important;font-weight:500!important;color:var(--mp-ink)!important;background:var(--mp-bg)!important
 }
 .mp-main .alert-success,.modal-content .alert-success,.modal .alert-success{background:rgba(5,150,105,.08)!important;color:var(--mp-success)!important;border-color:rgba(5,150,105,.2)!important}
-.mp-main .alert-info,.modal-content .alert-info,.modal .alert-info{background:rgba(0,87,255,.08)!important;color:var(--mp-primary)!important;border-color:rgba(0,87,255,.2)!important}
+.mp-main .alert-info,.modal-content .alert-info,.modal .alert-info{background:var(--mp-primary-08)!important;color:var(--mp-primary)!important;border-color:var(--mp-primary-20)!important}
 .mp-main .alert-warning,.modal-content .alert-warning,.modal .alert-warning{background:rgba(245,158,11,.08)!important;color:var(--mp-warning)!important;border-color:rgba(245,158,11,.2)!important}
 .mp-main .alert-danger,.modal-content .alert-danger,.modal .alert-danger{background:rgba(220,38,38,.08)!important;color:var(--mp-danger)!important;border-color:rgba(220,38,38,.2)!important}
 .mp-main .alert .close,.modal-content .alert .close,.modal .alert .close{color:var(--mp-muted)!important;opacity:.7!important;font-size:22px!important}
@@ -553,24 +552,62 @@ body > .mp-support-modal{z-index:10000!important}
 <script src="<?php echo $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
 <link rel="stylesheet" href="<?= base_url('theme/dist/css/application-controls.css?v=1'); ?>">
 <?php
-$mp_head_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
-if (($mp_head_profile['industry_type'] ?? '') === 'building_materials'): ?>
-<link rel="stylesheet" href="<?= base_url('theme/dist/css/building_materials_workspace.css?v=' . filemtime(FCPATH . 'theme/dist/css/building_materials_workspace.css')); ?>">
-<link rel="stylesheet" href="<?= base_url('theme/dist/css/building_operations.css?v=' . filemtime(FCPATH . 'theme/dist/css/building_operations.css')); ?>">
+/* RestaurantOS skin: loaded only for the restaurant workspace so retail keeps
+   its own palette. Re-points the shared --mp-* tokens at the restaurant
+   identity and ships the rs-* component set (Kitchen Display, Menu board). */
+$mp_rs_check = false;
+$mp_rs_profile = [];
+if (function_exists('mp_is_restaurant_workspace')) {
+    $mp_rs_check = mp_is_restaurant_workspace();
+}
+if (function_exists('mp_get_store_profile')) {
+    $mp_rs_profile = mp_get_store_profile();
+}
+if ($mp_rs_check):
+  $mp_rs_css = FCPATH . 'theme/dist/css/restaurant_workspace.css';
+  $mp_rs_ver = file_exists($mp_rs_css) ? filemtime($mp_rs_css) : '1';
+?>
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/restaurant_workspace.css?v=' . $mp_rs_ver); ?>">
 <?php endif; ?>
-<?php
-if (in_array(($mp_head_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true)): ?>
-<link rel="stylesheet" href="<?= base_url('theme/dist/css/pharmacy_workspace.css?v=2'); ?>">
+<?php if ($mp_rs_check): ?>
+<style>
+:root{
+  --mp-primary:#5E4D66 !important;
+  --mp-primary-dark:#4E3F55 !important;
+  --mp-primary-08:rgba(94,77,102,.08) !important;
+  --mp-primary-10:rgba(94,77,102,.1) !important;
+  --mp-primary-15:rgba(94,77,102,.15) !important;
+  --mp-primary-20:rgba(94,77,102,.2) !important;
+  --mp-bg:#FAF8F3 !important;
+  --mp-surface:#FFFFFF !important;
+  --mp-text:#3A3733 !important;
+  --mp-ink:#262522 !important;
+  --mp-muted:#77736D !important;
+  --mp-border:#E9E4DD !important;
+  --mp-success:#2F9A67 !important;
+  --mp-warning:#B45309 !important;
+  --mp-danger:#C0392B !important;
+  --mp-pay:#C66B4D !important;
+  --mp-pay-dark:#A94F3A !important;
+  --mp-shadow-sm:0 1px 2px rgba(38,37,34,.05) !important;
+  --mp-shadow:0 1px 2px rgba(38,37,34,.04),0 12px 30px -14px rgba(84,48,31,.16) !important;
+}
+body{background:var(--mp-bg) !important;color:var(--mp-text) !important;}
+.mp-header{background:var(--mp-bg) !important;border-bottom-color:var(--mp-border) !important;}
+.mp-brand h1{color:var(--mp-primary) !important;}
+.mp-nav{background:var(--mp-surface) !important;border-right-color:var(--mp-border) !important;}
+.mp-nav-item.active{background:var(--mp-primary) !important;}
+footer.copyright{background:var(--mp-bg) !important;border-top-color:var(--mp-border) !important;}
+</style>
 <?php endif; ?>
-</head>
 <?php
 $mp_header_class = '';
 try {
   $mp_header_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
-  if (($mp_header_profile['industry_type'] ?? '') === 'building_materials') $mp_header_class = ' bm-workspace-shell';
-  if (in_array(($mp_header_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true)) $mp_header_class = ' pharmacy-workspace-shell';
+  if (function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace()) $mp_header_class .= ' mp-restaurant';
 } catch (Throwable $e) { $mp_header_class = ''; }
 ?>
+</head>
 <body class="<?= trim($mp_header_class); ?>">
 <?php $CI =& get_instance(); ?>
 <?php
@@ -595,12 +632,6 @@ if (function_exists('mp_is_central') && mp_is_central() && isset($CI) && is_obje
   $is_central = ($slim === 1);
 }
 $is_creator = (mp_get_store_profile()['industry_type'] ?? '') === 'creator';
-$is_building_header = (mp_get_store_profile()['industry_type'] ?? '') === 'building_materials';
-$building_clocked_in = false;
-if($is_building_header){
-  $CI->load->model('attendance_model');
-  $building_clocked_in = $CI->attendance_model->needsClockOut((int)$CI->session->userdata('inv_userid'),date('Y-m-d'),get_current_store_id());
-}
 // A print shop has its own workspace, so the header action is named for it
 // ("Quick Job" → /printing/job) and the sidebar is composed differently. Kept
 // in step with the same flag in mp_sidebar.php, including the feature gate, so
@@ -631,9 +662,6 @@ if ($gardenHeader) {
 // store logo hides the h1, so the line beneath it carries the store name too —
 // the generic "Garden Workspace" screen label is replaced by the store name.
 $mpStoreName = $is_central ? 'MartPoint Central' : ($this->session->userdata('store_name') ?: ($SITE_TITLE ?? 'MartPoint'));
-$mpUserName = trim((string)$this->session->userdata('display_name')) ?: trim((string)$this->session->userdata('inv_username')) ?: 'User';
-if($is_building_header) $mpUserName = mp_current_user_full_name();
-$mpUserRole = trim((string)$this->session->userdata('role_name'));
 ?>
 <header class="mp-header">
   <a href="<?= base_url($is_central ? 'fleet' : 'dashboard'); ?>" class="mp-brand <?= $gardenHeader ? 'garden-header-brand' : ''; ?>">
@@ -688,12 +716,10 @@ $mpUserRole = trim((string)$this->session->userdata('role_name'));
       <span class="mp-status-dot"></span>
       <span class="mp-status-text">Online</span>
     </div>
-    <?php if($is_building_header && !$is_central): ?>
-    <button type="button" class="mp-hbtn primary" id="bmAttendanceShortcut" data-bm-clock-trigger aria-haspopup="dialog"><i class="fa fa-clock-o"></i> <span data-bm-clock-label><?= $building_clocked_in ? 'Clock Out' : 'Clock In'; ?></span></button>
-    <?php elseif(!is_store_admin() && !$is_central): ?>
+    <?php if(!is_store_admin() && !$is_central): ?>
     <button class="mp-hbtn" id="appClockInBtn" title="Clock In"><i class="fa fa-clock-o"></i> <span class="clock-label hidden-xs">Clock In</span></button>
     <?php endif; ?>
-    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator && !$is_oil_processing && !$is_building_header): ?>
+    <?php if(!$is_central && $CI->permissions('pos') && !$is_creator && !$is_oil_processing): ?>
     <?php
       // The header action is labelled per business type.
       //
@@ -712,12 +738,12 @@ $mpUserRole = trim((string)$this->session->userdata('role_name'));
     <div class="mp-user-menu">
       <div class="mp-user-chip" onclick="document.getElementById('mpUserDropdown').classList.toggle('open')">
         <div class="mp-user-avatar"><img src="<?= get_profile_picture(); ?>" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Profile" onerror="this.style.display='none'"></div>
-        <span class="hidden-xs"><?= htmlspecialchars($mpUserName); ?></span>
+        <span class="hidden-xs"><?= htmlspecialchars($this->session->userdata('display_name')); ?></span>
       </div>
       <div class="mp-user-dropdown" id="mpUserDropdown">
         <div style="padding:12px;border-bottom:1px solid var(--mp-border);margin-bottom:6px;">
-          <div style="font-weight:700;font-size:14px;color:var(--mp-text);"><?= htmlspecialchars($mpUserName); ?></div>
-          <div style="font-size:11px;color:var(--mp-muted);text-transform:uppercase;"><?= htmlspecialchars($mpUserRole); ?></div>
+          <div style="font-weight:700;font-size:14px;color:var(--mp-text);"><?= htmlspecialchars($this->session->userdata('display_name')); ?></div>
+          <div style="font-size:11px;color:var(--mp-muted);text-transform:uppercase;"><?= htmlspecialchars($this->session->userdata('role_name')); ?></div>
         </div>
         <a class="mp-dropdown-item" href="<?= base_url('dashboard'); ?>"><i class="fa fa-tachometer"></i> Dashboard</a>
         <a class="mp-dropdown-item" href="<?= base_url('users/edit/'.$this->session->userdata('inv_userid')); ?>"><i class="fa fa-user"></i> My Profile</a>

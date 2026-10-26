@@ -303,13 +303,23 @@ class Dashboard extends MY_Controller {
 				&& mp_feature_enabled('production_workflow')){
 				redirect(base_url('printing'));
 			}
-			// RestaurantOS workspace stores land on Restaurant Overview, not the
-			// retail dashboard — same reasoning as Printing/Creator above. The
-			// restaurant dashboard block still exists on /dashboard for anyone
-			// who wants the retail view; ?classic=1 is the escape hatch.
+			// RestaurantOS owns the restaurant branch scope. Keep the legacy retail
+			// dashboard from becoming an unscoped escape hatch for branch staff;
+			// consolidated users may still use ?classic=1 when they explicitly need
+			// the legacy dashboard.
 			if (function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace()) {
-				redirect(base_url('restaurantos'));
-				return;
+				$classic = (string) $this->input->get('classic');
+				$allowed_branches = function_exists('mp_allowed_warehouse_ids')
+					? mp_allowed_warehouse_ids(get_current_store_id())
+					: null;
+				if ($classic !== '1' || $allowed_branches !== null) {
+					redirect(base_url('restaurantos'));
+					return;
+				}
+				// Only consolidated users reach the legacy restaurant dashboard.
+				// Its branch selector is intentionally not used as a permission
+				// boundary for assigned staff.
+				
 			}
 		}
 		if(!function_exists('physio_enabled')) $this->load->helper('physio');

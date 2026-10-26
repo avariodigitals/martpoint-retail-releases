@@ -29,7 +29,13 @@ $pay_text = function ($status, $settled) {
     return $settled ? 'Settled' : 'Unpaid';
 };
 
-$prep_text = ['new' => 'Queued', 'preparing' => 'Cooking', 'ready' => 'Ready', 'served' => 'Handed over'];
+$prep_text = ['new' => 'Queued', 'preparing' => 'Cooking', 'ready' => 'Ready', 'ready_now' => 'Ready now', 'served' => 'Handed over'];
+$branch_all_label = !empty($branch_can_view_all) ? 'All branches' : 'All assigned branches';
+$online_waiting = (int) ($online['open'] ?? 0);
+$online_ready = (int) ($online['ready'] ?? 0);
+$kitchen_active = (int) (($kds_live['new'] ?? 0) + ($kds_live['preparing'] ?? 0));
+$kitchen_ready = (int) ($kds_live['ready'] ?? 0);
+$kitchen_backlog = (int) ($kds_stale ?? 0);
 
 $when_text = function ($datetime) {
     $ts = strtotime($datetime);
@@ -46,25 +52,24 @@ $when_text = function ($datetime) {
   <!-- ============ Header: what I'm looking at, and what changes it ============ -->
   <div class="ro-head">
     <div>
-      <h2>Restaurant Overview</h2>
+      <h2>Overview</h2>
       <div class="ro-head-sub">
-        <?= htmlspecialchars($store_name); ?> ·
-        <b><?= htmlspecialchars($range_label); ?></b>
+        <span class="ro-context-item"><?= htmlspecialchars($store_name); ?></span>
+        <span class="ro-context-item"><?= htmlspecialchars($range_label); ?></span>
         <?php $outlet_name = '';
         if ($branch) {
             foreach ($branch_opts as $o) { if ((string) $o['id'] === (string) $branch) $outlet_name = $o['name']; }
         } ?>
         <?php if ($outlet_name !== '' || $branch_opts): ?>
-          · <b><?= $outlet_name !== '' ? htmlspecialchars($outlet_name) : 'All outlets'; ?></b>
+          <span class="ro-context-item"><?= $outlet_name !== '' ? htmlspecialchars($outlet_name) : htmlspecialchars($branch_all_label); ?></span>
         <?php endif; ?>
-        · <span style="color:var(--mp-primary);font-weight:700;"><?= htmlspecialchars($preset['label'] ?? 'Quick Service'); ?></span>
       </div>
     </div>
     <div class="ro-head-tools">
       <?php if (!empty($branch_opts)): ?>
         <div class="ro-seg">
           <span class="ro-seg-label">Outlet</span>
-          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $ro_url('restaurantos', ['branch_id' => '']); ?>">All</a>
+          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $ro_url('restaurantos', ['branch_id' => '']); ?>"><?= htmlspecialchars($branch_all_label); ?></a>
           <?php foreach ($branch_opts as $o): ?>
             <a class="<?= (string) $branch === (string) $o['id'] ? 'active' : ''; ?>"
                href="<?= $ro_url('restaurantos', ['branch_id' => $o['id']]); ?>"><?= htmlspecialchars($o['name']); ?></a>
@@ -78,8 +83,8 @@ $when_text = function ($datetime) {
              href="<?= $ro_url('restaurantos', ['range' => $key]); ?>"><?= htmlspecialchars($label); ?></a>
         <?php endforeach; ?>
       </div>
-      <a href="<?= base_url('pos'); ?>" class="ro-act green" style="padding:8px 14px;">
-        <span class="ic"><i class="fa fa-shopping-cart"></i></span><span class="tx"><b>Open POS</b></span>
+      <a href="<?= base_url('pos'); ?>" class="ro-act" style="padding:8px 14px;">
+        <span class="ic"><i class="fa fa-shopping-cart"></i></span><span class="tx"><b>Open Walk In</b></span>
       </a>
       <?php if (!empty($can_settings)): ?>
         <a href="<?= base_url('restaurantos/settings'); ?>" class="ro-act slate" style="padding:8px 14px;">
@@ -89,19 +94,51 @@ $when_text = function ($datetime) {
     </div>
   </div>
 
+  <!-- Live queues: one glance, one action. Detailed explanations stay below. -->
+  <div class="ro-live-strip" aria-label="Live restaurant queues">
+    <a class="ro-live-card <?= $online_waiting > 0 ? 'attention' : ($online_ready > 0 ? 'moving' : 'clear'); ?>" href="<?= base_url('online_store/orders'); ?>">
+      <div class="ro-live-top">
+        <span class="ro-live-title"><span class="ro-live-icon online"><i class="fa fa-globe"></i></span> Online orders</span>
+        <span class="ro-live-status"><i></i><?= $online_waiting > 0 ? 'Needs attention' : ($online_ready > 0 ? 'Ready to hand over' : 'Clear'); ?></span>
+      </div>
+      <div class="ro-live-value"><strong><?= number_format($online_waiting + $online_ready); ?></strong><span>open<br>orders</span></div>
+      <div class="ro-live-breakdown">
+        <span><i class="new"></i><?= number_format($online_waiting); ?> being prepared</span>
+        <span><i class="ready"></i><?= number_format($online_ready); ?> ready now</span>
+      </div>
+      <div class="ro-live-foot"><span>Prepared or ready for handover</span><b>Open orders&nbsp; →</b></div>
+    </a>
+
+    <?php if ($has_kitchen): ?>
+      <a class="ro-live-card <?= $kitchen_backlog > 0 ? 'attention' : ($kitchen_active > 0 ? 'moving' : 'clear'); ?>" href="<?= base_url('operations/kitchen'); ?>">
+        <div class="ro-live-top">
+          <span class="ro-live-title"><span class="ro-live-icon kitchen"><i class="fa fa-fire"></i></span> Kitchen backlog</span>
+          <span class="ro-live-status"><i></i><?= $kitchen_backlog > 0 ? 'Needs clearing' : ($kitchen_active > 0 ? 'In service' : 'Clear'); ?></span>
+        </div>
+        <div class="ro-live-value"><strong><?= number_format($kitchen_backlog); ?></strong><span>older tickets<br>still open</span></div>
+        <div class="ro-live-breakdown">
+          <span><i class="new"></i><?= number_format($kitchen_active); ?> active now</span>
+          <span><i class="ready"></i><?= number_format($kitchen_ready); ?> ready</span>
+        </div>
+        <div class="ro-live-foot"><span>Outside the live <?= (int) $live_hours; ?>h window</span><b>Open kitchen&nbsp; →</b></div>
+      </a>
+    <?php endif; ?>
+  </div>
+
   <!-- ============ What needs attention right now ============ -->
   <?php foreach ($insights as $note): ?>
-    <div class="ro-banner <?= $note['level']; ?>">
+    <?php if (stripos((string) $note['label'], 'Online orders waiting') !== false || stripos((string) $note['label'], 'Kitchen backlog') !== false) continue; ?>
+    <div class="ro-banner restaurant-insight <?= $note['level']; ?> <?= stripos((string) $note['label'], 'online order') !== false ? 'restaurant-online-alert' : ''; ?>">
       <span class="bi"><i class="fa <?= htmlspecialchars($note['icon']); ?>"></i></span>
-      <span class="bb"><b><?= htmlspecialchars($note['label']); ?></b> — <span class="muted"><?= htmlspecialchars($note['text']); ?></span></span>
-      <a class="bl" href="<?= base_url($note['link']); ?>"><?= htmlspecialchars($note['link_label']); ?> &rarr;</a>
+      <span class="bb"><b><?= htmlspecialchars($note['label']); ?></b><span class="muted"><?= htmlspecialchars($note['text']); ?></span></span>
+      <a class="bl" href="<?= base_url($note['link']); ?>"><?= htmlspecialchars($note['link_label']); ?> <span aria-hidden="true">&rarr;</span></a>
     </div>
   <?php endforeach; ?>
 
   <!-- ============ Sales, tickets and queues ============ -->
-  <div class="ro-kpis">
+  <div class="ro-kpis ro-kpis-primary">
     <div class="ro-kpi">
-      <div class="ro-kpi-top"><span class="ro-kpi-ic blue"><i class="fa fa-money"></i></span><span class="ro-kpi-label">Total sales value</span></div>
+      <div class="ro-kpi-top"><span class="ro-kpi-ic"><i class="fa fa-money"></i></span><span class="ro-kpi-label">Total revenue</span></div>
       <div class="ro-kpi-val"><?= $CI->currency($sales['total']); ?></div>
       <div class="ro-kpi-foot">
         <?php $chg = (float) $perf['change']; ?>
@@ -124,16 +161,16 @@ $when_text = function ($datetime) {
       <div class="ro-kpi-top"><span class="ro-kpi-ic"><i class="fa fa-list-alt"></i></span><span class="ro-kpi-label">Orders</span></div>
       <div class="ro-kpi-val"><?= number_format($counter['cnt'] + $online['cnt']); ?></div>
       <div class="ro-kpi-foot">
-        <span class="ro-chip neutral"><?= number_format($counter['cnt']); ?> counter</span>
+        <span class="ro-chip neutral"><?= number_format($counter['cnt']); ?> walk-in</span>
         <span class="ro-chip neutral"><?= number_format($online['cnt']); ?> online</span>
       </div>
     </div>
 
     <div class="ro-kpi">
-      <div class="ro-kpi-top"><span class="ro-kpi-ic green"><i class="fa fa-calculator"></i></span><span class="ro-kpi-label">Average ticket</span></div>
+      <div class="ro-kpi-top"><span class="ro-kpi-ic"><i class="fa fa-calculator"></i></span><span class="ro-kpi-label">Average ticket</span></div>
       <div class="ro-kpi-val"><?= $CI->currency($avg_ticket); ?></div>
       <div class="ro-kpi-foot"><span class="ro-kpi-note">
-        <?= $counter['cnt'] > 0 ? 'Across ' . number_format($counter['cnt']) . ' counter invoice' . ($counter['cnt'] === 1 ? '' : 's') : 'No counter invoices yet'; ?>
+        <?= $counter['cnt'] > 0 ? 'Across ' . number_format($counter['cnt']) . ' walk-in invoice' . ($counter['cnt'] === 1 ? '' : 's') : 'No walk-in invoices yet'; ?>
       </span></div>
     </div>
 
@@ -141,10 +178,13 @@ $when_text = function ($datetime) {
       <div class="ro-kpi-top"><span class="ro-kpi-ic"><i class="fa fa-cutlery"></i></span><span class="ro-kpi-label">Dine-in tickets</span></div>
       <div class="ro-kpi-val"><?= number_format($counter['dinein']); ?></div>
       <div class="ro-kpi-foot"><span class="ro-kpi-note">
-        <?= $counter['cnt'] > 0 ? round(($counter['dinein'] / $counter['cnt']) * 100) . '% of counter orders sat at a table' : 'Nothing rang up yet'; ?>
+        <?= $counter['cnt'] > 0 ? round(($counter['dinein'] / $counter['cnt']) * 100) . '% of walk-in orders sat at a table' : 'Nothing rang up yet'; ?>
       </span></div>
     </div>
 
+  </div>
+
+  <div class="ro-kpis ro-kpis-secondary">
     <?php if ($has_kitchen): ?>
       <div class="ro-kpi">
         <div class="ro-kpi-top"><span class="ro-kpi-ic amber"><i class="fa fa-fire"></i></span><span class="ro-kpi-label">In the kitchen</span></div>
@@ -268,7 +308,7 @@ $when_text = function ($datetime) {
                   </div>
                   <div class="ro-legend">
                     <span><i style="background:var(--mp-success,#059669);"></i>Available <?= (int) $tables['available']; ?></span>
-                    <span><i style="background:var(--mp-primary,#0057FF);"></i>Occupied <?= (int) $tables['occupied']; ?></span>
+                    <span><i style="background:var(--mp-primary,#5E4D66);"></i>Occupied <?= (int) $tables['occupied']; ?></span>
                     <span><i style="background:var(--mp-warning,#F59E0B);"></i>Reserved <?= (int) $tables['reserved']; ?></span>
                     <span><i style="background:#A8A29E;"></i>Cleaning <?= (int) $tables['cleaning']; ?></span>
                   </div>
@@ -286,12 +326,12 @@ $when_text = function ($datetime) {
     <div class="ro-panel">
       <div class="ro-panel-head">
         <div>
-          <div class="t"><i class="fa fa-clock-o"></i> Takings by service</div>
+          <div class="t"><i class="fa fa-clock-o"></i> Takings by service period</div>
           <div class="s">
             <?php if (!empty($day_parts['peak'])): ?>
-              Busiest period: <b style="color:var(--mp-text);"><?= htmlspecialchars($day_parts['peak']); ?></b>
+              Busiest service period: <b style="color:var(--mp-text);"><?= htmlspecialchars($day_parts['peak']); ?></b>
             <?php else: ?>
-              Grouped by the time each sale was rung up
+              Time-of-day sales grouping — not a channel
             <?php endif; ?>
           </div>
         </div>
@@ -299,21 +339,34 @@ $when_text = function ($datetime) {
       </div>
       <div class="ro-panel-body tight">
         <?php if (empty($day_parts['rows']) || (float) $day_parts['sum'] <= 0): ?>
-          <div class="ro-empty"><i class="fa fa-clock-o"></i><div class="t">No takings in this period</div><div class="s">Nothing has been rung up on the till yet.</div></div>
+          <div class="ro-empty"><i class="fa fa-clock-o"></i><div class="t">No takings in this period</div><div class="s">Nothing has been rung up at the Walk In desk yet.</div></div>
         <?php else: ?>
-          <table class="ro-table">
-            <thead><tr><th>Period</th><th class="num">Orders</th><th class="num">Takings</th><th style="width:96px;">Share</th></tr></thead>
-            <tbody>
+          <?php $daypart_max = 0; foreach ($day_parts['rows'] as $d) { $daypart_max = max($daypart_max, (float) $d['total']); } ?>
+          <div class="ro-service-breakdown" aria-label="Takings by service period">
+            <div class="ro-service-summary">
+              <span>Sales mix</span>
+              <b><?= $CI->currency($day_parts['sum']); ?> total</b>
+            </div>
+            <div class="ro-service-period-key">Breakfast 00:00–10:59 · Lunch 11:00–14:59 · Dinner 15:00–20:59 · Late Night 21:00–23:59</div>
+            <div class="ro-service-list">
               <?php foreach ($day_parts['rows'] as $d): ?>
-                <tr>
-                  <td><span class="ro-name"><span class="d" style="opacity:<?= max(0.25, min(1, $d['pct'] / 100)); ?>"></span><?= htmlspecialchars($d['name']); ?></span></td>
-                  <td class="num"><?= number_format($d['cnt']); ?></td>
-                  <td class="num"><span class="ro-pill rev"><?= $CI->currency($d['total']); ?></span></td>
-                  <td><span class="ro-bar"><span style="width:<?= (int) $d['pct']; ?>%;"></span></span></td>
-                </tr>
+                <?php $bar_width = $daypart_max > 0 ? max(4, round(((float) $d['total'] / $daypart_max) * 100)) : 0; ?>
+                <div class="ro-service-row">
+                  <div class="ro-service-row-head">
+                    <span class="ro-service-name"><span class="ro-service-dot"></span><?= htmlspecialchars($d['name']); ?></span>
+                    <strong><?= $CI->currency($d['total']); ?></strong>
+                  </div>
+                  <div class="ro-service-track" role="progressbar" aria-label="<?= htmlspecialchars($d['name']); ?> share of service takings" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= (int) $d['pct']; ?>">
+                    <span style="width:<?= (int) $bar_width; ?>%;"></span>
+                  </div>
+                  <div class="ro-service-row-meta">
+                    <span><?= number_format($d['cnt']); ?> <?= (int) $d['cnt'] === 1 ? 'order' : 'orders'; ?></span>
+                    <span><?= (int) $d['pct']; ?>% of takings</span>
+                  </div>
+                </div>
               <?php endforeach; ?>
-            </tbody>
-          </table>
+            </div>
+          </div>
         <?php endif; ?>
       </div>
     </div>
@@ -370,7 +423,7 @@ $when_text = function ($datetime) {
             <?php foreach ($channels as $c): $pct = $chan_total > 0 ? round(($c['sum'] / $chan_total) * 100) : 0; ?>
               <tr>
                 <td>
-                  <div class="ro-name"><span class="d" style="background:<?= $c['bar'] === 'green' ? 'var(--mp-success,#059669)' : 'var(--mp-primary,#0057FF)'; ?>"></span><?= $c['name']; ?></div>
+                  <div class="ro-name"><span class="d" style="background:<?= $c['bar'] === 'green' ? 'var(--mp-success,#2F9A67)' : 'var(--mp-primary,#5E4D66)'; ?>"></span><?= $c['name']; ?></div>
                   <div style="font-size:11px;color:var(--mp-muted,#78716C);margin-top:2px;"><?= $c['note']; ?></div>
                 </td>
                 <td class="num"><?= number_format($c['cnt']); ?></td>
@@ -394,14 +447,14 @@ $when_text = function ($datetime) {
     <div class="ro-panel-head">
       <div>
         <div class="t"><i class="fa fa-file-text-o"></i> Latest orders</div>
-        <div class="s">Counter invoices and online orders in one timeline · <?= htmlspecialchars($range_label); ?></div>
+        <div class="s">Walk-in invoices and online orders in one timeline · <?= htmlspecialchars($range_label); ?></div>
       </div>
       <a class="ro-panel-link" href="<?= $ro_url('restaurantos/orders', ['range' => $range_key]); ?>">Open the orders desk &rarr;</a>
     </div>
     <div class="ro-panel-body tight">
       <?php if (empty($recent)): ?>
         <div class="ro-empty"><i class="fa fa-inbox"></i><div class="t">No orders in this period</div>
-          <div class="s">Once the till or the online store takes an order, it lands here.</div></div>
+          <div class="s">Once the Walk In desk or online store takes an order, it lands here.</div></div>
       <?php else: ?>
         <div class="ro-orders">
           <?php foreach ($recent as $r): ?>
@@ -412,7 +465,7 @@ $when_text = function ($datetime) {
               <span class="tags">
                 <span class="ro-chip <?= $r['channel'] === 'counter' ? 'neutral' : 'blue' ?>"><?= htmlspecialchars($r['source']); ?></span>
                 <?php if ($r['prep'] !== '' && isset($prep_text[$r['prep']])): ?>
-                  <span class="ro-chip <?= $r['prep'] === 'ready' ? 'up' : 'warn' ?>"><?= htmlspecialchars($prep_text[$r['prep']]); ?></span>
+                  <span class="ro-chip <?= in_array($r['prep'], ['ready', 'ready_now', 'served'], true) ? 'up' : 'warn' ?>"><?= htmlspecialchars($prep_text[$r['prep']]); ?></span>
                 <?php endif; ?>
                 <span class="ro-chip <?= $r['settled'] ? 'up' : 'down' ?>"><?= $pay_text($r['pay'], $r['settled']); ?></span>
               </span>
@@ -439,7 +492,7 @@ $when_text = function ($datetime) {
         <div class="ro-scgrid">
           <?php
           $sc_blurb = [
-              'pos'        => 'Take payment at the counter',
+              'pos'        => 'Take payment at the walk-in desk',
               'orders'     => 'Every channel in one list',
               'kitchen'    => 'Tickets the kitchen is working',
               'fulfilment' => 'Pickups and deliveries to route',

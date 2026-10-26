@@ -714,6 +714,18 @@ class Theme_engine {
             $merged['beCopy'] = function($key) use ($values) { return htmlspecialchars($values[$key] ?? '', ENT_QUOTES, 'UTF-8'); };
         }
 
+        // Food Express wears merchant copy from its own Storefront Content
+        // catalog (mp_food_fields()), stored per theme key under
+        // theme_content_json. Same provenance rule as Botanical: saved values
+        // win, otherwise the designed default. Product and category DATA is
+        // never here — it comes from the storefront models.
+        if ($themeKey === 'food_express') {
+            $this->CI->load->helper('food_content');
+            $fxValues = mp_food_values($this->settings->theme_content_json ?? '');
+            $merged['fxValue'] = function($key) use ($fxValues) { return $fxValues[$key] ?? ''; };
+            $merged['fxCopy'] = function($key) use ($fxValues) { return htmlspecialchars($fxValues[$key] ?? '', ENT_QUOTES, 'UTF-8'); };
+        }
+
         if ($this->industry === 'garden_centre_landscaping') {
             $this->CI->load->helper(['garden','offering_policy']);
             $merged['garden_profile'] = mp_get_store_profile((int)$this->settings->store_id);
@@ -761,6 +773,7 @@ class Theme_engine {
             // product-detail templates remain focused on their own layout.
             if ($view === 'product_detail' && !empty($merged['product']->id)) {
                 $merged['content'] .= $this->CI->load->view('themes/shared/product_gallery', $merged, true);
+                $merged['restaurant_share'] = $themeKey === 'food_express';
                 $merged['content'] .= $this->CI->load->view('themes/shared/product_share', $merged, true);
             }
             if($view==='product_detail' && $merged['garden_product_experience']) $merged['content'].=$this->CI->load->view('themes/shared/product_experience',$merged,true);
@@ -788,11 +801,13 @@ class Theme_engine {
             //
             // Everything else in the catalogue keeps the retail layout untouched.
             $isMediq = $themeKey === 'pharma_mediq';
+            $isFoodExpress = $themeKey === 'food_express';
             $layout = $isPrintDesign
                 ? 'themes/printing/layout'
                 : ($isBuilding
                     ? 'themes/building_materials_base/layout'
-                    : ($isMediq ? 'themes/pharma_mediq/layout' : 'themes/shared/layout'));
+                    : ($isMediq ? 'themes/pharma_mediq/layout'
+                        : ($isFoodExpress ? 'themes/food_express/layout' : 'themes/shared/layout')));
             return $this->CI->load->view($layout, $merged, $return);
         }
 
@@ -809,6 +824,9 @@ class Theme_engine {
         $ids = [];
         foreach ($lists as $key) {
             foreach ($data[$key] ?? [] as $p) if (is_object($p) && !empty($p->id)) $ids[(int)$p->id] = (int)$p->id;
+        }
+        foreach ($data['food_pairings'] ?? [] as $pairings) {
+            foreach ($pairings as $p) if (is_object($p) && !empty($p->id)) $ids[(int)$p->id] = (int)$p->id;
         }
         if (!empty($data['product']->id)) $ids[(int)$data['product']->id] = (int)$data['product']->id;
         if (!$ids) return $data;
@@ -842,6 +860,11 @@ class Theme_engine {
             if (!isset($data[$key])) continue;
             foreach ($data[$key] as $index => $p) {
                 if (is_object($p)) $data[$key][$index] = $decorate($p);
+            }
+        }
+        foreach ($data['food_pairings'] ?? [] as $outletId => $pairings) {
+            foreach ($pairings as $index => $p) {
+                if (is_object($p)) $data['food_pairings'][$outletId][$index] = $decorate($p);
             }
         }
         if (!empty($data['product']) && is_object($data['product'])) {
@@ -1200,13 +1223,9 @@ class Theme_engine {
      */
     public function branches($storeId = null){
         $storeId = $storeId ?: ($this->settings->store_id ?? get_current_store_id());
-        return $this->CI->db
-            ->where('store_id', $storeId)
-            ->where('status', 1)
-            ->where('warehouse_type', 'Custom')
-            ->order_by('warehouse_name', 'asc')
-            ->get('db_warehouse')
-            ->result();
+        $foodIndustries = ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'];
+        $context = in_array(strtolower(trim((string)$this->industry)), $foodIndustries, true) ? 'restaurant' : '';
+        return $this->CI->storefront_model->getOrderableOutlets($storeId, $context);
     }
 
     // Helper: darken hex color
