@@ -19,17 +19,18 @@ class Pharmacy_demo extends CI_Controller {
         if (!$settings || $settings->store_status !== 'active') { show_404(); return; }
 
         $storeId = (int)$settings->store_id;
-        if ($mode === 'hub') {
-            $this->session->set_userdata('pharmacy_demo_hub_store', $storeId);
-            $partnerOutlet = null;
-            foreach ($this->storefront_model->getOrderableOutlets($storeId) as $outlet) if ((string)($outlet->branch_type ?? '') === 'partner') { $partnerOutlet = $outlet; break; }
-            if ($partnerOutlet) $this->session->set_userdata('pharmacy_demo_hub_warehouse', (int)$partnerOutlet->id);
-        }
         $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
         $industry = strtolower((string)($profile['industry_type'] ?? ''));
         if (!in_array($industry, ['pharmacy', 'medical_store', 'healthcare'], true) || empty($settings->partner_marketplace_enabled)) {
             show_404();
             return;
+        }
+
+        if ($mode === 'hub') {
+            $this->session->set_userdata('pharmacy_demo_hub_store', $storeId);
+            $partnerOutlet = null;
+            foreach ($this->storefront_model->getOrderableOutlets($storeId) as $outlet) if ((string)($outlet->branch_type ?? '') === 'partner') { $partnerOutlet = $outlet; break; }
+            if ($partnerOutlet) $this->session->set_userdata('pharmacy_demo_hub_warehouse', (int)$partnerOutlet->id);
         }
 
         $this->load->helper('image');
@@ -48,7 +49,7 @@ class Pharmacy_demo extends CI_Controller {
     private function _pharmacySettings($storeSlug) {
         if (!isset($this->storefront_model)) $this->load->model('storefront_model');
         $settings = $this->storefront_model->getStoreBySlug($storeSlug);
-        if (!$settings || $settings->store_status !== 'active') return null;
+        if (!$settings || $settings->store_status !== 'active' || empty($settings->partner_marketplace_enabled)) return null;
         $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile((int)$settings->store_id) : [];
         if (!in_array(strtolower((string)($profile['industry_type'] ?? '')), ['pharmacy', 'medical_store', 'healthcare'], true)) return null;
         return $settings;
@@ -397,7 +398,7 @@ class Pharmacy_demo extends CI_Controller {
         $store = $this->db->where('id', $storeId)->get('db_store')->row();
         if (!$store || !in_array(strtolower((string)$store->industry_type), ['pharmacy', 'medical_store', 'healthcare'], true)) { echo "Not a pharmacy store\n"; return; }
         $this->load->model('Demo_seeder');
-        echo json_encode($this->Demo_seeder->seed_full_demo($storeId, 'pharmacy')).PHP_EOL;
+        echo json_encode($this->Demo_seeder->seed_examples($storeId, 'pharmacy')).PHP_EOL;
     }
 
     public function reset() {

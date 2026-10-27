@@ -87,6 +87,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     .cart-item .meta { font-size: 13px; color: var(--mp-muted); }
     .cart-item .qty { display: flex; align-items: center; gap: 12px; background: var(--mp-bg); border-radius: 10px; padding: 4px; }
     .cart-item .qty button { width: 32px; height: 32px; border: none; border-radius: 8px; background: var(--mp-surface); font-size: 18px; font-weight: 600; color: var(--mp-primary); }
+    .cart-item .qty .mobile-qty-input { width: 76px; min-width: 58px; height: 36px; padding: 4px; border: 1px solid var(--mp-border); border-radius: 8px; background: var(--mp-surface); color: var(--mp-ink); text-align: center; font-size: 15px; font-weight: 700; }
     .cart-item .qty span { min-width: 24px; text-align: center; font-weight: 600; }
     .cart-item .weight-qty { flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 62%; background: transparent; padding: 0; }
     .cart-item .weight-qty label { display: grid; gap: 3px; font-size: 10px; color: var(--mp-muted); font-weight: 700; }
@@ -578,6 +579,8 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     var isPharmacyMobile = <?= $mp_is_pharmacy ? 'true' : 'false'; ?>;
     var showSaleStockLabels = <?= !empty($show_sale_stock_labels) ? 'true' : 'false'; ?>;
     var weightScaleMode = <?= json_encode($weight_scale_mode ?? 'analog'); ?>;
+    var mobileQtyDecimals = <?= max(0, min(4, (int)qty_decimal())); ?>;
+    var mobileQtyStep = mobileQtyDecimals > 0 ? Math.pow(10, -mobileQtyDecimals) : 1;
 
     function mobilePharmacyNote(){
       if(!isPharmacyMobile) return '';
@@ -822,6 +825,23 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       renderCart();
     }
 
+    function setMobileQty(index, value){
+      var item = cart[index]; if(!item || item.weight_pricing_enabled) return;
+      var raw = String(value == null ? '' : value).trim();
+      var qty = Number(raw);
+      if(!raw || !isFinite(qty) || qty <= 0){
+        showToast('Enter a quantity greater than zero.', 'warning'); renderCart(); return;
+      }
+      var rounded = Number(qty.toFixed(mobileQtyDecimals));
+      if(Math.abs(rounded - qty) > 0.0000001){
+        showToast('This store allows ' + mobileQtyDecimals + ' decimal place(s) for quantity.', 'warning'); renderCart(); return;
+      }
+      if(item.stock && rounded * (item.conversion_factor || 1) > item.stock){
+        showToast('Not enough stock for ' + item.name, 'warning'); renderCart(); return;
+      }
+      item.qty = rounded; renderCart();
+    }
+
     function updatePaymentChange(){
       var total = getCartTotal();
       var paid = parseFloat($('#payment_amount_paid').val()) || 0;
@@ -902,7 +922,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
               (weightScaleMode !== 'digital' ? '<label>Lines <input type="number" min="0" step="1" value="'+(item.weight_lines || 0)+'" data-weight-part="lines"></label>' : '') +
               '<small>'+Number(item.qty || 0).toFixed(3)+' kg</small></div>' : '<div class="qty">' +
               '<button class="qty-minus">-</button>' +
-              '<span>'+item.qty+'</span>' +
+              '<input class="mobile-qty-input" aria-label="Quantity for '+String(item.name || 'item').replace(/[&<>\"']/g, '')+'" type="number" min="'+mobileQtyStep+'" step="'+mobileQtyStep+'" value="'+Number(item.qty || 0).toFixed(mobileQtyDecimals)+'" data-qty-index="'+index+'">' +
               '<button class="qty-plus">+</button>' +
             '</div>') +
           '</div>';
@@ -1222,12 +1242,16 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     $(document).on('click', '.qty-plus', function(){
       var idx = $(this).closest('.cart-item').data('index');
       var item = cart[idx];
-      if(item.stock && (item.qty + 1) * (item.conversion_factor || 1) > item.stock){
+      if(item.stock && (item.qty + mobileQtyStep) * (item.conversion_factor || 1) > item.stock){
         showToast('Not enough stock for ' + item.name, 'warning');
         return;
       }
-      item.qty += 1;
+      item.qty = Number((item.qty + mobileQtyStep).toFixed(mobileQtyDecimals));
       renderCart();
+    });
+
+    $(document).on('change', '[data-qty-index]', function(){
+      setMobileQty(parseInt($(this).attr('data-qty-index'), 10), this.value);
     });
 
     $(document).on('change', '[data-weight-part]', function(){
@@ -1237,7 +1261,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
 
     $(document).on('click', '.qty-minus', function(){
       var idx = $(this).closest('.cart-item').data('index');
-      cart[idx].qty -= 1;
+      cart[idx].qty = Number((cart[idx].qty - mobileQtyStep).toFixed(mobileQtyDecimals));
       if(cart[idx].qty <= 0) cart.splice(idx, 1);
       renderCart();
     });

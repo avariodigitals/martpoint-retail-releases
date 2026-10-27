@@ -14,7 +14,9 @@
       SR: null,
       speak: true,
       voices: null,
-      voice: null
+      voice: null,
+      utterance: null,
+      paused: false
     },
 
     _storageKey: function(key){
@@ -73,6 +75,7 @@
         this._closeMenu();
       } else {
         menu.classList.add('open');
+        document.getElementById('mp-assist-fab').setAttribute('aria-expanded', 'true');
       }
     },
 
@@ -83,6 +86,8 @@
     _closeMenu: function(){
       var menu = document.getElementById('mp-fab-menu');
       if(menu) menu.classList.remove('open');
+      var fab = document.getElementById('mp-assist-fab');
+      if(fab) fab.setAttribute('aria-expanded', 'false');
     },
 
     openChat: function(){
@@ -91,6 +96,7 @@
     },
 
     openSupportModal: function(){
+      this._cancelSpeech();
       this._closeMenu();
       var modal = document.getElementById('mp-support-modal');
       modal.classList.add('open');
@@ -112,6 +118,7 @@
     },
 
     clearChat: function(){
+      this._cancelSpeech();
       var container = document.getElementById('mp-assist-messages');
       if(container){
         container.innerHTML = '';
@@ -212,6 +219,7 @@
       input.value = '';
       input.style.height = 'auto';
       this._hideSuggestions();
+      this._cancelSpeech();
       this._voiceStatus('', false);
       this._addUserMessage(message);
       this._showTyping();
@@ -219,6 +227,7 @@
     },
 
     quickAction: function(action){
+      this._cancelSpeech();
       this._showTyping();
       var self = this;
       $.ajax({
@@ -366,6 +375,7 @@
 
     _startVoice: function(){
       var v = this.voice;
+      this._cancelSpeech();
       if(v.listening) return;
       if(!v.supported){
         this._voiceStatus('Voice input is not available in this browser. You can type instead.', true);
@@ -436,8 +446,7 @@
           // Talk back: read the request aloud and ask if it is right before it
           // runs, so the reply is voice input only until the user sends it.
           MPAssist._voiceStatus('Is this what you mean? Tap send to run it.', false);
-          var readback = typed.length > 140 ? typed.slice(0, 140) + '…' : typed;
-          MPAssist._speak('You said: ' + readback + '. Is this what you mean?');
+          MPAssist._speak('Your message is ready. Tap send when you are ready.');
         } else if(!errored){
           MPAssist._voiceStatus('No speech captured. Tap the mic and try again.', true);
         }
@@ -482,6 +491,14 @@
       this._syncVoiceButtons();
     },
 
+    toggleSpeechPause: function(){
+      var synth = window.speechSynthesis;
+      if(!synth || !this.voice.utterance) return;
+      if(this.voice.paused){ synth.resume(); this.voice.paused = false; }
+      else { synth.pause(); this.voice.paused = true; }
+      this._syncVoiceButtons();
+    },
+
     _syncVoiceButtons: function(){
       var v = this.voice;
       var mic = document.getElementById('mp-assist-mic');
@@ -498,6 +515,15 @@
           mic.title = v.listening ? 'Stop listening' : 'Speak your request';
         }
       }
+      var playback = document.getElementById('mp-assist-playback');
+      if(playback) playback.hidden = !v.utterance;
+      var pause = document.getElementById('mp-assist-pause');
+      if(pause){
+        pause.setAttribute('aria-label', v.paused ? 'Resume spoken reply' : 'Pause spoken reply');
+        pause.innerHTML = '<i class="fa fa-' + (v.paused ? 'play' : 'pause') + '" aria-hidden="true"></i> ' + (v.paused ? 'Resume' : 'Pause');
+      }
+      var playbackStatus = document.getElementById('mp-assist-playback-status');
+      if(playbackStatus) playbackStatus.textContent = v.paused ? 'Reply paused' : 'Speaking';
       var spk = document.getElementById('mp-assist-speak');
       if(spk){
         spk.classList.toggle('muted', !v.speak);
@@ -518,7 +544,7 @@
     },
 
     _speak: function(text){
-      if(!this.voice.speak || !text) return;
+      if(!this.voice.speak || !text || !this.isOpen) return;
       if(typeof window.speechSynthesis === 'undefined' || typeof window.SpeechSynthesisUtterance === 'undefined') return;
       var plain = String(text)
         .replace(/<[^>]*>/g, ' ')
@@ -532,7 +558,7 @@
         .trim();
       if(!plain) return;
       try{
-        window.speechSynthesis.cancel();
+        this._cancelSpeech();
         var utterance = new window.SpeechSynthesisUtterance(plain.slice(0, 400));
         var lang = document.documentElement.lang || 'en-NG';
         utterance.lang = (lang === 'en' ? 'en-NG' : lang);
@@ -542,11 +568,26 @@
         }
         utterance.rate = 1.02;
         utterance.pitch = 1;
+        var self = this;
+        this.voice.utterance = utterance;
+        this.voice.paused = false;
+        utterance.onend = utterance.onerror = function(){
+          if(self.voice.utterance !== utterance) return;
+          self.voice.utterance = null;
+          self.voice.paused = false;
+          self._syncVoiceButtons();
+        };
+        this._syncVoiceButtons();
         window.speechSynthesis.speak(utterance);
-      }catch(e){}
+        // Some browsers retain a paused queue after cancel().
+        window.speechSynthesis.resume();
+      }catch(e){ this._cancelSpeech(); }
     },
 
     _cancelSpeech: function(){
+      this.voice.utterance = null;
+      this.voice.paused = false;
+      this._syncVoiceButtons();
       if(typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis){
         try{ window.speechSynthesis.cancel(); }catch(e){}
       }
@@ -626,6 +667,11 @@
         case 'welcome':
           this._addWelcomeMessage(res.text, res.quick_tasks || []);
           break;
+        case 'support':
+          this._addBotHtml(res.text, '<div class="mp-quick-actions">' +
+            '<button class="mp-quick-btn" onclick="MPAssist.openLiveSupport()">Live support chat</button>' +
+            '<button class="mp-quick-btn" onclick="MPAssist.openSupportModal()">Send a support request</button></div>');
+          break;
         case 'fallback':
           this._addBotHtml('', res.text);
           if(res.quick_tasks && res.quick_tasks.length){
@@ -649,15 +695,9 @@
           this._addBotMessage(res.text || 'Done.');
       }
 
-      // Spoken reply — the other half of "voice instruction". The welcome/help
-      // message is skipped so opening the panel never starts talking on its own.
-      if(res.type !== 'welcome' && res.type !== 'clear'){
-        var spoken = res.text || '';
-        if(res.type === 'draft'){
-          spoken = (spoken ? spoken + ' ' : '') + 'Tap Confirm to save, or Cancel.';
-        }
-        this._speak(spoken);
-      }
+      // Speech is an authored conversational summary, independent of cards,
+      // tables, links and quick-task labels. Never narrate rendered markup.
+      this._speak(this._spokenReply(res));
 
       // Delayed follow-up after cancellation
       if(res.delayed_followup){
@@ -673,6 +713,23 @@
           window.location.href = res.url;
         }, 1500);
       }
+    },
+
+    _spokenReply: function(res){
+      if(res.type === 'welcome' || res.type === 'clear') return '';
+      if(typeof res.speech_text === 'string') return res.speech_text;
+      // Cached/older endpoints may not yet supply speech_text.
+      if(res.type === 'knowledge') return 'I have put the steps in the chat. Which part do you need help with?';
+      if(res.type === 'fallback') return 'Could you tell me what you want to do, or would you like to contact support?';
+      if(res.type === 'draft') return 'Please review the draft. Confirm saves it; cancel leaves it unsaved.';
+      if(res.type === 'html' || /<|\n/.test(res.text || '') || (res.text || '').length > 220) return 'The details are in the chat. What would you like to do next?';
+      return res.text || '';
+    },
+
+    openLiveSupport: function(){
+      this._cancelSpeech();
+      if(this.isOpen) this.toggle();
+      if(window.MPSupportChat) window.MPSupportChat.open();
     },
 
     _addUserMessage: function(text){

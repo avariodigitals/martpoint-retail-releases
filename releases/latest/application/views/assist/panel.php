@@ -70,7 +70,9 @@
     }
     .mp-fab-wrapper { right: 14px !important; left: auto !important; bottom: var(--mp-mobile-assist-bottom, calc(96px + env(safe-area-inset-bottom, 0px))) !important; align-items: flex-end !important; }
     .mp-fab-menu { align-items: flex-end !important; }
-    .mp-assist-fab-label { display: none !important; }
+    .mp-assist-fab-label { display: inline !important; }
+    .mp-assist-fab { min-height: 46px !important; padding: 11px 15px !important; border-radius: 16px !important; animation: none !important; }
+    .mp-assist-fab::before { display: none !important; }
   }
 </style>
 <!-- MartPoint Assist Panel -->
@@ -92,6 +94,11 @@
   </div>
   <div class="mp-assist-body" id="mp-assist-messages">
     <!-- Messages injected here -->
+  </div>
+  <div id="mp-assist-playback" class="mp-assist-playback" hidden>
+    <span id="mp-assist-playback-status" role="status" aria-live="polite">Speaking</span>
+    <button id="mp-assist-pause" type="button" onclick="MPAssist.toggleSpeechPause()" aria-label="Pause spoken reply"><i class="fa fa-pause" aria-hidden="true"></i> Pause</button>
+    <button type="button" onclick="MPAssist._cancelSpeech()" aria-label="Stop spoken reply"><i class="fa fa-stop" aria-hidden="true"></i> Stop</button>
   </div>
   <div class="mp-assist-input-area">
     <div id="mp-assist-suggestions" class="mp-assist-suggestions"></div>
@@ -133,8 +140,8 @@
       <i class="fa fa-times"></i> <span>Cancel</span>
     </button>
   </div>
-  <button id="mp-assist-fab" class="mp-assist-fab" onclick="MPAssist.toggleMenu(event)">
-    <i class="fa fa-lightbulb-o"></i>
+  <button id="mp-assist-fab" class="mp-assist-fab" onclick="MPAssist.toggleMenu(event)" aria-label="MartPoint Assist and support" aria-controls="mp-fab-menu" aria-expanded="false">
+    <svg class="mp-assist-mark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-4 3v-11a9 9 0 0 1 18-1"/><path d="M7 10v3m4-5v7m4-5v3"/></svg>
     <span class="mp-assist-fab-label">Ask MartPoint</span>
   </button>
 </div>

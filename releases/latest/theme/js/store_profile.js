@@ -81,6 +81,12 @@ $('#update').on("click",function (e) {
 					}
 					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 					$(".overlay").remove();
+			   },
+			   error: function(xhr){
+					var message = (xhr.responseText || '').replace(/<[^>]*>/g, ' ').trim();
+					toastr["error"](message ? message.substring(0, 240) : 'Could not save Store Profile. Please retry or contact support.');
+					$("#"+this_id).attr('disabled',false);
+					$(".overlay").remove();
 			   }
 			   });
 

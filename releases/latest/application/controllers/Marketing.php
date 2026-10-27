@@ -133,7 +133,15 @@ class Marketing extends MY_Controller {
 			'saved'       => $this->marketing_m->listSavedSegments($storeId),
 			'email_ready' => !empty($emailCfg['provider']),
 			'sms_ready'   => (bool)mp_get_store_notification_setting($storeId, 'sms_status', 0),
+			'can_email'   => $this->_can_send_channel('email'),
+			'can_sms'     => $this->_can_send_channel('sms'),
+			'store_name'  => get_store_name(),
 		]);
+		if($this->input->get('screen') === 'mobile' || is_mobile()){
+			$data['SITE_TITLE'] = $data['store_name'] ?: 'MartPoint';
+			$this->load->view('mobile/marketing_campaigns', $data);
+			return;
+		}
 		$data['content'] = $this->load->view('marketing/desktop/campaigns', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}

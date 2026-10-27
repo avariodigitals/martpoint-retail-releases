@@ -200,10 +200,33 @@ class MY_Controller extends CI_Controller{
             // to prevent it from reappearing on every page load
 
             $this->load_info();
+            $this->enforce_pharmacy_admin_settings();
 
             // Re-seed any missing default permissions once per session so role
             // fixes take effect immediately without forcing every user to log out.
             $this->reseed_role_permissions();
+      }
+
+      /** Keep pharmacy administration protected even when its URL is entered directly. */
+      private function enforce_pharmacy_admin_settings(){
+            if($this->input->is_cli_request()) return;
+            $industry = mp_get_store_profile()['industry_type'] ?? '';
+            if(!in_array($industry, ['pharmacy', 'medical_store', 'healthcare'], true)) return;
+            $this->load->helper('pharmacy_workspace');
+            $controller = strtolower($this->router->fetch_class());
+            $method = strtolower($this->router->fetch_method());
+            if (mp_pharmacy_standard() && mp_pharmacy_advanced_route($controller, $method)) {
+                $this->show_access_denied_page('This workflow requires Advanced Pharmacy.');
+                exit;
+            }
+            $command = $this->input->get('command') ?: $this->input->post('command');
+            $self_update = $command === 'update'
+                && (int)$this->session->userdata('inv_userid') > 0
+                && (int)$this->input->post('q_id') === (int)$this->session->userdata('inv_userid');
+            if(pharmacy_workspace_admin_route($controller, $method, $self_update) && !pharmacy_workspace_is_admin()){
+                $this->show_access_denied_page('Critical pharmacy settings are restricted to administrators.');
+                exit;
+            }
       }
 
       /**

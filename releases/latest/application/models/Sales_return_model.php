@@ -281,6 +281,16 @@ class Sales_return_model extends CI_Model {
 			//FIND THE PREVIOUSE ITEM LIST ID'S
 			$prev_item_ids = $this->db->select("item_id")->from("db_salesitemsreturn")->where("return_id",$return_id)->get()->result_array();
 			##############################################END
+			if ($this->db->table_exists('db_salesreturn_batch_allocations')) {
+				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+				$oldReturnLines = $this->db->select('id')->where('return_id', (int)$return_id)->get('db_salesitemsreturn')->result();
+				foreach ($oldReturnLines as $oldLine) {
+					if (!$this->inventory_rotation->undo_return($oldLine->id)) {
+						$this->db->trans_rollback();
+						return 'Could not reverse the old return batch allocation. No changes were saved.';
+					}
+				}
+			}
 
 			$q11=$this->db->query("delete from db_salesitemsreturn where return_id='$return_id'");
 			if(!$q11){
@@ -385,6 +395,19 @@ class Sales_return_model extends CI_Model {
 		    			);
 				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 				$q2 = $this->db->insert('db_salesitemsreturn', $salesitems_entry);
+				if(!$q2){
+					$this->db->trans_rollback();
+					return 'Could not save return item.';
+				}
+				$return_item_id = (int)$this->db->insert_id();
+				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+				$rotationError = $this->inventory_rotation->return_sale_qty(
+					$sales_id, $return_item_id, $item_id, $base_unit_qty, $return_status
+				);
+				if ($rotationError !== '') {
+					$this->db->trans_rollback();
+					return $rotationError;
+				}
 				
 				/*Find the Item Exist in sales entry or not*/
 				//$this->adjust_sales_item($sales_id,$item_id,$return_qty,$command);
@@ -706,6 +729,16 @@ class Sales_return_model extends CI_Model {
 	
 	public function delete_return($ids){
       	$this->db->trans_begin();
+		if ($this->db->table_exists('db_salesreturn_batch_allocations')) {
+			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+			$returnLineIds = $this->db->select('id')->where("return_id in ($ids)")->get('db_salesitemsreturn')->result();
+			foreach ($returnLineIds as $returnLine) {
+				if (!$this->inventory_rotation->undo_return($returnLine->id)) {
+					$this->db->trans_rollback();
+					return 'Could not reverse batch quantities for this return. No records were removed.';
+				}
+			}
+		}
       	//ACCOUNT RESET
 		$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
 									->where("ref_salespaymentsreturn_id in ($ids)")
@@ -860,7 +893,7 @@ class Sales_return_model extends CI_Model {
 
 		$res1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get()->row();
 		
-		$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+		$q3=get_document_item_tax($res1->tax_id);
 
 		$item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($res1->sales_price,$q3->tax) :calculate_exclusive($res1->sales_price,$q3->tax);
 
@@ -893,7 +926,7 @@ class Sales_return_model extends CI_Model {
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
 			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
-			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
 			
 			$info = array(
 							'item_tax' 					=> $q3->tax, 
@@ -930,7 +963,7 @@ class Sales_return_model extends CI_Model {
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
 			$q2=$this->db->query("select item_name,stock,tax_type,price,sales_price from db_items where id=".$res1->item_id);
-			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
 			
 			
 			/*Find the sales qty and Item Stock Qty*/

@@ -1345,6 +1345,11 @@ class Storefront extends CI_Controller {
 		$idempotencyKey = substr(trim((string)$this->input->post('idempotency_key', TRUE)), 0, 96);
 		$storeProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
 		$isPharmacyOrder = in_array(($storeProfile['industry_type'] ?? ''), ['pharmacy', 'medical_store', 'healthcare'], true);
+		$isStandardPharmacy = $isPharmacyOrder && mp_pharmacy_standard($storeId);
+		if ($isStandardPharmacy && ((int)$this->input->post('warehouse_id') > 0 || mp_pharmacy_pickup_method($shippingMethod))) {
+			echo json_encode(['status' => false, 'message' => 'This pharmacy fulfils orders directly from its own store. Please refresh checkout.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
 		$prescriptionFile = null;
 		if($isPharmacyOrder && !empty($_FILES['prescription_file']['name'])){
 			if(!$this->db->field_exists('prescription_file', 'db_online_orders')){
@@ -1379,11 +1384,21 @@ class Storefront extends CI_Controller {
 		$sourceWarehouseId = 0;
 		$selectedOutlet = null;
 		$orderableOutlets = $this->_publicOrderableOutlets($storeId);
+		if ($isStandardPharmacy) {
+			$ownIds = mp_pharmacy_own_warehouse_ids($storeId);
+			$preferred = (int)get_pos_default_warehouse_id($storeId);
+			$orderWarehouseId = in_array($preferred, $ownIds, true) ? $preferred : (int)($ownIds[0] ?? 0);
+			$sourceWarehouseId = $orderWarehouseId;
+			if (!$orderWarehouseId) {
+				echo json_encode(['status' => false, 'message' => 'This pharmacy is not ready to accept orders. Please contact the store.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+		}
 		$restaurantProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
 		$restaurantIndustries = ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'];
 		$requiresExplicitRestaurantOutlet = in_array(strtolower(trim((string)($restaurantProfile['industry_type'] ?? ''))), $restaurantIndustries, true)
 			&& count($orderableOutlets) > 1;
-		if($orderWarehouseId > 0){
+		if(!$isStandardPharmacy && $orderWarehouseId > 0){
 			$allowed = array_map('intval', array_column($orderableOutlets, 'id'));
 			if(!in_array($orderWarehouseId, $allowed, true)){
 				$orderWarehouseId = 0;

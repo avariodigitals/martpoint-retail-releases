@@ -211,6 +211,13 @@ class Assist_model extends CI_Model {
 			return $this->_response('clear', '');
 		}
 
+		// Global conversational requests must not be mistaken for a form slot.
+		$shortcut = $this->_conversationShortcut($message);
+		if($shortcut !== null){
+			if(preg_match('/^no[, ]*thanks?\b/i', $message)) $this->_clearConversation($sessionId);
+			return $shortcut;
+		}
+
 		// Retry / resume handling
 		$exactRetry = ['try again','retry','can you try again','try again please','go back','continue','resume','where were we','pick up where we left off','start over','restart','do it again'];
 		$isRetry = false;
@@ -3268,7 +3275,7 @@ class Assist_model extends CI_Model {
 			$html .= '<tr><td>'.($item->item_name ?? '').'</td><td>'.($item->item_code ?? '').'</td><td>'.($item->stock ?? 0).'</td><td>'.$status.'</td></tr>';
 		}
 		$html .= '</table></div>';
-		return $this->_response('html', 'Top products in stock:', ['html' => $html]);
+		return $this->_response('html', 'Top products in stock:', ['html' => $html, 'speech_text' => 'I found '.count($items).' stocked products. Which '.strtolower($this->_term('item', 'product')).' would you like to check?']);
 	}
 
 	private function _productStockDetail($item){
@@ -3297,7 +3304,7 @@ class Assist_model extends CI_Model {
 			$html .= '<p>Stock: '.($item->stock ?? 0).'</p>';
 		}
 		$html .= '</div>';
-		return $this->_response('html', 'Stock information:', ['html' => $html]);
+		return $this->_response('html', 'Stock information:', ['html' => $html, 'speech_text' => ($item->item_name ?? 'This item').' has '.(float)($item->stock ?? 0).' in stock. The branch breakdown is in the chat.']);
 	}
 
 	private function _productDetail($productId){
@@ -3324,7 +3331,7 @@ class Assist_model extends CI_Model {
 			$html .= '<tr><td>'.($item->item_name ?? '').'</td><td>'.($item->item_code ?? '').'</td><td>'.($item->stock ?? 0).'</td><td>'.($item->alert_qty ?? 0).'</td><td>'.($item->warehouse_name ?? 'Main').'</td></tr>';
 		}
 		$html .= '</table></div>';
-		return $this->_response('html', 'Items running low:', ['html' => $html]);
+		return $this->_response('html', 'Items running low:', ['html' => $html, 'speech_text' => 'I found low stock in '.count($items).' stock entries. Review the list in the chat to plan your next order.']);
 	}
 
 	// =================== SALE ===================
@@ -3433,7 +3440,7 @@ class Assist_model extends CI_Model {
 		$html .= '<p><strong>Sales:</strong> '.number_format($salesTotal, 2).' ('.$salesCount.' transactions)</p>';
 		$html .= '<p><strong>Expenses:</strong> '.number_format($expenses, 2).'</p>';
 		$html .= '<p><strong>Net:</strong> '.number_format($salesTotal - $expenses, 2).'</p></div>';
-		return $this->_response('html', 'Today\'s business summary:', ['html' => $html, 'quick_tasks' => $this->_getFilteredQuickTasks()]);
+		return $this->_response('html', 'Today\'s business summary:', ['html' => $html, 'speech_text' => 'Today you have '.(int)$salesCount.' sales totalling '.number_format($salesTotal, 2).', with expenses of '.number_format($expenses, 2).'. What would you like to check next?', 'quick_tasks' => $this->_getFilteredQuickTasks()]);
 	}
 
 	private function _todayProfit(){
@@ -3712,11 +3719,43 @@ class Assist_model extends CI_Model {
 	// =================== RESPONSE BUILDER ===================
 
 	private function _response($type, $text, $data = []){
+		if(!array_key_exists('speech_text', $data)) $data['speech_text'] = $this->_speechSummary($type, $text);
 		return array_merge(['type' => $type, 'text' => $text], $data);
 	}
 
+	/** Speech is a short conversational turn, never a narration of UI cards. */
+	private function _speechSummary($type, $text){
+		if(in_array($type, ['welcome', 'clear'], true)) return '';
+		if($type === 'knowledge') return 'I have put the steps in the chat. Which part would you like help with?';
+		if($type === 'fallback') return 'Could you tell me what you want to do, or would you like to contact support?';
+		if($type === 'draft') return 'Please review the draft. Confirm saves it; cancel leaves it unsaved.';
+		if($type === 'confirm') return 'Should I go ahead with the request shown here?';
+		if($type === 'html') return 'The details are in the chat. What would you like to do next?';
+		// Speak the current question or first paragraph only. Option lists and
+		// table contents stay visual; their labels are not dialogue.
+		$text = preg_replace('/<(table|ul|ol)\b[^>]*>.*?<\/\1>/is', '', (string)$text);
+		$text = preg_split('/<br\s*\/?>(?:\s*<br\s*\/?>)|\n\s*\n/i', $text)[0];
+		$text = html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
+		$text = preg_replace('/\*\*(.*?)\*\*/s', '$1', $text);
+		$text = trim(preg_replace('/\s+/', ' ', $text));
+		if(mb_strlen($text) <= 220) return $text;
+		if(preg_match('/^(.{1,210}?[.!?])(?:\s|$)/u', $text, $match)) return $match[1];
+		return 'Please review the details in the chat, then tell me how you would like to continue.';
+	}
+
+	private function _conversationShortcut($message){
+		$message = rtrim(trim((string)$message), '.!?');
+		if(preg_match('/(?:\b(?:contact|chat(?:\s+with)?|talk(?:\s+to)?|speak(?:\s+to)?|reach|call)\s+(?:(?:the|a|your)\s+)?(?:support(?:\s+team)?|human|agent)\b|^(?:(?:the|your)\s+)?support(?:\s+(?:team|agent|chat|request))?(?:\s+please)?$|\b(?:a|the)\s+human\s+please\b)/i', $message)){
+			return $this->_response('support', 'Of course. Choose a live support chat or send a support request below.', ['speech_text' => 'Of course. Would you prefer a live support chat, or to send a support request?']);
+		}
+		if(preg_match('/^(?:thanks?(?: you)?|thank you|no[, ]*thanks?)(?: very much| so much| please)?[.! ]*$/i', trim($message))){
+			return $this->_response('text', 'You’re welcome. I’m here when you need me.');
+		}
+		return null;
+	}
+
 	private function _conversational($text, $data = []){
-		return array_merge(['type' => 'conversational', 'text' => $text], $data);
+		return $this->_response('conversational', $text, $data);
 	}
 
 	private function _welcomeResponse(){
@@ -3730,10 +3769,7 @@ class Assist_model extends CI_Model {
 	}
 
 	private function _fallbackResponse(){
-		$msg = 'Ooh 😮 I am so sorry I can\'t handle this at the moment.<br><br>';
-		$msg .= '<strong>Try asking me a how-to question</strong> like:<br>';
-		$msg .= '<em>"How do I create a sale?"</em> or <em>"How to check stock?"</em><br><br>';
-		$msg .= 'Or would you like me to send you a guide, or you want to chat the support team?';
+		$msg = 'What would you like to do? Tell me the task and any details, or choose a guide or support below.';
 		return $this->_response('fallback', $msg, [
 			'quick_tasks' => $this->_getFilteredQuickTasks()
 		]);

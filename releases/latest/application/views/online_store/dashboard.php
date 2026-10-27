@@ -30,6 +30,14 @@
 .os-status-pill.completed{background:rgba(5,150,105,.1)!important;color:var(--mp-success)!important}
 .os-status-pill.cancelled{background:rgba(220,38,38,.1)!important;color:var(--mp-danger)!important}
 .os-status-pill.ready{background:rgba(124,58,237,.1)!important;color:#7C3AED!important}
+/* Keep the WhatsApp callout readable when the shared card styles are loaded. */
+.mp-card.os-whatsapp-banner{background:#075e54!important;border-color:#075e54!important;color:#fff!important}
+.os-whatsapp-banner h3,.os-whatsapp-banner p{color:#fff!important}
+.os-whatsapp-banner .os-whatsapp-create{background:#fff!important;color:#075e54!important;border-color:#fff!important}
+.os-whatsapp-banner .os-whatsapp-create:hover,.os-whatsapp-banner .os-whatsapp-create:focus{background:#e6f5ef!important;color:#075e54!important}
+.os-whatsapp-banner .os-whatsapp-orders{background:transparent!important;color:#fff!important;border-color:rgba(255,255,255,.7)!important}
+.os-whatsapp-banner .os-whatsapp-orders:hover,.os-whatsapp-banner .os-whatsapp-orders:focus{background:#0b7568!important;color:#fff!important;border-color:#fff!important}
+.os-whatsapp-banner .mp-qa-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
 </style>
 
 <div class="mp-page-head">
@@ -65,7 +73,7 @@
 
 <?php $settings = $CI->storefront_model->getSettings(get_current_store_id()); ?>
 <?php if(($settings->allow_whatsapp ?? 1) && !empty($settings->whatsapp_number)): ?>
-<div class="mp-card" style="margin:0 0 20px 0!important; background:#25D366; color:#fff; padding:20px; border-radius:16px;">
+<div class="mp-card os-whatsapp-banner" style="margin:0 0 20px 0!important; padding:20px; border-radius:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
     <div>
       <h3 style="margin:0 0 6px 0; font-size:18px; font-weight:800;">Sell on WhatsApp — zero API cost</h3>
@@ -79,8 +87,8 @@
       </p>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <a href="<?= base_url('online_store/quick_wa'); ?>" class="mp-qa-btn" style="background:#fff; color:#25D366; font-weight:700;"><i class="fa fa-plus"></i> Create WhatsApp Order</a>
-      <a href="<?= base_url('online_store/orders'); ?>" class="mp-qa-btn" style="background:transparent; color:#fff; font-weight:700; border:1px solid rgba(255,255,255,0.4);">View Orders</a>
+      <a href="<?= base_url('online_store/quick_wa'); ?>" class="mp-qa-btn os-whatsapp-create"><i class="fa fa-plus"></i> Create WhatsApp Order</a>
+      <a href="<?= base_url('online_store/orders'); ?>" class="mp-qa-btn os-whatsapp-orders">View Orders</a>
     </div>
   </div>
 </div>

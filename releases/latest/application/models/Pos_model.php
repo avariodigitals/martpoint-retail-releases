@@ -101,11 +101,36 @@ class Pos_model extends CI_Model {
       // Resolve the soonest-expiring batch for this item (if batch/expiry tracking enabled)
       $effective_expire = $res1->expire_date;
       $effective_batch = $res1->batch_lot;
+      $warehouse_id = $this->input->post('warehouse_id');
+      if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($res1->store_id);
       if($this->db->table_exists('db_item_barcodes')){
-        $batch = $this->db->select('expire_date, batch_lot')->where('item_id', $item_id)->where('status', 1)->where('qty >', 0)->where('expire_date IS NOT NULL')->order_by('expire_date', 'ASC')->order_by('id', 'ASC')->get('db_item_barcodes')->row();
+        $this->db->select('expire_date, batch_lot, created_date')
+          ->where('item_id', $item_id)->where('status', 1)->where('qty >', 0);
+        if ($this->db->field_exists('warehouse_id', 'db_item_barcodes')) $this->db->where('warehouse_id', (int)$warehouse_id);
+        $this->db->group_start()
+          ->where("(serial_number IS NULL OR serial_number = '')", null, false)
+          ->where("(imei_number IS NULL OR imei_number = '')", null, false)
+        ->group_end();
+        if (!empty($expiry_settings->stop_selling_expired)) {
+          $this->db->group_start()->where('expire_date IS NULL', null, false)->or_where('expire_date >=', $today)->group_end();
+        }
+        $this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
+        if ($this->pos_inventory_rotation->method($res1->store_id) === 'FIFO') {
+          $this->db->order_by('created_date', 'ASC')->order_by('id', 'ASC');
+        } else {
+          $this->db->order_by('(expire_date IS NULL)', 'ASC', false)->order_by('expire_date', 'ASC')->order_by('created_date', 'ASC')->order_by('id', 'ASC');
+        }
+        $batch = $this->db->get('db_item_barcodes')->row();
+        // If every batch is expired, keep the earliest expired date so the
+        // existing stop-selling guard blocks the item instead of hiding expiry.
+        if (!$batch && !empty($expiry_settings->stop_selling_expired)) {
+          $this->db->select('expire_date, batch_lot')->where('item_id', $item_id)->where('status', 1)->where('qty >', 0)->where('expire_date <', $today);
+          if ($this->db->field_exists('warehouse_id', 'db_item_barcodes')) $this->db->where('warehouse_id', (int)$warehouse_id);
+          $batch = $this->db->order_by('expire_date', 'ASC')->order_by('id', 'ASC')->get('db_item_barcodes')->row();
+        }
         if($batch){
-          $effective_expire = $batch->expire_date;
-          $effective_batch = $batch->batch_lot;
+          if (is_valid_date($batch->expire_date)) $effective_expire = $batch->expire_date;
+          if (!empty($batch->batch_lot)) $effective_batch = $batch->batch_lot;
         }
       }
 		if(!empty($res1->is_bundle)){
@@ -162,8 +187,6 @@ class Pos_model extends CI_Model {
           }
       } catch (Exception $e) { /* Promotions module not ready */ }
 
-	      $warehouse_id = $this->input->post('warehouse_id');
-	      if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($res1->store_id);
 	      $warehouse_stock = !empty($res1->is_bundle)
 			? $this->extras_model->bundleAvailability($item_id, $res1->store_id, $warehouse_id)
 			: total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
@@ -795,7 +818,10 @@ class Pos_model extends CI_Model {
 				$item_id 	=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
 				$sales_qty 	=$this->xss_html_filter(trim($_REQUEST['item_qty_'.$i]));
 				$price_per_unit =$this->xss_html_filter(trim($_REQUEST['sales_price_'.$i]));
-				$price_per_unit = mp_weight_pricing_unit_price(get_item_details($item_id), $sales_qty, $price_per_unit);
+				$weight_lines_input = $_POST['weight_lines_'.$i] ?? ($_REQUEST['weight_lines_'.$i] ?? null);
+				$weight_lines = $weight_lines_input !== null && is_numeric($weight_lines_input)
+					? max(0, (int)$weight_lines_input) : null;
+				$price_per_unit = mp_weight_pricing_unit_price(get_item_details($item_id), $sales_qty, $price_per_unit, $weight_lines);
 				$tax_amt =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
 				$tax_type =$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
 				$tax_id =$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
@@ -1331,7 +1357,7 @@ class Pos_model extends CI_Model {
 		  		$item_discount_input = $res3->discount_input;
 
 
-		  		$q6=$this->db->query("select * from db_tax where id=".$res3->tax_id)->row();
+				$q6=get_document_item_tax($res3->tax_id);
 
 		  		//$item_tax_type = $q5->row()->tax_type;
 	        	/*if($item_tax_type=='Exclusive'){
@@ -1496,7 +1522,7 @@ class Pos_model extends CI_Model {
 		  		$item_discount_input = $res3->discount_input;
 
 
-		  		$q6=$this->db->query("select * from db_tax where id=".$res3->tax_id)->row();
+				$q6=get_document_item_tax($res3->tax_id);
 
 		  		
 				$per_item_price_inc_tax=$price_per_unit;

@@ -862,6 +862,7 @@ $pos_json = static function ($value) {
       justify-content: center;
     }
     .qty-control span { min-width: 24px; text-align: center; font-weight: 700; font-size: 14px; }
+    .qty-control .pos-qty-input { width:72px; height:30px; border:1px solid var(--mp-border); border-radius:7px; background:var(--mp-surface); color:var(--mp-ink); font-weight:700; text-align:center; padding:2px 4px; }
     .weight-entry { display:flex; align-items:center; gap:28px; width:100%; min-width:0; white-space:nowrap; }
     .weight-part { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
     .weight-part .weight-label { color:var(--mp-muted); font-size:11px; font-weight:700; text-transform:uppercase; }
@@ -1340,6 +1341,7 @@ $pos_json = static function ($value) {
       .qty-control { border-radius: 8px; padding: 2px; }
       .qty-control button { width: 24px; height: 24px; font-size: 15px; }
       .qty-control span { font-size: 13px; }
+      .qty-control .pos-qty-input { width:64px; }
       .cart-summary { padding: 6px; }
       .summary-row { font-size: 12px; margin-bottom: 4px; }
       .summary-row.total { font-size: 16px; margin-top: 4px; padding-top: 4px; }
@@ -1532,7 +1534,7 @@ $pos_json = static function ($value) {
       <h1><?= htmlspecialchars(get_store_name() ?: 'Metro Mart') ?></h1>
       <div class="sub"><?= $mp_is_pharmacy ? 'Pharmacy dispensing desk' : ($mp_is_restaurant ? 'Restaurant order desk' : 'Point of Sale'); ?></div>
     </a>
-    <?php if(!empty($warehouse_options) && count($warehouse_options) > 1): ?>
+    <?php if(!mp_pharmacy_standard() && !empty($warehouse_options) && count($warehouse_options) > 1): ?>
     <label for="posOutletSelector" style="display:flex;align-items:center;gap:7px;margin:0 12px;font-size:12px;color:#475569;white-space:nowrap;">
       Outlet
       <select id="posOutletSelector" class="form-control input-sm" style="min-width:150px;border-radius:8px;" onchange="if(this.value){window.location.href='<?= htmlspecialchars(base_url('pos?warehouse_id='), ENT_QUOTES, 'UTF-8') ?>'+encodeURIComponent(this.value);}">
@@ -1830,6 +1832,7 @@ $pos_json = static function ($value) {
         <div><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0f766e;">Pharmacist note</div><h3 style="margin:5px 0 0;">Capture patient guidance</h3><p style="margin:4px 0 0;color:var(--mp-muted);font-size:12px;">Use the microphone controls for hands-free entry.</p></div>
         <button type="button" class="btn-secondary" onclick="closePharmacyConsult()" style="padding:6px 10px;">×</button>
       </div>
+      <div class="form-group" id="pharmacySavedNoteGroup" hidden><label for="pharmacySavedNote">Saved guidance from held sale</label><textarea id="pharmacySavedNote" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea></div>
       <div class="form-group"><label for="pharmacyAssessment">Short assessment</label><div style="display:flex;gap:8px;align-items:flex-start;"><textarea id="pharmacyAssessment" rows="3" placeholder="Symptoms, duration, relevant context..." style="flex:1;width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea><button type="button" class="pharmacy-voice-btn" data-voice-target="pharmacyAssessment" aria-label="Dictate assessment" title="Dictate assessment"><i class="fa fa-microphone" aria-hidden="true"></i></button></div></div>
       <div class="form-group"><label for="pharmacyDosage">Dosage / directions</label><div style="display:flex;gap:8px;align-items:flex-start;"><textarea id="pharmacyDosage" rows="3" placeholder="Example: Take 1 tablet after food, twice daily for 5 days..." style="flex:1;width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea><button type="button" class="pharmacy-voice-btn" data-voice-target="pharmacyDosage" aria-label="Dictate dosage" title="Dictate dosage"><i class="fa fa-microphone" aria-hidden="true"></i></button></div></div>
       <div class="form-group"><label for="pharmacyCounselling">Counselling / cautions</label><div style="display:flex;gap:8px;align-items:flex-start;"><textarea id="pharmacyCounselling" rows="2" placeholder="Food, driving, storage or follow-up advice..." style="flex:1;width:100%;padding:10px 12px;border:1px solid var(--mp-border);border-radius:10px;resize:vertical;"></textarea><button type="button" class="pharmacy-voice-btn" data-voice-target="pharmacyCounselling" aria-label="Dictate counselling" title="Dictate counselling"><i class="fa fa-microphone" aria-hidden="true"></i></button></div></div>
@@ -2078,6 +2081,8 @@ $pos_json = static function ($value) {
     const products = <?= $pos_json($products ?? []) ?>;
     const baseUrl = <?= $pos_json(rtrim(base_url(), '/')) ?>;
     const POS_DECIMALS = <?= (int)decimals() ?>;
+    const POS_QTY_DECIMALS = <?= max(0, min(4, (int)qty_decimal())) ?>;
+    const POS_QTY_STEP = POS_QTY_DECIMALS > 0 ? Number('0.' + '0'.repeat(Math.max(0, POS_QTY_DECIMALS - 1)) + '1') : 1;
     const WEIGHT_SCALE_MODE = <?= $pos_json($weight_scale_mode ?? 'analog') ?>;
     const WAREHOUSE_ID = <?= $pos_json((string)$warehouse_id) ?>;
     const WALKIN_CUSTOMER_ID = <?= $pos_json((string)$walkin_customer_id) ?>;
@@ -2088,6 +2093,9 @@ $pos_json = static function ($value) {
     const medicalNoteCustomerId = <?= ($medical_note_customer_id ?? 'null') ?>;
     const isPharmacyPos = <?= $mp_is_pharmacy ? 'true' : 'false' ?>;
     const isRestaurantPos = <?= $mp_is_restaurant ? 'true' : 'false' ?>;
+
+    let restoredSalesNote = '';
+    let pharmacyConsultSnapshot = null;
 
     function pharmacyFieldValue(id) {
       const el = document.getElementById(id);
@@ -2106,18 +2114,62 @@ $pos_json = static function ($value) {
       if (allergies) blocks.push('Allergies / cautions: ' + allergies);
       return blocks.join('\n');
     }
+    // Use one receipt note for holding, checkout and offline replay.
+    function buildPosSalesNote() {
+      const saved = isPharmacyPos ? pharmacyFieldValue('pharmacySavedNote') : restoredSalesNote;
+      return [saved, buildPharmacySalesNote(), pharmacyFieldValue('sales_note')].filter(Boolean).join('\n\n');
+    }
+    function clearPosSalesNote() {
+      restoredSalesNote = '';
+      pharmacyConsultSnapshot = null;
+      const modal = document.getElementById('pharmacyConsultModal');
+      if (modal) modal.classList.remove('active');
+      ['pharmacyAssessment', 'pharmacyDosage', 'pharmacyCounselling', 'pharmacyAllergies', 'pharmacySavedNote', 'sales_note'].forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) field.value = '';
+      });
+      const savedGroup = document.getElementById('pharmacySavedNoteGroup');
+      if (savedGroup) savedGroup.hidden = true;
+      const summary = document.getElementById('pharmacyConsultSummary');
+      if (summary) { summary.textContent = ''; summary.style.display = 'none'; }
+      document.querySelectorAll('.pharmacy-voice-btn').forEach(function(btn) {
+        if (btn._recognition) { try { btn._recognition.abort(); } catch (e) {} }
+      });
+    }
+    function restorePosSalesNote(note) {
+      clearPosSalesNote();
+      restoredSalesNote = String(note || '');
+      const saved = document.getElementById('pharmacySavedNote');
+      if (isPharmacyPos && saved) {
+        saved.value = restoredSalesNote;
+        document.getElementById('pharmacySavedNoteGroup').hidden = !restoredSalesNote;
+        const summary = document.getElementById('pharmacyConsultSummary');
+        if (summary) { summary.textContent = restoredSalesNote; summary.style.display = restoredSalesNote ? 'block' : 'none'; }
+      }
+    }
     window.openPharmacyConsult = function() {
+      pharmacyConsultSnapshot = {};
+      ['pharmacyAssessment', 'pharmacyDosage', 'pharmacyCounselling', 'pharmacyAllergies', 'pharmacySavedNote'].forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) pharmacyConsultSnapshot[id] = field.value;
+      });
       const modal = document.getElementById('pharmacyConsultModal');
       if (modal) modal.classList.add('active');
     };
     window.closePharmacyConsult = function() {
+      if (pharmacyConsultSnapshot) Object.keys(pharmacyConsultSnapshot).forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) field.value = pharmacyConsultSnapshot[id];
+      });
+      pharmacyConsultSnapshot = null;
       const modal = document.getElementById('pharmacyConsultModal');
       if (modal) modal.classList.remove('active');
     };
     window.savePharmacyConsult = function() {
-      const note = buildPharmacySalesNote();
+      const note = buildPosSalesNote();
       const summary = document.getElementById('pharmacyConsultSummary');
       if (summary) { summary.textContent = note || 'No guidance added yet.'; summary.style.display = 'block'; }
+      pharmacyConsultSnapshot = null;
       closePharmacyConsult();
     };
     (function initPharmacyVoice() {
@@ -2738,6 +2790,33 @@ $pos_json = static function ($value) {
       updateCart();
     }
 
+    function setRegularQty(index, value) {
+      const item = cart[index];
+      if (!item || item.weight_pricing_enabled) return;
+      const raw = String(value == null ? '' : value).trim();
+      const qty = Number(raw);
+      if (!raw || !Number.isFinite(qty) || qty <= 0) {
+        showToast('Invalid quantity', 'Enter a quantity greater than zero.', 'warning');
+        updateCart();
+        return;
+      }
+      const rounded = Number(qty.toFixed(POS_QTY_DECIMALS));
+      if (Math.abs(rounded - qty) > 0.0000001) {
+        showToast('Too many decimal places', 'This store allows ' + POS_QTY_DECIMALS + ' decimal place(s) for quantity.', 'warning');
+        updateCart();
+        return;
+      }
+      const product = products.find(p => p.id === item.id);
+      const conversion = parseFloat(item.conversion_factor || 1);
+      if (product && product.stock < rounded * conversion) {
+        showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
+        updateCart();
+        return;
+      }
+      item.qty = rounded;
+      updateCart();
+    }
+
     function setWeightQty(index, value) {
       const item = cart[index];
       if (!item) return;
@@ -2819,6 +2898,7 @@ $pos_json = static function ($value) {
       currentLoadedHoldId = null;
       holdLoadedAt = null;
       
+      clearPosSalesNote();
       cart.length = 0;
       discountAmount = 0;
       shippingFee = 0;
@@ -3159,7 +3239,7 @@ $pos_json = static function ($value) {
               <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? (isPharmacyPos ? 'Trade' : 'Wholesale') : (isPharmacyPos ? 'Standard' : 'Retail')}${unitLabel}</div>
             </div>
             <div class="qty-control">
-              ${item.weight_pricing_enabled ? (WEIGHT_SCALE_MODE === 'analog' ? '<span class="weight-entry"><span class="weight-part"><span class="weight-label">KG</span><input type="number" min="0" step="1" value="' + (item.weight_base_qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'kg\', this.value)"></span><span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span><span class="weight-total">= ' + Number(item.qty || 0).toFixed(2) + ' kg</span></span>' : '<span class="weight-entry"><span class="weight-part"><span class="weight-label">Measured kg</span><input type="number" min="0.001" step="0.001" value="' + (item.weight_digital_kg ?? item.qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'digital_kg\', this.value)"></span>' + (WEIGHT_SCALE_MODE === 'hybrid' ? '<span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span>' : '') + '<span class="weight-total">= ' + Number(item.qty || 0).toFixed(3) + ' kg</span></span>') : '<button onclick="changeQty(' + index + ', -1)">-</button><span>' + item.qty + '</span><button onclick="changeQty(' + index + ', 1)">+</button>'}
+              ${item.weight_pricing_enabled ? (WEIGHT_SCALE_MODE === 'analog' ? '<span class="weight-entry"><span class="weight-part"><span class="weight-label">KG</span><input type="number" min="0" step="1" value="' + (item.weight_base_qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'kg\', this.value)"></span><span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span><span class="weight-total">= ' + Number(item.qty || 0).toFixed(2) + ' kg</span></span>' : '<span class="weight-entry"><span class="weight-part"><span class="weight-label">Measured kg</span><input type="number" min="0.001" step="0.001" value="' + (item.weight_digital_kg ?? item.qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'digital_kg\', this.value)"></span>' + (WEIGHT_SCALE_MODE === 'hybrid' ? '<span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span>' : '') + '<span class="weight-total">= ' + Number(item.qty || 0).toFixed(3) + ' kg</span></span>') : '<button onclick="changeQty(' + index + ', -POS_QTY_STEP)">-</button><input class="pos-qty-input" aria-label="Quantity for ' + escapeHtml(item.name) + '" type="number" min="' + POS_QTY_STEP + '" step="' + POS_QTY_STEP + '" value="' + Number(item.qty || 0).toFixed(POS_QTY_DECIMALS) + '" onchange="setRegularQty(' + index + ', this.value)"><button onclick="changeQty(' + index + ', POS_QTY_STEP)">+</button>'}
             </div>
             <div class="item-total">${formatMoney(displayTotal)}</div>
             <button class="remove-btn" onclick="removeItem(${index})">
@@ -3799,8 +3879,6 @@ $pos_json = static function ($value) {
         openAlertModal('Hold failed', 'No branch found for this store. Please set up a branch first.');
         return;
       }
-      const paymentNote = (document.getElementById('sales_note') && document.getElementById('sales_note').value || '').trim();
-      const pharmacyNote = buildPharmacySalesNote();
       const payload = {
         warehouse_id: warehouseId,
         customer_id: parseInt(document.getElementById('customerSelect').value) || 0,
@@ -3819,8 +3897,7 @@ $pos_json = static function ($value) {
         })),
         discount: discountAmount || 0,
         shipping: shippingFeeId ? { id: shippingFeeId } : null,
-        sales_note: [pharmacyNote, paymentNote].filter(Boolean).join('\n\n'),
-        pharmacy_assessment: pharmacyNote,
+        sales_note: buildPosSalesNote(),
         reference_id: reference,
         csrf_test_name: csrfToken
       };
@@ -3872,6 +3949,7 @@ $pos_json = static function ($value) {
                 openAlertModal('Hold is empty', 'This hold has no items.');
                 return;
               }
+              restorePosSalesNote(hold.sales_note);
               cart.length = 0;
               const customerSelect = document.getElementById('customerSelect');
               if (customerSelect && hold.customer_id) {
@@ -4450,7 +4528,7 @@ $pos_json = static function ($value) {
         cart: cartItems,
         discount: discountAmount || 0,
         shipping: shippingFeeId ? { id: shippingFeeId } : null,
-        sales_note: '',
+        sales_note: buildPosSalesNote(),
         sales_status: 'Final',
         coupon_code: couponCode || '',
         coupon_discount_amt: couponDiscountAmt || 0,

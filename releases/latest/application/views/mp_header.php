@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
-<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=21">
+<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=22">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -604,9 +604,15 @@ footer.copyright{background:var(--mp-bg) !important;border-top-color:var(--mp-bo
 $mp_header_class = '';
 try {
   $mp_header_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+  if (in_array($mp_header_profile['industry_type'] ?? '', ['pharmacy', 'medical_store'], true)) $mp_header_class .= ' pharmacy-workspace-shell';
   if (function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace()) $mp_header_class .= ' mp-restaurant';
 } catch (Throwable $e) { $mp_header_class = ''; }
 ?>
+<?php if (strpos($mp_header_class, 'pharmacy-workspace-shell') !== false): ?>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/pharmacy_workspace.css?v='.filemtime(FCPATH.'theme/dist/css/pharmacy_workspace.css')); ?>">
+<?php endif; ?>
+<?php if (isset($pharmacy_mobile)) $this->load->view('pharmacy/screen_mode', ['pharmacy_mobile' => $pharmacy_mobile]); ?>
 </head>
 <body class="<?= trim($mp_header_class); ?>">
 <?php $CI =& get_instance(); ?>

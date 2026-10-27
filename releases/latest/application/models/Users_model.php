@@ -206,6 +206,9 @@ class Users_model extends CI_Model {
 		$CI =& get_instance();
 		$isSelf = ((int)$q_id === (int)$CUR_USERID);
 		$canManageStaff = (bool)$CI->permissions('users_edit');
+		// Pharmacy staff may update their own profile, but administration is admin-only.
+		$pharmacyIndustry = mp_get_store_profile()['industry_type'] ?? '';
+		if(in_array($pharmacyIndustry, ['pharmacy', 'medical_store', 'healthcare'], true) && !is_admin() && !is_store_admin()) $canManageStaff = false;
 		if($isSelf && !$canManageStaff){
 			$existing = $this->db->select('role_id, store_id, status, approval_pin')
 				->where('id', (int)$q_id)->get('db_users')->row();
@@ -426,9 +429,9 @@ class Users_model extends CI_Model {
 			return null;
 		}
 		if(!is_admin()){
-			$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
-			if(in_array((int)$role_id, $owner_roles, true)){
-				return 'The store owner/admin role is reserved for the existing store account.';
+			$system_roles = store_admin_role_ids($store_id);
+			if(in_array((int)$role_id, $system_roles, true)){
+				return 'Store Admin is a system role and cannot be assigned as a tenant user role.';
 			}
 		}
 		$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();

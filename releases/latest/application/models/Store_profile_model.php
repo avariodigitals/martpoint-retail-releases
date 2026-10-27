@@ -242,7 +242,6 @@ class Store_profile_model extends CI_Model {
 		// Modular POS settings
 		$pos_data = array(
 			'sales_discount'			=> $sales_discount,
-			'weight_scale_mode'			=> $weight_scale_mode,
 			'mrp_column'				=> $mrp_column,
 			'show_signature'			=> $show_signature,
 			'previous_balance_bit'		=> $previous_balance_bit,
@@ -329,7 +328,14 @@ class Store_profile_model extends CI_Model {
 				_mp_set_structured_setting($q_id, 'db_store_receipt_settings', $receipt_data);
 			}
 			if($this->db->table_exists('db_store_pos_settings')){
-				_mp_set_structured_setting($q_id, 'db_store_pos_settings', $pos_data);
+				if(!_mp_set_structured_setting($q_id, 'db_store_pos_settings', $pos_data)){
+					$this->db->trans_rollback();
+					return 'failed';
+				}
+			}
+			if(function_exists('mp_set_store_pos_setting') && !mp_set_store_pos_setting($q_id, 'weight_scale_mode', $weight_scale_mode)){
+				$this->db->trans_rollback();
+				return 'failed';
 			}
 			if($this->db->table_exists('db_store_industry_settings') && !empty($industry_data)){
 				_mp_set_structured_setting($q_id, 'db_store_industry_settings', $industry_data);
@@ -388,7 +394,11 @@ class Store_profile_model extends CI_Model {
 			$data['sales_target'] = ($site && isset($site->sales_target)) ? $site->sales_target : 0;
 			$data['show_tax'] = isset($all['show_tax']) ? (int)$all['show_tax'] : (function_exists('mp_get_store_setting') ? mp_get_store_setting($id, 'receipt', 'show_tax', 1) : 1);
 			// Modular settings are the source of truth; they override the legacy db_store row
-			return array_merge($data, $query1->row_array(), $all);
+			$details = array_merge($data, $query1->row_array(), $all);
+			$details['weight_scale_mode'] = function_exists('mp_get_store_pos_setting')
+				? mp_get_store_pos_setting($id, 'weight_scale_mode', 'analog')
+				: 'analog';
+			return $details;
 		}
 	}
 

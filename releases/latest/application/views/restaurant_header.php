@@ -50,7 +50,7 @@ $restaurant_can = function ($permission) use ($CI) {
 <link rel="stylesheet" href="<?= $theme_link; ?>toastr/toastr.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/pace/pace.min.css">
 <?php if (!empty($extra_css_files) && is_array($extra_css_files)): ?>
   <?php foreach ($extra_css_files as $css): ?><link rel="stylesheet" href="<?= $theme_link . $css; ?>"><?php endforeach; ?>

@@ -18,6 +18,12 @@ class Expiry_settings extends MY_Controller {
 		$data = $this->data;
 		$data['settings'] = $this->expiry->get_settings();
 		$data['page_title'] = 'Expiry Settings';
+		$mobile = $this->input->get('screen') === 'mobile' || is_mobile();
+		if($mobile){
+			$data['SITE_TITLE'] = $data['store_name'] ?? $this->session->userdata('store_name') ?: 'MartPoint';
+			$this->load->view('mobile/expiry_settings', $data);
+			return;
+		}
 		$data['content'] = $this->load->view('inventory/desktop/expiry_settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}

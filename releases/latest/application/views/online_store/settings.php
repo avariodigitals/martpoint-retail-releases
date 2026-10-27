@@ -1,5 +1,5 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance(); $isPharmacy = mp_pharmacy_industry(mp_get_store_profile()['industry_type'] ?? ''); $standardPharmacy = $isPharmacy && mp_pharmacy_standard(); ?>
 <style>
 .os-url-box{background:var(--mp-bg)!important;padding:14px 18px!important;border-radius:12px!important;font-family:'SFMono-Regular',Consolas,Menlo,monospace!important;font-size:13px!important;word-break:break-all!important;border:1px solid var(--mp-border)!important;color:var(--mp-ink)!important}
 .os-form-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px 24px!important}
@@ -68,12 +68,14 @@
         <div class="mp-form-group"><label for="whatsapp_number">WhatsApp Number</label><input type="text" class="mp-form-control" id="whatsapp_number" name="whatsapp_number" value="<?= htmlspecialchars($settings->whatsapp_number ?? ''); ?>" placeholder="e.g. 2348012345678"><div class="mp-form-hint">Include country code (e.g. 234 for Nigeria)</div></div>
         <div class="mp-form-group"><label for="store_email">Store Email</label><input type="email" class="mp-form-control" id="store_email" name="store_email" value="<?= htmlspecialchars($settings->store_email ?? ''); ?>"></div>
         <div class="mp-form-group"><label for="store_phone">Store Phone</label><input type="text" class="mp-form-control" id="store_phone" name="store_phone" value="<?= htmlspecialchars($settings->store_phone ?? ''); ?>"></div>
+        <?php if (!$standardPharmacy): ?>
         <div class="mp-form-group"><label for="default_branch_id">Default Branch</label>
           <select class="mp-form-control" id="default_branch_id" name="default_branch_id">
             <option value="0">- System Default -</option>
             <?php foreach($warehouses as $w): ?><option value="<?= (int)$w->id; ?>" <?= ($settings->default_branch_id ?? 0) == $w->id ? 'selected' : ''; ?>><?= htmlspecialchars($w->warehouse_name); ?></option><?php endforeach; ?>
           </select>
         </div>
+        <?php endif; ?>
         <div class="mp-form-group full"><label for="store_address">Store Address</label><textarea class="mp-form-control" id="store_address" name="store_address" rows="3"><?= htmlspecialchars($settings->store_address ?? ''); ?></textarea></div>
         <div class="mp-form-group"><label for="featured_products_limit">Featured Products Limit</label><input type="number" class="mp-form-control" id="featured_products_limit" name="featured_products_limit" value="<?= (int)($settings->featured_products_limit ?? 8); ?>"></div>
       </div>
@@ -147,6 +149,7 @@
         <label><input type="checkbox" id="show_categories" name="show_categories" <?= ($settings->show_categories ?? 1) ? 'checked' : ''; ?>> Show Category Chips</label>
         <label><input type="checkbox" id="show_whatsapp_cta" name="show_whatsapp_cta" <?= ($settings->show_whatsapp_cta ?? 1) ? 'checked' : ''; ?>> Show WhatsApp CTA Button</label>
       </div>
+      <?php if (!$isPharmacy): ?>
       <div class="os-form-grid" style="margin-top:12px;">
         <div class="mp-form-group">
           <label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;">
@@ -155,6 +158,9 @@
           <div class="mp-form-hint" style="margin-top:6px;">Optional. Lets approved partners contribute location-specific offers and fulfil selected orders under this brand. It is off by default; partner permissions, stock and order routing must still be enforced by the backend.</div>
         </div>
       </div>
+      <?php elseif (is_admin() || is_store_admin()): ?>
+      <p class="mp-form-hint" style="margin-top:16px;">Pharmacy mode is managed under <a href="<?= base_url('pharmacy_workspace/configuration'); ?>">Critical settings → Pharmacy configuration</a>.</p>
+      <?php endif; ?>
       <div class="os-form-grid" style="margin-top:12px;">
         <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="cart_recovery_enabled" name="cart_recovery_enabled" value="1" <?= ($settings->cart_recovery_enabled ?? 1) ? 'checked' : ''; ?>> Track Abandoned Carts</label><div class="mp-form-hint" style="margin-top:6px;">Stores cart snapshots so you can see and follow up on abandoned checkouts.</div></div>
         <div class="mp-form-group"><label for="abandoned_after_hours">Consider abandoned after (hours)</label><input type="number" min="1" max="720" class="mp-form-control" id="abandoned_after_hours" name="abandoned_after_hours" value="<?= (int)($settings->abandoned_after_hours ?? 24); ?>"><div class="mp-form-hint">A cart with customer contact details older than this appears on the Abandoned Carts page.</div></div>

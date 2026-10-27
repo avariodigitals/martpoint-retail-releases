@@ -278,7 +278,7 @@ class Online_store extends MY_Controller {
 				$data['auto_recovery_test'] = $this->input->post('auto_recovery_test') ? 1 : 0;
 			}
 			// Deliberate store-level opt-in. Keep legacy/unmigrated installs safe.
-			if($this->db->field_exists('partner_marketplace_enabled', 'db_storefront_settings')){
+			if(!mp_pharmacy_industry(mp_get_store_profile($storeId)['industry_type'] ?? '') && $this->db->field_exists('partner_marketplace_enabled', 'db_storefront_settings')){
 				$data['partner_marketplace_enabled'] = $this->input->post('partner_marketplace_enabled') ? 1 : 0;
 			}
 
@@ -634,17 +634,26 @@ class Online_store extends MY_Controller {
 	public function quick_wa(){
 		if(!$this->_can_edit_orders()){ $this->show_access_denied_page(); return; }
 		$storeId = get_current_store_id();
+		$mobile = $this->input->get('screen') === 'mobile' || is_mobile();
 		$settings = $this->storefront_model->getSettings($storeId);
 		if(empty($settings->allow_whatsapp) || empty($settings->whatsapp_number)){
 			$this->session->set_flashdata('error', 'WhatsApp orders are not enabled. Turn on "Allow WhatsApp Orders" and set a WhatsApp number in Online Store > Settings.');
-			redirect('online_store/settings');
+			redirect($mobile ? 'mobile/online_store/settings' : 'online_store/settings');
 			return;
 		}
+		$products = $this->storefront_model->getOnlineProducts($storeId, null, '', 500, 0);
+		foreach($products as $product){ $product->quick_order_price = $this->storefront_model->getProductEffectivePrice($product); }
 		$data = array_merge($this->data, [
 			'page_title' => 'Quick WhatsApp Order',
-			'products' => $this->storefront_model->getOnlineProducts($storeId, null, '', 500, 0),
-			'settings' => $settings
+			'products' => $products,
+			'settings' => $settings,
+			'store_name' => get_store_name(),
 		]);
+		if($mobile){
+			$data['SITE_TITLE'] = $data['store_name'] ?: 'MartPoint';
+			$this->load->view('mobile/quick_whatsapp_order', $data);
+			return;
+		}
 		$data['content'] = $this->load->view('online_store/quick_wa', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -657,10 +666,12 @@ class Online_store extends MY_Controller {
 		}
 
 		$storeId = get_current_store_id();
+		$mobile = $this->input->post('screen') === 'mobile';
+		$formUrl = $mobile ? 'online_store/quick_wa?screen=mobile' : 'online_store/quick_wa';
 		$settings = $this->storefront_model->getSettings($storeId);
 		if(empty($settings->allow_whatsapp) || empty($settings->whatsapp_number)){
 			$this->session->set_flashdata('error', 'WhatsApp orders are not enabled. Turn on "Allow WhatsApp Orders" and set a WhatsApp number in Online Store > Settings.');
-			redirect('online_store/settings');
+			redirect($mobile ? 'mobile/online_store/settings' : 'online_store/settings');
 			return;
 		}
 
@@ -672,21 +683,21 @@ class Online_store extends MY_Controller {
 
 		if(!$productId){
 			$this->session->set_flashdata('error', 'Please select a product.');
-			redirect('online_store/quick_wa');
+			redirect($formUrl);
 			return;
 		}
 
 		$product = $this->storefront_model->getOnlineProduct($productId, $storeId);
 		if(!$product){
 			$this->session->set_flashdata('error', 'Product not found.');
-			redirect('online_store/quick_wa');
+			redirect($formUrl);
 			return;
 		}
 
 		$settings = $this->storefront_model->getSettings($storeId);
 		if((int)$product->stock < $qty && empty($settings->allow_backorder)){
 			$this->session->set_flashdata('error', 'Not enough stock.');
-			redirect('online_store/quick_wa');
+			redirect($formUrl);
 			return;
 		}
 
@@ -718,7 +729,7 @@ class Online_store extends MY_Controller {
 		$orderId = $this->storefront_model->createOrder($orderData);
 		if(!$orderId){
 			$this->session->set_flashdata('error', 'Could not create order.');
-			redirect('online_store/quick_wa');
+			redirect($formUrl);
 			return;
 		}
 
@@ -738,7 +749,7 @@ class Online_store extends MY_Controller {
 		$this->storefront_model->adjustStock($orderId);
 
 		$this->session->set_flashdata('success', 'WhatsApp order created. Stock is reserved until you cancel or complete it.');
-		redirect('online_store/order/' . $orderId);
+		redirect($mobile ? 'mobile/online_store/orders' : 'online_store/order/' . $orderId);
 	}
 
 	// ============== SERVICES ==============
@@ -3413,6 +3424,11 @@ class Online_store extends MY_Controller {
 			'active_channel' => $channel,
 			'settings' => $settings,
 		]);
+		if($this->input->get('screen') === 'mobile' || is_mobile()){
+			$data['SITE_TITLE'] = $data['store_name'] ?? $this->session->userdata('store_name') ?: 'MartPoint';
+			$this->load->view('mobile/online_store/messaging_inbox', $data);
+			return;
+		}
 		$data['content'] = $this->load->view('online_store/messaging_inbox', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -3430,6 +3446,11 @@ class Online_store extends MY_Controller {
 			'messages' => $messages,
 			'settings' => $this->storefront_model->getSettings($storeId),
 		]);
+		if($this->input->get('screen') === 'mobile' || is_mobile()){
+			$data['SITE_TITLE'] = $data['store_name'] ?? $this->session->userdata('store_name') ?: 'MartPoint';
+			$this->load->view('mobile/online_store/messaging_conversation', $data);
+			return;
+		}
 		$data['content'] = $this->load->view('online_store/messaging_conversation', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}

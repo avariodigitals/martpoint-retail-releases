@@ -195,8 +195,8 @@ class Business_profile extends MY_Controller {
             }
 
             // Demo/local demo stores also need every persisted demo surface to
-            // follow the selected industry. The seeder retires stale demo
-            // master data and related transactions without hard-deleting rows.
+            // follow the selected industry. Insert labelled examples without
+            // archiving live rows or resetting stock from earlier demos.
             $this->_sync_demo_data($store_id, $industry_type);
         }
 
@@ -253,7 +253,7 @@ class Business_profile extends MY_Controller {
 
         try {
             $this->load->model('Demo_seeder', 'demo_seeder');
-            $result = $this->demo_seeder->seed_full_demo($store_id, $industry_type);
+            $result = $this->demo_seeder->seed_examples($store_id, $industry_type);
             if (empty($result['ok'])) {
                 log_message('error', 'Demo industry sync failed for store '.$store_id.': '.json_encode($result));
             }

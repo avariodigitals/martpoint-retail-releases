@@ -230,8 +230,8 @@ class Dashboard extends MY_Controller {
 			'page_title' => 'Pharmacy Workspace',
 			'pharmacy_workspace' => $workspace,
 		]);
-		$data['content'] = $this->load->view('pharmacy/dashboard', $data, TRUE);
-		$this->load->view('mp_layout', $data);
+		$this->load->helper('pharmacy_workspace');
+		pharmacy_workspace_render($data, 'pharmacy/dashboard');
 	}
 
 	public function dismiss_update_warning(){

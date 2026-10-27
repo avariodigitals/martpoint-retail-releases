@@ -102,8 +102,8 @@ $mp_icons = [
       <?php if($is_creator): ?>
       <a href="<?= base_url('creator'); ?>" class="mp-nav-item active creator-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
       <a href="<?= base_url('dashboard?classic=1'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Business Overview</a>
-      <?php elseif($is_building_workspace): ?>
-      <?php /* Building Materials places Overview inside the Command section below. */ ?>
+      <?php elseif($is_building_workspace || $is_pharmacy): ?>
+      <?php /* These workspaces place Overview in their primary section below. */ ?>
       <?php elseif($is_printing): ?>
       <a href="<?= base_url('printing'); ?>" class="mp-nav-item printing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Printing Overview</a>
       <?php elseif($is_restaurant_ws): ?>
@@ -151,12 +151,11 @@ $mp_icons = [
       <?php if(mp_feature_enabled('medical_notes') && $CI->permissions('medical_notes_view')): ?><a href="<?= base_url('operations/medical_notes'); ?>" class="mp-nav-item operations-medical_notes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Prescriptions</a><?php endif; ?>
       <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Patients</a><?php endif; ?>
       <?php if($CI->permissions('items_view')): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Medicines &amp; inventory</a><?php endif; ?>
-      <?php if($CI->permissions('stock_transfer_view') && warehouse_module()): ?><a href="<?= base_url('stock_transfer/view'); ?>" class="mp-nav-item stock_transfer_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Branch transfers</a><?php endif; ?>
+      <?php if($CI->permissions('stock_transfer_view') && warehouse_module() && mp_pharmacy_advanced()): ?><a href="<?= base_url('stock_transfer/view'); ?>" class="mp-nav-item stock_transfer_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Branch transfers</a><?php endif; ?>
       <?php if(($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')): ?><a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['online']; ?></span> Patient orders</a><?php endif; ?>
       <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales_and_payments'); ?>" class="mp-nav-item report-sales-and-payments-active-li"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Reports</a><?php endif; ?>
       <a href="<?= base_url('pharmacy_workspace/more'); ?>" class="mp-nav-item<?= $mp_open(['pharmacy_workspace'])?' active':''; ?>"><span class="mp-nav-icon"><i class="fa fa-th-large"></i></span> More</a>
     </div>
-    <?php $sec('All tools'); ?>
     <?php endif; ?>
     <?php if($is_building_workspace): ?>
     <?php $sec('Command'); ?>
@@ -227,7 +226,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <?php /* Website, users, configuration and secondary tools live in More. */ ?>
-    <?php else: ?>
+    <?php elseif(!$is_pharmacy): ?>
     <?php if($is_oil_processing): ?>
     <?php $sec('Plant Operations'); ?>
     <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
@@ -614,7 +613,7 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Marketing -->
-    <?php if((!$is_creator) && !$is_oil_processing && (($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
+    <?php if((!$is_creator) && !$is_oil_processing && (($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView') || $CI->permissions('send_email') || $CI->permissions('send_sms') || $CI->permissions('customers_view')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#C026D3;"><?= $mp_icons['marketing']; ?></span> Marketing <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -633,6 +632,7 @@ $mp_icons = [
         <?php if($CI->permissions('customers_view')): ?>
         <a href="<?= base_url('marketing/segments'); ?>" class="mp-nav-item marketing-segments-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Client Segments</a>
         <?php endif; ?>
+        <?php if($CI->permissions('send_email') || $CI->permissions('send_sms')): ?><a href="<?= base_url('marketing/campaigns'); ?>" class="mp-nav-item marketing-campaigns-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> SMS &amp; Email Campaigns</a><?php endif; ?>
         <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) && !is_admin()): ?>
           <div class="mp-nav-subhead">Campaigns &amp; Promotions</div>
           <?php if($CI->permissions('customerCouponAdd')): ?><a href="<?= base_url('customer_coupon/generate'); ?>" class="mp-nav-item createCoupon-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Create Customer Coupon</a><?php endif; ?>
@@ -680,6 +680,7 @@ $mp_icons = [
         <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales_and_payments'); ?>" class="mp-nav-item report-sales-and-payments-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales & Payments</a><?php endif; ?>
         <?php if($CI->permissions('customer_orders_report')): ?><a href="<?= base_url('reports/customer_orders'); ?>" class="mp-nav-item report-customer-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Orders</a><?php endif; ?>
         <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales'); ?>" class="mp-nav-item report-sales-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Report</a><?php endif; ?>
+        <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/repeat_purchase_trends'); ?>" class="mp-nav-item report-repeat-purchase-active-li"><span class="mp-nav-icon"><i class="fa fa-repeat"></i></span> Repeat-Purchase Trends</a><?php endif; ?>
         <?php if($CI->permissions('sales_return_report')): ?><a href="<?= base_url('reports/sales_return'); ?>" class="mp-nav-item report-sales-return-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Return Report</a><?php endif; ?>
         <?php if($CI->permissions('purchase_report')): ?><a href="<?= base_url('reports/purchase'); ?>" class="mp-nav-item report-purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Purchase Report</a><?php endif; ?>
         <?php if($CI->permissions('purchase_return_report')): ?><a href="<?= base_url('reports/purchase_return'); ?>" class="mp-nav-item report-purchase-return-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Purchase Return Report</a><?php endif; ?>
@@ -728,6 +729,7 @@ $mp_icons = [
         <?php if($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
           <div class="mp-nav-subhead"><?= $is_printing ? 'Enquiries &amp; Requests' : 'Enquiries &amp; Orders'; ?></div>
           <a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Orders</a>
+          <?php if(!$is_printing && !$is_building_workspace && ($CI->permissions('online_store_orders') || $CI->permissions('online_store_edit') || is_store_admin() || $this->session->userdata('role_id') == 1)): ?><a href="<?= base_url('online_store/quick_wa'); ?>" class="mp-nav-item online_store-quick_wa-active-li"><span class="mp-nav-icon"><i class="fa fa-whatsapp"></i></span> Create WhatsApp Order</a><?php endif; ?>
         <?php endif; ?>
         <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
           <div class="mp-nav-subhead"><?= $is_printing ? 'Services &amp; Materials' : 'Catalogue'; ?></div>
@@ -904,7 +906,7 @@ $mp_icons = [
       </div>
     </div></div>
 
-    <?php endif; /* end building vs legacy workspace rail */ ?>
+    <?php endif; /* end building/pharmacy vs legacy workspace rail */ ?>
     <?php endif; /* end !$is_central business menus */ ?>
 
     <?php if ($is_garden_workspace && !$is_central): ?>

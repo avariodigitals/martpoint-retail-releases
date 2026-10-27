@@ -121,7 +121,7 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">

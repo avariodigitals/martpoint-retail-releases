@@ -274,6 +274,7 @@ class Storefront_model extends CI_Model {
 	 */
 	public function getOrderableOutlets($storeId = null, $context = ''){
 		$storeId = $storeId ?: get_current_store_id();
+		if (mp_pharmacy_standard($storeId)) return [];
 		if(!$this->db->table_exists('db_warehouse')) return [];
 		// address/city arrive with migration 4.0.9.161 — omit them on older schemas.
 		$cols = ['id', 'warehouse_name'];
@@ -321,7 +322,7 @@ class Storefront_model extends CI_Model {
 		if(!$row){
 			// Return default settings
 			$store = get_store_details($storeId);
-			return (object)[
+			return mp_pharmacy_storefront_settings((object)[
 				'store_id' => $storeId,
 				'store_slug' => $store ? strtolower(str_replace(' ','-', $store->store_name)) : 'store',
 				'store_description' => '',
@@ -400,7 +401,7 @@ class Storefront_model extends CI_Model {
 			'require_tracking_consent' => 1,
 			'robots_index' => 1,
 			'custom_head_scripts' => ''
-			];
+			]);
 		}
 		// Ensure a store slug is always set so public links never generate double slashes
 		if(empty($row->store_slug)){
@@ -410,11 +411,28 @@ class Storefront_model extends CI_Model {
 			$row->store_slug = !empty($expectedSlug) ? $expectedSlug : 'store';
 			$this->saveSettings($storeId, ['store_slug' => $row->store_slug]);
 		}
-		return $row;
+		return mp_pharmacy_storefront_settings($row);
 	}
 
 	public function saveSettings($storeId, $data){
 		$storeId = $storeId ?: get_current_store_id();
+		if (mp_pharmacy_industry(mp_get_store_profile($storeId)['industry_type'] ?? '')) {
+			// Pharmacy mode is administered only through Critical settings.
+			unset($data['partner_marketplace_enabled']);
+			if (mp_pharmacy_standard($storeId)) {
+				unset($data['default_branch_id']);
+				if (isset($data['shipping_methods_json'])) {
+					$methods = json_decode($data['shipping_methods_json'], true) ?: [];
+					$methods = array_values(array_filter($methods, function($m) { return !mp_pharmacy_pickup_method(($m['type'] ?? '').' '.($m['name'] ?? '')); }));
+					// Hidden collection methods survive edits to ordinary delivery settings.
+					$raw = $this->db->where('store_id', $storeId)->get('db_storefront_settings')->row();
+					foreach (json_decode($raw->shipping_methods_json ?? '', true) ?: [] as $method) {
+						if (mp_pharmacy_pickup_method(($method['type'] ?? '').' '.($method['name'] ?? ''))) $methods[] = $method;
+					}
+					$data['shipping_methods_json'] = json_encode($methods);
+				}
+			}
+		}
 		// Drop keys for columns that may not exist yet on un-migrated installs
 		foreach(['marquee_items', 'city_shipping_enabled', 'city_shipping_json', 'background_color', 'nav_json', 'partner_marketplace_enabled'] as $col){
 			if(isset($data[$col]) && !$this->db->field_exists($col, 'db_storefront_settings')) unset($data[$col]);
@@ -440,7 +458,7 @@ class Storefront_model extends CI_Model {
 			// 2. Case-insensitive match
 			$row = $this->db->where('LOWER(store_slug)', strtolower($slug))->get('db_storefront_settings')->row();
 		}
-		return $row;
+		return mp_pharmacy_storefront_settings($row);
 	}
 
 	// ============== PRODUCTS ==============
@@ -1212,11 +1230,13 @@ class Storefront_model extends CI_Model {
 		// kitchen that has run out. An outlet that has never been allocated
 		// stock falls back to the store pool instead of blocking every order.
 		$warehouseId = (int)($order->warehouse_id ?? 0);
-		if($warehouseId > 0 && function_exists('warehouse_module') && warehouse_module()){
+		if($warehouseId > 0 && (mp_pharmacy_standard((int)$order->store_id) || (function_exists('warehouse_module') && warehouse_module()))){
 			$allocated = $this->db->where('warehouse_id', $warehouseId)
 				->where('store_id', (int)$order->store_id)
 				->count_all_results('db_warehouseitems');
-			if($allocated > 0){
+			// Standard pharmacies must never fall back to the aggregate pool,
+			// which can still contain stock at saved partner locations.
+			if($allocated > 0 || mp_pharmacy_standard((int)$order->store_id)){
 				$atOutlet = [];
 				$rows = $this->db->select('item_id, available_qty')
 					->where('warehouse_id', $warehouseId)

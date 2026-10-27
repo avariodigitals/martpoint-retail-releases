@@ -210,6 +210,7 @@ $("#item_search").autocomplete({
                             item_name: el.value,
                             stock: el.stock,
                             service_bit: el.service_bit,
+                            expired: el.expired,
                             barcode: el.barcode || '',
                             batch_lot: el.batch_lot || '',
                             barcode_price: el.barcode_price || '',
@@ -219,6 +220,10 @@ $("#item_search").autocomplete({
                 }
 
                 cb(result);
+            },
+            error: function(){
+                cb([]);
+                toastr["error"]("Could not search items. Please try again.");
             }
         });
     },
@@ -339,15 +344,21 @@ function return_row_with_data(item_id, barcodeData){
         } catch(e) {
           // Not JSON, proceed normally
         }
+        if(typeof result !== 'string' || !/<tr[\s>]/i.test(result)){
+          toastr["error"]("Could not add this item to the invoice. Please try again.");
+          return;
+        }
         $('#sales_table tbody').append(result);
         $("#items_empty_state").remove();
         $("#hidden_rowcount").val(parseInt(rowcount)+1);
         success.currentTime = 0;
         success.play();
         enable_or_disable_item_discount();
-        $("#item_search").removeClass('ui-autocomplete-loader-center');
-        $("#item_search").removeClass('ui-autocomplete-loading');
-    }); 
+    }).fail(function(){
+        toastr["error"]("Could not add this item to the invoice. Please try again.");
+    }).always(function(){
+        $("#item_search").removeClass('ui-autocomplete-loader-center ui-autocomplete-loading');
+    });
 }
 //INCREMENT ITEM
 function increment_qty(rowcount){
@@ -757,4 +768,4 @@ $('#item_search').keypress(function (e) {
  if(key == 13){
     $("#item_search").autocomplete('search');
   }
-});  
+});

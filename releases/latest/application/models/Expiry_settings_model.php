@@ -21,15 +21,20 @@ class Expiry_settings_model extends CI_Model {
 			$row->email_alerts_enabled = 0;
 			$row->alert_email = '';
 		}
+		$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+		$row->rotation_method = $this->inventory_rotation->method($store_id);
 		return $row;
 	}
 
 	public function save_settings() {
 		$alert_before_days = $this->input->post('alert_before_days', TRUE);
-		$stop_selling_expired = $this->input->post('stop_selling_expired', TRUE);
-		$email_alerts_enabled = $this->input->post('email_alerts_enabled', TRUE);
+		$stop_selling_expired = (int)($this->input->post('stop_selling_expired', TRUE) == '1');
+		$email_alerts_enabled = (int)($this->input->post('email_alerts_enabled', TRUE) == '1');
 		$alert_email = $this->input->post('alert_email', TRUE);
+		$rotation_method = strtoupper(trim((string)$this->input->post('rotation_method', TRUE)));
 		$store_id = get_current_store_id();
+		if ($rotation_method !== '' && !in_array($rotation_method, ['MANUAL', 'FEFO', 'FIFO'], true)) return 'failed';
+		if (in_array($rotation_method, ['FEFO', 'FIFO'], true) && !$this->db->table_exists('db_inventory_rotation_settings')) return 'failed';
 
 		$info = array(
 			'store_id' => $store_id,
@@ -39,6 +44,8 @@ class Expiry_settings_model extends CI_Model {
 			'alert_email' => $alert_email,
 		);
 
+		if(!$this->db->table_exists('db_expiry_settings')) return 'failed';
+		$this->db->trans_begin();
 		$exists = $this->db->where('store_id', $store_id)->get('db_expiry_settings')->num_rows();
 		if($exists > 0) {
 			$this->db->where('store_id', $store_id);
@@ -47,7 +54,17 @@ class Expiry_settings_model extends CI_Model {
 			$q1 = $this->db->insert('db_expiry_settings', $info);
 		}
 
-		return ($q1) ? "success" : "failed";
+		if (!$q1) { $this->db->trans_rollback(); return 'failed'; }
+		if ($rotation_method !== '' && $this->db->table_exists('db_inventory_rotation_settings')) {
+			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+			if (!$this->inventory_rotation->save_method($store_id, $rotation_method, get_current_user_id())) {
+				$this->db->trans_rollback();
+				return 'failed';
+			}
+		}
+		if ($this->db->trans_status() === false) { $this->db->trans_rollback(); return 'failed'; }
+		$this->db->trans_commit();
+		return 'success';
 	}
 
 	public function get_expiring_items($store_id = null, $days = null) {

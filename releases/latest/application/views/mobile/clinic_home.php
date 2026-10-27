@@ -24,7 +24,7 @@ $patientTerm = mp_label('customer');
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=21">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
   <style>
     :root{
       --mp-primary:#176753; --mp-primary-dark:#104d40; --mp-bg:#eef3f0; --mp-surface:#fff;

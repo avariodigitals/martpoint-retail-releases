@@ -220,6 +220,7 @@ class Store_model extends CI_Model {
 
 		if ($this->db->table_exists('db_store_settings')) {
 			mp_set_store_setting($store_id, 'general', 'language_id', $defaults['language_id'], 'int');
+			mp_set_store_setting($store_id, 'pos', 'weight_scale_mode', 'analog', 'string');
 		}
 	}
 
@@ -503,7 +504,25 @@ Thank you Visit Again",
 				$info['profile_picture'] = $profile_picture;
 			}
 			
-			$info['role_id'] = store_admin_id();
+			// This account is the merchant's Business Owner, not the install-level
+			// Store Admin role (role 2). Seed the store-scoped role before creating
+			// the owner user so the two identities remain distinct from day one.
+			$this->load->model('default_data_model', 'registration_defaults');
+			$this->registration_defaults->create_default_roles($store_id);
+			$owner_role = $this->db->select('id')
+				->where('store_id', $store_id)
+				->where('UPPER(role_name)', 'BUSINESS OWNER')
+				->where('status', 1)
+				->limit(1)->get('db_roles')->row();
+			if(!$owner_role){
+				$this->db->trans_rollback();
+				log_message('error', 'Store registration aborted: Business Owner role could not be created for store '.$store_id);
+				return 'Unable to create the Business Owner role for this store. Please contact support.';
+			}
+			$info['role_id'] = (int)$owner_role->id;
+			if($this->db->field_exists('role_name', 'db_users')){
+				$info['role_name'] = 'Business Owner';
+			}
 			
 			$info['store_id']=(store_module()) ? $store_id : $this->session->userdata('store_id');	
 			$q1 = $this->db->insert('db_users', $info);

@@ -24,12 +24,12 @@ $pharma_icon = function($key) use ($pharma_icons){ return $pharma_icons[$key] ??
   <section class="pharma-hero">
     <div>
       <div class="pharma-kicker"><span class="pharma-pulse"></span> Pharmacy operations</div>
-      <h1>Good morning, keep care moving.</h1>
+      <h1>Pharmacy overview</h1>
       <p><?= htmlspecialchars($storeName); ?> · <?= date('l, j F Y'); ?></p>
     </div>
     <div class="pharma-hero-actions">
       <a href="<?= base_url('operations/medical_note'); ?>" class="pharma-btn pharma-btn-light"><?= $pharma_icon('prescription'); ?> New prescription</a>
-      <a href="<?= base_url('pos'); ?>" class="pharma-btn pharma-btn-primary"><?= $pharma_icon('plus'); ?> Start dispensing</a>
+      <a href="<?= base_url(!empty($pharmacy_mobile) ? 'mobile/pos' : 'pos'); ?>" class="pharma-btn pharma-btn-primary"><?= $pharma_icon('plus'); ?> Start dispensing</a>
     </div>
   </section>
 
@@ -37,26 +37,28 @@ $pharma_icon = function($key) use ($pharma_icons){ return $pharma_icons[$key] ??
     <div class="pharma-kpi pharma-kpi-blue"><span class="pharma-kpi-icon"><?= $pharma_icon('chart'); ?></span><div><small>Sales today</small><strong><?= $money($w['sales_today'] ?? 0); ?></strong><em><?= (int)($w['invoices_today'] ?? 0); ?> invoices</em></div></div>
     <div class="pharma-kpi pharma-kpi-purple"><span class="pharma-kpi-icon"><?= $pharma_icon('prescription'); ?></span><div><small>Prescriptions today</small><strong><?= (int)($w['prescriptions_today'] ?? 0); ?></strong><em><?= (int)($w['pending_prescriptions'] ?? 0); ?> awaiting dispensing</em></div></div>
     <div class="pharma-kpi pharma-kpi-amber"><span class="pharma-kpi-icon"><?= $pharma_icon('alert'); ?></span><div><small>Stock attention</small><strong><?= (int)($w['low_stock'] ?? 0); ?></strong><em>medicines below reorder level</em></div></div>
-    <div class="pharma-kpi pharma-kpi-red"><span class="pharma-kpi-icon"><?= $pharma_icon('expiry'); ?></span><div><small>Expiry watch</small><strong><?= (int)($w['expiring_soon'] ?? 0); ?></strong><em><?= (int)($w['expired'] ?? 0); ?> expired items</em></div></div>
+    <div class="pharma-kpi pharma-kpi-red"><span class="pharma-kpi-icon"><?= $pharma_icon('expiry'); ?></span><div><small>Expiring soon</small><strong><?= (int)($w['expiring_soon'] ?? 0); ?></strong><em><?= (int)($w['expired'] ?? 0); ?> expired <?= (int)($w['expired'] ?? 0) === 1 ? 'item' : 'items'; ?></em></div></div>
   </section>
 
-  <section class="pharma-action-grid">
+  <section class="pharma-action-grid"<?= !mp_pharmacy_advanced() ? ' style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"' : ''; ?>>
     <a href="<?= base_url('operations/medical_notes'); ?>" class="pharma-action-card"><span class="pharma-action-icon blue"><?= $pharma_icon('prescription'); ?></span><span><strong>Prescription queue</strong><small>Review, dispense and track refills</small></span><?= $pharma_icon('arrow'); ?></a>
-    <a href="<?= base_url('expired_items_report'); ?>" class="pharma-action-card"><span class="pharma-action-icon red"><?= $pharma_icon('clock'); ?></span><span><strong>Expiry & batch watch</strong><small><?= (int)($w['expiring_soon'] ?? 0); ?> items need attention</small></span><?= $pharma_icon('arrow'); ?></a>
+    <a href="<?= base_url('expired_items_report'); ?>" class="pharma-action-card"><span class="pharma-action-icon red"><?= $pharma_icon('clock'); ?></span><span><strong>Expiry & batch watch</strong><small><?= (int)($w['expiring_soon'] ?? 0) + (int)($w['expired'] ?? 0); ?> <?= ((int)($w['expiring_soon'] ?? 0) + (int)($w['expired'] ?? 0)) === 1 ? 'item needs' : 'items need'; ?> attention</small></span><?= $pharma_icon('arrow'); ?></a>
     <a href="<?= base_url('online_store/orders'); ?>" class="pharma-action-card"><span class="pharma-action-icon teal"><?= $pharma_icon('orders'); ?></span><span><strong>Patient orders</strong><small><?= (int)($w['online_orders'] ?? 0); ?> online orders in progress</small></span><?= $pharma_icon('arrow'); ?></a>
+    <?php if (mp_pharmacy_advanced()): ?>
     <a href="<?= base_url('stock_transfer/view'); ?>" class="pharma-action-card"><span class="pharma-action-icon violet"><?= $pharma_icon('transfer'); ?></span><span><strong>Branch transfers</strong><small><?= (int)($w['branch_count'] ?? 0); ?> active locations</small></span><?= $pharma_icon('arrow'); ?></a>
+    <?php endif; ?>
   </section>
 
   <section class="pharma-columns">
     <div class="pharma-panel">
       <div class="pharma-panel-head"><div><span class="pharma-eyebrow">Clinical queue</span><h2>Recent prescriptions</h2></div><a href="<?= base_url('operations/medical_notes'); ?>">View all <?= $pharma_icon('arrow'); ?></a></div>
-      <?php if(empty($w['recent_notes'])): ?><div class="pharma-empty"><?= $pharma_icon('check'); ?><strong>No prescriptions waiting</strong><span>The queue is clear for now.</span></div><?php else: foreach($w['recent_notes'] as $note): ?>
-        <div class="pharma-list-row"><span class="pharma-list-avatar purple"><?= $pharma_icon('patient'); ?></span><div class="pharma-list-main"><strong><?= htmlspecialchars($note->customer_name ?: 'Patient'); ?></strong><small><?= htmlspecialchars($note->diagnosis ?: 'Prescription note'); ?><?= !empty($note->prescribing_doctor) ? ' · Dr. '.htmlspecialchars($note->prescribing_doctor) : ''; ?></small></div><span class="pharma-status <?= ($note->status === 'active' ? 'pending' : 'done'); ?>"><?= htmlspecialchars(ucfirst($note->status ?: 'active')); ?></span></div>
+      <?php if(empty($w['recent_notes'])): ?><div class="pharma-empty"><?= $pharma_icon('check'); ?><strong>No recent prescriptions</strong><span>New prescription notes will appear here.</span></div><?php else: foreach($w['recent_notes'] as $note): ?>
+        <div class="pharma-list-row"><span class="pharma-list-avatar purple"><?= $pharma_icon('patient'); ?></span><div class="pharma-list-main"><strong><?= htmlspecialchars($note->customer_name ?: 'Patient'); ?></strong><small><?= htmlspecialchars($note->diagnosis ?: 'Prescription note'); ?><?= !empty($note->prescribing_doctor) ? ' · '.htmlspecialchars($note->prescribing_doctor) : ''; ?></small></div><span class="pharma-status <?= ($note->status === 'active' ? 'pending' : 'done'); ?>"><?= htmlspecialchars(ucfirst($note->status ?: 'active')); ?></span></div>
       <?php endforeach; endif; ?>
     </div>
     <div class="pharma-panel">
       <div class="pharma-panel-head"><div><span class="pharma-eyebrow">Dispensing desk</span><h2>Latest invoices</h2></div><a href="<?= base_url('sales'); ?>">Open sales <?= $pharma_icon('arrow'); ?></a></div>
-      <?php if(empty($w['recent_sales'])): ?><div class="pharma-empty"><?= $pharma_icon('inbox'); ?><strong>No invoices yet today</strong><span>Start a dispensing sale when a patient is ready.</span></div><?php else: foreach($w['recent_sales'] as $sale): ?>
+      <?php if(empty($w['recent_sales'])): ?><div class="pharma-empty"><?= $pharma_icon('inbox'); ?><strong>No recent invoices</strong><span>Start a dispensing sale when a patient is ready.</span></div><?php else: foreach($w['recent_sales'] as $sale): ?>
         <div class="pharma-list-row"><span class="pharma-list-avatar teal"><?= $pharma_icon('receipt'); ?></span><div class="pharma-list-main"><strong><?= htmlspecialchars($sale->customer_name ?: 'Walk-in patient'); ?></strong><small><?= htmlspecialchars($sale->sales_code ?: 'Invoice'); ?> · <?= !empty($sale->created_time) ? date('H:i', strtotime($sale->created_time)) : ''; ?></small></div><strong class="pharma-amount"><?= $money($sale->grand_total ?? 0); ?></strong></div>
       <?php endforeach; endif; ?>
     </div>

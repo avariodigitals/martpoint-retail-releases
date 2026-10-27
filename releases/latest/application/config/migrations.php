@@ -478,6 +478,14 @@ return [
 		  '4.0.9.201v' => '4.0.9.201_restaurant_fulfilment_routes.sql',
 		  // .202 adds store-configurable digital/analogue weighing and makes
 		  // catalogue descriptions visible in commercial and storefront flows.
-		  // Settings use the existing store POS settings table; no schema change.
+		  // Settings are stored with the existing store settings infrastructure.
 		  '4.0.9.202v' => '4.0.9.202_weight_scale_and_product_descriptions.sql',
+		  // .203 fixes POS scale-mode persistence on legacy modular schemas and
+		  // ensures stepped-weight prices are calculated exactly once on save.
+		  '4.0.9.203v' => '4.0.9.203_weight_scale_persistence_and_pos_repair.sql',
+		  // .204 honours configured POS quantity precision in inventory movement.
+		  '4.0.9.204v' => '4.0.9.204_pos_decimal_quantities.sql',
+          '4.0.9.205v' => '4.0.9.205_pharmacy_modes.sql',
+          // .206 adds opt-in FEFO/FIFO batch allocation with auditable sale and return links.
+          '4.0.9.206v' => '4.0.9.206_inventory_rotation.sql',
 ];

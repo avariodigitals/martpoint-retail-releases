@@ -37,6 +37,40 @@ class Reports extends MY_Controller {
 		echo $this->reports->show_sales_report();
 	}
 
+	/** Dedicated monthly repeat-purchase trend report for the active store. */
+	public function repeat_purchase_trends(){
+		$this->permission_check('sales_report');
+		$data = $this->data;
+		$data['page_title'] = 'Repeat-Purchase Trends';
+		$data['content'] = $this->load->view('reports/desktop/repeat_purchase_trends', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function show_repeat_purchase_trends(){
+		$this->permission_check('sales_report');
+		$this->output->set_content_type('text/html');
+		$from = (string)$this->input->post('from_date', TRUE);
+		$to = (string)$this->input->post('to_date', TRUE);
+		if(!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $from) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $to) || strtotime($from) === false || strtotime($to) === false || $from > $to){
+			echo '<tr><td colspan="8">Choose a valid date range.</td></tr>'; return;
+		}
+		$this->load->model('reports_model', 'reports');
+		$rows = $this->reports->repeat_purchase_trends(get_current_store_id(), $from, $to);
+		if(!$rows){ echo '<tr><td colspan="8" class="text-center">No completed customer sales found in this period.</td></tr>'; return; }
+		$i = 0;
+		foreach($rows as $row){
+			$i++;
+			$month = date('F Y', strtotime($row->month_start));
+			echo '<tr><td>'.$i.'</td><td>'.htmlspecialchars($month, ENT_QUOTES, 'UTF-8').'</td>';
+			echo '<td class="text-right">'.number_format((int)$row->active_customers).'</td>';
+			echo '<td class="text-right">'.number_format((int)$row->repeat_customers).'</td>';
+			echo '<td class="text-right">'.number_format((float)$row->repeat_rate, 1).'%</td>';
+			echo '<td class="text-right">'.number_format((int)$row->repeat_orders).'</td>';
+			echo '<td class="text-right">'.store_number_format($row->repeat_revenue).'</td>';
+			echo '<td class="text-right">'.number_format((int)$row->completed_orders).'</td></tr>';
+		}
+	}
+
 	//Sales Return Report 
 	public function sales_return(){
 		$this->permission_check('sales_return_report');
@@ -109,19 +143,36 @@ class Reports extends MY_Controller {
 	}
 	/*Stock Report*/
 	public function show_stock_report(){
-		return $this->reports->show_stock_report();
+		$this->permission_check('stock_report');
+		if(strtoupper($this->input->method()) !== 'POST'){
+			// This is an AJAX fragment endpoint; direct navigation should open the
+			// complete, styled report instead of a table fragment.
+			redirect('reports/stock');
+			return;
+		}
+		echo $this->reports->show_stock_report();
 	}
 	public function brand_wise_stock(){
-		return $this->reports->brand_wise_stock();
+		$this->permission_check('stock_report');
+		if(strtoupper($this->input->method()) !== 'POST'){
+			redirect('reports/stock');
+			return;
+		}
+		echo $this->reports->brand_wise_stock();
 	}
 	public function get_stock_report(){
+		$this->permission_check('stock_report');
+		if(strtoupper($this->input->method()) !== 'POST'){
+			show_error('Method not allowed', 405);
+			return;
+		}
 		$data = array(
-			'item_wise_report' => $this->show_stock_report(),
-			'brand_wise_stock' => $this->brand_wise_stock(),
+			'item_wise_report' => $this->reports->show_stock_report(),
+			'brand_wise_stock' => $this->reports->brand_wise_stock(),
 			//'category_wise_stock' => $this->category_wise_stock(),
 		);
 		//print_r($data);exit;
-		echo json_encode($data); 
+		$this->output->set_content_type('application/json')->set_output(json_encode($data));
 	}
 
 	//Item Sales Report 

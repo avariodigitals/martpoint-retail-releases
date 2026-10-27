@@ -158,6 +158,96 @@ class Demo_seeder extends CI_Model {
         ),
     );
 
+    /** Add labelled examples alongside live records. Repeats never update rows. */
+    public function seed_examples($store_id, $industry_type) {
+        $store_id = (int)$store_id;
+        $store = $this->_row('db_store', array('id' => $store_id));
+        if (!$store) return array('ok' => false, 'error' => 'Store not found.');
+        $key = $this->_canonical_industry($industry_type);
+        $data = $this->blueprints[$key];
+        $result = array('ok' => true, 'store_id' => $store_id, 'industry' => $key, 'added' => array(), 'existing' => array());
+        $prefix = 'MP-DEMO-'.$store_id.'-'.strtoupper($key).'-';
+        $stamp = array('created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'), 'created_by' => 'demo_examples');
+        // Serialise repeats so two operators cannot insert the same examples.
+        $lock = 'mp_demo_examples_'.$store_id;
+        $locked = $this->db->query('SELECT GET_LOCK(?, 5) AS acquired', array($lock))->row();
+        if (!$locked || (int)$locked->acquired !== 1) return array('ok' => false, 'error' => 'Examples are already being added. Try again shortly.');
+        $previousDebug = $this->db->db_debug;
+        $this->db->db_debug = false;
+        $this->db->trans_begin();
+        try {
+            $units = array();
+            foreach ($data['units'] as $name => $shortcode) {
+                $unitName = '[Demo] '.$name;
+                $units[$name] = $this->_insert_example('db_units', array('store_id' => $store_id, 'unit_name' => $unitName), array('store_id' => $store_id, 'unit_name' => $unitName, 'shortcode' => 'D-'.$shortcode, 'description' => 'Fictional training unit', 'status' => 1), $result);
+            }
+            $categories = array();
+            foreach ($data['categories'] as $name) {
+                $count = $this->_next_count('db_category', $store_id);
+                $categories[$name] = $this->_insert_example('db_category', array('store_id' => $store_id, 'category_name' => '[Demo] '.$name), array('store_id' => $store_id, 'count_id' => $count, 'category_code' => 'CT/'.$store_id.'/'.str_pad($count, 4, '0', STR_PAD_LEFT), 'category_name' => '[Demo] '.$name, 'description' => 'Fictional training catalogue', 'status' => 1), $result);
+            }
+            foreach ($data['suppliers'] as $index => $name) {
+                $count = $this->_next_count('db_suppliers', $store_id);
+                $email = 'mp-demo.'.$key.'.supplier'.($index + 1).'@example.invalid';
+                $this->_insert_example('db_suppliers', array('store_id' => $store_id, 'email' => $email), array_merge($stamp, array('store_id' => $store_id, 'count_id' => $count, 'supplier_code' => 'SUP/'.$store_id.'/'.str_pad($count, 4, '0', STR_PAD_LEFT), 'supplier_name' => '[Demo] '.$name, 'email' => $email, 'phone' => '', 'city' => 'Demo location', 'status' => 1)), $result);
+            }
+            $warehouse = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('id')->get('db_warehouse')->row();
+            $items = array();
+            foreach ($data['products'] as $index => $product) {
+                list($name, $category, $sales, $cost, $stock) = $product;
+                $sku = $prefix.str_pad($index + 1, 2, '0', STR_PAD_LEFT);
+                $existing = $this->_row('db_items', array('store_id' => $store_id, 'sku' => $sku));
+                $count = $this->_next_count('db_items', $store_id);
+                if ($index === 2) $stock = 2; // A labelled low-stock example.
+                $item = array_merge($stamp, array('store_id' => $store_id, 'count_id' => $count, 'item_code' => 'IT/'.$store_id.'/'.str_pad($count, 4, '0', STR_PAD_LEFT), 'item_name' => '[Demo] '.$name, 'sku' => $sku, 'category_id' => $categories[$category] ?? 0, 'unit_id' => reset($units), 'stock' => $stock, 'alert_qty' => 5, 'purchase_price' => $cost, 'price' => $cost, 'sales_price' => $sales, 'description' => 'MP_DEMO_EXAMPLE_V1: fictional training item; separate from live stock.', 'status' => 1, 'item_group' => 'Single', 'service_bit' => 0, 'product_type' => 'physical', 'publish_online' => 0, 'online_excluded' => 1, 'discount_type' => 'Percentage', 'discount' => 0));
+                if ($key === 'pharmacy') $item['expire_date'] = date('Y-m-d', strtotime($index === 0 ? '+21 days' : '+1 year'));
+                $id = $this->_insert_example('db_items', array('store_id' => $store_id, 'sku' => $sku), $item, $result);
+                $items[] = $id;
+                if (!$existing && $id && $warehouse) {
+                    $this->_insert_example('db_warehouseitems', array('store_id' => $store_id, 'warehouse_id' => $warehouse->id, 'item_id' => $id), array('store_id' => $store_id, 'warehouse_id' => $warehouse->id, 'item_id' => $id, 'available_qty' => $stock), $result);
+                }
+            }
+            foreach ($data['services'] as $index => $name) {
+                $this->_insert_example('db_services', array('store_id' => $store_id, 'service_name' => '[Demo] '.$name), array('store_id' => $store_id, 'service_name' => '[Demo] '.$name, 'category_id' => reset($categories), 'price' => 5000 + $index * 2500, 'description' => 'Fictional training service', 'available_online' => 0, 'requires_appointment' => 1, 'status' => 1), $result);
+            }
+            $customers = array();
+            foreach (array('Amina Bello', 'Chinedu Okafor', 'Fatima Yusuf') as $index => $name) {
+                $count = $this->_next_count('db_customers', $store_id);
+                $email = 'mp-demo.'.$key.'.customer'.($index + 1).'@example.invalid';
+                $customers[] = $this->_insert_example('db_customers', array('store_id' => $store_id, 'email' => $email), array_merge($stamp, array('store_id' => $store_id, 'count_id' => $count, 'customer_code' => 'CUS/'.$store_id.'/'.str_pad($count, 4, '0', STR_PAD_LEFT), 'customer_name' => '[Demo] '.$name, 'customer_type' => 'Retail', 'mobile' => '', 'email' => $email, 'address' => 'Fictional training record', 'status' => 1)), $result);
+            }
+            if ($key === 'pharmacy' && $this->db->table_exists('db_medical_notes')) {
+                foreach ($customers as $index => $customerId) {
+                    $ref = $prefix.'RX'.($index + 1);
+                    $noteWhere = array('store_id' => $store_id, 'prescription_ref' => $ref);
+                    $existing = $this->_row('db_medical_notes', $noteWhere);
+                    $noteId = $this->_insert_example('db_medical_notes', $noteWhere, array_merge($stamp, $noteWhere, array('customer_id' => $customerId, 'note_date' => date('Y-m-d'), 'diagnosis' => '[Demo] Prescription workflow example', 'prescribing_doctor' => '[Demo] Training prescriber', 'dosage_instructions' => 'Fictional workflow example. Use an approved prescription for real dispensing.', 'counselling_notes' => 'Training record only.', 'next_refill_date' => date('Y-m-d', strtotime('+3 days')), 'refills_remaining' => 1, 'staff_name' => '[Demo] Pharmacist', 'review_status' => 'pending', 'status' => 'active')), $result);
+                    if (!$existing && $noteId && !empty($items[$index])) {
+                        $this->_insert_example('db_medical_note_items', array('medical_note_id' => $noteId, 'item_id' => $items[$index]), array('medical_note_id' => $noteId, 'item_id' => $items[$index], 'item_name' => '[Demo] '.$data['products'][$index][0], 'qty' => 1, 'dosage' => 'Training example', 'duration' => '', 'instructions' => 'For workflow demonstration only'), $result);
+                    }
+                }
+            }
+            if (!$this->db->trans_status()) throw new RuntimeException('Could not add demo examples; the transaction was rolled back.');
+            $this->db->trans_commit();
+        } catch (Throwable $e) {
+            $this->db->trans_rollback();
+            $result = array('ok' => false, 'error' => $e->getMessage());
+        } finally {
+            $this->db->db_debug = $previousDebug;
+            $this->db->query('SELECT RELEASE_LOCK(?)', array($lock));
+        }
+        return $result;
+    }
+
+    private function _insert_example($table, $where, $data, &$result) {
+        if (!$this->db->table_exists($table)) return 0;
+        $row = $this->_row($table, $where);
+        if ($row) { $result['existing'][$table] = ($result['existing'][$table] ?? 0) + 1; return (int)$row->id; }
+        if (!$this->db->insert($table, $this->_filter($table, $data))) throw new RuntimeException('Could not insert demo example into '.$table.'.');
+        $result['added'][$table] = ($result['added'][$table] ?? 0) + 1;
+        return (int)$this->db->insert_id();
+    }
+
     public function seed_full_demo($store_id, $industry_type) {
         $store_id = (int)$store_id;
         if ($store_id < 1) return array('ok' => false, 'error' => 'Invalid store.');
@@ -255,7 +345,7 @@ class Demo_seeder extends CI_Model {
             'frozen_foods_retailer' => 'frozen', 'frozen_foods' => 'frozen', 'frozen' => 'frozen',
             'garden' => 'garden_centre', 'garden_centre_landscaping' => 'garden_centre', 'garden_centre' => 'garden_centre',
             'physio' => 'physiotherapy', 'physiotherapy_rehabilitation' => 'physiotherapy',
-            'pharmacy' => 'pharmacy', 'fashion' => 'fashion', 'skincare' => 'skincare',
+            'pharmacy' => 'pharmacy', 'medical_store' => 'pharmacy', 'fashion' => 'fashion', 'skincare' => 'skincare',
             // Food presets share the RestaurantOS catalogue and fulfilment flow.
             'restaurant' => 'restaurant', 'fast_food' => 'restaurant', 'cafe' => 'restaurant',
             'pizza_shop' => 'restaurant', 'shawarma' => 'restaurant', 'juice_bar' => 'restaurant',

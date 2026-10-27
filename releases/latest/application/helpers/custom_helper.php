@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.202';
+    return '4.0.9.206';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -594,7 +594,8 @@
   function mp_allowed_warehouse_ids($store_id = ''){
     $CI =& get_instance();
     $store_id = !empty($store_id) ? (int)$store_id : (int)get_current_store_id();
-    if(is_store_admin() || (int)$CI->session->userdata('role_id') === 1) return null;
+    $ownIds = mp_pharmacy_standard($store_id) ? mp_pharmacy_own_warehouse_ids($store_id) : null;
+    if(is_store_admin() || (int)$CI->session->userdata('role_id') === 1) return $ownIds;
 
     $ids = [];
     $user_id = (int)($CI->session->userdata('inv_userid') ?: get_current_user_id());
@@ -616,6 +617,7 @@
       $fallback = (int)get_pos_default_warehouse_id($store_id);
       if($fallback > 0) $ids[] = $fallback;
     }
+    if ($ownIds !== null) $ids = array_intersect($ids, $ownIds);
     return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
   }
   /*end*/
@@ -1531,6 +1533,15 @@
   function get_tax_details($tax_id){
     $CI =& get_instance();
     return $CI->db->select('*')->from('db_tax')->where('id',$tax_id)->get()->row();
+  }
+  // Tax is optional on catalogue and saved document lines. Always provide
+  // numeric zero values so untaxed items can be rendered and recalculated.
+  function get_document_item_tax($tax_id){
+    $CI =& get_instance();
+    $tax = (int)$tax_id > 0
+      ? $CI->db->where('id',(int)$tax_id)->where('store_id',get_current_store_id())->get('db_tax')->row()
+      : null;
+    return $tax ?: (object)array('id'=>0, 'tax'=>0, 'tax_name'=>'No Tax');
   }
   function is_it_belong_to_store($table,$rec_id){
     $CI =& get_instance();

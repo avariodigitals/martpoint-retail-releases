@@ -629,6 +629,21 @@ class Sales_model extends CI_Model {
 
 			// Release serialised/tracked units bound to the previous version of this
 			// sale before the item rows are replaced (otherwise they stay sold).
+			// Batch allocations are restored in the same transaction. Editing a
+			// sale that already has a return would invalidate the return-to-batch
+			// audit trail, so refuse it rather than silently losing provenance.
+			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+			if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+				$hasReturns = $this->db->where('sales_id', (int)$sales_id)->count_all_results('db_salesreturn') > 0;
+				if ($hasReturns) {
+					$this->db->trans_rollback();
+					return 'This invoice has a return. Its batch history cannot be edited; create a correction invoice instead.';
+				}
+				if (!$this->inventory_rotation->restore_sale($sales_id)) {
+					$this->db->trans_rollback();
+					return 'Could not restore the invoice batch allocations. No changes were saved.';
+				}
+			}
 			mp_release_sale_barcodes($sales_id);
 			mp_unregister_equipment_for_sale($sales_id);
 
@@ -753,6 +768,12 @@ class Sales_model extends CI_Model {
 						$this->db->trans_rollback();
 						return "The selected unit of {$item_name} is not available (already sold or reserved).";
 					}
+					$this->load->model('expiry_settings_model', 'expiry_rotation_guard');
+					$expiryGuard = $this->expiry_rotation_guard->get_settings();
+					if (!empty($expiryGuard->stop_selling_expired) && is_valid_date($bc_row->expire_date ?? null) && $bc_row->expire_date < date('Y-m-d')) {
+						$this->db->trans_rollback();
+						return "The selected batch of {$item_name} expired on {$bc_row->expire_date} and cannot be sold.";
+					}
 					$purchase_price = !empty($bc_row->purchase_price) ? $bc_row->purchase_price : ((!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price);
 				} else {
 					// Use the item's cost (purchase_price with tax) preferentially, falling back to base price before tax
@@ -828,6 +849,21 @@ class Sales_model extends CI_Model {
 					));
 				}
 				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
+
+				// FEFO/FIFO is a store policy and only allocates from actual batch
+				// records. MANUAL (the migration-safe default) leaves existing stock
+				// behavior unchanged. Services never consume batch stock.
+				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+				$rotationStoreId = (int)(store_module() && is_admin() ? $store_id : get_current_store_id());
+				$rotationWarehouseId = (int)(warehouse_module() && warehouse_count() > 1 ? $warehouse_id : get_store_warehouse_id());
+				$allocationError = $this->inventory_rotation->allocate_sale_line(
+					$sales_id, $sale_items_id, $rotationStoreId, $rotationWarehouseId,
+					$item_id, $base_unit_qty, $service_bit
+				);
+				if ($allocationError !== '') {
+					$this->db->trans_rollback();
+					return $allocationError;
+				}
 
 				// Mark the physical unit as sold so it cannot be re-sold
 				if($barcode_id > 0){
@@ -1244,6 +1280,15 @@ class Sales_model extends CI_Model {
       		echo "<br>Already Raised Returns, Please Delete Before Deleting Original Invoice";
       		exit;
       	}
+		if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+			foreach (array_filter(array_map('intval', explode(',', (string)$ids))) as $saleId) {
+				if (!$this->inventory_rotation->restore_sale($saleId)) {
+					$this->db->trans_rollback();
+					return 'Could not restore batch stock for a deleted invoice. No records were removed.';
+				}
+			}
+		}
 
       	//ACCOUNT RESET
 		// Get the affected payment rows
@@ -1467,6 +1512,9 @@ class Sales_model extends CI_Model {
 			$this->db->where('b.status', 1);
 			$bc_data = $this->db->get()->row();
 			if($bc_data){
+				$bc_data->tax = (float)($bc_data->tax ?? 0);
+				$bc_data->tax_id = (int)($bc_data->tax_id ?? 0);
+				$bc_data->tax_name = $bc_data->tax_name ?? 'No Tax';
 				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
 				$sales_price = get_price_level_price($customer_id,$sales_price);
 				$sales_price = number_format($sales_price,decimals(),'.','');
@@ -1515,7 +1563,12 @@ class Sales_model extends CI_Model {
 			}
 		}
 
-		$res1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get()->row();
+		$res1=$this->db->select('*')->from('db_items')->where('id',(int)$item_id)->where('store_id',get_current_store_id())->where('status',1)->get()->row();
+		if(!$res1){
+			echo json_encode(array('error'=>'This item is no longer available. Search again to refresh the catalogue.'));
+			return;
+		}
+		$res1->tax_type = in_array($res1->tax_type, array('Inclusive','Exclusive'), true) ? $res1->tax_type : 'Exclusive';
 
 		// Check expiry
 		try {
@@ -1527,7 +1580,7 @@ class Sales_model extends CI_Model {
 			}
 		} catch (Exception $e) { /* Expiry settings not ready yet */ }
 
-		$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+		$q3=get_document_item_tax($res1->tax_id);
 
 		//Get Customer Price
 		$price_type = $this->input->post('price_type', TRUE) ?? 'wholesale';
@@ -1584,7 +1637,7 @@ class Sales_model extends CI_Model {
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
 			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
-			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
 			
 			$info = array(
 							'item_id' 					=> $res1->item_id, 
@@ -1615,7 +1668,7 @@ class Sales_model extends CI_Model {
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
 			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
-			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
 			
 			$info = array(
 							'item_id' 					=> $res1->item_id, 

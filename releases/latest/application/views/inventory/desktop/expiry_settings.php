@@ -30,6 +30,16 @@
           Stop Selling Expired Items
         </label>
         <p class="mp-form-hint">Block expired items from being added to POS/Sales cart</p>
+        <div class="mp-form-group" style="margin-top:8px;">
+          <label>Stock rotation for dated batches</label>
+          <?php $rotationMethod = strtoupper($settings->rotation_method ?? 'MANUAL'); ?>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:8px;">
+            <label style="display:flex;align-items:flex-start;gap:9px;font-weight:500;cursor:pointer;"><input type="radio" name="rotation_method" value="MANUAL" <?= $rotationMethod === 'MANUAL' ? 'checked' : ''; ?>> <span><strong>Manual</strong> — do not automatically allocate batch stock. Safest while existing stock is being reconciled.</span></label>
+            <label style="display:flex;align-items:flex-start;gap:9px;font-weight:500;cursor:pointer;"><input type="radio" name="rotation_method" value="FEFO" <?= $rotationMethod === 'FEFO' ? 'checked' : ''; ?>> <span><strong>FEFO</strong> — sell the batch with the earliest expiry first; ties use earliest receipt. “Stop Selling Expired Items” controls whether expired stock is blocked.</span></label>
+            <label style="display:flex;align-items:flex-start;gap:9px;font-weight:500;cursor:pointer;"><input type="radio" name="rotation_method" value="FIFO" <?= $rotationMethod === 'FIFO' ? 'checked' : ''; ?>> <span><strong>FIFO</strong> — sell the batch received first. “Stop Selling Expired Items” controls whether expired stock is blocked.</span></label>
+          </div>
+          <p class="mp-form-hint">Automatic rotation requires purchase batches with correct received quantities, warehouse and expiry dates. Insufficient batch stock blocks the sale instead of guessing from total item stock.</p>
+        </div>
         <label style="display:flex;align-items:center;gap:10px;font-weight:500;cursor:pointer;margin-top:4px;">
           <input type="checkbox" id="email_alerts_enabled" name="email_alerts_enabled" value="1" <?= $settings->email_alerts_enabled ? 'checked' : ''; ?> style="width:18px;height:18px;accent-color:var(--mp-primary);">
           Enable Email Alerts

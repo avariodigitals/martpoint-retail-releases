@@ -78,7 +78,7 @@ class Sales extends MY_Controller {
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=14','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=15','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales',$data,TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -93,7 +93,7 @@ class Sales extends MY_Controller {
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=14','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=15','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales',$data,TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -135,7 +135,7 @@ class Sales extends MY_Controller {
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=14','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=15','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales', $data, TRUE);
 			$this->load->view('mp_layout', $data);
 		}

@@ -767,7 +767,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
     return (walkin_customer_id && cid == walkin_customer_id);
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=14"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=15"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
 <script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
       <script>

@@ -101,7 +101,7 @@
     $sales_code=$res3->sales_code;
     $sales_note=$res3->sales_note;
     $display_sales_note = function_exists('mp_invoice_note_without_dosage')
-        ? mp_invoice_note_without_dosage($sales_note)
+        ? mp_invoice_note_without_dosage($sales_note, (int)$res3->store_id)
         : $sales_note;
     $customer_delete_bit=$res3->delete_bit;
 
@@ -384,7 +384,7 @@
     <?php }?>
 
     <?php if(!empty(trim($display_sales_note))) {?>
-    <div class="note"><b><?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8'); ?>:</b> <?= nl2br(htmlspecialchars($display_sales_note, ENT_QUOTES, 'UTF-8')); ?></div>
+    <div class="note"><b><?= htmlspecialchars(mp_invoice_note_label((int)$res3->store_id), ENT_QUOTES, 'UTF-8'); ?>:</b> <?= nl2br(htmlspecialchars($display_sales_note, ENT_QUOTES, 'UTF-8')); ?></div>
     <?php }?>
 
     <?php if($t_and_c_status_pos){ ?>

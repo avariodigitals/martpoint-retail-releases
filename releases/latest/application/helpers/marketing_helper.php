@@ -156,9 +156,10 @@ if (!function_exists('marketing_menu_items')) {
                 'title' => 'Campaigns',
                 'desc'  => 'Email & SMS campaigns',
                 'icon'  => 'fa-bullhorn',
-                'perm'  => 'send_email',
+                'perm'  => '',
+                'perm_any' => ['send_email', 'send_sms'],
                 'color' => 'primary',
-                'url_mobile'  => 'marketing/campaigns',
+                'url_mobile'  => 'marketing/campaigns?screen=mobile',
                 'url_desktop' => 'marketing/campaigns',
             ],
             [
@@ -177,6 +178,13 @@ if (!function_exists('marketing_menu_items')) {
             // Permission gate
             if (!empty($item['perm']) && !$CI->permissions($item['perm'])) {
                 continue;
+            }
+            if (!empty($item['perm_any'])) {
+                $allowed = false;
+                foreach ($item['perm_any'] as $permission) {
+                    if ($CI->permissions($permission)) { $allowed = true; break; }
+                }
+                if (!$allowed) continue;
             }
             // Feature flag gate (for items that map to a feature)
             if (!empty($item['feature']) && function_exists('mp_feature_enabled') && !mp_feature_enabled($item['feature'])) {

@@ -94,6 +94,16 @@ if (!function_exists('mp_get_store_receipt_setting')) {
 
 if (!function_exists('mp_get_store_pos_setting')) {
     function mp_get_store_pos_setting($store_id, $key, $default = null) {
+        // Some installations have the original, fixed-column POS settings
+        // table. Keep newer optional settings in the existing KV store there
+        // instead of trying to write a column that does not exist.
+        if ($key === 'weight_scale_mode') {
+            $value = _mp_get_structured_setting($store_id, 'db_store_pos_settings', $key, null);
+            if ($value !== null && $value !== '') return $value;
+            if (function_exists('mp_get_store_setting')) {
+                return mp_get_store_setting($store_id, 'pos', $key, $default);
+            }
+        }
         return _mp_get_structured_setting($store_id, 'db_store_pos_settings', $key, $default);
     }
 }
@@ -148,6 +158,13 @@ if (!function_exists('mp_set_store_receipt_setting')) {
 
 if (!function_exists('mp_set_store_pos_setting')) {
     function mp_set_store_pos_setting($store_id, $key, $value) {
+        if ($key === 'weight_scale_mode') {
+            $CI =& get_instance();
+            if ($CI->db->field_exists($key, 'db_store_pos_settings')) {
+                return _mp_set_structured_setting($store_id, 'db_store_pos_settings', [$key => $value]);
+            }
+            return mp_set_store_setting($store_id, 'pos', $key, $value, 'string');
+        }
         return _mp_set_structured_setting($store_id, 'db_store_pos_settings', [$key => $value]);
     }
 }

@@ -1040,7 +1040,7 @@ padding-right: 2px;
 <!-- Bootstrap WYSIHTML5 -->
 <script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
 
-<script src="<?php echo $theme_link; ?>js/sales.js?v=14"></script>
+<script src="<?php echo $theme_link; ?>js/sales.js?v=15"></script>
 <script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
       <script>
 

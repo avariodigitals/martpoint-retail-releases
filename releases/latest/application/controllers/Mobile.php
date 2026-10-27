@@ -278,6 +278,9 @@ class Mobile extends MY_Controller {
 
 	public function index()
 	{
+		if(in_array(mp_get_store_profile()['industry_type'] ?? '', ['pharmacy', 'medical_store'], true)){
+			redirect('dashboard?screen=mobile'); return;
+		}
 		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){
 			redirect($this->permissions('dashboard_view') ? 'building_workspace/actions?screen=mobile' : 'attendance/workspace?screen=mobile');return;
 		}
@@ -3280,6 +3283,8 @@ class Mobile extends MY_Controller {
 			$item = $cart[$i - 1];
 			$qty = (float) $item['qty'];
 			$price = (float) $item['price'];
+			$base_price = (float)($item['base_price'] ?? $price);
+			$item_details = get_item_details((int)($item['id'] ?? 0));
 			$purchase_price = (float) ($item['purchase_price'] ?? 0);
 			$tax_value = (float) ($item['tax_value'] ?? 0);
 			$tax_type = $item['tax_type'] ?? 'Exclusive';
@@ -3302,7 +3307,9 @@ class Mobile extends MY_Controller {
 
 			$_POST['tr_item_id_'.$i] = $item['id'];
 			$_POST['td_data_'.$i.'_3'] = $qty;
-			$_POST['td_data_'.$i.'_4'] = $price;
+			// Send the configured base price for stepped-weight items. Sales_model
+			// performs the single authoritative line-price calculation below.
+			$_POST['td_data_'.$i.'_4'] = ($item_details && !empty($item_details->weight_pricing_enabled)) ? $base_price : $price;
 			$_POST['td_data_'.$i.'_5'] = $tax_value;
 			$_POST['td_data_'.$i.'_7'] = number_format($tax_amount, 2, '.', '');
 			$_POST['td_data_'.$i.'_8'] = '0.00';
@@ -3321,6 +3328,7 @@ class Mobile extends MY_Controller {
 			$_POST['unit_id_'.$i] = $item['unit_id'] ?? '';
 			$_POST['unit_name_'.$i] = $item['unit_name'] ?? '';
 			$_POST['conversion_factor_'.$i] = ($item['conversion_factor'] ?? 1) > 0 ? ($item['conversion_factor'] ?? 1) : 1;
+			$_POST['weight_lines_'.$i] = max(0, (int)($item['weight_lines'] ?? 0));
 		}
 
 		// Manual Shipping — verify the chosen fee against db_shipping_fees so the
@@ -4653,6 +4661,9 @@ class Mobile extends MY_Controller {
 
 	public function more()
 	{
+		if(in_array(mp_get_store_profile()['industry_type'] ?? '', ['pharmacy', 'medical_store'], true)){
+			redirect('pharmacy_workspace/more?screen=mobile'); return;
+		}
 		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){redirect('building_workspace/more?screen=mobile');return;}
 		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
 			redirect(base_url().'mobile/pos');
@@ -4689,6 +4700,7 @@ class Mobile extends MY_Controller {
 			],
 			'Inventory' => [
 				['title' => 'Stock', 'desc' => 'Inventory levels', 'icon' => 'fa-cubes', 'url' => 'mobile/stock', 'perm' => 'items_view', 'color' => 'teal'],
+				['title' => 'Expiry & stock rotation', 'desc' => 'Block expired sales and choose FEFO or FIFO', 'icon' => 'fa-calendar-times-o', 'url' => 'expiry_settings?screen=mobile', 'perm' => 'expiry_settings', 'feature' => 'expiry_tracking', 'color' => 'orange'],
 				['title' => 'Add Product', 'desc' => 'Create a new item', 'icon' => 'fa-plus-circle', 'url' => 'mobile/product', 'perm' => 'items_add', 'color' => 'teal'],
 				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
 				['title' => 'Vehicles', 'desc' => 'Automobile inventory', 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
@@ -4704,6 +4716,8 @@ class Mobile extends MY_Controller {
 			],
 			'Online Store' => [
 				['title' => 'Store Dashboard', 'desc' => 'Online store overview', 'icon' => 'fa-dashboard', 'url' => 'mobile/online_store/dashboard', 'perm' => 'online_store_view', 'color' => 'blue'],
+				['title' => 'Messaging', 'desc' => 'Reply to WhatsApp, Instagram and Facebook conversations', 'icon' => 'fa-comments', 'url' => 'online_store/messaging?screen=mobile', 'perm' => 'online_store_view', 'color' => 'green'],
+				['title' => 'Create WhatsApp Order', 'desc' => 'Create a customer order from a direct WhatsApp chat', 'icon' => 'fa-whatsapp', 'url' => 'online_store/quick_wa?screen=mobile', 'perm_any' => ['online_store_orders', 'online_store_edit'], 'color' => 'green'],
 				['title' => 'Orders', 'desc' => 'Website & app orders', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/online_store/orders', 'perm' => 'online_store_view', 'color' => 'primary'],
 				['title' => 'Online Products', 'desc' => 'Products on the storefront', 'icon' => 'fa-cube', 'url' => 'mobile/online_store/products', 'perm' => 'online_store_view', 'color' => 'teal'],
 				['title' => 'Services', 'desc' => 'Bookable services', 'icon' => 'fa-wrench', 'url' => 'mobile/online_store/services', 'perm' => 'online_store_view', 'color' => 'orange'],
@@ -4880,7 +4894,12 @@ class Mobile extends MY_Controller {
 					if(function_exists('physio_can') && physio_can($item['physio_perm'])){ $visible[] = $item; }
 					continue;
 				}
-			if(empty($item['perm']) || $this->permissions($item['perm'])){
+			$hasMenuPermission = empty($item['perm']) || $this->permissions($item['perm']);
+			if(!empty($item['perm_any'])){
+				$hasMenuPermission = false;
+				foreach((array)$item['perm_any'] as $anyPermission){ if($this->permissions($anyPermission)){ $hasMenuPermission = true; break; } }
+			}
+			if($hasMenuPermission){
 					$visible[] = $item;
 				}
 			}
@@ -6810,6 +6829,7 @@ class Mobile extends MY_Controller {
 			['type' => 'sales_and_payments', 'title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'perm' => 'sales_report', 'color' => 'primary'],
 			['type' => 'sales_tax', 'title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'perm' => 'sales_tax_report', 'color' => 'red'],
 			['type' => 'sales', 'title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'perm' => 'sales_report', 'color' => 'primary'],
+			['type' => 'repeat_purchase_trends', 'title' => 'Repeat-Purchase Trends', 'desc' => 'Returning customers and repeat revenue by month', 'icon' => 'fa-repeat', 'perm' => 'sales_report', 'color' => 'green'],
 			['type' => 'sales_return', 'title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'perm' => 'sales_return_report', 'color' => 'orange'],
 			['type' => 'purchase', 'title' => 'Purchase Report', 'desc' => 'Purchase invoices', 'icon' => 'fa-cart-arrow-down', 'perm' => 'purchase_report', 'color' => 'green'],
 			['type' => 'purchase_return', 'title' => 'Purchase Return', 'desc' => 'Purchase returns', 'icon' => 'fa-reply', 'perm' => 'purchase_return_report', 'color' => 'red'],
@@ -6837,6 +6857,7 @@ class Mobile extends MY_Controller {
         if ($type==='sales_and_payments' && (mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') { $this->permission_check('sales_report');redirect('garden/sales_report?screen=mobile');return; }
 		$map = [
 			'sales' => ['title' => 'Sales Report', 'perm' => 'sales_report', 'endpoint' => 'reports/show_sales_report'],
+			'repeat_purchase_trends' => ['title' => 'Repeat-Purchase Trends', 'perm' => 'sales_report', 'endpoint' => 'reports/show_repeat_purchase_trends', 'headers' => ['#', 'Month', 'Active customers', 'Returning customers', 'Repeat-customer rate', 'Repeat orders', 'Repeat-order revenue', 'Completed orders']],
 			'sales_return' => ['title' => 'Sales Return', 'perm' => 'sales_return_report', 'endpoint' => 'reports/show_sales_return_report'],
 			'purchase' => ['title' => 'Purchase Report', 'perm' => 'purchase_report', 'endpoint' => 'reports/show_purchase_report'],
 			'purchase_return' => ['title' => 'Purchase Return', 'perm' => 'purchase_return_report', 'endpoint' => 'reports/show_purchase_return_report'],

@@ -887,3 +887,15 @@
   transition: background 0.2s;
 }
 .mp-continue-no:hover { background: #dee2e6; }
+
+/* Playback is separate from the persistent spoken-replies preference. */
+.mp-assist-playback{display:flex;align-items:center;gap:8px;flex:0 0 auto;padding:8px 12px;background:var(--mpa-tint);font-size:12px;color:var(--mpa-primary-dark)}
+.mp-assist-playback[hidden]{display:none!important}
+.mp-assist-playback>span{flex:1}
+.mp-assist-playback button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:6px 10px;border:1px solid var(--mpa-ring);border-radius:9px;background:#fff;color:var(--mpa-primary);font-family:inherit;font-weight:600;font-size:12px;cursor:pointer}
+.mp-assist-mark{width:22px;height:22px;display:block;flex:0 0 22px}
+@media(max-width:1024px){
+  .mp-assist-fab-label{display:inline!important}
+  .mp-assist-fab{min-height:46px!important;padding:11px 15px!important;border-radius:16px!important;animation:none!important;box-shadow:0 4px 14px var(--mpa-ring)}
+  .mp-assist-fab::before{display:none!important}
+}

@@ -661,7 +661,7 @@ class Quotation_model extends CI_Model {
 		$rowcount =1;
 		foreach ($q1->result() as $res1) {
 			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
-			$q3=$this->db->query("select * from db_tax where id=".$res1->tax_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
 			
 			$info = array(
 							'item_id' 					=> $res1->item_id, 

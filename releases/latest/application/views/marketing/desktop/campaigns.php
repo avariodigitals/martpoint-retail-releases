@@ -58,8 +58,8 @@
       <div class="mp-form-group">
         <label>Channel *</label>
         <select id="camp-channel" class="mp-form-control">
-          <option value="email">Email</option>
-          <option value="sms">SMS</option>
+          <?php if(!empty($can_email)): ?><option value="email">Email</option><?php endif; ?>
+          <?php if(!empty($can_sms)): ?><option value="sms">SMS</option><?php endif; ?>
         </select>
       </div>
       <div class="mp-form-group" id="camp-subject-wrap">
