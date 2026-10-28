@@ -364,8 +364,10 @@ class Sales_model extends CI_Model {
 		try {
 		$this->load->library('invoice_workflow');
 		try {
+			$paymentTiming = $standard_invoice ? $this->input->post('payment_timing', TRUE) : '';
+			if($standard_invoice && $this->input->post('invoice_payment_mode',TRUE)==='amount')$paymentTiming=$amount>0?'now':'later';
 			$invoiceFlow = $this->invoice_workflow->prepare($standard_invoice, $command, $sales_id, $store_id,
-				$this->input->post('invoice_status', TRUE), $standard_invoice ? $this->input->post('payment_timing', TRUE) : '', $amount, $payment_type, $customer_id);
+				$this->input->post('invoice_status', TRUE), $paymentTiming, $amount, $payment_type, $customer_id);
 		} catch (Throwable $e) { $this->db->trans_rollback(); return $e->getMessage(); }
 		$sales_status = $invoiceFlow['sales_status'];
 		$isInvoiceDraft = $standard_invoice && $sales_status === 'Draft';
@@ -935,9 +937,10 @@ class Sales_model extends CI_Model {
 		
 		}//for end
 
-		// WALK-IN CUSTOMER CANNOT OWE MONEY
+		// POS-style checkout still requires walk-in full payment. Standard invoices
+		// carry their own receivable/payment history and may be saved unpaid.
 		$walkin_paid = ($amount=='' || $amount==0) ? 0 : floatval($amount);
-		if(!$isInvoiceDraft && is_walk_in_customer($customer_id) && ($walkin_paid + (float)$invoiceFlow['paid']) < $tot_total_amt){
+		if(!$standard_invoice && !$isInvoiceDraft && is_walk_in_customer($customer_id) && ($walkin_paid + (float)$invoiceFlow['paid']) < $tot_total_amt){
 			$this->db->trans_rollback();
 			return "Walk-in Customer cannot have credit! Please create a registered customer profile or collect full payment.";
 		}

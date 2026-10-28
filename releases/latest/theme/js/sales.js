@@ -72,8 +72,8 @@ $('#save,#update').on("click",function (e) {
     var standardInvoice = $('#standard_invoice_editor').length > 0;
     if(standardInvoice && window.MPInvoiceWorkflow){
       var invoiceError = window.MPInvoiceWorkflow.validate({
-        state: $('[name="invoice_status"]:checked').val() || 'issued',
-        timing: $('[name="payment_timing"]:checked').val() || 'later',
+        state: $('#invoice_status').val() || $('[name="invoice_status"]:checked').val() || 'issued',
+        timing: Number(String($('#amount').val() || '0').replace(/,/g,'')) > 0 ? 'now' : 'later',
         amount: Number(String($('#amount').val() || '0').replace(/,/g,'')),
         total: Number(String($('#total_amt').text() || '0').replace(/,/g,'')),
         paidPreviously: Number($('#invoice_previous_paid').val() || 0),

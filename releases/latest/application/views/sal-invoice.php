@@ -164,6 +164,9 @@ $invoiceIsDraft=$invoiceDocumentState==='draft';
     <?php if(!$invoiceIsDraft && $CI->permissions('sales_payment_add') && (float)$grand_total>(float)$paid_amount): ?>
       <button type="button" class="mp-qa-btn" onclick="pay_now(<?= (int)$sales_id; ?>)">Record payment</button>
     <?php endif; ?>
+    <?php if($invoiceIsDraft && $CI->permissions('sales_payment_add') && $CI->permissions('sales_edit')): ?>
+      <a class="mp-qa-btn" href="<?= base_url('sales/update/'.(int)$sales_id.'?record_payment=1'); ?>">Issue &amp; record payment</a>
+    <?php endif; ?>
     <?php if(!$invoiceIsDraft && empty($workflowRow->pos) && $invoiceDocumentState!=='sent' && $CI->permissions('sales_edit')): ?>
       <?= form_open('sales/mark_sent', ['style'=>'display:inline']); ?><input type="hidden" name="sales_id" value="<?= (int)$sales_id; ?>"><button class="mp-qa-btn" type="submit">Mark as sent / shared</button><?= form_close(); ?>
     <?php endif; ?>
@@ -502,6 +505,6 @@ $invoiceIsDraft=$invoiceDocumentState==='draft';
 <?php if($invoiceIsDraft): ?><p class="msg-alert" role="status">Draft — not a payable invoice. Issue it from Edit before collecting payments. No stock has been consumed.</p><?php endif; ?>
 <input type="hidden" id="base_url" value="<?= htmlspecialchars(base_url(),ENT_QUOTES,'UTF-8'); ?>">
 <div class="pay_now_modal"></div><div class="view_payments_modal"></div>
-<script src="<?= htmlspecialchars(base_url('theme/js/sales.js?v=16'),ENT_QUOTES,'UTF-8'); ?>"></script>
+<script src="<?= htmlspecialchars(base_url('theme/js/sales.js?v='.app_version()),ENT_QUOTES,'UTF-8'); ?>"></script>
 
 </div>

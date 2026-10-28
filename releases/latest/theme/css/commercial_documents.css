@@ -1,4 +1,17 @@
 /* Keep commercial descriptions useful without letting them set the page width. */
+.invoice-workflow-controls { display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);align-items:center;gap:12px 20px;padding:14px 16px;margin:14px 0;background:var(--mp-surface,#fff);border:1px solid var(--mp-border,#dbe3ed);border-radius:12px;min-width:0; }
+#sales-form .invoice-workflow-controls .iw-status-field>label,.invoice-workflow-controls .iw-status-field>label { display:block!important;width:auto!important;margin:0 0 6px!important;font-size:13px!important;font-weight:600;text-transform:none!important;letter-spacing:normal!important;text-align:left!important; }
+.invoice-workflow-controls .iw-status-select-wrap { min-width:0; }
+.invoice-workflow-controls .iw-status-trigger { display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 12px;min-height:42px;border:1px solid var(--mp-border,#cbd5e1);border-radius:9px;background:var(--mp-surface,#fff);color:var(--mp-text,#172033);font:inherit;font-size:14px;cursor:pointer;text-align:left; }
+.invoice-workflow-controls .iw-status-trigger:after { content:'⌄';font-size:17px;line-height:1; }
+.invoice-workflow-controls .iw-status-options { margin-top:5px;max-height:180px;overflow-y:auto;border:1px solid var(--mp-border,#cbd5e1);border-radius:9px;background:var(--mp-surface,#fff); }
+.invoice-workflow-controls .iw-status-options[hidden] { display:none!important; }
+.invoice-workflow-controls .iw-status-options button { display:block;width:100%;padding:10px 12px;border:0;background:transparent;color:var(--mp-text,#172033);text-align:left;font:inherit;cursor:pointer;border-radius:0; }
+.invoice-workflow-controls .iw-status-options button[aria-selected=true] { background:var(--mp-bg,#eff6ff);color:var(--mp-primary,#0057ff);font-weight:600; }
+.invoice-workflow-controls .iw-status-trigger:focus-visible,.invoice-workflow-controls .iw-status-options button:focus-visible { outline:2px solid var(--mp-primary,#0057ff);outline-offset:2px; }
+.invoice-workflow-controls #invoice-workflow-help { margin:0;font-size:13px;line-height:1.5;color:var(--mp-muted,#64748b); }
+.invoice-workflow-controls .iw-sent-note { grid-column:1/-1;margin:0;font-size:12px;color:var(--mp-muted,#64748b); }
+@media(max-width:640px){.invoice-workflow-controls{grid-template-columns:minmax(0,1fr);gap:9px;padding:12px;}}
 .mp-document-scope { min-width:0; max-width:100%; }
 .mp-document-scope .item-desc,.mp-document-scope .quotation-item-description,
 .mp-document-scope .si-name,.mp-document-scope .mp-line-description {

@@ -493,7 +493,7 @@ padding-right: 2px;
                                        <span class="input-group-addon pointer" data-toggle="modal" data-target="#customer-modal" title="New <?= mp_label('customer'); ?>?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
                                     </div>
                                     <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
-                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> For Pay later, select or create a named customer. Walk-in invoices must be paid in full when issued; a draft can be saved without payment.
+                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> This invoice can be saved unpaid. Use a named customer for clearer customer history.
                                     </div>
                                     <span id="customer_id_msg" style="display:none" class="text-danger"></span>
                                     <lable><?= $this->lang->line('previous_due'); ?> :<label class="customer_previous_due text-red" style="font-size: 18px;">0.00</label></lable>
@@ -949,11 +949,8 @@ padding-right: 2px;
                                    //Change Return
                                     $send_sms_checkbox='disabled';
                                     if($CI->is_sms_enabled()){
-                                      if(!isset($sales_id)){
-                                        $send_sms_checkbox='checked';  
-                                      }else{
-                                        $send_sms_checkbox='';
-                                      }
+                                      // Customer SMS is an explicit opt-in for each document.
+                                      $send_sms_checkbox='';
                                     }
 
                               ?>
@@ -1042,7 +1039,7 @@ padding-right: 2px;
 <!-- Bootstrap WYSIHTML5 -->
 <script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
 
-<script src="<?php echo $theme_link; ?>js/sales.js?v=16"></script>
+<script src="<?php echo $theme_link; ?>js/sales.js?v=<?= htmlspecialchars(app_version(),ENT_QUOTES,'UTF-8'); ?>"></script>
 <script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
       <script>
 
@@ -1322,7 +1319,7 @@ padding-right: 2px;
          
              $("#round_off_amt").html(to_Fixed(subtotal_diff)); 
              $("#total_amt").html(to_Fixed(subtotal_round)); 
-             if(save_operation()){
+             if(save_operation() && !document.getElementById('standard_invoice_editor')){
                $("#amount").val(to_Fixed(subtotal_round));
              }
              $("#hidden_total_amt").val(to_Fixed(subtotal_round)); 
@@ -1337,7 +1334,7 @@ padding-right: 2px;
              $("#hidden_discount_to_all_amt").html('0.00'); 
              $("#subtotal_amt").html('0.00'); 
              $("#other_charges_amt").html('0.00');
-               $("#amount").val('0.00');
+               if(!document.getElementById('standard_invoice_editor'))$("#amount").val('0.00');
            }
            
           // adjust_payments();

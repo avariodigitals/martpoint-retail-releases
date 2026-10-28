@@ -87,11 +87,8 @@
                                    //Change Return
                                     $send_sms_checkbox='disabled';
                                     if($CI->is_sms_enabled()){
-                                      if(!isset($sales_id)){
-                                        $send_sms_checkbox='checked';  
-                                      }else{
-                                        $send_sms_checkbox='';
-                                      }
+                                      // Customer SMS is an explicit opt-in for each document.
+                                      $send_sms_checkbox='';
                                     }
 
                               ?>
@@ -357,7 +354,7 @@
                 </select>
                 <span id="customer_id_msg" style="display:none" class="text-danger"></span>
                 <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;border-radius:8px;">
-                  <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in Customer:</strong> Must pay in full — credit not allowed.
+                  <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in Customer:</strong> This invoice can be saved unpaid. Use a named customer for clearer customer history.
                 </div>
                 <div style="margin-top:6px;font-size:13px;color:var(--mp-muted);">
                   Previous Due: <span class="customer_previous_due text-danger" style="font-weight:700;">0.00</span>
@@ -631,8 +628,8 @@ if(isset($sales_id)){
             <div class="card-title"><?= $is_clean_document ? 'Record payment (optional)' : 'Payment'; ?></div><?php if ($is_clean_document): ?><p class="garden-document-help">Enter only money already received. Leave the amount at zero to issue an unpaid invoice.</p><?php endif; ?>
             <div class="payment-fields" style="grid-template-columns: 1fr;">
               <div class="form-group" style="margin:0;">
-                <label for="amount">Amount</label>
-                <input type="text" class="form-control text-right paid_amt only_currency" id="amount" name="amount" placeholder="">
+                <label for="amount">Amount received (optional)</label>
+                <input type="text" class="form-control text-right paid_amt only_currency" id="amount" name="amount" placeholder="0.00" inputmode="decimal">
                 <span id="amount_msg" style="display:none" class="text-danger"></span>
               </div>
               <div class="form-group" style="margin:0;">
@@ -769,7 +766,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
     return (walkin_customer_id && cid == walkin_customer_id);
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=16"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=<?= htmlspecialchars(app_version(),ENT_QUOTES,'UTF-8'); ?>"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
 <script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
       <script>
@@ -1060,7 +1057,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
          
              $("#round_off_amt").html(money(subtotal_diff)); 
              $("#total_amt").html(money(subtotal_round)); 
-             if(save_operation()){
+             if(save_operation() && !document.getElementById('standard_invoice_editor')){
                $("#amount").val(to_Fixed(subtotal_round));
              }
              $("#hidden_total_amt").val(to_Fixed(subtotal_round)); 
@@ -1074,7 +1071,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
              $("#discount_to_all_amt").html(money(0)); 
              $("#hidden_discount_to_all_amt").val(to_Fixed(0)); 
              $("#other_charges_amt").html(money(0));
-             $("#amount").val(to_Fixed(0));
+             if(!document.getElementById('standard_invoice_editor'))$("#amount").val(to_Fixed(0));
            }
            
           // adjust_payments();

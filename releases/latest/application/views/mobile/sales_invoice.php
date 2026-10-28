@@ -300,6 +300,9 @@
       <?php if(!$invoiceIsDraft && empty($pos) && $CI->permissions('sales_payment_add') && (float)$grand_total>(float)$paid_amount): ?>
       <div class="card"><a href="<?= base_url('mobile/pay_due/'.$sales_id); ?>" style="display:block;padding:14px;background:var(--mp-primary);color:white;text-align:center;border-radius:12px;font-weight:700;">Record payment</a></div>
       <?php endif; ?>
+      <?php if($invoiceIsDraft && $CI->permissions('sales_payment_add') && $CI->permissions('sales_edit')): ?>
+      <div class="card"><a href="<?= base_url('sales/update/'.(int)$sales_id.'?record_payment=1'); ?>" style="display:block;padding:14px;background:var(--mp-primary);color:white;text-align:center;border-radius:12px;font-weight:700;">Issue &amp; record payment</a></div>
+      <?php endif; ?>
       <?php if(!$invoiceIsDraft && empty($pos) && $documentState!=='sent' && $CI->permissions('sales_edit')): ?>
       <div class="card"><?= form_open('sales/mark_sent'); ?><input type="hidden" name="sales_id" value="<?= (int)$sales_id; ?>"><input type="hidden" name="mobile" value="1"><button type="submit" style="padding:12px;border:1px solid var(--mp-border);border-radius:12px;background:white;">Mark as sent / shared</button><?= form_close(); ?></div>
       <?php endif; ?>

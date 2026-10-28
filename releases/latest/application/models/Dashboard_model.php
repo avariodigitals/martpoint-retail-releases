@@ -2,6 +2,16 @@
 
 class Dashboard_model extends CI_Model
 {
+	/** Dashboard cards recognize received value on standard invoices. */
+	private function dashboardSalesAmount($alias = ''){
+		$prefix = $alias !== '' ? $alias . '.' : '';
+		return "CASE WHEN COALESCE({$prefix}pos,0)=0 THEN LEAST(COALESCE({$prefix}paid_amount,0),COALESCE({$prefix}grand_total,0)) ELSE COALESCE({$prefix}grand_total,0) END";
+	}
+
+	private function dashboardHasReceivedSales($alias = ''){
+		$prefix = $alias !== '' ? $alias . '.' : '';
+		return "(COALESCE({$prefix}pos,0)<>0 OR COALESCE({$prefix}paid_amount,0)>0)";
+	}
 
 	//Datatable start
 		var $table = 'db_items a';
@@ -167,9 +177,10 @@ class Dashboard_model extends CI_Model
 				$this->db->where('store_id', $store_id);
 				if(!empty($warehouse_id)){ $this->db->where('warehouse_id', $warehouse_id); }
 				$this->db->where('sales_status', 'Final');
+				$this->db->where($this->dashboardHasReceivedSales(), null, false);
 				$this->db->where('sales_date >=', $from);
 				$this->db->where('sales_date <=', $to);
-				$this->db->select('COALESCE(SUM(grand_total),0) AS total');
+				$this->db->select('COALESCE(SUM(' . $this->dashboardSalesAmount() . '),0) AS total', false);
 				$this->db->from('db_sales');
 				return $this->db->get()->row()->total;
 			}
@@ -296,6 +307,7 @@ class Dashboard_model extends CI_Model
 		$this->db->select("coalesce(count(*),0) as tot_sal");
 		$this->db->from("db_sales");
 		$this->db->where("`sales_status`= 'Final'");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$tot_sal=$this->db->get()->row()->tot_sal;
 		$info['tot_sal']=$tot_sal;
 
@@ -319,9 +331,10 @@ class Dashboard_model extends CI_Model
 					$this->db->where("store_id",get_current_store_id());	
 			/*}*/
 		$this->get_by_date('sales_date');//DATES FUNCTION
-		$this->db->select("COALESCE(sum(grand_total),0) AS tot_sal_grand_total");
+		$this->db->select("COALESCE(sum(" . $this->dashboardSalesAmount() . "),0) AS tot_sal_grand_total", false);
 		$this->db->from("db_sales");
 		$this->db->where("`sales_status`= 'Final'");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$tot_sal_grand_total=$this->db->get()->row()->tot_sal_grand_total;
 		$info['tot_sal_grand_total']=$CI->currency(kmb($tot_sal_grand_total-$tot_sal_ret_grand_total));
 
@@ -382,20 +395,22 @@ class Dashboard_model extends CI_Model
 		$yesterday = date('Y-m-d', strtotime('-1 day'));
 
 		// Today
-		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as total", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_date", $today);
 		$this->db->where("sales_status", "Final");
 		$this->db->where("store_id", $store_id);
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$today_sales = $this->db->get()->row()->total;
 
 		// Yesterday
-		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as total", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_date", $yesterday);
 		$this->db->where("sales_status", "Final");
 		$this->db->where("store_id", $store_id);
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$yesterday_sales = $this->db->get()->row()->total;
 
@@ -430,22 +445,25 @@ class Dashboard_model extends CI_Model
 		$today = date('Y-m-d');
 
 		// Revenue from db_sales
-		$this->db->select("COALESCE(SUM(grand_total),0) as revenue");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as revenue", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_date", $today);
 		$this->db->where("sales_status", "Final");
 		$this->db->where("store_id", $store_id);
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$revenue = $this->db->get()->row()->revenue;
 
 		// Cost = purchase_price * qty from db_salesitems joined to today's sales
-		$this->db->select("COALESCE(SUM(CASE WHEN b.purchase_price > 0 THEN b.purchase_price ELSE COALESCE(c.purchase_price,0) END * b.sales_qty),0) as cost");
+		$receivedShare = "CASE WHEN COALESCE(a.pos,0)=0 THEN CASE WHEN COALESCE(a.grand_total,0)>0 THEN LEAST(COALESCE(a.paid_amount,0),a.grand_total)/a.grand_total ELSE 0 END ELSE 1 END";
+		$this->db->select("COALESCE(SUM((CASE WHEN b.purchase_price > 0 THEN b.purchase_price ELSE COALESCE(c.purchase_price,0) END * b.sales_qty) * {$receivedShare}),0) as cost", false);
 		$this->db->from("db_sales a");
 		$this->db->join("db_salesitems b", "a.id = b.sales_id", "left");
 		$this->db->join("db_items c", "c.id = b.item_id", "left");
 		$this->db->where("a.sales_date", $today);
 		$this->db->where("a.sales_status", "Final");
 		$this->db->where("a.store_id", $store_id);
+		$this->db->where($this->dashboardHasReceivedSales('a'), null, false);
 		if(!empty($warehouse_id)){ $this->db->where("a.warehouse_id", $warehouse_id); }
 		$cost = $this->db->get()->row()->cost;
 
@@ -914,9 +932,10 @@ class Dashboard_model extends CI_Model
 		$activities = array();
 
 		// Recent sales
-		$this->db->select("sales_code, grand_total, created_date, created_time, customer_id");
+		$this->db->select("sales_code, " . $this->dashboardSalesAmount() . " AS dashboard_amount, created_date, created_time, customer_id", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$this->db->order_by("id", "desc");
@@ -927,7 +946,7 @@ class Dashboard_model extends CI_Model
 				$activities[] = array(
 					'type' => 'sale',
 					'title' => 'Sale #' . $row->sales_code,
-					'amount' => $row->grand_total,
+					'amount' => $row->dashboard_amount,
 					'date' => $row->created_date . ' ' . $row->created_time
 				);
 			}
@@ -962,17 +981,19 @@ class Dashboard_model extends CI_Model
 		$store_id = get_current_store_id();
 
 		// Sales change this week
-		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as total", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("sales_date > DATE_SUB(NOW(), INTERVAL 7 DAY)");
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$this_week = $this->db->get()->row()->total;
 
-		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as total", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("sales_date > DATE_SUB(NOW(), INTERVAL 14 DAY)");
 		$this->db->where("sales_date <= DATE_SUB(NOW(), INTERVAL 7 DAY)");
 		$this->db->where("store_id", $store_id);
@@ -1017,9 +1038,9 @@ class Dashboard_model extends CI_Model
 			$date_clause = " AND s.sales_date >= '{$range_info['from']}' AND s.sales_date <= '{$range_info['to']}'";
 		}
 
-		$this->db->select("w.id, w.warehouse_name, COALESCE(SUM(s.grand_total),0) as sales");
+		$this->db->select("w.id, w.warehouse_name, COALESCE(SUM(" . $this->dashboardSalesAmount('s') . "),0) as sales", false);
 		$this->db->from("db_warehouse w");
-		$this->db->join("db_sales s", "s.warehouse_id = w.id AND s.sales_status = 'Final'{$date_clause}", "left");
+		$this->db->join("db_sales s", "s.warehouse_id = w.id AND s.sales_status = 'Final' AND {$this->dashboardHasReceivedSales('s')}{$date_clause}", "left", false);
 		$this->db->where("w.store_id", $store_id);
 		$this->db->where("w.status", 1);
 		$this->db->group_by("w.id");
@@ -1452,9 +1473,10 @@ class Dashboard_model extends CI_Model
 		$info = $this->get_range_info($range);
 
 		// Current period
-		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as total", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$this->apply_range_where('sales_date', $range);
@@ -1462,9 +1484,10 @@ class Dashboard_model extends CI_Model
 
 		// Previous period
 		$prev_info = $this->get_range_info($range);
-		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as total", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		if($prev_info['prev_from'] === $prev_info['prev_to']){
@@ -1491,20 +1514,23 @@ class Dashboard_model extends CI_Model
 		$info = $this->get_range_info($range);
 
 		// Revenue
-		$this->db->select("COALESCE(SUM(grand_total),0) as revenue");
+		$this->db->select("COALESCE(SUM(" . $this->dashboardSalesAmount() . "),0) as revenue", false);
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$this->apply_range_where('sales_date', $range);
 		$revenue = $this->db->get()->row()->revenue;
 
 		// Cost = purchase_price * qty, fall back to the item's current purchase_price if the sale row is missing it
-		$this->db->select("COALESCE(SUM(CASE WHEN b.purchase_price > 0 THEN b.purchase_price ELSE COALESCE(c.purchase_price,0) END * b.sales_qty),0) as cost");
+		$receivedShare = "CASE WHEN COALESCE(a.pos,0)=0 THEN CASE WHEN COALESCE(a.grand_total,0)>0 THEN LEAST(COALESCE(a.paid_amount,0),a.grand_total)/a.grand_total ELSE 0 END ELSE 1 END";
+		$this->db->select("COALESCE(SUM((CASE WHEN b.purchase_price > 0 THEN b.purchase_price ELSE COALESCE(c.purchase_price,0) END * b.sales_qty) * {$receivedShare}),0) as cost", false);
 		$this->db->from("db_sales a");
 		$this->db->join("db_salesitems b", "a.id = b.sales_id", "left");
 		$this->db->join("db_items c", "c.id = b.item_id", "left");
 		$this->db->where("a.sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales('a'), null, false);
 		$this->db->where("a.store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("a.warehouse_id", $warehouse_id); }
 		$this->apply_range_where('a.sales_date', $range);
@@ -1538,6 +1564,7 @@ class Dashboard_model extends CI_Model
 
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		$this->apply_range_where('sales_date', $range);
@@ -1545,6 +1572,7 @@ class Dashboard_model extends CI_Model
 
 		$this->db->from("db_sales");
 		$this->db->where("sales_status", "Final");
+		$this->db->where($this->dashboardHasReceivedSales(), null, false);
 		$this->db->where("store_id", $store_id);
 		if(!empty($warehouse_id)){ $this->db->where("warehouse_id", $warehouse_id); }
 		if($info['prev_from'] === $info['prev_to']){

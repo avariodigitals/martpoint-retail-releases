@@ -297,11 +297,8 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
     <?php
     $send_sms_checkbox='disabled';
     if($CI->is_sms_enabled()){
-      if(!isset($quotation_id)){
-        $send_sms_checkbox='checked';
-      }else{
-        $send_sms_checkbox='';
-      }
+    // Customer SMS is an explicit opt-in for each document.
+    $send_sms_checkbox='';
     }
     ?>
     <div class="mp-form-group full" style="flex-direction:row;align-items:center;gap:10px;margin-top:16px;">

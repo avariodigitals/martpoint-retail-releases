@@ -498,4 +498,5 @@ return [
           '4.0.9.212v' => '4.0.9.212_retail_document_stability.sql',
           '4.0.9.213v' => '4.0.9.213_messaging_table_separation.sql',
           '4.0.9.214v' => '4.0.9.214_sales_render_and_login_runtime.sql',
+          '4.0.9.215v' => '4.0.9.215_invoice_payments_and_setup_checkpoints.sql',
 ];

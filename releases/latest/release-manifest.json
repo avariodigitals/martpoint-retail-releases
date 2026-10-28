@@ -1,13 +1,13 @@
 {
-    "version": "4.0.9.214",
+    "version": "4.0.9.215",
     "previous_version": "4.0.9.194",
     "release_date": "2026-10-28",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
             "path": "application/views/sales_mobile.php",
-            "hash": "e149d3da11e39e896424e105ac685d6d1027502a1e1ff9f3c8b0bfdb9c8a1949",
-            "size": 77883
+            "hash": "9766bf1893f28f13a3b4dcb35f3e499fddea0ee45c0e8ce7575276490a8a3ade",
+            "size": 77870
         },
         {
             "path": "application/views/marketing/desktop/segments.php",
@@ -546,8 +546,8 @@
         },
         {
             "path": "application/views/quotation/quotation.php",
-            "hash": "89bc9c912e845f42eead02ca7824a236c7a5ec34bd6120ba37bd9d215068437c",
-            "size": 34248
+            "hash": "a14952863a390493b2b5e69fea93a3850fb8ca0a52d48b3dd44a04b370739a86",
+            "size": 34213
         },
         {
             "path": "application/views/quotation/_items_table.php",
@@ -2836,8 +2836,8 @@
         },
         {
             "path": "application/views/mobile/sales_invoice.php",
-            "hash": "8a2d169779f783021a1454a5465cf594f323910ddc274e7023d36c9de77ad858",
-            "size": 23163
+            "hash": "3f85124796c72636261b07a0542b401ea39c66fc8a6cab3d5eb05ccb3e99ac07",
+            "size": 23566
         },
         {
             "path": "application/views/mobile/quotations.php",
@@ -4721,8 +4721,8 @@
         },
         {
             "path": "application/views/messaging/setup.php",
-            "hash": "49810bbf236ced76c6d55179b6fa1045869286427d9873bb7a416d42d0859331",
-            "size": 2220
+            "hash": "975c4aee5e7567a2f9919b7e06f6c1a206ae9533cff074dd0b953009217fb04f",
+            "size": 2630
         },
         {
             "path": "application/views/comman/intelligence_card.php",
@@ -4991,8 +4991,8 @@
         },
         {
             "path": "application/views/sales.php",
-            "hash": "6e8c803047f2cf4e44621e3c4a0570baf32db6c322d55c999dab0b9a6155080c",
-            "size": 63041
+            "hash": "3677ec9fb2c2cdd9ff3ed8445a6f5387b40c15c9f08ff1b60bbe0d109482f9ff",
+            "size": 63170
         },
         {
             "path": "application/views/sms-template.php",
@@ -5356,8 +5356,8 @@
         },
         {
             "path": "application/views/sal-invoice.php",
-            "hash": "04c19d99757f622d38fd0bffa652573b820d0c9527d4884f0bbf19944fc577db",
-            "size": 28654
+            "hash": "ab6d6367a81a4b39836f469411637c7a209a67b1bfe73a1c65bb7c8d174f82ab",
+            "size": 28929
         },
         {
             "path": "application/views/package-list.php",
@@ -5951,8 +5951,8 @@
         },
         {
             "path": "application/views/sales/invoice_controls.php",
-            "hash": "81d80129c4e20a048d347385d116b383bd501c73990066eeb54b7789fb6e4b2d",
-            "size": 2326
+            "hash": "bcd009cc56b107955215c2fc1f71e6ba8e9fca8177ed07f6eaad7fa1756b85e9",
+            "size": 1637
         },
         {
             "path": "application/views/pos.php",
@@ -6466,8 +6466,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "6c9a042b4bd55a677a0d2a393f6eac36353a6666d4d7162cfb0098e2d4b0dc00",
-            "size": 32081
+            "hash": "184d6aa93fa196954d066eba0ab3facceebf4348db141f2844f2dad2d082b051",
+            "size": 32163
         },
         {
             "path": "application/config/routes.php",
@@ -7111,8 +7111,8 @@
         },
         {
             "path": "application/models/Dashboard_model.php",
-            "hash": "8c975b85dea4c29e8979d011500efe6501047550e1220b7f943c6c514214bd51",
-            "size": 60758
+            "hash": "fa9d2480c2aff028ec2dc91d0977c5f52351562ef666a7d6b40970c2031a04bd",
+            "size": 63325
         },
         {
             "path": "application/models/Membership_model.php",
@@ -7391,8 +7391,8 @@
         },
         {
             "path": "application/models/Sales_model.php",
-            "hash": "1c66c889fbe6a03ae27a913248738d496496b48fa543da578d9aed64b5b48982",
-            "size": 115009
+            "hash": "2759f3c5468083e8e6571879246fbb310a432c88e6a24de5d1dc8699cb19965d",
+            "size": 115306
         },
         {
             "path": "application/models/Butchery_model.php",
@@ -8066,8 +8066,8 @@
         },
         {
             "path": "application/controllers/Sales.php",
-            "hash": "773cd91e6643af43313722c69d1820a128fb869406abde4da27a8078dbc5fee4",
-            "size": 20603
+            "hash": "3495bc788fbbac0819f5a0ec1df901a17853d24ed5f3329c3264999aefd66548",
+            "size": 20639
         },
         {
             "path": "application/controllers/Account_transactions.php",
@@ -10031,8 +10031,8 @@
         },
         {
             "path": "application/libraries/Messaging_schema.php",
-            "hash": "009480dc4744bf714b49d461e4b92351c4143f196ca83193dfbc53b2b26e46cb",
-            "size": 10411
+            "hash": "2309b16d629f37547fb685812b461c1f15f98524a41aa90bf67ca6d586e5f475",
+            "size": 16151
         },
         {
             "path": "application/libraries/tcpdf/tools/tcpdf_addfont.php",
@@ -12701,7 +12701,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "bf26da00e234205d46ade460e2a87aacf99106a99982c5458f3c15fb6b84e4d7",
+            "hash": "594ae35272960b94e6b5d26f34f39e62a365bd70f00339601b953c5bd79b7d4f",
             "size": 126135
         },
         {
@@ -12946,8 +12946,8 @@
         },
         {
             "path": "theme/css/commercial_documents.css",
-            "hash": "3d7077b95b9d7c41c8001767a0571c7537fa57b5dfd3e06896089724f96095ab",
-            "size": 2846
+            "hash": "eafedc87135c5bd6ee12ced6301e86e2cc389a0882d5c667285f0b5eedc1bcf3",
+            "size": 5154
         },
         {
             "path": "theme/css/assist.css",
@@ -13491,8 +13491,8 @@
         },
         {
             "path": "theme/js/sales.js",
-            "hash": "ec047885e26bbcfefc9c0c3514918fa75de7cb6747eca9a9eaa329d3187b0dea",
-            "size": 26363
+            "hash": "7249b0697adbe3ed23cd380d934926274fb5d0d3c5d6f783176a093ceeca0857",
+            "size": 26420
         },
         {
             "path": "theme/js/purchase_return.js",
@@ -13576,8 +13576,8 @@
         },
         {
             "path": "theme/js/invoice_workflow.js",
-            "hash": "d47e7e42057b8d17032e538350c0f14a7b29cf83675f682544bfc00aca482326",
-            "size": 2805
+            "hash": "01568c153bfc437c022a827d06d4303e4e2c4961f1f3b35b17daa671a1f27497",
+            "size": 4391
         },
         {
             "path": "theme/js/report-seller-points.js",
@@ -13663,6 +13663,11 @@
             "path": "theme/js/messaging_campaigns.js",
             "hash": "958f01ce2cf49005aa8bf4beaa1e397bb86dc6df32e7666ae46d10d4900ea0ab",
             "size": 2412
+        },
+        {
+            "path": "theme/js/messaging_setup.js",
+            "hash": "ad321c804412e0ead3762173cf10c0cad2545d975e2a4221fcf265ccc6a8d7cf",
+            "size": 2756
         },
         {
             "path": "theme/js/payment_types.js",
@@ -19597,7 +19602,8 @@
         "4.0.9.211_standard_invoice_lifecycle.sql",
         "4.0.9.212_retail_document_stability.sql",
         "4.0.9.213_messaging_table_separation.sql",
-        "4.0.9.214_sales_render_and_login_runtime.sql"
+        "4.0.9.214_sales_render_and_login_runtime.sql",
+        "4.0.9.215_invoice_payments_and_setup_checkpoints.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -19606,6 +19612,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "2acce20f98da17add0712abd37ca25cf3551857d8b961414165c5a7142c8327190b91419bb9c3de4d3a6128770ffe2d9483f96c27c77d4f473c0caae7a313e02",
-    "changelog": "Release 4.0.9.214"
+    "signature": "cacf3dfdb5f9836982f89413f6c162c8364deca300496194f07d25bd3379c716c79a5215ccf8353883625dde34b62fc6338d818a8ef23bb3e967207462b13d0f",
+    "changelog": "Release 4.0.9.215"
 }
