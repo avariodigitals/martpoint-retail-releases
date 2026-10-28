@@ -112,7 +112,8 @@ class MY_Controller extends CI_Controller{
                                 'VIEW_DATE'     => $date_view_format,
                                 'CUR_TIME'      => $time_format,
                                 'SYSTEM_IP'     => $_SERVER['REMOTE_ADDR'],
-                                'SYSTEM_NAME'   => gethostbyaddr($_SERVER['REMOTE_ADDR']),
+                                // Metadata only: never block a login/page render on reverse DNS.
+                                'SYSTEM_NAME'   => ($_SERVER['REMOTE_ADDR'] ?? ''),
                                 'CUR_USERNAME'  => $this->session->userdata('inv_username'),
                                 'CUR_USERID'    => $this->session->userdata('inv_userid'),
                                 'CUR_USERID'    => $this->session->userdata('inv_userid'),
@@ -572,7 +573,12 @@ class MY_Controller extends CI_Controller{
         { 
           //Before Login purpose only
           $this->load->model('updates_model');
+          $migration_started = microtime(true);
           $this->updates_model->index();
+          $migration_ms = (int)round((microtime(true)-$migration_started)*1000);
+          if($migration_ms >= 2000){
+            log_message('error','Slow login migration phase: '.$migration_ms.'ms; previous DB version '.(string)$this->updates_model->db_version.'. Review failed migration jobs; no versions were skipped.');
+          }
         }
 
 }

@@ -1,14 +1,46 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/** Readiness checks and explicit, additive recovery of the .208 messaging schema. */
+/** Explicit additive recovery; customer inbox and billed dispatches are separate. */
 class Messaging_schema {
     private $CI;
     public function __construct() { $this->CI =& get_instance(); }
     private function migration() {
         $path = APPPATH.'../updates/migrations/4.0.9.208_messaging_credits.sql';
         if (!is_readable($path)) throw new RuntimeException('The messaging migration file is missing. Re-upload the complete Central package.');
-        return preg_replace('/^\s*--[^\n]*$/m', '', file_get_contents($path));
+        $separation = APPPATH.'../updates/migrations/4.0.9.213_messaging_table_separation.sql';
+        if (!is_readable($separation)) throw new RuntimeException('The messaging separation migration is missing. Re-upload the complete Central package.');
+        // .208 reused the .171 inbox table name. Its historical SQL stays intact;
+        // explicit setup creates the billing shape under its own canonical name.
+        $sql = str_replace('CREATE TABLE IF NOT EXISTS db_messaging_messages (',
+            'CREATE TABLE IF NOT EXISTS db_messaging_dispatches (',file_get_contents($path));
+        return preg_replace('/^\s*--[^\n]*$/m', '', $sql."\n".file_get_contents($separation));
+    }
+    private function legacy() {
+        $db=$this->CI->db;
+        $result=array('pending'=>false,'problem'=>'','count'=>0,'max_id'=>0);
+        if (!$db->table_exists('db_messaging_messages') || !$db->field_exists('account_id','db_messaging_messages')) return $result;
+        if (!$db->field_exists('id','db_messaging_messages')) {
+            $result['problem']='The old billing table has no message identity. Support must review it before setup can continue.';
+            return $result;
+        }
+        $stats=$db->query('SELECT COUNT(*) AS n,COALESCE(MAX(id),0) AS max_id FROM db_messaging_messages')->row();
+        if (!$stats || !(int)$stats->n) return $result;
+        $result['count']=(int)$stats->n;$result['max_id']=(int)$stats->max_id;
+        if ($db->field_exists('conversation_id','db_messaging_messages')) {
+            $result['problem']='The old message table mixes inbox and billing fields. Support must review it; no history will be guessed.';
+            return $result;
+        }
+        preg_match('/CREATE TABLE IF NOT EXISTS db_messaging_dispatches\s*\((.*?)\) ENGINE=/s',$this->migration(),$definition);
+        preg_match_all('/^\s*(\w+)\s+(?:BIGINT|TINYINT|INT|VARCHAR|CHAR|TEXT|DATETIME)\b/m',$definition[1],$fields);
+        foreach($fields[1] as $field) if(!$db->field_exists($field,'db_messaging_messages')) {
+            $result['problem']='The old billing history is incomplete. Support must review its schema before copying it.';
+            return $result;
+        }
+        $record=$db->table_exists('db_messaging_schema_imports') && $db->field_exists('source_table','db_messaging_schema_imports')
+            ? $db->where('source_table','db_messaging_messages')->get('db_messaging_schema_imports')->row_array() : null;
+        $result['pending']=!$record || (int)($record['source_count'] ?? -1)!==$result['count'] || (int)($record['source_max_id'] ?? -1)!==$result['max_id'];
+        return $result;
     }
     public function status() {
         $db = $this->CI->db;
@@ -16,8 +48,9 @@ class Messaging_schema {
         $db->data_cache = array();
         $missing = array(); $columns = array();
         preg_match_all('/CREATE TABLE IF NOT EXISTS (db_messaging_\w+)\s*\((.*?)\) ENGINE=/s', $this->migration(), $tables, PREG_SET_ORDER);
-        if (count($tables) !== 9) throw new RuntimeException('The messaging migration is incomplete. Re-upload the complete Central package.');
-        foreach ($tables as $table) {
+        $unique=array();foreach($tables as $table)$unique[$table[1]]=$table;
+        if (count($unique) !== 10) throw new RuntimeException('The messaging migration is incomplete. Re-upload the complete Central package.');
+        foreach ($unique as $table) {
             if (!$db->table_exists($table[1])) { $missing[] = $table[1]; continue; }
             preg_match_all('/^\s*(\w+)\s+(?:BIGINT|TINYINT|INT|VARCHAR|CHAR|TEXT|DATETIME)\b/m', $table[2], $fields);
             foreach ($fields[1] as $field) if (!$db->field_exists($field, $table[1])) $columns[] = $table[1].'.'.$field;
@@ -28,8 +61,10 @@ class Messaging_schema {
             if (!$row) throw new RuntimeException('Messaging database could not be checked. Review the Central PHP error log.');
             $settingsMissing = $row->num_rows() === 0;
         }
-        return array('ready'=>!$missing && !$columns && !$settingsMissing, 'missing_tables'=>$missing,
-            'missing_columns'=>$columns, 'settings_missing'=>$settingsMissing, 'can_repair'=>!$columns);
+        $legacy=$this->legacy();
+        return array('ready'=>!$missing && !$columns && !$settingsMissing && !$legacy['pending'] && !$legacy['problem'], 'missing_tables'=>$missing,
+            'missing_columns'=>$columns, 'settings_missing'=>$settingsMissing, 'can_repair'=>!$columns && !$legacy['problem'],
+            'legacy_import_pending'=>$legacy['pending'],'legacy_message_count'=>$legacy['count'],'message'=>$legacy['problem']);
     }
     public function repair() {
         if (!mp_is_central() || !special_access()) throw new RuntimeException('Central administrator access is required.');
@@ -42,6 +77,7 @@ class Messaging_schema {
             $q = $db->query("SELECT GET_LOCK('mp_messaging_schema_setup',5) AS acquired");
             $lock = $q && (int)$q->row()->acquired === 1;
             if (!$lock) throw new RuntimeException('Another messaging setup is running. Retry shortly.');
+            if (!$this->status()['can_repair']) throw new RuntimeException('The schema changed while setup was starting. Review the setup diagnostics before continuing.');
             // This fixed, application-owned migration contains only table creation
             // and an INSERT IGNORE default. Never accept a filename or SQL from HTTP.
             foreach (explode(';', $this->migration()) as $sql) {
@@ -55,6 +91,7 @@ class Messaging_schema {
                     throw new RuntimeException('Messaging setup could not finish. Review the Central PHP error log; existing balances are preserved.');
                 }
             }
+            $this->copyLegacyBilling();
             $after = $this->status();
             if (!$after['ready']) throw new RuntimeException('Messaging setup is incomplete. Review the Central PHP error log.');
             // Do not stamp the global DB version or skip unrelated pending migrations.
@@ -63,5 +100,32 @@ class Messaging_schema {
             if ($lock) $db->query("SELECT RELEASE_LOCK('mp_messaging_schema_setup')");
             $db->db_debug = $debug;
         }
+    }
+    private function copyLegacyBilling() {
+        $legacy=$this->legacy();
+        if($legacy['problem'])throw new RuntimeException($legacy['problem']);
+        if(!$legacy['pending'])return;
+        $db=$this->CI->db;
+        $engines=$db->query("SELECT COUNT(*) AS n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('db_messaging_messages','db_messaging_dispatches','db_messaging_schema_imports') AND ENGINE='InnoDB'")->row();
+        if(!$engines || (int)$engines->n!==3)throw new RuntimeException('Billing history copy requires transactional tables. No balances have been changed.');
+        $db->trans_begin();
+        try {
+            $db->query('SELECT id FROM db_messaging_messages FOR UPDATE');
+            $db->query('SELECT id FROM db_messaging_dispatches FOR UPDATE');
+            preg_match('/CREATE TABLE IF NOT EXISTS db_messaging_dispatches\s*\((.*?)\) ENGINE=/s',$this->migration(),$definition);
+            preg_match_all('/^\s*(\w+)\s+(?:BIGINT|TINYINT|INT|VARCHAR|CHAR|TEXT|DATETIME)\b/m',$definition[1],$canonical);
+            $fields=$canonical[1];
+            $quoted=array();$compare=array();$source=array();
+            foreach($fields as $field){$quoted[]='`'.$field.'`';$compare[]='NOT (n.`'.$field.'` <=> o.`'.$field.'`)';$source[]='o.`'.$field.'`';}
+            $conflict=$db->query('SELECT COUNT(*) AS n FROM db_messaging_messages o JOIN db_messaging_dispatches n ON n.id=o.id WHERE '.implode(' OR ',$compare))->row();
+            if(!$conflict || (int)$conflict->n)throw new RuntimeException('Existing dispatch IDs differ from the old billing history. Setup stopped without overwriting either history.');
+            $copy='INSERT INTO db_messaging_dispatches ('.implode(',',$quoted).') SELECT '.implode(',',$source).' FROM db_messaging_messages o LEFT JOIN db_messaging_dispatches n ON n.id=o.id WHERE n.id IS NULL';
+            if(!$db->query($copy))throw new RuntimeException('Billing history could not be copied without a conflict. Both histories are preserved.');
+            $stats=$db->query('SELECT COUNT(*) AS n,COALESCE(MAX(id),0) AS max_id FROM db_messaging_messages')->row();
+            $actor=isset($this->CI->session) ? (string)$this->CI->session->userdata('inv_username') : 'Central setup';
+            if(!$db->query('INSERT INTO db_messaging_schema_imports (source_table,source_count,source_max_id,imported_at,reviewed_by) VALUES (?,?,?,UTC_TIMESTAMP(),?) ON DUPLICATE KEY UPDATE source_count=VALUES(source_count),source_max_id=VALUES(source_max_id),imported_at=VALUES(imported_at),reviewed_by=VALUES(reviewed_by)',
+                array('db_messaging_messages',(int)$stats->n,(int)$stats->max_id,mb_substr($actor,0,100))) || !$db->trans_status())throw new RuntimeException('Could not record the billing-history copy. No copy was committed.');
+            $db->trans_commit();
+        }catch(Throwable $e){$db->trans_rollback();throw $e;}
     }
 }

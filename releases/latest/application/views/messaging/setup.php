@@ -4,9 +4,11 @@
 <p>The application files are installed, but the messaging database is not ready. Paid sends and credit purchases remain unavailable until setup completes.</p>
 <?php if (!empty($setup_message) || !empty($schema_status['message'])): ?><p class="msg-alert" role="alert"><?= $h($setup_message ?: $schema_status['message']); ?></p><?php endif; ?>
 <?php if (!empty($schema_status['missing_tables'])): ?><p class="msg-hint">Missing messaging tables: <?= $h(implode(', ', $schema_status['missing_tables'])); ?></p><?php endif; ?>
-<?php if (!empty($schema_status['missing_columns'])): ?><p class="msg-alert">An existing messaging table is incomplete. Ask support to review its schema. This tool will not rewrite an existing ledger.</p><?php endif; ?>
+<?php if (!empty($schema_status['missing_columns'])): ?><p class="msg-alert">An existing messaging table is incomplete. Ask support to review its schema. This tool will not rewrite an existing ledger.</p><p class="msg-hint">Missing columns: <?= $h(implode(', ',$schema_status['missing_columns'])); ?></p><?php endif; ?>
+<p class="msg-hint">Customer inbox messages are kept separate from credit-billed dispatches. Setup does not rename, delete or alter the existing inbox table.</p>
+<?php if (!empty($schema_status['legacy_import_pending'])): ?><p class="msg-alert"><?= (int)$schema_status['legacy_message_count']; ?> older billing-history records need a guarded copy into the separate dispatch table. Setup preserves their IDs and the original history, and refuses conflicting records. Account balances, purchases and ledger entries are not changed.</p><?php endif; ?>
 <?php if (!empty($schema_status['can_repair'])): ?>
-<p>Back up Central first. This applies the additive .208 messaging table setup only. It does not delete records, reset balances, enable paid channels, change provider keys or mark unrelated migrations complete.</p>
+<p>Back up Central first. This applies the additive messaging table setup and, where required, the guarded billing-history copy. It does not delete records, reset balances, enable paid channels, change provider keys or mark unrelated migrations complete.</p>
 <?= form_open('messaging_admin/setup'); ?><button class="msg-btn" type="submit">Finish messaging database setup</button><?= form_close(); ?>
 <?php endif; ?>
 <p><a href="<?= base_url('messaging_admin'); ?>">Check setup again</a> · <a href="<?= base_url('fleet'); ?>">Fleet Manager</a></p>
